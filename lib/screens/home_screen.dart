@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/vocabulary_list.dart';
 import '../services/database/vocabulary_list_repository.dart';
+import 'list_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -92,7 +93,8 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirmer la suppression'),
-        content: Text('Supprimer "$listName" ?\nCette action est irréversible.'),
+        content:
+            Text('Supprimer "$listName" ?\nCette action est irréversible.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -121,6 +123,17 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _openListDetail(VocabularyList list) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ListDetailScreen(list: list),
+      ),
+    );
+    // Recharger les stats quand on revient
+    _loadLists();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -130,7 +143,6 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              // TODO: Navigate to settings
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Paramètres - À venir')),
               );
@@ -172,7 +184,10 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               'Créez votre première liste pour commencer',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.6),
                   ),
               textAlign: TextAlign.center,
             ),
@@ -205,12 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
-              onTap: () {
-                // TODO: Navigate to list detail
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Ouvrir "${list.name}" - À venir')),
-                );
-              },
+              onTap: () => _openListDetail(list),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -229,8 +239,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               const SizedBox(height: 4),
                               Text(
                                 '${list.lang1Code.toUpperCase()} ↔ ${list.lang2Code.toUpperCase()}',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Theme.of(context).colorScheme.primary,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
                                     ),
                               ),
                             ],
@@ -249,7 +263,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: LinearProgressIndicator(
                         value: totalConcepts > 0 ? progressPercent / 100 : 0,
                         minHeight: 8,
-                        backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                        backgroundColor:
+                            Theme.of(context).colorScheme.surfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -262,26 +277,43 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         Text(
                           '$progressPercent%',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: Theme.of(context).colorScheme.primary,
                               ),
                         ),
                       ],
                     ),
-                    if (totalConcepts > 0) ...[
-                      const SizedBox(height: 12),
-                      FilledButton.icon(
-                        onPressed: () {
-                          // TODO: Start quiz
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Quiz - À venir')),
-                          );
-                        },
-                        icon: const Icon(Icons.play_arrow),
-                        label: const Text('Réviser'),
-                      ),
-                    ],
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () => _openListDetail(list),
+                            icon: const Icon(Icons.edit),
+                            label: const Text('Gérer'),
+                          ),
+                        ),
+                        if (totalConcepts > 0) ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: FilledButton.tonalIcon(
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('Quiz - À venir')),
+                                );
+                              },
+                              icon: const Icon(Icons.play_arrow),
+                              label: const Text('Réviser'),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
               ),
