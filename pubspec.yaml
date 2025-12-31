@@ -1,0 +1,38 @@
+name: vocabulary_app
+description: Application d'apprentissage de vocabulaire multilingue
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Base de données
+  sqflite_common_ffi: ^2.3.0
+  path_provider: ^2.1.0
+  path: ^1.8.3
+
+  # État
+  provider: ^6.1.0
+
+  # Utilitaires
+  uuid: ^4.0.0
+  crypto: ^3.0.0
+  http: ^1.0.0
+
+  # Validation
+  string_similarity: ^2.0.0
+
+  # Parsing
+  csv: ^6.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
