@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../models/vocabulary_list.dart';
 import '../services/database/vocabulary_list_repository.dart';
 import 'list_detail_screen.dart';
+import 'quiz_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -130,7 +131,16 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context) => ListDetailScreen(list: list),
       ),
     );
-    // Recharger les stats quand on revient
+    _loadLists();
+  }
+
+  void _startQuiz(VocabularyList list) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => QuizScreen(list: list),
+      ),
+    );
     _loadLists();
   }
 
@@ -257,7 +267,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // Barre de progression
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: LinearProgressIndicator(
@@ -301,12 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: FilledButton.tonalIcon(
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Quiz - À venir')),
-                                );
-                              },
+                              onPressed: () => _startQuiz(list),
                               icon: const Icon(Icons.play_arrow),
                               label: const Text('Réviser'),
                             ),
