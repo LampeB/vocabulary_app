@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'package:vocabulary_app/screens/settings_screen.dart';
 import '../models/vocabulary_list.dart';
 import '../services/database/vocabulary_list_repository.dart';
 import 'list_detail_screen.dart';
@@ -49,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Nouvelle liste'),
         content: TextField(
+          key: const Key('list_name_field'),
           controller: nameController,
           decoration: const InputDecoration(
             labelText: 'Nom de la liste',
@@ -62,6 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: const Text('Annuler'),
           ),
           FilledButton(
+            key: const Key('create_list_button'),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Créer'),
           ),
@@ -147,16 +150,23 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const Key('home_screen'),
       appBar: AppBar(
-        title: const Text('Mes Listes de Vocabulaire'),
+        key: const Key('home_app_bar'),
+        title: const Text('Mes Listes', key: Key('home_title')),
         actions: [
+          // ← Pas de const ici !
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Paramètres - À venir')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
               );
             },
+            tooltip: 'Paramètres',
           ),
         ],
       ),
@@ -166,6 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ? _buildEmptyState()
               : _buildListView(),
       floatingActionButton: FloatingActionButton.extended(
+        key: const Key('add_list_button'),
         onPressed: _createNewList,
         icon: const Icon(Icons.add),
         label: const Text('Nouvelle liste'),
@@ -175,6 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildEmptyState() {
     return Center(
+      key: const Key('empty_state'),
       child: Padding(
         padding: const EdgeInsets.all(32.0),
         child: Column(
@@ -188,6 +200,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 24),
             Text(
               'Aucune liste de vocabulaire',
+              key: const Key('empty_state_title'),
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
@@ -217,6 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return RefreshIndicator(
       onRefresh: _loadLists,
       child: ListView.builder(
+        key: const Key('vocabulary_list_view'),
         padding: const EdgeInsets.all(16),
         itemCount: _listsWithStats.length,
         itemBuilder: (context, index) {
@@ -272,8 +286,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: LinearProgressIndicator(
                         value: totalConcepts > 0 ? progressPercent / 100 : 0,
                         minHeight: 8,
-                        backgroundColor:
-                            Theme.of(context).colorScheme.surfaceVariant,
+                        backgroundColor: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
                       ),
                     ),
                     const SizedBox(height: 8),

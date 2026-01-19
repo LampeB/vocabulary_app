@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -34,9 +35,11 @@ class DatabaseService {
     final documentsDirectory = await getApplicationDocumentsPath();
     final path = join(documentsDirectory, DatabaseSchema.dbName);
 
-    return await databaseFactory.openDatabase(
-      path,
-      options: OpenDatabaseOptions(
+    // Sur Android/iOS, utiliser openDatabase directement
+    // Sur Desktop, utiliser databaseFactory qui a été configuré dans initializeFfi
+    if (Platform.isAndroid || Platform.isIOS) {
+      return await openDatabase(
+        path,
         version: DatabaseSchema.dbVersion,
         onCreate: DatabaseSchema.onCreate,
         onUpgrade: DatabaseSchema.onUpgrade,
@@ -44,8 +47,21 @@ class DatabaseService {
           // Activer les foreign keys
           await db.execute('PRAGMA foreign_keys = ON');
         },
-      ),
-    );
+      );
+    } else {
+      return await databaseFactory.openDatabase(
+        path,
+        options: OpenDatabaseOptions(
+          version: DatabaseSchema.dbVersion,
+          onCreate: DatabaseSchema.onCreate,
+          onUpgrade: DatabaseSchema.onUpgrade,
+          onConfigure: (db) async {
+            // Activer les foreign keys
+            await db.execute('PRAGMA foreign_keys = ON');
+          },
+        ),
+      );
+    }
   }
 
   // Obtenir le chemin du dossier documents
@@ -198,6 +214,7 @@ class DatabaseService {
       where: 'concept_id = ?',
       whereArgs: [conceptId],
       orderBy: 'position ASC',
+      distinct: true,
     );
   }
 
@@ -211,13 +228,27 @@ class DatabaseService {
     return results.isNotEmpty ? results.first : null;
   }
 
-  Future<int> updateWordVariant(String id, Map<String, dynamic> updates) async {
+  Future<Map<String, dynamic>?> getVariantById(String variantId) async {
     final db = await database;
-    return await db.update(
-      DatabaseSchema.tableWordVariants,
+    final results = await db.query(
+      'word_variants',
+      where: 'id = ?',
+      whereArgs: [variantId],
+    );
+
+    return results.isNotEmpty ? results.first : null;
+  }
+
+  Future<void> updateWordVariant(
+    String variantId,
+    Map<String, dynamic> updates,
+  ) async {
+    final db = await database;
+    await db.update(
+      'word_variants',
       updates,
       where: 'id = ?',
-      whereArgs: [id],
+      whereArgs: [variantId],
     );
   }
 

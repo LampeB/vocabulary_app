@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Appium tests
+appium-tests/node_modules/
+appium-tests/screenshots/
+appium-tests/*.log
+
+# API keys (local config with secrets)
+lib/config/api_keys.dart

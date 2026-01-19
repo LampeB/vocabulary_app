@@ -11,6 +11,7 @@ dependencies:
     sdk: flutter
 
   # Base de données
+  sqflite: ^2.3.0
   sqflite_common_ffi: ^2.3.0
   path_provider: ^2.1.0
   path: ^1.8.3
@@ -29,10 +30,25 @@ dependencies:
   # Parsing
   csv: ^6.0.0
 
+  # Audio
+  audioplayers: ^5.2.1
+
+  # Reconnaissance vocale (STT)
+  speech_to_text: ^7.0.0
+
+  # Préférences
+  shared_preferences: ^2.2.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_driver:
+    sdk: flutter
   flutter_lints: ^3.0.0
+  integration_test:
+    sdk: flutter
+  mockito: ^5.4.0
+  build_runner: ^2.4.0
 
 flutter:
   uses-material-design: true
