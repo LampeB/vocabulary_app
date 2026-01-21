@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<testsuite failures="0" skipped="0" name="cucumber-js" time="401.894362979" tests="6">
+  <testcase classname="App Navigation" name="Navigate to list detail and back" time="90.430731093">
+    <system-out><![CDATA[Given the app is launched.................................................passed
+And I am on the home screen...............................................passed
+Given a vocabulary list "Navigation Test" exists..........................passed
+When I click on the list "Navigation Test"................................passed
+Then I should be on the list detail page..................................passed
+When I navigate back......................................................passed
+Then I should be on the home screen.......................................passed]]></system-out>
+  </testcase>
+  <testcase classname="App Navigation" name="Navigate to multiple lists" time="149.18847299599997">
+    <system-out><![CDATA[Given the app is launched.................................................passed
+And I am on the home screen...............................................passed
+Given a vocabulary list "List One" exists.................................passed
+And a vocabulary list "List Two" exists...................................passed
+When I click on the list "List One".......................................passed
+Then I should be on the list detail page..................................passed
+When I navigate back......................................................passed
+And I click on the list "List Two"........................................passed
+Then I should be on the list detail page..................................passed
+When I navigate back......................................................passed
+Then I should be on the home screen.......................................passed]]></system-out>
+  </testcase>
+  <testcase classname="Smoke Test" name="Launch app and verify home screen" time="27.360232797000002">
+    <system-out><![CDATA[Given the app is launched.................................................passed
+And I am on the home screen...............................................passed
+Then the home screen should be displayed..................................passed]]></system-out>
+  </testcase>
+  <testcase classname="Vocabulary List Management" name="View home screen" time="25.857928098">
+    <system-out><![CDATA[Given the app is launched.................................................passed
+And I am on the home screen...............................................passed
+Then I should see the page title "Mes Listes".............................passed]]></system-out>
+  </testcase>
+  <testcase classname="Vocabulary List Management" name="Create a new vocabulary list" time="30.548002299">
+    <system-out><![CDATA[Given the app is launched.................................................passed
+And I am on the home screen...............................................passed
+When I click the add list button..........................................passed
+Then I should see the create list dialog..................................passed
+When I enter list name "French Basics"....................................passed
+And I click the create button.............................................passed
+Then I should see the list "French Basics" on the home screen.............passed]]></system-out>
+  </testcase>
+  <testcase classname="Vocabulary List Management" name="Cancel creating a list" time="78.50899569600001">
+    <system-out><![CDATA[Given the app is launched.................................................passed
+And I am on the home screen...............................................passed
+When I click the add list button..........................................passed
+And I enter list name "Temporary List"....................................passed
+And I click the cancel button.............................................passed
+Then I should not see the list "Temporary List" on the home screen........passed]]></system-out>
+  </testcase>
+</testsuite>

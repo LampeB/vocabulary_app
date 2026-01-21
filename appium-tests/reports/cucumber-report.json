@@ -1,0 +1,678 @@
+[
+  {
+    "description": "  As a user\n  I want to navigate through the app\n  So that I can access different features",
+    "elements": [
+      {
+        "description": "",
+        "id": "app-navigation;navigate-to-list-detail-and-back",
+        "keyword": "Scenario",
+        "line": 10,
+        "name": "Navigate to list detail and back",
+        "steps": [
+          {
+            "keyword": "Before",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 23277742600
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 7,
+            "name": "the app is launched",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 2007508799
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 8,
+            "name": "I am on the home screen",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:17"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1129134999
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 11,
+            "name": "a vocabulary list \"Navigation Test\" exists",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 56256531399
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "When ",
+            "line": 12,
+            "name": "I click on the list \"Navigation Test\"",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:52"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 2906092799
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 13,
+            "name": "I should be on the list detail page",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:56"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1093021899
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "When ",
+            "line": 14,
+            "name": "I navigate back",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:34"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1151119200
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 15,
+            "name": "I should be on the home screen",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:50"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 36005499
+            }
+          },
+          {
+            "keyword": "After",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 2573573899
+            }
+          }
+        ],
+        "tags": [],
+        "type": "scenario"
+      },
+      {
+        "description": "",
+        "id": "app-navigation;navigate-to-multiple-lists",
+        "keyword": "Scenario",
+        "line": 17,
+        "name": "Navigate to multiple lists",
+        "steps": [
+          {
+            "keyword": "Before",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 20756507400
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 7,
+            "name": "the app is launched",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 2003997600
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 8,
+            "name": "I am on the home screen",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:17"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1127872000
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 18,
+            "name": "a vocabulary list \"List One\" exists",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 56183672099
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 19,
+            "name": "a vocabulary list \"List Two\" exists",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 55795013100
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "When ",
+            "line": 20,
+            "name": "I click on the list \"List One\"",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:52"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 3131565100
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 21,
+            "name": "I should be on the list detail page",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:56"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1075540900
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "When ",
+            "line": 22,
+            "name": "I navigate back",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:34"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1123959700
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 23,
+            "name": "I click on the list \"List Two\"",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:52"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 2759037299
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 24,
+            "name": "I should be on the list detail page",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:56"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1069744000
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "When ",
+            "line": 25,
+            "name": "I navigate back",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:34"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1125529399
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 26,
+            "name": "I should be on the home screen",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:50"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 58613799
+            }
+          },
+          {
+            "keyword": "After",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 2977420600
+            }
+          }
+        ],
+        "tags": [],
+        "type": "scenario"
+      }
+    ],
+    "id": "app-navigation",
+    "line": 1,
+    "keyword": "Feature",
+    "name": "App Navigation",
+    "tags": [],
+    "uri": "features\\navigation.feature"
+  },
+  {
+    "description": "  Basic smoke test to verify Appium Flutter Driver connection",
+    "elements": [
+      {
+        "description": "",
+        "id": "smoke-test;launch-app-and-verify-home-screen",
+        "keyword": "Scenario",
+        "line": 4,
+        "name": "Launch app and verify home screen",
+        "steps": [
+          {
+            "keyword": "Before",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 21595145400
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 5,
+            "name": "the app is launched",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 2000715900
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 6,
+            "name": "I am on the home screen",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:17"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1097380899
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 7,
+            "name": "the home screen should be displayed",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:45"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 46600199
+            }
+          },
+          {
+            "keyword": "After",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 2620390399
+            }
+          }
+        ],
+        "tags": [],
+        "type": "scenario"
+      }
+    ],
+    "id": "smoke-test",
+    "line": 1,
+    "keyword": "Feature",
+    "name": "Smoke Test",
+    "tags": [],
+    "uri": "features\\smoke.feature"
+  },
+  {
+    "description": "  As a language learner\n  I want to manage my vocabulary lists\n  So that I can organize words I'm learning",
+    "elements": [
+      {
+        "description": "",
+        "id": "vocabulary-list-management;view-home-screen",
+        "keyword": "Scenario",
+        "line": 10,
+        "name": "View home screen",
+        "steps": [
+          {
+            "keyword": "Before",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 19582513099
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 7,
+            "name": "the app is launched",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 2014839600
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 8,
+            "name": "I am on the home screen",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:17"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1101559799
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 11,
+            "name": "I should see the page title \"Mes Listes\"",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:40"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 37619400
+            }
+          },
+          {
+            "keyword": "After",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 3121396200
+            }
+          }
+        ],
+        "tags": [],
+        "type": "scenario"
+      },
+      {
+        "description": "",
+        "id": "vocabulary-list-management;create-a-new-vocabulary-list",
+        "keyword": "Scenario",
+        "line": 13,
+        "name": "Create a new vocabulary list",
+        "steps": [
+          {
+            "keyword": "Before",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 19326059500
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 7,
+            "name": "the app is launched",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 2003926300
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 8,
+            "name": "I am on the home screen",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:17"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1100995100
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "When ",
+            "line": 14,
+            "name": "I click the add list button",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:32"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1294679200
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 15,
+            "name": "I should see the create list dialog",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:66"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 670227300
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "When ",
+            "line": 16,
+            "name": "I enter list name \"French Basics\"",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:37"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 171881900
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 17,
+            "name": "I click the create button",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:42"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 2253649499
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 18,
+            "name": "I should see the list \"French Basics\" on the home screen",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:73"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1028557700
+            }
+          },
+          {
+            "keyword": "After",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 2698025800
+            }
+          }
+        ],
+        "tags": [],
+        "type": "scenario"
+      },
+      {
+        "description": "",
+        "id": "vocabulary-list-management;cancel-creating-a-list",
+        "keyword": "Scenario",
+        "line": 20,
+        "name": "Cancel creating a list",
+        "steps": [
+          {
+            "keyword": "Before",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 20290706899
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 7,
+            "name": "the app is launched",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 2001179500
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 8,
+            "name": "I am on the home screen",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:17"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1099077500
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "When ",
+            "line": 21,
+            "name": "I click the add list button",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:32"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1268858699
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 22,
+            "name": "I enter list name \"Temporary List\"",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:37"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 219513199
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 23,
+            "name": "I click the cancel button",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:47"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 730328099
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 24,
+            "name": "I should not see the list \"Temporary List\" on the home screen",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:80"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 49925996800
+            }
+          },
+          {
+            "keyword": "After",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 2973335000
+            }
+          }
+        ],
+        "tags": [],
+        "type": "scenario"
+      }
+    ],
+    "id": "vocabulary-list-management",
+    "line": 1,
+    "keyword": "Feature",
+    "name": "Vocabulary List Management",
+    "tags": [],
+    "uri": "features\\vocabulary-lists.feature"
+  }
+]
