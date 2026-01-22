@@ -89,7 +89,7 @@ class SpeechRecognitionService {
           if (result.finalResult) {
             print('✅ Résultat final: "${result.recognizedWords}"');
             print('   Confiance: ${result.confidence}');
-            
+
             onResult(result.recognizedWords);
             onConfidence?.call(result.confidence);
           } else {
@@ -98,9 +98,12 @@ class SpeechRecognitionService {
           }
         },
         localeId: localeId,
-        pauseFor: const Duration(seconds: 3), // Pause après 3s de silence
+        listenOptions: stt.SpeechListenOptions(
+          cancelOnError: true,
+          listenMode: stt.ListenMode.dictation,
+        ),
         listenFor: const Duration(seconds: 10), // Max 10s d'écoute
-        cancelOnError: true,
+        pauseFor: const Duration(seconds: 3), // Pause après 3s de silence
       );
 
       if (success) {

@@ -238,7 +238,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: currentVoiceId,
+          initialValue: currentVoiceId,
           decoration: InputDecoration(
             border: const OutlineInputBorder(),
             prefixIcon: const Icon(Icons.person),

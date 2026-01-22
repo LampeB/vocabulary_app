@@ -61,15 +61,14 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
     final lang1Controller = TextEditingController();
     final lang2Controller = TextEditingController();
     final categoryController = TextEditingController();
+    String progressMessage = '';
+    bool isGenerating = false;
 
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
-          String progressMessage = '';
-          bool isGenerating = false;
-
           return AlertDialog(
             title: const Text('Ajouter un mot'),
             content: SingleChildScrollView(
@@ -378,7 +377,7 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
             Icon(
               Icons.school,
               size: 80,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 24),
             Text(
@@ -392,7 +391,7 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
                     color: Theme.of(context)
                         .colorScheme
                         .onSurface
-                        .withOpacity(0.6),
+                        .withValues(alpha: 0.6),
                   ),
               textAlign: TextAlign.center,
             ),

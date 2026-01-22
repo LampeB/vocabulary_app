@@ -98,12 +98,9 @@ class BackendAudioService implements AudioService {
 
   @override
   String calculateHash(String text, String langCode) {
-    // Le hash est calculé de la même manière côté client et serveur
-    // pour vérifier si l'audio existe sans le générer
-    final combined = '$text-$langCode';
-    // Note: Le calcul MD5 réel devrait être identique au serveur
-    // Pour l'instant, on délègue au serveur
-    return ''; // Le serveur retournera le hash
+    // Note: Le calcul du hash est délégué au serveur
+    // Le serveur retournera le hash lors de la génération audio
+    return '';
   }
 }
 

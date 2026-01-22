@@ -195,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Icon(
               Icons.library_books,
               size: 80,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 24),
             Text(
@@ -210,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: Theme.of(context)
                         .colorScheme
                         .onSurface
-                        .withOpacity(0.6),
+                        .withValues(alpha: 0.6),
                   ),
               textAlign: TextAlign.center,
             ),
