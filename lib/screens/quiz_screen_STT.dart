@@ -30,14 +30,14 @@ class _QuizScreenState extends State<QuizScreen> {
   final AudioPlayerService _audioPlayer = AudioPlayerService();
   final SpeechRecognitionService _speechService = SpeechRecognitionService();
   final TextEditingController _answerController = TextEditingController();
-  
+
   List<Map<String, dynamic>> _questions = [];
   int _currentQuestionIndex = 0;
   int _correctCount = 0;
   bool _isLoading = true;
   bool _hasAnswered = false;
   ValidationResult? _lastResult;
-  
+
   // STT states
   bool _isSpeechAvailable = false;
   bool _isListening = false;
@@ -67,7 +67,7 @@ class _QuizScreenState extends State<QuizScreen> {
     setState(() {
       _isSpeechAvailable = available;
     });
-    
+
     if (available) {
       print('✅ Reconnaissance vocale disponible');
     } else {
@@ -80,37 +80,44 @@ class _QuizScreenState extends State<QuizScreen> {
 
     try {
       final concepts = await _db.getConceptsByListId(widget.list.id);
-      
+
       if (concepts.isEmpty) {
         if (mounted) {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Aucun mot à réviser dans cette liste')),
+            const SnackBar(
+                content: Text('Aucun mot à réviser dans cette liste')),
           );
         }
         return;
       }
 
       final questions = <Map<String, dynamic>>[];
-      
+
       for (var concept in concepts) {
         final variants = await _db.getVariantsByConceptId(concept['id']);
-        
-        final lang1Variants = variants.where((v) => v['lang_code'] == widget.list.lang1Code).toList();
-        final lang2Variants = variants.where((v) => v['lang_code'] == widget.list.lang2Code).toList();
-        
+
+        final lang1Variants = variants
+            .where((v) => v['lang_code'] == widget.list.lang1Code)
+            .toList();
+        final lang2Variants = variants
+            .where((v) => v['lang_code'] == widget.list.lang2Code)
+            .toList();
+
         if (lang1Variants.isNotEmpty && lang2Variants.isNotEmpty) {
           questions.add({
             'questionVariant': WordVariant.fromMap(lang1Variants.first),
-            'answerVariants': lang2Variants.map((v) => WordVariant.fromMap(v)).toList(),
+            'answerVariants':
+                lang2Variants.map((v) => WordVariant.fromMap(v)).toList(),
             'direction': 'lang1_to_lang2',
             'conceptId': concept['id'],
             'answerLangCode': widget.list.lang2Code, // Pour STT
           });
-          
+
           questions.add({
             'questionVariant': WordVariant.fromMap(lang2Variants.first),
-            'answerVariants': lang1Variants.map((v) => WordVariant.fromMap(v)).toList(),
+            'answerVariants':
+                lang1Variants.map((v) => WordVariant.fromMap(v)).toList(),
             'direction': 'lang2_to_lang1',
             'conceptId': concept['id'],
             'answerLangCode': widget.list.lang1Code, // Pour STT
@@ -125,9 +132,9 @@ class _QuizScreenState extends State<QuizScreen> {
         _questions = selectedQuestions;
         _isLoading = false;
       });
-      
+
       print('✅ ${_questions.length} questions chargées');
-      
+
       // Jouer automatiquement le premier mot
       if (_questions.isNotEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -151,7 +158,7 @@ class _QuizScreenState extends State<QuizScreen> {
 
     final question = _questions[_currentQuestionIndex];
     final questionVariant = question['questionVariant'] as WordVariant;
-    
+
     if (questionVariant.audioHash != null) {
       await _audioPlayer.playAudioByHash(questionVariant.audioHash!);
     }
@@ -179,7 +186,7 @@ class _QuizScreenState extends State<QuizScreen> {
       langCode: answerLangCode,
       onResult: (text) {
         print('🎤 Texte reconnu: "$text"');
-        
+
         setState(() {
           _answerController.text = text;
           _isListening = false;
@@ -188,7 +195,7 @@ class _QuizScreenState extends State<QuizScreen> {
 
         // Validation automatique si confiance élevée
         if (_confidence > 0.7) {
-          print('✅ Confiance élevée (${ _confidence}), validation auto');
+          print('✅ Confiance élevée ($_confidence), validation auto');
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted && !_hasAnswered) {
               _checkAnswer();
@@ -235,11 +242,13 @@ class _QuizScreenState extends State<QuizScreen> {
 
     final question = _questions[_currentQuestionIndex];
     final answerVariants = question['answerVariants'] as List<WordVariant>;
-    
-    final expectedAnswers = answerVariants.map((v) => {
-      'word': v.word,
-      'register_tag': v.registerTag,
-    }).toList();
+
+    final expectedAnswers = answerVariants
+        .map((v) => {
+              'word': v.word,
+              'register_tag': v.registerTag,
+            })
+        .toList();
 
     final result = AnswerValidator.validate(
       userAnswer: _answerController.text,
@@ -258,7 +267,8 @@ class _QuizScreenState extends State<QuizScreen> {
     _updateProgress(question, result.isCorrect);
   }
 
-  Future<void> _updateProgress(Map<String, dynamic> question, bool wasCorrect) async {
+  Future<void> _updateProgress(
+      Map<String, dynamic> question, bool wasCorrect) async {
     final questionVariant = question['questionVariant'] as WordVariant;
     final direction = question['direction'] as String;
 
@@ -278,10 +288,10 @@ class _QuizScreenState extends State<QuizScreen> {
     }
 
     final timesShown = (progress['times_shown_as_answer'] ?? 0) + 1;
-    final timesCorrect = wasCorrect 
-        ? (progress['times_answered_correctly'] ?? 0) + 1 
+    final timesCorrect = wasCorrect
+        ? (progress['times_answered_correctly'] ?? 0) + 1
         : (progress['times_answered_correctly'] ?? 0);
-    
+
     final masteryLevel = SRSAlgorithm.calculateMasteryLevel(
       timesCorrect: timesCorrect,
       timesShown: timesShown,
@@ -312,7 +322,7 @@ class _QuizScreenState extends State<QuizScreen> {
         _lastResult = null;
         _confidence = 0.0;
       });
-      
+
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _playQuestionAudio();
       });
@@ -323,7 +333,7 @@ class _QuizScreenState extends State<QuizScreen> {
 
   void _showResults() {
     final percentage = (_correctCount / _questions.length * 100).round();
-    
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -335,8 +345,8 @@ class _QuizScreenState extends State<QuizScreen> {
             Text(
               '$_correctCount / ${_questions.length}',
               style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-              ),
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -411,7 +421,7 @@ class _QuizScreenState extends State<QuizScreen> {
               minHeight: 4,
             ),
             const SizedBox(height: 32),
-            
+
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
@@ -419,26 +429,29 @@ class _QuizScreenState extends State<QuizScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                direction == 'lang1_to_lang2' 
+                direction == 'lang1_to_lang2'
                     ? '${widget.list.lang1Code.toUpperCase()} → ${widget.list.lang2Code.toUpperCase()}'
                     : '${widget.list.lang2Code.toUpperCase()} → ${widget.list.lang1Code.toUpperCase()}',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
-                ),
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
                 textAlign: TextAlign.center,
               ),
             ),
-            
+
             const SizedBox(height: 48),
-            
+
             Text(
               'Traduisez :',
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.6),
+                  ),
             ),
             const SizedBox(height: 16),
-            
+
             // Question avec bouton audio
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -447,8 +460,8 @@ class _QuizScreenState extends State<QuizScreen> {
                   child: Text(
                     questionVariant.word,
                     style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                          fontWeight: FontWeight.bold,
+                        ),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -462,9 +475,9 @@ class _QuizScreenState extends State<QuizScreen> {
                   ),
               ],
             ),
-            
+
             const SizedBox(height: 48),
-            
+
             // Champ de réponse avec bouton micro
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -478,21 +491,22 @@ class _QuizScreenState extends State<QuizScreen> {
                       border: const OutlineInputBorder(),
                       suffixIcon: _hasAnswered
                           ? Icon(
-                              _lastResult?.isCorrect == true 
-                                  ? Icons.check_circle 
+                              _lastResult?.isCorrect == true
+                                  ? Icons.check_circle
                                   : Icons.cancel,
-                              color: _lastResult?.isCorrect == true 
-                                  ? Colors.green 
+                              color: _lastResult?.isCorrect == true
+                                  ? Colors.green
                                   : Colors.red,
                             )
                           : null,
                     ),
                     autofocus: true,
-                    onSubmitted: (_) => _hasAnswered ? _nextQuestion() : _checkAnswer(),
+                    onSubmitted: (_) =>
+                        _hasAnswered ? _nextQuestion() : _checkAnswer(),
                   ),
                 ),
                 const SizedBox(width: 8),
-                
+
                 // 🎤 BOUTON MICRO
                 if (_isSpeechAvailable)
                   IconButton(
@@ -500,22 +514,21 @@ class _QuizScreenState extends State<QuizScreen> {
                       _isListening ? Icons.mic : Icons.mic_none,
                       size: 32,
                     ),
-                    color: _isListening 
-                        ? Colors.red 
+                    color: _isListening
+                        ? Colors.red
                         : Theme.of(context).colorScheme.primary,
-                    onPressed: _hasAnswered 
-                        ? null 
+                    onPressed: _hasAnswered
+                        ? null
                         : (_isListening ? _stopListening : _startListening),
                     tooltip: _isListening ? 'Arrêter' : 'Parler',
                     style: IconButton.styleFrom(
-                      backgroundColor: _isListening 
-                          ? Colors.red.withOpacity(0.1) 
-                          : null,
+                      backgroundColor:
+                          _isListening ? Colors.red.withOpacity(0.1) : null,
                     ),
                   ),
               ],
             ),
-            
+
             // Statut écoute
             if (_isListening) ...[
               const SizedBox(height: 8),
@@ -530,21 +543,21 @@ class _QuizScreenState extends State<QuizScreen> {
                   Text(
                     _listeningStatus,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.red,
-                      fontStyle: FontStyle.italic,
-                    ),
+                          color: Colors.red,
+                          fontStyle: FontStyle.italic,
+                        ),
                   ),
                 ],
               ),
             ],
-            
+
             const SizedBox(height: 16),
-            
+
             if (_hasAnswered && _lastResult != null) ...[
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: _lastResult!.isCorrect 
+                  color: _lastResult!.isCorrect
                       ? Colors.green.withOpacity(0.1)
                       : Colors.red.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -558,16 +571,23 @@ class _QuizScreenState extends State<QuizScreen> {
                     Row(
                       children: [
                         Icon(
-                          _lastResult!.isCorrect ? Icons.check_circle : Icons.cancel,
-                          color: _lastResult!.isCorrect ? Colors.green : Colors.red,
+                          _lastResult!.isCorrect
+                              ? Icons.check_circle
+                              : Icons.cancel,
+                          color: _lastResult!.isCorrect
+                              ? Colors.green
+                              : Colors.red,
                         ),
                         const SizedBox(width: 8),
                         Text(
                           _lastResult!.isCorrect ? 'Correct !' : 'Incorrect',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: _lastResult!.isCorrect ? Colors.green : Colors.red,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: _lastResult!.isCorrect
+                                        ? Colors.green
+                                        : Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
                       ],
                     ),
@@ -579,18 +599,19 @@ class _QuizScreenState extends State<QuizScreen> {
                       ),
                       Text(
                         answerVariants.map((v) => v.word).join(', '),
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                       ),
                     ],
                   ],
                 ),
               ),
             ],
-            
+
             const Spacer(),
-            
+
             FilledButton.icon(
               onPressed: _hasAnswered ? _nextQuestion : _checkAnswer,
               icon: Icon(_hasAnswered ? Icons.arrow_forward : Icons.check),
@@ -599,9 +620,9 @@ class _QuizScreenState extends State<QuizScreen> {
                 padding: const EdgeInsets.all(16),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             Text(
               'Score : $_correctCount / ${_currentQuestionIndex + (_hasAnswered ? 1 : 0)}',
               style: Theme.of(context).textTheme.titleMedium,
