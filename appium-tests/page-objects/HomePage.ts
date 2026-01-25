@@ -6,7 +6,11 @@ interface HomePageKeys {
     homeTitle: string;
     addListButton: string;
     emptyState: string;
+    emptyStateTitle: string;
     listView: string;
+    deleteListDialog: string;
+    confirmDeleteListButton: string;
+    cancelDeleteListButton: string;
 }
 
 /**
@@ -26,7 +30,11 @@ export class HomePage extends BasePage {
             homeTitle: 'home_title',
             addListButton: 'add_list_button',
             emptyState: 'empty_state',
-            listView: 'vocabulary_list_view'
+            emptyStateTitle: 'empty_state_title',
+            listView: 'vocabulary_list_view',
+            deleteListDialog: 'delete_list_dialog',
+            confirmDeleteListButton: 'confirm_delete_list_button',
+            cancelDeleteListButton: 'cancel_delete_list_button'
         };
     }
 
@@ -42,32 +50,33 @@ export class HomePage extends BasePage {
      */
     async waitForPage(): Promise<void> {
         await this.waitForKey(this.keys.homeScreen);
-        await this.pause(1000);
     }
 
     /**
-     * Click add list button
+     * Click add list button and wait for dialog
      */
     async clickAddListButton(): Promise<void> {
         await this.clickByKey(this.keys.addListButton);
-        await this.pause(1000);
+        await this.waitForKey('list_name_field'); // Dialog opened
     }
 
     /**
-     * Click on a vocabulary list by name
+     * Click on a vocabulary list by name and wait for detail page
      */
     async clickListByName(listName: string): Promise<void> {
-        await this.scrollUntilVisible('ListView', listName, 'down', 100);
-        await this.clickByText(listName);
-        await this.pause(2000);
+        const listCardKey = `list_card_${listName}`;
+        await this.clickByKey(listCardKey);
+        // Wait for list detail screen to appear instead of fixed pause
+        await this.waitForKey('list_detail_screen');
     }
 
     /**
-     * Check if list exists by name (quick check without scrolling)
+     * Check if list exists by name (FAST - uses Key)
      */
     async listExists(listName: string): Promise<boolean> {
-        // Simple check - just look for the text without scrolling
-        return await this.elementExistsByText(listName);
+        // Use list card key for faster lookup
+        const listCardKey = `list_card_${listName}`;
+        return await this.elementExistsByKey(listCardKey);
     }
 
     /**
@@ -84,5 +93,73 @@ export class HomePage extends BasePage {
      */
     async takeScreenshot(filename: string = 'home-page.png'): Promise<void> {
         await super.takeScreenshot(filename);
+    }
+
+    // === DELETE LIST ===
+
+    /**
+     * Click delete button for a specific list and wait for dialog
+     */
+    async clickDeleteListButton(listName: string): Promise<void> {
+        const deleteButtonKey = `delete_list_button_${listName}`;
+        await this.clickByKey(deleteButtonKey);
+        await this.waitForKey(this.keys.deleteListDialog);
+    }
+
+    /**
+     * Long press on a list (alternative to delete button)
+     */
+    async longPressOnList(listName: string): Promise<void> {
+        await this.clickDeleteListButton(listName);
+    }
+
+    /**
+     * Check if delete list dialog is displayed
+     */
+    async isDeleteListDialogDisplayed(): Promise<boolean> {
+        return await this.elementExistsByKey(this.keys.deleteListDialog);
+    }
+
+    /**
+     * Confirm list deletion and wait for dialog to close
+     */
+    async confirmDeleteList(): Promise<void> {
+        await this.clickByKey(this.keys.confirmDeleteListButton);
+        await this.waitForKey(this.keys.homeScreen);
+    }
+
+    /**
+     * Cancel list deletion and wait for dialog to close
+     */
+    async cancelDeleteList(): Promise<void> {
+        await this.clickByKey(this.keys.cancelDeleteListButton);
+        await this.waitForKey(this.keys.homeScreen);
+    }
+
+    // === QUIZ ===
+
+    /**
+     * Click quiz button for a specific list and wait for quiz screen
+     */
+    async clickQuizButton(listName: string): Promise<void> {
+        const quizButtonKey = `quiz_button_${listName}`;
+        await this.clickByKey(quizButtonKey);
+        await this.waitForKey('quiz_screen');
+    }
+
+    // === EMPTY STATE ===
+
+    /**
+     * Check if empty state is displayed
+     */
+    async isEmptyStateDisplayed(): Promise<boolean> {
+        return await this.elementExistsByKey(this.keys.emptyState);
+    }
+
+    /**
+     * Check if empty state message is displayed
+     */
+    async isEmptyStateMessageDisplayed(): Promise<boolean> {
+        return await this.elementExistsByKey(this.keys.emptyStateTitle);
     }
 }

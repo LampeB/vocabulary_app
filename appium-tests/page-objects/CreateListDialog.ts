@@ -41,7 +41,6 @@ export class CreateListDialog extends BasePage {
      */
     async waitForDialog(): Promise<void> {
         await this.waitForText(this.dialogTitle);
-        await this.pause(500);
     }
 
     /**
@@ -52,19 +51,20 @@ export class CreateListDialog extends BasePage {
     }
 
     /**
-     * Click create button
+     * Click create button and wait for dialog to close
      */
     async clickCreate(): Promise<void> {
         await this.clickByKey(this.keys.createButton);
-        await this.pause(2000);
+        // Wait for home screen to reappear (dialog closed)
+        await this.waitForKey('home_screen');
     }
 
     /**
-     * Click cancel button
+     * Click cancel button and wait for dialog to close
      */
     async clickCancel(): Promise<void> {
         await this.clickByText(this.cancelButtonText);
-        await this.pause(500);
+        await this.waitForKey('home_screen');
     }
 
     /**

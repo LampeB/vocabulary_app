@@ -70,12 +70,14 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
+            key: const Key('add_word_dialog'),
             title: const Text('Ajouter un mot'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
+                    key: const Key('french_word_field'),
                     controller: lang1Controller,
                     decoration: const InputDecoration(
                       labelText: 'Français',
@@ -87,6 +89,7 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
                   ),
                   const SizedBox(height: 16),
                   TextField(
+                    key: const Key('korean_word_field'),
                     controller: lang2Controller,
                     decoration: const InputDecoration(
                       labelText: 'Coréen',
@@ -121,11 +124,13 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
             actions: [
               if (!isGenerating)
                 TextButton(
+                  key: const Key('cancel_add_word_button'),
                   onPressed: () => Navigator.pop(context, false),
                   child: const Text('Annuler'),
                 ),
               if (!isGenerating)
                 FilledButton(
+                  key: const Key('confirm_add_word_button'),
                   onPressed: () async {
                     if (lang1Controller.text.trim().isEmpty ||
                         lang2Controller.text.trim().isEmpty) {
@@ -369,6 +374,7 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
 
   Widget _buildEmptyState() {
     return Center(
+      key: const Key('empty_list_state'),
       child: Padding(
         padding: const EdgeInsets.all(32.0),
         child: Column(
@@ -382,6 +388,7 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
             const SizedBox(height: 24),
             Text(
               'Aucun mot dans cette liste',
+              key: const Key('empty_list_message'),
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
@@ -417,7 +424,9 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
         final lang1Variants = item['lang1Variants'] as List<WordVariant>;
         final lang2Variants = item['lang2Variants'] as List<WordVariant>;
 
+        final wordKey = lang1Variants.isNotEmpty ? lang1Variants.first.word : concept.id;
         return Card(
+          key: Key('word_card_$wordKey'),
           margin: const EdgeInsets.only(bottom: 12),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -514,20 +523,24 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
                       ),
                     ),
                     IconButton(
+                      key: Key('delete_word_button_$wordKey'),
                       icon: const Icon(Icons.delete_outline),
                       onPressed: () async {
                         final confirm = await showDialog<bool>(
                           context: context,
                           builder: (context) => AlertDialog(
+                            key: const Key('delete_word_dialog'),
                             title: const Text('Supprimer'),
                             content:
                                 const Text('Supprimer ce mot et son audio ?'),
                             actions: [
                               TextButton(
+                                key: const Key('cancel_delete_word_button'),
                                 onPressed: () => Navigator.pop(context, false),
                                 child: const Text('Annuler'),
                               ),
                               FilledButton(
+                                key: const Key('confirm_delete_word_button'),
                                 onPressed: () => Navigator.pop(context, true),
                                 style: FilledButton.styleFrom(
                                   backgroundColor: Colors.red,

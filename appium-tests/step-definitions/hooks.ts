@@ -1,22 +1,60 @@
 import { Before, After, BeforeAll, AfterAll, setDefaultTimeout, ITestCaseHookParameter } from '@cucumber/cucumber';
-import { remote, Browser } from 'webdriverio';
+import { remote } from 'webdriverio';
 import * as path from 'path';
+import { exec } from 'child_process';
 
 // Set default timeout for all steps
-setDefaultTimeout(300 * 1000); // 5 minutes
+setDefaultTimeout(120 * 1000); // 2 minutes
 
-// Global driver instance
-let driver: Browser;
+// Global driver instance - REUSED across all scenarios
+let driver: any = null;
+let sessionActive = false;
 
 // Platform configuration
 const platform = process.env.PLATFORM || 'android';
+
+// App package name
+const APP_PACKAGE = 'com.example.vocabulary_app';
+
+/**
+ * Execute a shell command and return a promise
+ */
+function execCommand(command: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        exec(command, (error, stdout, stderr) => {
+            if (error) {
+                reject(error);
+            } else {
+                resolve(stdout || stderr);
+            }
+        });
+    });
+}
+
+/**
+ * Reset the app database using adb
+ */
+async function resetDatabase(): Promise<void> {
+    if (platform !== 'android') {
+        console.log('⚠️ Database reset only supported on Android');
+        return;
+    }
+
+    try {
+        // Clear app data (this removes the database and all app data)
+        await execCommand(`adb shell pm clear ${APP_PACKAGE}`);
+        console.log('🗑️ Database reset: app data cleared');
+    } catch (error: any) {
+        console.log(`⚠️ Could not reset database: ${error.message}`);
+    }
+}
 
 /**
  * Get capabilities based on platform
  */
 function getCapabilities(): any {
     if (platform === 'android') {
-        const appPath = path.resolve(__dirname, '../../vocabulary_app/build/app/outputs/flutter-apk/app-debug.apk');
+        const appPath = path.resolve(__dirname, '../../build/app/outputs/flutter-apk/app-debug.apk');
 
         return {
             platformName: 'Android',
@@ -51,75 +89,87 @@ function getCapabilities(): any {
  * Before all scenarios
  */
 BeforeAll(async function() {
-    console.log('🚀 Starting Appium test suite...');
-    console.log(`📱 Platform: ${platform}`);
+    console.log(`🚀 Appium tests (${platform})`);
+    if (process.env.RESET_DB_BEFORE === 'true') {
+        await resetDatabase();
+    }
 });
 
 /**
- * Before each scenario
+ * Before each scenario - launch the app (session already exists)
  */
 Before(async function(this: any, { pickle }: ITestCaseHookParameter) {
-    console.log(`\n📝 Starting scenario: ${pickle.name}`);
+    console.log(`\n📝 ${pickle.name}`);
 
-    // Create driver connection
-    const capabilities = getCapabilities();
+    // Create session only once (first scenario)
+    if (!sessionActive) {
+        const capabilities = getCapabilities();
+        driver = await remote({
+            hostname: 'localhost',
+            port: 4723,
+            path: '/',
+            capabilities,
+            logLevel: 'error'
+        }) as any;
+        sessionActive = true;
+        await driver.pause(1500); // Wait for initial launch
+        console.log('✓ Session created & app installed');
+    } else {
+        // Session exists - just activate/launch the app
+        try {
+            await driver.activateApp(APP_PACKAGE);
+            await driver.pause(500); // Brief wait for app to be ready
+        } catch (error: any) {
+            console.log(`⚠️ Could not activate app: ${error.message}`);
+        }
+    }
 
-    driver = await remote({
-        hostname: 'localhost',
-        port: 4723,
-        path: '/',
-        capabilities,
-        logLevel: 'error'
-    });
-
-    // Store driver in world context
     this.driver = driver;
-
-    // Wait for app to launch
-    await driver.pause(3000);
-
-    console.log('✓ App launched successfully');
 });
 
 /**
- * After each scenario
+ * After each scenario - terminate the app (keep session alive)
  */
 After(async function(this: any, { pickle, result }: ITestCaseHookParameter) {
     // Take screenshot on failure
-    if (result?.status === 'FAILED') {
+    if (result?.status === 'FAILED' && driver) {
         try {
-            const timestamp = Date.now();
-            const screenshotName = `failure-${pickle.name.replace(/[^a-z0-9]/gi, '-')}-${timestamp}.png`;
+            const screenshotName = `failure-${pickle.name.replace(/[^a-z0-9]/gi, '-')}.png`;
             await driver.saveScreenshot(`./screenshots/${screenshotName}`);
-            console.log(`📸 Failure screenshot saved: ${screenshotName}`);
+            console.log(`📸 Screenshot: ${screenshotName}`);
         } catch (error: any) {
-            console.log('Failed to capture screenshot:', error.message);
+            // Ignore screenshot errors
         }
     }
 
-    // Close app and driver
-    if (driver) {
+    // Terminate the app (but keep session alive for next scenario)
+    if (driver && sessionActive) {
         try {
-            // Terminate the app explicitly
-            if (platform === 'android') {
-                await driver.execute('mobile: terminateApp', { appId: 'com.example.vocabulary_app' });
-                console.log('✓ App terminated');
-            }
-        } catch (e) {
-            // App might already be closed, ignore error
+            await driver.terminateApp(APP_PACKAGE);
+        } catch (error: any) {
+            // Ignore termination errors
         }
-
-        await driver.deleteSession();
-        console.log('✓ Session closed');
     }
 });
 
 /**
- * After all scenarios
+ * After all scenarios - close session and reset database
  */
 AfterAll(async function() {
-    console.log('\n✅ Test suite completed!');
+    // Close the session at the very end
+    if (driver && sessionActive) {
+        try {
+            await driver.deleteSession();
+            sessionActive = false;
+        } catch (e) {}
+    }
+    console.log('✅ Done');
+
+    // Reset database after all tests (unless disabled)
+    if (process.env.RESET_DB_AFTER !== 'false') {
+        await resetDatabase();
+    }
 });
 
 // Export driver getter for step definitions
-export const getDriver = (): Browser => driver;
+export const getDriver = () => driver;

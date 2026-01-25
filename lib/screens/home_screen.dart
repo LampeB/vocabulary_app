@@ -96,15 +96,18 @@ class _HomeScreenState extends State<HomeScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        key: const Key('delete_list_dialog'),
         title: const Text('Confirmer la suppression'),
         content:
             Text('Supprimer "$listName" ?\nCette action est irréversible.'),
         actions: [
           TextButton(
+            key: const Key('cancel_delete_list_button'),
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Annuler'),
           ),
           FilledButton(
+            key: const Key('confirm_delete_list_button'),
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(
               backgroundColor: Colors.red,
@@ -241,6 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
           final progressPercent = item['progressPercent'] as int;
 
           return Card(
+            key: Key('list_card_${list.name}'),
             margin: const EdgeInsets.only(bottom: 12),
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
@@ -275,6 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         IconButton(
+                          key: Key('delete_list_button_${list.name}'),
                           icon: const Icon(Icons.delete_outline),
                           onPressed: () => _deleteList(list.id, list.name),
                         ),
@@ -316,6 +321,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Expanded(
                           child: FilledButton.icon(
+                            key: Key('manage_list_button_${list.name}'),
                             onPressed: () => _openListDetail(list),
                             icon: const Icon(Icons.edit),
                             label: const Text('Gérer'),
@@ -325,6 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: FilledButton.tonalIcon(
+                              key: Key('quiz_button_${list.name}'),
                               onPressed: () => _startQuiz(list),
                               icon: const Icon(Icons.play_arrow),
                               label: const Text('Réviser'),

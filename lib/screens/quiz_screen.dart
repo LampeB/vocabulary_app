@@ -338,12 +338,14 @@ class _QuizScreenState extends State<QuizScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
+        key: const Key('quiz_results_dialog'),
         title: const Text('🎉 Quiz terminé !'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               '$_correctCount / ${_questions.length}',
+              key: const Key('quiz_score'),
               style: Theme.of(context).textTheme.displayMedium?.copyWith(
                     color: Theme.of(context).colorScheme.primary,
                   ),
@@ -362,6 +364,7 @@ class _QuizScreenState extends State<QuizScreen> {
         ),
         actions: [
           FilledButton(
+            key: const Key('finish_quiz_button'),
             onPressed: () {
               Navigator.pop(context);
               Navigator.pop(context);
@@ -397,6 +400,7 @@ class _QuizScreenState extends State<QuizScreen> {
     final direction = question['direction'] as String;
 
     return Scaffold(
+      key: const Key('quiz_screen'),
       appBar: AppBar(
         title: Text('Quiz - ${widget.list.name}'),
         actions: [
@@ -459,6 +463,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 Expanded(
                   child: Text(
                     questionVariant.word,
+                    key: const Key('quiz_question_word'),
                     style: Theme.of(context).textTheme.displayMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -484,6 +489,7 @@ class _QuizScreenState extends State<QuizScreen> {
               children: [
                 Expanded(
                   child: TextField(
+                    key: const Key('quiz_answer_field'),
                     controller: _answerController,
                     enabled: !_hasAnswered && !_isListening,
                     decoration: InputDecoration(
@@ -555,6 +561,7 @@ class _QuizScreenState extends State<QuizScreen> {
 
             if (_hasAnswered && _lastResult != null) ...[
               Container(
+                key: Key(_lastResult!.isCorrect ? 'correct_feedback' : 'incorrect_feedback'),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: _lastResult!.isCorrect
@@ -613,6 +620,7 @@ class _QuizScreenState extends State<QuizScreen> {
             const Spacer(),
 
             FilledButton.icon(
+              key: Key(_hasAnswered ? 'next_question_button' : 'submit_answer_button'),
               onPressed: _hasAnswered ? _nextQuestion : _checkAnswer,
               icon: Icon(_hasAnswered ? Icons.arrow_forward : Icons.check),
               label: Text(_hasAnswered ? 'Suivant' : 'Valider'),

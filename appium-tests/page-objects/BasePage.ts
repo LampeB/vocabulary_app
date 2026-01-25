@@ -2,6 +2,11 @@ import { Browser } from 'webdriverio';
 // @ts-ignore - no types available for this package
 import { byValueKey, byText, bySemanticsLabel, byType } from 'appium-flutter-finder';
 
+// Type for Flutter driver execute with 3 arguments
+type FlutterDriver = Browser & {
+    execute(script: string, finder: any, timeoutOrOptions: number | object): Promise<any>;
+};
+
 /**
  * Base Page Object
  * Contains common methods used by all page objects
@@ -14,32 +19,42 @@ export class BasePage {
         this.driver = driver;
     }
 
+    // Cast driver for Flutter-specific execute calls (3 arguments)
+    private get flutter(): FlutterDriver {
+        return this.driver as FlutterDriver;
+    }
+
+    // Default timeout - reduced for speed
+    protected defaultTimeout = 1500;
+    // Fast timeout for existence checks
+    protected fastTimeout = 300;
+
     /**
      * Find element by text using Flutter execute command
      */
     async findByText(text: string): Promise<any> {
-        return await this.driver.execute('flutter:waitFor', byText(text), 5000);
+        return await this.flutter.execute('flutter:waitFor', byText(text), this.defaultTimeout);
     }
 
     /**
      * Find element by semantics label (accessibility)
      */
     async findByAccessibilityId(id: string): Promise<any> {
-        return await this.driver.execute('flutter:waitFor', bySemanticsLabel(id), 5000);
+        return await this.flutter.execute('flutter:waitFor', bySemanticsLabel(id), this.defaultTimeout);
     }
 
     /**
      * Find element by key
      */
     async findByKey(key: string): Promise<any> {
-        return await this.driver.execute('flutter:waitFor', byValueKey(key), 5000);
+        return await this.flutter.execute('flutter:waitFor', byValueKey(key), this.defaultTimeout);
     }
 
     /**
      * Wait for element by text with timeout
      */
-    async waitForText(text: string, timeout: number = 10000): Promise<any> {
-        return await this.driver.execute('flutter:waitFor', byText(text), timeout);
+    async waitForText(text: string, timeout: number = 3000): Promise<any> {
+        return await this.flutter.execute('flutter:waitFor', byText(text), timeout);
     }
 
     /**
@@ -47,7 +62,7 @@ export class BasePage {
      */
     async clickByText(text: string): Promise<void> {
         const finder = byText(text);
-        await this.driver.execute('flutter:waitFor', finder, 5000);
+        await this.flutter.execute('flutter:waitFor', finder, this.defaultTimeout);
         await this.driver.elementClick(finder);
     }
 
@@ -56,7 +71,7 @@ export class BasePage {
      */
     async clickByAccessibilityId(id: string): Promise<void> {
         const finder = bySemanticsLabel(id);
-        await this.driver.execute('flutter:waitFor', finder, 5000);
+        await this.flutter.execute('flutter:waitFor', finder, this.defaultTimeout);
         await this.driver.elementClick(finder);
     }
 
@@ -65,7 +80,7 @@ export class BasePage {
      */
     async clickByKey(key: string): Promise<void> {
         const finder = byValueKey(key);
-        await this.driver.execute('flutter:waitFor', finder, 5000);
+        await this.flutter.execute('flutter:waitFor', finder, this.defaultTimeout);
         await this.driver.elementClick(finder);
     }
 
@@ -74,7 +89,7 @@ export class BasePage {
      */
     async enterTextByKey(key: string, text: string): Promise<void> {
         const finder = byValueKey(key);
-        await this.driver.execute('flutter:waitFor', finder, 5000);
+        await this.flutter.execute('flutter:waitFor', finder, this.defaultTimeout);
         await this.driver.elementSendKeys(finder, text);
     }
 
@@ -86,11 +101,11 @@ export class BasePage {
     }
 
     /**
-     * Check if element exists by key
+     * Check if element exists by text (FAST - 300ms timeout)
      */
     async elementExistsByText(text: string): Promise<boolean> {
         try {
-            await this.driver.execute('flutter:waitFor', byText(text), 3000);
+            await this.flutter.execute('flutter:waitFor', byText(text), this.fastTimeout);
             return true;
         } catch (error) {
             return false;
@@ -98,11 +113,11 @@ export class BasePage {
     }
 
     /**
-     * Check if element exists by key
+     * Check if element exists by key (FAST - 300ms timeout)
      */
     async elementExistsByKey(key: string): Promise<boolean> {
         try {
-            await this.driver.execute('flutter:waitFor', byValueKey(key), 3000);
+            await this.flutter.execute('flutter:waitFor', byValueKey(key), this.fastTimeout);
             return true;
         } catch (error) {
             return false;
@@ -112,8 +127,8 @@ export class BasePage {
     /**
      * Wait for element by key with timeout
      */
-    async waitForKey(key: string, timeout: number = 10000): Promise<any> {
-        return await this.driver.execute('flutter:waitFor', byValueKey(key), timeout);
+    async waitForKey(key: string, timeout: number = 2000): Promise<any> {
+        return await this.flutter.execute('flutter:waitFor', byValueKey(key), timeout);
     }
 
     /**
@@ -128,7 +143,7 @@ export class BasePage {
         try {
             const scrollableFinder = byType(scrollView);
             const itemFinder = byText(itemText);
-            await this.driver.execute('flutter:scrollUntilVisible', scrollableFinder, {
+            await this.flutter.execute('flutter:scrollUntilVisible', scrollableFinder, {
                 item: itemFinder,
                 dxScroll: 0,
                 dyScroll: direction === 'down' ? -delta : delta

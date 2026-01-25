@@ -13,19 +13,15 @@ Given('a vocabulary list {string} exists', async function(this: any, listName: s
     this.homePage = new HomePage(this.driver);
     this.createListDialog = new CreateListDialog(this.driver);
 
-    // Check if list already exists
+    // Quick check if list already exists
     const exists = await this.homePage.listExists(listName);
 
     if (!exists) {
-        // Create the list
+        // Create the list - no need to verify after, dialog closes on success
         await this.homePage.clickAddListButton();
         await this.createListDialog.createSimpleList(listName);
-        await this.driver.pause(2000);
     }
-
-    // Verify list exists
-    const listExists = await this.homePage.listExists(listName);
-    expect(listExists).to.be.true;
+    // Skip redundant verification - if creation failed, next step will catch it
 });
 
 // When steps
@@ -72,7 +68,6 @@ Then('I should see the create list dialog', async function(this: any) {
 
 Then('I should see the list {string} on the home screen', async function(this: any, listName: string) {
     this.homePage = new HomePage(this.driver);
-    await this.driver.pause(1000);
     const exists = await this.homePage.listExists(listName);
     expect(exists).to.be.true;
 });

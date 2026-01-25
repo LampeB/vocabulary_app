@@ -10,30 +10,20 @@ import { ListDetailPage } from '../page-objects/ListDetailPage';
 
 // Background steps
 Given('the app is launched', async function(this: any) {
-    // App is already launched in Before hook
-    await this.driver.pause(2000);
+    // App is already launched in Before hook - no wait needed
 });
 
 Given('I am on the home screen', async function(this: any) {
     this.homePage = new HomePage(this.driver);
-
-    try {
-        console.log('Waiting for home screen...');
-        await this.homePage.waitForPage();
-        console.log('Home screen loaded!');
-        const isDisplayed = await this.homePage.isDisplayed();
-        expect(isDisplayed).to.be.true;
-    } catch (error: any) {
-        console.log('Error waiting for home screen:', error.message);
-        // Note: getPageSource() and saveScreenshot() are not implemented in Flutter Driver
-        throw error;
-    }
+    await this.homePage.waitForPage();
 });
 
 // Navigation steps
 When('I navigate back', async function(this: any) {
     await this.driver.back();
-    await this.driver.pause(1000);
+    // Wait for home screen to appear
+    this.homePage = new HomePage(this.driver);
+    await this.homePage.waitForPage();
 });
 
 // Verification steps
@@ -55,9 +45,8 @@ Then('I should be on the home screen', async function(this: any) {
 
 Then('I should be on the list detail page', async function(this: any) {
     this.listDetailPage = new ListDetailPage(this.driver);
+    // waitForPage already verifies the screen is displayed
     await this.listDetailPage.waitForPage();
-    const isDisplayed = await this.listDetailPage.isDisplayed();
-    expect(isDisplayed).to.be.true;
 });
 
 // Screenshot steps
