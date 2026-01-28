@@ -195,4 +195,66 @@ export class ListDetailPage extends BasePage {
     async isEmptyMessageDisplayed(): Promise<boolean> {
         return await this.elementExistsByKey(this.keys.emptyListMessage);
     }
+
+    // === AUDIO ===
+
+    /**
+     * Check if audio button for language 1 is visible for a word
+     * First waits for the word card to be present
+     */
+    async isAudioButtonLang1Visible(word: string): Promise<boolean> {
+        const wordCardKey = `word_card_${word}`;
+        try {
+            await this.waitForKey(wordCardKey, 3000);
+        } catch (e) {
+            return false;
+        }
+        const buttonKey = `audio_button_lang1_${word}`;
+        try {
+            await this.waitForKey(buttonKey, 5000);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * Check if audio button for language 2 is visible for a word
+     * First waits for the word card to be present
+     */
+    async isAudioButtonLang2Visible(word: string): Promise<boolean> {
+        const wordCardKey = `word_card_${word}`;
+        try {
+            await this.waitForKey(wordCardKey, 3000);
+        } catch (e) {
+            return false;
+        }
+        const buttonKey = `audio_button_lang2_${word}`;
+        try {
+            await this.waitForKey(buttonKey, 5000);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * Click audio button for language 1 of a word
+     */
+    async clickAudioButtonLang1(word: string): Promise<void> {
+        const wordCardKey = `word_card_${word}`;
+        await this.waitForKey(wordCardKey, 3000);
+        await this.clickByKey(`audio_button_lang1_${word}`);
+        await this.pause(500);
+    }
+
+    /**
+     * Click audio button for language 2 of a word
+     */
+    async clickAudioButtonLang2(word: string): Promise<void> {
+        const wordCardKey = `word_card_${word}`;
+        await this.waitForKey(wordCardKey, 3000);
+        await this.clickByKey(`audio_button_lang2_${word}`);
+        await this.pause(500);
+    }
 }

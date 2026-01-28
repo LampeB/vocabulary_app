@@ -19,6 +19,11 @@ When('I enter the answer {string}', async function(this: any, answer: string) {
     await this.quizPage.enterAnswer(answer);
 });
 
+When('I enter the correct answer for {string} and {string}', async function(this: any, word1: string, word2: string) {
+    this.quizPage = new QuizPage(this.driver);
+    await this.quizPage.enterCorrectAnswer(word1, word2);
+});
+
 When('I submit my answer', async function(this: any) {
     this.quizPage = new QuizPage(this.driver);
     await this.quizPage.submitAnswer();

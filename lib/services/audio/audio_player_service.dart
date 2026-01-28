@@ -1,10 +1,14 @@
 import 'package:audioplayers/audioplayers.dart';
 import '../../config/app_config.dart';
+import '../../config/api_config.dart';
+import 'flutter_tts_service.dart';
 
 /// Service de lecture audio (local et HTTP)
+/// Supporte aussi le TTS natif Flutter quand useFreeTTS est actif
 class AudioPlayerService {
   AudioPlayer? _player;
   bool _isDisposed = false;
+  FlutterTtsService? _ttsService;
 
   /// Initialiser le service audio
   Future<void> initialize() async {
@@ -131,6 +135,46 @@ class AudioPlayerService {
     }
   }
 
+  /// Jouer l'audio avec TTS natif (mode gratuit)
+  /// Utilise la synthèse vocale du système
+  Future<bool> speakText(String text, String langCode) async {
+    try {
+      // Initialiser le service TTS si nécessaire
+      _ttsService ??= FlutterTtsService();
+      await _ttsService!.initialize();
+
+      print('🗣️ TTS: "$text" en $langCode');
+      return await _ttsService!.speak(text, langCode);
+    } catch (e) {
+      print('❌ Erreur TTS: $e');
+      return false;
+    }
+  }
+
+  /// Jouer l'audio intelligemment :
+  /// - Si audioHash existe et useFreeTTS est false : lecture du fichier
+  /// - Sinon : utilise le TTS natif
+  Future<bool> playAudioSmart({
+    String? audioHash,
+    required String text,
+    required String langCode,
+  }) async {
+    // Si on a un hash ET qu'on n'utilise pas le TTS gratuit, lire le fichier
+    if (audioHash != null && !ApiConfig.useFreeTTS) {
+      return await playAudioByHash(audioHash);
+    }
+
+    // Sinon, utiliser le TTS natif
+    return await speakText(text, langCode);
+  }
+
+  /// Arrêter le TTS
+  Future<void> stopTts() async {
+    if (_ttsService != null) {
+      await _ttsService!.stop();
+    }
+  }
+
   /// Libérer les ressources
   void dispose() {
     if (_player != null && !_isDisposed) {
@@ -139,5 +183,7 @@ class AudioPlayerService {
       _isDisposed = true;
       print('🗑️ AudioPlayerService disposed');
     }
+    _ttsService?.dispose();
+    _ttsService = null;
   }
 }

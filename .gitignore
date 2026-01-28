@@ -51,3 +51,12 @@ appium-tests/*.log
 
 # API keys (local config with secrets)
 lib/config/api_keys.dart
+
+# Node modules (root level)
+node_modules/
+
+# Windows reserved names
+nul
+con
+prn
+aux

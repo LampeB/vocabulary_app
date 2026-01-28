@@ -12,6 +12,7 @@ interface QuizPageKeys {
     resultsDialog: string;
     quizScore: string;
     finishButton: string;
+    audioButton: string;
 }
 
 /**
@@ -35,7 +36,8 @@ export class QuizPage extends BasePage {
             incorrectFeedback: 'incorrect_feedback',
             resultsDialog: 'quiz_results_dialog',
             quizScore: 'quiz_score',
-            finishButton: 'finish_quiz_button'
+            finishButton: 'finish_quiz_button',
+            audioButton: 'quiz_audio_button'
         };
     }
 
@@ -58,6 +60,17 @@ export class QuizPage extends BasePage {
      */
     async isQuestionDisplayed(): Promise<boolean> {
         return await this.elementExistsByKey(this.keys.questionWord);
+    }
+
+    /**
+     * Enter the correct answer based on the displayed question.
+     * Checks which word is shown and enters the other one.
+     */
+    async enterCorrectAnswer(word1: string, word2: string): Promise<void> {
+        await this.waitForKey(this.keys.questionWord, 5000);
+        const isWord1 = await this.elementExistsByText(word1);
+        const answer = isWord1 ? word2 : word1;
+        await this.enterAnswer(answer);
     }
 
     /**
@@ -94,16 +107,28 @@ export class QuizPage extends BasePage {
 
     /**
      * Check if correct feedback is displayed
+     * Waits a bit for feedback animation
      */
     async isCorrectFeedbackDisplayed(): Promise<boolean> {
-        return await this.elementExistsByKey(this.keys.correctFeedback);
+        try {
+            await this.waitForKey(this.keys.correctFeedback, 2000);
+            return true;
+        } catch (e) {
+            return false;
+        }
     }
 
     /**
      * Check if incorrect feedback is displayed
+     * Waits a bit for feedback animation
      */
     async isIncorrectFeedbackDisplayed(): Promise<boolean> {
-        return await this.elementExistsByKey(this.keys.incorrectFeedback);
+        try {
+            await this.waitForKey(this.keys.incorrectFeedback, 2000);
+            return true;
+        } catch (e) {
+            return false;
+        }
     }
 
     /**
@@ -153,5 +178,34 @@ export class QuizPage extends BasePage {
                 break;
             }
         }
+    }
+
+    // === AUDIO ===
+
+    /**
+     * Check if audio button is visible
+     * First waits for the question word to be displayed
+     */
+    async isAudioButtonVisible(): Promise<boolean> {
+        try {
+            await this.waitForKey(this.keys.questionWord, 3000);
+        } catch (e) {
+            return false;
+        }
+        try {
+            await this.waitForKey(this.keys.audioButton, 5000);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * Click the audio button
+     */
+    async clickAudioButton(): Promise<void> {
+        await this.waitForKey(this.keys.questionWord, 3000);
+        await this.clickByKey(this.keys.audioButton);
+        await this.pause(500);
     }
 }

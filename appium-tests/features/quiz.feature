@@ -22,7 +22,7 @@ Feature: Quiz Mode
     And I add a word "bonjour" with translation "안녕하세요"
     And I navigate back
     When I start the quiz for list "Correct Answer"
-    And I enter the answer "안녕하세요"
+    And I enter the correct answer for "bonjour" and "안녕하세요"
     And I submit my answer
     Then I should see correct feedback
 

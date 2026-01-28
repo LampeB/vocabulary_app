@@ -32,20 +32,18 @@ function execCommand(command: string): Promise<string> {
 }
 
 /**
- * Reset the app database using adb
+ * Clear app data (database, preferences) for a fresh start.
+ * Appium handles APK installation itself via the 'app' capability.
  */
-async function resetDatabase(): Promise<void> {
-    if (platform !== 'android') {
-        console.log('⚠️ Database reset only supported on Android');
-        return;
-    }
+async function clearAppData(): Promise<void> {
+    if (platform !== 'android') return;
 
     try {
-        // Clear app data (this removes the database and all app data)
         await execCommand(`adb shell pm clear ${APP_PACKAGE}`);
-        console.log('🗑️ Database reset: app data cleared');
+        console.log('🗑️ App data cleared');
     } catch (error: any) {
-        console.log(`⚠️ Could not reset database: ${error.message}`);
+        // App might not be installed yet (first run) - that's fine
+        console.log(`ℹ️ App not installed yet, skipping clear`);
     }
 }
 
@@ -90,9 +88,8 @@ function getCapabilities(): any {
  */
 BeforeAll(async function() {
     console.log(`🚀 Appium tests (${platform})`);
-    if (process.env.RESET_DB_BEFORE === 'true') {
-        await resetDatabase();
-    }
+    // Clear app data for a fresh start (Appium handles APK install via 'app' capability)
+    await clearAppData();
 });
 
 /**
@@ -165,9 +162,12 @@ AfterAll(async function() {
     }
     console.log('✅ Done');
 
-    // Reset database after all tests (unless disabled)
+    // Clear app data after all tests (unless disabled)
     if (process.env.RESET_DB_AFTER !== 'false') {
-        await resetDatabase();
+        try {
+            await execCommand(`adb shell pm clear ${APP_PACKAGE}`);
+            console.log('🗑️ App data cleared');
+        } catch (e) {}
     }
 });
 

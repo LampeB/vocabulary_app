@@ -1,5 +1,645 @@
 [
   {
+    "description": "  As a language learner\n  I want to hear the pronunciation of words\n  So that I can learn correct pronunciation",
+    "elements": [
+      {
+        "description": "",
+        "id": "audio-playback;audio-buttons-are-visible-on-word-cards",
+        "keyword": "Scenario",
+        "line": 12,
+        "name": "Audio buttons are visible on word cards",
+        "steps": [
+          {
+            "keyword": "Before",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 23212942000
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 7,
+            "name": "the app is launched",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 326900
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 8,
+            "name": "I am on the home screen",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:16"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 59484599
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 13,
+            "name": "a vocabulary list \"Audio Test\" exists",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 7778627400
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "When ",
+            "line": 14,
+            "name": "I click on the list \"Audio Test\"",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:48"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 530730800
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 15,
+            "name": "I add a word \"bonjour\" with translation \"안녕하세요\"",
+            "match": {
+              "location": "step-definitions\\word-management-steps.ts:30"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1714744500
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 16,
+            "name": "I should see the audio button for word \"bonjour\" in language 1",
+            "match": {
+              "location": "step-definitions\\audio-steps.ts:15"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 30646099
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 17,
+            "name": "I should see the audio button for word \"bonjour\" in language 2",
+            "match": {
+              "location": "step-definitions\\audio-steps.ts:21"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 28864200
+            }
+          },
+          {
+            "keyword": "After",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 420546699
+            }
+          }
+        ],
+        "tags": [],
+        "type": "scenario"
+      },
+      {
+        "description": "",
+        "id": "audio-playback;play-audio-for-language-1-word",
+        "keyword": "Scenario",
+        "line": 19,
+        "name": "Play audio for language 1 word",
+        "steps": [
+          {
+            "keyword": "Before",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 3709358800
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 7,
+            "name": "the app is launched",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 118700
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 8,
+            "name": "I am on the home screen",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:16"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 29327699
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 20,
+            "name": "a vocabulary list \"Audio Lang1\" exists",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 7539833599
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 21,
+            "name": "I click on the list \"Audio Lang1\"",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:48"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 560699699
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 22,
+            "name": "I add a word \"merci\" with translation \"감사합니다\"",
+            "match": {
+              "location": "step-definitions\\word-management-steps.ts:30"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1687711199
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "When ",
+            "line": 23,
+            "name": "I click the audio button for word \"merci\" in language 1",
+            "match": {
+              "location": "step-definitions\\audio-steps.ts:27"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 545092600
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 24,
+            "name": "the audio should play without error",
+            "match": {
+              "location": "step-definitions\\audio-steps.ts:70"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 214299
+            }
+          },
+          {
+            "keyword": "After",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 302593899
+            }
+          }
+        ],
+        "tags": [],
+        "type": "scenario"
+      },
+      {
+        "description": "",
+        "id": "audio-playback;play-audio-for-language-2-word",
+        "keyword": "Scenario",
+        "line": 26,
+        "name": "Play audio for language 2 word",
+        "steps": [
+          {
+            "keyword": "Before",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 3738143199
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 7,
+            "name": "the app is launched",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 86599
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 8,
+            "name": "I am on the home screen",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:16"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 34606800
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 27,
+            "name": "a vocabulary list \"Audio Lang2\" exists",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 7503422700
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 28,
+            "name": "I click on the list \"Audio Lang2\"",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:48"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 529833600
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 29,
+            "name": "I add a word \"salut\" with translation \"안녕\"",
+            "match": {
+              "location": "step-definitions\\word-management-steps.ts:30"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1658004899
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "When ",
+            "line": 30,
+            "name": "I click the audio button for word \"salut\" in language 2",
+            "match": {
+              "location": "step-definitions\\audio-steps.ts:38"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 537396800
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 31,
+            "name": "the audio should play without error",
+            "match": {
+              "location": "step-definitions\\audio-steps.ts:70"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 120699
+            }
+          },
+          {
+            "keyword": "After",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 293323900
+            }
+          }
+        ],
+        "tags": [],
+        "type": "scenario"
+      },
+      {
+        "description": "",
+        "id": "audio-playback;audio-button-is-visible-in-quiz",
+        "keyword": "Scenario",
+        "line": 35,
+        "name": "Audio button is visible in quiz",
+        "steps": [
+          {
+            "keyword": "Before",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 3712234700
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 7,
+            "name": "the app is launched",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 97200
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 8,
+            "name": "I am on the home screen",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:16"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 24130600
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 36,
+            "name": "a vocabulary list \"Quiz Audio\" exists",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 7541282300
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 37,
+            "name": "I click on the list \"Quiz Audio\"",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:48"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 531099500
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 38,
+            "name": "I add a word \"oui\" with translation \"네\"",
+            "match": {
+              "location": "step-definitions\\word-management-steps.ts:30"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1724728199
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 39,
+            "name": "I navigate back",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:22"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 628692299
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "When ",
+            "line": 40,
+            "name": "I start the quiz for list \"Quiz Audio\"",
+            "match": {
+              "location": "step-definitions\\quiz-steps.ts:11"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 501445200
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 41,
+            "name": "I should see the quiz audio button",
+            "match": {
+              "location": "step-definitions\\audio-steps.ts:51"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 18768299
+            }
+          },
+          {
+            "keyword": "After",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 260935899
+            }
+          }
+        ],
+        "tags": [],
+        "type": "scenario"
+      },
+      {
+        "description": "",
+        "id": "audio-playback;play-audio-in-quiz",
+        "keyword": "Scenario",
+        "line": 43,
+        "name": "Play audio in quiz",
+        "steps": [
+          {
+            "keyword": "Before",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 3697365200
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 7,
+            "name": "the app is launched",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 117800
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 8,
+            "name": "I am on the home screen",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:16"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 31578899
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 44,
+            "name": "a vocabulary list \"Quiz Audio Play\" exists",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:12"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 7470192300
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 45,
+            "name": "I click on the list \"Quiz Audio Play\"",
+            "match": {
+              "location": "step-definitions\\vocabulary-list-steps.ts:48"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 529047800
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 46,
+            "name": "I add a word \"non\" with translation \"아니요\"",
+            "match": {
+              "location": "step-definitions\\word-management-steps.ts:30"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 1690323699
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 47,
+            "name": "I navigate back",
+            "match": {
+              "location": "step-definitions\\common-steps.ts:22"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 566700200
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "When ",
+            "line": 48,
+            "name": "I start the quiz for list \"Quiz Audio Play\"",
+            "match": {
+              "location": "step-definitions\\quiz-steps.ts:11"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 513917700
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "And ",
+            "line": 49,
+            "name": "I click the quiz audio button",
+            "match": {
+              "location": "step-definitions\\audio-steps.ts:57"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 541552400
+            }
+          },
+          {
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 50,
+            "name": "the audio should play without error",
+            "match": {
+              "location": "step-definitions\\audio-steps.ts:70"
+            },
+            "result": {
+              "status": "passed",
+              "duration": 158299
+            }
+          },
+          {
+            "keyword": "After",
+            "hidden": true,
+            "result": {
+              "status": "passed",
+              "duration": 309520300
+            }
+          }
+        ],
+        "tags": [],
+        "type": "scenario"
+      }
+    ],
+    "id": "audio-playback",
+    "line": 1,
+    "keyword": "Feature",
+    "name": "Audio Playback",
+    "tags": [],
+    "uri": "features\\audio.feature"
+  },
+  {
     "description": "  As a language learner\n  I want to delete vocabulary lists I no longer need\n  So that I can keep my app organized",
     "elements": [
       {
@@ -14,7 +654,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 23241092000
+              "duration": 3726483299
             }
           },
           {
@@ -27,7 +667,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 240800
+              "duration": 93399
             }
           },
           {
@@ -40,7 +680,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 36156800
+              "duration": 25604500
             }
           },
           {
@@ -53,7 +693,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 9242871599
+              "duration": 7529094700
             }
           },
           {
@@ -66,7 +706,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 780457399
+              "duration": 681934399
             }
           },
           {
@@ -79,7 +719,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 36853100
+              "duration": 11535199
             }
           },
           {
@@ -92,7 +732,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 278094300
+              "duration": 230994699
             }
           },
           {
@@ -105,7 +745,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 6563485600
+              "duration": 6269682100
             }
           },
           {
@@ -113,7 +753,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 2266728900
+              "duration": 302187200
             }
           }
         ],
@@ -132,7 +772,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 4515863100
+              "duration": 3718451400
             }
           },
           {
@@ -145,7 +785,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 126500
+              "duration": 91899
             }
           },
           {
@@ -158,7 +798,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 973426500
+              "duration": 27093399
             }
           },
           {
@@ -171,7 +811,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 8559215799
+              "duration": 7514988199
             }
           },
           {
@@ -184,7 +824,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 789981299
+              "duration": 691325500
             }
           },
           {
@@ -197,7 +837,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 346419499
+              "duration": 217403100
             }
           },
           {
@@ -210,7 +850,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 37202499
+              "duration": 9660700
             }
           },
           {
@@ -218,7 +858,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 1083824499
+              "duration": 322291500
             }
           }
         ],
@@ -248,7 +888,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 3878631299
+              "duration": 3703035500
             }
           },
           {
@@ -261,7 +901,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 86699
+              "duration": 101900
             }
           },
           {
@@ -274,7 +914,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 8805060899
+              "duration": 4902278400
             }
           },
           {
@@ -287,7 +927,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 823162899
+              "duration": 28832299
             }
           },
           {
@@ -300,7 +940,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 214350599
+              "duration": 8702199
             }
           },
           {
@@ -313,7 +953,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 95527000
+              "duration": 6197299
             }
           },
           {
@@ -321,7 +961,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 1175285300
+              "duration": 277484499
             }
           }
         ],
@@ -340,7 +980,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 4138642200
+              "duration": 3809901000
             }
           },
           {
@@ -353,7 +993,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 88199
+              "duration": 115899
             }
           },
           {
@@ -366,7 +1006,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 1145521099
+              "duration": 30955400
             }
           },
           {
@@ -379,7 +1019,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 9316236000
+              "duration": 7511514699
             }
           },
           {
@@ -392,7 +1032,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 664070600
+              "duration": 523826700
             }
           },
           {
@@ -405,7 +1045,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 17844600
+              "duration": 6792699
             }
           },
           {
@@ -418,7 +1058,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 17977500
+              "duration": 6278699
             }
           },
           {
@@ -426,7 +1066,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 1301081599
+              "duration": 262295400
             }
           }
         ],
@@ -456,7 +1096,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 3818188699
+              "duration": 3721219400
             }
           },
           {
@@ -469,7 +1109,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 102599
+              "duration": 93399
             }
           },
           {
@@ -482,7 +1122,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 1442444900
+              "duration": 25471399
             }
           },
           {
@@ -495,7 +1135,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 8382207399
+              "duration": 7529177400
             }
           },
           {
@@ -508,7 +1148,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 708203899
+              "duration": 529495899
             }
           },
           {
@@ -521,7 +1161,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 18951799
+              "duration": 6311099
             }
           },
           {
@@ -534,7 +1174,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 981054300
+              "duration": 566344199
             }
           },
           {
@@ -547,7 +1187,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 57211999
+              "duration": 6868199
             }
           },
           {
@@ -555,7 +1195,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 1062155899
+              "duration": 262808499
             }
           }
         ],
@@ -574,7 +1214,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 3875178700
+              "duration": 3731426799
             }
           },
           {
@@ -587,7 +1227,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 119900
+              "duration": 89399
             }
           },
           {
@@ -600,7 +1240,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 1699360400
+              "duration": 24332200
             }
           },
           {
@@ -613,7 +1253,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 8585703099
+              "duration": 7469574900
             }
           },
           {
@@ -626,7 +1266,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 7923155800
+              "duration": 7314699900
             }
           },
           {
@@ -639,7 +1279,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 687888600
+              "duration": 530569500
             }
           },
           {
@@ -652,7 +1292,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 47040800
+              "duration": 10002300
             }
           },
           {
@@ -665,7 +1305,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 744764000
+              "duration": 566000500
             }
           },
           {
@@ -678,7 +1318,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 729885100
+              "duration": 523342900
             }
           },
           {
@@ -691,7 +1331,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 30729600
+              "duration": 7001300
             }
           },
           {
@@ -704,7 +1344,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 656293899
+              "duration": 554987699
             }
           },
           {
@@ -717,7 +1357,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 60043700
+              "duration": 7796099
             }
           },
           {
@@ -725,7 +1365,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 1319511599
+              "duration": 314478999
             }
           }
         ],
@@ -755,7 +1395,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 4088323799
+              "duration": 3725968300
             }
           },
           {
@@ -768,7 +1408,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 87100
+              "duration": 96699
             }
           },
           {
@@ -781,7 +1421,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 1724987300
+              "duration": 116706299
             }
           },
           {
@@ -794,7 +1434,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 8536202900
+              "duration": 7697221699
             }
           },
           {
@@ -807,7 +1447,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 698689199
+              "duration": 526964899
             }
           },
           {
@@ -820,7 +1460,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 3785510399
+              "duration": 1721047599
             }
           },
           {
@@ -833,7 +1473,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 789334299
+              "duration": 566365400
             }
           },
           {
@@ -846,7 +1486,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 980851599
+              "duration": 499541999
             }
           },
           {
@@ -855,11 +1495,11 @@
             "line": 16,
             "name": "I should be on the quiz screen",
             "match": {
-              "location": "step-definitions\\quiz-steps.ts:33"
+              "location": "step-definitions\\quiz-steps.ts:38"
             },
             "result": {
               "status": "passed",
-              "duration": 87657299
+              "duration": 19013900
             }
           },
           {
@@ -868,11 +1508,11 @@
             "line": 17,
             "name": "I should see a word to translate",
             "match": {
-              "location": "step-definitions\\quiz-steps.ts:40"
+              "location": "step-definitions\\quiz-steps.ts:45"
             },
             "result": {
               "status": "passed",
-              "duration": 33653999
+              "duration": 7602600
             }
           },
           {
@@ -880,7 +1520,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 2005722799
+              "duration": 366954499
             }
           }
         ],
@@ -899,7 +1539,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 3826480600
+              "duration": 3765916900
             }
           },
           {
@@ -912,7 +1552,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 95200
+              "duration": 108899
             }
           },
           {
@@ -925,7 +1565,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 1662081099
+              "duration": 26124600
             }
           },
           {
@@ -938,7 +1578,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 8349538100
+              "duration": 7475778099
             }
           },
           {
@@ -951,7 +1591,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 692737499
+              "duration": 530886700
             }
           },
           {
@@ -964,7 +1604,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 3108020999
+              "duration": 1792134600
             }
           },
           {
@@ -977,7 +1617,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 841004100
+              "duration": 566931400
             }
           },
           {
@@ -990,20 +1630,20 @@
             },
             "result": {
               "status": "passed",
-              "duration": 999874200
+              "duration": 510786300
             }
           },
           {
             "arguments": [],
             "keyword": "And ",
             "line": 25,
-            "name": "I enter the answer \"안녕하세요\"",
+            "name": "I enter the correct answer for \"bonjour\" and \"안녕하세요\"",
             "match": {
-              "location": "step-definitions\\quiz-steps.ts:17"
+              "location": "step-definitions\\quiz-steps.ts:22"
             },
             "result": {
               "status": "passed",
-              "duration": 390423800
+              "duration": 48857499
             }
           },
           {
@@ -1012,11 +1652,11 @@
             "line": 26,
             "name": "I submit my answer",
             "match": {
-              "location": "step-definitions\\quiz-steps.ts:22"
+              "location": "step-definitions\\quiz-steps.ts:27"
             },
             "result": {
               "status": "passed",
-              "duration": 595440200
+              "duration": 237431000
             }
           },
           {
@@ -1025,11 +1665,11 @@
             "line": 27,
             "name": "I should see correct feedback",
             "match": {
-              "location": "step-definitions\\quiz-steps.ts:46"
+              "location": "step-definitions\\quiz-steps.ts:51"
             },
             "result": {
               "status": "passed",
-              "duration": 31083299
+              "duration": 10690899
             }
           },
           {
@@ -1037,7 +1677,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 1110206999
+              "duration": 310396700
             }
           }
         ],
@@ -1056,7 +1696,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 4182213800
+              "duration": 3699412799
             }
           },
           {
@@ -1069,7 +1709,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 94299
+              "duration": 118800
             }
           },
           {
@@ -1082,7 +1722,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 1785505300
+              "duration": 38080300
             }
           },
           {
@@ -1095,7 +1735,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 8407881699
+              "duration": 7532995000
             }
           },
           {
@@ -1108,7 +1748,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 783799900
+              "duration": 527425599
             }
           },
           {
@@ -1121,7 +1761,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 3724876799
+              "duration": 1662517600
             }
           },
           {
@@ -1134,7 +1774,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 832729300
+              "duration": 573191200
             }
           },
           {
@@ -1147,7 +1787,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 1023963600
+              "duration": 504011499
             }
           },
           {
@@ -1160,7 +1800,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 345081200
+              "duration": 37497799
             }
           },
           {
@@ -1169,11 +1809,11 @@
             "line": 36,
             "name": "I submit my answer",
             "match": {
-              "location": "step-definitions\\quiz-steps.ts:22"
+              "location": "step-definitions\\quiz-steps.ts:27"
             },
             "result": {
               "status": "passed",
-              "duration": 348604800
+              "duration": 231226300
             }
           },
           {
@@ -1182,11 +1822,11 @@
             "line": 37,
             "name": "I should see incorrect feedback",
             "match": {
-              "location": "step-definitions\\quiz-steps.ts:52"
+              "location": "step-definitions\\quiz-steps.ts:57"
             },
             "result": {
               "status": "passed",
-              "duration": 96230999
+              "duration": 10652899
             }
           },
           {
@@ -1194,7 +1834,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 1422461799
+              "duration": 306715499
             }
           }
         ],
@@ -1213,7 +1853,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 3807563200
+              "duration": 3772571400
             }
           },
           {
@@ -1226,7 +1866,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 82099
+              "duration": 107700
             }
           },
           {
@@ -1239,7 +1879,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 1811340700
+              "duration": 28604600
             }
           },
           {
@@ -1252,7 +1892,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 8312288100
+              "duration": 7524004999
             }
           },
           {
@@ -1265,7 +1905,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 705858100
+              "duration": 529494500
             }
           },
           {
@@ -1278,7 +1918,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 3902570100
+              "duration": 1662740499
             }
           },
           {
@@ -1291,7 +1931,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 916934099
+              "duration": 563523199
             }
           },
           {
@@ -1304,7 +1944,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 719597200
+              "duration": 514343600
             }
           },
           {
@@ -1313,11 +1953,11 @@
             "line": 45,
             "name": "I complete the quiz",
             "match": {
-              "location": "step-definitions\\quiz-steps.ts:27"
+              "location": "step-definitions\\quiz-steps.ts:32"
             },
             "result": {
               "status": "passed",
-              "duration": 61496501000
+              "duration": 59488042199
             }
           },
           {
@@ -1326,11 +1966,11 @@
             "line": 46,
             "name": "I should see the quiz results dialog",
             "match": {
-              "location": "step-definitions\\quiz-steps.ts:58"
+              "location": "step-definitions\\quiz-steps.ts:63"
             },
             "result": {
               "status": "passed",
-              "duration": 18666600
+              "duration": 5692399
             }
           },
           {
@@ -1338,7 +1978,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 1196804300
+              "duration": 357779900
             }
           }
         ],
@@ -1368,7 +2008,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 3869027699
+              "duration": 3801520799
             }
           },
           {
@@ -1381,7 +2021,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 108899
+              "duration": 195599
             }
           },
           {
@@ -1394,7 +2034,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 1662333400
+              "duration": 50689100
             }
           },
           {
@@ -1407,7 +2047,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 29569599
+              "duration": 6559999
             }
           },
           {
@@ -1415,7 +2055,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 987467500
+              "duration": 310480099
             }
           }
         ],
@@ -1445,7 +2085,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 3852842499
+              "duration": 3719620300
             }
           },
           {
@@ -1458,7 +2098,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 95299
+              "duration": 118599
             }
           },
           {
@@ -1471,7 +2111,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 1966359700
+              "duration": 23915399
             }
           },
           {
@@ -1484,7 +2124,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 38258499
+              "duration": 13160700
             }
           },
           {
@@ -1492,7 +2132,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 1273662699
+              "duration": 293585199
             }
           }
         ],
@@ -1511,7 +2151,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 3865748700
+              "duration": 3754693399
             }
           },
           {
@@ -1524,7 +2164,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 93500
+              "duration": 94099
             }
           },
           {
@@ -1537,7 +2177,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 1670510899
+              "duration": 24220800
             }
           },
           {
@@ -1550,7 +2190,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 1001193700
+              "duration": 759847000
             }
           },
           {
@@ -1563,7 +2203,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 108042900
+              "duration": 19155299
             }
           },
           {
@@ -1576,7 +2216,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 178211299
+              "duration": 56508499
             }
           },
           {
@@ -1589,7 +2229,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 743970900
+              "duration": 407245200
             }
           },
           {
@@ -1602,7 +2242,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 43880099
+              "duration": 14603799
             }
           },
           {
@@ -1610,7 +2250,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 1036412899
+              "duration": 308410700
             }
           }
         ],
@@ -1629,7 +2269,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 4209695799
+              "duration": 3775831999
             }
           },
           {
@@ -1642,7 +2282,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 78399
+              "duration": 91000
             }
           },
           {
@@ -1655,7 +2295,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 1758837899
+              "duration": 26563299
             }
           },
           {
@@ -1668,7 +2308,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 919095900
+              "duration": 772319399
             }
           },
           {
@@ -1681,7 +2321,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 200194200
+              "duration": 58310399
             }
           },
           {
@@ -1694,7 +2334,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 450433499
+              "duration": 217564599
             }
           },
           {
@@ -1707,7 +2347,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 6458360600
+              "duration": 6297884799
             }
           },
           {
@@ -1715,7 +2355,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 1069799600
+              "duration": 348758100
             }
           }
         ],
@@ -1745,7 +2385,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 3801135699
+              "duration": 3731643200
             }
           },
           {
@@ -1758,7 +2398,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 91699
+              "duration": 111899
             }
           },
           {
@@ -1771,7 +2411,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 1761970499
+              "duration": 28552800
             }
           },
           {
@@ -1784,7 +2424,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 8406440200
+              "duration": 7562470100
             }
           },
           {
@@ -1797,7 +2437,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 744701400
+              "duration": 526250000
             }
           },
           {
@@ -1810,7 +2450,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 41243100
+              "duration": 10266800
             }
           },
           {
@@ -1823,7 +2463,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 779747199
+              "duration": 662230999
             }
           },
           {
@@ -1836,7 +2476,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 29699699
+              "duration": 6453399
             }
           },
           {
@@ -1849,7 +2489,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 100748299
+              "duration": 23250999
             }
           },
           {
@@ -1862,7 +2502,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 218811199
+              "duration": 40708099
             }
           },
           {
@@ -1875,7 +2515,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 2709991500
+              "duration": 900583500
             }
           },
           {
@@ -1888,7 +2528,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 39239899
+              "duration": 7048899
             }
           },
           {
@@ -1896,7 +2536,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 1334342400
+              "duration": 253820699
             }
           }
         ],
@@ -1915,7 +2555,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 3822430600
+              "duration": 3691363499
             }
           },
           {
@@ -1928,7 +2568,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 89600
+              "duration": 92200
             }
           },
           {
@@ -1941,7 +2581,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 1476784500
+              "duration": 23575000
             }
           },
           {
@@ -1954,7 +2594,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 8474451699
+              "duration": 7520715000
             }
           },
           {
@@ -1967,7 +2607,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 635307499
+              "duration": 524658400
             }
           },
           {
@@ -1980,7 +2620,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 766189299
+              "duration": 672726499
             }
           },
           {
@@ -1993,7 +2633,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 157577500
+              "duration": 22632099
             }
           },
           {
@@ -2006,7 +2646,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 318786499
+              "duration": 247394099
             }
           },
           {
@@ -2019,7 +2659,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 6493973299
+              "duration": 6288560300
             }
           },
           {
@@ -2027,7 +2667,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 1165471100
+              "duration": 251247700
             }
           }
         ],
@@ -2046,7 +2686,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 3826327199
+              "duration": 3772144399
             }
           },
           {
@@ -2059,7 +2699,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 93099
+              "duration": 100700
             }
           },
           {
@@ -2072,7 +2712,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 2037709399
+              "duration": 24521399
             }
           },
           {
@@ -2085,7 +2725,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 8480459199
+              "duration": 7560028600
             }
           },
           {
@@ -2098,7 +2738,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 836426000
+              "duration": 526752500
             }
           },
           {
@@ -2111,7 +2751,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 3594763700
+              "duration": 1711308000
             }
           },
           {
@@ -2124,7 +2764,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 28713699
+              "duration": 8921800
             }
           },
           {
@@ -2137,7 +2777,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 751154799
+              "duration": 683009900
             }
           },
           {
@@ -2150,7 +2790,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 28478500
+              "duration": 9175899
             }
           },
           {
@@ -2163,7 +2803,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 315733899
+              "duration": 209243799
             }
           },
           {
@@ -2176,7 +2816,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 6538671999
+              "duration": 6284097000
             }
           },
           {
@@ -2184,7 +2824,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 981982900
+              "duration": 308958900
             }
           }
         ],
@@ -2203,7 +2843,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 3971343300
+              "duration": 3738007199
             }
           },
           {
@@ -2216,7 +2856,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 89299
+              "duration": 104899
             }
           },
           {
@@ -2229,7 +2869,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 2112797699
+              "duration": 31768899
             }
           },
           {
@@ -2242,7 +2882,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 8514474999
+              "duration": 7517578399
             }
           },
           {
@@ -2255,7 +2895,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 719290299
+              "duration": 530045000
             }
           },
           {
@@ -2268,7 +2908,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 3511236700
+              "duration": 1658019899
             }
           },
           {
@@ -2281,7 +2921,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 967082700
+              "duration": 676684399
             }
           },
           {
@@ -2294,7 +2934,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 327661800
+              "duration": 200183300
             }
           },
           {
@@ -2307,7 +2947,7 @@
             },
             "result": {
               "status": "passed",
-              "duration": 74551399
+              "duration": 6578299
             }
           },
           {
@@ -2315,7 +2955,7 @@
             "hidden": true,
             "result": {
               "status": "passed",
-              "duration": 986829700
+              "duration": 278571899
             }
           }
         ],

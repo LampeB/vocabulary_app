@@ -27,7 +27,8 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
   void initState() {
     super.initState();
     _loadConcepts();
-    _audioPlayer.initialize();
+    // Audio initialization is lazy - done on first play via _ensureInitialized()
+    // Removing eager init to avoid triggering Bluetooth popup on Android
   }
 
   @override
@@ -209,16 +210,13 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
     }
   }
 
-  // Jouer l'audio d'une variante
-  Future<void> _playAudio(WordVariant variant) async {
-    if (variant.audioHash == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aucun audio disponible')),
-      );
-      return;
-    }
-
-    final success = await _audioPlayer.playAudioByHash(variant.audioHash!);
+  // Jouer l'audio d'une variante (TTS natif ou fichier audio)
+  Future<void> _playAudio(WordVariant variant, String langCode) async {
+    final success = await _audioPlayer.playAudioSmart(
+      audioHash: variant.audioHash,
+      text: variant.word,
+      langCode: langCode,
+    );
 
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -470,13 +468,15 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
-                    if (lang1Variants.first.audioHash != null)
-                      IconButton(
+                    Semantics(
+                      label: 'audio_lang1_$wordKey',
+                      child: IconButton(
+                        key: Key('audio_button_lang1_$wordKey'),
                         icon: const Icon(Icons.volume_up, size: 20),
-                        onPressed: () => _playAudio(lang1Variants.first),
-                        tooltip: 'Écouter',
+                        onPressed: () => _playAudio(lang1Variants.first, widget.list.lang1Code),
                         color: Theme.of(context).colorScheme.primary,
                       ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -497,13 +497,15 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
-                    if (lang2Variants.first.audioHash != null)
-                      IconButton(
+                    Semantics(
+                      label: 'audio_lang2_$wordKey',
+                      child: IconButton(
+                        key: Key('audio_button_lang2_$wordKey'),
                         icon: const Icon(Icons.volume_up, size: 20),
-                        onPressed: () => _playAudio(lang2Variants.first),
-                        tooltip: 'Écouter',
+                        onPressed: () => _playAudio(lang2Variants.first, widget.list.lang2Code),
                         color: Theme.of(context).colorScheme.primary,
                       ),
+                    ),
                   ],
                 ),
 

@@ -1,7 +1,19 @@
 # =============================================================================
 # Script complet pour lancer les tests Appium
-# Usage: .\run-all.ps1
+# Usage: .\run-all.ps1 [-Emulator <name>] [-SkipBuild] [-SmokeOnly]
+#
+# Exemples:
+#   .\run-all.ps1                           # Tout lancer (emulateur, build, appium, tests)
+#   .\run-all.ps1 -SkipBuild                # Skip le build Flutter
+#   .\run-all.ps1 -SmokeOnly                # Lancer uniquement le smoke test
+#   .\run-all.ps1 -Emulator "Pixel_5"       # Utiliser un emulateur specifique
 # =============================================================================
+
+param(
+    [string]$Emulator = "",
+    [switch]$SkipBuild,
+    [switch]$SmokeOnly
+)
 
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host "   LANCEMENT DES TESTS APPIUM" -ForegroundColor Cyan
@@ -13,24 +25,71 @@ $env:ANDROID_HOME = "C:\Users\thoma\AppData\Local\Android\sdk"
 $env:ANDROID_SDK_ROOT = "C:\Users\thoma\AppData\Local\Android\sdk"
 $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 
+$emulatorExe = Join-Path $env:ANDROID_HOME "emulator\emulator.exe"
+$adb = Join-Path $env:ANDROID_HOME "platform-tools\adb.exe"
+
 # Chemins
-$projectRoot = Split-Path -Parent $PSScriptRoot
+# Le script est dans vocabulary_app/appium-tests/, donc le parent direct est vocabulary_app/
 $appiumTestsDir = $PSScriptRoot
-$vocabularyAppDir = Join-Path $projectRoot "vocabulary_app"
+$vocabularyAppDir = Split-Path -Parent $PSScriptRoot
 $apkPath = Join-Path $vocabularyAppDir "build\app\outputs\flutter-apk\app-debug.apk"
 
 # -----------------------------------------------------------------------------
-# ETAPE 1: Verifier l'emulateur
+# ETAPE 1: Lancer l'emulateur si necessaire
 # -----------------------------------------------------------------------------
 Write-Host "[1/5] Verification de l'emulateur Android..." -ForegroundColor Yellow
 
-$devices = adb devices 2>&1
-if ($devices -notmatch "emulator|device") {
-    Write-Host "[ERREUR] Aucun emulateur detecte!" -ForegroundColor Red
-    Write-Host "Lance un emulateur depuis Android Studio et reessaie." -ForegroundColor Red
-    exit 1
+$emulatorStarted = $false
+
+# Verifier si un emulateur tourne deja
+$devices = & $adb devices 2>&1 | Out-String
+if ($devices -match "emulator-\d+\s+device") {
+    Write-Host "[OK] Emulateur deja en cours d'execution" -ForegroundColor Green
+} else {
+    Write-Host "Aucun emulateur detecte. Lancement automatique..." -ForegroundColor Yellow
+
+    # Determiner quel emulateur utiliser
+    if ($Emulator -eq "") {
+        # Lister les AVDs disponibles et prendre le premier
+        $avds = & $emulatorExe -list-avds 2>&1
+        if (-not $avds -or $avds.Count -eq 0) {
+            Write-Host "[ERREUR] Aucun AVD trouve! Cree un emulateur dans Android Studio." -ForegroundColor Red
+            exit 1
+        }
+        # Prendre le premier AVD disponible
+        $Emulator = ($avds | Select-Object -First 1).Trim()
+    }
+
+    Write-Host "  -> Lancement de l'emulateur: $Emulator" -ForegroundColor Gray
+    Start-Process -FilePath $emulatorExe -ArgumentList "-avd", $Emulator, "-no-snapshot-load" -WindowStyle Normal
+    $emulatorStarted = $true
+
+    # Attendre que l'emulateur soit pret (boot complet)
+    Write-Host "  -> Attente du demarrage de l'emulateur..." -ForegroundColor Gray
+    $maxWait = 120
+    $waited = 0
+    while ($waited -lt $maxWait) {
+        Start-Sleep -Seconds 2
+        $waited += 2
+
+        $bootCompleted = & $adb shell getprop sys.boot_completed 2>&1 | Out-String
+        if ($bootCompleted.Trim() -eq "1") {
+            Write-Host "[OK] Emulateur demarre (apres $waited secondes)" -ForegroundColor Green
+            # Attendre encore un peu pour que l'UI soit stable
+            Start-Sleep -Seconds 5
+            break
+        }
+
+        if ($waited % 10 -eq 0) {
+            Write-Host "  Attente de l'emulateur... ($waited/$maxWait)" -ForegroundColor Gray
+        }
+    }
+
+    if ($waited -ge $maxWait) {
+        Write-Host "[ERREUR] L'emulateur n'a pas demarre dans les temps!" -ForegroundColor Red
+        exit 1
+    }
 }
-Write-Host "[OK] Emulateur connecte" -ForegroundColor Green
 Write-Host ""
 
 # -----------------------------------------------------------------------------
@@ -38,44 +97,50 @@ Write-Host ""
 # -----------------------------------------------------------------------------
 Write-Host "[2/5] Verification de l'APK..." -ForegroundColor Yellow
 
-$buildApk = $false
-
-if (-not (Test-Path $apkPath)) {
-    Write-Host "APK non trouve. Construction necessaire..." -ForegroundColor Yellow
-    $buildApk = $true
-} else {
-    $apkAge = (Get-Date) - (Get-Item $apkPath).LastWriteTime
-    if ($apkAge.TotalHours -gt 24) {
-        Write-Host "APK date de plus de 24h. Reconstruction recommandee..." -ForegroundColor Yellow
-        $response = Read-Host "Reconstruire l'APK? (O/n)"
-        if ($response -ne "n" -and $response -ne "N") {
-            $buildApk = $true
-        }
+if ($SkipBuild) {
+    if (Test-Path $apkPath) {
+        Write-Host "[OK] Build skip (-SkipBuild). APK existant utilise." -ForegroundColor Green
     } else {
-        Write-Host "[OK] APK trouve (date de $([math]::Round($apkAge.TotalMinutes)) minutes)" -ForegroundColor Green
-    }
-}
-
-if ($buildApk) {
-    Write-Host "Construction de l'APK..." -ForegroundColor Yellow
-    Push-Location $vocabularyAppDir
-
-    Write-Host "  -> flutter clean" -ForegroundColor Gray
-    flutter clean | Out-Null
-
-    Write-Host "  -> flutter pub get" -ForegroundColor Gray
-    flutter pub get | Out-Null
-
-    Write-Host "  -> flutter build apk --debug --target lib/main_appium.dart" -ForegroundColor Gray
-    flutter build apk --debug --target lib/main_appium.dart
-
-    Pop-Location
-
-    if (-not (Test-Path $apkPath)) {
-        Write-Host "[ERREUR] La construction de l'APK a echoue!" -ForegroundColor Red
+        Write-Host "[ERREUR] -SkipBuild mais aucun APK trouve! Relance sans -SkipBuild." -ForegroundColor Red
         exit 1
     }
-    Write-Host "[OK] APK construit avec succes" -ForegroundColor Green
+} else {
+    $buildApk = $false
+
+    if (-not (Test-Path $apkPath)) {
+        Write-Host "APK non trouve. Construction necessaire..." -ForegroundColor Yellow
+        $buildApk = $true
+    } else {
+        $apkAge = (Get-Date) - (Get-Item $apkPath).LastWriteTime
+        if ($apkAge.TotalHours -gt 24) {
+            Write-Host "APK date de plus de 24h. Reconstruction..." -ForegroundColor Yellow
+            $buildApk = $true
+        } else {
+            Write-Host "[OK] APK trouve (date de $([math]::Round($apkAge.TotalMinutes)) minutes)" -ForegroundColor Green
+        }
+    }
+
+    if ($buildApk) {
+        Write-Host "Construction de l'APK..." -ForegroundColor Yellow
+        Push-Location $vocabularyAppDir
+
+        Write-Host "  -> flutter clean" -ForegroundColor Gray
+        flutter clean | Out-Null
+
+        Write-Host "  -> flutter pub get" -ForegroundColor Gray
+        flutter pub get | Out-Null
+
+        Write-Host "  -> flutter build apk --debug --target lib/main_appium.dart" -ForegroundColor Gray
+        flutter build apk --debug --target lib/main_appium.dart
+
+        Pop-Location
+
+        if (-not (Test-Path $apkPath)) {
+            Write-Host "[ERREUR] La construction de l'APK a echoue!" -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "[OK] APK construit avec succes" -ForegroundColor Green
+    }
 }
 Write-Host ""
 
@@ -101,7 +166,6 @@ Write-Host "[4/5] Demarrage d'Appium..." -ForegroundColor Yellow
 # Verifier si Appium est deja en cours
 $appiumRunning = $false
 try {
-    # Utiliser Test-NetConnection comme methode alternative
     $tcpTest = Test-NetConnection -ComputerName localhost -Port 4723 -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
     if ($tcpTest.TcpTestSucceeded) {
         $appiumRunning = $true
@@ -115,10 +179,11 @@ if (-not $appiumRunning) {
     Write-Host "Demarrage d'Appium dans une nouvelle fenetre..." -ForegroundColor Yellow
 
     # Demarrer Appium dans une nouvelle fenetre CMD avec les variables d'environnement
-    $appiumCmd = "set ANDROID_HOME=$env:ANDROID_HOME && set ANDROID_SDK_ROOT=$env:ANDROID_SDK_ROOT && set JAVA_HOME=$env:JAVA_HOME && appium"
+    # Les guillemets autour de chaque "set" evitent que CMD inclue l'espace avant && dans la valeur
+    $appiumCmd = "set `"ANDROID_HOME=$env:ANDROID_HOME`" && set `"ANDROID_SDK_ROOT=$env:ANDROID_SDK_ROOT`" && set `"JAVA_HOME=$env:JAVA_HOME`" && appium"
     Start-Process -FilePath "cmd.exe" -ArgumentList "/k", $appiumCmd -WindowStyle Normal
 
-    # Attendre qu'Appium soit pret (Flutter driver peut prendre 30+ secondes a charger)
+    # Attendre qu'Appium soit pret
     $maxWait = 60
     $waited = 0
     Write-Host "  Attente du demarrage d'Appium..." -ForegroundColor Gray
@@ -158,8 +223,13 @@ Write-Host "[5/5] Lancement des tests..." -ForegroundColor Yellow
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Lancer le test smoke
-npm run test:smoke
+if ($SmokeOnly) {
+    Write-Host "Mode: Smoke test uniquement" -ForegroundColor Gray
+    npm run test:smoke
+} else {
+    Write-Host "Mode: Tous les tests" -ForegroundColor Gray
+    npm test
+}
 
 $testExitCode = $LASTEXITCODE
 
@@ -185,8 +255,12 @@ if ($testExitCode -eq 0) {
 
 Write-Host "=============================================" -ForegroundColor Cyan
 
-# Note: Appium reste ouvert dans sa propre fenetre
-# Tu peux le fermer manuellement quand tu as fini les tests
+# Ouvrir le rapport HTML
+$reportPath = Join-Path $appiumTestsDir "reports\cucumber-report.html"
+if (Test-Path $reportPath) {
+    Write-Host ""
+    Write-Host "Rapport: $reportPath" -ForegroundColor Gray
+}
 
 Pop-Location
 

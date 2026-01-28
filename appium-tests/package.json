@@ -4,19 +4,11 @@
   "description": "Appium UI tests for VocabApp",
   "main": "index.js",
   "scripts": {
-    "install-appium": "npm install -g appium",
-    "install-driver": "appium driver install --source=npm appium-flutter-driver",
-    "appium": "appium",
     "test": "cucumber-js",
     "test:smoke": "cucumber-js features/smoke.feature",
-    "test:smoke:auto": "powershell -ExecutionPolicy Bypass -File ./run-smoke-test.ps1",
-    "test:android": "SET PLATFORM=android && cucumber-js",
-    "test:windows": "SET PLATFORM=windows && cucumber-js",
-    "test:report": "cucumber-js --format json:reports/cucumber_report.json",
-    "test:open": "npm test && start reports/cucumber-report.html",
-    "test:android:open": "npm run test:android && start reports/cucumber-report.html",
-    "test:auto": "powershell -ExecutionPolicy Bypass -File ./run-tests.ps1",
-    "test:android:auto": "powershell -ExecutionPolicy Bypass -Command \"$env:PLATFORM='android'; ./run-tests.ps1\""
+    "test:auto": "powershell -ExecutionPolicy Bypass -File ./run-all.ps1",
+    "test:auto:skipbuild": "powershell -ExecutionPolicy Bypass -File ./run-all.ps1 -SkipBuild",
+    "test:auto:smoke": "powershell -ExecutionPolicy Bypass -File ./run-all.ps1 -SmokeOnly"
   },
   "keywords": [
     "appium",
@@ -36,10 +28,6 @@
   "devDependencies": {
     "@types/chai": "^4.3.11",
     "@types/node": "^20.10.6",
-    "@wdio/cli": "^8.27.0",
-    "@wdio/local-runner": "^8.27.0",
-    "@wdio/mocha-framework": "^8.27.0",
-    "@wdio/spec-reporter": "^8.27.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   }

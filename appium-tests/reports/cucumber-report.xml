@@ -1,6 +1,54 @@
 <?xml version="1.0"?>
-<testsuite failures="0" skipped="0" name="cucumber-js" time="412.63484241400005" tests="18">
-  <testcase classname="Delete Vocabulary List" name="Delete a list via long press" time="42.445980498">
+<testsuite failures="0" skipped="0" name="cucumber-js" time="392.6883986890001" tests="23">
+  <testcase classname="Audio Playback" name="Audio buttons are visible on word cards" time="33.776913197000006">
+    <system-out><![CDATA[Given the app is launched.................................................passed
+And I am on the home screen...............................................passed
+Given a vocabulary list "Audio Test" exists...............................passed
+When I click on the list "Audio Test".....................................passed
+And I add a word "bonjour" with translation "안녕하세요".......................passed
+Then I should see the audio button for word "bonjour" in language 1.......passed
+And I should see the audio button for word "bonjour" in language 2........passed]]></system-out>
+  </testcase>
+  <testcase classname="Audio Playback" name="Play audio for language 1 word" time="14.374950494">
+    <system-out><![CDATA[Given the app is launched.................................................passed
+And I am on the home screen...............................................passed
+Given a vocabulary list "Audio Lang1" exists..............................passed
+And I click on the list "Audio Lang1".....................................passed
+And I add a word "merci" with translation "감사합니다".........................passed
+When I click the audio button for word "merci" in language 1..............passed
+Then the audio should play without error..................................passed]]></system-out>
+  </testcase>
+  <testcase classname="Audio Playback" name="Play audio for language 2 word" time="14.294939196">
+    <system-out><![CDATA[Given the app is launched.................................................passed
+And I am on the home screen...............................................passed
+Given a vocabulary list "Audio Lang2" exists..............................passed
+And I click on the list "Audio Lang2".....................................passed
+And I add a word "salut" with translation "안녕"............................passed
+When I click the audio button for word "salut" in language 2..............passed
+Then the audio should play without error..................................passed]]></system-out>
+  </testcase>
+  <testcase classname="Audio Playback" name="Audio button is visible in quiz" time="14.943414196">
+    <system-out><![CDATA[Given the app is launched.................................................passed
+And I am on the home screen...............................................passed
+Given a vocabulary list "Quiz Audio" exists...............................passed
+And I click on the list "Quiz Audio"......................................passed
+And I add a word "oui" with translation "네"...............................passed
+And I navigate back.......................................................passed
+When I start the quiz for list "Quiz Audio"...............................passed
+Then I should see the quiz audio button...................................passed]]></system-out>
+  </testcase>
+  <testcase classname="Audio Playback" name="Play audio in quiz" time="15.350474597000003">
+    <system-out><![CDATA[Given the app is launched.................................................passed
+And I am on the home screen...............................................passed
+Given a vocabulary list "Quiz Audio Play" exists..........................passed
+And I click on the list "Quiz Audio Play".................................passed
+And I add a word "non" with translation "아니요".............................passed
+And I navigate back.......................................................passed
+When I start the quiz for list "Quiz Audio Play"..........................passed
+And I click the quiz audio button.........................................passed
+Then the audio should play without error..................................passed]]></system-out>
+  </testcase>
+  <testcase classname="Delete Vocabulary List" name="Delete a list via long press" time="18.777609495">
     <system-out><![CDATA[Given the app is launched.................................................passed
 And I am on the home screen...............................................passed
 Given a vocabulary list "To Delete" exists................................passed
@@ -9,7 +57,7 @@ Then I should see the delete list confirmation dialog.....................passed
 When I confirm the list deletion..........................................passed
 Then I should not see the list "To Delete" on the home screen.............passed]]></system-out>
   </testcase>
-  <testcase classname="Delete Vocabulary List" name="Cancel list deletion" time="16.306059695">
+  <testcase classname="Delete Vocabulary List" name="Cancel list deletion" time="12.501305697">
     <system-out><![CDATA[Given the app is launched.................................................passed
 And I am on the home screen...............................................passed
 Given a vocabulary list "Keep This" exists................................passed
@@ -17,14 +65,14 @@ When I long press on the list "Keep This".................................passed
 And I cancel the list deletion............................................passed
 Then I should see the list "Keep This" on the home screen.................passed]]></system-out>
   </testcase>
-  <testcase classname="Empty States" name="Empty home screen shows helpful message" time="14.992104695">
+  <testcase classname="Empty States" name="Empty home screen shows helpful message" time="8.926632095999999">
     <system-out><![CDATA[Given the app is launched.................................................passed
 Given there are no vocabulary lists.......................................passed
 And I am on the home screen...............................................passed
 Then I should see the empty home screen message...........................passed
 And I should see the create list call to action...........................passed]]></system-out>
   </testcase>
-  <testcase classname="Empty States" name="Empty list detail shows helpful message" time="16.601461797000002">
+  <testcase classname="Empty States" name="Empty list detail shows helpful message" time="12.151680495999999">
     <system-out><![CDATA[Given the app is launched.................................................passed
 Given I am on the home screen.............................................passed
 And a vocabulary list "Empty List" exists.................................passed
@@ -32,7 +80,7 @@ When I click on the list "Empty List".....................................passed
 Then I should see the empty list message..................................passed
 And I should see the add word call to action..............................passed]]></system-out>
   </testcase>
-  <testcase classname="App Navigation" name="Navigate to list detail and back" time="16.470521493">
+  <testcase classname="App Navigation" name="Navigate to list detail and back" time="12.647789493">
     <system-out><![CDATA[Given the app is launched.................................................passed
 And I am on the home screen...............................................passed
 Given a vocabulary list "Navigation Test" exists..........................passed
@@ -41,7 +89,7 @@ Then I should be on the list detail page..................................passed
 When I navigate back......................................................passed
 Then I should be on the home screen.......................................passed]]></system-out>
   </testcase>
-  <testcase classname="App Navigation" name="Navigate to multiple lists" time="26.359675197000005">
+  <testcase classname="App Navigation" name="Navigate to multiple lists" time="21.054302494999998">
     <system-out><![CDATA[Given the app is launched.................................................passed
 And I am on the home screen...............................................passed
 Given a vocabulary list "List One" exists.................................passed
@@ -54,7 +102,7 @@ Then I should be on the list detail page..................................passed
 When I navigate back......................................................passed
 Then I should be on the home screen.......................................passed]]></system-out>
   </testcase>
-  <testcase classname="Quiz Mode" name="Start a quiz" time="22.731020692">
+  <testcase classname="Quiz Mode" name="Start a quiz" time="15.247483893">
     <system-out><![CDATA[Given the app is launched.................................................passed
 And I am on the home screen...............................................passed
 Given a vocabulary list "Quiz List" exists................................passed
@@ -65,7 +113,7 @@ When I start the quiz for list "Quiz List"................................passed
 Then I should be on the quiz screen.......................................passed
 And I should see a word to translate......................................passed]]></system-out>
   </testcase>
-  <testcase classname="Quiz Mode" name="Answer a question correctly" time="21.606986094999996">
+  <testcase classname="Quiz Mode" name="Answer a question correctly" time="15.276043596000001">
     <system-out><![CDATA[Given the app is launched.................................................passed
 And I am on the home screen...............................................passed
 Given a vocabulary list "Correct Answer" exists...........................passed
@@ -73,11 +121,11 @@ And I click on the list "Correct Answer"..................................passed
 And I add a word "bonjour" with translation "안녕하세요".......................passed
 And I navigate back.......................................................passed
 When I start the quiz for list "Correct Answer"...........................passed
-And I enter the answer "안녕하세요"............................................passed
+And I enter the correct answer for "bonjour" and "안녕하세요"..................passed
 And I submit my answer....................................................passed
 Then I should see correct feedback........................................passed]]></system-out>
   </testcase>
-  <testcase classname="Quiz Mode" name="Answer a question incorrectly" time="22.953443495">
+  <testcase classname="Quiz Mode" name="Answer a question incorrectly" time="15.123845294">
     <system-out><![CDATA[Given the app is launched.................................................passed
 And I am on the home screen...............................................passed
 Given a vocabulary list "Wrong Answer" exists.............................passed
@@ -89,7 +137,7 @@ And I enter the answer "wrong answer".....................................passed
 And I submit my answer....................................................passed
 Then I should see incorrect feedback......................................passed]]></system-out>
   </testcase>
-  <testcase classname="Quiz Mode" name="Complete a quiz and see results" time="82.888205498">
+  <testcase classname="Quiz Mode" name="Complete a quiz and see results" time="74.446904995">
     <system-out><![CDATA[Given the app is launched.................................................passed
 And I am on the home screen...............................................passed
 Given a vocabulary list "Complete Quiz" exists............................passed
@@ -100,17 +148,17 @@ When I start the quiz for list "Complete Quiz"............................passed
 And I complete the quiz...................................................passed
 Then I should see the quiz results dialog.................................passed]]></system-out>
   </testcase>
-  <testcase classname="Smoke Test" name="Launch app and verify home screen" time="6.548507097000001">
+  <testcase classname="Smoke Test" name="Launch app and verify home screen" time="4.169445596">
     <system-out><![CDATA[Given the app is launched.................................................passed
 And I am on the home screen...............................................passed
 Then the home screen should be displayed..................................passed]]></system-out>
   </testcase>
-  <testcase classname="Vocabulary List Management" name="View home screen" time="7.1312186959999995">
+  <testcase classname="Vocabulary List Management" name="View home screen" time="4.050400196999999">
     <system-out><![CDATA[Given the app is launched.................................................passed
 And I am on the home screen...............................................passed
 Then I should see the page title "Mes Listes".............................passed]]></system-out>
   </testcase>
-  <testcase classname="Vocabulary List Management" name="Create a new vocabulary list" time="8.648064896000001">
+  <testcase classname="Vocabulary List Management" name="Create a new vocabulary list" time="5.344778795000001">
     <system-out><![CDATA[Given the app is launched.................................................passed
 And I am on the home screen...............................................passed
 When I click the add list button..........................................passed
@@ -119,7 +167,7 @@ When I enter list name "French Basics"....................................passed
 And I click the create button.............................................passed
 Then I should see the list "French Basics" on the home screen.............passed]]></system-out>
   </testcase>
-  <testcase classname="Vocabulary List Management" name="Cancel creating a list" time="15.066495896000001">
+  <testcase classname="Vocabulary List Management" name="Cancel creating a list" time="11.497323594">
     <system-out><![CDATA[Given the app is launched.................................................passed
 And I am on the home screen...............................................passed
 When I click the add list button..........................................passed
@@ -127,7 +175,7 @@ And I enter list name "Temporary List"....................................passed
 And I click the cancel button.............................................passed
 Then I should not see the list "Temporary List" on the home screen........passed]]></system-out>
   </testcase>
-  <testcase classname="Word Management" name="Add a word to a list" time="19.968162792">
+  <testcase classname="Word Management" name="Add a word to a list" time="13.753391393">
     <system-out><![CDATA[Given the app is launched.................................................passed
 And I am on the home screen...............................................passed
 Given a vocabulary list "Word Test" exists................................passed
@@ -140,7 +188,7 @@ And I enter the Korean word "안녕하세요"...................................
 And I click the add word confirm button...................................passed
 Then I should see the word "bonjour" in the word list.....................passed]]></system-out>
   </testcase>
-  <testcase classname="Word Management" name="Cancel adding a word" time="23.311061595">
+  <testcase classname="Word Management" name="Cancel adding a word" time="19.242964796000003">
     <system-out><![CDATA[Given the app is launched.................................................passed
 And I am on the home screen...............................................passed
 Given a vocabulary list "Cancel Test" exists..............................passed
@@ -150,7 +198,7 @@ And I enter the French word "temporaire"..................................passed
 And I cancel adding the word..............................................passed
 Then I should not see the word "temporaire" in the word list..............passed]]></system-out>
   </testcase>
-  <testcase classname="Word Management" name="Delete a word from a list" time="27.420514392">
+  <testcase classname="Word Management" name="Delete a word from a list" time="21.098262896">
     <system-out><![CDATA[Given the app is launched.................................................passed
 And I am on the home screen...............................................passed
 Given a vocabulary list "Delete Word Test" exists.........................passed
@@ -162,7 +210,7 @@ Then I should see the delete word confirmation dialog.....................passed
 When I confirm the word deletion..........................................passed
 Then I should not see the word "supprimer" in the word list...............passed]]></system-out>
   </testcase>
-  <testcase classname="Word Management" name="Cancel word deletion" time="21.185357895000003">
+  <testcase classname="Word Management" name="Cancel word deletion" time="14.637542191999998">
     <system-out><![CDATA[Given the app is launched.................................................passed
 And I am on the home screen...............................................passed
 Given a vocabulary list "Keep Word Test" exists...........................passed

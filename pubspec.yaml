@@ -32,6 +32,7 @@ dependencies:
 
   # Audio
   audioplayers: ^5.2.1
+  flutter_tts: ^4.0.2
 
   # Reconnaissance vocale (STT)
   speech_to_text: ^7.0.0
@@ -39,10 +40,12 @@ dependencies:
   # Préférences
   shared_preferences: ^2.2.2
 
+  # Flutter Driver (needed in APK for Appium testing)
+  flutter_driver:
+    sdk: flutter
+
 dev_dependencies:
   flutter_test:
-    sdk: flutter
-  flutter_driver:
     sdk: flutter
   flutter_lints: ^3.0.0
   integration_test:

@@ -48,7 +48,7 @@ class _QuizScreenState extends State<QuizScreen> {
   void initState() {
     super.initState();
     _loadQuestions();
-    _audioPlayer.initialize();
+    // Audio initialization is lazy - done on first play via _ensureInitialized()
     _initializeSpeech();
     print('🎮 QuizScreen initialisé');
   }
@@ -158,10 +158,18 @@ class _QuizScreenState extends State<QuizScreen> {
 
     final question = _questions[_currentQuestionIndex];
     final questionVariant = question['questionVariant'] as WordVariant;
+    final direction = question['direction'] as String;
 
-    if (questionVariant.audioHash != null) {
-      await _audioPlayer.playAudioByHash(questionVariant.audioHash!);
-    }
+    // Déterminer la langue de la question
+    final questionLangCode = direction == 'lang1_to_lang2'
+        ? widget.list.lang1Code
+        : widget.list.lang2Code;
+
+    await _audioPlayer.playAudioSmart(
+      audioHash: questionVariant.audioHash,
+      text: questionVariant.word,
+      langCode: questionLangCode,
+    );
   }
 
   // 🎤 Démarrer la reconnaissance vocale
@@ -465,14 +473,16 @@ class _QuizScreenState extends State<QuizScreen> {
                     textAlign: TextAlign.center,
                   ),
                 ),
-                if (questionVariant.audioHash != null)
-                  IconButton(
+                Semantics(
+                  label: 'quiz_audio',
+                  child: IconButton(
+                    key: const Key('quiz_audio_button'),
                     icon: const Icon(Icons.volume_up),
                     iconSize: 32,
                     color: Theme.of(context).colorScheme.primary,
                     onPressed: _playQuestionAudio,
-                    tooltip: 'Écouter',
                   ),
+                ),
               ],
             ),
 

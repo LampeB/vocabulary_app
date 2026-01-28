@@ -132,6 +132,22 @@ export class BasePage {
     }
 
     /**
+     * Wait for element by semantics label with timeout
+     */
+    async waitForSemanticsLabel(label: string, timeout: number = 2000): Promise<any> {
+        return await this.flutter.execute('flutter:waitFor', bySemanticsLabel(label), timeout);
+    }
+
+    /**
+     * Click element by semantics label
+     */
+    async clickBySemanticsLabel(label: string): Promise<void> {
+        const finder = bySemanticsLabel(label);
+        await this.flutter.execute('flutter:waitFor', finder, this.defaultTimeout);
+        await this.driver.elementClick(finder);
+    }
+
+    /**
      * Scroll until element is visible
      */
     async scrollUntilVisible(
