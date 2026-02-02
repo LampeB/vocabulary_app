@@ -1,5 +1,7 @@
 import { BasePage } from './BasePage';
 import { Browser } from 'webdriverio';
+// @ts-ignore - no types available for this package
+import { byValueKey, byType, descendant } from 'appium-flutter-finder';
 
 interface HomePageKeys {
     homeScreen: string;
@@ -134,6 +136,21 @@ export class HomePage extends BasePage {
     async cancelDeleteList(): Promise<void> {
         await this.clickByKey(this.keys.cancelDeleteListButton);
         await this.waitForKey(this.keys.homeScreen);
+    }
+
+    /**
+     * Click the first delete button found in the list view (without knowing the list name).
+     * Uses descendant finder to find an IconButton inside the vocabulary_list_view.
+     */
+    async clickFirstDeleteButton(): Promise<void> {
+        const finder = descendant({
+            of: byValueKey(this.keys.listView),
+            matching: byType('IconButton'),
+            firstMatchOnly: true
+        });
+        await (this.driver as any).execute('flutter:waitFor', finder, 2000);
+        await this.driver.elementClick(finder);
+        await this.waitForKey(this.keys.deleteListDialog);
     }
 
     // === QUIZ ===

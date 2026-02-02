@@ -35,7 +35,7 @@ dependencies:
   flutter_tts: ^4.0.2
 
   # Reconnaissance vocale (STT)
-  speech_to_text: ^7.0.0
+  speech_to_text: 7.3.0
 
   # Préférences
   shared_preferences: ^2.2.2

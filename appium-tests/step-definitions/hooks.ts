@@ -16,6 +16,19 @@ const platform = process.env.PLATFORM || 'android';
 // App package name
 const APP_PACKAGE = 'com.example.vocabulary_app';
 
+// Resolve adb path from ANDROID_HOME (bare 'adb' may not be in PATH for child processes)
+const ANDROID_HOME = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || '';
+const ADB = ANDROID_HOME ? path.join(ANDROID_HOME, 'platform-tools', 'adb') : 'adb';
+const DEVICE_UDID = process.env.DEVICE_UDID || '';
+
+/**
+ * Build adb command with optional device targeting
+ */
+function adbCmd(args: string): string {
+    const deviceFlag = DEVICE_UDID ? `-s ${DEVICE_UDID}` : '';
+    return `"${ADB}" ${deviceFlag} ${args}`;
+}
+
 /**
  * Execute a shell command and return a promise
  */
@@ -39,7 +52,7 @@ async function clearAppData(): Promise<void> {
     if (platform !== 'android') return;
 
     try {
-        await execCommand(`adb shell pm clear ${APP_PACKAGE}`);
+        await execCommand(adbCmd(`shell pm clear ${APP_PACKAGE}`));
         console.log('🗑️ App data cleared');
     } catch (error: any) {
         // App might not be installed yet (first run) - that's fine
@@ -54,9 +67,12 @@ function getCapabilities(): any {
     if (platform === 'android') {
         const appPath = path.resolve(__dirname, '../../build/app/outputs/flutter-apk/app-debug.apk');
 
-        return {
+        const deviceName = process.env.DEVICE_NAME || 'Android Emulator';
+        const udid = process.env.DEVICE_UDID || '';
+
+        const caps: any = {
             platformName: 'Android',
-            'appium:deviceName': 'Android Emulator',
+            'appium:deviceName': deviceName,
             'appium:automationName': 'Flutter',
             'appium:app': appPath,
             'appium:noReset': true,
@@ -70,6 +86,12 @@ function getCapabilities(): any {
             'appium:skipPortForward': false,
             'appium:observatoryWsUri': '', // Let Appium auto-detect from logcat
         };
+
+        if (udid) {
+            caps['appium:udid'] = udid;
+        }
+
+        return caps;
     } else if (platform === 'windows') {
         const appPath = path.resolve(__dirname, '../../vocabulary_app/build/windows/x64/runner/Release/vocabulary_app.exe');
 
@@ -165,11 +187,43 @@ AfterAll(async function() {
     // Clear app data after all tests (unless disabled)
     if (process.env.RESET_DB_AFTER !== 'false') {
         try {
-            await execCommand(`adb shell pm clear ${APP_PACKAGE}`);
+            await execCommand(adbCmd(`shell pm clear ${APP_PACKAGE}`));
             console.log('🗑️ App data cleared');
         } catch (e) {}
     }
 });
+
+/**
+ * Reset session: clear app data and create a fresh Appium session.
+ * Needed when tests must start from empty state (pm clear kills the app
+ * and breaks the Flutter Driver connection, so we must recreate the session).
+ */
+export async function resetSession(): Promise<any> {
+    // Close existing session
+    if (driver && sessionActive) {
+        try {
+            await driver.deleteSession();
+        } catch (e) {}
+        sessionActive = false;
+    }
+
+    // Clear app data
+    await clearAppData();
+
+    // Create a new session
+    const capabilities = getCapabilities();
+    driver = await remote({
+        hostname: 'localhost',
+        port: 4723,
+        path: '/',
+        capabilities,
+        logLevel: 'error'
+    }) as any;
+    sessionActive = true;
+    await driver.pause(3000); // Longer wait for Flutter Driver to fully connect
+    console.log('✓ Session recreated with fresh data');
+    return driver;
+}
 
 // Export driver getter for step definitions
 export const getDriver = () => driver;
