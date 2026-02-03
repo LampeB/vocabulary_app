@@ -4,11 +4,12 @@ import * as path from 'path';
 import { exec } from 'child_process';
 
 // Set default timeout for all steps
-setDefaultTimeout(120 * 1000); // 2 minutes
+setDefaultTimeout(60 * 1000); // 1 minute
 
-// Global driver instance - REUSED across all scenarios
+// Global driver instance
 let driver: any = null;
 let sessionActive = false;
+let appInstalled = false;
 
 // Platform configuration
 const platform = process.env.PLATFORM || 'android';
@@ -65,8 +66,6 @@ async function clearAppData(): Promise<void> {
  */
 function getCapabilities(): any {
     if (platform === 'android') {
-        const appPath = path.resolve(__dirname, '../../build/app/outputs/flutter-apk/app-debug.apk');
-
         const deviceName = process.env.DEVICE_NAME || 'Android Emulator';
         const udid = process.env.DEVICE_UDID || '';
 
@@ -74,18 +73,22 @@ function getCapabilities(): any {
             platformName: 'Android',
             'appium:deviceName': deviceName,
             'appium:automationName': 'Flutter',
-            'appium:app': appPath,
             'appium:noReset': true,
             'appium:fullReset': false,
-            'appium:newCommandTimeout': 240,
+            'appium:newCommandTimeout': 60,
             'appium:autoGrantPermissions': true,
-            'appium:showFlutterDriverLogs': true,
-            'appium:retryBackoffTime': 3000,
-            'appium:maxRetryCount': 10,
-            // Force Appium to wait longer for VM Service and auto-discover from logcat
-            'appium:skipPortForward': false,
-            'appium:observatoryWsUri': '', // Let Appium auto-detect from logcat
+            'appium:forceAppLaunch': true,
         };
+
+        if (!appInstalled) {
+            // First session: provide APK path so Appium installs it
+            const appPath = path.resolve(__dirname, '../../build/app/outputs/flutter-apk/app-debug.apk');
+            caps['appium:app'] = appPath;
+        } else {
+            // Subsequent sessions: just launch the already-installed app (faster)
+            caps['appium:appPackage'] = APP_PACKAGE;
+            caps['appium:appActivity'] = '.MainActivity';
+        }
 
         if (udid) {
             caps['appium:udid'] = udid;
@@ -112,16 +115,30 @@ BeforeAll(async function() {
     console.log(`🚀 Appium tests (${platform})`);
     // Clear app data for a fresh start (Appium handles APK install via 'app' capability)
     await clearAppData();
+    // Keep phone screen on during tests (requires USB/charging)
+    if (platform === 'android') {
+        try {
+            await execCommand(adbCmd('shell svc power stayon usb'));
+        } catch (e) {}
+    }
 });
 
 /**
- * Before each scenario - launch the app (session already exists)
+ * Before each scenario - create a fresh session (kills & relaunches the app)
+ * Flutter Driver cannot reconnect after app restart, so we recreate the full session.
+ * With noReset:true, app data persists but the app process is fresh.
  */
 Before(async function(this: any, { pickle }: ITestCaseHookParameter) {
     console.log(`\n📝 ${pickle.name}`);
 
-    // Create session only once (first scenario)
-    if (!sessionActive) {
+    // Clean up previous session if any
+    if (driver && sessionActive) {
+        try { await driver.deleteSession(); } catch (e) {}
+        sessionActive = false;
+    }
+
+    // Create a fresh session (installs APK on first run, just launches on subsequent)
+    try {
         const capabilities = getCapabilities();
         driver = await remote({
             hostname: 'localhost',
@@ -131,23 +148,19 @@ Before(async function(this: any, { pickle }: ITestCaseHookParameter) {
             logLevel: 'error'
         }) as any;
         sessionActive = true;
-        await driver.pause(1500); // Wait for initial launch
-        console.log('✓ Session created & app installed');
-    } else {
-        // Session exists - just activate/launch the app
-        try {
-            await driver.activateApp(APP_PACKAGE);
-            await driver.pause(500); // Brief wait for app to be ready
-        } catch (error: any) {
-            console.log(`⚠️ Could not activate app: ${error.message}`);
-        }
+        appInstalled = true;
+        await driver.pause(2000); // Wait for Flutter Driver to connect
+        console.log('✓ App launched');
+    } catch (error: any) {
+        console.error(`✗ Session creation failed: ${error.message}`);
+        throw error;
     }
 
     this.driver = driver;
 });
 
 /**
- * After each scenario - terminate the app (keep session alive)
+ * After each scenario - take screenshot on failure, then kill the app
  */
 After(async function(this: any, { pickle, result }: ITestCaseHookParameter) {
     // Take screenshot on failure
@@ -160,15 +173,7 @@ After(async function(this: any, { pickle, result }: ITestCaseHookParameter) {
             // Ignore screenshot errors
         }
     }
-
-    // Terminate the app (but keep session alive for next scenario)
-    if (driver && sessionActive) {
-        try {
-            await driver.terminateApp(APP_PACKAGE);
-        } catch (error: any) {
-            // Ignore termination errors
-        }
-    }
+    // Session is deleted in the next Before hook (or AfterAll for the last scenario)
 });
 
 /**

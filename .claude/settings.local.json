@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git --version:*)",
+      "Bash(test:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(# On Windows/Git Bash, use different approach netstat -ano)"
+    ]
+  }
+}

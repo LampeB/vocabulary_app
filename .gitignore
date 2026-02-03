@@ -47,7 +47,11 @@ app.*.map.json
 # Appium tests
 appium-tests/node_modules/
 appium-tests/screenshots/
+appium-tests/reports/
 appium-tests/*.log
+
+# Android build artifacts
+/android/build/
 
 # API keys (local config with secrets)
 lib/config/api_keys.dart
