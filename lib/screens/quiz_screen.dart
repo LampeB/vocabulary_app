@@ -459,7 +459,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     color: Theme.of(context)
                         .colorScheme
                         .onSurface
-                        .withOpacity(0.6),
+                        .withValues(alpha: 0.6),
                   ),
             ),
             const SizedBox(height: 16),
@@ -539,7 +539,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     tooltip: _isListening ? 'Arrêter' : 'Parler',
                     style: IconButton.styleFrom(
                       backgroundColor:
-                          _isListening ? Colors.red.withOpacity(0.1) : null,
+                          _isListening ? Colors.red.withValues(alpha: 0.1) : null,
                     ),
                   ),
               ],
@@ -575,8 +575,8 @@ class _QuizScreenState extends State<QuizScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: _lastResult!.isCorrect
-                      ? Colors.green.withOpacity(0.1)
-                      : Colors.red.withOpacity(0.1),
+                      ? Colors.green.withValues(alpha: 0.1)
+                      : Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: _lastResult!.isCorrect ? Colors.green : Colors.red,

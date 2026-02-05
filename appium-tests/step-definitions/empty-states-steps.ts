@@ -6,7 +6,8 @@ import { resetSession } from './hooks';
 
 // Given steps
 Given('there are no vocabulary lists', async function(this: any) {
-    // Clear all app data and recreate the session for a guaranteed empty state
+    // Clear all app data and relaunch for a guaranteed empty state
+    // The HomeScreen now has a WidgetsBindingObserver that reloads data on app resume
     this.driver = await resetSession();
     this.homePage = new HomePage(this.driver);
     await this.homePage.waitForPage();

@@ -1,24 +1,61 @@
 # =============================================================================
-# Script complet pour lancer les tests Appium
-# Usage: .\run-all.ps1 [-Emulator <name>] [-SkipBuild] [-SmokeOnly]
+# Script complet pour lancer les tests Appium avec reporting Allure
+# Usage: .\run-all.ps1 [-Emulator <name>] [-SkipBuild] [-SmokeOnly] [-NoReport]
 #
 # Exemples:
 #   .\run-all.ps1                           # Tout lancer (emulateur, build, appium, tests)
 #   .\run-all.ps1 -SkipBuild                # Skip le build Flutter
 #   .\run-all.ps1 -SmokeOnly                # Lancer uniquement le smoke test
 #   .\run-all.ps1 -Emulator "Pixel_5"       # Utiliser un emulateur specifique
+#   .\run-all.ps1 -NoReport                 # Ne pas ouvrir le rapport automatiquement
 # =============================================================================
 
 param(
     [string]$Emulator = "",
     [switch]$SkipBuild,
-    [switch]$SmokeOnly
+    [switch]$SmokeOnly,
+    [switch]$NoReport
 )
 
-Write-Host "=============================================" -ForegroundColor Cyan
-Write-Host "   LANCEMENT DES TESTS APPIUM" -ForegroundColor Cyan
-Write-Host "=============================================" -ForegroundColor Cyan
-Write-Host ""
+# =============================================================================
+# CONFIGURATION DES LOGS
+# =============================================================================
+$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$logsDir = Join-Path $PSScriptRoot "logs"
+$mainLogFile = Join-Path $logsDir "test-run-$timestamp.log"
+$appiumLogFile = Join-Path $logsDir "appium-$timestamp.log"
+
+# Creer le dossier logs s'il n'existe pas
+if (-not (Test-Path $logsDir)) {
+    New-Item -ItemType Directory -Path $logsDir -Force | Out-Null
+}
+
+# Fonction pour logger avec timestamp
+function Write-Log {
+    param(
+        [string]$Message,
+        [string]$Color = "White",
+        [switch]$NoNewline
+    )
+    $logTimestamp = Get-Date -Format "HH:mm:ss"
+    $logMessage = "[$logTimestamp] $Message"
+
+    # Afficher dans la console
+    if ($NoNewline) {
+        Write-Host $Message -ForegroundColor $Color -NoNewline
+    } else {
+        Write-Host $Message -ForegroundColor $Color
+    }
+
+    # Ecrire dans le fichier log
+    Add-Content -Path $mainLogFile -Value $logMessage
+}
+
+Write-Log "=============================================" "Cyan"
+Write-Log "   LANCEMENT DES TESTS APPIUM" "Cyan"
+Write-Log "=============================================" "Cyan"
+Write-Log "Log file: $mainLogFile" "Gray"
+Write-Log ""
 
 # Configuration des variables d'environnement
 $env:ANDROID_HOME = "C:\Users\thoma\AppData\Local\Android\sdk"
@@ -29,43 +66,48 @@ $emulatorExe = Join-Path $env:ANDROID_HOME "emulator\emulator.exe"
 $adb = Join-Path $env:ANDROID_HOME "platform-tools\adb.exe"
 
 # Chemins
-# Le script est dans vocabulary_app/appium-tests/, donc le parent direct est vocabulary_app/
 $appiumTestsDir = $PSScriptRoot
 $vocabularyAppDir = Split-Path -Parent $PSScriptRoot
 $apkPath = Join-Path $vocabularyAppDir "build\app\outputs\flutter-apk\app-debug.apk"
+$allureResultsDir = Join-Path $appiumTestsDir "allure-results"
+$allureReportDir = Join-Path $appiumTestsDir "allure-report"
+
+# Nettoyer les anciens resultats Allure
+if (Test-Path $allureResultsDir) {
+    Remove-Item -Path $allureResultsDir -Recurse -Force
+    Write-Log "Anciens resultats Allure nettoyes" "Gray"
+}
 
 # -----------------------------------------------------------------------------
 # ETAPE 1: Lancer l'emulateur si necessaire
 # -----------------------------------------------------------------------------
-Write-Host "[1/5] Verification de l'emulateur Android..." -ForegroundColor Yellow
+Write-Log "[1/5] Verification de l'emulateur Android..." "Yellow"
 
 $emulatorStarted = $false
 
 # Verifier si un emulateur tourne deja
 $devices = & $adb devices 2>&1 | Out-String
 if ($devices -match "emulator-\d+\s+device") {
-    Write-Host "[OK] Emulateur deja en cours d'execution" -ForegroundColor Green
+    Write-Log "[OK] Emulateur deja en cours d'execution" "Green"
 } else {
-    Write-Host "Aucun emulateur detecte. Lancement automatique..." -ForegroundColor Yellow
+    Write-Log "Aucun emulateur detecte. Lancement automatique..." "Yellow"
 
     # Determiner quel emulateur utiliser
     if ($Emulator -eq "") {
-        # Lister les AVDs disponibles et prendre le premier
         $avds = & $emulatorExe -list-avds 2>&1
         if (-not $avds -or $avds.Count -eq 0) {
-            Write-Host "[ERREUR] Aucun AVD trouve! Cree un emulateur dans Android Studio." -ForegroundColor Red
+            Write-Log "[ERREUR] Aucun AVD trouve! Cree un emulateur dans Android Studio." "Red"
             exit 1
         }
-        # Prendre le premier AVD disponible
         $Emulator = ($avds | Select-Object -First 1).Trim()
     }
 
-    Write-Host "  -> Lancement de l'emulateur: $Emulator" -ForegroundColor Gray
-    Start-Process -FilePath $emulatorExe -ArgumentList "-avd", $Emulator, "-no-snapshot-load" -WindowStyle Normal
+    Write-Log "  -> Lancement de l'emulateur: $Emulator" "Gray"
+    Start-Process -FilePath $emulatorExe -ArgumentList "-avd", $Emulator, "-no-snapshot" -WindowStyle Minimized
     $emulatorStarted = $true
 
-    # Attendre que l'emulateur soit pret (boot complet)
-    Write-Host "  -> Attente du demarrage de l'emulateur..." -ForegroundColor Gray
+    # Attendre que l'emulateur soit pret
+    Write-Log "  -> Attente du demarrage de l'emulateur..." "Gray"
     $maxWait = 120
     $waited = 0
     while ($waited -lt $maxWait) {
@@ -74,193 +116,287 @@ if ($devices -match "emulator-\d+\s+device") {
 
         $bootCompleted = & $adb shell getprop sys.boot_completed 2>&1 | Out-String
         if ($bootCompleted.Trim() -eq "1") {
-            Write-Host "[OK] Emulateur demarre (apres $waited secondes)" -ForegroundColor Green
-            # Attendre encore un peu pour que l'UI soit stable
+            Write-Log "[OK] Emulateur demarre (apres $waited secondes)" "Green"
             Start-Sleep -Seconds 5
             break
         }
 
         if ($waited % 10 -eq 0) {
-            Write-Host "  Attente de l'emulateur... ($waited/$maxWait)" -ForegroundColor Gray
+            Write-Log "  Attente de l'emulateur... ($waited/$maxWait)" "Gray"
         }
     }
 
     if ($waited -ge $maxWait) {
-        Write-Host "[ERREUR] L'emulateur n'a pas demarre dans les temps!" -ForegroundColor Red
+        Write-Log "[ERREUR] L'emulateur n'a pas demarre dans les temps!" "Red"
         exit 1
     }
 }
-Write-Host ""
+
+# Verification de la sante de l'emulateur
+Write-Log "  Verification de la sante de l'emulateur..." "Gray"
+$settingsCheck = & $adb shell settings list system 2>&1 | Out-String
+if ($settingsCheck -match "volume") {
+    Write-Log "[OK] Emulateur sain (settings service OK)" "Green"
+} else {
+    Write-Log "[WARN] Settings service instable. Redemarrage cold-boot recommande." "Yellow"
+}
+
+Write-Log ""
 
 # -----------------------------------------------------------------------------
 # ETAPE 2: Construire l'APK si necessaire
 # -----------------------------------------------------------------------------
-Write-Host "[2/5] Verification de l'APK..." -ForegroundColor Yellow
+Write-Log "[2/5] Verification de l'APK..." "Yellow"
 
 if ($SkipBuild) {
     if (Test-Path $apkPath) {
-        Write-Host "[OK] Build skip (-SkipBuild). APK existant utilise." -ForegroundColor Green
+        Write-Log "[OK] Build skip (-SkipBuild). APK existant utilise." "Green"
     } else {
-        Write-Host "[ERREUR] -SkipBuild mais aucun APK trouve! Relance sans -SkipBuild." -ForegroundColor Red
+        Write-Log "[ERREUR] -SkipBuild mais aucun APK trouve! Relance sans -SkipBuild." "Red"
         exit 1
     }
 } else {
     $buildApk = $false
 
     if (-not (Test-Path $apkPath)) {
-        Write-Host "APK non trouve. Construction necessaire..." -ForegroundColor Yellow
+        Write-Log "APK non trouve. Construction necessaire..." "Yellow"
         $buildApk = $true
     } else {
         $apkAge = (Get-Date) - (Get-Item $apkPath).LastWriteTime
         if ($apkAge.TotalHours -gt 24) {
-            Write-Host "APK date de plus de 24h. Reconstruction..." -ForegroundColor Yellow
+            Write-Log "APK date de plus de 24h. Reconstruction..." "Yellow"
             $buildApk = $true
         } else {
-            Write-Host "[OK] APK trouve (date de $([math]::Round($apkAge.TotalMinutes)) minutes)" -ForegroundColor Green
+            Write-Log "[OK] APK trouve (date de $([math]::Round($apkAge.TotalMinutes)) minutes)" "Green"
         }
     }
 
     if ($buildApk) {
-        Write-Host "Construction de l'APK..." -ForegroundColor Yellow
+        Write-Log "Construction de l'APK..." "Yellow"
         Push-Location $vocabularyAppDir
 
-        Write-Host "  -> flutter clean" -ForegroundColor Gray
-        flutter clean | Out-Null
+        Write-Log "  -> flutter clean" "Gray"
+        flutter clean 2>&1 | Tee-Object -Append -FilePath $mainLogFile | Out-Null
 
-        Write-Host "  -> flutter pub get" -ForegroundColor Gray
-        flutter pub get | Out-Null
+        Write-Log "  -> flutter pub get" "Gray"
+        flutter pub get 2>&1 | Tee-Object -Append -FilePath $mainLogFile | Out-Null
 
-        Write-Host "  -> flutter build apk --debug --target lib/main_appium.dart" -ForegroundColor Gray
-        flutter build apk --debug --target lib/main_appium.dart
+        Write-Log "  -> flutter build apk --debug --target lib/main_appium.dart" "Gray"
+        flutter build apk --debug --target lib/main_appium.dart 2>&1 | Tee-Object -Append -FilePath $mainLogFile
 
         Pop-Location
 
         if (-not (Test-Path $apkPath)) {
-            Write-Host "[ERREUR] La construction de l'APK a echoue!" -ForegroundColor Red
+            Write-Log "[ERREUR] La construction de l'APK a echoue!" "Red"
             exit 1
         }
-        Write-Host "[OK] APK construit avec succes" -ForegroundColor Green
+        Write-Log "[OK] APK construit avec succes" "Green"
     }
 }
-Write-Host ""
+Write-Log ""
 
 # -----------------------------------------------------------------------------
 # ETAPE 3: Verifier/Installer les dependances npm
 # -----------------------------------------------------------------------------
-Write-Host "[3/5] Verification des dependances npm..." -ForegroundColor Yellow
+Write-Log "[3/5] Verification des dependances npm..." "Yellow"
 
 Push-Location $appiumTestsDir
 
 if (-not (Test-Path "node_modules")) {
-    Write-Host "Installation des dependances npm..." -ForegroundColor Yellow
-    npm install
+    Write-Log "Installation des dependances npm..." "Yellow"
+    npm install 2>&1 | Tee-Object -Append -FilePath $mainLogFile
 }
-Write-Host "[OK] Dependances npm installees" -ForegroundColor Green
-Write-Host ""
+Write-Log "[OK] Dependances npm installees" "Green"
+Write-Log ""
 
 # -----------------------------------------------------------------------------
 # ETAPE 4: Demarrer Appium en arriere-plan
 # -----------------------------------------------------------------------------
-Write-Host "[4/5] Demarrage d'Appium..." -ForegroundColor Yellow
+Write-Log "[4/5] Demarrage d'Appium..." "Yellow"
 
-# Verifier si Appium est deja en cours
 $appiumRunning = $false
 try {
     $tcpTest = Test-NetConnection -ComputerName localhost -Port 4723 -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
     if ($tcpTest.TcpTestSucceeded) {
         $appiumRunning = $true
-        Write-Host "[OK] Appium est deja en cours d'execution (port 4723 ouvert)" -ForegroundColor Green
+        Write-Log "[OK] Appium est deja en cours d'execution (port 4723 ouvert)" "Green"
     }
 } catch {
     # Appium n'est pas en cours
 }
 
 if (-not $appiumRunning) {
-    Write-Host "Demarrage d'Appium dans une nouvelle fenetre..." -ForegroundColor Yellow
+    Write-Log "Demarrage d'Appium en arriere-plan..." "Yellow"
 
-    # Demarrer Appium dans une nouvelle fenetre CMD avec les variables d'environnement
-    # Les guillemets autour de chaque "set" evitent que CMD inclue l'espace avant && dans la valeur
-    $appiumCmd = "set `"ANDROID_HOME=$env:ANDROID_HOME`" && set `"ANDROID_SDK_ROOT=$env:ANDROID_SDK_ROOT`" && set `"JAVA_HOME=$env:JAVA_HOME`" && appium"
-    Start-Process -FilePath "cmd.exe" -ArgumentList "/k", $appiumCmd -WindowStyle Normal
+    # Demarrer Appium en arriere-plan avec logs dans un fichier
+    $appiumCmd = "set `"ANDROID_HOME=$env:ANDROID_HOME`" && set `"ANDROID_SDK_ROOT=$env:ANDROID_SDK_ROOT`" && set `"JAVA_HOME=$env:JAVA_HOME`" && appium > `"$appiumLogFile`" 2>&1"
+    Start-Process -FilePath "cmd.exe" -ArgumentList "/c", $appiumCmd -WindowStyle Hidden
 
     # Attendre qu'Appium soit pret
     $maxWait = 60
     $waited = 0
-    Write-Host "  Attente du demarrage d'Appium..." -ForegroundColor Gray
+    Write-Log "  Attente du demarrage d'Appium..." "Gray"
     while ($waited -lt $maxWait) {
         Start-Sleep -Seconds 1
         $waited++
         try {
             $tcpTest = Test-NetConnection -ComputerName localhost -Port 4723 -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
             if ($tcpTest.TcpTestSucceeded) {
-                Write-Host "[OK] Appium demarre (apres $waited secondes)" -ForegroundColor Green
+                Write-Log "[OK] Appium demarre (apres $waited secondes)" "Green"
+                Write-Log "  Appium log: $appiumLogFile" "Gray"
                 break
             }
         } catch {
             # Ignorer l'erreur
         }
         if ($waited % 5 -eq 0) {
-            Write-Host "  Attente d'Appium... ($waited/$maxWait)" -ForegroundColor Gray
+            Write-Log "  Attente d'Appium... ($waited/$maxWait)" "Gray"
         }
     }
 
     if ($waited -ge $maxWait) {
-        Write-Host "[ERREUR] Appium n'a pas demarre dans les temps!" -ForegroundColor Red
-        Write-Host "" -ForegroundColor Red
-        Write-Host "Essaie de lancer Appium manuellement dans une autre fenetre:" -ForegroundColor Yellow
-        Write-Host "  appium" -ForegroundColor White
-        Write-Host "" -ForegroundColor Yellow
-        Write-Host "Puis relance ce script." -ForegroundColor Yellow
+        Write-Log "[ERREUR] Appium n'a pas demarre dans les temps!" "Red"
+        Write-Log "" "Red"
+        Write-Log "Essaie de lancer Appium manuellement dans une autre fenetre:" "Yellow"
+        Write-Log "  appium" "White"
+        Write-Log "" "Yellow"
+        Write-Log "Puis relance ce script." "Yellow"
         exit 1
     }
 }
-Write-Host ""
+Write-Log ""
 
 # -----------------------------------------------------------------------------
 # ETAPE 5: Lancer les tests
 # -----------------------------------------------------------------------------
-Write-Host "[5/5] Lancement des tests..." -ForegroundColor Yellow
-Write-Host "=============================================" -ForegroundColor Cyan
-Write-Host ""
+Write-Log "[5/5] Lancement des tests..." "Yellow"
+Write-Log "=============================================" "Cyan"
+Write-Log ""
+
+$testStartTime = Get-Date
 
 if ($SmokeOnly) {
-    Write-Host "Mode: Smoke test uniquement" -ForegroundColor Gray
-    npm run test:smoke
+    Write-Log "Mode: Smoke test uniquement" "Gray"
+    npm run test:smoke 2>&1 | Tee-Object -Append -FilePath $mainLogFile
 } else {
-    Write-Host "Mode: Tous les tests" -ForegroundColor Gray
-    npm test
+    Write-Log "Mode: Tous les tests" "Gray"
+    npm test 2>&1 | Tee-Object -Append -FilePath $mainLogFile
 }
 
 $testExitCode = $LASTEXITCODE
+$testEndTime = Get-Date
+$testDuration = $testEndTime - $testStartTime
 
-Write-Host ""
-Write-Host "=============================================" -ForegroundColor Cyan
+Write-Log ""
+Write-Log "=============================================" "Cyan"
+
+# =============================================================================
+# RESUME DES TESTS
+# =============================================================================
+Write-Log ""
+Write-Log "=============================================" "Magenta"
+Write-Log "   RESUME DE L'EXECUTION" "Magenta"
+Write-Log "=============================================" "Magenta"
+Write-Log ""
+Write-Log "  Duree totale: $($testDuration.Minutes)m $($testDuration.Seconds)s" "White"
+Write-Log "  Logs:         $mainLogFile" "White"
+Write-Log ""
 
 if ($testExitCode -eq 0) {
-    Write-Host "   TESTS REUSSIS!" -ForegroundColor Green
+    Write-Log "  Resultat: TESTS REUSSIS!" "Green"
 } else {
-    Write-Host "   TESTS ECHOUES (code: $testExitCode)" -ForegroundColor Red
+    Write-Log "  Resultat: TESTS ECHOUES (code: $testExitCode)" "Red"
 
     # Afficher les screenshots si presents
     $screenshots = Get-ChildItem -Path ".\screenshots\*.png" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if ($screenshots) {
-        Write-Host ""
-        Write-Host "Screenshot de debug disponible:" -ForegroundColor Yellow
-        Write-Host "  $($screenshots.FullName)" -ForegroundColor White
-
-        # Ouvrir le screenshot automatiquement
-        Start-Process $screenshots.FullName
+        Write-Log ""
+        Write-Log "  Screenshot de debug disponible:" "Yellow"
+        Write-Log "    $($screenshots.FullName)" "White"
     }
 }
 
-Write-Host "=============================================" -ForegroundColor Cyan
+Write-Log ""
+Write-Log "=============================================" "Magenta"
 
-# Ouvrir le rapport HTML
-$reportPath = Join-Path $appiumTestsDir "reports\cucumber-report.html"
-if (Test-Path $reportPath) {
-    Write-Host ""
-    Write-Host "Rapport: $reportPath" -ForegroundColor Gray
+# =============================================================================
+# GENERATION DU RAPPORT ALLURE
+# =============================================================================
+Write-Log ""
+Write-Log "[6/6] Generation du rapport Allure..." "Yellow"
+
+# Verifier si Allure est installe
+$allureInstalled = $false
+try {
+    $allureVersion = & allure --version 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        $allureInstalled = $true
+        Write-Log "  Allure version: $allureVersion" "Gray"
+    }
+} catch {
+    # Allure n'est pas installe
 }
+
+if (-not $allureInstalled) {
+    Write-Log "  Allure CLI non trouve. Installation via npm..." "Yellow"
+    npm install -g allure-commandline 2>&1 | Tee-Object -Append -FilePath $mainLogFile
+
+    # Re-verifier
+    try {
+        $allureVersion = & allure --version 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            $allureInstalled = $true
+        }
+    } catch {
+        # Toujours pas installe
+    }
+}
+
+if ($allureInstalled -and (Test-Path $allureResultsDir)) {
+    Write-Log "  Generation du rapport..." "Gray"
+    & allure generate $allureResultsDir -o $allureReportDir --clean 2>&1 | Tee-Object -Append -FilePath $mainLogFile
+
+    if (Test-Path (Join-Path $allureReportDir "index.html")) {
+        Write-Log "[OK] Rapport Allure genere" "Green"
+
+        if (-not $NoReport) {
+            Write-Log ""
+            Write-Log "  Ouverture du rapport dans le navigateur..." "Gray"
+            $reportHtml = Join-Path $allureReportDir "index.html"
+            Start-Process $reportHtml
+        }
+    } else {
+        Write-Log "[WARN] Generation du rapport Allure echouee" "Yellow"
+    }
+} else {
+    if (-not $allureInstalled) {
+        Write-Log "[WARN] Allure CLI non disponible. Installez-le avec:" "Yellow"
+        Write-Log "  npm install -g allure-commandline" "White"
+        Write-Log "  ou: choco install allure" "White"
+    }
+    if (-not (Test-Path $allureResultsDir)) {
+        Write-Log "[WARN] Aucun resultat Allure trouve dans $allureResultsDir" "Yellow"
+    }
+}
+
+# Afficher les chemins des rapports
+Write-Log ""
+Write-Log "=============================================" "Cyan"
+Write-Log "   RAPPORTS DISPONIBLES" "Cyan"
+Write-Log "=============================================" "Cyan"
+
+$cucumberReportPath = Join-Path $appiumTestsDir "reports\cucumber-report.html"
+$allureReportPath = Join-Path $allureReportDir "index.html"
+
+if (Test-Path $cucumberReportPath) {
+    Write-Log "  Cucumber: $cucumberReportPath" "White"
+}
+if (Test-Path $allureReportPath) {
+    Write-Log "  Allure:   $allureReportPath" "White"
+}
+Write-Log "  Logs:     $mainLogFile" "White"
+Write-Log ""
+Write-Log "=============================================" "Cyan"
 
 Pop-Location
 

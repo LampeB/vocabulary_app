@@ -167,10 +167,37 @@ export class HomePage extends BasePage {
     // === EMPTY STATE ===
 
     /**
-     * Check if empty state is displayed
+     * Wait for the home page content to load (either empty state or list view).
+     * This ensures the loading indicator is gone and actual content is displayed.
+     */
+    async waitForContentLoaded(timeout: number = 10000): Promise<'empty' | 'list'> {
+        const startTime = Date.now();
+        while (Date.now() - startTime < timeout) {
+            // Check if empty state is visible
+            if (await this.elementExistsByKey(this.keys.emptyState)) {
+                return 'empty';
+            }
+            // Check if list view is visible
+            if (await this.elementExistsByKey(this.keys.listView)) {
+                return 'list';
+            }
+            // Wait a bit before retrying
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        throw new Error('Timeout waiting for home page content to load');
+    }
+
+    /**
+     * Check if empty state is displayed (uses longer timeout for post-reset scenarios)
      */
     async isEmptyStateDisplayed(): Promise<boolean> {
-        return await this.elementExistsByKey(this.keys.emptyState);
+        try {
+            // First wait for content to load, then check if it's the empty state
+            const contentType = await this.waitForContentLoaded(10000);
+            return contentType === 'empty';
+        } catch (error) {
+            return false;
+        }
     }
 
     /**

@@ -49,6 +49,9 @@ appium-tests/node_modules/
 appium-tests/screenshots/
 appium-tests/reports/
 appium-tests/*.log
+appium-tests/logs/*.log
+appium-tests/allure-results/
+appium-tests/allure-report/
 
 # Android build artifacts
 /android/build/

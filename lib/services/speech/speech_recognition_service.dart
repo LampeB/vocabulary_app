@@ -1,16 +1,22 @@
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:speech_to_text/speech_recognition_error.dart';
 
 /// Service de reconnaissance vocale pour les réponses du quiz
 class SpeechRecognitionService {
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isInitialized = false;
   bool _isListening = false;
+  String? _lastError;
+
 
   /// Obtenir l'état d'écoute
   bool get isListening => _isListening;
 
   /// Vérifier si le service est initialisé
   bool get isInitialized => _isInitialized;
+
+  /// Obtenir la dernière erreur
+  String? get lastError => _lastError;
 
   /// Initialiser le service de reconnaissance vocale
   Future<bool> initialize() async {
@@ -20,46 +26,69 @@ class SpeechRecognitionService {
     }
 
     try {
+      print('🎤 Initialisation de la reconnaissance vocale...');
+
       _isInitialized = await _speech.initialize(
-        onError: (error) {
-          print('❌ Erreur STT: ${error.errorMsg}');
+        onError: (SpeechRecognitionError error) {
+          _lastError = error.errorMsg;
+          _isListening = false;
+          print('❌ Erreur STT: ${error.errorMsg} (permanent: ${error.permanent})');
+
+          // Messages d'aide selon le type d'erreur
+          if (error.errorMsg.contains('network')) {
+            print('   → Vérifiez votre connexion internet');
+          } else if (error.errorMsg.contains('audio')) {
+            print('   → Vérifiez l\'accès au microphone');
+          } else if (error.errorMsg.contains('permission')) {
+            print('   → Permission micro refusée');
+          }
+
         },
         onStatus: (status) {
           print('📊 Statut STT: $status');
-          _isListening = status == 'listening';
+          if (status == 'notListening' || status == 'done') {
+            _isListening = false;
+          } else if (status == 'listening') {
+            _isListening = true;
+          }
         },
+        debugLogging: true,
       );
 
       if (_isInitialized) {
         print('✅ STT initialisé avec succès');
-        
+
         // Afficher les langues disponibles
         final locales = await _speech.locales();
         print('🌍 ${locales.length} langues disponibles');
-        
+
         // Vérifier que FR et KO sont disponibles
         final hasFrench = locales.any((l) => l.localeId.startsWith('fr'));
         final hasKorean = locales.any((l) => l.localeId.startsWith('ko'));
-        
+
         if (hasFrench) print('✅ Français disponible');
         if (hasKorean) print('✅ Coréen disponible');
-        
+
         if (!hasFrench || !hasKorean) {
           print('⚠️ Certaines langues manquent, vérifiez votre système');
         }
       } else {
         print('❌ Échec initialisation STT');
+        print('   → Sur émulateur: Google Speech Services peut ne pas être disponible');
+        print('   → Testez sur un appareil physique avec Google app installé');
+        _lastError = 'Service de reconnaissance vocale non disponible';
       }
 
       return _isInitialized;
     } catch (e) {
       print('❌ Erreur lors de l\'initialisation STT: $e');
+      _lastError = e.toString();
       return false;
     }
   }
 
   /// Démarrer l'écoute avec callback
-  /// 
+  ///
   /// langCode: Code de langue (fr, ko, en)
   /// onResult: Callback appelé avec le texte reconnu
   /// onConfidence: Callback appelé avec le niveau de confiance (0.0-1.0)
@@ -73,18 +102,21 @@ class SpeechRecognitionService {
       return false;
     }
 
-    if (_isListening) {
-      print('⚠️ STT déjà en écoute');
-      return false;
+    if (_isListening || _speech.isListening) {
+      print('⚠️ STT déjà en écoute, arrêt puis redémarrage...');
+      await _speech.stop();
+      _isListening = false;
+      // Small delay to let the system release the mic
+      await Future.delayed(const Duration(milliseconds: 200));
     }
 
     try {
       // Convertir le code de langue en locale
       final localeId = _getLocaleId(langCode);
-      
+
       print('🎤 Démarrage écoute - Langue: $localeId');
 
-      final success = await _speech.listen(
+      await _speech.listen(
         onResult: (result) {
           if (result.finalResult) {
             print('✅ Résultat final: "${result.recognizedWords}"');
@@ -102,18 +134,14 @@ class SpeechRecognitionService {
           cancelOnError: true,
           listenMode: stt.ListenMode.dictation,
         ),
-        listenFor: const Duration(seconds: 10), // Max 10s d'écoute
-        pauseFor: const Duration(seconds: 3), // Pause après 3s de silence
+        listenFor: const Duration(seconds: 5), // Max 5s d'écoute
+        pauseFor: const Duration(seconds: 2), // Pause après 2s de silence
       );
 
-      if (success) {
-        _isListening = true;
-        print('✅ Écoute démarrée');
-      } else {
-        print('❌ Échec démarrage écoute');
-      }
+      _isListening = true;
+      print('✅ Écoute démarrée');
 
-      return success;
+      return true;
     } catch (e) {
       print('❌ Erreur lors du démarrage de l\'écoute: $e');
       return false;
@@ -170,7 +198,7 @@ class SpeechRecognitionService {
 
     final locales = await _speech.locales();
     final localeId = _getLocaleId(langCode);
-    
+
     return locales.any((l) => l.localeId == localeId);
   }
 

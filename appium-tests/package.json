@@ -8,7 +8,10 @@
     "test:smoke": "cucumber-js features/smoke.feature",
     "test:auto": "powershell -ExecutionPolicy Bypass -File ./run-all.ps1",
     "test:auto:skipbuild": "powershell -ExecutionPolicy Bypass -File ./run-all.ps1 -SkipBuild",
-    "test:auto:smoke": "powershell -ExecutionPolicy Bypass -File ./run-all.ps1 -SmokeOnly"
+    "test:auto:smoke": "powershell -ExecutionPolicy Bypass -File ./run-all.ps1 -SmokeOnly",
+    "allure:generate": "allure generate allure-results -o allure-report --clean",
+    "allure:open": "allure open allure-report",
+    "allure:serve": "allure serve allure-results"
   },
   "keywords": [
     "appium",
@@ -20,6 +23,8 @@
   "license": "MIT",
   "dependencies": {
     "@cucumber/cucumber": "^10.0.1",
+    "allure-cucumberjs": "^2.15.1",
+    "allure-js-commons": "^2.15.1",
     "appium-flutter-driver": "^2.8.0",
     "appium-flutter-finder": "^0.2.0",
     "chai": "^4.3.10",

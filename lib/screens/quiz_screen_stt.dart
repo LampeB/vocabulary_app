@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:math';
@@ -43,6 +44,8 @@ class _QuizScreenState extends State<QuizScreen> {
   bool _isListening = false;
   String _listeningStatus = '';
   double _confidence = 0.0;
+  int _listenRetryCount = 0;
+  Timer? _listenTimer;
 
   @override
   void initState() {
@@ -55,6 +58,7 @@ class _QuizScreenState extends State<QuizScreen> {
 
   @override
   void dispose() {
+    _listenTimer?.cancel();
     _answerController.dispose();
     _audioPlayer.dispose();
     _speechService.dispose();
@@ -175,8 +179,15 @@ class _QuizScreenState extends State<QuizScreen> {
   // 🎤 Démarrer la reconnaissance vocale
   Future<void> _startListening() async {
     if (!_isSpeechAvailable) {
-      _showSnackBar('Reconnaissance vocale non disponible', Colors.red);
-      return;
+      // Try re-initializing in case permission was granted after first attempt
+      final available = await _speechService.initialize();
+      if (!available) {
+        _showSnackBar('Reconnaissance vocale non disponible. Vérifiez les permissions du micro dans les paramètres.', Colors.red);
+        return;
+      }
+      setState(() {
+        _isSpeechAvailable = true;
+      });
     }
 
     if (_hasAnswered) return;
@@ -188,12 +199,14 @@ class _QuizScreenState extends State<QuizScreen> {
       _isListening = true;
       _listeningStatus = 'Parlez maintenant...';
       _confidence = 0.0;
+      _listenRetryCount = 0;
     });
 
     final success = await _speechService.startListening(
       langCode: answerLangCode,
       onResult: (text) {
         print('🎤 Texte reconnu: "$text"');
+        _listenTimer?.cancel();
 
         setState(() {
           _answerController.text = text;
@@ -218,21 +231,87 @@ class _QuizScreenState extends State<QuizScreen> {
       },
     );
 
+    if (success) {
+      print('🔍 startListening réussi, démarrage du timer...');
+      _startListenTimer();
+      print('🔍 Timer démarré');
+    }
+
     if (!success) {
       setState(() {
         _isListening = false;
         _listeningStatus = '';
       });
-      _showSnackBar('Erreur lors du démarrage du micro', Colors.red);
+      final errorMsg = _speechService.lastError;
+      _showSnackBar(
+        errorMsg != null
+          ? 'Erreur micro: $errorMsg'
+          : 'Erreur lors du démarrage du micro. Vérifiez que la permission microphone est accordée.',
+        Colors.red,
+      );
     }
   }
 
+  void _startListenTimer() {
+    _listenTimer?.cancel();
+    // Timer slightly longer than pauseFor (2s) + buffer
+    // The STT will timeout after ~2-5s of silence
+    _listenTimer = Timer(const Duration(seconds: 4), () {
+      if (!mounted || _hasAnswered || !_isListening) return;
+      print('⏱️ Timer expiré, pas de résultat reçu');
+      _listenRetryCount++;
+      setState(() {
+        _listeningStatus = 'Pas compris, nouvelle écoute... (×$_listenRetryCount)';
+      });
+      _restartListening();
+    });
+  }
+
   void _stopListening() async {
+    _listenTimer?.cancel();
     await _speechService.stopListening();
     setState(() {
       _isListening = false;
       _listeningStatus = '';
     });
+  }
+
+  Future<void> _restartListening() async {
+    if (!mounted || _hasAnswered) return;
+
+    final question = _questions[_currentQuestionIndex];
+    final answerLangCode = question['answerLangCode'] as String;
+
+    setState(() {
+      _listeningStatus = 'Écoute en cours... (×$_listenRetryCount)';
+    });
+
+    await _speechService.startListening(
+      langCode: answerLangCode,
+      onResult: (text) {
+        print('🎤 Texte reconnu: "$text"');
+        _listenTimer?.cancel();
+        setState(() {
+          _answerController.text = text;
+          _isListening = false;
+          _listeningStatus = '';
+        });
+        if (_confidence > 0.7) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted && !_hasAnswered) {
+              _checkAnswer();
+            }
+          });
+        }
+      },
+      onConfidence: (confidence) {
+        setState(() {
+          _confidence = confidence;
+        });
+      },
+    );
+
+    _startListenTimer();
   }
 
   void _showSnackBar(String message, Color? backgroundColor) {
@@ -455,7 +534,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     color: Theme.of(context)
                         .colorScheme
                         .onSurface
-                        .withOpacity(0.6),
+                        .withValues(alpha: 0.6),
                   ),
             ),
             const SizedBox(height: 16),
@@ -517,29 +596,38 @@ class _QuizScreenState extends State<QuizScreen> {
                 ),
                 const SizedBox(width: 8),
 
-                // 🎤 BOUTON MICRO
-                if (_isSpeechAvailable)
-                  IconButton(
+                // 🎤 BOUTON MICRO - toujours affiché
+                Tooltip(
+                  message: _isSpeechAvailable
+                      ? (_isListening ? 'Arrêter l\'écoute' : 'Répondre par la voix')
+                      : 'Micro non disponible\n(testez sur un appareil physique)',
+                  child: IconButton(
+                    key: const Key('mic_button'),
                     icon: Icon(
-                      _isListening ? Icons.mic : Icons.mic_none,
+                      _isListening
+                          ? Icons.mic
+                          : (_isSpeechAvailable ? Icons.mic_none : Icons.mic_off),
                       size: 32,
                     ),
                     color: _isListening
                         ? Colors.red
-                        : Theme.of(context).colorScheme.primary,
-                    onPressed: _hasAnswered
+                        : (_isSpeechAvailable
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.grey),
+                    onPressed: !_isSpeechAvailable || _hasAnswered
                         ? null
                         : (_isListening ? _stopListening : _startListening),
-                    tooltip: _isListening ? 'Arrêter' : 'Parler',
                     style: IconButton.styleFrom(
-                      backgroundColor:
-                          _isListening ? Colors.red.withOpacity(0.1) : null,
+                      backgroundColor: _isListening
+                          ? Colors.red.withValues(alpha: 0.1)
+                          : null,
                     ),
                   ),
+                ),
               ],
             ),
 
-            // Statut écoute
+            // Statut écoute ou message d'aide
             if (_isListening) ...[
               const SizedBox(height: 8),
               Row(
@@ -550,12 +638,34 @@ class _QuizScreenState extends State<QuizScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    _listeningStatus,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.red,
-                          fontStyle: FontStyle.italic,
-                        ),
+                  Expanded(
+                    child: Text(
+                      _listeningStatus,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: _listenRetryCount > 0 ? Colors.orange : Colors.red,
+                            fontStyle: FontStyle.italic,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ] else if (!_isSpeechAvailable && !_hasAnswered) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'Micro non disponible sur émulateur. Utilisez un appareil physique pour la saisie vocale.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                    ),
                   ),
                 ],
               ),
@@ -568,8 +678,8 @@ class _QuizScreenState extends State<QuizScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: _lastResult!.isCorrect
-                      ? Colors.green.withOpacity(0.1)
-                      : Colors.red.withOpacity(0.1),
+                      ? Colors.green.withValues(alpha: 0.1)
+                      : Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: _lastResult!.isCorrect ? Colors.green : Colors.red,
