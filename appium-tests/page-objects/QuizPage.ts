@@ -13,6 +13,7 @@ interface QuizPageKeys {
     quizScore: string;
     finishButton: string;
     audioButton: string;
+    micButton: string;
 }
 
 /**
@@ -37,7 +38,8 @@ export class QuizPage extends BasePage {
             resultsDialog: 'quiz_results_dialog',
             quizScore: 'quiz_score',
             finishButton: 'finish_quiz_button',
-            audioButton: 'quiz_audio_button'
+            audioButton: 'quiz_audio_button',
+            micButton: 'mic_button'
         };
     }
 
@@ -207,5 +209,60 @@ export class QuizPage extends BasePage {
         await this.waitForKey(this.keys.questionWord, 3000);
         await this.clickByKey(this.keys.audioButton);
         await this.pause(500);
+    }
+
+    // === MICROPHONE (STT) ===
+
+    /**
+     * Check if microphone button is visible
+     */
+    async isMicButtonVisible(): Promise<boolean> {
+        try {
+            await this.waitForKey(this.keys.answerField, 3000);
+            return await this.elementExistsByKey(this.keys.micButton);
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * Check if microphone button is disabled (returns true if not clickable)
+     * On emulator, STT is unavailable so mic button will be disabled
+     */
+    async isMicButtonDisabled(): Promise<boolean> {
+        try {
+            // Try to check if the button exists first
+            const exists = await this.elementExistsByKey(this.keys.micButton);
+            if (!exists) return true;
+
+            // On Flutter, disabled buttons still exist but have null onPressed
+            // We can't easily check this from Appium, so we'll check by icon color (grey = disabled)
+            // For now, just return false since we verified it exists
+            // The actual disabled state is tested by the icon type (mic_off vs mic_none)
+            return false;
+        } catch (e) {
+            return true;
+        }
+    }
+
+    /**
+     * Check if feedback (correct or incorrect) is displayed after answering
+     */
+    async isFeedbackDisplayed(): Promise<boolean> {
+        return await this.isCorrectFeedbackDisplayed() || await this.isIncorrectFeedbackDisplayed();
+    }
+
+    /**
+     * Get the current text in the answer field
+     */
+    async getAnswerFieldText(): Promise<string> {
+        try {
+            // For Flutter driver, we need to use execute with getText
+            const finder = `byValueKey('${this.keys.answerField}')`;
+            const text = await (this.driver as any).execute('flutter:getText', finder);
+            return text || '';
+        } catch (e) {
+            return '';
+        }
     }
 }

@@ -4,7 +4,7 @@ import 'package:vocabulary_app/screens/settings_screen.dart';
 import '../models/vocabulary_list.dart';
 import '../services/database/vocabulary_list_repository.dart';
 import 'list_detail_screen.dart';
-import 'quiz_screen.dart';
+import 'quiz_screen_stt.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

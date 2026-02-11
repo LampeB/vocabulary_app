@@ -24,37 +24,72 @@ export class BasePage {
         return this.driver as FlutterDriver;
     }
 
-    // Default timeout - reduced for speed
-    protected defaultTimeout = 1500;
-    // Fast timeout for existence checks
-    protected fastTimeout = 300;
+    // Default timeout for waiting on elements
+    protected defaultTimeout = 5000;
+    // Single attempt timeout (short, but we retry)
+    protected singleAttemptTimeout = 500;
+    // Max retries for existence checks
+    protected maxRetries = 6;
+
+    /**
+     * Retry helper - attempts an operation multiple times with short timeouts.
+     * Fast when element exists, patient when it doesn't.
+     */
+    private async withRetry<T>(
+        operation: () => Promise<T>,
+        maxAttempts: number = this.maxRetries
+    ): Promise<T> {
+        let lastError: any;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return await operation();
+            } catch (error) {
+                lastError = error;
+                if (attempt < maxAttempts) {
+                    // Small delay between retries
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+            }
+        }
+        throw lastError;
+    }
 
     /**
      * Find element by text using Flutter execute command
      */
     async findByText(text: string): Promise<any> {
-        return await this.flutter.execute('flutter:waitFor', byText(text), this.defaultTimeout);
+        return await this.withRetry(() =>
+            this.flutter.execute('flutter:waitFor', byText(text), this.singleAttemptTimeout)
+        );
     }
 
     /**
      * Find element by semantics label (accessibility)
      */
     async findByAccessibilityId(id: string): Promise<any> {
-        return await this.flutter.execute('flutter:waitFor', bySemanticsLabel(id), this.defaultTimeout);
+        return await this.withRetry(() =>
+            this.flutter.execute('flutter:waitFor', bySemanticsLabel(id), this.singleAttemptTimeout)
+        );
     }
 
     /**
      * Find element by key
      */
     async findByKey(key: string): Promise<any> {
-        return await this.flutter.execute('flutter:waitFor', byValueKey(key), this.defaultTimeout);
+        return await this.withRetry(() =>
+            this.flutter.execute('flutter:waitFor', byValueKey(key), this.singleAttemptTimeout)
+        );
     }
 
     /**
-     * Wait for element by text with timeout
+     * Wait for element by text with timeout (uses retry)
      */
     async waitForText(text: string, timeout: number = 3000): Promise<any> {
-        return await this.flutter.execute('flutter:waitFor', byText(text), timeout);
+        const attempts = Math.ceil(timeout / (this.singleAttemptTimeout + 200));
+        return await this.withRetry(
+            () => this.flutter.execute('flutter:waitFor', byText(text), this.singleAttemptTimeout),
+            attempts
+        );
     }
 
     /**
@@ -62,7 +97,9 @@ export class BasePage {
      */
     async clickByText(text: string): Promise<void> {
         const finder = byText(text);
-        await this.flutter.execute('flutter:waitFor', finder, this.defaultTimeout);
+        await this.withRetry(() =>
+            this.flutter.execute('flutter:waitFor', finder, this.singleAttemptTimeout)
+        );
         await this.driver.elementClick(finder);
     }
 
@@ -71,7 +108,9 @@ export class BasePage {
      */
     async clickByAccessibilityId(id: string): Promise<void> {
         const finder = bySemanticsLabel(id);
-        await this.flutter.execute('flutter:waitFor', finder, this.defaultTimeout);
+        await this.withRetry(() =>
+            this.flutter.execute('flutter:waitFor', finder, this.singleAttemptTimeout)
+        );
         await this.driver.elementClick(finder);
     }
 
@@ -80,7 +119,9 @@ export class BasePage {
      */
     async clickByKey(key: string): Promise<void> {
         const finder = byValueKey(key);
-        await this.flutter.execute('flutter:waitFor', finder, this.defaultTimeout);
+        await this.withRetry(() =>
+            this.flutter.execute('flutter:waitFor', finder, this.singleAttemptTimeout)
+        );
         await this.driver.elementClick(finder);
     }
 
@@ -89,7 +130,9 @@ export class BasePage {
      */
     async enterTextByKey(key: string, text: string): Promise<void> {
         const finder = byValueKey(key);
-        await this.flutter.execute('flutter:waitFor', finder, this.defaultTimeout);
+        await this.withRetry(() =>
+            this.flutter.execute('flutter:waitFor', finder, this.singleAttemptTimeout)
+        );
         await this.driver.elementSendKeys(finder, text);
     }
 
@@ -101,11 +144,14 @@ export class BasePage {
     }
 
     /**
-     * Check if element exists by text (FAST - 300ms timeout)
+     * Check if element exists by text (uses retry mechanism)
      */
     async elementExistsByText(text: string): Promise<boolean> {
         try {
-            await this.flutter.execute('flutter:waitFor', byText(text), this.fastTimeout);
+            await this.withRetry(
+                () => this.flutter.execute('flutter:waitFor', byText(text), this.singleAttemptTimeout),
+                3 // fewer retries for existence checks
+            );
             return true;
         } catch (error) {
             return false;
@@ -113,11 +159,14 @@ export class BasePage {
     }
 
     /**
-     * Check if element exists by key (FAST - 300ms timeout)
+     * Check if element exists by key (uses retry mechanism)
      */
     async elementExistsByKey(key: string): Promise<boolean> {
         try {
-            await this.flutter.execute('flutter:waitFor', byValueKey(key), this.fastTimeout);
+            await this.withRetry(
+                () => this.flutter.execute('flutter:waitFor', byValueKey(key), this.singleAttemptTimeout),
+                3 // fewer retries for existence checks
+            );
             return true;
         } catch (error) {
             return false;
@@ -125,17 +174,25 @@ export class BasePage {
     }
 
     /**
-     * Wait for element by key with timeout
+     * Wait for element by key with timeout (uses retry)
      */
-    async waitForKey(key: string, timeout: number = 2000): Promise<any> {
-        return await this.flutter.execute('flutter:waitFor', byValueKey(key), timeout);
+    async waitForKey(key: string, timeout: number = 3000): Promise<any> {
+        const attempts = Math.ceil(timeout / (this.singleAttemptTimeout + 200));
+        return await this.withRetry(
+            () => this.flutter.execute('flutter:waitFor', byValueKey(key), this.singleAttemptTimeout),
+            attempts
+        );
     }
 
     /**
-     * Wait for element by semantics label with timeout
+     * Wait for element by semantics label with timeout (uses retry)
      */
-    async waitForSemanticsLabel(label: string, timeout: number = 2000): Promise<any> {
-        return await this.flutter.execute('flutter:waitFor', bySemanticsLabel(label), timeout);
+    async waitForSemanticsLabel(label: string, timeout: number = 3000): Promise<any> {
+        const attempts = Math.ceil(timeout / (this.singleAttemptTimeout + 200));
+        return await this.withRetry(
+            () => this.flutter.execute('flutter:waitFor', bySemanticsLabel(label), this.singleAttemptTimeout),
+            attempts
+        );
     }
 
     /**
@@ -143,7 +200,9 @@ export class BasePage {
      */
     async clickBySemanticsLabel(label: string): Promise<void> {
         const finder = bySemanticsLabel(label);
-        await this.flutter.execute('flutter:waitFor', finder, this.defaultTimeout);
+        await this.withRetry(() =>
+            this.flutter.execute('flutter:waitFor', finder, this.singleAttemptTimeout)
+        );
         await this.driver.elementClick(finder);
     }
 

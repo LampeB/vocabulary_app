@@ -8,9 +8,11 @@ import '../models/variant_progress.dart';
 import '../services/database/database_service.dart';
 import '../services/audio/audio_player_service.dart';
 import '../services/speech/speech_recognition_service.dart';
+import '../services/audio/sound_effects_service.dart';
 import '../utils/answer_validator.dart';
 import '../utils/srs_algorithm.dart';
 import '../config/constants.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class QuizScreen extends StatefulWidget {
   final VocabularyList list;
@@ -47,6 +49,14 @@ class _QuizScreenState extends State<QuizScreen> {
   int _listenRetryCount = 0;
   Timer? _listenTimer;
 
+  // Hands-free voice mode
+  bool _isHandsFreeMode = false;
+  bool _isHandsFreeProcessing = false;
+  int _handsFreeConsecutiveFailures = 0;
+  static const int _maxHandsFreeFailures = 3;
+  static const String _handsFreeKey = 'quiz_hands_free_mode';
+  final SoundEffectsService _soundEffects = SoundEffectsService();
+
   @override
   void initState() {
     super.initState();
@@ -62,6 +72,7 @@ class _QuizScreenState extends State<QuizScreen> {
     _answerController.dispose();
     _audioPlayer.dispose();
     _speechService.dispose();
+    _soundEffects.dispose();
     print('🎮 QuizScreen disposed');
     super.dispose();
   }
@@ -74,6 +85,18 @@ class _QuizScreenState extends State<QuizScreen> {
 
     if (available) {
       print('✅ Reconnaissance vocale disponible');
+      // Load hands-free preference now that we know STT is available
+      final prefs = await SharedPreferences.getInstance();
+      final savedPref = prefs.getBool(_handsFreeKey) ?? false;
+      if (mounted && savedPref) {
+        setState(() {
+          _isHandsFreeMode = true;
+        });
+        // If questions are already loaded, start the cycle
+        if (_questions.isNotEmpty && !_isLoading) {
+          _startHandsFreeCycle();
+        }
+      }
     } else {
       print('❌ Reconnaissance vocale non disponible');
     }
@@ -142,7 +165,11 @@ class _QuizScreenState extends State<QuizScreen> {
       // Jouer automatiquement le premier mot
       if (_questions.isNotEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _playQuestionAudio();
+          if (_isHandsFreeMode) {
+            _startHandsFreeCycle();
+          } else {
+            _playQuestionAudio();
+          }
         });
       }
     } catch (e) {
@@ -214,9 +241,10 @@ class _QuizScreenState extends State<QuizScreen> {
           _listeningStatus = '';
         });
 
-        // Validation automatique si confiance élevée
-        if (_confidence > 0.7) {
-          print('✅ Confiance élevée ($_confidence), validation auto');
+        // In hands-free mode: always auto-validate
+        // In manual mode: auto-validate only if confidence > 0.7
+        if (_isHandsFreeMode || _confidence > 0.7) {
+          print('✅ Validation auto (hands-free=$_isHandsFreeMode, confiance=$_confidence)');
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted && !_hasAnswered) {
               _checkAnswer();
@@ -260,6 +288,25 @@ class _QuizScreenState extends State<QuizScreen> {
       if (!mounted || _hasAnswered || !_isListening) return;
       print('⏱️ Timer expiré, pas de résultat reçu');
       _listenRetryCount++;
+
+      if (_isHandsFreeMode) {
+        _handsFreeConsecutiveFailures++;
+        if (_handsFreeConsecutiveFailures >= _maxHandsFreeFailures) {
+          // Too many failures, pause hands-free mode
+          setState(() {
+            _isHandsFreeMode = false;
+            _isListening = false;
+            _listeningStatus = '';
+          });
+          _speechService.stopListening();
+          _showSnackBar(
+            'Mode mains libres en pause (micro non détecté). Réactivez-le quand vous êtes prêt.',
+            Colors.orange,
+          );
+          return;
+        }
+      }
+
       setState(() {
         _listeningStatus = 'Pas compris, nouvelle écoute... (×$_listenRetryCount)';
       });
@@ -296,7 +343,7 @@ class _QuizScreenState extends State<QuizScreen> {
           _isListening = false;
           _listeningStatus = '';
         });
-        if (_confidence > 0.7) {
+        if (_isHandsFreeMode || _confidence > 0.7) {
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted && !_hasAnswered) {
               _checkAnswer();
@@ -352,6 +399,11 @@ class _QuizScreenState extends State<QuizScreen> {
     });
 
     _updateProgress(question, result.isCorrect);
+
+    // Hands-free mode: play sound and auto-advance
+    if (_isHandsFreeMode) {
+      _onHandsFreeAnswerChecked(result.isCorrect);
+    }
   }
 
   Future<void> _updateProgress(
@@ -411,11 +463,109 @@ class _QuizScreenState extends State<QuizScreen> {
       });
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _playQuestionAudio();
+        if (_isHandsFreeMode) {
+          _startHandsFreeCycle();
+        } else {
+          _playQuestionAudio();
+        }
       });
     } else {
+      if (_isHandsFreeMode) {
+        _stopListening();
+      }
       _showResults();
     }
+  }
+
+  // ═══════════════════════════════════════════════════
+  // HANDS-FREE VOICE MODE
+  // ═══════════════════════════════════════════════════
+
+  Future<void> _toggleHandsFreeMode() async {
+    if (!_isSpeechAvailable) {
+      _showSnackBar(
+        'Le mode mains libres nécessite la reconnaissance vocale.',
+        Colors.orange,
+      );
+      return;
+    }
+
+    final newValue = !_isHandsFreeMode;
+    setState(() {
+      _isHandsFreeMode = newValue;
+      _handsFreeConsecutiveFailures = 0;
+    });
+
+    // Persist preference
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_handsFreeKey, newValue);
+
+    if (newValue && !_hasAnswered && !_isListening) {
+      _startHandsFreeCycle();
+    } else if (!newValue && _isListening) {
+      _stopListening();
+    }
+  }
+
+  Future<void> _startHandsFreeCycle() async {
+    if (!_isHandsFreeMode || !mounted || _isHandsFreeProcessing) return;
+
+    _isHandsFreeProcessing = true;
+
+    try {
+      // Step 1: Play question audio and wait for it to finish
+      await _playQuestionAudioAndWait();
+
+      if (!mounted || !_isHandsFreeMode) return;
+
+      // Step 2: Brief pause before starting mic
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      if (!mounted || !_isHandsFreeMode || _hasAnswered) return;
+
+      // Step 3: Auto-start listening
+      await _startListening();
+    } finally {
+      _isHandsFreeProcessing = false;
+    }
+  }
+
+  Future<void> _playQuestionAudioAndWait() async {
+    if (_questions.isEmpty || _currentQuestionIndex >= _questions.length) return;
+
+    final question = _questions[_currentQuestionIndex];
+    final questionVariant = question['questionVariant'] as WordVariant;
+    final direction = question['direction'] as String;
+
+    final questionLangCode = direction == 'lang1_to_lang2'
+        ? widget.list.lang1Code
+        : widget.list.lang2Code;
+
+    await _audioPlayer.playAudioSmartAndWait(
+      audioHash: questionVariant.audioHash,
+      text: questionVariant.word,
+      langCode: questionLangCode,
+    );
+  }
+
+  Future<void> _onHandsFreeAnswerChecked(bool isCorrect) async {
+    // Play feedback sound
+    if (isCorrect) {
+      _handsFreeConsecutiveFailures = 0;
+      await _soundEffects.playCorrect();
+    } else {
+      await _soundEffects.playIncorrect();
+    }
+
+    // Wait for user to see the feedback
+    await Future.delayed(
+      const Duration(milliseconds: AppConstants.feedbackDisplayDuration),
+    );
+
+    if (!mounted || !_isHandsFreeMode) return;
+
+    // Auto-advance to next question
+    _nextQuestion();
   }
 
   void _showResults() {
@@ -425,12 +575,14 @@ class _QuizScreenState extends State<QuizScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
+        key: const Key('quiz_results_dialog'),
         title: const Text('🎉 Quiz terminé !'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               '$_correctCount / ${_questions.length}',
+              key: const Key('quiz_score'),
               style: Theme.of(context).textTheme.displayMedium?.copyWith(
                     color: Theme.of(context).colorScheme.primary,
                   ),
@@ -449,6 +601,7 @@ class _QuizScreenState extends State<QuizScreen> {
         ),
         actions: [
           FilledButton(
+            key: const Key('finish_quiz_button'),
             onPressed: () {
               Navigator.pop(context);
               Navigator.pop(context);
@@ -484,9 +637,34 @@ class _QuizScreenState extends State<QuizScreen> {
     final direction = question['direction'] as String;
 
     return Scaffold(
+      key: const Key('quiz_screen'),
       appBar: AppBar(
         title: Text('Quiz - ${widget.list.name}'),
         actions: [
+          if (_isSpeechAvailable)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: IconButton.filled(
+                key: const Key('hands_free_toggle'),
+                icon: Icon(
+                  _isHandsFreeMode ? Icons.headset_mic : Icons.headset_off,
+                  size: 28,
+                ),
+                style: IconButton.styleFrom(
+                  backgroundColor: _isHandsFreeMode
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.surfaceContainerHighest,
+                  foregroundColor: _isHandsFreeMode
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                  minimumSize: const Size(48, 48),
+                ),
+                tooltip: _isHandsFreeMode
+                    ? 'Désactiver mode mains libres'
+                    : 'Activer mode mains libres',
+                onPressed: _toggleHandsFreeMode,
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Center(
@@ -507,6 +685,30 @@ class _QuizScreenState extends State<QuizScreen> {
               value: (_currentQuestionIndex + 1) / _questions.length,
               minHeight: 4,
             ),
+            if (_isHandsFreeMode) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.headset_mic, size: 16,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Mode mains libres',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 32),
 
             Container(
@@ -546,6 +748,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 Expanded(
                   child: Text(
                     questionVariant.word,
+                    key: const Key('quiz_question_word'),
                     style: Theme.of(context).textTheme.displayMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -573,6 +776,7 @@ class _QuizScreenState extends State<QuizScreen> {
               children: [
                 Expanded(
                   child: TextField(
+                    key: const Key('quiz_answer_field'),
                     controller: _answerController,
                     enabled: !_hasAnswered && !_isListening,
                     decoration: InputDecoration(
@@ -589,7 +793,7 @@ class _QuizScreenState extends State<QuizScreen> {
                             )
                           : null,
                     ),
-                    autofocus: true,
+                    autofocus: !_isHandsFreeMode,
                     onSubmitted: (_) =>
                         _hasAnswered ? _nextQuestion() : _checkAnswer(),
                   ),
@@ -597,31 +801,29 @@ class _QuizScreenState extends State<QuizScreen> {
                 const SizedBox(width: 8),
 
                 // 🎤 BOUTON MICRO - toujours affiché
-                Tooltip(
-                  message: _isSpeechAvailable
+                IconButton(
+                  key: const Key('mic_button'),
+                  tooltip: _isSpeechAvailable
                       ? (_isListening ? 'Arrêter l\'écoute' : 'Répondre par la voix')
-                      : 'Micro non disponible\n(testez sur un appareil physique)',
-                  child: IconButton(
-                    key: const Key('mic_button'),
-                    icon: Icon(
-                      _isListening
-                          ? Icons.mic
-                          : (_isSpeechAvailable ? Icons.mic_none : Icons.mic_off),
-                      size: 32,
-                    ),
-                    color: _isListening
-                        ? Colors.red
-                        : (_isSpeechAvailable
-                            ? Theme.of(context).colorScheme.primary
-                            : Colors.grey),
-                    onPressed: !_isSpeechAvailable || _hasAnswered
-                        ? null
-                        : (_isListening ? _stopListening : _startListening),
-                    style: IconButton.styleFrom(
-                      backgroundColor: _isListening
-                          ? Colors.red.withValues(alpha: 0.1)
-                          : null,
-                    ),
+                      : 'Micro non disponible (testez sur un appareil physique)',
+                  icon: Icon(
+                    _isListening
+                        ? Icons.mic
+                        : (_isSpeechAvailable ? Icons.mic_none : Icons.mic_off),
+                    size: 32,
+                  ),
+                  color: _isListening
+                      ? Colors.red
+                      : (_isSpeechAvailable
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.grey),
+                  onPressed: !_isSpeechAvailable || _hasAnswered
+                      ? null
+                      : (_isListening ? _stopListening : _startListening),
+                  style: IconButton.styleFrom(
+                    backgroundColor: _isListening
+                        ? Colors.red.withValues(alpha: 0.1)
+                        : null,
                   ),
                 ),
               ],
@@ -675,6 +877,7 @@ class _QuizScreenState extends State<QuizScreen> {
 
             if (_hasAnswered && _lastResult != null) ...[
               Container(
+                key: Key(_lastResult!.isCorrect ? 'correct_feedback' : 'incorrect_feedback'),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: _lastResult!.isCorrect
@@ -733,6 +936,7 @@ class _QuizScreenState extends State<QuizScreen> {
             const Spacer(),
 
             FilledButton.icon(
+              key: Key(_hasAnswered ? 'next_question_button' : 'submit_answer_button'),
               onPressed: _hasAnswered ? _nextQuestion : _checkAnswer,
               icon: Icon(_hasAnswered ? Icons.arrow_forward : Icons.check),
               label: Text(_hasAnswered ? 'Suivant' : 'Valider'),

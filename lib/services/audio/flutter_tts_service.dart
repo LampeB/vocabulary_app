@@ -126,6 +126,32 @@ class FlutterTtsService {
     return localeMap[langCode.toLowerCase()] ?? 'en-US';
   }
 
+  /// Speak text and wait for completion before returning.
+  Future<bool> speakAndWait(String text, String langCode) async {
+    try {
+      await initialize();
+
+      if (_isSpeaking) {
+        await stop();
+      }
+
+      await _tts!.awaitSpeakCompletion(true);
+
+      final locale = _getLocaleForLang(langCode);
+      await _tts!.setLanguage(locale);
+
+      final result = await _tts!.speak(text);
+
+      // Reset to non-blocking for normal usage
+      await _tts!.awaitSpeakCompletion(false);
+
+      return result == 1;
+    } catch (e) {
+      print('Erreur TTS (speakAndWait): $e');
+      return false;
+    }
+  }
+
   /// Libérer les ressources
   void dispose() {
     _tts?.stop();

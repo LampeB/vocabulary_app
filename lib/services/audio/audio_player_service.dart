@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import '../../config/app_config.dart';
 import '../../config/api_config.dart';
@@ -166,6 +167,43 @@ class AudioPlayerService {
 
     // Sinon, utiliser le TTS natif
     return await speakText(text, langCode);
+  }
+
+  /// Play audio smartly and wait for playback to complete before returning.
+  /// Used by hands-free mode to sequence: play audio → then start listening.
+  Future<void> playAudioSmartAndWait({
+    String? audioHash,
+    required String text,
+    required String langCode,
+  }) async {
+    if (audioHash != null && !ApiConfig.useFreeTTS) {
+      // File-based path: use Completer with onPlayerComplete
+      await _ensureInitialized();
+      final completer = Completer<void>();
+      late StreamSubscription sub;
+      sub = _player!.onPlayerComplete.listen((_) {
+        if (!completer.isCompleted) completer.complete();
+        sub.cancel();
+      });
+
+      final success = await playAudioByHash(audioHash);
+      if (!success) {
+        sub.cancel();
+        if (!completer.isCompleted) completer.complete();
+        return;
+      }
+
+      // Safety timeout so we don't hang forever
+      await completer.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () { sub.cancel(); },
+      );
+    } else {
+      // TTS path: use speakAndWait which blocks until speech finishes
+      _ttsService ??= FlutterTtsService();
+      await _ttsService!.initialize();
+      await _ttsService!.speakAndWait(text, langCode);
+    }
   }
 
   /// Arrêter le TTS
