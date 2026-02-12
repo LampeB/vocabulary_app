@@ -15,34 +15,18 @@ class ElevenLabsService {
 
   ElevenLabsService._internal();
 
-  /// Générer l'audio pour un texte avec paramètres personnalisés
-  ///
-  /// Paramètres:
-  /// - text: Le texte à convertir en audio
-  /// - langCode: Code de la langue (fr, ko, en, etc.)
-  /// - settings: Paramètres audio (voix, stabilité, etc.)
-  ///
-  /// Retourne: Les bytes du fichier MP3 généré
   Future<Uint8List?> generateAudio({
     required String text,
     required String langCode,
     AudioSettings? settings,
   }) async {
     try {
-      // Utiliser les paramètres fournis ou les valeurs par défaut
       final audioSettings = settings ?? AudioSettings.defaults;
-
-      // Sélectionner la voix en fonction de la langue et des settings
       final voiceId = audioSettings.getVoiceForLanguage(langCode);
 
       final url = Uri.parse(
         '${ApiConfig.elevenLabsApiUrl}/text-to-speech/$voiceId',
       );
-
-      print(
-          '🎙️ Génération audio avec voix: ${ElevenLabsVoices.getNameFromId(voiceId)} ($voiceId)');
-      print(
-          '   Stabilité: ${audioSettings.stability}, Similarité: ${audioSettings.similarityBoost}');
 
       final response = await http
           .post(
@@ -60,22 +44,14 @@ class ElevenLabsService {
           .timeout(ApiConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        print(
-            '✅ Audio généré avec succès (${response.bodyBytes.length} bytes)');
         return response.bodyBytes;
-      } else {
-        print('❌ Erreur ElevenLabs: ${response.statusCode} - ${response.body}');
-        return null;
       }
+      return null;
     } catch (e) {
-      print('❌ Erreur lors de la génération audio: $e');
       return null;
     }
   }
 
-  /// Calculer le hash MD5 d'un texte
-  ///
-  /// Utilisé pour créer un nom de fichier unique et éviter les doublons
   String calculateHash(String text, String langCode) {
     final combined = '$text-$langCode';
     final bytes = utf8.encode(combined);
@@ -83,10 +59,8 @@ class ElevenLabsService {
     return digest.toString();
   }
 
-  /// Vérifier si l'API est configurée
   bool get isConfigured => ApiConfig.isElevenLabsConfigured;
 
-  /// Obtenir les voix disponibles (pour debug)
   Future<List<dynamic>?> getAvailableVoices() async {
     try {
       final url = Uri.parse('${ApiConfig.elevenLabsApiUrl}/voices');
@@ -104,7 +78,6 @@ class ElevenLabsService {
       }
       return null;
     } catch (e) {
-      print('Erreur lors de la récupération des voix: $e');
       return null;
     }
   }

@@ -25,8 +25,7 @@ class AudioPreferences {
     try {
       final map = jsonDecode(json) as Map<String, dynamic>;
       return AudioSettings.fromMap(map);
-    } catch (e) {
-      print('Erreur lors du chargement des paramètres audio: $e');
+    } catch (_) {
       return AudioSettings.defaults;
     }
   }

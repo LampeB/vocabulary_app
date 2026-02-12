@@ -218,8 +218,13 @@ export class QuizPage extends BasePage {
      */
     async isMicButtonVisible(): Promise<boolean> {
         try {
-            await this.waitForKey(this.keys.answerField, 3000);
-            return await this.elementExistsByKey(this.keys.micButton);
+            await this.waitForKey(this.keys.questionWord, 5000);
+        } catch (e) {
+            return false;
+        }
+        try {
+            await this.waitForKey(this.keys.micButton, 5000);
+            return true;
         } catch (e) {
             return false;
         }

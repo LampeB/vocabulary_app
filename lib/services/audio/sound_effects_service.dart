@@ -19,9 +19,7 @@ class SoundEffectsService {
     try {
       await _player!.stop();
       await _player!.play(AssetSource('sounds/correct.wav'));
-    } catch (e) {
-      print('SFX error (correct): $e');
-    }
+    } catch (_) {}
   }
 
   Future<void> playIncorrect() async {
@@ -29,9 +27,7 @@ class SoundEffectsService {
     try {
       await _player!.stop();
       await _player!.play(AssetSource('sounds/incorrect.wav'));
-    } catch (e) {
-      print('SFX error (incorrect): $e');
-    }
+    } catch (_) {}
   }
 
   void dispose() {

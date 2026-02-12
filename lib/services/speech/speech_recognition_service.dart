@@ -8,125 +8,60 @@ class SpeechRecognitionService {
   bool _isListening = false;
   String? _lastError;
 
-
-  /// Obtenir l'état d'écoute
   bool get isListening => _isListening;
-
-  /// Vérifier si le service est initialisé
   bool get isInitialized => _isInitialized;
-
-  /// Obtenir la dernière erreur
   String? get lastError => _lastError;
 
-  /// Initialiser le service de reconnaissance vocale
   Future<bool> initialize() async {
-    if (_isInitialized) {
-      print('✅ STT déjà initialisé');
-      return true;
-    }
+    if (_isInitialized) return true;
 
     try {
-      print('🎤 Initialisation de la reconnaissance vocale...');
-
       _isInitialized = await _speech.initialize(
         onError: (SpeechRecognitionError error) {
           _lastError = error.errorMsg;
           _isListening = false;
-          print('❌ Erreur STT: ${error.errorMsg} (permanent: ${error.permanent})');
-
-          // Messages d'aide selon le type d'erreur
-          if (error.errorMsg.contains('network')) {
-            print('   → Vérifiez votre connexion internet');
-          } else if (error.errorMsg.contains('audio')) {
-            print('   → Vérifiez l\'accès au microphone');
-          } else if (error.errorMsg.contains('permission')) {
-            print('   → Permission micro refusée');
-          }
-
         },
         onStatus: (status) {
-          print('📊 Statut STT: $status');
           if (status == 'notListening' || status == 'done') {
             _isListening = false;
           } else if (status == 'listening') {
             _isListening = true;
           }
         },
-        debugLogging: true,
       );
 
-      if (_isInitialized) {
-        print('✅ STT initialisé avec succès');
-
-        // Afficher les langues disponibles
-        final locales = await _speech.locales();
-        print('🌍 ${locales.length} langues disponibles');
-
-        // Vérifier que FR et KO sont disponibles
-        final hasFrench = locales.any((l) => l.localeId.startsWith('fr'));
-        final hasKorean = locales.any((l) => l.localeId.startsWith('ko'));
-
-        if (hasFrench) print('✅ Français disponible');
-        if (hasKorean) print('✅ Coréen disponible');
-
-        if (!hasFrench || !hasKorean) {
-          print('⚠️ Certaines langues manquent, vérifiez votre système');
-        }
-      } else {
-        print('❌ Échec initialisation STT');
-        print('   → Sur émulateur: Google Speech Services peut ne pas être disponible');
-        print('   → Testez sur un appareil physique avec Google app installé');
+      if (!_isInitialized) {
         _lastError = 'Service de reconnaissance vocale non disponible';
       }
 
       return _isInitialized;
     } catch (e) {
-      print('❌ Erreur lors de l\'initialisation STT: $e');
       _lastError = e.toString();
       return false;
     }
   }
 
-  /// Démarrer l'écoute avec callback
-  ///
-  /// langCode: Code de langue (fr, ko, en)
-  /// onResult: Callback appelé avec le texte reconnu
-  /// onConfidence: Callback appelé avec le niveau de confiance (0.0-1.0)
   Future<bool> startListening({
     required String langCode,
     required Function(String) onResult,
     Function(double)? onConfidence,
   }) async {
-    if (!_isInitialized) {
-      print('⚠️ STT non initialisé');
-      return false;
-    }
+    if (!_isInitialized) return false;
 
     if (_isListening || _speech.isListening) {
-      print('⚠️ STT déjà en écoute, arrêt puis redémarrage...');
       await _speech.stop();
       _isListening = false;
-      // Small delay to let the system release the mic
       await Future.delayed(const Duration(milliseconds: 200));
     }
 
     try {
-      // Convertir le code de langue en locale
       final localeId = _getLocaleId(langCode);
-
-      print('🎤 Démarrage écoute - Langue: $localeId');
 
       await _speech.listen(
         onResult: (result) {
           if (result.finalResult) {
-            print('✅ Résultat final: "${result.recognizedWords}"');
-            print('   Confiance: ${result.confidence}');
-
             onResult(result.recognizedWords);
             onConfidence?.call(result.confidence);
-          } else {
-            // Résultat partiel (en cours de reconnaissance)
-            print('🔄 Partiel: "${result.recognizedWords}"');
           }
         },
         localeId: localeId,
@@ -134,63 +69,54 @@ class SpeechRecognitionService {
           cancelOnError: true,
           listenMode: stt.ListenMode.dictation,
         ),
-        listenFor: const Duration(seconds: 5), // Max 5s d'écoute
-        pauseFor: const Duration(seconds: 2), // Pause après 2s de silence
+        listenFor: const Duration(seconds: 5),
+        pauseFor: const Duration(seconds: 2),
       );
 
       _isListening = true;
-      print('✅ Écoute démarrée');
-
       return true;
     } catch (e) {
-      print('❌ Erreur lors du démarrage de l\'écoute: $e');
       return false;
     }
   }
 
-  /// Arrêter l'écoute
   Future<void> stopListening() async {
     if (_isListening) {
       await _speech.stop();
       _isListening = false;
-      print('🛑 Écoute arrêtée');
     }
   }
 
-  /// Annuler l'écoute
   Future<void> cancelListening() async {
     if (_isListening) {
       await _speech.cancel();
       _isListening = false;
-      print('🚫 Écoute annulée');
     }
   }
 
-  /// Convertir le code de langue en locale ID
   String _getLocaleId(String langCode) {
     switch (langCode.toLowerCase()) {
       case 'fr':
-        return 'fr-FR'; // Français (France)
+        return 'fr-FR';
       case 'ko':
-        return 'ko-KR'; // Coréen (Corée du Sud)
+        return 'ko-KR';
       case 'en':
-        return 'en-US'; // Anglais (États-Unis)
+        return 'en-US';
       case 'es':
-        return 'es-ES'; // Espagnol (Espagne)
+        return 'es-ES';
       case 'de':
-        return 'de-DE'; // Allemand (Allemagne)
+        return 'de-DE';
       case 'it':
-        return 'it-IT'; // Italien (Italie)
+        return 'it-IT';
       case 'ja':
-        return 'ja-JP'; // Japonais (Japon)
+        return 'ja-JP';
       case 'zh':
-        return 'zh-CN'; // Chinois (Chine)
+        return 'zh-CN';
       default:
-        return 'en-US'; // Fallback vers anglais
+        return 'en-US';
     }
   }
 
-  /// Vérifier si une langue est disponible
   Future<bool> isLanguageAvailable(String langCode) async {
     if (!_isInitialized) {
       await initialize();
@@ -202,7 +128,6 @@ class SpeechRecognitionService {
     return locales.any((l) => l.localeId == localeId);
   }
 
-  /// Obtenir toutes les langues disponibles
   Future<List<String>> getAvailableLanguages() async {
     if (!_isInitialized) {
       await initialize();
@@ -212,11 +137,9 @@ class SpeechRecognitionService {
     return locales.map((l) => l.localeId).toList();
   }
 
-  /// Libérer les ressources
   void dispose() {
     _speech.stop();
     _isInitialized = false;
     _isListening = false;
-    print('🗑️ STT disposed');
   }
 }

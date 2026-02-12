@@ -264,10 +264,7 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
         return FutureBuilder<int>(
           future: _conceptRepo.regenerateAudioForConcept(
             conceptId: concept.id,
-            onProgress: (message) {
-              // ✅ Juste print, pas de setState
-              print('📢 $message');
-            },
+            onProgress: (_) {},
           ),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.done) {

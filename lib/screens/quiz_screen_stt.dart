@@ -61,9 +61,7 @@ class _QuizScreenState extends State<QuizScreen> {
   void initState() {
     super.initState();
     _loadQuestions();
-    // Audio initialization is lazy - done on first play via _ensureInitialized()
     _initializeSpeech();
-    print('🎮 QuizScreen initialisé');
   }
 
   @override
@@ -73,7 +71,6 @@ class _QuizScreenState extends State<QuizScreen> {
     _audioPlayer.dispose();
     _speechService.dispose();
     _soundEffects.dispose();
-    print('🎮 QuizScreen disposed');
     super.dispose();
   }
 
@@ -84,21 +81,16 @@ class _QuizScreenState extends State<QuizScreen> {
     });
 
     if (available) {
-      print('✅ Reconnaissance vocale disponible');
-      // Load hands-free preference now that we know STT is available
       final prefs = await SharedPreferences.getInstance();
       final savedPref = prefs.getBool(_handsFreeKey) ?? false;
       if (mounted && savedPref) {
         setState(() {
           _isHandsFreeMode = true;
         });
-        // If questions are already loaded, start the cycle
         if (_questions.isNotEmpty && !_isLoading) {
           _startHandsFreeCycle();
         }
       }
-    } else {
-      print('❌ Reconnaissance vocale non disponible');
     }
   }
 
@@ -138,7 +130,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 lang2Variants.map((v) => WordVariant.fromMap(v)).toList(),
             'direction': 'lang1_to_lang2',
             'conceptId': concept['id'],
-            'answerLangCode': widget.list.lang2Code, // Pour STT
+            'answerLangCode': widget.list.lang2Code,
           });
 
           questions.add({
@@ -147,7 +139,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 lang1Variants.map((v) => WordVariant.fromMap(v)).toList(),
             'direction': 'lang2_to_lang1',
             'conceptId': concept['id'],
-            'answerLangCode': widget.list.lang1Code, // Pour STT
+            'answerLangCode': widget.list.lang1Code,
           });
         }
       }
@@ -160,9 +152,6 @@ class _QuizScreenState extends State<QuizScreen> {
         _isLoading = false;
       });
 
-      print('✅ ${_questions.length} questions chargées');
-
-      // Jouer automatiquement le premier mot
       if (_questions.isNotEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_isHandsFreeMode) {
@@ -191,7 +180,6 @@ class _QuizScreenState extends State<QuizScreen> {
     final questionVariant = question['questionVariant'] as WordVariant;
     final direction = question['direction'] as String;
 
-    // Déterminer la langue de la question
     final questionLangCode = direction == 'lang1_to_lang2'
         ? widget.list.lang1Code
         : widget.list.lang2Code;
@@ -203,10 +191,8 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
-  // 🎤 Démarrer la reconnaissance vocale
   Future<void> _startListening() async {
     if (!_isSpeechAvailable) {
-      // Try re-initializing in case permission was granted after first attempt
       final available = await _speechService.initialize();
       if (!available) {
         _showSnackBar('Reconnaissance vocale non disponible. Vérifiez les permissions du micro dans les paramètres.', Colors.red);
@@ -232,7 +218,6 @@ class _QuizScreenState extends State<QuizScreen> {
     final success = await _speechService.startListening(
       langCode: answerLangCode,
       onResult: (text) {
-        print('🎤 Texte reconnu: "$text"');
         _listenTimer?.cancel();
 
         setState(() {
@@ -241,10 +226,7 @@ class _QuizScreenState extends State<QuizScreen> {
           _listeningStatus = '';
         });
 
-        // In hands-free mode: always auto-validate
-        // In manual mode: auto-validate only if confidence > 0.7
         if (_isHandsFreeMode || _confidence > 0.7) {
-          print('✅ Validation auto (hands-free=$_isHandsFreeMode, confiance=$_confidence)');
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted && !_hasAnswered) {
               _checkAnswer();
@@ -260,9 +242,7 @@ class _QuizScreenState extends State<QuizScreen> {
     );
 
     if (success) {
-      print('🔍 startListening réussi, démarrage du timer...');
       _startListenTimer();
-      print('🔍 Timer démarré');
     }
 
     if (!success) {
@@ -282,17 +262,13 @@ class _QuizScreenState extends State<QuizScreen> {
 
   void _startListenTimer() {
     _listenTimer?.cancel();
-    // Timer slightly longer than pauseFor (2s) + buffer
-    // The STT will timeout after ~2-5s of silence
     _listenTimer = Timer(const Duration(seconds: 4), () {
       if (!mounted || _hasAnswered || !_isListening) return;
-      print('⏱️ Timer expiré, pas de résultat reçu');
       _listenRetryCount++;
 
       if (_isHandsFreeMode) {
         _handsFreeConsecutiveFailures++;
         if (_handsFreeConsecutiveFailures >= _maxHandsFreeFailures) {
-          // Too many failures, pause hands-free mode
           setState(() {
             _isHandsFreeMode = false;
             _isListening = false;
@@ -336,7 +312,6 @@ class _QuizScreenState extends State<QuizScreen> {
     await _speechService.startListening(
       langCode: answerLangCode,
       onResult: (text) {
-        print('🎤 Texte reconnu: "$text"');
         _listenTimer?.cancel();
         setState(() {
           _answerController.text = text;
@@ -400,7 +375,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
     _updateProgress(question, result.isCorrect);
 
-    // Hands-free mode: play sound and auto-advance
     if (_isHandsFreeMode) {
       _onHandsFreeAnswerChecked(result.isCorrect);
     }
@@ -496,7 +470,6 @@ class _QuizScreenState extends State<QuizScreen> {
       _handsFreeConsecutiveFailures = 0;
     });
 
-    // Persist preference
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_handsFreeKey, newValue);
 
@@ -513,17 +486,14 @@ class _QuizScreenState extends State<QuizScreen> {
     _isHandsFreeProcessing = true;
 
     try {
-      // Step 1: Play question audio and wait for it to finish
       await _playQuestionAudioAndWait();
 
       if (!mounted || !_isHandsFreeMode) return;
 
-      // Step 2: Brief pause before starting mic
       await Future.delayed(const Duration(milliseconds: 300));
 
       if (!mounted || !_isHandsFreeMode || _hasAnswered) return;
 
-      // Step 3: Auto-start listening
       await _startListening();
     } finally {
       _isHandsFreeProcessing = false;
@@ -549,7 +519,6 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   Future<void> _onHandsFreeAnswerChecked(bool isCorrect) async {
-    // Play feedback sound
     if (isCorrect) {
       _handsFreeConsecutiveFailures = 0;
       await _soundEffects.playCorrect();
@@ -557,14 +526,12 @@ class _QuizScreenState extends State<QuizScreen> {
       await _soundEffects.playIncorrect();
     }
 
-    // Wait for user to see the feedback
     await Future.delayed(
       const Duration(milliseconds: AppConstants.feedbackDisplayDuration),
     );
 
     if (!mounted || !_isHandsFreeMode) return;
 
-    // Auto-advance to next question
     _nextQuestion();
   }
 
@@ -576,7 +543,7 @@ class _QuizScreenState extends State<QuizScreen> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         key: const Key('quiz_results_dialog'),
-        title: const Text('🎉 Quiz terminé !'),
+        title: const Text('Quiz terminé !'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -741,7 +708,6 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Question avec bouton audio
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -770,7 +736,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
             const SizedBox(height: 48),
 
-            // Champ de réponse avec bouton micro
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -800,7 +765,6 @@ class _QuizScreenState extends State<QuizScreen> {
                 ),
                 const SizedBox(width: 8),
 
-                // 🎤 BOUTON MICRO - toujours affiché
                 IconButton(
                   key: const Key('mic_button'),
                   tooltip: _isSpeechAvailable
@@ -829,7 +793,6 @@ class _QuizScreenState extends State<QuizScreen> {
               ],
             ),
 
-            // Statut écoute ou message d'aide
             if (_isListening) ...[
               const SizedBox(height: 8),
               Row(

@@ -62,6 +62,15 @@ lib/config/api_keys.dart
 # Node modules (root level)
 node_modules/
 
+# Kotlin build errors
+android/.kotlin/errors/
+
+# SSH keys (should never be committed)
+ssh-key*
+
+# Archives
+*.zip
+
 # Windows reserved names
 nul
 con

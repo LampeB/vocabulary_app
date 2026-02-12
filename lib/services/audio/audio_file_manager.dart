@@ -14,7 +14,6 @@ class AudioFileManager {
 
   AudioFileManager._internal();
 
-  /// Initialiser le gestionnaire et créer le dossier audio
   Future<void> initialize() async {
     if (_audioDirectory != null) return;
 
@@ -26,18 +25,9 @@ class AudioFileManager {
       if (!await dir.exists()) {
         await dir.create(recursive: true);
       }
-    } catch (e) {
-      print('Erreur lors de l\'initialisation du dossier audio: $e');
-    }
+    } catch (_) {}
   }
 
-  /// Sauvegarder un fichier audio
-  /// 
-  /// Paramètres:
-  /// - audioBytes: Les bytes du fichier audio
-  /// - hash: Le hash unique du fichier (MD5 du texte + langue)
-  /// 
-  /// Retourne: Le chemin du fichier sauvegardé, ou null en cas d'erreur
   Future<String?> saveAudioFile({
     required Uint8List audioBytes,
     required String hash,
@@ -52,18 +42,12 @@ class AudioFileManager {
       final file = File(filePath);
 
       await file.writeAsBytes(audioBytes);
-      print('Fichier audio sauvegardé: $filePath');
-
       return filePath;
     } catch (e) {
-      print('Erreur lors de la sauvegarde du fichier audio: $e');
       return null;
     }
   }
 
-  /// Obtenir le chemin d'un fichier audio à partir de son hash
-  /// 
-  /// Retourne: Le chemin du fichier, ou null s'il n'existe pas
   Future<String?> getAudioFilePath(String hash) async {
     if (_audioDirectory == null) {
       await initialize();
@@ -80,27 +64,21 @@ class AudioFileManager {
     return null;
   }
 
-  /// Vérifier si un fichier audio existe
   Future<bool> audioFileExists(String hash) async {
     final filePath = await getAudioFilePath(hash);
     return filePath != null;
   }
 
-  /// Supprimer un fichier audio
   Future<void> deleteAudioFile(String hash) async {
     try {
       final filePath = await getAudioFilePath(hash);
       if (filePath != null) {
         final file = File(filePath);
         await file.delete();
-        print('Fichier audio supprimé: $filePath');
       }
-    } catch (e) {
-      print('Erreur lors de la suppression du fichier audio: $e');
-    }
+    } catch (_) {}
   }
 
-  /// Obtenir la taille du dossier audio (en bytes)
   Future<int> getAudioFolderSize() async {
     if (_audioDirectory == null) {
       await initialize();
@@ -116,15 +94,11 @@ class AudioFileManager {
           }
         }
       }
-    } catch (e) {
-      print('Erreur lors du calcul de la taille: $e');
-    }
+    } catch (_) {}
 
     return totalSize;
   }
 
-  /// Nettoyer les fichiers audio orphelins
-  /// (fichiers qui ne sont plus référencés dans la DB)
   Future<void> cleanOrphanedFiles(List<String> validHashes) async {
     if (_audioDirectory == null) {
       await initialize();
@@ -141,16 +115,12 @@ class AudioFileManager {
 
           if (!validHashes.contains(hash)) {
             await entity.delete();
-            print('Fichier orphelin supprimé: $fileName');
           }
         }
       }
-    } catch (e) {
-      print('Erreur lors du nettoyage: $e');
-    }
+    } catch (_) {}
   }
 
-  /// Obtenir le nombre de fichiers audio
   Future<int> getAudioFileCount() async {
     if (_audioDirectory == null) {
       await initialize();
@@ -166,9 +136,7 @@ class AudioFileManager {
           }
         }
       }
-    } catch (e) {
-      print('Erreur lors du comptage: $e');
-    }
+    } catch (_) {}
 
     return count;
   }
