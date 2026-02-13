@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:vocabulary_app/screens/settings_screen.dart';
+import '../config/constants.dart';
 import '../models/vocabulary_list.dart';
+import '../services/database/default_data_seeder.dart';
 import '../services/database/vocabulary_list_repository.dart';
 import 'list_detail_screen.dart';
 import 'quiz_screen_stt.dart';
@@ -42,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _loadLists() async {
     setState(() => _isLoading = true);
     try {
+      await DefaultDataSeeder().seedIfEmpty();
       final lists = await _repository.getListsWithStats();
       setState(() {
         _listsWithStats = lists;
@@ -59,31 +62,72 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _createNewList() async {
     final nameController = TextEditingController();
+    String selectedLang1 = 'fr';
+    String selectedLang2 = 'ko';
 
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Nouvelle liste'),
-        content: TextField(
-          key: const Key('list_name_field'),
-          controller: nameController,
-          decoration: const InputDecoration(
-            labelText: 'Nom de la liste',
-            hintText: 'Ex: Salutations quotidiennes',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Nouvelle liste'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  key: const Key('list_name_field'),
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nom de la liste',
+                    hintText: 'Ex: Salutations quotidiennes',
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedLang1,
+                  decoration: const InputDecoration(
+                    labelText: 'Langue 1',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: AppConstants.languageNames.entries
+                      .map((e) => DropdownMenuItem(
+                            value: e.key,
+                            child: Text('${AppConstants.languageFlags[e.key] ?? ''} ${e.value}'),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setState(() => selectedLang1 = v!),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedLang2,
+                  decoration: const InputDecoration(
+                    labelText: 'Langue 2',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: AppConstants.languageNames.entries
+                      .map((e) => DropdownMenuItem(
+                            value: e.key,
+                            child: Text('${AppConstants.languageFlags[e.key] ?? ''} ${e.value}'),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setState(() => selectedLang2 = v!),
+                ),
+              ],
+            ),
           ),
-          autofocus: true,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              key: const Key('create_list_button'),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Créer'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            key: const Key('create_list_button'),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Créer'),
-          ),
-        ],
       ),
     );
 
@@ -91,8 +135,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final newList = VocabularyList(
         id: const Uuid().v4(),
         name: nameController.text.trim(),
-        lang1Code: 'fr',
-        lang2Code: 'ko',
+        lang1Code: selectedLang1,
+        lang2Code: selectedLang2,
         createdAt: DateTime.now().toIso8601String(),
       );
 
@@ -281,7 +325,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${list.lang1Code.toUpperCase()} ↔ ${list.lang2Code.toUpperCase()}',
+                                '${AppConstants.languageFlags[list.lang1Code] ?? ''} ${AppConstants.languageNames[list.lang1Code] ?? list.lang1Code} ↔ ${AppConstants.languageFlags[list.lang2Code] ?? ''} ${AppConstants.languageNames[list.lang2Code] ?? list.lang2Code}',
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodySmall

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/constants.dart';
 import '../models/vocabulary_list.dart';
 import '../models/concept.dart';
 import '../models/word_variant.dart';
@@ -78,24 +79,22 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
-                    key: const Key('french_word_field'),
+                    key: const Key('lang1_word_field'),
                     controller: lang1Controller,
-                    decoration: const InputDecoration(
-                      labelText: 'Français',
-                      hintText: 'Ex: bonjour',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: AppConstants.languageNames[widget.list.lang1Code] ?? widget.list.lang1Code,
+                      border: const OutlineInputBorder(),
                     ),
                     enabled: !isGenerating,
                     autofocus: true,
                   ),
                   const SizedBox(height: 16),
                   TextField(
-                    key: const Key('korean_word_field'),
+                    key: const Key('lang2_word_field'),
                     controller: lang2Controller,
-                    decoration: const InputDecoration(
-                      labelText: 'Coréen',
-                      hintText: 'Ex: 안녕하세요',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: AppConstants.languageNames[widget.list.lang2Code] ?? widget.list.lang2Code,
+                      border: const OutlineInputBorder(),
                     ),
                     enabled: !isGenerating,
                   ),
@@ -161,6 +160,8 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
                             'register': 'neutral'
                           }
                         ],
+                        lang1Code: widget.list.lang1Code,
+                        lang2Code: widget.list.lang2Code,
                         onProgress: (message) {
                           if (mounted) {
                             setState(() {

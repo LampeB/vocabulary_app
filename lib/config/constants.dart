@@ -1,15 +1,40 @@
 class AppConstants {
-  // Codes des langues
-  static const String lang1Code = 'fr';
-  static const String lang2Code = 'ko';
-  
   // Noms des langues pour l'affichage
   static const Map<String, String> languageNames = {
     'fr': 'Français',
-    'ko': '한국어 (Coréen)',
-    'en': 'English',
-    'ja': '日本語',
-    'es': 'Español',
+    'ko': 'Coréen',
+    'en': 'Anglais',
+    'es': 'Espagnol',
+    'de': 'Allemand',
+    'it': 'Italien',
+    'pt': 'Portugais',
+    'ja': 'Japonais',
+    'zh': 'Chinois',
+    'ru': 'Russe',
+    'ar': 'Arabe',
+    'nl': 'Néerlandais',
+    'pl': 'Polonais',
+    'tr': 'Turc',
+    'sv': 'Suédois',
+  };
+
+  // Drapeaux des langues
+  static const Map<String, String> languageFlags = {
+    'fr': '\u{1F1EB}\u{1F1F7}',
+    'ko': '\u{1F1F0}\u{1F1F7}',
+    'en': '\u{1F1EC}\u{1F1E7}',
+    'es': '\u{1F1EA}\u{1F1F8}',
+    'de': '\u{1F1E9}\u{1F1EA}',
+    'it': '\u{1F1EE}\u{1F1F9}',
+    'pt': '\u{1F1F5}\u{1F1F9}',
+    'ja': '\u{1F1EF}\u{1F1F5}',
+    'zh': '\u{1F1E8}\u{1F1F3}',
+    'ru': '\u{1F1F7}\u{1F1FA}',
+    'ar': '\u{1F1F8}\u{1F1E6}',
+    'nl': '\u{1F1F3}\u{1F1F1}',
+    'pl': '\u{1F1F5}\u{1F1F1}',
+    'tr': '\u{1F1F9}\u{1F1F7}',
+    'sv': '\u{1F1F8}\u{1F1EA}',
   };
 
   // Niveaux de registre

@@ -1,4 +1,5 @@
 import 'package:uuid/uuid.dart';
+import '../../config/constants.dart';
 import '../../models/concept.dart';
 import '../../models/word_variant.dart';
 import '../../models/variant_progress.dart';
@@ -90,6 +91,8 @@ class ConceptRepository {
     required String category,
     required List<Map<String, String>> lang1Variants,
     required List<Map<String, String>> lang2Variants,
+    required String lang1Code,
+    required String lang2Code,
     String? contextLang1,
     String? contextLang2,
     Function(String)? onProgress,
@@ -107,23 +110,25 @@ class ConceptRepository {
 
     await _db.insertConcept(concept.toMap());
 
-    onProgress?.call('Génération audio français...');
+    final lang1Name = AppConstants.languageNames[lang1Code] ?? lang1Code;
+    onProgress?.call('Génération audio $lang1Name...');
     for (int i = 0; i < lang1Variants.length; i++) {
       await _createVariantWithAudio(
         conceptId: conceptId,
         variantData: lang1Variants[i],
-        langCode: 'fr',
+        langCode: lang1Code,
         position: i,
         onProgress: onProgress,
       );
     }
 
-    onProgress?.call('Génération audio coréen...');
+    final lang2Name = AppConstants.languageNames[lang2Code] ?? lang2Code;
+    onProgress?.call('Génération audio $lang2Name...');
     for (int i = 0; i < lang2Variants.length; i++) {
       await _createVariantWithAudio(
         conceptId: conceptId,
         variantData: lang2Variants[i],
-        langCode: 'ko',
+        langCode: lang2Code,
         position: i,
         onProgress: onProgress,
       );

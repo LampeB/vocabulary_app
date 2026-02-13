@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:speech_to_text/speech_recognition_error.dart';
 
@@ -7,6 +8,10 @@ class SpeechRecognitionService {
   bool _isInitialized = false;
   bool _isListening = false;
   String? _lastError;
+
+  /// Called when listening stops (status 'done'/'notListening').
+  /// Lets callers process partial results if no finalResult was emitted.
+  Function()? onListeningDone;
 
   bool get isListening => _isListening;
   bool get isInitialized => _isInitialized;
@@ -24,6 +29,7 @@ class SpeechRecognitionService {
         onStatus: (status) {
           if (status == 'notListening' || status == 'done') {
             _isListening = false;
+            onListeningDone?.call();
           } else if (status == 'listening') {
             _isListening = true;
           }
@@ -44,6 +50,7 @@ class SpeechRecognitionService {
   Future<bool> startListening({
     required String langCode,
     required Function(String) onResult,
+    Function(String)? onPartialResult,
     Function(double)? onConfidence,
   }) async {
     if (!_isInitialized) return false;
@@ -62,15 +69,18 @@ class SpeechRecognitionService {
           if (result.finalResult) {
             onResult(result.recognizedWords);
             onConfidence?.call(result.confidence);
+          } else if (result.recognizedWords.isNotEmpty) {
+            onPartialResult?.call(result.recognizedWords);
           }
         },
         localeId: localeId,
         listenOptions: stt.SpeechListenOptions(
-          cancelOnError: true,
-          listenMode: stt.ListenMode.dictation,
+          cancelOnError: false,
+          listenMode: stt.ListenMode.search,
+          partialResults: true,
         ),
-        listenFor: const Duration(seconds: 5),
-        pauseFor: const Duration(seconds: 2),
+        listenFor: const Duration(seconds: 10),
+        pauseFor: const Duration(seconds: 5),
       );
 
       _isListening = true;
@@ -112,6 +122,20 @@ class SpeechRecognitionService {
         return 'ja-JP';
       case 'zh':
         return 'zh-CN';
+      case 'pt':
+        return 'pt-PT';
+      case 'ru':
+        return 'ru-RU';
+      case 'ar':
+        return 'ar-SA';
+      case 'nl':
+        return 'nl-NL';
+      case 'pl':
+        return 'pl-PL';
+      case 'tr':
+        return 'tr-TR';
+      case 'sv':
+        return 'sv-SE';
       default:
         return 'en-US';
     }
@@ -123,9 +147,12 @@ class SpeechRecognitionService {
     }
 
     final locales = await _speech.locales();
-    final localeId = _getLocaleId(langCode);
+    final prefix = langCode.toLowerCase();
 
-    return locales.any((l) => l.localeId == localeId);
+    // Flexible match: check if any locale starts with the language code
+    // (handles ko-KR, ko_KR, ko, etc.)
+    return locales.any((l) =>
+        l.localeId.toLowerCase().startsWith(prefix));
   }
 
   Future<List<String>> getAvailableLanguages() async {
@@ -135,6 +162,16 @@ class SpeechRecognitionService {
 
     final locales = await _speech.locales();
     return locales.map((l) => l.localeId).toList();
+  }
+
+  /// Opens Android voice input settings so the user can install missing STT languages.
+  static Future<bool> openVoiceInputSettings() async {
+    const channel = MethodChannel('com.example.vocabulary_app/settings');
+    try {
+      return await channel.invokeMethod('openVoiceInputSettings') ?? false;
+    } catch (_) {
+      return false;
+    }
   }
 
   void dispose() {

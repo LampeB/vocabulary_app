@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/audio_settings.dart';
 import '../utils/audio_preferences.dart';
 
@@ -13,6 +14,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   AudioSettings _settings = AudioSettings.defaults;
   bool _isLoading = true;
   bool _hasChanges = false;
+  bool _drivingMode = false;
+  static const String _drivingModeKey = 'driving_mode_enabled';
 
   @override
   void initState() {
@@ -23,10 +26,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadSettings() async {
     setState(() => _isLoading = true);
     final settings = await AudioPreferences.loadSettings();
+    final prefs = await SharedPreferences.getInstance();
     setState(() {
       _settings = settings;
+      _drivingMode = prefs.getBool(_drivingModeKey) ?? false;
       _isLoading = false;
     });
+  }
+
+  Future<void> _toggleDrivingMode(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_drivingModeKey, value);
+    setState(() => _drivingMode = value);
   }
 
   Future<void> _saveSettings() async {
@@ -103,6 +114,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Section Mode Conduite
+          _buildSectionHeader('🚗 Mode Conduite'),
+          SwitchListTile(
+            key: const Key('driving_mode_toggle'),
+            title: const Text('Mode conduite'),
+            subtitle: const Text('Le quiz démarre toujours en mode mains-libres'),
+            value: _drivingMode,
+            onChanged: _toggleDrivingMode,
+          ),
+          const Divider(height: 32),
+
           // Section Audio
           _buildSectionHeader('🔊 Paramètres Audio'),
           _buildVoiceSelector(

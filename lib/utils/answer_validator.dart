@@ -107,6 +107,35 @@ class AnswerValidator {
       }
     }
 
+    // Word-level fallback for filler speech (e.g. "hmm wait... SCHOOL")
+    if (bestScore < tolerance) {
+      final words = normalizedUserAnswer.split(RegExp(r'\s+'));
+      if (words.length > 1) {
+        for (var expected in expectedAnswers) {
+          final normalizedExpected = _normalize(expected['word'] as String);
+          for (var word in words) {
+            if (word.isEmpty) continue;
+            if (word == normalizedExpected) {
+              return ValidationResult(
+                isCorrect: true,
+                similarityScore: 1.0,
+                feedback: 'Correct !',
+                type: ValidationResultType.acceptable,
+              );
+            }
+            final sim = word.similarityTo(normalizedExpected);
+            if (sim > bestScore) {
+              bestScore = sim;
+              bestMatch = expected;
+              if (sim >= tolerance) {
+                bestType = ValidationResultType.acceptable;
+              }
+            }
+          }
+        }
+      }
+    }
+
     // Si on a trouvé une correspondance acceptable
     if (bestScore >= tolerance && bestMatch != null) {
       return ValidationResult(
