@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/audio_settings.dart';
+import '../models/stt_settings.dart';
 import '../utils/audio_preferences.dart';
+import '../utils/stt_preferences.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -12,6 +14,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   AudioSettings _settings = AudioSettings.defaults;
+  SttSettings _sttSettings = SttSettings.defaults;
   bool _isLoading = true;
   bool _hasChanges = false;
   bool _drivingMode = false;
@@ -26,9 +29,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadSettings() async {
     setState(() => _isLoading = true);
     final settings = await AudioPreferences.loadSettings();
+    final sttSettings = await SttPreferences.loadSettings();
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _settings = settings;
+      _sttSettings = sttSettings;
       _drivingMode = prefs.getBool(_drivingModeKey) ?? false;
       _isLoading = false;
     });
@@ -42,6 +47,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _saveSettings() async {
     await AudioPreferences.saveSettings(_settings);
+    await SttPreferences.saveSettings(_sttSettings);
     setState(() => _hasChanges = false);
 
     if (mounted) {
@@ -57,7 +63,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Réinitialiser'),
         content:
-            const Text('Réinitialiser tous les paramètres audio par défaut ?'),
+            const Text('Réinitialiser tous les paramètres par défaut ?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -73,6 +79,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (confirm == true) {
       await AudioPreferences.resetToDefaults();
+      await SttPreferences.resetToDefaults();
       await _loadSettings();
 
       if (mounted) {
@@ -86,6 +93,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _updateSettings(AudioSettings newSettings) {
     setState(() {
       _settings = newSettings;
+      _hasChanges = true;
+    });
+  }
+
+  void _updateSttSettings(SttSettings newSettings) {
+    setState(() {
+      _sttSettings = newSettings;
       _hasChanges = true;
     });
   }
@@ -122,6 +136,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: const Text('Le quiz démarre toujours en mode mains-libres'),
             value: _drivingMode,
             onChanged: _toggleDrivingMode,
+          ),
+          const Divider(height: 32),
+
+          // Section Reconnaissance vocale
+          _buildSectionHeader('🎙️ Reconnaissance vocale'),
+          _buildIntSlider(
+            label: 'Patience silence',
+            value: _sttSettings.pauseForSeconds,
+            min: 2,
+            max: 10,
+            suffix: 's',
+            subtitle: 'Temps d\'attente pendant le silence avant d\'arrêter',
+            onChanged: (v) => _updateSttSettings(
+              _sttSettings.copyWith(pauseForSeconds: v),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildIntSlider(
+            label: 'Durée max d\'écoute',
+            value: _sttSettings.listenForSeconds,
+            min: 5,
+            max: 30,
+            suffix: 's',
+            subtitle: 'Durée totale maximale d\'enregistrement',
+            onChanged: (v) => _updateSttSettings(
+              _sttSettings.copyWith(listenForSeconds: v),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildPercentSlider(
+            label: 'Tolérance de réponse',
+            value: _sttSettings.answerTolerance,
+            min: 0.50,
+            max: 1.00,
+            subtitle: 'Seuil de similarité pour accepter une réponse',
+            onChanged: (v) => _updateSttSettings(
+              _sttSettings.copyWith(answerTolerance: v),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildStepperRow(
+            label: 'Tentatives max',
+            value: _sttSettings.maxRetryAttempts,
+            min: 1,
+            max: 5,
+            subtitle: 'Essais avant de passer au mot suivant (mains-libres)',
+            onChanged: (v) => _updateSttSettings(
+              _sttSettings.copyWith(maxRetryAttempts: v),
+            ),
           ),
           const Divider(height: 32),
 
@@ -355,6 +418,113 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 style: Theme.of(context).textTheme.bodySmall,
                 textAlign: TextAlign.end,
               ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIntSlider({
+    required String label,
+    required int value,
+    required int min,
+    required int max,
+    required String suffix,
+    required String subtitle,
+    required Function(int) onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: Theme.of(context).textTheme.titleMedium),
+            Text('$value$suffix',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+              )),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+        Slider(
+          value: value.toDouble(),
+          min: min.toDouble(),
+          max: max.toDouble(),
+          divisions: max - min,
+          label: '$value$suffix',
+          onChanged: (v) => onChanged(v.round()),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPercentSlider({
+    required String label,
+    required double value,
+    required double min,
+    required double max,
+    required String subtitle,
+    required Function(double) onChanged,
+  }) {
+    final percent = (value * 100).round();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: Theme.of(context).textTheme.titleMedium),
+            Text('$percent%',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+              )),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+        Slider(
+          value: value,
+          min: min,
+          max: max,
+          divisions: ((max - min) * 100).round(),
+          label: '$percent%',
+          onChanged: onChanged,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepperRow({
+    required String label,
+    required int value,
+    required int min,
+    required int max,
+    required String subtitle,
+    required Function(int) onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.remove_circle_outline),
+              onPressed: value > min ? () => onChanged(value - 1) : null,
+            ),
+            Text('$value',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+              )),
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline),
+              onPressed: value < max ? () => onChanged(value + 1) : null,
             ),
           ],
         ),

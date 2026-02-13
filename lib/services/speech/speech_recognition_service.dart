@@ -52,6 +52,8 @@ class SpeechRecognitionService {
     required Function(String) onResult,
     Function(String)? onPartialResult,
     Function(double)? onConfidence,
+    Duration pauseFor = const Duration(seconds: 5),
+    Duration listenFor = const Duration(seconds: 10),
   }) async {
     if (!_isInitialized) return false;
 
@@ -79,8 +81,8 @@ class SpeechRecognitionService {
           listenMode: stt.ListenMode.search,
           partialResults: true,
         ),
-        listenFor: const Duration(seconds: 10),
-        pauseFor: const Duration(seconds: 5),
+        listenFor: listenFor,
+        pauseFor: pauseFor,
       );
 
       _isListening = true;

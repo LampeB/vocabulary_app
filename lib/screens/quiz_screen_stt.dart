@@ -12,6 +12,8 @@ import '../services/audio/sound_effects_service.dart';
 import '../services/audio/local_audio_service.dart';
 import '../utils/answer_validator.dart';
 import '../utils/srs_algorithm.dart';
+import '../utils/stt_preferences.dart';
+import '../models/stt_settings.dart';
 import '../config/constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -56,7 +58,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   int _handsFreeConsecutiveFailures = 0;
   static const int _maxHandsFreeFailures = 5;
   int _handsFreeWordAttempts = 0;
-  static const int _maxWordAttempts = 3;
+  SttSettings _sttSettings = SttSettings.defaults;
   static const String _handsFreeKey = 'quiz_hands_free_mode';
   static const String _correctAnswerPhrase = 'La réponse correcte était';
   String? _correctAnswerPhraseHash;
@@ -102,6 +104,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _initializeSpeech() async {
+    _sttSettings = await SttPreferences.loadSettings();
     final available = await _speechService.initialize();
     setState(() {
       _isSpeechAvailable = available;
@@ -312,6 +315,8 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
           _confidence = confidence;
         });
       },
+      pauseFor: Duration(seconds: _sttSettings.pauseForSeconds),
+      listenFor: Duration(seconds: _sttSettings.listenForSeconds),
     );
 
     if (success) {
@@ -335,7 +340,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
 
   void _startListenTimer() {
     _listenTimer?.cancel();
-    final timeout = _isHandsFreeMode ? 15 : 4;
+    final timeout = _isHandsFreeMode ? _sttSettings.listenForSeconds + 5 : 4;
     _listenTimer = Timer(Duration(seconds: timeout), () {
       if (!mounted || _hasAnswered) return;
       _listenRetryCount++;
@@ -414,6 +419,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       userAnswer: _answerController.text,
       expectedAnswers: expectedAnswers,
       strictRegister: false,
+      tolerance: _sttSettings.answerTolerance,
     );
 
     setState(() {
@@ -677,6 +683,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       userAnswer: _answerController.text,
       expectedAnswers: expectedAnswers,
       strictRegister: false,
+      tolerance: _sttSettings.answerTolerance,
     );
 
     if (result.isCorrect) {
@@ -684,7 +691,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       _checkAnswer();
     } else {
       _handsFreeWordAttempts++;
-      if (_handsFreeWordAttempts >= _maxWordAttempts) {
+      if (_handsFreeWordAttempts >= _sttSettings.maxRetryAttempts) {
         // 3 wrong attempts — commit as wrong and advance
         _checkAnswer();
       } else {
@@ -695,7 +702,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
         if (mounted && _isHandsFreeMode && !_hasAnswered) {
           setState(() {
             _answerController.clear();
-            _listeningStatus = 'Essayez encore... ($_handsFreeWordAttempts/$_maxWordAttempts)';
+            _listeningStatus = 'Essayez encore... ($_handsFreeWordAttempts/$_sttSettings.maxRetryAttempts)';
           });
           await _startListening();
         }

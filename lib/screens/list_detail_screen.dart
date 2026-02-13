@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../config/constants.dart';
 import '../models/vocabulary_list.dart';
@@ -6,6 +7,7 @@ import '../models/word_variant.dart';
 import '../services/database/concept_repository.dart';
 import '../services/database/vocabulary_list_repository.dart';
 import '../services/audio/audio_player_service.dart';
+import '../services/translation_service.dart';
 
 class ListDetailScreen extends StatefulWidget {
   final VocabularyList list;
@@ -65,6 +67,35 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
     final categoryController = TextEditingController();
     String progressMessage = '';
     bool isGenerating = false;
+    List<String> lang1Suggestions = [];
+    List<String> lang2Suggestions = [];
+    bool isLoadingSuggestions = false;
+    Timer? debounceTimer;
+
+    void fetchSuggestions(
+      String text,
+      String fromLang,
+      String toLang,
+      void Function(List<String>) onResult,
+      void Function(void Function()) setState,
+    ) {
+      debounceTimer?.cancel();
+      if (text.trim().length < 2) {
+        setState(() => onResult([]));
+        return;
+      }
+      setState(() => isLoadingSuggestions = true);
+      debounceTimer = Timer(const Duration(milliseconds: 500), () async {
+        final results = await TranslationService.suggest(text, fromLang, toLang);
+        setState(() {
+          isLoadingSuggestions = false;
+          onResult(results);
+        });
+      });
+    }
+
+    final lang1Name = AppConstants.languageNames[widget.list.lang1Code] ?? widget.list.lang1Code;
+    final lang2Name = AppConstants.languageNames[widget.list.lang2Code] ?? widget.list.lang2Code;
 
     final result = await showDialog<bool>(
       context: context,
@@ -77,27 +108,80 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   TextField(
                     key: const Key('lang1_word_field'),
                     controller: lang1Controller,
                     decoration: InputDecoration(
-                      labelText: AppConstants.languageNames[widget.list.lang1Code] ?? widget.list.lang1Code,
+                      labelText: lang1Name,
                       border: const OutlineInputBorder(),
                     ),
                     enabled: !isGenerating,
                     autofocus: true,
+                    onChanged: (_) => fetchSuggestions(
+                      lang1Controller.text,
+                      widget.list.lang1Code,
+                      widget.list.lang2Code,
+                      (s) => lang2Suggestions = s,
+                      setState,
+                    ),
                   ),
+                  if (lang1Suggestions.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: lang1Suggestions.map((s) => ActionChip(
+                          label: Text(s, style: const TextStyle(fontSize: 13)),
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () {
+                            lang1Controller.text = s;
+                            setState(() => lang1Suggestions = []);
+                          },
+                        )).toList(),
+                      ),
+                    ),
                   const SizedBox(height: 16),
                   TextField(
                     key: const Key('lang2_word_field'),
                     controller: lang2Controller,
                     decoration: InputDecoration(
-                      labelText: AppConstants.languageNames[widget.list.lang2Code] ?? widget.list.lang2Code,
+                      labelText: lang2Name,
                       border: const OutlineInputBorder(),
+                      suffixIcon: isLoadingSuggestions
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                            )
+                          : null,
                     ),
                     enabled: !isGenerating,
+                    onChanged: (_) => fetchSuggestions(
+                      lang2Controller.text,
+                      widget.list.lang2Code,
+                      widget.list.lang1Code,
+                      (s) => lang1Suggestions = s,
+                      setState,
+                    ),
                   ),
+                  if (lang2Suggestions.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: lang2Suggestions.map((s) => ActionChip(
+                          label: Text(s, style: const TextStyle(fontSize: 13)),
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () {
+                            lang2Controller.text = s;
+                            setState(() => lang2Suggestions = []);
+                          },
+                        )).toList(),
+                      ),
+                    ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: categoryController,
@@ -125,7 +209,10 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
               if (!isGenerating)
                 TextButton(
                   key: const Key('cancel_add_word_button'),
-                  onPressed: () => Navigator.pop(context, false),
+                  onPressed: () {
+                    debounceTimer?.cancel();
+                    Navigator.pop(context, false);
+                  },
                   child: const Text('Annuler'),
                 ),
               if (!isGenerating)
@@ -137,6 +224,7 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
                       return;
                     }
 
+                    debounceTimer?.cancel();
                     setState(() {
                       isGenerating = true;
                       progressMessage = 'Préparation...';
