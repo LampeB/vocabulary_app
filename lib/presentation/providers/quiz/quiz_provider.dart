@@ -12,6 +12,7 @@ import '../audio/audio_provider.dart';
 import '../lists/vocabulary_provider.dart';
 import '../auth/auth_provider.dart';
 import '../../../services/audio/audio_player_service.dart';
+import '../../../domain/repositories/auth_repository.dart';
 
 // ─── Domain model ────────────────────────────────────────────────────────────
 
@@ -297,6 +298,11 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   void setListening(bool listening) =>
       state = state.copyWith(isListening: listening, partialTranscript: '');
 
+  Future<void> _onSessionComplete() async {
+    await ref.read(authRepositoryProvider).updateStreak();
+    await ref.read(authStateProvider.notifier).reloadProfile();
+  }
+
   Future<void> _persistRating(
       VariantProgress progress, FsrsRating rating) async {
     await ref
@@ -313,6 +319,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         correctCount: newCorrect,
         answerState: QuizAnswerState.idle,
       );
+      unawaited(_onSessionComplete());
     } else {
       state = state.copyWith(
         currentIndex: next,

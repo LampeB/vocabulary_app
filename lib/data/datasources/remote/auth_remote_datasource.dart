@@ -86,4 +86,54 @@ class AuthRemoteDataSource {
       return Failure(app_ex.UnknownException(e.toString()));
     }
   }
+
+  Future<Result<void>> updateStreak(String userId) async {
+    try {
+      final rows = List<Map<String, dynamic>>.from(
+          (await _client
+                  .from('profiles')
+                  .select('current_streak, longest_streak, last_study_date')
+                  .eq('id', userId)
+                  .limit(1)) as List);
+      if (rows.isEmpty) return const Success(null);
+      final profile = rows.first;
+
+      final today = DateTime.now().toLocal();
+      final todayDate = DateTime(today.year, today.month, today.day);
+      final lastRaw = profile['last_study_date'] as String?;
+
+      if (lastRaw != null) {
+        final last = DateTime.parse(lastRaw);
+        if (DateTime(last.year, last.month, last.day) == todayDate) {
+          return const Success(null);
+        }
+      }
+
+      final current = profile['current_streak'] as int? ?? 0;
+      final longest = profile['longest_streak'] as int? ?? 0;
+      final yesterday = todayDate.subtract(const Duration(days: 1));
+
+      int newStreak;
+      if (lastRaw != null) {
+        final last = DateTime.parse(lastRaw);
+        final lastDay = DateTime(last.year, last.month, last.day);
+        newStreak = lastDay == yesterday ? current + 1 : 1;
+      } else {
+        newStreak = 1;
+      }
+
+      final p2 = (int n) => n.toString().padLeft(2, '0');
+      await _client.from('profiles').update({
+        'current_streak': newStreak,
+        'longest_streak': newStreak > longest ? newStreak : longest,
+        'last_study_date':
+            '${todayDate.year}-${p2(todayDate.month)}-${p2(todayDate.day)}',
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', userId);
+
+      return const Success(null);
+    } catch (e) {
+      return Failure(app_ex.UnknownException(e.toString()));
+    }
+  }
 }

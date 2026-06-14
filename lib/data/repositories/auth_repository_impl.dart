@@ -102,6 +102,24 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Result<AppUser>> reloadProfile() async {
+    final user = _remote.currentUser;
+    if (user == null) return const Failure(AuthException('Not signed in'));
+    final profile = await _remote.getProfile(user.id);
+    return profile.fold(
+      onSuccess: (p) => Success(_mapUserWithProfile(user, p)),
+      onFailure: (e) => Failure(e),
+    );
+  }
+
+  @override
+  Future<Result<void>> updateStreak() async {
+    final user = _remote.currentUser;
+    if (user == null) return const Failure(AuthException('Not signed in'));
+    return _remote.updateStreak(user.id);
+  }
+
+  @override
   Future<Result<void>> deleteAccount() async {
     // Requires Supabase admin call — implement via Edge Function
     return const Failure(UnknownException('Account deletion not yet implemented'));

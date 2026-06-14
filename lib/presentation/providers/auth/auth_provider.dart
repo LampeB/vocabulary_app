@@ -63,6 +63,14 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
     await _repo.signOut();
     state = const AsyncData(null);
   }
+
+  Future<void> reloadProfile() async {
+    final result = await _repo.reloadProfile();
+    result.fold(
+      onSuccess: (user) => state = AsyncData(user),
+      onFailure: (_) {},
+    );
+  }
 }
 
 final currentUserProvider = Provider<AppUser?>((ref) {

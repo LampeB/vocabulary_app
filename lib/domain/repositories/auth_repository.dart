@@ -21,5 +21,7 @@ abstract interface class AuthRepository {
   Future<Result<void>> signOut();
   Future<Result<void>> sendPasswordResetEmail(String email);
   Future<Result<AppUser>> updateProfile({String? displayName, String? avatarUrl, String? bio});
+  Future<Result<AppUser>> reloadProfile();
+  Future<Result<void>> updateStreak();
   Future<Result<void>> deleteAccount();
 }
