@@ -1,7 +1,36 @@
+import 'dart:async' show unawaited;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../data/repositories/progress_repository_impl.dart';
 import '../../../domain/entities/variant_progress.dart';
+import '../../../domain/repositories/progress_repository.dart';
+import '../../../domain/usecases/quiz/get_due_cards_usecase.dart';
+import '../../../domain/usecases/quiz/submit_answer_usecase.dart';
+import '../../../core/errors/failure.dart';
 import '../../../core/utils/answer_validator.dart';
 import '../../../core/utils/fsrs_algorithm.dart';
+import '../lists/vocabulary_provider.dart';
+import '../auth/auth_provider.dart';
+
+// ─── Domain model ────────────────────────────────────────────────────────────
+
+/// A fully enriched card ready for display in the quiz.
+class QuizCard {
+  const QuizCard({
+    required this.progress,
+    required this.questionWord,
+    required this.answerWords,
+  });
+
+  final VariantProgress progress;
+
+  /// The word shown as the question (French or Korean depending on direction).
+  final String questionWord;
+
+  /// Accepted answer words (used for typing / voice validation).
+  final List<String> answerWords;
+}
+
+// ─── Supporting enums/classes ─────────────────────────────────────────────────
 
 enum QuizMode { flashcard, typing, voice, handsFree }
 
@@ -18,7 +47,9 @@ class QuizArgs {
   final int cardLimit;
 }
 
-enum QuizAnswerState { idle, correct, incorrect, skipped }
+enum QuizAnswerState { idle, correct, incorrect }
+
+// ─── Quiz state ───────────────────────────────────────────────────────────────
 
 class QuizState {
   const QuizState({
@@ -29,25 +60,25 @@ class QuizState {
     this.partialTranscript = '',
     this.isFlipped = false,
     this.isListening = false,
-    this.isProcessing = false,
+    this.isLoading = false,
     this.correctCount = 0,
     this.isComplete = false,
-    this.lastFsrsRating,
+    this.errorMessage,
   });
 
-  final List<VariantProgress> cards;
+  final List<QuizCard> cards;
   final int currentIndex;
   final QuizAnswerState answerState;
   final String userAnswer;
   final String partialTranscript;
   final bool isFlipped;
   final bool isListening;
-  final bool isProcessing;
+  final bool isLoading;
   final int correctCount;
   final bool isComplete;
-  final FsrsRating? lastFsrsRating;
+  final String? errorMessage;
 
-  VariantProgress? get currentCard =>
+  QuizCard? get currentCard =>
       currentIndex < cards.length ? cards[currentIndex] : null;
 
   int get total => cards.length;
@@ -55,17 +86,17 @@ class QuizState {
   double get accuracy => total == 0 ? 0 : correctCount / total;
 
   QuizState copyWith({
-    List<VariantProgress>? cards,
+    List<QuizCard>? cards,
     int? currentIndex,
     QuizAnswerState? answerState,
     String? userAnswer,
     String? partialTranscript,
     bool? isFlipped,
     bool? isListening,
-    bool? isProcessing,
+    bool? isLoading,
     int? correctCount,
     bool? isComplete,
-    FsrsRating? lastFsrsRating,
+    String? errorMessage,
   }) =>
       QuizState(
         cards: cards ?? this.cards,
@@ -75,57 +106,155 @@ class QuizState {
         partialTranscript: partialTranscript ?? this.partialTranscript,
         isFlipped: isFlipped ?? this.isFlipped,
         isListening: isListening ?? this.isListening,
-        isProcessing: isProcessing ?? this.isProcessing,
+        isLoading: isLoading ?? this.isLoading,
         correctCount: correctCount ?? this.correctCount,
         isComplete: isComplete ?? this.isComplete,
-        lastFsrsRating: lastFsrsRating ?? this.lastFsrsRating,
+        errorMessage: errorMessage,
       );
 }
 
+// ─── Providers ────────────────────────────────────────────────────────────────
+
+final progressRepositoryProvider = Provider<ProgressRepository>((ref) {
+  final userId = ref.watch(currentUserProvider)?.id ?? '';
+  return ProgressRepositoryImpl(
+    ref.watch(progressDaoProvider),
+    ref.watch(conceptDaoProvider),
+    ref.watch(vocabularyRemoteProvider),
+    userId,
+  );
+});
+
+final getDueCardsUseCaseProvider = Provider<GetDueCardsUseCase>(
+  (ref) => GetDueCardsUseCase(ref.watch(progressRepositoryProvider)),
+);
+
+final submitAnswerUseCaseProvider = Provider<SubmitAnswerUseCase>(
+  (ref) => SubmitAnswerUseCase(ref.watch(progressRepositoryProvider)),
+);
+
 final quizProvider =
     NotifierProvider.autoDispose<QuizNotifier, QuizState>(QuizNotifier.new);
+
+// ─── Notifier ─────────────────────────────────────────────────────────────────
 
 class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   @override
   QuizState build() => const QuizState();
 
-  void loadCards(List<VariantProgress> cards) {
-    state = state.copyWith(cards: cards, currentIndex: 0, isComplete: false);
+  Future<void> loadCards(QuizArgs args) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    final userId = ref.read(currentUserProvider)?.id ?? '';
+    final result = await ref.read(getDueCardsUseCaseProvider).call(
+          userId: userId,
+          listId: args.listId,
+          direction: args.direction,
+          limit: args.cardLimit,
+        );
+
+    if (result.isFailure) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: result.exceptionOrNull?.message ?? 'Failed to load cards',
+      );
+      return;
+    }
+
+    final progressList = result.valueOrNull ?? [];
+    if (progressList.isEmpty) {
+      state = state.copyWith(isLoading: false, isComplete: true);
+      return;
+    }
+
+    // Enrich each VariantProgress with question/answer word text.
+    final conceptDao = ref.read(conceptDaoProvider);
+    final answerLang = args.direction == QuizDirection.frToKo ? 'ko' : 'fr';
+
+    final questionVariantIds = progressList.map((p) => p.variantId).toList();
+
+    // Batch: look up question variants by ID
+    final questionVariantMap = <String, String>{}; // variantId → word
+    final conceptIdMap = <String, String>{}; // variantId → conceptId
+    for (final id in questionVariantIds) {
+      final row = await conceptDao.getVariantById(id);
+      if (row != null) {
+        questionVariantMap[id] = row.word;
+        conceptIdMap[id] = row.conceptId;
+      }
+    }
+
+    // Batch: get answer variants for all concepts at once
+    final allConceptIds = conceptIdMap.values.toSet().toList();
+    final answerRows = await conceptDao.getVariantsByConceptIds(
+        allConceptIds, answerLang);
+    final answerByConceptId = <String, List<String>>{};
+    for (final v in answerRows) {
+      (answerByConceptId[v.conceptId] ??= []).add(v.word);
+    }
+
+    // Assemble QuizCards, dropping any whose variant can't be resolved.
+    final quizCards = <QuizCard>[];
+    for (final p in progressList) {
+      final q = questionVariantMap[p.variantId];
+      final cId = conceptIdMap[p.variantId];
+      if (q == null || cId == null) continue;
+      quizCards.add(QuizCard(
+        progress: p,
+        questionWord: q,
+        answerWords: answerByConceptId[cId] ?? [],
+      ));
+    }
+
+    state = state.copyWith(
+      cards: quizCards,
+      currentIndex: 0,
+      isLoading: false,
+      isComplete: quizCards.isEmpty,
+    );
   }
 
-  void flipCard() {
-    state = state.copyWith(isFlipped: !state.isFlipped);
-  }
+  void flipCard() => state = state.copyWith(isFlipped: !state.isFlipped);
 
   void rateCard(FsrsRating rating) {
+    final card = state.currentCard;
+    if (card == null) return;
+    unawaited(_persistRating(card.progress, rating));
     final isCorrect = rating == FsrsRating.good || rating == FsrsRating.easy;
-    _advance(isCorrect: isCorrect, rating: rating);
+    _advance(isCorrect: isCorrect);
   }
 
-  void submitTextAnswer(String answer, List<String> acceptedAnswers) {
+  void submitTextAnswer(String answer) {
+    final card = state.currentCard;
+    if (card == null) return;
     final result = AnswerValidator.validate(
       userAnswer: answer,
-      acceptedAnswers: acceptedAnswers,
+      acceptedAnswers: card.answerWords,
     );
     final rating = result.isCorrect ? FsrsRating.good : FsrsRating.again;
+    unawaited(_persistRating(card.progress, rating));
     state = state.copyWith(
       userAnswer: answer,
       answerState: result.isCorrect
           ? QuizAnswerState.correct
           : QuizAnswerState.incorrect,
     );
-    Future.delayed(const Duration(seconds: 2),
-        () => _advance(isCorrect: result.isCorrect, rating: rating));
+    Future.delayed(
+      const Duration(seconds: 2),
+      () => _advance(isCorrect: result.isCorrect),
+    );
   }
 
-  void submitVoiceAnswer(String transcript, List<String> acceptedAnswers,
-      {bool isDrivingMode = false}) {
+  void submitVoiceAnswer(String transcript, {bool isDrivingMode = false}) {
+    final card = state.currentCard;
+    if (card == null) return;
     final result = AnswerValidator.validate(
       userAnswer: transcript,
-      acceptedAnswers: acceptedAnswers,
+      acceptedAnswers: card.answerWords,
       isDrivingMode: isDrivingMode,
     );
     final rating = result.isCorrect ? FsrsRating.good : FsrsRating.again;
+    unawaited(_persistRating(card.progress, rating));
     state = state.copyWith(
       userAnswer: transcript,
       answerState: result.isCorrect
@@ -134,23 +263,25 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       isListening: false,
     );
     Future.delayed(
-        Duration(seconds: isDrivingMode ? 1 : 2),
-        () => _advance(isCorrect: result.isCorrect, rating: rating));
+      Duration(seconds: isDrivingMode ? 1 : 2),
+      () => _advance(isCorrect: result.isCorrect),
+    );
   }
 
-  void setPartialTranscript(String text) {
-    state = state.copyWith(partialTranscript: text);
+  void setPartialTranscript(String text) =>
+      state = state.copyWith(partialTranscript: text);
+
+  void setListening(bool listening) =>
+      state = state.copyWith(isListening: listening, partialTranscript: '');
+
+  Future<void> _persistRating(
+      VariantProgress progress, FsrsRating rating) async {
+    await ref
+        .read(submitAnswerUseCaseProvider)
+        .call(progress: progress, rating: rating);
   }
 
-  void setListening(bool listening) {
-    state = state.copyWith(isListening: listening, partialTranscript: '');
-  }
-
-  void setProcessing(bool processing) {
-    state = state.copyWith(isProcessing: processing);
-  }
-
-  void _advance({required bool isCorrect, required FsrsRating rating}) {
+  void _advance({required bool isCorrect}) {
     final next = state.currentIndex + 1;
     final newCorrect = state.correctCount + (isCorrect ? 1 : 0);
     if (next >= state.total) {
@@ -168,7 +299,6 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         isFlipped: false,
         isListening: false,
         correctCount: newCorrect,
-        lastFsrsRating: rating,
       );
     }
   }

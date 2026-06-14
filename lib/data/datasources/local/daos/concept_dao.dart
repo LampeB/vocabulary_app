@@ -30,12 +30,31 @@ class ConceptDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(DateTime.now()),
       ));
 
+  Future<List<ConceptsTableData>> getConceptsByList(String listId) =>
+      (select(conceptsTable)
+            ..where((t) =>
+                t.listId.equals(listId) & t.isDeleted.equals(false)))
+          .get();
+
   Future<List<WordVariantsTableData>> getVariantsByConcept(String conceptId) =>
       (select(wordVariantsTable)
             ..where((t) =>
                 t.conceptId.equals(conceptId) & t.isDeleted.equals(false))
             ..orderBy([(t) => OrderingTerm.asc(t.position)]))
           .get();
+
+  Future<List<WordVariantsTableData>> getVariantsByConceptIds(
+      List<String> conceptIds, String langCode) =>
+      (select(wordVariantsTable)
+            ..where((t) =>
+                t.conceptId.isIn(conceptIds) &
+                t.langCode.equals(langCode) &
+                t.isDeleted.equals(false)))
+          .get();
+
+  Future<WordVariantsTableData?> getVariantById(String id) =>
+      (select(wordVariantsTable)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
 
   Future<int> upsertVariant(WordVariantsTableCompanion companion) =>
       into(wordVariantsTable).insertOnConflictUpdate(companion);
