@@ -18,11 +18,26 @@ class ListsScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (lists) => lists.isEmpty
-            ? const Center(
-                child: Text('No lists yet. Create one!',
-                    style: TextStyle(color: AppColors.grey500)))
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.library_books_outlined,
+                        size: 64, color: AppColors.grey300),
+                    const SizedBox(height: 16),
+                    Text('No lists yet',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(color: AppColors.grey500)),
+                    const SizedBox(height: 8),
+                    const Text('Tap + to create your first list',
+                        style: TextStyle(color: AppColors.grey500)),
+                  ],
+                ),
+              )
             : ListView.separated(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
                 itemCount: lists.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (ctx, i) {
@@ -44,17 +59,34 @@ class ListsScreen extends ConsumerWidget {
                                           .textTheme
                                           .titleMedium),
                                 ),
-                                PopupMenuButton(
-                                  itemBuilder: (_) => [
-                                    const PopupMenuItem(
+                                PopupMenuButton<String>(
+                                  itemBuilder: (_) => const [
+                                    PopupMenuItem(
+                                        value: 'rename',
+                                        child: Row(children: [
+                                          Icon(Icons.edit_outlined, size: 18),
+                                          SizedBox(width: 8),
+                                          Text('Rename'),
+                                        ])),
+                                    PopupMenuItem(
                                         value: 'delete',
-                                        child: Text('Delete')),
+                                        child: Row(children: [
+                                          Icon(Icons.delete_outline,
+                                              size: 18,
+                                              color: AppColors.secondary),
+                                          SizedBox(width: 8),
+                                          Text('Delete',
+                                              style: TextStyle(
+                                                  color: AppColors.secondary)),
+                                        ])),
                                   ],
                                   onSelected: (v) async {
-                                    if (v == 'delete') {
-                                      await ref
-                                          .read(listActionsProvider.notifier)
-                                          .deleteList(list.id);
+                                    if (v == 'rename') {
+                                      await _showRenameDialog(
+                                          ctx, ref, list.id, list.name);
+                                    } else if (v == 'delete') {
+                                      await _confirmDelete(ctx, ref, list.id,
+                                          list.name);
                                     }
                                   },
                                 ),
@@ -88,29 +120,96 @@ class ListsScreen extends ConsumerWidget {
     final nameCtrl = TextEditingController();
     await showDialog<void>(
       context: context,
+      builder: (ctx) => _ListNameDialog(
+        title: 'New List',
+        controller: nameCtrl,
+        onConfirm: () async {
+          if (nameCtrl.text.trim().isEmpty) return;
+          await ref
+              .read(listActionsProvider.notifier)
+              .createList(nameCtrl.text.trim(), null);
+          if (ctx.mounted) Navigator.pop(ctx);
+        },
+      ),
+    );
+  }
+
+  Future<void> _showRenameDialog(
+      BuildContext context, WidgetRef ref, String listId, String current) async {
+    final nameCtrl = TextEditingController(text: current);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => _ListNameDialog(
+        title: 'Rename List',
+        controller: nameCtrl,
+        confirmLabel: 'Rename',
+        onConfirm: () async {
+          final newName = nameCtrl.text.trim();
+          if (newName.isEmpty || newName == current) return;
+          await ref
+              .read(listActionsProvider.notifier)
+              .renameList(listId, newName);
+          if (ctx.mounted) Navigator.pop(ctx);
+        },
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(
+      BuildContext context, WidgetRef ref, String listId, String name) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('New List'),
-        content: TextField(
-          controller: nameCtrl,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'List name'),
-        ),
+        title: const Text('Delete list?'),
+        content: Text('"$name" and all its words will be permanently deleted.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel')),
           FilledButton(
-            onPressed: () async {
-              if (nameCtrl.text.trim().isEmpty) return;
-              await ref
-                  .read(listActionsProvider.notifier)
-                  .createList(nameCtrl.text.trim(), null);
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Create'),
+            style:
+                FilledButton.styleFrom(backgroundColor: AppColors.secondary),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
           ),
         ],
       ),
+    );
+    if (confirmed == true) {
+      await ref.read(listActionsProvider.notifier).deleteList(listId);
+    }
+  }
+}
+
+class _ListNameDialog extends StatelessWidget {
+  const _ListNameDialog({
+    required this.title,
+    required this.controller,
+    required this.onConfirm,
+    this.confirmLabel = 'Create',
+  });
+  final String title;
+  final TextEditingController controller;
+  final String confirmLabel;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(title),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        decoration: const InputDecoration(labelText: 'List name'),
+        textInputAction: TextInputAction.done,
+        onSubmitted: (_) => onConfirm(),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel')),
+        FilledButton(onPressed: onConfirm, child: Text(confirmLabel)),
+      ],
     );
   }
 }

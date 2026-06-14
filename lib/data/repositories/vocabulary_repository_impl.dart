@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'package:uuid/uuid.dart';
 import '../../domain/entities/concept.dart';
 import '../../domain/entities/vocabulary_list.dart';
@@ -43,7 +44,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     );
     try {
       await _listDao.upsert(list.toLocalCompanion());
-      _remote.upsertList(list.toRemoteMap()); // fire-and-forget
+      unawaited(_remote.upsertList(list.toRemoteMap()));
       return Success(list);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -55,7 +56,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     final updated = list.copyWith(updatedAt: DateTime.now(), isSynced: false);
     try {
       await _listDao.upsert(updated.toLocalCompanion());
-      _remote.upsertList(updated.toRemoteMap());
+      unawaited(_remote.upsertList(updated.toRemoteMap()));
       return Success(updated);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -66,7 +67,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   Future<Result<void>> deleteList(String listId) async {
     try {
       await _listDao.softDelete(listId);
-      _remote.deleteList(listId);
+      unawaited(_remote.deleteList(listId));
       return const Success(null);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -133,6 +134,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         createdAt: Value(concept.createdAt),
         updatedAt: Value(concept.updatedAt),
       ));
+      unawaited(_updateWordCount(listId, 1));
       return Success(concept);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -163,7 +165,9 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   @override
   Future<Result<void>> deleteConcept(String conceptId) async {
     try {
+      final row = await _conceptDao.getById(conceptId);
       await _conceptDao.softDelete(conceptId);
+      if (row != null) unawaited(_updateWordCount(row.listId, -1));
       return const Success(null);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -242,5 +246,29 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   @override
   Future<Result<String>> generateShareLink(String listId) async {
     return const Failure(UnknownException('Share link not yet implemented'));
+  }
+
+  @override
+  Future<void> syncFromRemote() async {
+    if (_userId.isEmpty) return;
+    final result = await _remote.fetchLists(_userId);
+    if (result case Success(:final value)) {
+      for (final map in value) {
+        final list = map.toVocabularyListDomain();
+        await _listDao.upsert(list.toLocalCompanion());
+      }
+    }
+  }
+
+  Future<void> _updateWordCount(String listId, int delta) async {
+    final row = await _listDao.getById(listId);
+    if (row == null) return;
+    final newCount = (row.wordCount + delta).clamp(0, 999999);
+    await _listDao.updateWordCount(listId, newCount);
+    unawaited(_remote.upsertList({
+      'id': listId,
+      'word_count': newCount,
+      'updated_at': DateTime.now().toIso8601String(),
+    }));
   }
 }

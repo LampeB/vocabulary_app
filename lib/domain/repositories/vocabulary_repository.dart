@@ -40,4 +40,7 @@ abstract interface class VocabularyRepository {
   Future<Result<VocabularyList>> importFromJson(Map<String, dynamic> json);
   Future<Result<Map<String, dynamic>>> exportToJson(String listId);
   Future<Result<String>> generateShareLink(String listId);
+
+  // Sync
+  Future<void> syncFromRemote();
 }

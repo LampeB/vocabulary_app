@@ -11,8 +11,12 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Trigger remote sync whenever the user is present (runs once per session).
+    ref.watch(syncOnLoginProvider);
+
     final user = ref.watch(currentUserProvider);
     final listsAsync = ref.watch(myListsProvider);
+    final dueCount = ref.watch(dueCountProvider).valueOrNull ?? 0;
     final tt = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -26,13 +30,16 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(myListsProvider),
+        onRefresh: () async {
+          ref.invalidate(myListsProvider);
+          ref.invalidate(syncOnLoginProvider);
+        },
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             StreakCounter(streak: user?.currentStreak ?? 0),
             const SizedBox(height: 16),
-            _DueCard(onStart: () => context.go('/lists')),
+            _DueCard(dueCount: dueCount, onStart: () => context.go('/lists')),
             const SizedBox(height: 24),
             Text('Your Lists', style: tt.titleLarge),
             const SizedBox(height: 12),
@@ -61,11 +68,13 @@ class HomeScreen extends ConsumerWidget {
 }
 
 class _DueCard extends StatelessWidget {
-  const _DueCard({required this.onStart});
+  const _DueCard({required this.dueCount, required this.onStart});
+  final int dueCount;
   final VoidCallback onStart;
 
   @override
   Widget build(BuildContext context) {
+    final hasCards = dueCount > 0;
     return Card(
       color: AppColors.primary,
       child: Padding(
@@ -78,27 +87,32 @@ class _DueCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Review due',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(color: Colors.white70)),
-                  Text('Start studying',
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(color: Colors.white)),
+                  Text(
+                    hasCards ? '$dueCount cards due' : 'All caught up!',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(color: Colors.white70),
+                  ),
+                  Text(
+                    hasCards ? 'Start reviewing' : 'Come back later',
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(color: Colors.white),
+                  ),
                 ],
               ),
             ),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: AppColors.primary,
+            if (hasCards)
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppColors.primary,
+                ),
+                onPressed: onStart,
+                child: const Text('Go'),
               ),
-              onPressed: onStart,
-              child: const Text('Go'),
-            ),
           ],
         ),
       ),

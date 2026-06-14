@@ -37,4 +37,13 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
 
   Future<List<VocabularyListsTableData>> getUnsyncedLists() =>
       (select(vocabularyListsTable)..where((t) => t.isSynced.equals(false))).get();
+
+  Future<int> updateWordCount(String listId, int newCount) =>
+      (update(vocabularyListsTable)..where((t) => t.id.equals(listId))).write(
+        VocabularyListsTableCompanion(
+          wordCount: Value(newCount),
+          updatedAt: Value(DateTime.now()),
+          isSynced: const Value(false),
+        ),
+      );
 }
