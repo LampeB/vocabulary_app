@@ -42,7 +42,10 @@ class ElevenLabsService implements AudioService {
     try {
       final res = await http.post(
         Uri.parse(AppConfig.elevenLabsEdgeFunctionUrl),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${AppConfig.supabaseAnonKey}',
+        },
         body: jsonEncode({
           'text': text,
           'voice_id': voiceId,

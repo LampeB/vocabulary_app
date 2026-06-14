@@ -8,8 +8,10 @@ import '../../../domain/usecases/quiz/submit_answer_usecase.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/utils/answer_validator.dart';
 import '../../../core/utils/fsrs_algorithm.dart';
+import '../audio/audio_provider.dart';
 import '../lists/vocabulary_provider.dart';
 import '../auth/auth_provider.dart';
+import '../../../services/audio/audio_player_service.dart';
 
 // ─── Domain model ────────────────────────────────────────────────────────────
 
@@ -139,10 +141,17 @@ final quizProvider =
 // ─── Notifier ─────────────────────────────────────────────────────────────────
 
 class QuizNotifier extends AutoDisposeNotifier<QuizState> {
+  late final AudioPlayerService _audio;
+  var _questionLang = 'fr';
+
   @override
-  QuizState build() => const QuizState();
+  QuizState build() {
+    _audio = ref.watch(audioPlayerServiceProvider);
+    return const QuizState();
+  }
 
   Future<void> loadCards(QuizArgs args) async {
+    _questionLang = args.direction == QuizDirection.frToKo ? 'fr' : 'ko';
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     final userId = ref.read(currentUserProvider)?.id ?? '';
@@ -212,9 +221,23 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       isLoading: false,
       isComplete: quizCards.isEmpty,
     );
+
+    if (quizCards.isNotEmpty) {
+      unawaited(_audio.speak(quizCards.first.questionWord, _questionLang));
+    }
   }
 
-  void flipCard() => state = state.copyWith(isFlipped: !state.isFlipped);
+  void flipCard() {
+    final flipped = !state.isFlipped;
+    state = state.copyWith(isFlipped: flipped);
+    if (flipped) {
+      final card = state.currentCard;
+      if (card != null && card.answerWords.isNotEmpty) {
+        final answerLang = _questionLang == 'fr' ? 'ko' : 'fr';
+        unawaited(_audio.speak(card.answerWords.first, answerLang));
+      }
+    }
+  }
 
   void rateCard(FsrsRating rating) {
     final card = state.currentCard;
@@ -300,6 +323,10 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         isListening: false,
         correctCount: newCorrect,
       );
+      final nextCard = state.currentCard;
+      if (nextCard != null) {
+        unawaited(_audio.speak(nextCard.questionWord, _questionLang));
+      }
     }
   }
 }

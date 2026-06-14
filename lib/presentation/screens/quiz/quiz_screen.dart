@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -83,6 +84,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   @override
   Widget build(BuildContext context) {
     final quizState = ref.watch(quizProvider);
+
+    // Flash + sfx whenever answer state transitions from idle (typing & voice modes).
+    ref.listen<QuizState>(quizProvider, (prev, next) {
+      if (prev?.answerState == QuizAnswerState.idle &&
+          next.answerState != QuizAnswerState.idle) {
+        unawaited(_triggerFlash(next.answerState == QuizAnswerState.correct));
+      }
+    });
 
     // Loading state
     if (quizState.isLoading) {
@@ -196,7 +205,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       QuizMode.flashcard => _FlashcardRating(
           isFlipped: quizState.isFlipped,
           onRate: (rating) {
-            _triggerFlash(rating != FsrsRating.again);
+            unawaited(_triggerFlash(rating != FsrsRating.again));
             ref.read(quizProvider.notifier).rateCard(rating);
           },
         ),
@@ -206,7 +215,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           correctAnswers: card.answerWords,
           onSubmit: (answer) {
             ref.read(quizProvider.notifier).submitTextAnswer(answer);
-            _triggerFlash(quizState.answerState == QuizAnswerState.correct);
             _answerCtrl.clear();
           },
         ),
