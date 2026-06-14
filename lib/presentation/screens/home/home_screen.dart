@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/lists/vocabulary_provider.dart';
+import '../../providers/notifications/notification_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../widgets/streak_counter.dart';
 
@@ -19,13 +20,22 @@ class HomeScreen extends ConsumerWidget {
     final dueCount = ref.watch(dueCountProvider).valueOrNull ?? 0;
     final tt = Theme.of(context).textTheme;
 
+    // Schedule streak warning once per session after user data is available.
+    final streak = user?.currentStreak ?? 0;
+    if (streak > 0) {
+      ref
+          .read(notificationSettingsProvider.notifier)
+          .maybeScheduleStreakWarning(streak);
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Bonjour, ${user?.displayName ?? user?.username ?? ''}!'),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
+            tooltip: 'Notification settings',
+            onPressed: () => context.push('/notifications'),
           ),
         ],
       ),

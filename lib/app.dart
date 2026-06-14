@@ -15,6 +15,7 @@ import 'presentation/screens/quiz/quiz_screen.dart';
 import 'presentation/screens/social/social_screen.dart';
 import 'presentation/screens/profile/profile_screen.dart';
 import 'presentation/screens/paywall/paywall_screen.dart';
+import 'presentation/screens/notifications/notification_settings_screen.dart';
 import 'presentation/providers/quiz/quiz_provider.dart' show QuizArgs;
 import 'presentation/widgets/app_shell.dart';
 
@@ -101,6 +102,10 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
               GoRoute(
                   path: '/paywall',
                   builder: (_, __) => const PaywallScreen()),
+              GoRoute(
+                  path: '/notifications',
+                  builder: (_, __) =>
+                      const NotificationSettingsScreen()),
             ],
           ),
         ],

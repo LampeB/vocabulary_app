@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/app_config.dart';
+import 'services/notifications/notification_service.dart';
+import 'presentation/providers/notifications/notification_provider.dart';
 import 'app.dart';
 
 Future<void> main() async {
@@ -12,5 +14,15 @@ Future<void> main() async {
     anonKey: AppConfig.supabaseAnonKey,
   );
 
-  runApp(const ProviderScope(child: VocabKrApp()));
+  // Initialise notification service before the widget tree builds so that
+  // timezone data and plugin channels are ready when providers first run.
+  await NotificationService.instance.init();
+
+  runApp(ProviderScope(
+    overrides: [
+      notificationServiceProvider
+          .overrideWithValue(NotificationService.instance),
+    ],
+    child: const VocabKrApp(),
+  ));
 }

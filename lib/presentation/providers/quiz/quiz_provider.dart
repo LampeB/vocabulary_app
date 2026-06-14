@@ -13,6 +13,7 @@ import '../lists/vocabulary_provider.dart';
 import '../auth/auth_provider.dart';
 import '../../../services/audio/audio_player_service.dart';
 import '../../../domain/repositories/auth_repository.dart';
+import '../notifications/notification_provider.dart';
 
 // ─── Domain model ────────────────────────────────────────────────────────────
 
@@ -301,6 +302,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   Future<void> _onSessionComplete() async {
     await ref.read(authRepositoryProvider).updateStreak();
     await ref.read(authStateProvider.notifier).reloadProfile();
+    // User just studied — cancel any streak-at-risk warning for today.
+    await ref.read(notificationServiceProvider).cancelStreakWarning();
   }
 
   Future<void> _persistRating(

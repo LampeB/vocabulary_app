@@ -60,6 +60,7 @@ dependencies:
 
   # Notifications
   flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
 
   # Sharing + file I/O
   share_plus: ^10.1.4
