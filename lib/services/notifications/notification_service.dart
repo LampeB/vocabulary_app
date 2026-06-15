@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
@@ -69,30 +70,34 @@ class NotificationService {
         tz.local, now.year, now.month, now.day, hour, minute);
     if (next.isBefore(now)) next = next.add(const Duration(days: 1));
 
-    await _plugin.zonedSchedule(
-      _dailyReminderId,
-      'Time to study! 🇫🇷🇰🇷',
-      'Your vocabulary is waiting — keep the streak alive!',
-      next,
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          _studyChannelId,
-          _studyChannelName,
-          channelDescription: 'Daily vocabulary study reminders',
-          importance: Importance.high,
-          priority: Priority.high,
+    try {
+      await _plugin.zonedSchedule(
+        _dailyReminderId,
+        'Time to study! 🇫🇷🇰🇷',
+        'Your vocabulary is waiting — keep the streak alive!',
+        next,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _studyChannelId,
+            _studyChannelName,
+            channelDescription: 'Daily vocabulary study reminders',
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
         ),
-        iOS: const DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
-      ),
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-    );
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      );
+    } on PlatformException {
+      // SCHEDULE_EXACT_ALARM permission not granted (Android 12+). Silently skip.
+    }
   }
 
   // ─── Streak-at-risk warning ───────────────────────────────────────────────
@@ -108,29 +113,33 @@ class NotificationService {
         tz.TZDateTime(tz.local, now.year, now.month, now.day, 20, 0);
     if (warning.isBefore(now)) return; // already past 8 PM — skip today
 
-    await _plugin.zonedSchedule(
-      _streakWarningId,
-      'Don\'t break your streak! 🔥',
-      '$streakDays-day streak at risk — study before midnight.',
-      warning,
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          _streakChannelId,
-          _streakChannelName,
-          channelDescription: 'Alert when your daily streak is at risk',
-          importance: Importance.high,
-          priority: Priority.high,
+    try {
+      await _plugin.zonedSchedule(
+        _streakWarningId,
+        'Don\'t break your streak! 🔥',
+        '$streakDays-day streak at risk — study before midnight.',
+        warning,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _streakChannelId,
+            _streakChannelName,
+            channelDescription: 'Alert when your daily streak is at risk',
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: false,
+            presentSound: true,
+          ),
         ),
-        iOS: const DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: false,
-          presentSound: true,
-        ),
-      ),
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-    );
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      );
+    } on PlatformException {
+      // SCHEDULE_EXACT_ALARM permission not granted (Android 12+). Silently skip.
+    }
   }
 
   Future<void> cancelDailyReminder() => _plugin.cancel(_dailyReminderId);

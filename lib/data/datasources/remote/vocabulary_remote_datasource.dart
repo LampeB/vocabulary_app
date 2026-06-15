@@ -109,4 +109,21 @@ class VocabularyRemoteDataSource {
       return Failure(NetworkException(e.toString()));
     }
   }
+
+  // Fetches a public list (with its concepts and variants) by share token.
+  // Requires vocabulary_lists to have visibility='public' and a matching RLS policy.
+  Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(
+      String token) async {
+    try {
+      final data = await _client
+          .from('vocabulary_lists')
+          .select('*, concepts(*, word_variants(*))')
+          .eq('share_token', token)
+          .eq('visibility', 'public')
+          .maybeSingle();
+      return Success(data != null ? Map<String, dynamic>.from(data) : null);
+    } catch (e) {
+      return Failure(NetworkException(e.toString()));
+    }
+  }
 }

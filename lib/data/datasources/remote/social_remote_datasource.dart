@@ -4,6 +4,7 @@ import '../../../core/errors/failure.dart';
 import '../../../domain/entities/friendship.dart';
 import '../../../domain/entities/leaderboard_entry.dart';
 import '../../../domain/entities/app_user.dart';
+import '../../../domain/entities/subscription_type.dart';
 
 class SocialRemoteDataSource {
   SocialRemoteDataSource(this._client, this._userId);
@@ -291,7 +292,8 @@ class SocialRemoteDataSource {
         currentStreak: p['current_streak'] as int? ?? 0,
         longestStreak: p['longest_streak'] as int? ?? 0,
         totalWordsMastered: p['total_words_mastered'] as int? ?? 0,
-        isPremium: p['is_premium'] as bool? ?? false,
+        subscriptionType: SubscriptionType.fromString(
+            p['subscription_type'] as String?),
         createdAt: DateTime.tryParse(p['created_at'] as String? ?? '') ??
             DateTime.now(),
       );

@@ -73,8 +73,21 @@ dependencies:
   # Connectivity
   connectivity_plus: ^6.1.3
 
+  # Deep links
+  app_links: ^6.3.0
+
+  # In-app review
+  in_app_review: ^2.0.12
+
+  # Shimmer skeleton loading
+  shimmer: ^3.0.0
+
   # Animations
   lottie: ^3.3.1
+
+dependency_overrides:
+  record_linux:
+    path: packages/record_linux
 
 dev_dependencies:
   flutter_test:
@@ -88,6 +101,7 @@ dev_dependencies:
   riverpod_generator: ^2.6.1
   drift_dev: ^2.22.1
   analyzer_plugin: ^0.13.4
+  patrol: ^4.6.1
 
 
 flutter:

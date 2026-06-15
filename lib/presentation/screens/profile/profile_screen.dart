@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth/auth_provider.dart';
+import '../../providers/purchases/purchase_provider.dart';
+import '../../../domain/entities/subscription_type.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../widgets/streak_counter.dart';
 
@@ -14,10 +16,21 @@ class ProfileScreen extends ConsumerWidget {
     final tt = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
-      body: ListView(
+      appBar: AppBar(
+        title: const Text('Profile'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => context.push('/settings'),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
           Center(
             child: Column(
               children: [
@@ -38,6 +51,7 @@ class ProfileScreen extends ConsumerWidget {
                 Text(user?.displayName ?? user?.username ?? '',
                     style: tt.headlineMedium),
                 Text('@${user?.username ?? ''}',
+                    key: const Key('profile_username'),
                     style:
                         tt.bodyMedium?.copyWith(color: AppColors.grey500)),
               ],
@@ -57,35 +71,32 @@ class ProfileScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.workspace_premium_outlined),
             title: const Text('Subscription'),
-            subtitle:
-                Text(user?.isPremium == true ? 'Premium' : 'Free plan'),
-            trailing: user?.isPremium != true
-                ? FilledButton(
+            subtitle: Text(_subscriptionLabel(ref)),
+            trailing: ref.watch(isPremiumProvider)
+                ? null
+                : FilledButton(
                     onPressed: () => context.go('/paywall'),
                     child: const Text('Upgrade'),
-                  )
-                : null,
+                  ),
           ),
           ListTile(
             leading: const Icon(Icons.settings_outlined),
             title: const Text('Settings'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () {},
+            onTap: () => context.push('/settings'),
           ),
-          ListTile(
-            leading:
-                const Icon(Icons.logout, color: AppColors.secondary),
-            title: const Text('Sign Out',
-                style: TextStyle(color: AppColors.secondary)),
-            onTap: () async {
-              await ref.read(authStateProvider.notifier).signOut();
-              if (context.mounted) context.go('/welcome');
-            },
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+String _subscriptionLabel(WidgetRef ref) {
+  final isPremium = ref.watch(isPremiumProvider);
+  if (!isPremium) return 'Free plan';
+  final type = ref.watch(currentUserProvider)?.subscriptionType;
+  return type == SubscriptionType.student ? 'Student Access' : 'Premium';
 }
 
 class _StatGrid extends StatelessWidget {

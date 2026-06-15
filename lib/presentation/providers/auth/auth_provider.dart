@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/datasources/remote/auth_remote_datasource.dart';
@@ -5,6 +6,7 @@ import '../../../data/repositories/auth_repository_impl.dart';
 import '../../../domain/entities/app_user.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import '../../../core/errors/failure.dart';
+import '../../../services/purchases/purchase_service.dart';
 
 final supabaseClientProvider = Provider<SupabaseClient>(
   (_) => Supabase.instance.client,
@@ -30,10 +32,22 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
   Future<AppUser?> build() async {
     _repo = ref.watch(authRepositoryProvider);
     ref.listenSelf((_, __) {});
-    _repo.authStateChanges.listen((user) {
-      state = AsyncData(user);
+    // Always reload the full profile on every auth state change so that
+    // the basic _mapUser (auth-only) never overwrites _mapUserWithProfile.
+    _repo.authStateChanges.listen((user) async {
+      if (user == null) {
+        state = const AsyncData(null);
+        return;
+      }
+      unawaited(PurchaseService.instance.logIn(user.id));
+      final result = await _repo.reloadProfile();
+      state = AsyncData(result.valueOrNull ?? user);
     });
-    return _repo.currentUser;
+    final user = _repo.currentUser;
+    if (user == null) return null;
+    unawaited(PurchaseService.instance.logIn(user.id));
+    final result = await _repo.reloadProfile();
+    return result.valueOrNull ?? user;
   }
 
   Future<Result<AppUser>> signIn(String email, String password) async {
@@ -41,7 +55,10 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
     final result =
         await _repo.signInWithEmail(email: email, password: password);
     result.fold(
-      onSuccess: (user) => state = AsyncData(user),
+      onSuccess: (user) {
+        state = AsyncData(user);
+        unawaited(PurchaseService.instance.logIn(user.id));
+      },
       onFailure: (e) => state = AsyncError(e, StackTrace.current),
     );
     return result;
@@ -53,7 +70,10 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
     final result = await _repo.signUpWithEmail(
         email: email, password: password, username: username);
     result.fold(
-      onSuccess: (user) => state = AsyncData(user),
+      onSuccess: (user) {
+        state = AsyncData(user);
+        unawaited(PurchaseService.instance.logIn(user.id));
+      },
       onFailure: (e) => state = AsyncError(e, StackTrace.current),
     );
     return result;
@@ -61,6 +81,7 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
 
   Future<void> signOut() async {
     await _repo.signOut();
+    unawaited(PurchaseService.instance.logOut());
     state = const AsyncData(null);
   }
 

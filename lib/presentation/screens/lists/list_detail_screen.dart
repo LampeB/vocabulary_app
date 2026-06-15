@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/lists/vocabulary_provider.dart';
+import '../../../core/errors/app_exception.dart';
+import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 
 class ListDetailScreen extends ConsumerWidget {
@@ -23,11 +25,24 @@ class ListDetailScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.play_arrow),
-            tooltip: 'Study',
-            onPressed: () => context.go('/lists/$listId/quiz-setup'),
+            icon: const Icon(Icons.ios_share_outlined),
+            tooltip: 'Export list',
+            onPressed: () => _exportList(context, ref),
           ),
         ],
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: FilledButton.icon(
+            icon: const Icon(Icons.play_arrow_rounded),
+            label: const Text('Start Study Session'),
+            onPressed: () => context.go('/lists/$listId/quiz-setup'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+            ),
+          ),
+        ),
       ),
       body: conceptsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -70,12 +85,29 @@ class ListDetailScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _exportList(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final listName = ref.read(listInfoProvider(listId)).valueOrNull?.name ?? listId;
+    final error = await ref
+        .read(listActionsProvider.notifier)
+        .exportList(listId, listName);
+    if (error != null) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(error),
+        backgroundColor: AppColors.secondary,
+      ));
+    }
+  }
+
   Future<void> _showAddWordDialog(BuildContext context, WidgetRef ref) async {
     final frCtrl = TextEditingController();
     final koCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    var quotaExceeded = false;
+
     await showDialog<void>(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         title: const Text('Add Word'),
         content: Form(
@@ -110,18 +142,28 @@ class ListDetailScreen extends ConsumerWidget {
           FilledButton(
             onPressed: () async {
               if (!(formKey.currentState?.validate() ?? false)) return;
-              await ref.read(listActionsProvider.notifier).addConcept(
-                    listId: listId,
-                    frWord: frCtrl.text.trim(),
-                    koWord: koCtrl.text.trim(),
-                  );
-              if (ctx.mounted) Navigator.pop(ctx);
+              final result =
+                  await ref.read(listActionsProvider.notifier).addConcept(
+                        listId: listId,
+                        frWord: frCtrl.text.trim(),
+                        koWord: koCtrl.text.trim(),
+                      );
+              if (!ctx.mounted) return;
+              if (result.isFailure &&
+                  result.exceptionOrNull is QuotaExceededException) {
+                quotaExceeded = true;
+                Navigator.pop(ctx);
+              } else if (result.isSuccess) {
+                Navigator.pop(ctx);
+              }
             },
             child: const Text('Add'),
           ),
         ],
       ),
     );
+
+    if (quotaExceeded && context.mounted) context.push('/paywall');
   }
 }
 

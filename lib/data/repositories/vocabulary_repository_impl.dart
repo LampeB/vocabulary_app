@@ -17,12 +17,19 @@ import 'package:drift/drift.dart' show Value;
 const _uuid = Uuid();
 
 class VocabularyRepositoryImpl implements VocabularyRepository {
-  VocabularyRepositoryImpl(this._listDao, this._conceptDao, this._remote, this._userId);
+  VocabularyRepositoryImpl(
+    this._listDao,
+    this._conceptDao,
+    this._remote,
+    this._userId,
+    this._database,
+  );
 
   final VocabularyListDao _listDao;
   final ConceptDao _conceptDao;
   final VocabularyRemoteDataSource _remote;
   final String _userId;
+  final AppDatabase _database;
 
   @override
   Stream<List<VocabularyList>> watchMyLists() =>
@@ -142,6 +149,66 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   }
 
   @override
+  Future<Result<Concept>> addConceptWithVariants({
+    required String listId,
+    required String frWord,
+    required String koWord,
+    String? notes,
+    String? category,
+  }) async {
+    final now = DateTime.now();
+    final concept = Concept(
+      id: _uuid.v4(),
+      listId: listId,
+      category: category,
+      notes: notes,
+      createdAt: now,
+      updatedAt: now,
+    );
+    final frVariant = WordVariant(
+      id: _uuid.v4(),
+      conceptId: concept.id,
+      word: frWord,
+      langCode: 'fr',
+      isPrimary: true,
+      createdAt: now,
+      updatedAt: now,
+    );
+    final koVariant = WordVariant(
+      id: _uuid.v4(),
+      conceptId: concept.id,
+      word: koWord,
+      langCode: 'ko',
+      isPrimary: true,
+      createdAt: now,
+      updatedAt: now,
+    );
+    try {
+      await _database.transaction(() async {
+        await _conceptDao.upsert(ConceptsTableCompanion(
+          id: Value(concept.id),
+          listId: Value(concept.listId),
+          category: Value(concept.category),
+          notes: Value(concept.notes),
+          imageUrl: Value(concept.imageUrl),
+          exampleFr: Value(concept.exampleFr),
+          exampleKo: Value(concept.exampleKo),
+          createdAt: Value(concept.createdAt),
+          updatedAt: Value(concept.updatedAt),
+        ));
+        await _conceptDao.upsertVariant(frVariant.toLocalCompanion());
+        await _conceptDao.upsertVariant(koVariant.toLocalCompanion());
+      });
+      print('[addConceptWithVariants] committed conceptId=${concept.id} frId=${frVariant.id} koId=${koVariant.id} listId=$listId');
+      unawaited(_updateWordCount(listId, 1));
+      return Success(concept);
+    } catch (e) {
+      print('[addConceptWithVariants] FAILED: $e');
+      return Failure(StorageException(e.toString()));
+    }
+  }
+
+  @override
   Future<Result<Concept>> updateConcept(Concept concept) async {
     final updated = concept.copyWith(updatedAt: DateTime.now(), isSynced: false);
     try {
@@ -233,19 +300,185 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   }
 
   @override
-  Future<Result<VocabularyList>> importFromJson(Map<String, dynamic> json) async {
-    // Basic import — full implementation in Phase 7
-    return const Failure(UnknownException('Import not yet implemented'));
+  Future<Result<Map<String, dynamic>>> exportToJson(String listId) async {
+    try {
+      final listRow = await _listDao.getById(listId);
+      if (listRow == null) return const Failure(NotFoundException('List not found'));
+
+      final concepts = await _conceptDao.getConceptsByList(listId);
+      final conceptsJson = <Map<String, dynamic>>[];
+
+      for (final c in concepts) {
+        final variants = await _conceptDao.getVariantsByConcept(c.id);
+        conceptsJson.add({
+          'category': c.category,
+          'notes': c.notes,
+          'exampleFr': c.exampleFr,
+          'exampleKo': c.exampleKo,
+          'variants': variants
+              .map((v) => {
+                    'word': v.word,
+                    'langCode': v.langCode,
+                    'registerTag': v.registerTag,
+                    'isPrimary': v.isPrimary,
+                    'position': v.position,
+                  })
+              .toList(),
+        });
+      }
+
+      return Success({
+        'version': 1,
+        'exportedAt': DateTime.now().toIso8601String(),
+        'list': {
+          'name': listRow.name,
+          'description': listRow.description,
+          'concepts': conceptsJson,
+        },
+      });
+    } catch (e) {
+      return Failure(StorageException(e.toString()));
+    }
   }
 
   @override
-  Future<Result<Map<String, dynamic>>> exportToJson(String listId) async {
-    return const Failure(UnknownException('Export not yet implemented'));
+  Future<Result<VocabularyList>> importFromJson(Map<String, dynamic> json) async {
+    try {
+      final listData = json['list'] as Map<String, dynamic>?;
+      if (listData == null) {
+        return const Failure(ValidationException('Invalid export format'));
+      }
+
+      final now = DateTime.now();
+      final listId = _uuid.v4();
+      final name = listData['name'] as String? ?? 'Imported List';
+      final description = listData['description'] as String?;
+      final concepts =
+          (listData['concepts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+      // Atomic: if any concept/variant insert fails the whole import rolls back.
+      await _database.transaction(() async {
+        await _listDao.upsert(VocabularyListsTableCompanion(
+          id: Value(listId),
+          ownerId: Value(_userId),
+          name: Value(name),
+          description: Value(description),
+          wordCount: Value(concepts.length),
+          isSynced: const Value(false),
+          isDeleted: const Value(false),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+        ));
+
+        for (final cData in concepts) {
+          final conceptId = _uuid.v4();
+          await _conceptDao.upsert(ConceptsTableCompanion(
+            id: Value(conceptId),
+            listId: Value(listId),
+            category: Value(cData['category'] as String?),
+            notes: Value(cData['notes'] as String?),
+            exampleFr: Value(cData['exampleFr'] as String?),
+            exampleKo: Value(cData['exampleKo'] as String?),
+            isDeleted: const Value(false),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+          ));
+
+          final variants =
+              (cData['variants'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          for (final vData in variants) {
+            await _conceptDao.upsertVariant(WordVariantsTableCompanion(
+              id: Value(_uuid.v4()),
+              conceptId: Value(conceptId),
+              word: Value(vData['word'] as String? ?? ''),
+              langCode: Value(vData['langCode'] as String? ?? 'fr'),
+              registerTag: Value(vData['registerTag'] as String? ?? 'neutral'),
+              isPrimary: Value(vData['isPrimary'] as bool? ?? false),
+              position: Value(vData['position'] as int? ?? 0),
+              isDeleted: const Value(false),
+              createdAt: Value(now),
+              updatedAt: Value(now),
+            ));
+          }
+        }
+      });
+
+      final imported = VocabularyList(
+        id: listId,
+        ownerId: _userId,
+        name: name,
+        description: description,
+        wordCount: concepts.length,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      unawaited(_remote.upsertList(imported.toRemoteMap()));
+      return Success(imported);
+    } catch (e) {
+      return Failure(StorageException(e.toString()));
+    }
   }
 
   @override
   Future<Result<String>> generateShareLink(String listId) async {
-    return const Failure(UnknownException('Share link not yet implemented'));
+    try {
+      final token = _uuid.v4().replaceAll('-', '');
+      await _listDao.setShareToken(listId, token);
+      unawaited(_remote.upsertList({
+        'id': listId,
+        'share_token': token,
+        'visibility': 'public',
+        'updated_at': DateTime.now().toIso8601String(),
+      }));
+      return Success('vocabkr://import?token=$token');
+    } catch (e) {
+      return Failure(StorageException(e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<VocabularyList>> importFromShareToken(String token) async {
+    // Return existing local copy if already imported (dedup by share token).
+    final existing = await _listDao.getByShareToken(token);
+    if (existing != null) return Success(existing.toDomain());
+
+    final remoteResult = await _remote.fetchPublicListByToken(token);
+    if (remoteResult case Failure(:final exception)) return Failure(exception);
+    final data = (remoteResult as Success).value;
+    if (data == null) return const Failure(NotFoundException('Shared list not found'));
+
+    final remoteConcepts = (data['concepts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final conceptsJson = remoteConcepts.map((c) {
+      final variants = (c['word_variants'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      return {
+        'category': c['category'],
+        'notes': c['notes'],
+        'exampleFr': c['example_fr'],
+        'exampleKo': c['example_ko'],
+        'variants': variants.map((v) => {
+          'word': v['word'],
+          'langCode': v['lang_code'],
+          'registerTag': v['register_tag'],
+          'isPrimary': v['is_primary'],
+          'position': v['position'],
+        }).toList(),
+      };
+    }).toList();
+
+    final importResult = await importFromJson({
+      'list': {
+        'name': data['name'],
+        'description': data['description'],
+        'concepts': conceptsJson,
+      },
+    });
+
+    if (importResult case Success(:final value)) {
+      // Tag the imported list with the share token for future dedup.
+      unawaited(_listDao.setShareToken(value.id, token));
+    }
+    return importResult;
   }
 
   @override

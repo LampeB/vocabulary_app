@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import '../../domain/entities/app_user.dart';
+import '../../domain/entities/subscription_type.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../core/errors/failure.dart';
 import '../../core/errors/app_exception.dart';
@@ -33,7 +34,18 @@ class AuthRepositoryImpl implements AuthRepository {
         final profile = await _remote.getProfile(user.id);
         return profile.fold(
           onSuccess: (p) => Success(_mapUserWithProfile(user, p)),
-          onFailure: (_) => Success(_mapUser(user)),
+          onFailure: (_) async {
+            // Profile row missing — create it now (e.g. account pre-dates trigger).
+            final username = _safeUsername(
+                user.userMetadata?['username'] as String?,
+                user.email);
+            await _remote.upsertProfile({
+              'id': user.id,
+              'username': username,
+              'display_name': username,
+            });
+            return Success(_mapUser(user));
+          },
         );
       },
       onFailure: (e) => Failure(e),
@@ -108,8 +120,25 @@ class AuthRepositoryImpl implements AuthRepository {
     final profile = await _remote.getProfile(user.id);
     return profile.fold(
       onSuccess: (p) => Success(_mapUserWithProfile(user, p)),
-      onFailure: (e) => Failure(e),
+      onFailure: (_) async {
+        // Auto-create missing profile row.
+        final username = _safeUsername(
+            user.userMetadata?['username'] as String?,
+            user.email);
+        await _remote.upsertProfile({
+          'id': user.id,
+          'username': username,
+          'display_name': username,
+        });
+        return Success(_mapUser(user));
+      },
     );
+  }
+
+  // Ensures username meets DB minimum length of 3 chars.
+  static String _safeUsername(String? fromMeta, String? email) {
+    final raw = fromMeta ?? email?.split('@').first ?? 'user';
+    return raw.length >= 3 ? raw : raw.padRight(3, '_');
   }
 
   @override
@@ -143,7 +172,8 @@ class AuthRepositoryImpl implements AuthRepository {
         totalWordsMastered: profile['total_words_mastered'] as int? ?? 0,
         currentStreak: profile['current_streak'] as int? ?? 0,
         longestStreak: profile['longest_streak'] as int? ?? 0,
-        isPremium: profile['is_premium'] as bool? ?? false,
+        subscriptionType: SubscriptionType.fromString(
+            profile['subscription_type'] as String?),
         createdAt: DateTime.tryParse(user.createdAt) ?? DateTime.now(),
       );
 }

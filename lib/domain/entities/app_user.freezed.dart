@@ -30,7 +30,8 @@ mixin _$AppUser {
   int get currentStreak => throw _privateConstructorUsedError;
   int get longestStreak => throw _privateConstructorUsedError;
   DateTime? get lastStudyDate => throw _privateConstructorUsedError;
-  bool get isPremium => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: _subscriptionTypeFromJson, toJson: _subscriptionTypeToJson)
+  SubscriptionType get subscriptionType => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
 
   /// Serializes this AppUser to a JSON map.
@@ -58,7 +59,9 @@ abstract class $AppUserCopyWith<$Res> {
       int currentStreak,
       int longestStreak,
       DateTime? lastStudyDate,
-      bool isPremium,
+      @JsonKey(
+          fromJson: _subscriptionTypeFromJson, toJson: _subscriptionTypeToJson)
+      SubscriptionType subscriptionType,
       DateTime createdAt});
 }
 
@@ -87,7 +90,7 @@ class _$AppUserCopyWithImpl<$Res, $Val extends AppUser>
     Object? currentStreak = null,
     Object? longestStreak = null,
     Object? lastStudyDate = freezed,
-    Object? isPremium = null,
+    Object? subscriptionType = null,
     Object? createdAt = null,
   }) {
     return _then(_value.copyWith(
@@ -131,10 +134,10 @@ class _$AppUserCopyWithImpl<$Res, $Val extends AppUser>
           ? _value.lastStudyDate
           : lastStudyDate // ignore: cast_nullable_to_non_nullable
               as DateTime?,
-      isPremium: null == isPremium
-          ? _value.isPremium
-          : isPremium // ignore: cast_nullable_to_non_nullable
-              as bool,
+      subscriptionType: null == subscriptionType
+          ? _value.subscriptionType
+          : subscriptionType // ignore: cast_nullable_to_non_nullable
+              as SubscriptionType,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -161,7 +164,9 @@ abstract class _$$AppUserImplCopyWith<$Res> implements $AppUserCopyWith<$Res> {
       int currentStreak,
       int longestStreak,
       DateTime? lastStudyDate,
-      bool isPremium,
+      @JsonKey(
+          fromJson: _subscriptionTypeFromJson, toJson: _subscriptionTypeToJson)
+      SubscriptionType subscriptionType,
       DateTime createdAt});
 }
 
@@ -188,7 +193,7 @@ class __$$AppUserImplCopyWithImpl<$Res>
     Object? currentStreak = null,
     Object? longestStreak = null,
     Object? lastStudyDate = freezed,
-    Object? isPremium = null,
+    Object? subscriptionType = null,
     Object? createdAt = null,
   }) {
     return _then(_$AppUserImpl(
@@ -232,10 +237,10 @@ class __$$AppUserImplCopyWithImpl<$Res>
           ? _value.lastStudyDate
           : lastStudyDate // ignore: cast_nullable_to_non_nullable
               as DateTime?,
-      isPremium: null == isPremium
-          ? _value.isPremium
-          : isPremium // ignore: cast_nullable_to_non_nullable
-              as bool,
+      subscriptionType: null == subscriptionType
+          ? _value.subscriptionType
+          : subscriptionType // ignore: cast_nullable_to_non_nullable
+              as SubscriptionType,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -258,7 +263,9 @@ class _$AppUserImpl implements _AppUser {
       this.currentStreak = 0,
       this.longestStreak = 0,
       this.lastStudyDate,
-      this.isPremium = false,
+      @JsonKey(
+          fromJson: _subscriptionTypeFromJson, toJson: _subscriptionTypeToJson)
+      this.subscriptionType = SubscriptionType.free,
       required this.createdAt});
 
   factory _$AppUserImpl.fromJson(Map<String, dynamic> json) =>
@@ -288,14 +295,14 @@ class _$AppUserImpl implements _AppUser {
   @override
   final DateTime? lastStudyDate;
   @override
-  @JsonKey()
-  final bool isPremium;
+  @JsonKey(fromJson: _subscriptionTypeFromJson, toJson: _subscriptionTypeToJson)
+  final SubscriptionType subscriptionType;
   @override
   final DateTime createdAt;
 
   @override
   String toString() {
-    return 'AppUser(id: $id, email: $email, username: $username, displayName: $displayName, avatarUrl: $avatarUrl, bio: $bio, totalWordsMastered: $totalWordsMastered, currentStreak: $currentStreak, longestStreak: $longestStreak, lastStudyDate: $lastStudyDate, isPremium: $isPremium, createdAt: $createdAt)';
+    return 'AppUser(id: $id, email: $email, username: $username, displayName: $displayName, avatarUrl: $avatarUrl, bio: $bio, totalWordsMastered: $totalWordsMastered, currentStreak: $currentStreak, longestStreak: $longestStreak, lastStudyDate: $lastStudyDate, subscriptionType: $subscriptionType, createdAt: $createdAt)';
   }
 
   @override
@@ -320,8 +327,8 @@ class _$AppUserImpl implements _AppUser {
                 other.longestStreak == longestStreak) &&
             (identical(other.lastStudyDate, lastStudyDate) ||
                 other.lastStudyDate == lastStudyDate) &&
-            (identical(other.isPremium, isPremium) ||
-                other.isPremium == isPremium) &&
+            (identical(other.subscriptionType, subscriptionType) ||
+                other.subscriptionType == subscriptionType) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt));
   }
@@ -340,7 +347,7 @@ class _$AppUserImpl implements _AppUser {
       currentStreak,
       longestStreak,
       lastStudyDate,
-      isPremium,
+      subscriptionType,
       createdAt);
 
   /// Create a copy of AppUser
@@ -371,7 +378,9 @@ abstract class _AppUser implements AppUser {
       final int currentStreak,
       final int longestStreak,
       final DateTime? lastStudyDate,
-      final bool isPremium,
+      @JsonKey(
+          fromJson: _subscriptionTypeFromJson, toJson: _subscriptionTypeToJson)
+      final SubscriptionType subscriptionType,
       required final DateTime createdAt}) = _$AppUserImpl;
 
   factory _AppUser.fromJson(Map<String, dynamic> json) = _$AppUserImpl.fromJson;
@@ -397,7 +406,8 @@ abstract class _AppUser implements AppUser {
   @override
   DateTime? get lastStudyDate;
   @override
-  bool get isPremium;
+  @JsonKey(fromJson: _subscriptionTypeFromJson, toJson: _subscriptionTypeToJson)
+  SubscriptionType get subscriptionType;
   @override
   DateTime get createdAt;
 

@@ -35,11 +35,13 @@ class ProgressRepositoryImpl implements ProgressRepository {
       final questionLang = direction == QuizDirection.frToKo ? 'fr' : 'ko';
 
       final concepts = await _conceptDao.getConceptsByList(listId);
+      print('[getDueCards] listId=$listId concepts=${concepts.length}');
       if (concepts.isEmpty) return const Success([]);
 
       final conceptIds = concepts.map((c) => c.id).toList();
       final questionVariants = await _conceptDao.getVariantsByConceptIds(
           conceptIds, questionLang);
+      print('[getDueCards] questionVariants($questionLang)=${questionVariants.length}');
       if (questionVariants.isEmpty) return const Success([]);
 
       final allVariantIds = questionVariants.map((v) => v.id).toList();

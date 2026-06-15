@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,8 +17,24 @@ import 'presentation/screens/social/social_screen.dart';
 import 'presentation/screens/profile/profile_screen.dart';
 import 'presentation/screens/paywall/paywall_screen.dart';
 import 'presentation/screens/notifications/notification_settings_screen.dart';
+import 'presentation/screens/import/import_from_link_screen.dart';
+import 'presentation/screens/settings/settings_screen.dart';
 import 'presentation/providers/quiz/quiz_provider.dart' show QuizArgs;
+import 'presentation/providers/settings/settings_provider.dart';
 import 'presentation/widgets/app_shell.dart';
+
+// Set via --dart-define-from-file in integration tests to skip page-transition
+// animations, which cause mid-layout semantics errors in the test framework.
+const _kTestMode = bool.fromEnvironment('TEST_MODE');
+
+class _NoAnimationPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _NoAnimationPageTransitionsBuilder();
+  @override
+  Widget buildTransitions<T>(PageRoute<T> route, BuildContext context,
+          Animation<double> animation, Animation<double> secondaryAnimation,
+          Widget child) =>
+      child;
+}
 
 class VocabKrApp extends ConsumerStatefulWidget {
   const VocabKrApp({super.key});
@@ -26,20 +43,48 @@ class VocabKrApp extends ConsumerStatefulWidget {
   ConsumerState<VocabKrApp> createState() => _VocabKrAppState();
 }
 
+
 class _VocabKrAppState extends ConsumerState<VocabKrApp> {
   late final GoRouter _router;
   late final _AuthChangeNotifier _authNotifier;
+  late final AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSub;
 
   @override
   void initState() {
     super.initState();
-    _authNotifier =
-        _AuthChangeNotifier(Supabase.instance.client);
+    _authNotifier = _AuthChangeNotifier(Supabase.instance.client);
     _router = _buildRouter();
+    _initDeepLinks();
+  }
+
+  void _initDeepLinks() {
+    _appLinks = AppLinks();
+    // Handle initial link (app was cold-started from a link).
+    _appLinks.getInitialLink().then(_handleLink);
+    // Handle links while app is already running.
+    _linkSub = _appLinks.uriLinkStream.listen(_handleLink);
+  }
+
+  void _handleLink(Uri? uri) {
+    if (uri == null) return;
+    // Supabase auth callback: vocabkr://auth/callback?...
+    if (uri.scheme == 'vocabkr' && uri.host == 'auth') {
+      Supabase.instance.client.auth.getSessionFromUrl(uri);
+      return;
+    }
+    // Shared list import: vocabkr://import?token=...
+    if (uri.scheme == 'vocabkr' && uri.host == 'import') {
+      final token = uri.queryParameters['token'];
+      if (token != null && token.isNotEmpty) {
+        _router.push('/import?token=$token');
+      }
+    }
   }
 
   @override
   void dispose() {
+    _linkSub?.cancel();
     _authNotifier.dispose();
     _router.dispose();
     super.dispose();
@@ -61,6 +106,10 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
           }
           return null;
         },
+        errorBuilder: (_, state) => Scaffold(
+          appBar: AppBar(),
+          body: Center(child: Text('Page not found: ${state.error}')),
+        ),
         routes: [
           GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
           GoRoute(path: '/welcome', builder: (_, __) => const WelcomeScreen()),
@@ -106,18 +155,37 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
                   path: '/notifications',
                   builder: (_, __) =>
                       const NotificationSettingsScreen()),
+              GoRoute(
+                  path: '/settings',
+                  builder: (_, __) => const SettingsScreen()),
             ],
+          ),
+          GoRoute(
+            path: '/import',
+            builder: (_, state) {
+              final token = state.uri.queryParameters['token'] ?? '';
+              return ImportFromLinkScreen(token: token);
+            },
           ),
         ],
       );
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = ref.watch(themeModeProvider);
+    const noTransitions = PageTransitionsTheme(builders: {
+      TargetPlatform.android: _NoAnimationPageTransitionsBuilder(),
+      TargetPlatform.iOS: _NoAnimationPageTransitionsBuilder(),
+    });
     return MaterialApp.router(
       title: 'VocabKR',
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
+      theme: _kTestMode
+          ? AppTheme.light.copyWith(pageTransitionsTheme: noTransitions)
+          : AppTheme.light,
+      darkTheme: _kTestMode
+          ? AppTheme.dark.copyWith(pageTransitionsTheme: noTransitions)
+          : AppTheme.dark,
+      themeMode: themeMode,
       routerConfig: _router,
       debugShowCheckedModeBanner: false,
     );

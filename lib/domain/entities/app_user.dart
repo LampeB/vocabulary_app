@@ -1,7 +1,12 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'subscription_type.dart';
 
 part 'app_user.freezed.dart';
 part 'app_user.g.dart';
+
+SubscriptionType _subscriptionTypeFromJson(String? v) =>
+    SubscriptionType.fromString(v);
+String _subscriptionTypeToJson(SubscriptionType t) => t.name;
 
 @freezed
 class AppUser with _$AppUser {
@@ -16,9 +21,15 @@ class AppUser with _$AppUser {
     @Default(0) int currentStreak,
     @Default(0) int longestStreak,
     DateTime? lastStudyDate,
-    @Default(false) bool isPremium,
+    @JsonKey(
+      fromJson: _subscriptionTypeFromJson,
+      toJson: _subscriptionTypeToJson,
+    )
+    @Default(SubscriptionType.free)
+    SubscriptionType subscriptionType,
     required DateTime createdAt,
   }) = _AppUser;
 
-  factory AppUser.fromJson(Map<String, dynamic> json) => _$AppUserFromJson(json);
+  factory AppUser.fromJson(Map<String, dynamic> json) =>
+      _$AppUserFromJson(json);
 }

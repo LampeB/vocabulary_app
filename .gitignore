@@ -23,6 +23,19 @@ migrate_working_dir/
 # is commented out by default.
 #.vscode/
 
+# Secrets — env files may contain test credentials; commit only the .example template
+.env.json
+test*.env.json
+
+# Test output
+quiz_test_out.txt
+
+# Pub packages checked out locally
+/packages/
+
+# Android build artifacts (beyond the default /build/ exclusion)
+/android/build/
+
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id

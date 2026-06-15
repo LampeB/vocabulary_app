@@ -26,13 +26,13 @@ packages:
     source: hosted
     version: "0.13.4"
   app_links:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: app_links
-      sha256: "3462d9defc61565fde4944858b59bec5be2b9d5b05f20aed190adb3ad08a7abc"
+      sha256: "5f88447519add627fe1cbcab4fd1da3d4fed15b9baf29f28b22535c95ecee3e8"
       url: "https://pub.dev"
     source: hosted
-    version: "7.0.0"
+    version: "6.4.1"
   app_links_linux:
     dependency: transitive
     description:
@@ -385,6 +385,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.14"
+  dispose_scope:
+    dependency: transitive
+    description:
+      name: dispose_scope
+      sha256: "48ec38ca2631c53c4f8fa96b294c801e55c335db5e3fb9f82cede150cfe5a2af"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.0"
   drift:
     dependency: "direct main"
     description:
@@ -409,6 +417,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.7"
+  equatable:
+    dependency: transitive
+    description:
+      name: equatable
+      sha256: "3e0141505477fd8ad55d6eb4e7776d3fe8430be8e497ccb1521370c3f21a3e2b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.8"
   fake_async:
     dependency: transitive
     description:
@@ -728,6 +744,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.2"
+  in_app_review:
+    dependency: "direct main"
+    description:
+      name: in_app_review
+      sha256: "364db0c160b37fe7fad9cdaa18f968473924b17368869010af902760421b6bf8"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.12"
+  in_app_review_platform_interface:
+    dependency: transitive
+    description:
+      name: in_app_review_platform_interface
+      sha256: fed2c755f2125caa9ae10495a3c163aa7fab5af3585a9c62ef4a6920c5b45f10
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.5"
   io:
     dependency: transitive
     description:
@@ -960,6 +992,30 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
+  patrol:
+    dependency: "direct dev"
+    description:
+      name: patrol
+      sha256: f43fda9425e90c0e69d2dac9e495e3a3036a22a550466365b4720fa4dd53d6ae
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.6.1"
+  patrol_finders:
+    dependency: transitive
+    description:
+      name: patrol_finders
+      sha256: "34e75a59df653dc9e6fc6c0caa469b950b18aaa538aaf859f756b52f937f0da8"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.5.0"
+  patrol_log:
+    dependency: transitive
+    description:
+      name: patrol_log
+      sha256: "16ab747b28621640115d9493138eae82a1d410a613857cb0caf9000ce62fc546"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.9.0"
   petitparser:
     dependency: transitive
     description:
@@ -1097,13 +1153,12 @@ packages:
     source: hosted
     version: "1.2.2"
   record_linux:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: record_linux
-      sha256: "74d41a9ebb1eb498a38e9a813dd524e8f0b4fdd627270bda9756f437b110a3e3"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.7.2"
+      path: "packages/record_linux"
+      relative: true
+    source: path
+    version: "0.7.3"
   record_platform_interface:
     dependency: transitive
     description:
@@ -1269,6 +1324,14 @@ packages:
     description:
       name: shelf_web_socket
       sha256: "3632775c8e90d6c9712f883e633716432a27758216dfb61bd86a8321c0580925"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.0"
+  shimmer:
+    dependency: "direct main"
+    description:
+      name: shimmer
+      sha256: "5f88c883a22e9f9f299e5ba0e4f7e6054857224976a5d9f839d4ebdc94a14ac9"
       url: "https://pub.dev"
     source: hosted
     version: "3.0.0"

@@ -10,6 +10,8 @@ import '../../../services/speech/speech_recognition_service.dart';
 import '../../../services/audio/sound_effects_service.dart';
 import '../../widgets/mic_button.dart';
 
+const _kSimulateSpeech = String.fromEnvironment('SIMULATE_SPEECH');
+
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({super.key, required this.args});
   final QuizArgs args;
@@ -34,9 +36,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _flashColor =
         ColorTween(begin: Colors.transparent, end: Colors.transparent)
             .animate(_flashCtrl);
-    _stt.initialize();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(quizProvider.notifier).loadCards(widget.args);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Skip STT initialization when speech is simulated — the real engine
+      // hangs on emulators and blocks loadCards from ever being called.
+      if (_kSimulateSpeech.isEmpty) await _stt.initialize();
+      if (mounted) ref.read(quizProvider.notifier).loadCards(widget.args);
     });
   }
 
@@ -65,6 +69,22 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   Future<void> _startListening(QuizCard card) async {
     ref.read(quizProvider.notifier).setListening(true);
+
+    if (_kSimulateSpeech.isNotEmpty) {
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (!mounted) return;
+      final answer = switch (_kSimulateSpeech) {
+        'correct' => card.answerWords.isNotEmpty ? card.answerWords.first : '',
+        'wrong'   => '__wrong__',
+        _         => '', // 'empty' or anything else → fails validation
+      };
+      ref.read(quizProvider.notifier).submitVoiceAnswer(
+        answer,
+        isDrivingMode: widget.args.mode == QuizMode.handsFree,
+      );
+      return;
+    }
+
     final langCode =
         widget.args.direction == QuizDirection.koToFr ? 'fr' : 'ko';
     await _stt.startListening(
@@ -86,10 +106,24 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final quizState = ref.watch(quizProvider);
 
     // Flash + sfx whenever answer state transitions from idle (typing & voice modes).
+    // In hands-free mode, also auto-start listening when a new card appears.
     ref.listen<QuizState>(quizProvider, (prev, next) {
       if (prev?.answerState == QuizAnswerState.idle &&
           next.answerState != QuizAnswerState.idle) {
         unawaited(_triggerFlash(next.answerState == QuizAnswerState.correct));
+      }
+      if (widget.args.mode == QuizMode.handsFree) {
+        final cardChanged = prev?.currentIndex != next.currentIndex;
+        final justLoaded = prev?.isLoading == true && !next.isLoading;
+        final card = next.currentCard;
+        if ((cardChanged || justLoaded) && card != null && !next.isComplete) {
+          // Small delay so TTS finishes playing the question before we listen.
+          Future.delayed(const Duration(milliseconds: 1500), () {
+            if (mounted && !_stt.isListening) {
+              unawaited(_startListening(card));
+            }
+          });
+        }
       }
     });
 
@@ -484,6 +518,7 @@ class _VoiceInput extends StatelessWidget {
                     ?.copyWith(color: AppColors.grey700)),
           ),
         MicButton(
+          key: const Key('mic_button'),
           isListening: isListening,
           answerState: answerState,
           onTap: onMicTap,

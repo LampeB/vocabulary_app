@@ -46,4 +46,13 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
           isSynced: const Value(false),
         ),
       );
+
+  Future<int> setShareToken(String listId, String token) =>
+      (update(vocabularyListsTable)..where((t) => t.id.equals(listId))).write(
+        VocabularyListsTableCompanion(
+          shareToken: Value(token),
+          isSynced: const Value(false),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
 }

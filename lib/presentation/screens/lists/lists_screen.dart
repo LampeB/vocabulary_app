@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../providers/lists/vocabulary_provider.dart';
+import '../../../core/errors/app_exception.dart';
+import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../widgets/mastery_bar.dart';
 
@@ -13,9 +16,29 @@ class ListsScreen extends ConsumerWidget {
     final listsAsync = ref.watch(myListsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Lists')),
+      appBar: AppBar(
+        title: const Text('My Lists'),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'import',
+                child: Row(children: [
+                  Icon(Icons.file_download_outlined, size: 18),
+                  SizedBox(width: 8),
+                  Text('Import List'),
+                ]),
+              ),
+            ],
+            onSelected: (v) async {
+              if (v == 'import') await _importList(context, ref);
+            },
+          ),
+        ],
+      ),
       body: listsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const _ListsShimmer(),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (lists) => lists.isEmpty
             ? Center(
@@ -69,6 +92,21 @@ class ListsScreen extends ConsumerWidget {
                                           Text('Rename'),
                                         ])),
                                     PopupMenuItem(
+                                        value: 'export',
+                                        child: Row(children: [
+                                          Icon(Icons.ios_share_outlined,
+                                              size: 18),
+                                          SizedBox(width: 8),
+                                          Text('Export'),
+                                        ])),
+                                    PopupMenuItem(
+                                        value: 'share',
+                                        child: Row(children: [
+                                          Icon(Icons.link_outlined, size: 18),
+                                          SizedBox(width: 8),
+                                          Text('Share Link'),
+                                        ])),
+                                    PopupMenuItem(
                                         value: 'delete',
                                         child: Row(children: [
                                           Icon(Icons.delete_outline,
@@ -83,6 +121,12 @@ class ListsScreen extends ConsumerWidget {
                                   onSelected: (v) async {
                                     if (v == 'rename') {
                                       await _showRenameDialog(
+                                          ctx, ref, list.id, list.name);
+                                    } else if (v == 'export') {
+                                      await _exportList(
+                                          ctx, ref, list.id, list.name);
+                                    } else if (v == 'share') {
+                                      await _generateAndShareLink(
                                           ctx, ref, list.id, list.name);
                                     } else if (v == 'delete') {
                                       await _confirmDelete(ctx, ref, list.id,
@@ -116,8 +160,56 @@ class ListsScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _importList(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await ref.read(listActionsProvider.notifier).importList();
+    if (result == null) return; // user cancelled
+    if (result.isFailure) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(result.exceptionOrNull?.message ?? 'Import failed'),
+        backgroundColor: AppColors.secondary,
+      ));
+    } else {
+      final list = result.valueOrNull!;
+      messenger.showSnackBar(SnackBar(
+        content:
+            Text('"${list.name}" imported — ${list.wordCount} words added'),
+      ));
+    }
+  }
+
+  Future<void> _exportList(
+      BuildContext context, WidgetRef ref, String listId, String listName) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final error = await ref
+        .read(listActionsProvider.notifier)
+        .exportList(listId, listName);
+    if (error != null) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(error),
+        backgroundColor: AppColors.secondary,
+      ));
+    }
+  }
+
+  Future<void> _generateAndShareLink(
+      BuildContext context, WidgetRef ref, String listId, String listName) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await ref
+        .read(listActionsProvider.notifier)
+        .generateAndShareLink(listId, listName);
+    if (result.isFailure) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(result.exceptionOrNull?.message ?? 'Failed to generate link'),
+        backgroundColor: AppColors.secondary,
+      ));
+    }
+  }
+
   Future<void> _showCreateDialog(BuildContext context, WidgetRef ref) async {
     final nameCtrl = TextEditingController();
+    var quotaExceeded = false;
+
     await showDialog<void>(
       context: context,
       builder: (ctx) => _ListNameDialog(
@@ -125,13 +217,29 @@ class ListsScreen extends ConsumerWidget {
         controller: nameCtrl,
         onConfirm: () async {
           if (nameCtrl.text.trim().isEmpty) return;
-          await ref
+          final result = await ref
               .read(listActionsProvider.notifier)
               .createList(nameCtrl.text.trim(), null);
-          if (ctx.mounted) Navigator.pop(ctx);
+          if (!ctx.mounted) return;
+          if (result.isFailure) {
+            if (result.exceptionOrNull is QuotaExceededException) {
+              quotaExceeded = true;
+              Navigator.pop(ctx);
+            } else {
+              ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                content: Text(
+                    result.exceptionOrNull?.message ?? 'Failed to create list'),
+                backgroundColor: AppColors.secondary,
+              ));
+            }
+          } else {
+            Navigator.pop(ctx);
+          }
         },
       ),
     );
+
+    if (quotaExceeded && context.mounted) context.push('/paywall');
   }
 
   Future<void> _showRenameDialog(
@@ -178,6 +286,39 @@ class ListsScreen extends ConsumerWidget {
     if (confirmed == true) {
       await ref.read(listActionsProvider.notifier).deleteList(listId);
     }
+  }
+}
+
+class _ListsShimmer extends StatelessWidget {
+  const _ListsShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Shimmer.fromColors(
+      baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+      highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+        itemCount: 4,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (_, __) => Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(height: 16, width: 160, color: Colors.white),
+                const SizedBox(height: 10),
+                Container(height: 12, width: 80, color: Colors.white),
+                const SizedBox(height: 14),
+                Container(height: 6, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(3))),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -21,6 +21,13 @@ abstract interface class VocabularyRepository {
     String? exampleFr,
     String? exampleKo,
   });
+  Future<Result<Concept>> addConceptWithVariants({
+    required String listId,
+    required String frWord,
+    required String koWord,
+    String? notes,
+    String? category,
+  });
   Future<Result<Concept>> updateConcept(Concept concept);
   Future<Result<void>> deleteConcept(String conceptId);
 
@@ -40,6 +47,7 @@ abstract interface class VocabularyRepository {
   Future<Result<VocabularyList>> importFromJson(Map<String, dynamic> json);
   Future<Result<Map<String, dynamic>>> exportToJson(String listId);
   Future<Result<String>> generateShareLink(String listId);
+  Future<Result<VocabularyList>> importFromShareToken(String token);
 
   // Sync
   Future<void> syncFromRemote();

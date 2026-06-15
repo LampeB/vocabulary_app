@@ -1,5 +1,7 @@
 import 'dart:async' show unawaited;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:in_app_review/in_app_review.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../data/repositories/progress_repository_impl.dart';
 import '../../../domain/entities/variant_progress.dart';
 import '../../../domain/repositories/progress_repository.dart';
@@ -117,6 +119,9 @@ class QuizState {
       );
 }
 
+// Injected by test env files; false in production.
+const _kTestMode = bool.fromEnvironment('TEST_MODE');
+
 // ─── Providers ────────────────────────────────────────────────────────────────
 
 final progressRepositoryProvider = Provider<ProgressRepository>((ref) {
@@ -145,10 +150,12 @@ final quizProvider =
 class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   late final AudioPlayerService _audio;
   var _questionLang = 'fr';
+  var _alive = true;
 
   @override
   QuizState build() {
     _audio = ref.watch(audioPlayerServiceProvider);
+    ref.onDispose(() => _alive = false);
     return const QuizState();
   }
 
@@ -300,10 +307,32 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       state = state.copyWith(isListening: listening, partialTranscript: '');
 
   Future<void> _onSessionComplete() async {
+    if (_kTestMode || !_alive) return;
     await ref.read(authRepositoryProvider).updateStreak();
+    if (!_alive) return;
     await ref.read(authStateProvider.notifier).reloadProfile();
-    // User just studied — cancel any streak-at-risk warning for today.
+    if (!_alive) return;
     await ref.read(notificationServiceProvider).cancelStreakWarning();
+    unawaited(_maybeRequestReview());
+  }
+
+  static const _prefKeySessionCount = 'quiz_session_count';
+
+  Future<void> _maybeRequestReview() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final count = (prefs.getInt(_prefKeySessionCount) ?? 0) + 1;
+      await prefs.setInt(_prefKeySessionCount, count);
+      // Prompt at session 5 and every 25 thereafter.
+      if (count == 5 || (count > 5 && (count - 5) % 25 == 0)) {
+        final review = InAppReview.instance;
+        if (await review.isAvailable()) {
+          await review.requestReview();
+        }
+      }
+    } catch (_) {
+      // Review prompt is best-effort; swallow all errors.
+    }
   }
 
   Future<void> _persistRating(

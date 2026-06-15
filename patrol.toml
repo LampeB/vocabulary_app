@@ -1,0 +1,5 @@
+[general]
+app_id = "com.vocabkr.vocab_kr"
+
+[android]
+package_name = "com.vocabkr.vocab_kr"

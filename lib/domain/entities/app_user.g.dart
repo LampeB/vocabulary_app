@@ -20,7 +20,9 @@ _$AppUserImpl _$$AppUserImplFromJson(Map<String, dynamic> json) =>
       lastStudyDate: json['lastStudyDate'] == null
           ? null
           : DateTime.parse(json['lastStudyDate'] as String),
-      isPremium: json['isPremium'] as bool? ?? false,
+      subscriptionType: json['subscriptionType'] == null
+          ? SubscriptionType.free
+          : _subscriptionTypeFromJson(json['subscriptionType'] as String?),
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
 
@@ -36,6 +38,6 @@ Map<String, dynamic> _$$AppUserImplToJson(_$AppUserImpl instance) =>
       'currentStreak': instance.currentStreak,
       'longestStreak': instance.longestStreak,
       'lastStudyDate': instance.lastStudyDate?.toIso8601String(),
-      'isPremium': instance.isPremium,
+      'subscriptionType': _subscriptionTypeToJson(instance.subscriptionType),
       'createdAt': instance.createdAt.toIso8601String(),
     };

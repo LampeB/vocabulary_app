@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "exportedAt": "2026-06-14T12:00:00.000Z",
+  "list": {
+    "name": "Basics – Greetings",
+    "description": "Essential French-Korean greetings and everyday phrases",
+    "concepts": [
+      {
+        "category": "greeting",
+        "notes": null,
+        "exampleFr": "Bonjour, comment ça va ?",
+        "exampleKo": "안녕하세요, 어떻게 지내세요?",
+        "variants": [
+          { "word": "Bonjour", "langCode": "fr", "registerTag": "neutral", "isPrimary": true, "position": 0 },
+          { "word": "안녕하세요", "langCode": "ko", "registerTag": "formal", "isPrimary": true, "position": 0 },
+          { "word": "안녕", "langCode": "ko", "registerTag": "informal", "isPrimary": false, "position": 1 }
+        ]
+      },
+      {
+        "category": "greeting",
+        "notes": null,
+        "exampleFr": "Au revoir, à bientôt !",
+        "exampleKo": "안녕히 가세요, 곧 봐요!",
+        "variants": [
+          { "word": "Au revoir", "langCode": "fr", "registerTag": "neutral", "isPrimary": true, "position": 0 },
+          { "word": "안녕히 가세요", "langCode": "ko", "registerTag": "formal", "isPrimary": true, "position": 0 },
+          { "word": "잘 가", "langCode": "ko", "registerTag": "informal", "isPrimary": false, "position": 1 }
+        ]
+      },
+      {
+        "category": "courtesy",
+        "notes": "Use 감사합니다 in formal settings, 고마워 with close friends",
+        "exampleFr": "Merci beaucoup pour votre aide.",
+        "exampleKo": "도움 주셔서 감사합니다.",
+        "variants": [
+          { "word": "Merci", "langCode": "fr", "registerTag": "neutral", "isPrimary": true, "position": 0 },
+          { "word": "감사합니다", "langCode": "ko", "registerTag": "formal", "isPrimary": true, "position": 0 },
+          { "word": "고마워", "langCode": "ko", "registerTag": "informal", "isPrimary": false, "position": 1 }
+        ]
+      },
+      {
+        "category": "courtesy",
+        "notes": null,
+        "exampleFr": "S'il vous plaît, pouvez-vous m'aider ?",
+        "exampleKo": "부탁드립니다, 도와주실 수 있나요?",
+        "variants": [
+          { "word": "S'il vous plaît", "langCode": "fr", "registerTag": "formal", "isPrimary": true, "position": 0 },
+          { "word": "S'il te plaît", "langCode": "fr", "registerTag": "informal", "isPrimary": false, "position": 1 },
+          { "word": "부탁드립니다", "langCode": "ko", "registerTag": "formal", "isPrimary": true, "position": 0 },
+          { "word": "부탁해", "langCode": "ko", "registerTag": "informal", "isPrimary": false, "position": 1 }
+        ]
+      },
+      {
+        "category": "courtesy",
+        "notes": null,
+        "exampleFr": "Excusez-moi, où est la gare ?",
+        "exampleKo": "실례합니다, 기차역이 어디예요?",
+        "variants": [
+          { "word": "Excusez-moi", "langCode": "fr", "registerTag": "formal", "isPrimary": true, "position": 0 },
+          { "word": "Excuse-moi", "langCode": "fr", "registerTag": "informal", "isPrimary": false, "position": 1 },
+          { "word": "실례합니다", "langCode": "ko", "registerTag": "formal", "isPrimary": true, "position": 0 }
+        ]
+      },
+      {
+        "category": "greeting",
+        "notes": "Used when meeting someone for the first time",
+        "exampleFr": "Enchanté de faire votre connaissance.",
+        "exampleKo": "만나서 반갑습니다.",
+        "variants": [
+          { "word": "Enchanté", "langCode": "fr", "registerTag": "neutral", "isPrimary": true, "position": 0 },
+          { "word": "만나서 반갑습니다", "langCode": "ko", "registerTag": "formal", "isPrimary": true, "position": 0 },
+          { "word": "반가워", "langCode": "ko", "registerTag": "informal", "isPrimary": false, "position": 1 }
+        ]
+      },
+      {
+        "category": "question",
+        "notes": null,
+        "exampleFr": "Comment vous appelez-vous ?",
+        "exampleKo": "이름이 뭐예요?",
+        "variants": [
+          { "word": "Comment vous appelez-vous ?", "langCode": "fr", "registerTag": "formal", "isPrimary": true, "position": 0 },
+          { "word": "Tu t'appelles comment ?", "langCode": "fr", "registerTag": "informal", "isPrimary": false, "position": 1 },
+          { "word": "이름이 뭐예요?", "langCode": "ko", "registerTag": "neutral", "isPrimary": true, "position": 0 }
+        ]
+      },
+      {
+        "category": "question",
+        "notes": "Common small-talk opener",
+        "exampleFr": "Comment allez-vous ?",
+        "exampleKo": "어떻게 지내세요?",
+        "variants": [
+          { "word": "Comment allez-vous ?", "langCode": "fr", "registerTag": "formal", "isPrimary": true, "position": 0 },
+          { "word": "Ça va ?", "langCode": "fr", "registerTag": "informal", "isPrimary": false, "position": 1 },
+          { "word": "어떻게 지내세요?", "langCode": "ko", "registerTag": "formal", "isPrimary": true, "position": 0 },
+          { "word": "잘 지내?", "langCode": "ko", "registerTag": "informal", "isPrimary": false, "position": 1 }
+        ]
+      },
+      {
+        "category": "response",
+        "notes": null,
+        "exampleFr": "Je vais bien, merci !",
+        "exampleKo": "잘 지내고 있어요, 감사합니다!",
+        "variants": [
+          { "word": "Je vais bien", "langCode": "fr", "registerTag": "neutral", "isPrimary": true, "position": 0 },
+          { "word": "잘 지내고 있어요", "langCode": "ko", "registerTag": "formal", "isPrimary": true, "position": 0 },
+          { "word": "잘 지내", "langCode": "ko", "registerTag": "informal", "isPrimary": false, "position": 1 }
+        ]
+      },
+      {
+        "category": "courtesy",
+        "notes": null,
+        "exampleFr": "Je suis désolé pour le retard.",
+        "exampleKo": "늦어서 죄송합니다.",
+        "variants": [
+          { "word": "Désolé", "langCode": "fr", "registerTag": "neutral", "isPrimary": true, "position": 0 },
+          { "word": "Je suis désolé", "langCode": "fr", "registerTag": "neutral", "isPrimary": false, "position": 1 },
+          { "word": "죄송합니다", "langCode": "ko", "registerTag": "formal", "isPrimary": true, "position": 0 },
+          { "word": "미안해", "langCode": "ko", "registerTag": "informal", "isPrimary": false, "position": 1 }
+        ]
+      }
+    ]
+  }
+}

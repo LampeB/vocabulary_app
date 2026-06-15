@@ -91,6 +91,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   const SizedBox(height: 16),
                 ],
                 TextFormField(
+                  key: const Key('email_field'),
                   controller: _emailCtrl,
                   decoration: const InputDecoration(
                     labelText: 'Email',
@@ -103,6 +104,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
+                  key: const Key('password_field'),
                   controller: _passwordCtrl,
                   decoration: InputDecoration(
                     labelText: 'Password',
@@ -125,6 +127,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 ],
                 const SizedBox(height: 24),
                 FilledButton(
+                  key: const Key('auth_submit_button'),
                   onPressed: isLoading ? null : _submit,
                   child: isLoading
                       ? const SizedBox(
