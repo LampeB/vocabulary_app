@@ -21,9 +21,11 @@ class DottedGround extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned.fill(
-      child: IgnorePointer(
-        child: CustomPaint(
-          painter: _DotPainter(dark: dark),
+      child: RepaintBoundary(
+        child: IgnorePointer(
+          child: CustomPaint(
+            painter: _DotPainter(dark: dark),
+          ),
         ),
       ),
     );

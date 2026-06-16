@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -135,33 +134,28 @@ class _VkBottomNav extends StatelessWidget {
             right: 0,
             bottom: 0,
             height: _kBarHeight + safeBottom,
-            child: ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Color(0xD1F6F1EA), // paper @ 82 %
-                    border: Border(
-                      top: BorderSide(color: AppColors.line, width: 1),
-                    ),
-                  ),
-                  padding: EdgeInsets.only(bottom: safeBottom),
-                  child: Row(
-                    children: [
-                      for (int i = 0; i < _slots.length; i++)
-                        if (_slots[i] == null)
-                          const Expanded(child: SizedBox()) // FAB gutter
-                        else
-                          Expanded(
-                            child: _NavTile(
-                              def: _slots[i]!,
-                              active: _slots[i]!.tabIndex == selectedIndex,
-                              onTap: () => onTap(i),
-                            ),
-                          ),
-                    ],
-                  ),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFAF6F1EA), // paper @ 98 %
+                border: Border(
+                  top: BorderSide(color: AppColors.line, width: 1),
                 ),
+              ),
+              padding: EdgeInsets.only(bottom: safeBottom),
+              child: Row(
+                children: [
+                  for (int i = 0; i < _slots.length; i++)
+                    if (_slots[i] == null)
+                      const Expanded(child: SizedBox()) // FAB gutter
+                    else
+                      Expanded(
+                        child: _NavTile(
+                          def: _slots[i]!,
+                          active: _slots[i]!.tabIndex == selectedIndex,
+                          onTap: () => onTap(i),
+                        ),
+                      ),
+                ],
               ),
             ),
           ),
