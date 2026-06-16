@@ -69,8 +69,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   Text(
                     'FR ↔ KO',
                     style: AppTextStyles.mono(14, FontWeight.w400).copyWith(
-                        color: Colors.white.withValues(alpha: 0.45)),
-                    letterSpacing: 3,
+                        color: Colors.white.withValues(alpha: 0.45),
+                        letterSpacing: 3),
                   ),
                 ],
               ),
