@@ -13,7 +13,10 @@ class SpeechRecognitionService {
   Future<bool> initialize() async {
     if (_initialized) return true;
     _initialized = await _speech.initialize(
-      onError: (SpeechRecognitionError e) => _isListening = false,
+      onError: (SpeechRecognitionError e) {
+        _isListening = false;
+        onListeningDone?.call();
+      },
       onStatus: (status) {
         if (status == 'notListening' || status == 'done') {
           _isListening = false;
