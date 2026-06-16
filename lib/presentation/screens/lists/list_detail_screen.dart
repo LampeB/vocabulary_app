@@ -5,6 +5,9 @@ import '../../providers/lists/vocabulary_provider.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../widgets/dotted_ground.dart';
+import '../../widgets/frosted_box.dart';
 
 class ListDetailScreen extends ConsumerWidget {
   const ListDetailScreen({super.key, required this.listId});
@@ -12,90 +15,126 @@ class ListDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final listAsync = ref.watch(listInfoProvider(listId));
+    final listAsync    = ref.watch(listInfoProvider(listId));
     final conceptsAsync = ref.watch(listDetailProvider(listId));
-    final tt = Theme.of(context).textTheme;
+
+    final listName = listAsync.valueOrNull?.name ?? '';
 
     return Scaffold(
+      backgroundColor: AppColors.paper,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: AppColors.ink, size: 20),
+          onPressed: () => context.pop(),
+        ),
         title: listAsync.when(
-          data: (l) => Text(l?.name ?? 'List'),
-          loading: () => const Text('...'),
-          error: (_, __) => const Text('List'),
+          data: (l) => Text(
+            l?.name ?? 'Liste',
+            style: AppTextStyles.grotesk(22, FontWeight.w700)
+                .copyWith(color: AppColors.ink),
+          ),
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const Text('Liste'),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.ios_share_outlined),
-            tooltip: 'Export list',
-            onPressed: () => _exportList(context, ref),
+            icon: const Icon(Icons.ios_share_outlined,
+                color: AppColors.muted, size: 22),
+            tooltip: 'Exporter',
+            onPressed: () => _exportList(context, ref, listName),
           ),
         ],
       ),
+      body: Stack(
+        children: [
+          const DottedGround(),
+          conceptsAsync.when(
+            loading: () => const Center(
+              child: CircularProgressIndicator(
+                  color: AppColors.clay, strokeWidth: 2),
+            ),
+            error: (e, _) => Center(
+              child: Text('$e',
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.rose)),
+            ),
+            data: (concepts) => concepts.isEmpty
+                ? _EmptyState(
+                    onAddTap: () => _showAddWordDialog(context, ref))
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                    itemCount: concepts.length,
+                    itemBuilder: (ctx, i) => _ConceptTile(
+                      key: Key(concepts[i].id),
+                      concept: concepts[i],
+                      listId: listId,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+      // Bottom action bar: start session + add word
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: FilledButton.icon(
-            icon: const Icon(Icons.play_arrow_rounded),
-            label: const Text('Start Study Session'),
-            onPressed: () => context.go('/lists/$listId/quiz-setup'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(52),
-            ),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          child: Row(
+            children: [
+              // Add word pill
+              GestureDetector(
+                onTap: () => _showAddWordDialog(context, ref),
+                child: FrostedBox(
+                  borderRadius: BorderRadius.circular(999),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 14),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.add, color: AppColors.muted, size: 18),
+                      const SizedBox(width: 6),
+                      Text('Ajouter',
+                          style: AppTextStyles.fig(14, FontWeight.w600)
+                              .copyWith(color: AppColors.muted)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Start session (primary CTA)
+              Expanded(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.play_arrow_rounded,
+                      color: Colors.white, size: 20),
+                  label: Text('Démarrer',
+                      style: AppTextStyles.fig(15, FontWeight.w700)
+                          .copyWith(color: Colors.white)),
+                  onPressed: () =>
+                      context.go('/lists/$listId/quiz-setup'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.clay,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(52),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-      ),
-      body: conceptsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('$e')),
-        data: (concepts) => concepts.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.menu_book_outlined,
-                        size: 64, color: AppColors.grey300),
-                    const SizedBox(height: 16),
-                    Text('No words yet',
-                        style: tt.titleMedium
-                            ?.copyWith(color: AppColors.grey500)),
-                    const SizedBox(height: 8),
-                    const Text('Tap + to add a word pair',
-                        style: TextStyle(color: AppColors.grey500)),
-                  ],
-                ),
-              )
-            : ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
-                itemCount: concepts.length,
-                itemBuilder: (ctx, i) {
-                  final concept = concepts[i];
-                  return _ConceptTile(
-                    key: Key(concept.id),
-                    concept: concept,
-                    listId: listId,
-                  );
-                },
-              ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddWordDialog(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Add Word'),
       ),
     );
   }
 
-  Future<void> _exportList(BuildContext context, WidgetRef ref) async {
+  Future<void> _exportList(
+      BuildContext context, WidgetRef ref, String listName) async {
     final messenger = ScaffoldMessenger.of(context);
-    final listName = ref.read(listInfoProvider(listId)).valueOrNull?.name ?? listId;
     final error = await ref
         .read(listActionsProvider.notifier)
-        .exportList(listId, listName);
+        .exportList(listId, listName.isEmpty ? listId : listName);
     if (error != null) {
-      messenger.showSnackBar(SnackBar(
-        content: Text(error),
-        backgroundColor: AppColors.secondary,
-      ));
+      messenger.showSnackBar(SnackBar(content: Text(error)));
     }
   }
 
@@ -109,7 +148,9 @@ class ListDetailScreen extends ConsumerWidget {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: const Text('Add Word'),
+        title: Text('Ajouter un mot',
+            style: AppTextStyles.grotesk(20, FontWeight.w700)
+                .copyWith(color: AppColors.ink)),
         content: Form(
           key: formKey,
           child: Column(
@@ -119,18 +160,18 @@ class ListDetailScreen extends ConsumerWidget {
                 controller: frCtrl,
                 autofocus: true,
                 decoration: const InputDecoration(
-                    labelText: 'French', prefixText: '🇫🇷 '),
+                    labelText: 'Français', prefixText: '🇫🇷  '),
                 textInputAction: TextInputAction.next,
                 validator: (v) =>
-                    (v?.trim().isEmpty ?? true) ? 'Required' : null,
+                    (v?.trim().isEmpty ?? true) ? 'Requis' : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: koCtrl,
                 decoration: const InputDecoration(
-                    labelText: 'Korean', prefixText: '🇰🇷 '),
+                    labelText: 'Coréen', prefixText: '🇰🇷  '),
                 validator: (v) =>
-                    (v?.trim().isEmpty ?? true) ? 'Required' : null,
+                    (v?.trim().isEmpty ?? true) ? 'Requis' : null,
               ),
             ],
           ),
@@ -138,7 +179,7 @@ class ListDetailScreen extends ConsumerWidget {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+              child: const Text('Annuler')),
           FilledButton(
             onPressed: () async {
               if (!(formKey.currentState?.validate() ?? false)) return;
@@ -157,7 +198,7 @@ class ListDetailScreen extends ConsumerWidget {
                 Navigator.pop(ctx);
               }
             },
-            child: const Text('Add'),
+            child: const Text('Ajouter'),
           ),
         ],
       ),
@@ -167,22 +208,27 @@ class ListDetailScreen extends ConsumerWidget {
   }
 }
 
+// ── Concept tile ──────────────────────────────────────────────────────────────
+
 class _ConceptTile extends ConsumerWidget {
-  const _ConceptTile({super.key, required this.concept, required this.listId});
+  const _ConceptTile(
+      {super.key, required this.concept, required this.listId});
   final dynamic concept;
   final String listId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final variantsAsync = ref.watch(variantsProvider(concept.id));
-    final tt = Theme.of(context).textTheme;
 
     return variantsAsync.when(
-      loading: () => const Card(
-          margin: EdgeInsets.only(bottom: 8),
-          child: Padding(
-              padding: EdgeInsets.all(16),
-              child: LinearProgressIndicator())),
+      loading: () => Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        height: 64,
+        decoration: BoxDecoration(
+          color: AppColors.line.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
       error: (_, __) => const SizedBox.shrink(),
       data: (variants) {
         final fr =
@@ -200,26 +246,34 @@ class _ConceptTile extends ConsumerWidget {
             alignment: Alignment.centerRight,
             padding: const EdgeInsets.only(right: 20),
             decoration: BoxDecoration(
-              color: AppColors.secondary,
+              color: AppColors.rose.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.delete_outline, color: Colors.white),
+            child: const Icon(Icons.delete_outline,
+                color: AppColors.rose),
           ),
           confirmDismiss: (_) => showDialog<bool>(
             context: context,
             builder: (ctx) => AlertDialog(
-              title: const Text('Delete word?'),
-              content:
-                  Text('Remove "$frWord / $koWord" from this list?'),
+              title: Text('Supprimer le mot ?',
+                  style: AppTextStyles.grotesk(20, FontWeight.w700)
+                      .copyWith(color: AppColors.ink)),
+              content: Text(
+                '« $frWord / $koWord » sera supprimé de cette liste.',
+                style:
+                    AppTextStyles.body.copyWith(color: AppColors.muted),
+              ),
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('Cancel')),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.secondary),
+                    child: const Text('Annuler')),
+                TextButton(
+                  style: TextButton.styleFrom(
+                      foregroundColor: AppColors.rose),
                   onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Delete'),
+                  child: Text('Supprimer',
+                      style: AppTextStyles.fig(14, FontWeight.w600)
+                          .copyWith(color: AppColors.rose)),
                 ),
               ],
             ),
@@ -229,32 +283,111 @@ class _ConceptTile extends ConsumerWidget {
                 .read(listActionsProvider.notifier)
                 .deleteConcept(concept.id);
           },
-          child: Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: FrostedBox(
+              borderRadius: BorderRadius.circular(16),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 14),
               child: Row(
                 children: [
-                  const Text('🇫🇷', style: TextStyle(fontSize: 18)),
-                  const SizedBox(width: 8),
+                  // French side
                   Expanded(
-                    child:
-                        Text(frWord, style: tt.titleMedium),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('FR',
+                            style: AppTextStyles.eyebrowSm
+                                .copyWith(color: AppColors.teal)),
+                        const SizedBox(height: 2),
+                        Text(frWord,
+                            style: AppTextStyles.fig(
+                                    15, FontWeight.w600)
+                                .copyWith(color: AppColors.ink),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
                   ),
-                  const Icon(Icons.arrow_forward,
-                      color: AppColors.grey500, size: 16),
-                  const SizedBox(width: 8),
+                  // Divider
+                  Container(
+                    width: 1,
+                    height: 36,
+                    color: AppColors.line,
+                    margin: const EdgeInsets.symmetric(horizontal: 14),
+                  ),
+                  // Korean side
                   Expanded(
-                    child:
-                        Text(koWord, style: tt.titleMedium),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('KR',
+                            style: AppTextStyles.eyebrowSm
+                                .copyWith(color: AppColors.clay)),
+                        const SizedBox(height: 2),
+                        Text(koWord,
+                            style: AppTextStyles.kr(
+                                    16, FontWeight.w500)
+                                .copyWith(color: AppColors.ink),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
                   ),
-                  const Text('🇰🇷', style: TextStyle(fontSize: 18)),
                 ],
               ),
             ),
           ),
         );
       },
+    );
+  }
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.onAddTap});
+  final VoidCallback onAddTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.auto_stories_outlined,
+                size: 56, color: AppColors.faint),
+            const SizedBox(height: 16),
+            Text('Aucun mot pour l\'instant',
+                style: AppTextStyles.grotesk(20, FontWeight.w700)
+                    .copyWith(color: AppColors.ink)),
+            const SizedBox(height: 8),
+            Text(
+              'Ajoute des paires de mots pour commencer à étudier.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.body.copyWith(color: AppColors.muted),
+            ),
+            const SizedBox(height: 28),
+            GestureDetector(
+              onTap: onAddTap,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.clay,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text('Ajouter un mot',
+                    style: AppTextStyles.fig(15, FontWeight.w700)
+                        .copyWith(color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
