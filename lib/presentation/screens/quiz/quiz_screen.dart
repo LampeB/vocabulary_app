@@ -40,7 +40,20 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         ColorTween(begin: Colors.transparent, end: Colors.transparent)
             .animate(_flashCtrl);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (_kSimulateSpeech.isEmpty) await _stt.initialize();
+      if (_kSimulateSpeech.isEmpty) {
+        final ok = await _stt.initialize();
+        if (!ok && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Microphone non disponible — vérifie les permissions dans les réglages.'),
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+      }
+      // When STT finishes (timeout, error, no language pack), sync the quiz state.
+      _stt.onListeningDone = () {
+        if (mounted) ref.read(quizProvider.notifier).setListening(false);
+      };
       if (mounted) ref.read(quizProvider.notifier).loadCards(widget.args);
     });
   }
@@ -88,7 +101,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
     final langCode =
         widget.args.direction == QuizDirection.koToFr ? 'fr' : 'ko';
-    await _stt.startListening(
+    final ok = await _stt.startListening(
       langCode: langCode,
       onResult: (text) {
         ref.read(quizProvider.notifier).submitVoiceAnswer(
@@ -100,6 +113,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         ref.read(quizProvider.notifier).setPartialTranscript(text);
       },
     );
+    // If STT couldn't start (not initialised, no language pack, etc.) reset
+    // the listening state so the UI doesn't get permanently stuck.
+    if (!ok && mounted) {
+      ref.read(quizProvider.notifier).setListening(false);
+    }
   }
 
   @override
