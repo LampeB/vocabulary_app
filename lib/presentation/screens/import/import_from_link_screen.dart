@@ -4,16 +4,22 @@ import 'package:go_router/go_router.dart';
 import '../../providers/lists/vocabulary_provider.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../widgets/dotted_ground.dart';
+import '../../widgets/vk_waveform.dart';
 
 class ImportFromLinkScreen extends ConsumerStatefulWidget {
   const ImportFromLinkScreen({required this.token, super.key});
   final String token;
 
   @override
-  ConsumerState<ImportFromLinkScreen> createState() => _ImportFromLinkScreenState();
+  ConsumerState<ImportFromLinkScreen> createState() =>
+      _ImportFromLinkScreenState();
 }
 
-class _ImportFromLinkScreenState extends ConsumerState<ImportFromLinkScreen> {
+class _ImportFromLinkScreenState
+    extends ConsumerState<ImportFromLinkScreen> {
   @override
   void initState() {
     super.initState();
@@ -33,11 +39,13 @@ class _ImportFromLinkScreenState extends ConsumerState<ImportFromLinkScreen> {
       },
       onFailure: (e) {
         final message = e is NotFoundException
-            ? 'This shared list could not be found.'
-            : 'Failed to import list. Please try again.';
+            ? 'Liste introuvable — le lien est peut-être expiré.'
+            : 'Impossible d\'importer la liste. Réessaie.';
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
-          ..showSnackBar(SnackBar(content: Text(message)));
+          ..showSnackBar(SnackBar(
+              content: Text(message),
+              behavior: SnackBarBehavior.floating));
         if (context.canPop()) {
           context.pop();
         } else {
@@ -49,16 +57,31 @@ class _ImportFromLinkScreenState extends ConsumerState<ImportFromLinkScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Importing shared list…'),
-          ],
-        ),
+    return Scaffold(
+      backgroundColor: AppColors.paper,
+      body: Stack(
+        children: [
+          const DottedGround(),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 40,
+                  child: VkWaveform(isAnimating: true, opacity: 1),
+                ),
+                const SizedBox(height: 24),
+                Text('Importation en cours…',
+                    style: AppTextStyles.grotesk(18, FontWeight.w600)
+                        .copyWith(color: AppColors.ink)),
+                const SizedBox(height: 8),
+                Text('La liste partagée arrive.',
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.muted)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

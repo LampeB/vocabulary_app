@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../widgets/dotted_ground.dart';
+import '../../widgets/vk_waveform.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -27,7 +30,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _navigate() async {
-    await Future.delayed(const Duration(milliseconds: 1500));
+    await Future.delayed(const Duration(milliseconds: 1600));
     if (!mounted) return;
     final user = ref.read(currentUserProvider);
     if (mounted) context.go(user != null ? '/home' : '/welcome');
@@ -42,33 +45,38 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: Center(
-        child: FadeTransition(
-          opacity: _fade,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.auto_stories, size: 72, color: Colors.white),
-              const SizedBox(height: 16),
-              Text(
-                'VocabKR',
-                style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                    ),
+      backgroundColor: AppColors.inkDark,
+      body: Stack(
+        children: [
+          const DottedGround(dark: true),
+          Center(
+            child: FadeTransition(
+              opacity: _fade,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    height: 48,
+                    child: VkWaveform(isAnimating: true, opacity: 1),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'VocabKR',
+                    style: AppTextStyles.grotesk(42, FontWeight.w800)
+                        .copyWith(color: Colors.white),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'FR ↔ KO',
+                    style: AppTextStyles.mono(14, FontWeight.w400).copyWith(
+                        color: Colors.white.withValues(alpha: 0.45)),
+                    letterSpacing: 3,
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                'FR ↔ KO',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(color: Colors.white70),
-              ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
