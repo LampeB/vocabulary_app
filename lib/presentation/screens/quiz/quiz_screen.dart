@@ -5,9 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../providers/quiz/quiz_provider.dart';
 import '../../../domain/entities/variant_progress.dart' show QuizDirection;
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/fsrs_algorithm.dart';
 import '../../../services/speech/speech_recognition_service.dart';
 import '../../../services/audio/sound_effects_service.dart';
+import '../../widgets/dotted_ground.dart';
+import '../../widgets/vk_waveform.dart';
 import '../../widgets/mic_button.dart';
 
 const _kSimulateSpeech = String.fromEnvironment('SIMULATE_SPEECH');
@@ -37,8 +40,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         ColorTween(begin: Colors.transparent, end: Colors.transparent)
             .animate(_flashCtrl);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Skip STT initialization when speech is simulated — the real engine
-      // hangs on emulators and blocks loadCards from ever being called.
       if (_kSimulateSpeech.isEmpty) await _stt.initialize();
       if (mounted) ref.read(quizProvider.notifier).loadCards(widget.args);
     });
@@ -76,7 +77,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       final answer = switch (_kSimulateSpeech) {
         'correct' => card.answerWords.isNotEmpty ? card.answerWords.first : '',
         'wrong'   => '__wrong__',
-        _         => '', // 'empty' or anything else → fails validation
+        _         => '',
       };
       ref.read(quizProvider.notifier).submitVoiceAnswer(
         answer,
@@ -105,8 +106,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   Widget build(BuildContext context) {
     final quizState = ref.watch(quizProvider);
 
-    // Flash + sfx whenever answer state transitions from idle (typing & voice modes).
-    // In hands-free mode, also auto-start listening when a new card appears.
     ref.listen<QuizState>(quizProvider, (prev, next) {
       if (prev?.answerState == QuizAnswerState.idle &&
           next.answerState != QuizAnswerState.idle) {
@@ -117,7 +116,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         final justLoaded = prev?.isLoading == true && !next.isLoading;
         final card = next.currentCard;
         if ((cardChanged || justLoaded) && card != null && !next.isComplete) {
-          // Small delay so TTS finishes playing the question before we listen.
           Future.delayed(const Duration(milliseconds: 1500), () {
             if (mounted && !_stt.isListening) {
               unawaited(_startListening(card));
@@ -127,15 +125,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       }
     });
 
-    // Loading state
     if (quizState.isLoading) {
-      return const Scaffold(
-          body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        backgroundColor: AppColors.paper,
+        body: const Center(
+          child: CircularProgressIndicator(
+              color: AppColors.clay, strokeWidth: 2),
+        ),
+      );
     }
 
-    // Error state
     if (quizState.errorMessage != null) {
       return Scaffold(
+        backgroundColor: AppColors.paper,
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
@@ -143,14 +145,26 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Icon(Icons.error_outline,
-                    size: 48, color: AppColors.secondary),
+                    size: 48, color: AppColors.rose),
                 const SizedBox(height: 16),
                 Text(quizState.errorMessage!,
-                    textAlign: TextAlign.center),
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.body.copyWith(color: AppColors.muted)),
                 const SizedBox(height: 24),
-                FilledButton(
-                    onPressed: () => context.go('/home'),
-                    child: const Text('Go back')),
+                GestureDetector(
+                  onTap: () => context.go('/home'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.teal,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text('Retour',
+                        style: AppTextStyles.fig(15, FontWeight.w700)
+                            .copyWith(color: Colors.white)),
+                  ),
+                ),
               ],
             ),
           ),
@@ -158,7 +172,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       );
     }
 
-    // Summary screen
     if (quizState.isComplete) {
       return _SummaryScreen(
         correct: quizState.correctCount,
@@ -172,63 +185,61 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
     final card = quizState.currentCard;
     if (card == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        backgroundColor: AppColors.paper,
+        body: const Center(
+          child: CircularProgressIndicator(
+              color: AppColors.clay, strokeWidth: 2),
+        ),
+      );
     }
 
     return AnimatedBuilder(
       animation: _flashCtrl,
-      builder: (ctx, child) => Container(
-        color: _flashColor.value,
+      builder: (ctx, child) => ColoredBox(
+        color: _flashColor.value ?? Colors.transparent,
         child: child,
       ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          leading: IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => context.go('/home'),
-          ),
-          title: LinearProgressIndicator(
-            value: quizState.total > 0
-                ? quizState.currentIndex / quizState.total
-                : 0,
-            backgroundColor: AppColors.grey300,
-            valueColor:
-                const AlwaysStoppedAnimation<Color>(AppColors.primary),
-          ),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Center(
-                child: Text(
-                  '${quizState.currentIndex + 1}/${quizState.total}',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+        body: Stack(
+          children: [
+            const DottedGround(),
+            SafeArea(
+              child: Column(
+                children: [
+                  // Progress header
+                  _ProgressHeader(
+                    current: quizState.currentIndex + 1,
+                    total: quizState.total,
+                    onClose: () => context.go('/home'),
+                  ),
+                  // Card + input
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: _CardView(
+                              card: card,
+                              direction: widget.args.direction,
+                              isFlipped: quizState.isFlipped,
+                              mode: widget.args.mode,
+                              onFlip: () =>
+                                  ref.read(quizProvider.notifier).flipCard(),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          _buildInputArea(quizState, card),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
-        ),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                Expanded(
-                  child: _CardView(
-                    card: card,
-                    direction: widget.args.direction,
-                    isFlipped: quizState.isFlipped,
-                    mode: widget.args.mode,
-                    onFlip: () =>
-                        ref.read(quizProvider.notifier).flipCard(),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                _buildInputArea(quizState, card),
-              ],
-            ),
-          ),
         ),
       ),
     );
@@ -263,7 +274,54 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 }
 
-// ─── Card view ────────────────────────────────────────────────────────────────
+// ── Progress header ───────────────────────────────────────────────────────────
+
+class _ProgressHeader extends StatelessWidget {
+  const _ProgressHeader({
+    required this.current,
+    required this.total,
+    required this.onClose,
+  });
+  final int current;
+  final int total;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = total > 0 ? (current - 1) / total : 0.0;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 16, 0),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.close_rounded,
+                color: AppColors.muted, size: 22),
+            onPressed: onClose,
+          ),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: AppColors.line,
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(AppColors.teal),
+                minHeight: 6,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '${current.toString().padLeft(2, '0')}/${total.toString().padLeft(2, '0')}',
+            style: AppTextStyles.counter.copyWith(color: AppColors.muted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Card view ─────────────────────────────────────────────────────────────────
 
 class _CardView extends StatelessWidget {
   const _CardView({
@@ -282,56 +340,100 @@ class _CardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tt = Theme.of(context).textTheme;
     final isFlashcard = mode == QuizMode.flashcard;
-    final qLang = direction == QuizDirection.frToKo ? '🇫🇷' : '🇰🇷';
-    final aLang = direction == QuizDirection.frToKo ? '🇰🇷' : '🇫🇷';
-    final answerText = card.answerWords.join(' / ');
+    final isFrToKo    = direction == QuizDirection.frToKo;
+    final qLabel      = isFrToKo ? 'FR' : 'KR';
+    final aLabel      = isFrToKo ? 'KR' : 'FR';
+    final qColor      = isFrToKo ? AppColors.tealDark : AppColors.clayDark;
+    final aColor      = isFrToKo ? AppColors.clayDark : AppColors.tealDark;
+    final answerText  = card.answerWords.join(' / ');
+    final isKrAnswer  = isFrToKo; // Korean is the answer when FR→KO
+
+    final showAnswer = !isFlashcard || isFlipped;
 
     return GestureDetector(
       onTap: isFlashcard && !isFlipped ? onFlip : null,
-      child: Card(
-        elevation: 4,
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Question side
-                Text(qLang, style: const TextStyle(fontSize: 28)),
-                const SizedBox(height: 12),
-                Text(
-                  card.questionWord,
-                  style: tt.displaySmall,
-                  textAlign: TextAlign.center,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Container(
+          width: double.infinity,
+          color: AppColors.inkDark,
+          child: Stack(
+            children: [
+              // Dot grid on dark
+              const DottedGround(dark: true),
+              // Waveform watermark
+              Positioned.fill(
+                child: Center(
+                  child: VkWaveform(
+                    height: 120,
+                    barWidth: 10,
+                    gap: 6,
+                    opacity: 0.2,
+                    isAnimating: false,
+                  ),
                 ),
-                // Answer side (flashcard only when flipped, always for other modes)
-                if (!isFlashcard || isFlipped) ...[
-                  const SizedBox(height: 24),
-                  const Divider(),
-                  const SizedBox(height: 12),
-                  Text(aLang, style: const TextStyle(fontSize: 28)),
-                  const SizedBox(height: 8),
-                  Text(
-                    answerText.isNotEmpty ? answerText : '—',
-                    style: tt.headlineMedium?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-                // Tap prompt for flashcard front
-                if (isFlashcard && !isFlipped) ...[
-                  const SizedBox(height: 32),
-                  Text(
-                    'Tap to reveal',
-                    style: tt.bodyMedium
-                        ?.copyWith(color: AppColors.grey500),
-                  ),
-                ],
-              ],
-            ),
+              ),
+              // Card content
+              Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Question side
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(qLabel,
+                          style: AppTextStyles.eyebrow
+                              .copyWith(color: qColor)),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      card.questionWord,
+                      style: isFrToKo
+                          ? AppTextStyles.promptWord
+                              .copyWith(color: AppColors.onDark)
+                          : AppTextStyles.koreanPrompt
+                              .copyWith(color: AppColors.onDark),
+                      textAlign: TextAlign.center,
+                    ),
+                    // Answer side
+                    if (showAnswer) ...[
+                      const SizedBox(height: 28),
+                      const Divider(
+                          color: Color(0x33FFFFFF), thickness: 1),
+                      const SizedBox(height: 20),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(aLabel,
+                            style: AppTextStyles.eyebrow
+                                .copyWith(color: aColor)),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        answerText.isNotEmpty ? answerText : '—',
+                        style: isKrAnswer
+                            ? AppTextStyles.koreanPrompt.copyWith(
+                                fontSize: 40,
+                                color: AppColors.onDark)
+                            : AppTextStyles.grotesk(
+                                    40, FontWeight.w700)
+                                .copyWith(color: AppColors.onDark),
+                        textAlign: TextAlign.center,
+                      ),
+                    ] else ...[
+                      // Tap hint for flashcard front
+                      const SizedBox(height: 40),
+                      Text(
+                        'Appuyer pour révéler',
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppColors.onDarkFaint),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -339,7 +441,7 @@ class _CardView extends StatelessWidget {
   }
 }
 
-// ─── Flashcard rating row ─────────────────────────────────────────────────────
+// ── Flashcard rating ──────────────────────────────────────────────────────────
 
 class _FlashcardRating extends StatelessWidget {
   const _FlashcardRating({required this.isFlipped, required this.onRate});
@@ -349,43 +451,47 @@ class _FlashcardRating extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!isFlipped) {
-      return FilledButton.tonal(
-        onPressed: null,
-        child: const Text('Flip to rate'),
+      return Container(
+        height: 52,
+        decoration: BoxDecoration(
+          color: AppColors.line.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Center(
+          child: Text('Retournez la carte pour noter',
+              style: AppTextStyles.caption.copyWith(color: AppColors.faint)),
+        ),
       );
     }
+
     return Row(
       children: [
-        Expanded(
-            child: _RatingButton(
-                label: 'Again',
-                color: AppColors.secondary,
-                onTap: () => onRate(FsrsRating.again))),
+        _RatingPill(
+            label: 'Encore',
+            color: AppColors.rose,
+            onTap: () => onRate(FsrsRating.again)),
         const SizedBox(width: 6),
-        Expanded(
-            child: _RatingButton(
-                label: 'Hard',
-                color: AppColors.warning,
-                onTap: () => onRate(FsrsRating.hard))),
+        _RatingPill(
+            label: 'Difficile',
+            color: AppColors.clayDeep,
+            onTap: () => onRate(FsrsRating.hard)),
         const SizedBox(width: 6),
-        Expanded(
-            child: _RatingButton(
-                label: 'Good',
-                color: AppColors.success,
-                onTap: () => onRate(FsrsRating.good))),
+        _RatingPill(
+            label: 'Bien',
+            color: AppColors.teal,
+            onTap: () => onRate(FsrsRating.good)),
         const SizedBox(width: 6),
-        Expanded(
-            child: _RatingButton(
-                label: 'Easy',
-                color: AppColors.primary,
-                onTap: () => onRate(FsrsRating.easy))),
+        _RatingPill(
+            label: 'Facile',
+            color: AppColors.tealLight,
+            onTap: () => onRate(FsrsRating.easy)),
       ],
     );
   }
 }
 
-class _RatingButton extends StatelessWidget {
-  const _RatingButton(
+class _RatingPill extends StatelessWidget {
+  const _RatingPill(
       {required this.label, required this.color, required this.onTap});
   final String label;
   final Color color;
@@ -393,15 +499,27 @@ class _RatingButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton(
-      style: FilledButton.styleFrom(backgroundColor: color, padding: EdgeInsets.zero),
-      onPressed: onTap,
-      child: Text(label, style: const TextStyle(fontSize: 12)),
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 52,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Center(
+            child: Text(label,
+                style: AppTextStyles.fig(12, FontWeight.w700)
+                    .copyWith(color: Colors.white)),
+          ),
+        ),
+      ),
     );
   }
 }
 
-// ─── Typing input ─────────────────────────────────────────────────────────────
+// ── Typing input ──────────────────────────────────────────────────────────────
 
 class _TypingInput extends StatelessWidget {
   const _TypingInput({
@@ -417,9 +535,9 @@ class _TypingInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tt = Theme.of(context).textTheme;
     final isAnswered = answerState != QuizAnswerState.idle;
-    final isCorrect = answerState == QuizAnswerState.correct;
+    final isCorrect  = answerState == QuizAnswerState.correct;
+    final feedbackColor = isCorrect ? AppColors.teal : AppColors.rose;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -427,28 +545,29 @@ class _TypingInput extends StatelessWidget {
         if (isAnswered) ...[
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: (isCorrect ? AppColors.success : AppColors.secondary)
-                  .withAlpha(25),
-              borderRadius: BorderRadius.circular(12),
+              color: feedbackColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               children: [
                 Icon(
-                  isCorrect ? Icons.check_circle : Icons.cancel,
-                  color: isCorrect ? AppColors.success : AppColors.secondary,
+                  isCorrect
+                      ? Icons.check_circle_rounded
+                      : Icons.cancel_rounded,
+                  color: feedbackColor,
+                  size: 20,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     isCorrect
-                        ? 'Correct!'
-                        : 'Answer: ${correctAnswers.join(' / ')}',
-                    style: tt.bodyMedium?.copyWith(
-                      color: isCorrect ? AppColors.success : AppColors.secondary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                        ? 'Correct !'
+                        : 'Réponse : ${correctAnswers.join(' / ')}',
+                    style: AppTextStyles.fig(14, FontWeight.w600)
+                        .copyWith(color: feedbackColor),
                   ),
                 ),
               ],
@@ -464,22 +583,29 @@ class _TypingInput extends StatelessWidget {
                 enabled: !isAnswered,
                 autofocus: !isAnswered,
                 decoration: InputDecoration(
-                  hintText: 'Type your answer...',
+                  hintText: 'Tapez votre réponse…',
                   fillColor: isAnswered
-                      ? (isCorrect
-                          ? AppColors.success.withAlpha(20)
-                          : AppColors.secondary.withAlpha(20))
+                      ? feedbackColor.withValues(alpha: 0.06)
                       : null,
                 ),
                 textInputAction: TextInputAction.done,
                 onSubmitted: isAnswered ? null : onSubmit,
               ),
             ),
-            const SizedBox(width: 12),
-            IconButton.filled(
-              onPressed:
-                  isAnswered ? null : () => onSubmit(controller.text),
-              icon: const Icon(Icons.send),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: isAnswered ? null : () => onSubmit(controller.text),
+              child: Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: isAnswered ? AppColors.line : AppColors.clay,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(Icons.send_rounded,
+                    color: isAnswered ? AppColors.faint : Colors.white,
+                    size: 20),
+              ),
             ),
           ],
         ),
@@ -488,7 +614,7 @@ class _TypingInput extends StatelessWidget {
   }
 }
 
-// ─── Voice input ──────────────────────────────────────────────────────────────
+// ── Voice input ───────────────────────────────────────────────────────────────
 
 class _VoiceInput extends StatelessWidget {
   const _VoiceInput({
@@ -507,16 +633,14 @@ class _VoiceInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        if (partialTranscript.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(partialTranscript,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(color: AppColors.grey700)),
-          ),
+        if (partialTranscript.isNotEmpty) ...[
+          Text(partialTranscript,
+              style: AppTextStyles.fig(16, FontWeight.w500)
+                  .copyWith(color: AppColors.muted)),
+          const SizedBox(height: 12),
+        ],
         MicButton(
           key: const Key('mic_button'),
           isListening: isListening,
@@ -525,15 +649,16 @@ class _VoiceInput extends StatelessWidget {
         ),
         if (isHandsFree) ...[
           const SizedBox(height: 8),
-          const Text('Hands-Free',
-              style: TextStyle(color: AppColors.grey500, fontSize: 12)),
+          Text('MAINS LIBRES',
+              style: AppTextStyles.eyebrowSm
+                  .copyWith(color: AppColors.faint)),
         ],
       ],
     );
   }
 }
 
-// ─── Summary ──────────────────────────────────────────────────────────────────
+// ── Summary screen ────────────────────────────────────────────────────────────
 
 class _SummaryScreen extends StatelessWidget {
   const _SummaryScreen({
@@ -549,56 +674,107 @@ class _SummaryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pct = total == 0 ? 0 : (correct / total * 100).round();
-    final tt = Theme.of(context).textTheme;
+    final pct    = total == 0 ? 0 : (correct / total * 100).round();
     final isGreat = pct >= 80;
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isGreat ? Icons.celebration : Icons.auto_stories,
-                  size: 72,
-                  color: isGreat ? AppColors.success : AppColors.warning,
-                ),
-                const SizedBox(height: 24),
-                Text('Session complete!', style: tt.headlineLarge),
-                const SizedBox(height: 16),
-                Text('$correct / $total correct',
-                    style: tt.headlineMedium),
-                const SizedBox(height: 8),
-                Text('$pct% accuracy',
-                    style: tt.titleMedium
-                        ?.copyWith(color: AppColors.grey500)),
-                const SizedBox(height: 40),
-                Row(
+      backgroundColor: AppColors.inkDark,
+      body: Stack(
+        children: [
+          const DottedGround(dark: true),
+          SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: onRestart,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Again'),
+                    // Waveform celebration
+                    VkWaveform(
+                      height: 72,
+                      barWidth: 8,
+                      gap: 5,
+                      isAnimating: isGreat,
+                      opacity: isGreat ? 1.0 : 0.4,
+                    ),
+                    const SizedBox(height: 32),
+                    Text('SESSION TERMINÉE',
+                        style: AppTextStyles.eyebrow
+                            .copyWith(color: AppColors.onDarkFaint)),
+                    const SizedBox(height: 12),
+                    // Big accuracy
+                    Text(
+                      '$pct %',
+                      style: AppTextStyles.heroNumber.copyWith(
+                        color: isGreat
+                            ? AppColors.clayDark
+                            : AppColors.onDarkMuted,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: onDone,
-                        icon: const Icon(Icons.home),
-                        label: const Text('Home'),
-                      ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '$correct / $total corrects',
+                      style: AppTextStyles.fig(16, FontWeight.w500)
+                          .copyWith(color: AppColors.onDarkMuted),
+                    ),
+                    const SizedBox(height: 48),
+                    // Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: onRestart,
+                            child: Container(
+                              height: 52,
+                              decoration: BoxDecoration(
+                                color: Colors.white
+                                    .withValues(alpha: 0.08),
+                                borderRadius:
+                                    BorderRadius.circular(16),
+                                border: Border.all(
+                                    color: Colors.white
+                                        .withValues(alpha: 0.18)),
+                              ),
+                              child: Center(
+                                child: Text('Recommencer',
+                                    style: AppTextStyles
+                                        .fig(14, FontWeight.w600)
+                                        .copyWith(
+                                            color:
+                                                AppColors.onDarkMuted)),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: onDone,
+                            child: Container(
+                              height: 52,
+                              decoration: BoxDecoration(
+                                color: AppColors.teal,
+                                borderRadius:
+                                    BorderRadius.circular(16),
+                              ),
+                              child: Center(
+                                child: Text('Accueil',
+                                    style: AppTextStyles
+                                        .fig(14, FontWeight.w700)
+                                        .copyWith(
+                                            color: Colors.white)),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
