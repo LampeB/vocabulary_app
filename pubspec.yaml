@@ -96,9 +96,10 @@ dependencies:
   # Fonts
   google_fonts: ^6.2.1
 
-dependency_overrides:
-  record_linux:
-    path: packages/record_linux
+# Note: a dependency_override pinning record_linux to a local path
+# (packages/record_linux) was removed — that folder was never committed, so it
+# broke `flutter pub get` on every fresh checkout. The published record_linux is
+# used instead. record_linux only affects the Linux build, not Windows/mobile.
 
 dev_dependencies:
   flutter_test:
