@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../providers/quiz/quiz_provider.dart';
 import '../../../core/theme/app_colors.dart';
 
+const _kTestMode = bool.fromEnvironment('TEST_MODE');
+
 class MicButton extends StatefulWidget {
   const MicButton({
     super.key,
@@ -25,22 +27,25 @@ class _MicButtonState extends State<MicButton>
   @override
   void initState() {
     super.initState();
+    // Keep controller in the standard [0, 1] range.
+    // CurvedAnimation passes parent.value directly to the curve — it does NOT
+    // normalise by lowerBound/upperBound, so a non-[0,1] controller causes
+    // "parametric value outside of [0, 1]" assertion failures at 120 Hz.
     _pulse = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 900),
-        lowerBound: 1.0,
-        upperBound: 1.25);
-    _scale = CurvedAnimation(parent: _pulse, curve: Curves.easeInOut);
+        vsync: this, duration: const Duration(milliseconds: 900));
+    _scale = _pulse
+        .drive(CurveTween(curve: Curves.easeInOut))
+        .drive(Tween<double>(begin: 1.0, end: 1.25));
   }
 
   @override
   void didUpdateWidget(MicButton old) {
     super.didUpdateWidget(old);
-    if (widget.isListening && !_pulse.isAnimating) {
+    if (widget.isListening && !_pulse.isAnimating && !_kTestMode) {
       _pulse.repeat(reverse: true);
     } else if (!widget.isListening) {
       _pulse.stop();
-      _pulse.value = 1.0;
+      _pulse.value = 0.0; // 0 → scale 1.0 (rest, no pulse)
     }
   }
 
@@ -75,7 +80,7 @@ class _MicButtonState extends State<MicButton>
             boxShadow: widget.isListening
                 ? [
                     BoxShadow(
-                        color: _color.withOpacity(0.4),
+                        color: _color.withValues(alpha: 0.4),
                         blurRadius: 20,
                         spreadRadius: 4)
                   ]

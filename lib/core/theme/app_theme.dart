@@ -24,17 +24,17 @@ abstract final class AppTheme {
       // Teal = commit / correct / progress (French cool accent).
       primary: tealCol,
       onPrimary: Colors.white,
-      primaryContainer: tealCol.withOpacity(0.12),
+      primaryContainer: tealCol.withValues(alpha: 0.12),
       onPrimaryContainer: tealCol,
       // Clay = live action / mic / primary CTA (Korean warm accent).
       secondary: clayCol,
       onSecondary: Colors.white,
-      secondaryContainer: clayCol.withOpacity(0.12),
+      secondaryContainer: clayCol.withValues(alpha: 0.12),
       onSecondaryContainer: clayCol,
       // Rose = destructive only.
       error: AppColors.rose,
       onError: Colors.white,
-      errorContainer: AppColors.rose.withOpacity(0.12),
+      errorContainer: AppColors.rose.withValues(alpha: 0.12),
       onErrorContainer: AppColors.rose,
       // Surfaces.
       surface: bg,
@@ -181,7 +181,7 @@ abstract final class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: mutedCol,
           side: BorderSide(color: lineCol),
-          backgroundColor: Colors.white.withOpacity(0.5),
+          backgroundColor: Colors.white.withValues(alpha: 0.5),
           minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16)),

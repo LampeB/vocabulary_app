@@ -123,7 +123,7 @@ class SocialRemoteDataSource {
           .from('friend_requests')
           .select()
           .eq('id', requestId)
-          .single() as Map<String, dynamic>;
+          .single();
       final fromUserId = req['from_user_id'] as String;
 
       await _client
@@ -254,7 +254,7 @@ class SocialRemoteDataSource {
         newStreak = 1;
       }
 
-      final pad2 = (int n) => n.toString().padLeft(2, '0');
+      String pad2(int n) => n.toString().padLeft(2, '0');
       final dateStr =
           '${todayDate.year}-${pad2(todayDate.month)}-${pad2(todayDate.day)}';
 

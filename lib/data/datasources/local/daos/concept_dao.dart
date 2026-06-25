@@ -66,4 +66,14 @@ class ConceptDao extends DatabaseAccessor<AppDatabase>
         isSynced: const Value(false),
         updatedAt: Value(DateTime.now()),
       ));
+
+  Future<int> countByList(String listId) async {
+    final count = countAll();
+    final query = selectOnly(conceptsTable)
+      ..addColumns([count])
+      ..where(conceptsTable.listId.equals(listId) &
+          conceptsTable.isDeleted.equals(false));
+    final row = await query.getSingle();
+    return row.read(count) ?? 0;
+  }
 }

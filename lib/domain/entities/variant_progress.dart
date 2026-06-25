@@ -34,3 +34,15 @@ class VariantProgress with _$VariantProgress {
   factory VariantProgress.fromJson(Map<String, dynamic> json) =>
       _$VariantProgressFromJson(json);
 }
+
+/// Minimum FSRS scheduled-days for a word to count as mastered.
+/// Centralised here so every feature (stats, grammar exercises, badges)
+/// uses the same definition without re-deriving it.
+const int kMasteryThresholdDays = 21;
+
+extension VariantProgressMastery on VariantProgress {
+  /// True when FSRS has the card in long-term review and scheduled
+  /// at least [kMasteryThresholdDays] days out (~3 weeks retention).
+  bool get isMastered =>
+      state == CardState.review && scheduledDays >= kMasteryThresholdDays;
+}

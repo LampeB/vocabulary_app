@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -35,12 +36,12 @@ class _ImportFromLinkScreenState
 
     result.fold(
       onSuccess: (list) {
-        context.go('/lists/${list.id}');
+        context.push('/lists/${list.id}');
       },
       onFailure: (e) {
         final message = e is NotFoundException
-            ? 'Liste introuvable — le lien est peut-être expiré.'
-            : 'Impossible d\'importer la liste. Réessaie.';
+            ? 'import.error_not_found'.tr()
+            : 'import.error_generic'.tr();
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
           ..showSnackBar(SnackBar(
@@ -57,8 +58,11 @@ class _ImportFromLinkScreenState
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+
     return Scaffold(
-      backgroundColor: AppColors.paper,
       body: Stack(
         children: [
           const DottedGround(),
@@ -71,13 +75,12 @@ class _ImportFromLinkScreenState
                   child: VkWaveform(isAnimating: true, opacity: 1),
                 ),
                 const SizedBox(height: 24),
-                Text('Importation en cours…',
+                Text('import.loading_title'.tr(),
                     style: AppTextStyles.grotesk(18, FontWeight.w600)
-                        .copyWith(color: AppColors.ink)),
+                        .copyWith(color: cs.onSurface)),
                 const SizedBox(height: 8),
-                Text('La liste partagée arrive.',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.muted)),
+                Text('import.loading_subtitle'.tr(),
+                    style: AppTextStyles.caption.copyWith(color: muted)),
               ],
             ),
           ),

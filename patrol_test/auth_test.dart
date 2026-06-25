@@ -12,8 +12,8 @@ void main() {
       timeout: const Timeout(Duration(minutes: 2)), ($) async {
     await launchAndSignIn($);
 
-    // The shell's bottom nav shows 'Today' as the first tab.
-    expect($('Today'), findsOneWidget);
+    // The shell's bottom nav shows 'ACCUEIL' as the first tab.
+    expect($(find.text('ACCUEIL')), findsOneWidget);
   });
 
   // ── Profile screen shows username ─────────────────────────────────────────

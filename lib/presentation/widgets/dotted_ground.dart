@@ -13,18 +13,21 @@ import '../../core/theme/app_colors.dart';
 ///
 /// Or use [DottedScaffold] for the common Scaffold+dots pattern.
 class DottedGround extends StatelessWidget {
-  const DottedGround({super.key, this.dark = false});
+  const DottedGround({super.key, this.dark});
 
-  /// True on dark (ink) backgrounds — switches to white dots at low alpha.
-  final bool dark;
+  /// True = white dots (on dark bg). False = ink dots (on light bg).
+  /// Null (default) = auto-detect from the ambient theme.
+  final bool? dark;
 
   @override
   Widget build(BuildContext context) {
+    final effectiveDark =
+        dark ?? (Theme.of(context).brightness == Brightness.dark);
     return Positioned.fill(
       child: RepaintBoundary(
         child: IgnorePointer(
           child: CustomPaint(
-            painter: _DotPainter(dark: dark),
+            painter: _DotPainter(dark: effectiveDark),
           ),
         ),
       ),
@@ -43,7 +46,7 @@ class DottedScaffold extends StatelessWidget {
     this.floatingActionButton,
     this.floatingActionButtonLocation,
     this.resizeToAvoidBottomInset,
-    this.dark = false,
+    this.dark,
   });
 
   final Color? backgroundColor;
@@ -53,13 +56,15 @@ class DottedScaffold extends StatelessWidget {
   final Widget? floatingActionButton;
   final FloatingActionButtonLocation? floatingActionButtonLocation;
   final bool? resizeToAvoidBottomInset;
-  final bool dark;
+  final bool? dark;
 
   @override
   Widget build(BuildContext context) {
+    final effectiveDark =
+        dark ?? (Theme.of(context).brightness == Brightness.dark);
     return Scaffold(
-      backgroundColor:
-          backgroundColor ?? (dark ? AppColors.inkDark : AppColors.paper),
+      backgroundColor: backgroundColor ??
+          (effectiveDark ? AppColors.inkDark : AppColors.paper),
       appBar: appBar,
       bottomNavigationBar: bottomNavigationBar,
       floatingActionButton: floatingActionButton,
@@ -67,7 +72,7 @@ class DottedScaffold extends StatelessWidget {
       resizeToAvoidBottomInset: resizeToAvoidBottomInset,
       body: Stack(
         children: [
-          DottedGround(dark: dark),
+          DottedGround(dark: effectiveDark),
           body,
         ],
       ),

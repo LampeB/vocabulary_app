@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,7 +26,7 @@ Future<void> main() async {
   if (!_initialized) {
     await Supabase.initialize(
       url: AppConfig.supabaseUrl,
-      anonKey: AppConfig.supabaseAnonKey,
+      publishableKey: AppConfig.supabaseAnonKey,
     );
 
     await NotificationService.instance.init();
@@ -39,13 +40,28 @@ Future<void> main() async {
     _initialized = true;
   }
 
+  await EasyLocalization.ensureInitialized();
+
   runZonedGuarded(
-    () => runApp(ProviderScope(
-      overrides: [
-        notificationServiceProvider
-            .overrideWithValue(NotificationService.instance),
+    () => runApp(EasyLocalization(
+      supportedLocales: const [
+        Locale('fr'),
+        Locale('en'),
+        Locale('es'),
+        Locale('de'),
+        Locale('it'),
+        Locale('ja'),
+        Locale('ko'),
       ],
-      child: const VocabKrApp(),
+      path: 'assets/translations',
+      fallbackLocale: const Locale('fr'),
+      child: ProviderScope(
+        overrides: [
+          notificationServiceProvider
+              .overrideWithValue(NotificationService.instance),
+        ],
+        child: const VocabKrApp(),
+      ),
     )),
     (error, stack) => debugPrint('[ZoneError] $error\n$stack'),
   );

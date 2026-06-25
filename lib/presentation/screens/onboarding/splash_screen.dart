@@ -1,8 +1,8 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth/auth_provider.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/vk_waveform.dart';
@@ -44,11 +44,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: AppColors.inkDark,
+      // Background from AppTheme.scaffoldBackgroundColor.
       body: Stack(
         children: [
-          const DottedGround(dark: true),
+          const DottedGround(),
           Center(
             child: FadeTransition(
               opacity: _fade,
@@ -61,15 +63,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'VocabKR',
+                    'splash.appName'.tr(),
                     style: AppTextStyles.grotesk(42, FontWeight.w800)
-                        .copyWith(color: Colors.white),
+                        .copyWith(color: cs.onSurface),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'FR ↔ KO',
+                    'splash.subtitle'.tr(),
                     style: AppTextStyles.mono(14, FontWeight.w400).copyWith(
-                        color: Colors.white.withValues(alpha: 0.45),
+                        color: cs.onSurface.withValues(alpha: 0.45),
                         letterSpacing: 3),
                   ),
                 ],

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:app_links/app_links.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -19,6 +21,7 @@ import 'presentation/screens/paywall/paywall_screen.dart';
 import 'presentation/screens/notifications/notification_settings_screen.dart';
 import 'presentation/screens/import/import_from_link_screen.dart';
 import 'presentation/screens/settings/settings_screen.dart';
+import 'presentation/screens/stats/stats_screen.dart';
 import 'presentation/providers/quiz/quiz_provider.dart' show QuizArgs;
 import 'presentation/providers/settings/settings_provider.dart';
 import 'presentation/widgets/app_shell.dart';
@@ -158,6 +161,9 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
               GoRoute(
                   path: '/settings',
                   builder: (_, __) => const SettingsScreen()),
+              GoRoute(
+                  path: '/stats',
+                  builder: (_, __) => const StatsScreen()),
             ],
           ),
           GoRoute(
@@ -188,6 +194,9 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
       themeMode: themeMode,
       routerConfig: _router,
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: context.localizationDelegates,
+      supportedLocales: context.supportedLocales,
+      locale: context.locale,
     );
   }
 }

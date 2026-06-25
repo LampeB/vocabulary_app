@@ -2,6 +2,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 
+// Injected by test env files via --dart-define-from-file. False in production.
+const _kTestMode = bool.fromEnvironment('TEST_MODE');
+
 /// The VocabKR signature waveform — symmetric bars that animate in a staggered
 /// sine wave, teal (FR) on the outside fading to clay (KR) at the centre.
 ///
@@ -71,14 +74,15 @@ class _VkWaveformState extends State<VkWaveform>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
-    if (widget.isAnimating) _ctrl.repeat();
+    if (widget.isAnimating && !_kTestMode) _ctrl.repeat();
   }
 
   @override
   void didUpdateWidget(VkWaveform old) {
     super.didUpdateWidget(old);
     final shouldAnimate = widget.isAnimating &&
-        !MediaQuery.of(context).disableAnimations;
+        !MediaQuery.of(context).disableAnimations &&
+        !_kTestMode;
     if (shouldAnimate && !_ctrl.isAnimating) {
       _ctrl.repeat();
     } else if (!shouldAnimate && _ctrl.isAnimating) {
@@ -103,7 +107,9 @@ class _VkWaveformState extends State<VkWaveform>
         animation: _ctrl,
         builder: (_, __) {
           final t = reducedMotion ? 0.5 : _ctrl.value;
-          return Row(
+          return SizedBox(
+            height: widget.height,
+            child: Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: List.generate(_heights.length, (i) {
@@ -128,6 +134,7 @@ class _VkWaveformState extends State<VkWaveform>
                 ),
               );
             }),
+          ),
           );
         },
       ),

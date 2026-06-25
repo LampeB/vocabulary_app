@@ -1,9 +1,11 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/purchases/purchase_provider.dart';
 import '../../providers/settings/settings_provider.dart';
+import '../../providers/settings/audio_settings_provider.dart';
 import '../../../domain/entities/subscription_type.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -15,16 +17,21 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user      = ref.watch(currentUserProvider);
-    final themeMode = ref.watch(themeModeProvider);
-    final isPremium = ref.watch(isPremiumProvider);
+    final user          = ref.watch(currentUserProvider);
+    final themeMode     = ref.watch(themeModeProvider);
+    final isPremium     = ref.watch(isPremiumProvider);
+    final audioSettings = ref.watch(audioSettingsProvider);
+
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      // Background from AppTheme.scaffoldBackgroundColor.
       appBar: AppBar(
-        title: Text('Paramètres',
-            style: AppTextStyles.grotesk(22, FontWeight.w700)
-                .copyWith(color: AppColors.ink)),
+        // AppBarTheme provides title style and icon colors.
+        title: Text('settings.title'.tr()),
       ),
       body: Stack(
         children: [
@@ -33,7 +40,7 @@ class SettingsScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
               // ── Compte ──────────────────────────────────────────────────────
-              _EyebrowSection('COMPTE'),
+              _EyebrowSection('settings.section_account'.tr()),
               FrostedBox(
                 borderRadius: BorderRadius.circular(18),
                 padding: const EdgeInsets.symmetric(
@@ -52,11 +59,11 @@ class SettingsScreen extends ConsumerWidget {
                           Text(
                             user?.displayName ?? user?.username ?? '—',
                             style: AppTextStyles.fig(15, FontWeight.w600)
-                                .copyWith(color: AppColors.ink),
+                                .copyWith(color: cs.onSurface),
                           ),
                           Text('@${user?.username ?? ''}',
                               style: AppTextStyles.caption
-                                  .copyWith(color: AppColors.faint)),
+                                  .copyWith(color: faint)),
                         ],
                       ),
                     ),
@@ -65,7 +72,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               // ── Apparence ───────────────────────────────────────────────────
-              _EyebrowSection('APPARENCE'),
+              _EyebrowSection('settings.section_appearance'.tr()),
               FrostedBox(
                 borderRadius: BorderRadius.circular(18),
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
@@ -75,17 +82,17 @@ class SettingsScreen extends ConsumerWidget {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: AppColors.line.withValues(alpha: 0.6),
+                        color: cs.outline.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.brightness_6_outlined,
-                          color: AppColors.muted, size: 18),
+                      child: Icon(Icons.brightness_6_outlined,
+                          color: muted, size: 18),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
-                      child: Text('Thème',
+                      child: Text('settings.theme_label'.tr(),
                           style: AppTextStyles.fig(15, FontWeight.w500)
-                              .copyWith(color: AppColors.ink)),
+                              .copyWith(color: cs.onSurface)),
                     ),
                     // Theme pill buttons
                     Row(
@@ -119,16 +126,55 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 24),
+              // ── Audio & Voix ─────────────────────────────────────────────────
+              _EyebrowSection('settings.section_audio'.tr()),
+              FrostedBox(
+                borderRadius: BorderRadius.circular(18),
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                child: Column(
+                  children: [
+                    _AudioSettingRow(
+                      icon: Icons.speed_rounded,
+                      label: 'settings.audio_speed_label'.tr(),
+                      options: [
+                        'settings.audio_speed_slow'.tr(),
+                        'settings.audio_speed_normal'.tr(),
+                        'settings.audio_speed_fast'.tr(),
+                      ],
+                      values: const [0.6, 0.85, 1.1],
+                      current: audioSettings.speechRate,
+                      onSelect: (v) => ref
+                          .read(audioSettingsProvider.notifier)
+                          .setSpeechRate(v),
+                    ),
+                    const SizedBox(height: 12),
+                    _AudioSettingRow(
+                      icon: Icons.graphic_eq_rounded,
+                      label: 'settings.audio_pitch_label'.tr(),
+                      options: [
+                        'settings.audio_pitch_low'.tr(),
+                        'settings.audio_pitch_normal'.tr(),
+                        'settings.audio_pitch_high'.tr(),
+                      ],
+                      values: const [0.85, 1.0, 1.15],
+                      current: audioSettings.pitch,
+                      onSelect: (v) =>
+                          ref.read(audioSettingsProvider.notifier).setPitch(v),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
               // ── Notifications ────────────────────────────────────────────────
-              _EyebrowSection('NOTIFICATIONS'),
+              _EyebrowSection('settings.section_notifications'.tr()),
               _NavTile(
                 icon: Icons.notifications_outlined,
-                label: 'Rappels d\'étude',
+                label: 'settings.notifications_reminders'.tr(),
                 onTap: () => context.push('/notifications'),
               ),
               const SizedBox(height: 24),
               // ── Abonnement ───────────────────────────────────────────────────
-              _EyebrowSection('ABONNEMENT'),
+              _EyebrowSection('settings.section_subscription'.tr()),
               FrostedBox(
                 borderRadius: BorderRadius.circular(18),
                 padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
@@ -140,13 +186,12 @@ class SettingsScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: isPremium
                             ? AppColors.clay.withValues(alpha: 0.12)
-                            : AppColors.line.withValues(alpha: 0.6),
+                            : cs.outline.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
                         Icons.workspace_premium_outlined,
-                        color:
-                            isPremium ? AppColors.clay : AppColors.faint,
+                        color: isPremium ? AppColors.clay : faint,
                         size: 18,
                       ),
                     ),
@@ -155,13 +200,15 @@ class SettingsScreen extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(isPremium ? 'Premium' : 'Gratuit',
-                              style:
-                                  AppTextStyles.fig(15, FontWeight.w500)
-                                      .copyWith(color: AppColors.ink)),
+                          Text(
+                              isPremium
+                                  ? 'settings.subscription_premium'.tr()
+                                  : 'settings.subscription_free'.tr(),
+                              style: AppTextStyles.fig(15, FontWeight.w500)
+                                  .copyWith(color: cs.onSurface)),
                           Text(_subscriptionLabel(ref),
                               style: AppTextStyles.caption
-                                  .copyWith(color: AppColors.muted)),
+                                  .copyWith(color: muted)),
                         ],
                       ),
                     ),
@@ -175,21 +222,29 @@ class SettingsScreen extends ConsumerWidget {
                             color: AppColors.clay,
                             borderRadius: BorderRadius.circular(999),
                           ),
-                          child: Text('Upgrade',
-                              style:
-                                  AppTextStyles.fig(12, FontWeight.w700)
-                                      .copyWith(color: Colors.white)),
+                          child: Text('settings.upgrade_button'.tr(),
+                              style: AppTextStyles.fig(12, FontWeight.w700)
+                                  .copyWith(color: Colors.white)),
                         ),
                       ),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
+              // ── Langue ───────────────────────────────────────────────────────
+              _EyebrowSection('settings.section_language'.tr()),
+              _NavTile(
+                icon: Icons.language_rounded,
+                label: 'settings.language_label'.tr(),
+                subtitle: _languageName(context.locale.languageCode),
+                onTap: () => _showLanguagePicker(context),
+              ),
+              const SizedBox(height: 24),
               // ── Compte — actions ─────────────────────────────────────────────
-              _EyebrowSection('ACTIONS'),
+              _EyebrowSection('settings.section_actions'.tr()),
               _NavTile(
                 icon: Icons.logout_rounded,
-                label: 'Se déconnecter',
+                label: 'settings.signout'.tr(),
                 destructive: true,
                 onTap: () => _confirmSignOut(context, ref),
               ),
@@ -205,21 +260,16 @@ class SettingsScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Se déconnecter ?',
-            style: AppTextStyles.grotesk(20, FontWeight.w700)
-                .copyWith(color: AppColors.ink)),
-        content: Text(
-          'Tu seras redirigé vers l\'écran de connexion.',
-          style: AppTextStyles.body.copyWith(color: AppColors.muted),
-        ),
+        title: Text('settings.signout_dialog_title'.tr()),
+        content: Text('settings.signout_dialog_body'.tr()),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler')),
+              child: Text('common.cancel'.tr())),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: AppColors.rose),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Déconnecter',
+            child: Text('settings.signout_confirm'.tr(),
                 style: AppTextStyles.fig(14, FontWeight.w600)
                     .copyWith(color: AppColors.rose)),
           ),
@@ -233,11 +283,58 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
+String _languageName(String code) => switch (code) {
+  'fr' => 'Français',
+  'en' => 'English',
+  'es' => 'Español',
+  'de' => 'Deutsch',
+  'it' => 'Italiano',
+  'ja' => '日本語',
+  'ko' => '한국어',
+  _ => code,
+};
+
+void _showLanguagePicker(BuildContext context) {
+  final locales = [
+    const Locale('fr'),
+    const Locale('en'),
+    const Locale('es'),
+    const Locale('de'),
+    const Locale('it'),
+    const Locale('ja'),
+    const Locale('ko'),
+  ];
+  showDialog<void>(
+    context: context,
+    builder: (_) => SimpleDialog(
+      title: Text('settings.language_label'.tr()),
+      children: locales.map((locale) {
+        final isSelected = context.locale == locale;
+        return SimpleDialogOption(
+          onPressed: () {
+            context.setLocale(locale);
+            Navigator.of(context).pop();
+          },
+          child: Row(
+            children: [
+              Expanded(child: Text(_languageName(locale.languageCode))),
+              if (isSelected)
+                const Icon(Icons.check_rounded, size: 18),
+            ],
+          ),
+        );
+      }).toList(),
+    ),
+  );
+}
+
 String _subscriptionLabel(WidgetRef ref) {
   final isPremium = ref.watch(isPremiumProvider);
-  if (!isPremium) return 'Accès limité';
+  if (!isPremium) return 'settings.subscription_limited'.tr();
   final type = ref.watch(currentUserProvider)?.subscriptionType;
-  return type == SubscriptionType.student ? 'Accès Étudiant' : 'Premium ✓';
+  return type == SubscriptionType.student
+      ? 'settings.subscription_student'.tr()
+      : 'settings.subscription_premium_full'.tr();
 }
 
 // ── Section eyebrow ───────────────────────────────────────────────────────────
@@ -248,10 +345,12 @@ class _EyebrowSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Text(label,
-          style: AppTextStyles.eyebrow.copyWith(color: AppColors.muted)),
+          style: AppTextStyles.eyebrow.copyWith(color: muted)),
     );
   }
 }
@@ -263,19 +362,25 @@ class _NavTile extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.subtitle,
     this.destructive = false,
   });
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final String? subtitle;
   final bool destructive;
 
   @override
   Widget build(BuildContext context) {
-    final color = destructive ? AppColors.rose : AppColors.ink;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    final color = destructive ? AppColors.rose : cs.onSurface;
     final bg = destructive
         ? AppColors.rose.withValues(alpha: 0.08)
-        : AppColors.line.withValues(alpha: 0.6);
+        : cs.outline.withValues(alpha: 0.3);
 
     return GestureDetector(
       onTap: onTap,
@@ -295,14 +400,121 @@ class _NavTile extends StatelessWidget {
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Text(label,
-                  style: AppTextStyles.fig(15, FontWeight.w500)
-                      .copyWith(color: color)),
+              child: subtitle != null
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(label,
+                            style: AppTextStyles.fig(15, FontWeight.w500)
+                                .copyWith(color: color)),
+                        Text(subtitle!,
+                            style: AppTextStyles.caption
+                                .copyWith(color: muted)),
+                      ],
+                    )
+                  : Text(label,
+                      style: AppTextStyles.fig(15, FontWeight.w500)
+                          .copyWith(color: color)),
             ),
             if (!destructive)
-              const Icon(Icons.chevron_right_rounded,
-                  color: AppColors.faint, size: 20),
+              Icon(Icons.chevron_right_rounded, color: faint, size: 20),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Audio setting row ─────────────────────────────────────────────────────────
+
+class _AudioSettingRow extends StatelessWidget {
+  const _AudioSettingRow({
+    required this.icon,
+    required this.label,
+    required this.options,
+    required this.values,
+    required this.current,
+    required this.onSelect,
+  });
+  final IconData icon;
+  final String label;
+  final List<String> options;
+  final List<double> values;
+  final double current;
+  final ValueChanged<double> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: cs.outline.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: muted, size: 18),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(label,
+              style: AppTextStyles.fig(15, FontWeight.w500)
+                  .copyWith(color: cs.onSurface)),
+        ),
+        Row(
+          children: [
+            for (var i = 0; i < options.length; i++) ...[
+              if (i > 0) const SizedBox(width: 6),
+              _AudioPill(
+                label: options[i],
+                selected: (current - values[i]).abs() < 0.01,
+                onTap: () => onSelect(values[i]),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _AudioPill extends StatelessWidget {
+  const _AudioPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.teal : cs.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? AppColors.teal : cs.outline,
+          ),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.fig(12, FontWeight.w600)
+              .copyWith(color: selected ? Colors.white : faint),
         ),
       ),
     );
@@ -323,6 +535,10 @@ class _ThemePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -330,15 +546,15 @@ class _ThemePill extends StatelessWidget {
         width: 34,
         height: 34,
         decoration: BoxDecoration(
-          color: selected ? AppColors.teal : AppColors.card,
+          color: selected ? AppColors.teal : cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? AppColors.teal : AppColors.line,
+            color: selected ? AppColors.teal : cs.outline,
           ),
         ),
         child: Icon(icon,
             size: 16,
-            color: selected ? Colors.white : AppColors.faint),
+            color: selected ? Colors.white : faint),
       ),
     );
   }

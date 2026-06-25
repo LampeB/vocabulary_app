@@ -47,8 +47,8 @@ abstract final class AppColors {
   ];
 
   // ── Feedback flashes ──────────────────────────────────────────────────────
-  static const correctFlash   = Color(0x334C8C86); // teal 20 %
-  static const incorrectFlash = Color(0x33D08358); // clay 20 %
+  static const correctFlash   = Color(0x9934C759); // vivid green 60 %
+  static const incorrectFlash = Color(0x99FF3B30); // vivid red 60 %
 
   // ── Legacy aliases (keep existing code compiling while screens are migrated)
   static const primary        = clay;

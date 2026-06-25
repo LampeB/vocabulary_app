@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -19,26 +20,22 @@ class ListsScreen extends ConsumerWidget {
     final listsAsync = ref.watch(myListsProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      // Background from AppTheme.scaffoldBackgroundColor.
       appBar: AppBar(
-        title: Text('Mes listes',
-            style: AppTextStyles.grotesk(22, FontWeight.w700)
-                .copyWith(color: AppColors.ink)),
+        // AppBarTheme provides title style and icon colors.
+        title: Text('lists.title'.tr()),
         actions: [
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: AppColors.muted),
+            icon: const Icon(Icons.more_vert),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16)),
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'import',
                 child: Row(children: [
-                  const Icon(Icons.file_download_outlined,
-                      size: 18, color: AppColors.muted),
+                  const Icon(Icons.file_download_outlined, size: 18),
                   const SizedBox(width: 10),
-                  Text('Importer',
-                      style: AppTextStyles.fig(14, FontWeight.w500)
-                          .copyWith(color: AppColors.ink)),
+                  Text('lists.menu_import'.tr()),
                 ]),
               ),
             ],
@@ -54,7 +51,8 @@ class ListsScreen extends ConsumerWidget {
           listsAsync.when(
             loading: () => const _ListsShimmer(),
             error: (e, _) => Center(
-              child: Text('Erreur : $e',
+              child: Text(
+                  'lists.error_loading'.tr(namedArgs: {'error': e.toString()}),
                   style: AppTextStyles.caption
                       .copyWith(color: AppColors.rose)),
             ),
@@ -71,7 +69,7 @@ class ListsScreen extends ConsumerWidget {
                       accentColor: AppColors.listPalette[
                           i % AppColors.listPalette.length],
                       onTap: () =>
-                          context.go('/lists/${lists[i].id}'),
+                          context.push('/lists/${lists[i].id}'),
                       onRename: () => _showRenameDialog(
                           ctx, ref, lists[i].id, lists[i].name),
                       onExport: () => _exportList(
@@ -93,7 +91,7 @@ class ListsScreen extends ConsumerWidget {
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(999)),
         icon: const Icon(Icons.add, size: 20),
-        label: Text('Nouvelle liste',
+        label: Text('lists.fab_new'.tr(),
             style: AppTextStyles.fig(14, FontWeight.w700)),
       ),
     );
@@ -107,13 +105,14 @@ class ListsScreen extends ConsumerWidget {
     if (result == null) return;
     if (result.isFailure) {
       messenger.showSnackBar(SnackBar(
-        content: Text(result.exceptionOrNull?.message ?? 'Import échoué'),
+        content: Text(result.exceptionOrNull?.message ??
+            'lists.import_snackbar_error_fallback'.tr()),
       ));
     } else {
       final list = result.valueOrNull!;
       messenger.showSnackBar(SnackBar(
-        content:
-            Text('"${list.name}" importée — ${list.wordCount} mots ajoutés'),
+        content: Text(
+            '"${list.name}" ${'lists.import_snackbar_success'.tr(namedArgs: {'wordCount': list.wordCount.toString()})}'),
       ));
     }
   }
@@ -139,7 +138,8 @@ class ListsScreen extends ConsumerWidget {
     if (result.isFailure) {
       messenger.showSnackBar(SnackBar(
         content: Text(
-            result.exceptionOrNull?.message ?? 'Lien non créé'),
+            result.exceptionOrNull?.message ??
+                'lists.share_link_error_fallback'.tr()),
       ));
     }
   }
@@ -151,9 +151,9 @@ class ListsScreen extends ConsumerWidget {
     await showDialog<void>(
       context: context,
       builder: (ctx) => _ListNameDialog(
-        title: 'Nouvelle liste',
+        title: 'lists.create_dialog_title'.tr(),
         controller: nameCtrl,
-        confirmLabel: 'Créer',
+        confirmLabel: 'lists.create_dialog_confirm'.tr(),
         onConfirm: () async {
           if (nameCtrl.text.trim().isEmpty) return;
           final result = await ref
@@ -167,7 +167,7 @@ class ListsScreen extends ConsumerWidget {
             } else {
               ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
                 content: Text(result.exceptionOrNull?.message ??
-                    'Erreur lors de la création'),
+                    'lists.create_error_fallback'.tr()),
               ));
             }
           } else {
@@ -186,9 +186,9 @@ class ListsScreen extends ConsumerWidget {
     await showDialog<void>(
       context: context,
       builder: (ctx) => _ListNameDialog(
-        title: 'Renommer la liste',
+        title: 'lists.rename_dialog_title'.tr(),
         controller: nameCtrl,
-        confirmLabel: 'Renommer',
+        confirmLabel: 'lists.rename_dialog_confirm'.tr(),
         onConfirm: () async {
           final newName = nameCtrl.text.trim();
           if (newName.isEmpty || newName == current) return;
@@ -206,21 +206,17 @@ class ListsScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Supprimer la liste ?',
-            style: AppTextStyles.grotesk(20, FontWeight.w700)
-                .copyWith(color: AppColors.ink)),
-        content: Text(
-          '« $name » et tous ses mots seront supprimés définitivement.',
-          style: AppTextStyles.body.copyWith(color: AppColors.muted),
-        ),
+        // dialogTheme provides title/content colors automatically.
+        title: Text('lists.delete_dialog_title'.tr()),
+        content: Text('lists.delete_dialog_body'.tr(namedArgs: {'name': name})),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler')),
+              child: Text('common.cancel'.tr())),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: AppColors.rose),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Supprimer',
+            child: Text('lists.delete_confirm'.tr(),
                 style: AppTextStyles.fig(14, FontWeight.w600)
                     .copyWith(color: AppColors.rose)),
           ),
@@ -256,6 +252,11 @@ class _ListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
+
     return GestureDetector(
       onTap: onTap,
       child: FrostedBox(
@@ -281,30 +282,32 @@ class _ListCard extends StatelessWidget {
                   Text(
                     list.name,
                     style: AppTextStyles.fig(15, FontWeight.w600)
-                        .copyWith(color: AppColors.ink),
+                        .copyWith(color: cs.onSurface),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${list.wordCount} mot${list.wordCount == 1 ? '' : 's'}',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.muted),
+                    '${list.wordCount} ${list.wordCount == 1 ? 'lists.list_word_count_one'.tr() : 'lists.list_word_count_other'.tr()}',
+                    style: AppTextStyles.caption.copyWith(color: muted),
                   ),
                 ],
               ),
             ),
             // Kebab menu
             PopupMenuButton<String>(
-              icon: Icon(Icons.more_vert,
-                  color: AppColors.faint, size: 20),
+              icon: Icon(Icons.more_vert, color: faint, size: 20),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
-              itemBuilder: (_) => [
-                _menuItem('rename', Icons.edit_outlined, 'Renommer'),
-                _menuItem('export', Icons.ios_share_outlined, 'Exporter'),
-                _menuItem('share', Icons.link_outlined, 'Lien de partage'),
-                _menuItem('delete', Icons.delete_outline, 'Supprimer',
+              itemBuilder: (ctx) => [
+                _menuItem(ctx, 'rename', Icons.edit_outlined,
+                    'lists.menu_rename'.tr()),
+                _menuItem(ctx, 'export', Icons.ios_share_outlined,
+                    'lists.menu_export'.tr()),
+                _menuItem(ctx, 'share', Icons.link_outlined,
+                    'lists.menu_share_link'.tr()),
+                _menuItem(ctx, 'delete', Icons.delete_outline,
+                    'lists.menu_delete'.tr(),
                     isDestructive: true),
               ],
               onSelected: (v) {
@@ -321,9 +324,11 @@ class _ListCard extends StatelessWidget {
   }
 
   PopupMenuItem<String> _menuItem(
-      String value, IconData icon, String label,
+      BuildContext context, String value, IconData icon, String label,
       {bool isDestructive = false}) {
-    final color = isDestructive ? AppColors.rose : AppColors.ink;
+    final color = isDestructive
+        ? AppColors.rose
+        : Theme.of(context).colorScheme.onSurface;
     return PopupMenuItem(
       value: value,
       child: Row(children: [
@@ -371,23 +376,27 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.bookmark_border,
-                size: 56, color: AppColors.faint),
+            Icon(Icons.bookmark_border, size: 56, color: faint),
             const SizedBox(height: 16),
-            Text('Pas encore de listes',
+            Text('lists.empty_title'.tr(),
                 style: AppTextStyles.grotesk(20, FontWeight.w700)
-                    .copyWith(color: AppColors.ink)),
+                    .copyWith(color: cs.onSurface)),
             const SizedBox(height: 8),
             Text(
-              'Crée ta première liste de vocabulaire pour commencer.',
+              'lists.empty_subtitle'.tr(),
               textAlign: TextAlign.center,
-              style: AppTextStyles.body.copyWith(color: AppColors.muted),
+              style: AppTextStyles.body.copyWith(color: muted),
             ),
             const SizedBox(height: 28),
             GestureDetector(
@@ -399,7 +408,7 @@ class _EmptyState extends StatelessWidget {
                   color: AppColors.clay,
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: Text('Créer une liste',
+                child: Text('lists.empty_button'.tr(),
                     style: AppTextStyles.fig(15, FontWeight.w700)
                         .copyWith(color: Colors.white)),
               ),
@@ -418,7 +427,7 @@ class _ListNameDialog extends StatelessWidget {
     required this.title,
     required this.controller,
     required this.onConfirm,
-    this.confirmLabel = 'Créer',
+    this.confirmLabel = '',
   });
   final String title;
   final TextEditingController controller;
@@ -432,14 +441,14 @@ class _ListNameDialog extends StatelessWidget {
       content: TextField(
         controller: controller,
         autofocus: true,
-        decoration: const InputDecoration(labelText: 'Nom de la liste'),
+        decoration: InputDecoration(labelText: 'lists.name_field_label'.tr()),
         textInputAction: TextInputAction.done,
         onSubmitted: (_) => onConfirm(),
       ),
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler')),
+            child: Text('common.cancel'.tr())),
         FilledButton(
             onPressed: onConfirm, child: Text(confirmLabel)),
       ],

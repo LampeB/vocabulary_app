@@ -31,7 +31,7 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
   @override
   Future<AppUser?> build() async {
     _repo = ref.watch(authRepositoryProvider);
-    ref.listenSelf((_, __) {});
+    listenSelf((_, __) {});
     // Always reload the full profile on every auth state change so that
     // the basic _mapUser (auth-only) never overwrites _mapUserWithProfile.
     _repo.authStateChanges.listen((user) async {
@@ -92,6 +92,9 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
       onFailure: (_) {},
     );
   }
+
+  Future<Result<void>> sendPasswordReset(String email) =>
+      _repo.sendPasswordResetEmail(email);
 }
 
 final currentUserProvider = Provider<AppUser?>((ref) {

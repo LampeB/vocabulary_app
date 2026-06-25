@@ -300,4 +300,58 @@ void main() {
       expect(concepts.isEmpty, true);
     });
   });
+
+  // ── wordCount on list card ────────────────────────────────────────────────
+
+  group('wordCount reflects live concept count', () {
+    test('adding 3 words → wordCount is 3', () async {
+      final listId = ((await repo.createList(name: 'Counter', description: null))
+              as Success<VocabularyList>)
+          .value
+          .id;
+
+      await repo.createConcept(listId: listId);
+      await repo.createConcept(listId: listId);
+      await repo.createConcept(listId: listId);
+
+      final lists = await repo.watchMyLists().first;
+      final list = lists.firstWhere((l) => l.id == listId);
+      expect(list.wordCount, 3);
+    });
+
+    test('deleting 1 of 3 words → wordCount drops to 2', () async {
+      final listId = ((await repo.createList(name: 'Counter', description: null))
+              as Success<VocabularyList>)
+          .value
+          .id;
+
+      await repo.createConcept(listId: listId);
+      await repo.createConcept(listId: listId);
+      final conceptId =
+          ((await repo.createConcept(listId: listId)) as Success).value.id;
+
+      await repo.deleteConcept(conceptId);
+
+      final lists = await repo.watchMyLists().first;
+      final list = lists.firstWhere((l) => l.id == listId);
+      expect(list.wordCount, 2);
+    });
+
+    test('deleting all words → wordCount is 0', () async {
+      final listId = ((await repo.createList(name: 'Counter', description: null))
+              as Success<VocabularyList>)
+          .value
+          .id;
+
+      final id1 = ((await repo.createConcept(listId: listId)) as Success).value.id;
+      final id2 = ((await repo.createConcept(listId: listId)) as Success).value.id;
+
+      await repo.deleteConcept(id1);
+      await repo.deleteConcept(id2);
+
+      final lists = await repo.watchMyLists().first;
+      final list = lists.firstWhere((l) => l.id == listId);
+      expect(list.wordCount, 0);
+    });
+  });
 }

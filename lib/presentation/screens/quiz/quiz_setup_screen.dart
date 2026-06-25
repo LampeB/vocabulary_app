@@ -1,8 +1,8 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/quiz/quiz_provider.dart';
-import '../../../domain/entities/variant_progress.dart' show QuizDirection;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../widgets/dotted_ground.dart';
@@ -17,25 +17,27 @@ class QuizSetupScreen extends ConsumerStatefulWidget {
 }
 
 class _QuizSetupScreenState extends ConsumerState<QuizSetupScreen> {
-  QuizMode _mode      = QuizMode.voice;
-  QuizDirection _dir  = QuizDirection.frToKo;
-  int _cardLimit      = 20;
+  QuizMode _mode            = QuizMode.voice;
+  QuizDirectionChoice _dir  = QuizDirectionChoice.frToKo;
+  int _cardLimit            = 20;
 
   static const _limits = [10, 20, 50, 100];
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      // Background from AppTheme.scaffoldBackgroundColor.
       appBar: AppBar(
+        // AppBarTheme provides colors and transparent bg.
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.ink, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => context.pop(),
         ),
-        title: Text('Préparer la session',
-            style: AppTextStyles.grotesk(22, FontWeight.w700)
-                .copyWith(color: AppColors.ink)),
+        title: Text('quiz_setup.title'.tr()),
       ),
       body: Stack(
         children: [
@@ -44,7 +46,7 @@ class _QuizSetupScreenState extends ConsumerState<QuizSetupScreen> {
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
             children: [
               // ── Mode ──────────────────────────────────────────────────────
-              _Section(label: 'MODE'),
+              _Section(label: 'quiz_setup.section_mode'.tr()),
               const SizedBox(height: 10),
               _ModeGrid(
                 selected: _mode,
@@ -52,32 +54,50 @@ class _QuizSetupScreenState extends ConsumerState<QuizSetupScreen> {
               ),
               const SizedBox(height: 24),
               // ── Direction ─────────────────────────────────────────────────
-              _Section(label: 'SENS'),
+              _Section(label: 'quiz_setup.section_direction'.tr()),
               const SizedBox(height: 10),
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _DirTile(
-                    label: 'FR → KR',
-                    sublabel: 'Lire en français',
-                    selected: _dir == QuizDirection.frToKo,
-                    accentColor: AppColors.teal,
-                    onTap: () =>
-                        setState(() => _dir = QuizDirection.frToKo),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _DirTile(
+                          label: 'quiz_setup.dir_fr_to_kr'.tr(),
+                          sublabel: 'quiz_setup.dir_fr_to_kr_sub'.tr(),
+                          selected: _dir == QuizDirectionChoice.frToKo,
+                          accentColor: AppColors.teal,
+                          onTap: () => setState(
+                              () => _dir = QuizDirectionChoice.frToKo),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _DirTile(
+                          label: 'quiz_setup.dir_kr_to_fr'.tr(),
+                          sublabel: 'quiz_setup.dir_kr_to_fr_sub'.tr(),
+                          selected: _dir == QuizDirectionChoice.koToFr,
+                          accentColor: AppColors.clay,
+                          onTap: () => setState(
+                              () => _dir = QuizDirectionChoice.koToFr),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(height: 8),
                   _DirTile(
-                    label: 'KR → FR',
-                    sublabel: 'Lire en coréen',
-                    selected: _dir == QuizDirection.koToFr,
-                    accentColor: AppColors.clay,
+                    label: 'quiz_setup.dir_both'.tr(),
+                    sublabel: 'quiz_setup.dir_both_sub'.tr(),
+                    selected: _dir == QuizDirectionChoice.both,
+                    accentColor: const Color(0xFF7C5CBF),
                     onTap: () =>
-                        setState(() => _dir = QuizDirection.koToFr),
+                        setState(() => _dir = QuizDirectionChoice.both),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
               // ── Card count ────────────────────────────────────────────────
-              _Section(label: 'CARTES PAR SESSION'),
+              _Section(label: 'quiz_setup.section_card_count'.tr()),
               const SizedBox(height: 10),
               Row(
                 children: _limits.map((n) {
@@ -93,12 +113,12 @@ class _QuizSetupScreenState extends ConsumerState<QuizSetupScreen> {
                         decoration: BoxDecoration(
                           color: selected
                               ? AppColors.teal
-                              : AppColors.card,
+                              : cs.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(
                             color: selected
                                 ? AppColors.teal
-                                : AppColors.line,
+                                : cs.outline,
                           ),
                         ),
                         child: Text(
@@ -109,9 +129,7 @@ class _QuizSetupScreenState extends ConsumerState<QuizSetupScreen> {
                                       ? FontWeight.w700
                                       : FontWeight.w600)
                               .copyWith(
-                            color: selected
-                                ? Colors.white
-                                : AppColors.muted,
+                            color: selected ? Colors.white : muted,
                           ),
                         ),
                       ),
@@ -135,7 +153,7 @@ class _QuizSetupScreenState extends ConsumerState<QuizSetupScreen> {
                       const Icon(Icons.play_arrow_rounded,
                           color: Colors.white, size: 22),
                       const SizedBox(width: 8),
-                      Text('Démarrer la session',
+                      Text('quiz_setup.start_button'.tr(),
                           style: AppTextStyles.fig(15, FontWeight.w700)
                               .copyWith(color: Colors.white)),
                     ],
@@ -170,8 +188,10 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
     return Text(label,
-        style: AppTextStyles.eyebrow.copyWith(color: AppColors.muted));
+        style: AppTextStyles.eyebrow.copyWith(color: muted));
   }
 }
 
@@ -182,31 +202,36 @@ class _ModeGrid extends StatelessWidget {
   final QuizMode selected;
   final ValueChanged<QuizMode> onChanged;
 
-  static const _modes = [
-    (QuizMode.voice,      Icons.mic_outlined,              'Voix',        'Prononcez la réponse'),
-    (QuizMode.flashcard,  Icons.style_outlined,            'Cartes',      'Retournez les cartes'),
-    (QuizMode.typing,     Icons.keyboard_outlined,         'Écrire',      'Tapez la réponse'),
-    (QuizMode.handsFree,  Icons.directions_car_outlined,   'Mains libres','Mode conduite / auto'),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
+
+    final modes = [
+      (QuizMode.voice,      Icons.mic_outlined,              'quiz_setup.mode_voice_label'.tr(),        'quiz_setup.mode_voice_sub'.tr()),
+      (QuizMode.flashcard,  Icons.style_outlined,            'quiz_setup.mode_flashcard_label'.tr(),    'quiz_setup.mode_flashcard_sub'.tr()),
+      (QuizMode.typing,     Icons.keyboard_outlined,         'quiz_setup.mode_typing_label'.tr(),       'quiz_setup.mode_typing_sub'.tr()),
+      (QuizMode.handsFree,  Icons.directions_car_outlined,   'quiz_setup.mode_hands_free_label'.tr(),   'quiz_setup.mode_hands_free_sub'.tr()),
+    ];
+
     return Column(
-      children: _modes.map((m) {
+      children: modes.map((m) {
         final (mode, icon, label, sublabel) = m;
         final isSelected = selected == mode;
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: GestureDetector(
             onTap: () => onChanged(mode),
-            child: FrostedBox(
-              borderRadius: BorderRadius.circular(16),
-              borderOpacity: isSelected ? 0.0 : 0.18,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 14),
-              child: Stack(
-                children: [
-                  Row(
+            child: Stack(
+              children: [
+                FrostedBox(
+                  borderRadius: BorderRadius.circular(16),
+                  borderOpacity: isSelected ? 0.0 : 0.18,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 14),
+                  child: Row(
                     children: [
                       Container(
                         width: 40,
@@ -214,13 +239,11 @@ class _ModeGrid extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? AppColors.teal.withValues(alpha: 0.12)
-                              : AppColors.line.withValues(alpha: 0.5),
+                              : cs.outline.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(icon,
-                            color: isSelected
-                                ? AppColors.teal
-                                : AppColors.faint,
+                            color: isSelected ? AppColors.teal : faint,
                             size: 20),
                       ),
                       const SizedBox(width: 14),
@@ -234,10 +257,10 @@ class _ModeGrid extends StatelessWidget {
                                         isSelected
                                             ? FontWeight.w700
                                             : FontWeight.w600)
-                                    .copyWith(color: AppColors.ink)),
+                                    .copyWith(color: cs.onSurface)),
                             Text(sublabel,
                                 style: AppTextStyles.caption
-                                    .copyWith(color: AppColors.muted)),
+                                    .copyWith(color: muted)),
                           ],
                         ),
                       ),
@@ -246,19 +269,18 @@ class _ModeGrid extends StatelessWidget {
                             color: AppColors.teal, size: 20),
                     ],
                   ),
-                  // Selection border overlay
-                  if (isSelected)
-                    Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                              color: AppColors.teal, width: 1.5),
-                        ),
+                ),
+                // Border drawn outside FrostedBox padding so it wraps the full tile.
+                if (isSelected)
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.teal, width: 1.5),
                       ),
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
           ),
         );
@@ -285,19 +307,22 @@ class _DirTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
             color: selected
                 ? accentColor.withValues(alpha: 0.1)
-                : AppColors.card,
+                : cs.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: selected ? accentColor : AppColors.line,
+              color: selected ? accentColor : cs.outline,
               width: selected ? 1.5 : 1,
             ),
           ),
@@ -307,16 +332,14 @@ class _DirTile extends StatelessWidget {
               Text(label,
                   style: AppTextStyles.fig(15, FontWeight.w700)
                       .copyWith(
-                          color:
-                              selected ? accentColor : AppColors.ink)),
+                          color: selected ? accentColor : cs.onSurface)),
               const SizedBox(height: 2),
               Text(sublabel,
                   style: AppTextStyles.captionSmall
-                      .copyWith(color: AppColors.muted)),
+                      .copyWith(color: muted)),
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 }

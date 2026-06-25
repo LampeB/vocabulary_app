@@ -141,7 +141,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         createdAt: Value(concept.createdAt),
         updatedAt: Value(concept.updatedAt),
       ));
-      unawaited(_updateWordCount(listId, 1));
+      await _updateWordCount(listId, 1);
       return Success(concept);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -199,11 +199,12 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         await _conceptDao.upsertVariant(frVariant.toLocalCompanion());
         await _conceptDao.upsertVariant(koVariant.toLocalCompanion());
       });
-      print('[addConceptWithVariants] committed conceptId=${concept.id} frId=${frVariant.id} koId=${koVariant.id} listId=$listId');
-      unawaited(_updateWordCount(listId, 1));
+      await _updateWordCount(listId, 1);
+      unawaited(_remote.upsertConcept(_conceptToRemote(concept)));
+      unawaited(_remote.upsertVariant(_variantToRemote(frVariant)));
+      unawaited(_remote.upsertVariant(_variantToRemote(koVariant)));
       return Success(concept);
     } catch (e) {
-      print('[addConceptWithVariants] FAILED: $e');
       return Failure(StorageException(e.toString()));
     }
   }
@@ -221,8 +222,10 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         exampleFr: Value(updated.exampleFr),
         exampleKo: Value(updated.exampleKo),
         isSynced: Value(false),
+        createdAt: Value(updated.createdAt),
         updatedAt: Value(updated.updatedAt),
       ));
+      unawaited(_remote.upsertConcept(_conceptToRemote(updated)));
       return Success(updated);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -234,7 +237,15 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     try {
       final row = await _conceptDao.getById(conceptId);
       await _conceptDao.softDelete(conceptId);
-      if (row != null) unawaited(_updateWordCount(row.listId, -1));
+      if (row != null) {
+        await _updateWordCount(row.listId, -1);
+        unawaited(_remote.upsertConcept({
+          'id': conceptId,
+          'list_id': row.listId,
+          'is_deleted': true,
+          'updated_at': DateTime.now().toIso8601String(),
+        }));
+      }
       return const Success(null);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -272,6 +283,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     );
     try {
       await _conceptDao.upsertVariant(variant.toLocalCompanion());
+      unawaited(_remote.upsertVariant(_variantToRemote(variant)));
       return Success(variant);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -283,6 +295,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     final updated = variant.copyWith(updatedAt: DateTime.now(), isSynced: false);
     try {
       await _conceptDao.upsertVariant(updated.toLocalCompanion());
+      unawaited(_remote.upsertVariant(_variantToRemote(updated)));
       return Success(updated);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -293,6 +306,11 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   Future<Result<void>> deleteVariant(String variantId) async {
     try {
       await _conceptDao.softDeleteVariant(variantId);
+      unawaited(_remote.upsertVariant({
+        'id': variantId,
+        'is_deleted': true,
+        'updated_at': DateTime.now().toIso8601String(),
+      }));
       return const Success(null);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -489,6 +507,50 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       for (final map in value) {
         final list = map.toVocabularyListDomain();
         await _listDao.upsert(list.toLocalCompanion());
+
+        final conceptsResult = await _remote.fetchConcepts(list.id);
+        if (conceptsResult case Success(:final value)) {
+          for (final c in value) {
+            await _conceptDao.upsert(ConceptsTableCompanion(
+              id: Value(c['id'] as String),
+              listId: Value(c['list_id'] as String),
+              category: Value(c['category'] as String?),
+              notes: Value(c['notes'] as String?),
+              imageUrl: Value(c['image_url'] as String?),
+              exampleFr: Value(c['example_fr'] as String?),
+              exampleKo: Value(c['example_ko'] as String?),
+              isDeleted: Value(c['is_deleted'] as bool? ?? false),
+              isSynced: const Value(true),
+              createdAt: Value(DateTime.parse(c['created_at'] as String)),
+              updatedAt: Value(DateTime.parse(c['updated_at'] as String)),
+            ));
+            final variants = (c['word_variants'] as List?)
+                    ?.cast<Map<String, dynamic>>() ??
+                [];
+            for (final v in variants) {
+              await _conceptDao.upsertVariant(WordVariantsTableCompanion(
+                id: Value(v['id'] as String),
+                conceptId: Value(v['concept_id'] as String),
+                word: Value(v['word'] as String? ?? ''),
+                langCode: Value(v['lang_code'] as String? ?? 'fr'),
+                registerTag:
+                    Value(v['register_tag'] as String? ?? 'neutral'),
+                isPrimary: Value(v['is_primary'] as bool? ?? false),
+                position: Value(v['position'] as int? ?? 0),
+                isDeleted: Value(v['is_deleted'] as bool? ?? false),
+                isSynced: const Value(true),
+                createdAt:
+                    Value(DateTime.parse(v['created_at'] as String)),
+                updatedAt:
+                    Value(DateTime.parse(v['updated_at'] as String)),
+              ));
+            }
+          }
+        }
+        // Recount from actual non-deleted rows so the stored wordCount
+        // is always authoritative, regardless of what the remote sent.
+        final actualCount = await _conceptDao.countByList(list.id);
+        await _listDao.updateWordCount(list.id, actualCount);
       }
     }
   }
@@ -504,4 +566,30 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       'updated_at': DateTime.now().toIso8601String(),
     }));
   }
+
+  static Map<String, dynamic> _conceptToRemote(Concept c) => {
+        'id': c.id,
+        'list_id': c.listId,
+        'category': c.category,
+        'notes': c.notes,
+        'image_url': c.imageUrl,
+        'example_fr': c.exampleFr,
+        'example_ko': c.exampleKo,
+        'is_deleted': c.isDeleted,
+        'created_at': c.createdAt.toIso8601String(),
+        'updated_at': c.updatedAt.toIso8601String(),
+      };
+
+  static Map<String, dynamic> _variantToRemote(WordVariant v) => {
+        'id': v.id,
+        'concept_id': v.conceptId,
+        'word': v.word,
+        'lang_code': v.langCode,
+        'register_tag': v.registerTag,
+        'is_primary': v.isPrimary,
+        'position': v.position,
+        'is_deleted': v.isDeleted,
+        'created_at': v.createdAt.toIso8601String(),
+        'updated_at': v.updatedAt.toIso8601String(),
+      };
 }

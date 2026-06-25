@@ -1,4 +1,3 @@
-import 'dart:async' show unawaited;
 import 'dart:convert' show jsonDecode, jsonEncode;
 import 'dart:io' show File;
 import 'package:file_picker/file_picker.dart';
@@ -90,9 +89,14 @@ final dueCountProvider = StreamProvider<int>((ref) {
   return ref.watch(progressDaoProvider).watchDueCount(userId);
 });
 
+const _kTestMode = bool.fromEnvironment('TEST_MODE');
+
 // Pulls the user's lists from Supabase into the local DB on login.
 // Watchers (myListsProvider) update automatically when Drift rows change.
+// Skipped in TEST_MODE — tests create their own isolated data and the sync
+// can queue hundreds of Drift writes that block quiz card loading.
 final syncOnLoginProvider = FutureProvider<void>((ref) async {
+  if (_kTestMode) return;
   final user = ref.watch(currentUserProvider);
   if (user == null) return;
   await ref.watch(vocabularyRepositoryProvider).syncFromRemote();
@@ -160,6 +164,16 @@ class ListActionsNotifier extends Notifier<void> {
 
   Future<Result<void>> deleteConcept(String conceptId) =>
       _repo.deleteConcept(conceptId);
+
+  Future<void> updateVariants({
+    required WordVariant frVariant,
+    required String newFrWord,
+    required WordVariant koVariant,
+    required String newKoWord,
+  }) async {
+    await _repo.updateVariant(frVariant.copyWith(word: newFrWord));
+    await _repo.updateVariant(koVariant.copyWith(word: newKoWord));
+  }
 
   // Returns an error message on failure, null on success.
   Future<String?> exportList(String listId, String listName) async {

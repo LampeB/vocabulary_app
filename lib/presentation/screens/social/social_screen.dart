@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/failure.dart';
@@ -41,8 +42,10 @@ class _SocialScreenState extends ConsumerState<SocialScreen>
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      // Background from AppTheme.scaffoldBackgroundColor.
       body: Stack(
         children: [
           const DottedGround(),
@@ -55,10 +58,9 @@ class _SocialScreenState extends ConsumerState<SocialScreen>
                   child: Row(
                     children: [
                       Expanded(
-                        child: Text('Amis',
-                            style: AppTextStyles.grotesk(
-                                    26, FontWeight.w700)
-                                .copyWith(color: AppColors.ink)),
+                        child: Text('social.title'.tr(),
+                            style: AppTextStyles.grotesk(26, FontWeight.w700)
+                                .copyWith(color: cs.onSurface)),
                       ),
                       if (_currentTab == 0)
                         GestureDetector(
@@ -76,9 +78,8 @@ class _SocialScreenState extends ConsumerState<SocialScreen>
                                 const Icon(Icons.person_add_outlined,
                                     color: Colors.white, size: 16),
                                 const SizedBox(width: 6),
-                                Text('Ajouter',
-                                    style: AppTextStyles.fig(
-                                            13, FontWeight.w700)
+                                Text('social.add_friend_button'.tr(),
+                                    style: AppTextStyles.fig(13, FontWeight.w700)
                                         .copyWith(color: Colors.white)),
                               ],
                             ),
@@ -94,7 +95,7 @@ class _SocialScreenState extends ConsumerState<SocialScreen>
                   child: Row(
                     children: [
                       _TabPill(
-                        label: 'Amis',
+                        label: 'social.tab_friends'.tr(),
                         selected: _currentTab == 0,
                         onTap: () {
                           _tab.animateTo(0);
@@ -103,7 +104,7 @@ class _SocialScreenState extends ConsumerState<SocialScreen>
                       ),
                       const SizedBox(width: 8),
                       _TabPill(
-                        label: 'Classement',
+                        label: 'social.tab_leaderboard'.tr(),
                         selected: _currentTab == 1,
                         onTap: () {
                           _tab.animateTo(1);
@@ -151,26 +152,30 @@ class _TabPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    // Selected: ink bg / onDark text — looks good in both themes (high contrast).
+    // Unselected: surfaceContainerHighest bg / muted text — adapts to theme.
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
         decoration: BoxDecoration(
-          color: selected ? AppColors.ink : AppColors.card,
+          color: selected ? cs.onSurface : cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? AppColors.ink : AppColors.line,
+            color: selected ? cs.onSurface : cs.outline,
           ),
         ),
         child: Text(
           label,
           style: AppTextStyles.fig(
-                  14,
-                  selected ? FontWeight.w700 : FontWeight.w500)
+                  14, selected ? FontWeight.w700 : FontWeight.w500)
               .copyWith(
-            color: selected ? AppColors.onDark : AppColors.muted,
+            color: selected ? cs.surface : muted,
           ),
         ),
       ),
@@ -187,10 +192,14 @@ class _FriendsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pendingAsync = ref.watch(pendingRequestsProvider);
     final friendsAsync = ref.watch(friendsProvider);
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
 
     return RefreshIndicator(
       color: AppColors.clay,
-      backgroundColor: AppColors.card,
+      backgroundColor: cs.surfaceContainerHighest,
       onRefresh: () async {
         ref.invalidate(friendsProvider);
         ref.invalidate(pendingRequestsProvider);
@@ -211,9 +220,8 @@ class _FriendsTab extends ConsumerWidget {
                 delegate: SliverChildListDelegate([
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                    child: Text('DEMANDES EN ATTENTE',
-                        style: AppTextStyles.eyebrow
-                            .copyWith(color: AppColors.muted)),
+                    child: Text('social.pending_section'.tr(),
+                        style: AppTextStyles.eyebrow.copyWith(color: muted)),
                   ),
                   ...requests.map((r) => Padding(
                         padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
@@ -234,7 +242,7 @@ class _FriendsTab extends ConsumerWidget {
             ),
             error: (e, _) => SliverFillRemaining(
               child: Center(
-                child: Text('Erreur',
+                child: Text('social.error_loading'.tr(),
                     style: AppTextStyles.caption
                         .copyWith(color: AppColors.rose)),
               ),
@@ -244,24 +252,21 @@ class _FriendsTab extends ConsumerWidget {
                 return SliverFillRemaining(
                   child: Center(
                     child: Padding(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 40),
+                      padding: const EdgeInsets.symmetric(horizontal: 40),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.people_outline,
-                              size: 56, color: AppColors.faint),
+                          Icon(Icons.people_outline,
+                              size: 56, color: faint),
                           const SizedBox(height: 16),
-                          Text('Pas encore d\'amis',
-                              style: AppTextStyles.grotesk(
-                                      20, FontWeight.w700)
-                                  .copyWith(color: AppColors.ink)),
+                          Text('social.empty_friends_title'.tr(),
+                              style: AppTextStyles.grotesk(20, FontWeight.w700)
+                                  .copyWith(color: cs.onSurface)),
                           const SizedBox(height: 8),
                           Text(
-                            'Ajoute des amis pour voir leur progression.',
+                            'social.empty_friends_subtitle'.tr(),
                             textAlign: TextAlign.center,
-                            style: AppTextStyles.body
-                                .copyWith(color: AppColors.muted),
+                            style: AppTextStyles.body.copyWith(color: muted),
                           ),
                         ],
                       ),
@@ -295,6 +300,9 @@ class _RequestCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
     final senderAsync = ref.watch(userSummaryProvider(request.fromUserId));
     final isLoading =
         ref.watch(socialActionsProvider) is AsyncLoading<void>;
@@ -315,10 +323,9 @@ class _RequestCard extends ConsumerWidget {
               children: [
                 Text(name,
                     style: AppTextStyles.fig(14, FontWeight.w600)
-                        .copyWith(color: AppColors.ink)),
-                Text('T\'a envoyé une demande',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.muted)),
+                        .copyWith(color: cs.onSurface)),
+                Text('social.request_subtitle'.tr(),
+                    style: AppTextStyles.caption.copyWith(color: muted)),
               ],
             ),
           ),
@@ -372,6 +379,9 @@ class _FriendCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
     final friend = friendship.friend;
     final displayName = friend.displayName ?? friend.username;
 
@@ -388,10 +398,9 @@ class _FriendCard extends ConsumerWidget {
               children: [
                 Text(displayName,
                     style: AppTextStyles.fig(14, FontWeight.w600)
-                        .copyWith(color: AppColors.ink)),
+                        .copyWith(color: cs.onSurface)),
                 Text('@${friend.username}',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.faint)),
+                    style: AppTextStyles.caption.copyWith(color: faint)),
               ],
             ),
           ),
@@ -405,8 +414,7 @@ class _FriendCard extends ConsumerWidget {
             const SizedBox(width: 4),
           ],
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert,
-                color: AppColors.faint, size: 18),
+            icon: Icon(Icons.more_vert, color: faint, size: 18),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14)),
             itemBuilder: (_) => [
@@ -416,7 +424,7 @@ class _FriendCard extends ConsumerWidget {
                   const Icon(Icons.person_remove_outlined,
                       size: 16, color: AppColors.rose),
                   const SizedBox(width: 8),
-                  Text('Supprimer',
+                  Text('social.remove_friend_menu'.tr(),
                       style: AppTextStyles.fig(13, FontWeight.w500)
                           .copyWith(color: AppColors.rose)),
                 ]),
@@ -432,20 +440,18 @@ class _FriendCard extends ConsumerWidget {
   }
 
   void _confirmRemove(BuildContext context, WidgetRef ref) {
+    final name = friendship.friend.displayName ?? friendship.friend.username;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Retirer cet ami ?',
-            style: AppTextStyles.grotesk(20, FontWeight.w700)
-                .copyWith(color: AppColors.ink)),
+        title: Text('social.remove_dialog_title'.tr()),
         content: Text(
-          '${friendship.friend.displayName ?? friendship.friend.username} sera retiré de tes amis.',
-          style: AppTextStyles.body.copyWith(color: AppColors.muted),
+          'social.remove_dialog_body'.tr(namedArgs: {'name': name}),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Annuler')),
+              child: Text('common.cancel'.tr())),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: AppColors.rose),
             onPressed: () {
@@ -454,7 +460,7 @@ class _FriendCard extends ConsumerWidget {
                   .read(socialActionsProvider.notifier)
                   .removeFriend(friendship.id);
             },
-            child: Text('Retirer',
+            child: Text('social.remove_confirm'.tr(),
                 style: AppTextStyles.fig(14, FontWeight.w600)
                     .copyWith(color: AppColors.rose)),
           ),
@@ -471,6 +477,9 @@ class _LeaderboardTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
     final period = ref.watch(leaderboardPeriodProvider);
     final leaderboardAsync = ref.watch(leaderboardProvider(period));
     final currentUserId = ref.watch(currentUserProvider)?.id;
@@ -483,7 +492,7 @@ class _LeaderboardTab extends ConsumerWidget {
           child: Row(
             children: [
               _PeriodPill(
-                label: 'Semaine',
+                label: 'social.leaderboard_period_week'.tr(),
                 selected: period == LeaderboardPeriod.weekly,
                 onTap: () => ref
                     .read(leaderboardPeriodProvider.notifier)
@@ -491,7 +500,7 @@ class _LeaderboardTab extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               _PeriodPill(
-                label: 'Mois',
+                label: 'social.leaderboard_period_month'.tr(),
                 selected: period == LeaderboardPeriod.monthly,
                 onTap: () => ref
                     .read(leaderboardPeriodProvider.notifier)
@@ -499,7 +508,7 @@ class _LeaderboardTab extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               _PeriodPill(
-                label: 'Total',
+                label: 'social.leaderboard_period_all'.tr(),
                 selected: period == LeaderboardPeriod.allTime,
                 onTap: () => ref
                     .read(leaderboardPeriodProvider.notifier)
@@ -516,25 +525,23 @@ class _LeaderboardTab extends ConsumerWidget {
                   color: AppColors.clay, strokeWidth: 2),
             ),
             error: (_, __) => Center(
-              child: Text('Classement indisponible',
-                  style: AppTextStyles.caption
-                      .copyWith(color: AppColors.muted)),
+              child: Text('social.leaderboard_unavailable'.tr(),
+                  style: AppTextStyles.caption.copyWith(color: muted)),
             ),
             data: (result) {
               final entries = result.valueOrNull ?? [];
               if (entries.isEmpty) {
                 return Center(
                   child: Text(
-                    'Aucun score — termine un quiz pour apparaître !',
+                    'social.leaderboard_empty'.tr(),
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.body
-                        .copyWith(color: AppColors.muted),
+                    style: AppTextStyles.body.copyWith(color: muted),
                   ),
                 );
               }
               return RefreshIndicator(
                 color: AppColors.clay,
-                backgroundColor: AppColors.card,
+                backgroundColor: cs.surfaceContainerHighest,
                 onRefresh: () async =>
                     ref.invalidate(leaderboardProvider(period)),
                 child: ListView.separated(
@@ -568,24 +575,27 @@ class _PeriodPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? AppColors.teal : AppColors.card,
+          color: selected ? AppColors.teal : cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? AppColors.teal : AppColors.line,
+            color: selected ? AppColors.teal : cs.outline,
           ),
         ),
         child: Text(label,
             style: AppTextStyles.fig(
-                    13,
-                    selected ? FontWeight.w700 : FontWeight.w500)
+                    13, selected ? FontWeight.w700 : FontWeight.w500)
                 .copyWith(
-              color: selected ? Colors.white : AppColors.muted,
+              color: selected ? Colors.white : muted,
             )),
       ),
     );
@@ -599,6 +609,9 @@ class _LeaderboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
     final rank = entry.rank ?? 0;
     final Color rankColor;
     if (rank == 1) {
@@ -608,7 +621,7 @@ class _LeaderboardCard extends StatelessWidget {
     } else if (rank == 3) {
       rankColor = const Color(0xFFCD7F32);
     } else {
-      rankColor = AppColors.faint;
+      rankColor = faint;
     }
 
     return FrostedBox(
@@ -648,11 +661,8 @@ class _LeaderboardCard extends StatelessWidget {
                 child: Text(
                   entry.username,
                   style: AppTextStyles.fig(
-                          14,
-                          isMe
-                              ? FontWeight.w700
-                              : FontWeight.w500)
-                      .copyWith(color: AppColors.ink),
+                          14, isMe ? FontWeight.w700 : FontWeight.w500)
+                      .copyWith(color: cs.onSurface),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -663,12 +673,12 @@ class _LeaderboardCard extends StatelessWidget {
                     '${entry.score}',
                     style: AppTextStyles.grotesk(16, FontWeight.w700)
                         .copyWith(
-                      color: isMe ? AppColors.teal : AppColors.ink,
+                      color: isMe ? AppColors.teal : cs.onSurface,
                     ),
                   ),
-                  Text('mots',
+                  Text('social.leaderboard_score_unit'.tr(),
                       style: AppTextStyles.caption
-                          .copyWith(color: AppColors.faint)),
+                          .copyWith(color: faint)),
                 ],
               ),
             ],
@@ -712,10 +722,13 @@ class _UserSearchDialogState
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
+
     return AlertDialog(
-      title: Text('Trouver des amis',
-          style: AppTextStyles.grotesk(20, FontWeight.w700)
-              .copyWith(color: AppColors.ink)),
+      // dialogTheme handles title/content colors.
+      title: Text('social.search_dialog_title'.tr()),
       contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       content: SizedBox(
         width: double.maxFinite,
@@ -725,20 +738,20 @@ class _UserSearchDialogState
             TextField(
               controller: _ctrl,
               autofocus: true,
-              decoration: const InputDecoration(
-                hintText: 'Rechercher par pseudo…',
-                prefixIcon: Icon(Icons.search_rounded),
+              decoration: InputDecoration(
+                hintText: 'social.search_hint'.tr(),
+                prefixIcon: const Icon(Icons.search_rounded),
               ),
               onChanged: _onChanged,
             ),
             const SizedBox(height: 8),
             Expanded(
               child: _query.length >= 2
-                  ? _buildResults()
+                  ? _buildResults(context, cs, faint)
                   : Center(
-                      child: Text('Tape au moins 2 caractères',
+                      child: Text('social.search_min_chars'.tr(),
                           style: AppTextStyles.caption
-                              .copyWith(color: AppColors.faint)),
+                              .copyWith(color: faint)),
                     ),
             ),
           ],
@@ -747,12 +760,14 @@ class _UserSearchDialogState
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer')),
+            child: Text('common.cancel'.tr())),
       ],
     );
   }
 
-  Widget _buildResults() {
+  Widget _buildResults(BuildContext context, ColorScheme cs, Color faint) {
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
     final async = ref.watch(userSearchProvider(_query));
     return async.when(
       loading: () => const Center(
@@ -760,7 +775,7 @@ class _UserSearchDialogState
             color: AppColors.clay, strokeWidth: 2),
       ),
       error: (_, __) => Center(
-        child: Text('Recherche échouée',
+        child: Text('social.search_error'.tr(),
             style: AppTextStyles.caption
                 .copyWith(color: AppColors.rose)),
       ),
@@ -768,9 +783,8 @@ class _UserSearchDialogState
         final users = result.valueOrNull ?? [];
         if (users.isEmpty) {
           return Center(
-            child: Text('Aucun utilisateur trouvé',
-                style: AppTextStyles.caption
-                    .copyWith(color: AppColors.faint)),
+            child: Text('social.search_no_results'.tr(),
+                style: AppTextStyles.caption.copyWith(color: faint)),
           );
         }
         return ListView.separated(
@@ -789,12 +803,11 @@ class _UserSearchDialogState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(name,
-                          style:
-                              AppTextStyles.fig(14, FontWeight.w600)
-                                  .copyWith(color: AppColors.ink)),
+                          style: AppTextStyles.fig(14, FontWeight.w600)
+                              .copyWith(color: cs.onSurface)),
                       Text('@${user.username}',
                           style: AppTextStyles.caption
-                              .copyWith(color: AppColors.faint)),
+                              .copyWith(color: faint)),
                     ],
                   ),
                 ),
@@ -803,12 +816,12 @@ class _UserSearchDialogState
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: AppColors.line,
+                      color: cs.outline.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(999),
                     ),
-                    child: Text('Envoyée',
+                    child: Text('social.search_request_sent'.tr(),
                         style: AppTextStyles.fig(11, FontWeight.w600)
-                            .copyWith(color: AppColors.muted)),
+                            .copyWith(color: muted)),
                   )
                 else
                   GestureDetector(
@@ -827,10 +840,9 @@ class _UserSearchDialogState
                         color: AppColors.clay,
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: Text('Ajouter',
-                          style:
-                              AppTextStyles.fig(12, FontWeight.w700)
-                                  .copyWith(color: Colors.white)),
+                      child: Text('social.search_add_button'.tr(),
+                          style: AppTextStyles.fig(12, FontWeight.w700)
+                              .copyWith(color: Colors.white)),
                     ),
                   ),
               ],

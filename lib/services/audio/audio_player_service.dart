@@ -3,12 +3,17 @@ import 'elevenlabs_service.dart';
 import 'flutter_tts_service.dart';
 
 class AudioPlayerService {
-  AudioPlayerService({required bool usePremium, String? frVoiceId, String? koVoiceId})
-      : _elevenlabs = ElevenLabsService(
+  AudioPlayerService({
+    required bool usePremium,
+    String? frVoiceId,
+    String? koVoiceId,
+    double speechRate = 0.85,
+    double pitch = 1.0,
+  })  : _elevenlabs = ElevenLabsService(
           frVoiceId: frVoiceId ?? 'Charlotte',
           koVoiceId: koVoiceId ?? 'Elli',
         ),
-        _tts = FlutterTtsService(),
+        _tts = FlutterTtsService(speechRate: speechRate, pitch: pitch),
         _usePremium = usePremium;
 
   final ElevenLabsService _elevenlabs;

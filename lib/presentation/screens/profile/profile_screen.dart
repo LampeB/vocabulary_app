@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,18 +23,15 @@ class ProfileScreen extends ConsumerWidget {
     final mastered  = user?.totalWordsMastered ?? 0;
     final best      = user?.longestStreak ?? 0;
 
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
+
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      // Background from AppTheme.scaffoldBackgroundColor.
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined,
-                color: AppColors.muted, size: 22),
-            tooltip: 'Paramètres',
-            onPressed: () => context.push('/settings'),
-          ),
-        ],
       ),
       body: Stack(
         children: [
@@ -56,14 +54,14 @@ class ProfileScreen extends ConsumerWidget {
                       Text(
                         name,
                         style: AppTextStyles.grotesk(26, FontWeight.w700)
-                            .copyWith(color: AppColors.ink),
+                            .copyWith(color: cs.onSurface),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '@$username',
                         key: const Key('profile_username'),
                         style: AppTextStyles.mono(13, FontWeight.w400)
-                            .copyWith(color: AppColors.faint),
+                            .copyWith(color: faint),
                       ),
                     ],
                   ),
@@ -78,9 +76,7 @@ class ProfileScreen extends ConsumerWidget {
                     children: [
                       Icon(
                         Icons.local_fire_department_rounded,
-                        color: streak > 0
-                            ? AppColors.clay
-                            : AppColors.faint,
+                        color: streak > 0 ? AppColors.clay : faint,
                         size: 32,
                       ),
                       const SizedBox(width: 14),
@@ -88,8 +84,7 @@ class ProfileScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.baseline,
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
                             textBaseline: TextBaseline.alphabetic,
                             children: [
                               Text(
@@ -99,24 +94,25 @@ class ProfileScreen extends ConsumerWidget {
                                     .copyWith(
                                   color: streak > 0
                                       ? AppColors.clay
-                                      : AppColors.faint,
+                                      : faint,
                                 ),
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                'jour${streak == 1 ? '' : 's'}',
-                                style: AppTextStyles.fig(
-                                        16, FontWeight.w600)
-                                    .copyWith(color: AppColors.muted),
+                                streak == 1
+                                    ? 'home.streak_days_one'.tr()
+                                    : 'home.streak_days_other'.tr(),
+                                style: AppTextStyles.fig(16, FontWeight.w600)
+                                    .copyWith(color: muted),
                               ),
                             ],
                           ),
                           Text(
                             streak > 0
-                                ? 'de série en cours'
-                                : 'Lance ta série aujourd\'hui',
+                                ? 'profile.streak_active'.tr()
+                                : 'profile.streak_inactive'.tr(),
                             style: AppTextStyles.caption
-                                .copyWith(color: AppColors.faint),
+                                .copyWith(color: faint),
                           ),
                         ],
                       ),
@@ -129,13 +125,13 @@ class ProfileScreen extends ConsumerWidget {
                   children: [
                     _StatCard(
                       value: '$mastered',
-                      label: 'Mots maîtrisés',
+                      label: 'profile.stat_mastered'.tr(),
                       accent: AppColors.teal,
                     ),
                     const SizedBox(width: 10),
                     _StatCard(
                       value: '$best',
-                      label: 'Meilleure série',
+                      label: 'profile.stat_best_streak'.tr(),
                       accent: AppColors.clay,
                       suffix: ' j',
                     ),
@@ -143,7 +139,7 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
                 // ── Subscription ─────────────────────────────────────────────
-                _Section(label: 'ABONNEMENT'),
+                _Section(label: 'profile.section_subscription'.tr()),
                 const SizedBox(height: 10),
                 FrostedBox(
                   borderRadius: BorderRadius.circular(18),
@@ -156,14 +152,12 @@ class ProfileScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color: isPremium
                               ? AppColors.clay.withValues(alpha: 0.12)
-                              : AppColors.line.withValues(alpha: 0.6),
+                              : cs.outline.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(
                           Icons.workspace_premium_outlined,
-                          color: isPremium
-                              ? AppColors.clay
-                              : AppColors.faint,
+                          color: isPremium ? AppColors.clay : faint,
                           size: 20,
                         ),
                       ),
@@ -173,22 +167,23 @@ class ProfileScreen extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              isPremium ? 'Premium' : 'Gratuit',
-                              style:
-                                  AppTextStyles.fig(15, FontWeight.w600)
-                                      .copyWith(color: AppColors.ink),
+                              isPremium
+                                  ? 'common.premium'.tr()
+                                  : 'common.free'.tr(),
+                              style: AppTextStyles.fig(15, FontWeight.w600)
+                                  .copyWith(color: cs.onSurface),
                             ),
                             Text(
                               _subscriptionLabel(ref),
                               style: AppTextStyles.caption
-                                  .copyWith(color: AppColors.muted),
+                                  .copyWith(color: muted),
                             ),
                           ],
                         ),
                       ),
                       if (!isPremium)
                         GestureDetector(
-                          onTap: () => context.go('/paywall'),
+                          onTap: () => context.push('/paywall'),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 14, vertical: 8),
@@ -196,34 +191,42 @@ class ProfileScreen extends ConsumerWidget {
                               color: AppColors.clay,
                               borderRadius: BorderRadius.circular(999),
                             ),
-                            child: Text('Passer Premium',
-                                style:
-                                    AppTextStyles.fig(12, FontWeight.w700)
-                                        .copyWith(color: Colors.white)),
+                            child: Text('profile.upgrade_button'.tr(),
+                                style: AppTextStyles.fig(12, FontWeight.w700)
+                                    .copyWith(color: Colors.white)),
                           ),
                         ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 24),
+                // ── Stats ─────────────────────────────────────────────────────
+                _Section(label: 'profile.section_progress'.tr()),
+                const SizedBox(height: 10),
+                _ActionTile(
+                  icon: Icons.bar_chart_rounded,
+                  label: 'profile.nav_stats'.tr(),
+                  onTap: () => context.push('/stats'),
+                ),
+                const SizedBox(height: 24),
                 // ── Actions ──────────────────────────────────────────────────
-                _Section(label: 'COMPTE'),
+                _Section(label: 'profile.section_account'.tr()),
                 const SizedBox(height: 10),
                 _ActionTile(
                   icon: Icons.settings_outlined,
-                  label: 'Paramètres',
+                  label: 'profile.nav_settings'.tr(),
                   onTap: () => context.push('/settings'),
                 ),
                 const SizedBox(height: 8),
                 _ActionTile(
                   icon: Icons.notifications_outlined,
-                  label: 'Notifications',
+                  label: 'profile.nav_notifications'.tr(),
                   onTap: () => context.push('/notifications'),
                 ),
                 const SizedBox(height: 8),
                 _ActionTile(
                   icon: Icons.logout_rounded,
-                  label: 'Se déconnecter',
+                  label: 'profile.nav_signout'.tr(),
                   destructive: true,
                   onTap: () => _confirmSignOut(context, ref),
                 ),
@@ -239,21 +242,16 @@ class ProfileScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Se déconnecter ?',
-            style: AppTextStyles.grotesk(20, FontWeight.w700)
-                .copyWith(color: AppColors.ink)),
-        content: Text(
-          'Tu seras redirigé vers l\'écran de connexion.',
-          style: AppTextStyles.body.copyWith(color: AppColors.muted),
-        ),
+        title: Text('profile.signout_dialog_title'.tr()),
+        content: Text('profile.signout_dialog_body'.tr()),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler')),
+              child: Text('common.cancel'.tr())),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: AppColors.rose),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Déconnecter',
+            child: Text('profile.signout_confirm'.tr(),
                 style: AppTextStyles.fig(14, FontWeight.w600)
                     .copyWith(color: AppColors.rose)),
           ),
@@ -268,11 +266,11 @@ class ProfileScreen extends ConsumerWidget {
 
 String _subscriptionLabel(WidgetRef ref) {
   final isPremium = ref.watch(isPremiumProvider);
-  if (!isPremium) return 'Accès limité — sans pub, sans pression';
+  if (!isPremium) return 'profile.subscription_free_label'.tr();
   final type = ref.watch(currentUserProvider)?.subscriptionType;
   return type == SubscriptionType.student
-      ? 'Accès Étudiant'
-      : 'Accès Premium complet';
+      ? 'profile.subscription_student_label'.tr()
+      : 'profile.subscription_premium_label'.tr();
 }
 
 // ── Large avatar ──────────────────────────────────────────────────────────────
@@ -330,6 +328,9 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+
     return Expanded(
       child: FrostedBox(
         borderRadius: BorderRadius.circular(18),
@@ -354,8 +355,7 @@ class _StatCard extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(label,
-                style: AppTextStyles.caption
-                    .copyWith(color: AppColors.muted)),
+                style: AppTextStyles.caption.copyWith(color: muted)),
           ],
         ),
       ),
@@ -370,9 +370,12 @@ class _Section extends StatelessWidget {
   final String label;
 
   @override
-  Widget build(BuildContext context) =>
-      Text(label,
-          style: AppTextStyles.eyebrow.copyWith(color: AppColors.muted));
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    return Text(label,
+        style: AppTextStyles.eyebrow.copyWith(color: muted));
+  }
 }
 
 // ── Action tile ───────────────────────────────────────────────────────────────
@@ -391,10 +394,13 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = destructive ? AppColors.rose : AppColors.ink;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
+    final color = destructive ? AppColors.rose : cs.onSurface;
     final iconBg = destructive
         ? AppColors.rose.withValues(alpha: 0.1)
-        : AppColors.line.withValues(alpha: 0.6);
+        : cs.outline.withValues(alpha: 0.3);
 
     return GestureDetector(
       onTap: onTap,
@@ -419,8 +425,7 @@ class _ActionTile extends StatelessWidget {
                       .copyWith(color: color)),
             ),
             if (!destructive)
-              Icon(Icons.chevron_right_rounded,
-                  color: AppColors.faint, size: 20),
+              Icon(Icons.chevron_right_rounded, color: faint, size: 20),
           ],
         ),
       ),

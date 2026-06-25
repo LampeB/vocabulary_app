@@ -9,9 +9,7 @@ import 'package:patrol/src/platform/contracts/contracts.dart';
 import 'package:test_api/src/backend/invoker.dart';
 
 // START: GENERATED TEST IMPORTS
-import 'auth_test.dart' as auth_test;
-import 'quiz_session_test.dart' as quiz_session_test;
-import 'vocab_list_test.dart' as vocab_list_test;
+import 'quiz_all_test.dart' as __quiz_all_test;
 // END: GENERATED TEST IMPORTS
 
 Future<void> main() async {
@@ -74,9 +72,7 @@ Future<void> main() async {
   });
 
 // START: GENERATED TEST GROUPS
-  group('auth_test', auth_test.main);
-  group('quiz_session_test', quiz_session_test.main);
-  group('vocab_list_test', vocab_list_test.main);
+  group('.quiz_all_test', __quiz_all_test.main);
 // END: GENERATED TEST GROUPS
 
   final dartTestGroup = await testExplorationCompleter.future;

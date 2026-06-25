@@ -52,8 +52,53 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
   Future<int> upsert(VariantProgressTableCompanion companion) =>
       into(variantProgressTable).insertOnConflictUpdate(companion);
 
+  Future<List<String>> getExistingVariantIds({
+    required String userId,
+    required String direction,
+    required List<String> variantIds,
+  }) {
+    return (selectOnly(variantProgressTable)
+          ..addColumns([variantProgressTable.variantId])
+          ..where(variantProgressTable.userId.equals(userId) &
+              variantProgressTable.direction.equals(direction) &
+              variantProgressTable.variantId.isIn(variantIds)))
+        .map((row) => row.read(variantProgressTable.variantId)!)
+        .get();
+  }
+
+  /// Returns ALL progress rows for the given variants (ignores nextReview date).
+  /// Used as fallback when no cards are currently due — enables early review.
+  Future<List<VariantProgressTableData>> getScheduledByVariants({
+    required String userId,
+    required String direction,
+    required List<String> variantIds,
+  }) {
+    return (select(variantProgressTable)
+          ..where((t) =>
+              t.userId.equals(userId) &
+              t.direction.equals(direction) &
+              t.variantId.isIn(variantIds))
+          ..orderBy([(t) => OrderingTerm.asc(t.nextReview)]))
+        .get();
+  }
+
   Future<List<VariantProgressTableData>> getUnsyncedProgress() =>
       (select(variantProgressTable)
             ..where((t) => t.isSynced.equals(false)))
+          .get();
+
+  /// Returns all rows the user has mastered: FSRS review state with
+  /// scheduledDays ≥ [minScheduledDays]. Ordered by scheduledDays descending
+  /// so the most confidently-known words come first.
+  Future<List<VariantProgressTableData>> getMasteredProgress({
+    required String userId,
+    int minScheduledDays = 21,
+  }) =>
+      (select(variantProgressTable)
+            ..where((t) =>
+                t.userId.equals(userId) &
+                t.state.equals('review') &
+                t.scheduledDays.isBiggerOrEqualValue(minScheduledDays))
+            ..orderBy([(t) => OrderingTerm.desc(t.scheduledDays)]))
           .get();
 }

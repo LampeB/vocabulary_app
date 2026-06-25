@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,24 +14,28 @@ import '../../widgets/vk_waveform.dart';
 class PaywallScreen extends ConsumerWidget {
   const PaywallScreen({super.key});
 
-  static const _features = [
-    ('Voix premium ElevenLabs', Icons.record_voice_over_outlined),
-    ('Mode voix & mains libres', Icons.directions_car_outlined),
-    ('Listes et mots illimités', Icons.all_inclusive),
-    ('Amis & défis', Icons.people_outlined),
-    ('Classements', Icons.leaderboard_outlined),
-    ('Import & export', Icons.import_export_outlined),
+  static const _featureKeys = [
+    ('paywall.feature_voice', Icons.record_voice_over_outlined),
+    ('paywall.feature_hands_free', Icons.directions_car_outlined),
+    ('paywall.feature_unlimited', Icons.all_inclusive),
+    ('paywall.feature_social', Icons.people_outlined),
+    ('paywall.feature_leaderboard', Icons.leaderboard_outlined),
+    ('paywall.feature_import_export', Icons.import_export_outlined),
   ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final offeringsAsync = ref.watch(offeringsProvider);
     final purchaseState = ref.watch(purchaseNotifierProvider);
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
 
     ref.listen<AsyncValue<void>>(purchaseNotifierProvider, (prev, next) {
       if (next.hasError && prev?.hasError != true && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Une erreur est survenue. Réessaie.'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('paywall.error_purchase'.tr()),
           behavior: SnackBarBehavior.floating,
         ));
       }
@@ -42,17 +47,18 @@ class PaywallScreen extends ConsumerWidget {
     final annual    = offering?.annual;
 
     return Scaffold(
-      backgroundColor: AppColors.inkDark,
+      // Background from AppTheme.scaffoldBackgroundColor.
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        // AppBarTheme provides transparent bg; override icon to semi-muted.
         leading: IconButton(
-          icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 22),
+          icon: Icon(Icons.close_rounded,
+              color: cs.onSurface.withValues(alpha: 0.5), size: 22),
           onPressed: () => context.pop(),
         ),
       ),
       body: Stack(
         children: [
-          const DottedGround(dark: true),
+          const DottedGround(),
           // Waveform watermark
           Positioned(
             left: 0,
@@ -84,21 +90,20 @@ class PaywallScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              Text('Tout débloquer',
+              Text('paywall.title'.tr(),
                   style: AppTextStyles.grotesk(32, FontWeight.w700)
-                      .copyWith(color: Colors.white),
+                      .copyWith(color: cs.onSurface),
                   textAlign: TextAlign.center),
               const SizedBox(height: 8),
               Text(
-                'Tout ce qu\'il faut pour maîtriser le coréen.',
-                style:
-                    AppTextStyles.fig(15, FontWeight.w400).copyWith(
-                        color: Colors.white.withValues(alpha: 0.55)),
+                'paywall.subtitle'.tr(),
+                style: AppTextStyles.fig(15, FontWeight.w400)
+                    .copyWith(color: muted),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
               // ── Feature list ───────────────────────────────────────────────
-              ..._features.map((f) => Padding(
+              ..._featureKeys.map((f) => Padding(
                     padding: const EdgeInsets.only(bottom: 14),
                     child: Row(
                       children: [
@@ -113,9 +118,9 @@ class PaywallScreen extends ConsumerWidget {
                               color: AppColors.clay, size: 17),
                         ),
                         const SizedBox(width: 14),
-                        Text(f.$1,
+                        Text(f.$1.tr(),
                             style: AppTextStyles.fig(15, FontWeight.w500)
-                                .copyWith(color: Colors.white)),
+                                .copyWith(color: cs.onSurface)),
                       ],
                     ),
                   )),
@@ -123,11 +128,11 @@ class PaywallScreen extends ConsumerWidget {
               // ── Purchase buttons ───────────────────────────────────────────
               offeringsAsync.when(
                 loading: () => const _ButtonSkeleton(),
-                error: (_, __) => _FallbackMessage(isLoading: isLoading),
+                error: (_, __) => _FallbackMessage(muted: muted),
                 data: (offerings) {
                   if (offerings == null ||
                       (monthly == null && annual == null)) {
-                    return _FallbackMessage(isLoading: isLoading);
+                    return _FallbackMessage(muted: muted);
                   }
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -154,18 +159,15 @@ class PaywallScreen extends ConsumerWidget {
               Center(
                 child: TextButton(
                   onPressed: isLoading ? null : () => _restore(context, ref),
-                  child: Text('Restaurer un achat',
+                  child: Text('paywall.restore'.tr(),
                       style: AppTextStyles.fig(13, FontWeight.w500)
-                          .copyWith(
-                              color: Colors.white.withValues(alpha: 0.45))),
+                          .copyWith(color: faint)),
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                'Résiliable à tout moment · Prix selon la région\n'
-                'Renouvellement automatique',
-                style: AppTextStyles.captionSmall.copyWith(
-                    color: Colors.white.withValues(alpha: 0.3)),
+                'paywall.legal'.tr(),
+                style: AppTextStyles.captionSmall.copyWith(color: faint),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -196,15 +198,15 @@ class PaywallScreen extends ConsumerWidget {
     if (info == null) return;
     if (PurchaseService.hasPremium(info)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Achat restauré !'),
+        SnackBar(
+            content: Text('paywall.restore_success'.tr()),
             behavior: SnackBarBehavior.floating),
       );
       context.pop();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Aucun achat actif trouvé.'),
+        SnackBar(
+            content: Text('paywall.restore_none'.tr()),
             behavior: SnackBarBehavior.floating),
       );
     }
@@ -225,6 +227,7 @@ class _AnnualButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final price = package.storeProduct.priceString;
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -244,8 +247,7 @@ class _AnnualButton extends StatelessWidget {
                     color: Colors.white, size: 18),
                 const SizedBox(width: 8),
                 Text(
-                  'Essai 7 jours gratuits — '
-                  '${package.storeProduct.priceString}/an',
+                  'paywall.annual_button'.tr(namedArgs: {'price': price}),
                   style: AppTextStyles.fig(14, FontWeight.w700)
                       .copyWith(color: Colors.white),
                 ),
@@ -263,7 +265,7 @@ class _AnnualButton extends StatelessWidget {
               color: AppColors.teal,
               borderRadius: BorderRadius.circular(999),
             ),
-            child: Text('MEILLEUR PRIX',
+            child: Text('paywall.annual_badge'.tr(),
                 style: AppTextStyles.eyebrow
                     .copyWith(color: Colors.white, fontSize: 9)),
           ),
@@ -287,6 +289,11 @@ class _MonthlyButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    final price = package.storeProduct.priceString;
+
     return GestureDetector(
       onTap: enabled ? onPressed : null,
       child: FrostedBox(
@@ -294,9 +301,9 @@ class _MonthlyButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 16),
         child: Center(
           child: Text(
-            '${package.storeProduct.priceString}/mois — sans engagement',
+            'paywall.monthly_button'.tr(namedArgs: {'price': price}),
             style: AppTextStyles.fig(14, FontWeight.w500)
-                .copyWith(color: Colors.white.withValues(alpha: 0.7)),
+                .copyWith(color: muted),
           ),
         ),
       ),
@@ -322,17 +329,16 @@ class _ButtonSkeleton extends StatelessWidget {
 // ── Fallback when offerings fail ──────────────────────────────────────────────
 
 class _FallbackMessage extends StatelessWidget {
-  const _FallbackMessage({required this.isLoading});
-  final bool isLoading;
+  const _FallbackMessage({required this.muted});
+  final Color muted;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Text(
-        'Prix indisponibles — vérifie ta connexion et réessaie.',
-        style: AppTextStyles.fig(14, FontWeight.w400)
-            .copyWith(color: Colors.white.withValues(alpha: 0.45)),
+        'paywall.offerings_unavailable'.tr(),
+        style: AppTextStyles.fig(14, FontWeight.w400).copyWith(color: muted),
         textAlign: TextAlign.center,
       ),
     );

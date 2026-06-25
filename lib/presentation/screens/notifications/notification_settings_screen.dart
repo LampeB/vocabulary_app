@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
@@ -15,11 +16,10 @@ class NotificationSettingsScreen extends ConsumerWidget {
     final notifier = ref.read(notificationSettingsProvider.notifier);
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      // Background from AppTheme.scaffoldBackgroundColor.
       appBar: AppBar(
-        title: Text('Notifications',
-            style: AppTextStyles.grotesk(22, FontWeight.w700)
-                .copyWith(color: AppColors.ink)),
+        // AppBarTheme provides title style and icon colors.
+        title: Text('notifications.title'.tr()),
       ),
       body: Stack(
         children: [
@@ -28,11 +28,11 @@ class NotificationSettingsScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
               // ── Rappels quotidiens ───────────────────────────────────────────
-              _Eyebrow('RAPPEL QUOTIDIEN'),
+              _Eyebrow('notifications.section_daily'.tr()),
               _SwitchTile(
                 icon: Icons.alarm_outlined,
-                label: 'Rappel d\'étude',
-                subtitle: 'Une petite piqûre de rappel chaque jour',
+                label: 'notifications.daily_reminder_label'.tr(),
+                subtitle: 'notifications.daily_reminder_subtitle'.tr(),
                 value: settings.dailyReminderEnabled,
                 onChanged: (v) => notifier.setDailyReminder(enabled: v),
               ),
@@ -40,7 +40,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
                 const SizedBox(height: 8),
                 _NavTile(
                   icon: Icons.schedule_outlined,
-                  label: 'Heure du rappel',
+                  label: 'notifications.reminder_time_label'.tr(),
                   trailing: Text(
                     settings.reminderTimeLabel,
                     style: AppTextStyles.fig(14, FontWeight.w600)
@@ -51,29 +51,29 @@ class NotificationSettingsScreen extends ConsumerWidget {
               ],
               const SizedBox(height: 24),
               // ── Protection de série ──────────────────────────────────────────
-              _Eyebrow('PROTECTION DE SÉRIE'),
+              _Eyebrow('notifications.section_streak'.tr()),
               _SwitchTile(
                 icon: Icons.local_fire_department_outlined,
-                label: 'Alerte à 20h',
-                subtitle: 'Si tu n\'as pas étudié avant le soir',
+                label: 'notifications.streak_warning_label'.tr(),
+                subtitle: 'notifications.streak_warning_subtitle'.tr(),
                 value: settings.streakWarningEnabled,
                 onChanged: (v) => notifier.setStreakWarning(v),
               ),
               const SizedBox(height: 24),
               // ── Permissions ──────────────────────────────────────────────────
-              _Eyebrow('PERMISSIONS'),
+              _Eyebrow('notifications.section_permissions'.tr()),
               _NavTile(
                 icon: Icons.notifications_active_outlined,
-                label: 'Autoriser les notifications',
-                subtitle: 'Requis pour tous les rappels',
+                label: 'notifications.permission_label'.tr(),
+                subtitle: 'notifications.permission_subtitle'.tr(),
                 onTap: () async {
                   final svc = ref.read(notificationServiceProvider);
                   final granted = await svc.requestPermissions();
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Text(granted
-                          ? 'Notifications activées !'
-                          : 'Permission refusée — vérifie les réglages système.'),
+                          ? 'notifications.permission_granted'.tr()
+                          : 'notifications.permission_denied'.tr()),
                       behavior: SnackBarBehavior.floating,
                     ));
                   }
@@ -82,8 +82,8 @@ class NotificationSettingsScreen extends ConsumerWidget {
               const SizedBox(height: 8),
               _NavTile(
                 icon: Icons.send_outlined,
-                label: 'Envoyer une notification test',
-                subtitle: 'Se déclenche dans environ 1 minute',
+                label: 'notifications.test_label'.tr(),
+                subtitle: 'notifications.test_subtitle'.tr(),
                 onTap: () async {
                   final svc = ref.read(notificationServiceProvider);
                   await svc.scheduleDailyReminder(
@@ -91,9 +91,8 @@ class NotificationSettingsScreen extends ConsumerWidget {
                     minute: (DateTime.now().minute + 1) % 60,
                   );
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content:
-                          Text('Notification test programmée dans ~1 min'),
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('notifications.test_scheduled'.tr()),
                       behavior: SnackBarBehavior.floating,
                     ));
                   }
@@ -112,7 +111,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
       context: context,
       initialTime: TimeOfDay(
           hour: settings.reminderHour, minute: settings.reminderMinute),
-      helpText: 'Choisir l\'heure du rappel',
+      helpText: 'notifications.time_picker_help'.tr(),
     );
     if (picked == null) return;
     ref.read(notificationSettingsProvider.notifier).setDailyReminder(
@@ -131,10 +130,12 @@ class _Eyebrow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Text(label,
-          style: AppTextStyles.eyebrow.copyWith(color: AppColors.muted)),
+          style: AppTextStyles.eyebrow.copyWith(color: muted)),
     );
   }
 }
@@ -157,6 +158,14 @@ class _SwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
+    final iconBg = value
+        ? AppColors.teal.withValues(alpha: 0.12)
+        : cs.outline.withValues(alpha: 0.3);
+
     return FrostedBox(
       borderRadius: BorderRadius.circular(16),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -166,13 +175,11 @@ class _SwitchTile extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: value
-                  ? AppColors.teal.withValues(alpha: 0.12)
-                  : AppColors.line.withValues(alpha: 0.6),
+              color: iconBg,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon,
-                color: value ? AppColors.teal : AppColors.faint, size: 18),
+                color: value ? AppColors.teal : faint, size: 18),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -181,21 +188,21 @@ class _SwitchTile extends StatelessWidget {
               children: [
                 Text(label,
                     style: AppTextStyles.fig(15, FontWeight.w500)
-                        .copyWith(color: AppColors.ink)),
+                        .copyWith(color: cs.onSurface)),
                 if (subtitle != null)
                   Text(subtitle!,
                       style: AppTextStyles.caption
-                          .copyWith(color: AppColors.muted)),
+                          .copyWith(color: muted)),
               ],
             ),
           ),
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: AppColors.teal,
-            thumbColor: WidgetStatePropertyAll(Colors.white),
+            activeTrackColor: AppColors.teal,
+            thumbColor: const WidgetStatePropertyAll(Colors.white),
             trackOutlineColor:
-                WidgetStatePropertyAll(Colors.transparent),
+                const WidgetStatePropertyAll(Colors.transparent),
           ),
         ],
       ),
@@ -221,6 +228,11 @@ class _NavTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
+
     return GestureDetector(
       onTap: onTap,
       child: FrostedBox(
@@ -232,10 +244,10 @@ class _NavTile extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: AppColors.line.withValues(alpha: 0.6),
+                color: cs.outline.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: AppColors.muted, size: 18),
+              child: Icon(icon, color: muted, size: 18),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -244,18 +256,18 @@ class _NavTile extends StatelessWidget {
                 children: [
                   Text(label,
                       style: AppTextStyles.fig(15, FontWeight.w500)
-                          .copyWith(color: AppColors.ink)),
+                          .copyWith(color: cs.onSurface)),
                   if (subtitle != null)
                     Text(subtitle!,
                         style: AppTextStyles.caption
-                            .copyWith(color: AppColors.muted)),
+                            .copyWith(color: muted)),
                 ],
               ),
             ),
             const SizedBox(width: 8),
             trailing ??
-                const Icon(Icons.chevron_right_rounded,
-                    color: AppColors.faint, size: 20),
+                Icon(Icons.chevron_right_rounded,
+                    color: faint, size: 20),
           ],
         ),
       ),

@@ -1,8 +1,10 @@
 import 'dart:async' show unawaited;
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/quiz/quiz_provider.dart';
+import '../../providers/audio/audio_provider.dart';
 import '../../../domain/entities/variant_progress.dart' show QuizDirection;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -30,6 +32,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   final _stt = SpeechRecognitionService();
   final _sfx = SoundEffectsService();
   final _answerCtrl = TextEditingController();
+  // Guards against stale STT callbacks firing on a new card.
+  // Incremented every time _startListening is called; onListeningDone
+  // only acts if the token still matches.
+  int _listenToken = 0;
+  // Tracks successive early-termination retries to avoid infinite loops.
+  int _listenRetries = 0;
 
   @override
   void initState() {
@@ -43,16 +51,98 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       if (_kSimulateSpeech.isEmpty) {
         final ok = await _stt.initialize();
         if (!ok && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-                'Microphone non disponible — vérifie les permissions dans les réglages.'),
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('quiz.stt_unavailable'.tr()),
             behavior: SnackBarBehavior.floating,
           ));
         }
       }
-      // When STT finishes (timeout, error, no language pack), sync the quiz state.
+      // Real hardware/network errors (not error_no_match, which is normal
+      // "no speech recognised" and is handled by onListeningDone instead).
+      _stt.onError = (msg) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('quiz.stt_error'.tr(namedArgs: {'msg': msg})),
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+        ));
+      };
+
+      // Called exactly once per listen session (debounced in SpeechRecognitionService).
+      // answerState is still idle → no result was recognised this round.
       _stt.onListeningDone = () {
-        if (mounted) ref.read(quizProvider.notifier).setListening(false);
+        if (!mounted) return;
+        final capturedToken = _listenToken;
+        final elapsed = _stt.listenElapsedMs;
+        final state = ref.read(quizProvider);
+        debugPrint('[HF] onListeningDone  capturedToken=$capturedToken  currentToken=$_listenToken  elapsed=${elapsed}ms  answerState=${state.answerState}  retries=$_listenRetries');
+        ref.read(quizProvider.notifier).setListening(false);
+
+        if (state.answerState == QuizAnswerState.idle) {
+          if (widget.args.mode == QuizMode.handsFree) {
+            // If the token changed, this callback is stale (a new listen
+            // session already started) — ignore it to avoid double-penalising.
+            if (capturedToken != _listenToken) {
+              debugPrint('[HF] ⚠️ Stale callback (token mismatch) — ignoring');
+              return;
+            }
+
+            // Samsung STT fires notListening/done BEFORE delivering the final
+            // onResult (observed 1-2s delay on Galaxy S22 Ultra).  If STT ran
+            // for a meaningful amount of time it may have heard something — wait
+            // up to 2.5 s for the late result before declaring it wrong.
+            final hadRealListen = elapsed >= 1500;
+
+            // error_client is a permanent engine error (locale unavailable,
+            // audio focus totally lost).  Retrying immediately will keep failing;
+            // fall through to the delayed empty-submission path instead.
+            final wasPermanentError = _stt.lastError == 'error_client' ||
+                _stt.lastError == 'error_audio';
+
+            if (!wasPermanentError && !hadRealListen && _listenRetries < 2) {
+              // STT stopped instantly — audio-focus race. Retry.
+              _listenRetries++;
+              debugPrint('[HF] 🔁 STT stopped too fast (${elapsed}ms) — retry #$_listenRetries in 700ms');
+              Future.delayed(const Duration(milliseconds: 700), () {
+                if (!mounted) return;
+                final card = ref.read(quizProvider).currentCard;
+                if (card != null &&
+                    ref.read(quizProvider).answerState ==
+                        QuizAnswerState.idle) {
+                  unawaited(_startListening(card, isRetry: true));
+                }
+              });
+            } else {
+              // STT ran for a real listen duration or retries exhausted.
+              // Wait up to 2.5 s for Samsung's late final-result callback;
+              // only submit wrong if no answer arrives in that window.
+              final waitMs = hadRealListen && !wasPermanentError ? 2500 : 0;
+              debugPrint('[HF] Waiting ${waitMs}ms for possible late Samsung onResult before submitting empty (elapsed=${elapsed}ms  permanentError=$wasPermanentError  retries=$_listenRetries)');
+              _listenRetries = 0;
+              Future.delayed(Duration(milliseconds: waitMs), () {
+                if (!mounted) return;
+                if (ref.read(quizProvider).answerState ==
+                    QuizAnswerState.idle) {
+                  debugPrint('[HF] ❌ No result arrived in ${waitMs}ms window — submitting empty');
+                  ref.read(quizProvider.notifier).submitVoiceAnswer(
+                    '',
+                    isDrivingMode: true,
+                  );
+                } else {
+                  debugPrint('[HF] ✅ Late onResult arrived before timeout — no action needed');
+                }
+              });
+            }
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('quiz.stt_not_recognised'.tr()),
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ));
+          }
+        } else {
+          debugPrint('[HF] onListeningDone: answerState already ${state.answerState} — no action needed');
+        }
       };
       if (mounted) ref.read(quizProvider.notifier).loadCards(widget.args);
     });
@@ -73,15 +163,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       end: correct ? AppColors.correctFlash : AppColors.incorrectFlash,
     ).animate(_flashCtrl);
     await _flashCtrl.forward();
+    await Future.delayed(const Duration(milliseconds: 700));
     await _flashCtrl.reverse();
-    if (correct) {
-      _sfx.playCorrect();
-    } else {
-      _sfx.playIncorrect();
-    }
   }
 
-  Future<void> _startListening(QuizCard card) async {
+  Future<void> _startListening(QuizCard card, {bool isRetry = false}) async {
+    if (!isRetry) _listenRetries = 0;
+    _listenToken++;
+    debugPrint('[HF] _startListening  token=$_listenToken  isRetry=$isRetry  question="${card.questionWord}"  answerWords=${card.answerWords}');
     ref.read(quizProvider.notifier).setListening(true);
 
     if (_kSimulateSpeech.isNotEmpty) {
@@ -94,30 +183,70 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       };
       ref.read(quizProvider.notifier).submitVoiceAnswer(
         answer,
-        isDrivingMode: widget.args.mode == QuizMode.handsFree,
+        isDrivingMode: widget.args.mode == QuizMode.handsFree ||
+                widget.args.mode == QuizMode.voice,
       );
       return;
     }
 
+    // Stop audio without awaiting — let Android's audio-focus system handle the
+    // handover concurrently.  We still wait 300 ms so ExoPlayer has time to
+    // release the focus before STT grabs the mic (Samsung requirement).
+    debugPrint('[HF] Triggering audio stop + 300ms focus-handover wait');
+    unawaited(ref.read(audioPlayerServiceProvider).stop());
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+
+    final currentDir = ref.read(quizProvider).currentCard?.progress.direction;
     final langCode =
-        widget.args.direction == QuizDirection.koToFr ? 'fr' : 'ko';
+        currentDir == QuizDirection.koToFr ? 'fr' : 'ko';
+    // Capture token so late-arriving onResult from this session is ignored
+    // once a new session (next card) has started.
+    final sessionToken = _listenToken;
+    debugPrint('[HF] Calling stt.startListening  langCode=$langCode  token=$sessionToken');
     final ok = await _stt.startListening(
       langCode: langCode,
       onResult: (text) {
-        ref.read(quizProvider.notifier).submitVoiceAnswer(
-              text,
-              isDrivingMode: widget.args.mode == QuizMode.handsFree,
-            );
+        // Samsung STT can fire the final onResult 1-2s AFTER notListening.
+        // Guard with the captured token so a late result from card N isn't
+        // applied to card N+1.
+        debugPrint('[HF] onResult: "$text"  sessionToken=$sessionToken  currentToken=$_listenToken  match=${sessionToken == _listenToken}');
+        if (mounted && sessionToken == _listenToken) {
+          ref.read(quizProvider.notifier).submitVoiceAnswer(
+                text,
+                isDrivingMode: widget.args.mode == QuizMode.handsFree ||
+                widget.args.mode == QuizMode.voice,
+              );
+        } else if (sessionToken != _listenToken) {
+          debugPrint('[HF] Late onResult discarded (stale token)');
+        }
       },
       onPartial: (text) {
-        ref.read(quizProvider.notifier).setPartialTranscript(text);
+        debugPrint('[HF] partial: "$text"');
+        if (mounted && sessionToken == _listenToken) {
+          ref.read(quizProvider.notifier).setPartialTranscript(text);
+        }
       },
     );
-    // If STT couldn't start (not initialised, no language pack, etc.) reset
-    // the listening state so the UI doesn't get permanently stuck.
+    debugPrint('[HF] stt.startListening returned ok=$ok  token=$_listenToken');
     if (!ok && mounted) {
+      debugPrint('[HF] ❌ STT failed to start — clearing listening state');
       ref.read(quizProvider.notifier).setListening(false);
+      return;
     }
+
+    // Failsafe: if the STT callbacks never fire (device bug / audio focus
+    // held by another app), reset listening state after listenFor + buffer.
+    // IMPORTANT: capture sessionToken so this timer only affects THIS session.
+    // Without the token check, a stale timer from card N fires 12 s later and
+    // stops card N+1's session — the primary cause of premature termination.
+    Future.delayed(const Duration(seconds: 12), () {
+      if (mounted && _stt.isListening && sessionToken == _listenToken) {
+        debugPrint('[HF] ⏰ Failsafe timeout for token=$sessionToken — stopping STT');
+        _stt.stopListening();
+        ref.read(quizProvider.notifier).setListening(false);
+      }
+    });
   }
 
   @override
@@ -127,16 +256,46 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     ref.listen<QuizState>(quizProvider, (prev, next) {
       if (prev?.answerState == QuizAnswerState.idle &&
           next.answerState != QuizAnswerState.idle) {
-        unawaited(_triggerFlash(next.answerState == QuizAnswerState.correct));
+        final correct = next.answerState == QuizAnswerState.correct;
+        // Sound effect for every mode.
+        if (correct) { _sfx.playCorrect(); } else { _sfx.playIncorrect(); }
+        // Auto-speak the revealed answer (typing / voice modes).
+        // In hands-free mode only speak when wrong — the user just said the
+        // word correctly, no need to repeat it; but for a wrong answer they
+        // need to hear the correct pronunciation before moving on.
+        final shouldSpeak = widget.args.mode != QuizMode.flashcard &&
+            (widget.args.mode != QuizMode.handsFree || !correct);
+        if (shouldSpeak) {
+          final card = next.currentCard;
+          if (card != null && card.answerWords.isNotEmpty) {
+            final answerLang =
+                card.progress.direction == QuizDirection.frToKo ? 'ko' : 'fr';
+            unawaited(ref
+                .read(audioPlayerServiceProvider)
+                .speak(card.answerWords.first, answerLang));
+          }
+        }
+        // Flash overlay for hands-free (no dedicated feedback screen there).
+        if (widget.args.mode == QuizMode.handsFree) {
+          unawaited(_triggerFlash(correct));
+        }
       }
       if (widget.args.mode == QuizMode.handsFree) {
         final cardChanged = prev?.currentIndex != next.currentIndex;
         final justLoaded = prev?.isLoading == true && !next.isLoading;
+        // Backup trigger: cards appeared without an isLoading transition.
+        final cardsJustAppeared = !justLoaded &&
+            (prev?.cards.isEmpty ?? true) && next.cards.isNotEmpty;
         final card = next.currentCard;
-        if ((cardChanged || justLoaded) && card != null && !next.isComplete) {
-          Future.delayed(const Duration(milliseconds: 1500), () {
+        if ((cardChanged || justLoaded || cardsJustAppeared) && card != null && !next.isComplete) {
+          debugPrint('[HF] Card trigger: cardChanged=$cardChanged justLoaded=$justLoaded cardsJustAppeared=$cardsJustAppeared  idx=${next.currentIndex}  question="${card.questionWord}"  answers=${card.answerWords}');
+          debugPrint('[HF] Scheduling _startListening in 300ms...');
+          Future.delayed(const Duration(milliseconds: 300), () {
             if (mounted && !_stt.isListening) {
+              debugPrint('[HF] 300ms elapsed — calling _startListening');
               unawaited(_startListening(card));
+            } else {
+              debugPrint('[HF] 300ms elapsed but mounted=$mounted stt.isListening=${_stt.isListening} — skipping');
             }
           });
         }
@@ -144,9 +303,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     });
 
     if (quizState.isLoading) {
-      return Scaffold(
+      return const Scaffold(
         backgroundColor: AppColors.paper,
-        body: const Center(
+        body: Center(
           child: CircularProgressIndicator(
               color: AppColors.clay, strokeWidth: 2),
         ),
@@ -178,7 +337,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                       color: AppColors.teal,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Text('Retour',
+                    child: Text('quiz.go_home_button'.tr(),
                         style: AppTextStyles.fig(15, FontWeight.w700)
                             .copyWith(color: Colors.white)),
                   ),
@@ -203,12 +362,32 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
     final card = quizState.currentCard;
     if (card == null) {
-      return Scaffold(
+      return const Scaffold(
         backgroundColor: AppColors.paper,
-        body: const Center(
+        body: Center(
           child: CircularProgressIndicator(
               color: AppColors.clay, strokeWidth: 2),
         ),
+      );
+    }
+
+    // Dedicated feedback screen for typing / voice modes (not flashcard or hands-free).
+    if (quizState.answerState != QuizAnswerState.idle &&
+        widget.args.mode != QuizMode.flashcard &&
+        widget.args.mode != QuizMode.handsFree) {
+      return _AnswerFeedback(
+        isCorrect: quizState.answerState == QuizAnswerState.correct,
+        card: card,
+        direction: card.progress.direction,
+        scheduledDays: quizState.scheduledDays,
+        currentIndex: quizState.currentIndex + 1,
+        total: quizState.total,
+        onContinue: () => ref.read(quizProvider.notifier).advance(),
+        onClose: () {
+          _stt.stopListening();
+          ref.read(quizProvider.notifier).setListening(false);
+          context.go('/home');
+        },
       );
     }
 
@@ -230,7 +409,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   _ProgressHeader(
                     current: quizState.currentIndex + 1,
                     total: quizState.total,
-                    onClose: () => context.go('/home'),
+                    onClose: () {
+                      _stt.stopListening();
+                      ref.read(quizProvider.notifier).setListening(false);
+                      context.go('/home');
+                    },
                   ),
                   // Card + input
                   Expanded(
@@ -241,8 +424,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                           Expanded(
                             child: _CardView(
                               card: card,
-                              direction: widget.args.direction,
                               isFlipped: quizState.isFlipped,
+                              answerState: quizState.answerState,
                               mode: widget.args.mode,
                               onFlip: () =>
                                   ref.read(quizProvider.notifier).flipCard(),
@@ -268,7 +451,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       QuizMode.flashcard => _FlashcardRating(
           isFlipped: quizState.isFlipped,
           onRate: (rating) {
-            unawaited(_triggerFlash(rating != FsrsRating.again));
+            final isCorrect = rating != FsrsRating.again;
+            unawaited(_triggerFlash(isCorrect));
+            if (isCorrect) { _sfx.playCorrect(); } else { _sfx.playIncorrect(); }
             ref.read(quizProvider.notifier).rateCard(rating);
           },
         ),
@@ -306,7 +491,7 @@ class _ProgressHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progress = total > 0 ? (current - 1) / total : 0.0;
+    final progress = total > 0 ? current / total : 0.0;
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 8, 16, 0),
       child: Row(
@@ -344,30 +529,36 @@ class _ProgressHeader extends StatelessWidget {
 class _CardView extends StatelessWidget {
   const _CardView({
     required this.card,
-    required this.direction,
     required this.isFlipped,
+    required this.answerState,
     required this.mode,
     required this.onFlip,
   });
 
   final QuizCard card;
-  final QuizDirection direction;
   final bool isFlipped;
+  final QuizAnswerState answerState;
   final QuizMode mode;
   final VoidCallback onFlip;
 
   @override
   Widget build(BuildContext context) {
     final isFlashcard = mode == QuizMode.flashcard;
-    final isFrToKo    = direction == QuizDirection.frToKo;
-    final qLabel      = isFrToKo ? 'FR' : 'KR';
-    final aLabel      = isFrToKo ? 'KR' : 'FR';
+    final isHandsFree = mode == QuizMode.handsFree;
+    final isFrToKo    = card.direction == QuizDirection.frToKo;
+    final qLabel      = isFrToKo ? 'list_detail.lang_fr'.tr() : 'list_detail.lang_kr'.tr();
+    final aLabel      = isFrToKo ? 'list_detail.lang_kr'.tr() : 'list_detail.lang_fr'.tr();
     final qColor      = isFrToKo ? AppColors.tealDark : AppColors.clayDark;
     final aColor      = isFrToKo ? AppColors.clayDark : AppColors.tealDark;
     final answerText  = card.answerWords.join(' / ');
     final isKrAnswer  = isFrToKo; // Korean is the answer when FR→KO
 
-    final showAnswer = !isFlashcard || isFlipped;
+    // Show the answer only after an explicit action — never both sides at once.
+    // • Flashcard: after the user taps to flip.
+    // • Hands-free: after voice answer is processed (answerState leaves idle).
+    // • Typing / voice: feedback screen takes over; card stays question-only.
+    final showAnswer = isFlipped ||
+        (isHandsFree && answerState != QuizAnswerState.idle);
 
     return GestureDetector(
       onTap: isFlashcard && !isFlipped ? onFlip : null,
@@ -439,11 +630,10 @@ class _CardView extends StatelessWidget {
                                 .copyWith(color: AppColors.onDark),
                         textAlign: TextAlign.center,
                       ),
-                    ] else ...[
-                      // Tap hint for flashcard front
+                    ] else if (isFlashcard) ...[
                       const SizedBox(height: 40),
                       Text(
-                        'Appuyer pour révéler',
+                        'quiz.card_flip_hint'.tr(),
                         style: AppTextStyles.caption
                             .copyWith(color: AppColors.onDarkFaint),
                       ),
@@ -476,7 +666,7 @@ class _FlashcardRating extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
         ),
         child: Center(
-          child: Text('Retournez la carte pour noter',
+          child: Text('quiz.flashcard_rate_hint'.tr(),
               style: AppTextStyles.caption.copyWith(color: AppColors.faint)),
         ),
       );
@@ -484,55 +674,54 @@ class _FlashcardRating extends StatelessWidget {
 
     return Row(
       children: [
-        _RatingPill(
-            label: 'Encore',
-            color: AppColors.rose,
-            onTap: () => onRate(FsrsRating.again)),
-        const SizedBox(width: 6),
-        _RatingPill(
-            label: 'Difficile',
-            color: AppColors.clayDeep,
-            onTap: () => onRate(FsrsRating.hard)),
-        const SizedBox(width: 6),
-        _RatingPill(
-            label: 'Bien',
-            color: AppColors.teal,
-            onTap: () => onRate(FsrsRating.good)),
-        const SizedBox(width: 6),
-        _RatingPill(
-            label: 'Facile',
-            color: AppColors.tealLight,
-            onTap: () => onRate(FsrsRating.easy)),
-      ],
-    );
-  }
-}
-
-class _RatingPill extends StatelessWidget {
-  const _RatingPill(
-      {required this.label, required this.color, required this.onTap});
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 52,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Center(
-            child: Text(label,
-                style: AppTextStyles.fig(12, FontWeight.w700)
-                    .copyWith(color: Colors.white)),
+        Expanded(
+          child: GestureDetector(
+            onTap: () => onRate(FsrsRating.again),
+            child: Container(
+              height: 60,
+              decoration: BoxDecoration(
+                color: AppColors.rose,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.close_rounded,
+                      color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Text('quiz.rate_wrong'.tr(),
+                      style: AppTextStyles.fig(15, FontWeight.w700)
+                          .copyWith(color: Colors.white)),
+                ],
+              ),
+            ),
           ),
         ),
-      ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: GestureDetector(
+            onTap: () => onRate(FsrsRating.good),
+            child: Container(
+              height: 60,
+              decoration: BoxDecoration(
+                color: AppColors.teal,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.check_rounded,
+                      color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Text('quiz.rate_correct'.tr(),
+                      style: AppTextStyles.fig(15, FontWeight.w700)
+                          .copyWith(color: Colors.white)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -582,8 +771,8 @@ class _TypingInput extends StatelessWidget {
                 Expanded(
                   child: Text(
                     isCorrect
-                        ? 'Correct !'
-                        : 'Réponse : ${correctAnswers.join(' / ')}',
+                        ? 'quiz.typing_correct'.tr()
+                        : 'quiz.typing_wrong_prefix'.tr() + correctAnswers.join(' / '),
                     style: AppTextStyles.fig(14, FontWeight.w600)
                         .copyWith(color: feedbackColor),
                   ),
@@ -601,7 +790,7 @@ class _TypingInput extends StatelessWidget {
                 enabled: !isAnswered,
                 autofocus: !isAnswered,
                 decoration: InputDecoration(
-                  hintText: 'Tapez votre réponse…',
+                  hintText: 'quiz.typing_hint'.tr(),
                   fillColor: isAnswered
                       ? feedbackColor.withValues(alpha: 0.06)
                       : null,
@@ -667,11 +856,209 @@ class _VoiceInput extends StatelessWidget {
         ),
         if (isHandsFree) ...[
           const SizedBox(height: 8),
-          Text('MAINS LIBRES',
+          Text('quiz.hands_free_label'.tr(),
               style: AppTextStyles.eyebrowSm
                   .copyWith(color: AppColors.faint)),
         ],
       ],
+    );
+  }
+}
+
+// ── Answer feedback screen ────────────────────────────────────────────────────
+
+class _AnswerFeedback extends StatelessWidget {
+  const _AnswerFeedback({
+    required this.isCorrect,
+    required this.card,
+    required this.direction,
+    required this.scheduledDays,
+    required this.currentIndex,
+    required this.total,
+    required this.onContinue,
+    required this.onClose,
+  });
+
+  final bool isCorrect;
+  final QuizCard card;
+  final QuizDirection direction;
+  final int scheduledDays;
+  final int currentIndex;
+  final int total;
+  final VoidCallback onContinue;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final accent = isCorrect
+        ? (isDark ? AppColors.tealDark : AppColors.teal)
+        : (isDark ? AppColors.clayDark : AppColors.clay);
+    final label = isCorrect ? 'quiz.feedback_correct'.tr() : 'quiz.feedback_wrong'.tr();
+
+    final nextText = isCorrect
+        ? (scheduledDays <= 1
+            ? 'quiz.next_review_tomorrow'.tr()
+            : 'quiz.next_review_in_days'.tr(namedArgs: {'days': scheduledDays.toString()}))
+        : 'quiz.next_review_soon'.tr();
+
+    final isFrToKo = direction == QuizDirection.frToKo;
+    final answerText = card.answerWords.join(' / ');
+    final isKrAnswer = isFrToKo;
+    final qLabel = isFrToKo ? 'list_detail.lang_fr'.tr() : 'list_detail.lang_kr'.tr();
+    final aLabel = isFrToKo ? 'list_detail.lang_kr'.tr() : 'list_detail.lang_fr'.tr();
+    final qColor = isFrToKo ? AppColors.tealDark : AppColors.clayDark;
+    final aColor = isFrToKo ? AppColors.clayDark : AppColors.tealDark;
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          // Tinted background
+          ColoredBox(
+            color: accent.withValues(alpha: isDark ? 0.12 : 0.07),
+            child: const SizedBox.expand(),
+          ),
+          const DottedGround(),
+          SafeArea(
+            child: Column(
+              children: [
+                // Progress header (reused)
+                _ProgressHeader(
+                  current: currentIndex,
+                  total: total,
+                  onClose: onClose,
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Icon badge
+                        Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isCorrect
+                                ? Icons.check_rounded
+                                : Icons.close_rounded,
+                            color: accent,
+                            size: 38,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Text(label,
+                            style: AppTextStyles.eyebrow
+                                .copyWith(color: accent)),
+                        const SizedBox(height: 6),
+                        Text(nextText,
+                            style: AppTextStyles.fig(14, FontWeight.w500)
+                                .copyWith(
+                                    color: isDark
+                                        ? AppColors.onDarkMuted
+                                        : AppColors.muted)),
+                        const SizedBox(height: 28),
+                        // Answer card — same dark card as the quiz
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: Container(
+                            width: double.infinity,
+                            color: AppColors.inkDark,
+                            child: Stack(
+                              children: [
+                                const DottedGround(dark: true),
+                                Padding(
+                                  padding: const EdgeInsets.all(28),
+                                  child: Column(
+                                    children: [
+                                      Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(qLabel,
+                                            style: AppTextStyles.eyebrow
+                                                .copyWith(color: qColor)),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        card.questionWord,
+                                        style: isFrToKo
+                                            ? AppTextStyles.promptWord.copyWith(
+                                                color: AppColors.onDark,
+                                                fontSize: 36)
+                                            : AppTextStyles.koreanPrompt
+                                                .copyWith(
+                                                    color: AppColors.onDark,
+                                                    fontSize: 38),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 18),
+                                      const Divider(
+                                          color: Color(0x33FFFFFF),
+                                          thickness: 1),
+                                      const SizedBox(height: 16),
+                                      Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(aLabel,
+                                            style: AppTextStyles.eyebrow
+                                                .copyWith(color: aColor)),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        answerText.isNotEmpty ? answerText : '—',
+                                        style: isKrAnswer
+                                            ? AppTextStyles.koreanPrompt
+                                                .copyWith(
+                                                    color: AppColors.onDark,
+                                                    fontSize: 36)
+                                            : AppTextStyles.grotesk(
+                                                    36, FontWeight.w700)
+                                                .copyWith(
+                                                    color: AppColors.onDark),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        // Continuer button
+                        SizedBox(
+                          width: double.infinity,
+                          child: GestureDetector(
+                            onTap: onContinue,
+                            child: Container(
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: accent,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'quiz.continue_button'.tr(),
+                                  style: AppTextStyles.fig(16, FontWeight.w700)
+                                      .copyWith(color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -696,10 +1083,10 @@ class _SummaryScreen extends StatelessWidget {
     final isGreat = pct >= 80;
 
     return Scaffold(
-      backgroundColor: AppColors.inkDark,
+      backgroundColor: AppColors.paper,
       body: Stack(
         children: [
-          const DottedGround(dark: true),
+          const DottedGround(),
           SafeArea(
             child: Center(
               child: Padding(
@@ -716,24 +1103,22 @@ class _SummaryScreen extends StatelessWidget {
                       opacity: isGreat ? 1.0 : 0.4,
                     ),
                     const SizedBox(height: 32),
-                    Text('SESSION TERMINÉE',
+                    Text('quiz.summary_label'.tr(),
                         style: AppTextStyles.eyebrow
-                            .copyWith(color: AppColors.onDarkFaint)),
+                            .copyWith(color: AppColors.muted)),
                     const SizedBox(height: 12),
                     // Big accuracy
                     Text(
                       '$pct %',
                       style: AppTextStyles.heroNumber.copyWith(
-                        color: isGreat
-                            ? AppColors.clayDark
-                            : AppColors.onDarkMuted,
+                        color: isGreat ? AppColors.clay : AppColors.muted,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      '$correct / $total corrects',
+                      'quiz.summary_correct_count'.tr(namedArgs: {'correct': correct.toString(), 'total': total.toString()}),
                       style: AppTextStyles.fig(16, FontWeight.w500)
-                          .copyWith(color: AppColors.onDarkMuted),
+                          .copyWith(color: AppColors.muted),
                     ),
                     const SizedBox(height: 48),
                     // Buttons
@@ -745,21 +1130,16 @@ class _SummaryScreen extends StatelessWidget {
                             child: Container(
                               height: 52,
                               decoration: BoxDecoration(
-                                color: Colors.white
-                                    .withValues(alpha: 0.08),
+                                color: AppColors.line,
                                 borderRadius:
                                     BorderRadius.circular(16),
-                                border: Border.all(
-                                    color: Colors.white
-                                        .withValues(alpha: 0.18)),
                               ),
                               child: Center(
-                                child: Text('Recommencer',
+                                child: Text('quiz.summary_restart'.tr(),
                                     style: AppTextStyles
                                         .fig(14, FontWeight.w600)
                                         .copyWith(
-                                            color:
-                                                AppColors.onDarkMuted)),
+                                            color: AppColors.muted)),
                               ),
                             ),
                           ),
@@ -776,7 +1156,7 @@ class _SummaryScreen extends StatelessWidget {
                                     BorderRadius.circular(16),
                               ),
                               child: Center(
-                                child: Text('Accueil',
+                                child: Text('quiz.summary_home'.tr(),
                                     style: AppTextStyles
                                         .fig(14, FontWeight.w700)
                                         .copyWith(

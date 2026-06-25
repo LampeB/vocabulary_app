@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -48,7 +49,6 @@ class HomeScreen extends ConsumerWidget {
     final name = user?.displayName ?? user?.username ?? '';
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
       body: RefreshIndicator(
         color: AppColors.clay,
         backgroundColor: AppColors.card,
@@ -82,11 +82,15 @@ class HomeScreen extends ConsumerWidget {
                   const SizedBox(height: 24),
                 ],
                 // ── Tes listes ──────────────────────────────────────────────
-                Text(
-                  'TES LISTES',
-                  style: AppTextStyles.eyebrow
-                      .copyWith(color: AppColors.muted),
-                ),
+                Builder(builder: (ctx) {
+                  final isDark = Theme.of(ctx).brightness == Brightness.dark;
+                  return Text(
+                    'home.section_lists'.tr(),
+                    style: AppTextStyles.eyebrow.copyWith(
+                      color: isDark ? AppColors.onDarkMuted : AppColors.muted,
+                    ),
+                  );
+                }),
                 const SizedBox(height: 12),
                 listsAsync.when(
                   loading: () => const Center(
@@ -98,7 +102,8 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   error: (e, _) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Text('Erreur: $e',
+                    child: Text(
+                        'home.error_loading'.tr(namedArgs: {'error': e.toString()}),
                         style: AppTextStyles.caption
                             .copyWith(color: AppColors.rose)),
                   ),
@@ -147,6 +152,10 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final today = DateTime.now();
     final firstName = name.split(' ').first;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,14 +165,13 @@ class _Header extends StatelessWidget {
           children: [
             Text(
               _frDate(today),
-              style: AppTextStyles.eyebrow
-                  .copyWith(color: AppColors.faint),
+              style: AppTextStyles.eyebrow.copyWith(color: faint),
             ),
             const Spacer(),
             IconButton(
-              icon: const Icon(Icons.notifications_outlined,
-                  color: AppColors.muted, size: 22),
-              tooltip: 'Notifications',
+              icon: Icon(Icons.notifications_outlined,
+                  color: muted, size: 22),
+              tooltip: 'home.header_notification_tooltip'.tr(),
               onPressed: () => context.push('/notifications'),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
@@ -177,9 +185,9 @@ class _Header extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Bonjour${ firstName.isNotEmpty ? ', $firstName' : '' } !',
+                '${'home.greeting'.tr()}${ firstName.isNotEmpty ? ', $firstName' : '' } !',
                 style: AppTextStyles.grotesk(28, FontWeight.w700)
-                    .copyWith(color: AppColors.ink),
+                    .copyWith(color: cs.onSurface),
               ),
             ),
             const SizedBox(width: 12),
@@ -277,7 +285,9 @@ class _StreakCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'jour${streak == 1 ? '' : 's'}',
+                        streak == 1
+                            ? 'home.streak_days_one'.tr()
+                            : 'home.streak_days_other'.tr(),
                         style: AppTextStyles.grotesk(22, FontWeight.w600)
                             .copyWith(color: AppColors.onDarkMuted),
                       ),
@@ -285,7 +295,9 @@ class _StreakCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    isActive ? 'de série — continue !' : 'Lance ta série aujourd\'hui',
+                    isActive
+                        ? 'home.streak_active'.tr()
+                        : 'home.streak_inactive'.tr(),
                     style: AppTextStyles.caption
                         .copyWith(color: AppColors.onDarkFaint),
                   ),
@@ -320,13 +332,13 @@ class _ReviewCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'À RÉVISER',
+                    'home.review_label'.tr(),
                     style: AppTextStyles.eyebrow
                         .copyWith(color: AppColors.onDarkFaint),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '$dueCount mot${dueCount == 1 ? '' : 's'}',
+                    '$dueCount ${dueCount == 1 ? 'home.review_word_one'.tr() : 'home.review_word_other'.tr()}',
                     style: AppTextStyles.grotesk(32, FontWeight.w700)
                         .copyWith(color: AppColors.onDark),
                   ),
@@ -343,7 +355,7 @@ class _ReviewCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  'Commencer',
+                  'home.review_start'.tr(),
                   style: AppTextStyles.fig(14, FontWeight.w700)
                       .copyWith(color: Colors.white),
                 ),
@@ -370,6 +382,11 @@ class _ListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
+
     return GestureDetector(
       onTap: onTap,
       child: FrostedBox(
@@ -395,20 +412,18 @@ class _ListCard extends StatelessWidget {
                   Text(
                     list.name,
                     style: AppTextStyles.fig(15, FontWeight.w600)
-                        .copyWith(color: AppColors.ink),
+                        .copyWith(color: cs.onSurface),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    '${list.wordCount} mot${list.wordCount == 1 ? '' : 's'}',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.muted),
+                    '${list.wordCount} ${list.wordCount == 1 ? 'home.list_word_count_one'.tr() : 'home.list_word_count_other'.tr()}',
+                    style: AppTextStyles.caption.copyWith(color: muted),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded,
-                color: AppColors.faint, size: 20),
+            Icon(Icons.chevron_right_rounded, color: faint, size: 20),
           ],
         ),
       ),
@@ -424,6 +439,10 @@ class _EmptyLists extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
+
     return GestureDetector(
       onTap: onTap,
       child: FrostedBox(
@@ -431,18 +450,17 @@ class _EmptyLists extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Column(
           children: [
-            Icon(Icons.add_circle_outline,
-                size: 44, color: AppColors.faint),
+            Icon(Icons.add_circle_outline, size: 44, color: faint),
             const SizedBox(height: 12),
             Text(
-              'Crée ta première liste',
+              'home.empty_title'.tr(),
               style: AppTextStyles.fig(15, FontWeight.w600)
-                  .copyWith(color: AppColors.muted),
+                  .copyWith(color: muted),
             ),
             const SizedBox(height: 4),
             Text(
-              'Ajoute des mots à apprendre',
-              style: AppTextStyles.caption.copyWith(color: AppColors.faint),
+              'home.empty_subtitle'.tr(),
+              style: AppTextStyles.caption.copyWith(color: faint),
             ),
           ],
         ),
@@ -463,7 +481,7 @@ class _SeeAllButton extends StatelessWidget {
       onTap: onTap,
       child: Center(
         child: Text(
-          'VOIR TOUT',
+          'home.see_all'.tr(),
           style: AppTextStyles.eyebrow.copyWith(color: AppColors.teal),
         ),
       ),

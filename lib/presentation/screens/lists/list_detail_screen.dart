@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,42 +10,84 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
 
-class ListDetailScreen extends ConsumerWidget {
+class ListDetailScreen extends ConsumerStatefulWidget {
   const ListDetailScreen({super.key, required this.listId});
   final String listId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final listAsync    = ref.watch(listInfoProvider(listId));
-    final conceptsAsync = ref.watch(listDetailProvider(listId));
+  ConsumerState<ListDetailScreen> createState() => _ListDetailScreenState();
+}
 
-    final listName = listAsync.valueOrNull?.name ?? '';
+class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
+  bool _editMode = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final listAsync    = ref.watch(listInfoProvider(widget.listId));
+    final conceptsAsync = ref.watch(listDetailProvider(widget.listId));
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.ink, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => context.pop(),
         ),
         title: listAsync.when(
-          data: (l) => Text(
-            l?.name ?? 'Liste',
-            style: AppTextStyles.grotesk(22, FontWeight.w700)
-                .copyWith(color: AppColors.ink),
-          ),
+          data: (l) => Text(l?.name ?? 'list_detail.appbar_fallback'.tr()),
           loading: () => const SizedBox.shrink(),
-          error: (_, __) => const Text('Liste'),
+          error: (_, __) => Text('list_detail.appbar_fallback'.tr()),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.ios_share_outlined,
-                color: AppColors.muted, size: 22),
-            tooltip: 'Exporter',
-            onPressed: () => _exportList(context, ref, listName),
-          ),
-        ],
+        actions: _editMode
+            ? [
+                TextButton(
+                  onPressed: () => setState(() => _editMode = false),
+                  child: Text(
+                    'list_detail.action_done'.tr(),
+                    style: AppTextStyles.fig(14, FontWeight.w600)
+                        .copyWith(color: AppColors.clay),
+                  ),
+                ),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.ios_share_outlined, size: 22),
+                  tooltip: 'list_detail.tooltip_export'.tr(),
+                  onPressed: () => _exportList(
+                      context, listAsync.valueOrNull?.name ?? ''),
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (value) {
+                    if (value == 'edit') setState(() => _editMode = true);
+                    if (value == 'export') {
+                      _exportList(
+                          context, listAsync.valueOrNull?.name ?? '');
+                    }
+                  },
+                  itemBuilder: (ctx) => [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.edit_outlined, size: 18),
+                          const SizedBox(width: 12),
+                          Text('list_detail.menu_edit'.tr()),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'export',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.ios_share_outlined, size: 18),
+                          const SizedBox(width: 12),
+                          Text('list_detail.menu_export'.tr()),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
       ),
       body: Stack(
         children: [
@@ -61,84 +104,91 @@ class ListDetailScreen extends ConsumerWidget {
             ),
             data: (concepts) => concepts.isEmpty
                 ? _EmptyState(
-                    onAddTap: () => _showAddWordDialog(context, ref))
+                    onAddTap: () => _showAddWordDialog(context))
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                     itemCount: concepts.length,
                     itemBuilder: (ctx, i) => _ConceptTile(
                       key: Key(concepts[i].id),
                       concept: concepts[i],
-                      listId: listId,
+                      listId: widget.listId,
+                      editMode: _editMode,
                     ),
                   ),
           ),
         ],
       ),
-      // Bottom action bar: start session + add word
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-          child: Row(
-            children: [
-              // Add word pill
-              GestureDetector(
-                onTap: () => _showAddWordDialog(context, ref),
-                child: FrostedBox(
-                  borderRadius: BorderRadius.circular(999),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.add, color: AppColors.muted, size: 18),
-                      const SizedBox(width: 6),
-                      Text('Ajouter',
-                          style: AppTextStyles.fig(14, FontWeight.w600)
-                              .copyWith(color: AppColors.muted)),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Start session (primary CTA)
-              Expanded(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.play_arrow_rounded,
-                      color: Colors.white, size: 20),
-                  label: Text('Démarrer',
-                      style: AppTextStyles.fig(15, FontWeight.w700)
-                          .copyWith(color: Colors.white)),
-                  onPressed: () =>
-                      context.go('/lists/$listId/quiz-setup'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.clay,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(52),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          child: _editMode ? _addWordBar(context) : _startBar(context),
         ),
       ),
     );
   }
 
+  // ── Bottom bar variants ───────────────────────────────────────────────────
+
+  Widget _addWordBar(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _showAddWordDialog(context),
+      child: FrostedBox(
+        borderRadius: BorderRadius.circular(999),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Builder(builder: (ctx) {
+          final isDark = Theme.of(ctx).brightness == Brightness.dark;
+          final muted =
+              isDark ? AppColors.onDarkMuted : AppColors.muted;
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add, color: muted, size: 18),
+              const SizedBox(width: 8),
+              Text('list_detail.add_word_bar'.tr(),
+                  style: AppTextStyles.fig(15, FontWeight.w600)
+                      .copyWith(color: muted)),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _startBar(BuildContext context) {
+    return ElevatedButton.icon(
+      icon: const Icon(Icons.play_arrow_rounded,
+          color: Colors.white, size: 20),
+      label: Text('list_detail.start_button'.tr(),
+          style: AppTextStyles.fig(15, FontWeight.w700)
+              .copyWith(color: Colors.white)),
+      onPressed: () =>
+          context.push('/lists/${widget.listId}/quiz-setup'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.clay,
+        foregroundColor: Colors.white,
+        minimumSize: const Size.fromHeight(52),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16)),
+        elevation: 0,
+      ),
+    );
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+
   Future<void> _exportList(
-      BuildContext context, WidgetRef ref, String listName) async {
+      BuildContext context, String listName) async {
     final messenger = ScaffoldMessenger.of(context);
     final error = await ref
         .read(listActionsProvider.notifier)
-        .exportList(listId, listName.isEmpty ? listId : listName);
+        .exportList(widget.listId,
+            listName.isEmpty ? widget.listId : listName);
     if (error != null) {
       messenger.showSnackBar(SnackBar(content: Text(error)));
     }
   }
 
-  Future<void> _showAddWordDialog(BuildContext context, WidgetRef ref) async {
+  Future<void> _showAddWordDialog(BuildContext context) async {
     final frCtrl = TextEditingController();
     final koCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
@@ -148,9 +198,7 @@ class ListDetailScreen extends ConsumerWidget {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: Text('Ajouter un mot',
-            style: AppTextStyles.grotesk(20, FontWeight.w700)
-                .copyWith(color: AppColors.ink)),
+        title: Text('list_detail.add_dialog_title'.tr()),
         content: Form(
           key: formKey,
           child: Column(
@@ -159,8 +207,8 @@ class ListDetailScreen extends ConsumerWidget {
               TextFormField(
                 controller: frCtrl,
                 autofocus: true,
-                decoration: const InputDecoration(
-                    labelText: 'Français', prefixText: '🇫🇷  '),
+                decoration: InputDecoration(
+                    labelText: 'list_detail.field_french'.tr(), prefixText: '🇫🇷  '),
                 textInputAction: TextInputAction.next,
                 validator: (v) =>
                     (v?.trim().isEmpty ?? true) ? 'Requis' : null,
@@ -168,8 +216,8 @@ class ListDetailScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               TextFormField(
                 controller: koCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Coréen', prefixText: '🇰🇷  '),
+                decoration: InputDecoration(
+                    labelText: 'list_detail.field_korean'.tr(), prefixText: '🇰🇷  '),
                 validator: (v) =>
                     (v?.trim().isEmpty ?? true) ? 'Requis' : null,
               ),
@@ -179,16 +227,17 @@ class ListDetailScreen extends ConsumerWidget {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Annuler')),
+              child: Text('common.cancel'.tr())),
           FilledButton(
             onPressed: () async {
               if (!(formKey.currentState?.validate() ?? false)) return;
-              final result =
-                  await ref.read(listActionsProvider.notifier).addConcept(
-                        listId: listId,
-                        frWord: frCtrl.text.trim(),
-                        koWord: koCtrl.text.trim(),
-                      );
+              final result = await ref
+                  .read(listActionsProvider.notifier)
+                  .addConcept(
+                    listId: widget.listId,
+                    frWord: frCtrl.text.trim(),
+                    koWord: koCtrl.text.trim(),
+                  );
               if (!ctx.mounted) return;
               if (result.isFailure &&
                   result.exceptionOrNull is QuotaExceededException) {
@@ -198,7 +247,7 @@ class ListDetailScreen extends ConsumerWidget {
                 Navigator.pop(ctx);
               }
             },
-            child: const Text('Ajouter'),
+            child: Text('list_detail.add_confirm'.tr()),
           ),
         ],
       ),
@@ -211,13 +260,19 @@ class ListDetailScreen extends ConsumerWidget {
 // ── Concept tile ──────────────────────────────────────────────────────────────
 
 class _ConceptTile extends ConsumerWidget {
-  const _ConceptTile(
-      {super.key, required this.concept, required this.listId});
+  const _ConceptTile({
+    super.key,
+    required this.concept,
+    required this.listId,
+    required this.editMode,
+  });
   final dynamic concept;
   final String listId;
+  final bool editMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
     final variantsAsync = ref.watch(variantsProvider(concept.id));
 
     return variantsAsync.when(
@@ -225,7 +280,7 @@ class _ConceptTile extends ConsumerWidget {
         margin: const EdgeInsets.only(bottom: 8),
         height: 64,
         decoration: BoxDecoration(
-          color: AppColors.line.withValues(alpha: 0.5),
+          color: cs.outline.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(16),
         ),
       ),
@@ -238,106 +293,176 @@ class _ConceptTile extends ConsumerWidget {
         final frWord = fr.isNotEmpty ? fr.first.word : '—';
         final koWord = ko.isNotEmpty ? ko.first.word : '—';
 
-        return Dismissible(
-          key: Key(concept.id),
-          direction: DismissDirection.endToStart,
-          background: Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20),
-            decoration: BoxDecoration(
-              color: AppColors.rose.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(Icons.delete_outline,
-                color: AppColors.rose),
-          ),
-          confirmDismiss: (_) => showDialog<bool>(
+        Future<void> showEditDialog() async {
+          if (fr.isEmpty || ko.isEmpty) return;
+          final frCtrl = TextEditingController(text: frWord);
+          final koCtrl = TextEditingController(text: koWord);
+          final formKey = GlobalKey<FormState>();
+          await showDialog<void>(
             context: context,
             builder: (ctx) => AlertDialog(
-              title: Text('Supprimer le mot ?',
-                  style: AppTextStyles.grotesk(20, FontWeight.w700)
-                      .copyWith(color: AppColors.ink)),
-              content: Text(
-                '« $frWord / $koWord » sera supprimé de cette liste.',
-                style:
-                    AppTextStyles.body.copyWith(color: AppColors.muted),
+              title: Text('list_detail.edit_dialog_title'.tr()),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: frCtrl,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                          labelText: 'list_detail.field_french'.tr(), prefixText: '🇫🇷  '),
+                      textInputAction: TextInputAction.next,
+                      validator: (v) =>
+                          (v?.trim().isEmpty ?? true) ? 'Requis' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: koCtrl,
+                      decoration: InputDecoration(
+                          labelText: 'list_detail.field_korean'.tr(), prefixText: '🇰🇷  '),
+                      validator: (v) =>
+                          (v?.trim().isEmpty ?? true) ? 'Requis' : null,
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('Annuler')),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('common.cancel'.tr()),
+                ),
+                FilledButton(
+                  onPressed: () async {
+                    if (!(formKey.currentState?.validate() ?? false)) return;
+                    await ref
+                        .read(listActionsProvider.notifier)
+                        .updateVariants(
+                          frVariant: fr.first,
+                          newFrWord: frCtrl.text.trim(),
+                          koVariant: ko.first,
+                          newKoWord: koCtrl.text.trim(),
+                        );
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  },
+                  child: Text('list_detail.edit_confirm'.tr()),
+                ),
+              ],
+            ),
+          );
+        }
+
+        Future<void> confirmDelete() async {
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: Text('list_detail.delete_dialog_title'.tr()),
+              content: Text(
+                  'list_detail.delete_dialog_body'.tr(namedArgs: {'frWord': frWord, 'koWord': koWord})),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text('common.cancel'.tr()),
+                ),
                 TextButton(
                   style: TextButton.styleFrom(
                       foregroundColor: AppColors.rose),
                   onPressed: () => Navigator.pop(ctx, true),
-                  child: Text('Supprimer',
+                  child: Text('common.delete'.tr(),
                       style: AppTextStyles.fig(14, FontWeight.w600)
                           .copyWith(color: AppColors.rose)),
                 ),
               ],
             ),
-          ),
-          onDismissed: (_) {
-            ref
-                .read(listActionsProvider.notifier)
-                .deleteConcept(concept.id);
-          },
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: FrostedBox(
-              borderRadius: BorderRadius.circular(16),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  // French side
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('FR',
-                            style: AppTextStyles.eyebrowSm
-                                .copyWith(color: AppColors.teal)),
-                        const SizedBox(height: 2),
-                        Text(frWord,
-                            style: AppTextStyles.fig(
-                                    15, FontWeight.w600)
-                                .copyWith(color: AppColors.ink),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis),
-                      ],
+          );
+          if (confirmed == true) {
+            ref.read(listActionsProvider.notifier).deleteConcept(concept.id);
+          }
+        }
+
+        final tile = FrostedBox(
+          borderRadius: BorderRadius.circular(16),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Builder(builder: (ctx) {
+            final isDark = Theme.of(ctx).brightness == Brightness.dark;
+            final ink = isDark ? AppColors.onDark : AppColors.ink;
+            return Row(
+              children: [
+                // French side
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('list_detail.lang_fr'.tr(),
+                          style: AppTextStyles.eyebrowSm
+                              .copyWith(color: AppColors.teal)),
+                      const SizedBox(height: 2),
+                      Text(frWord,
+                          style: AppTextStyles.fig(15, FontWeight.w600)
+                              .copyWith(color: ink),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+                // Divider
+                Container(
+                  width: 1,
+                  height: 36,
+                  color: cs.outline,
+                  margin: const EdgeInsets.symmetric(horizontal: 14),
+                ),
+                // Korean side
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('list_detail.lang_kr'.tr(),
+                          style: AppTextStyles.eyebrowSm
+                              .copyWith(color: AppColors.clay)),
+                      const SizedBox(height: 2),
+                      Text(koWord,
+                          style: AppTextStyles.kr(16, FontWeight.w500)
+                              .copyWith(color: ink),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+                // Edit-mode action buttons
+                if (editMode) ...[
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: showEditDialog,
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(Icons.edit_outlined,
+                          color: AppColors.teal.withValues(alpha: 0.7),
+                          size: 20),
                     ),
                   ),
-                  // Divider
-                  Container(
-                    width: 1,
-                    height: 36,
-                    color: AppColors.line,
-                    margin: const EdgeInsets.symmetric(horizontal: 14),
-                  ),
-                  // Korean side
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('KR',
-                            style: AppTextStyles.eyebrowSm
-                                .copyWith(color: AppColors.clay)),
-                        const SizedBox(height: 2),
-                        Text(koWord,
-                            style: AppTextStyles.kr(
-                                    16, FontWeight.w500)
-                                .copyWith(color: AppColors.ink),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis),
-                      ],
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: confirmDelete,
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(Icons.delete_outline,
+                          color: AppColors.rose.withValues(alpha: 0.6),
+                          size: 20),
                     ),
                   ),
                 ],
-              ),
-            ),
-          ),
+              ],
+            );
+          }),
+        );
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: editMode
+              ? GestureDetector(onTap: showEditDialog, child: tile)
+              : tile,
         );
       },
     );
@@ -352,23 +477,27 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.auto_stories_outlined,
-                size: 56, color: AppColors.faint),
+            Icon(Icons.auto_stories_outlined, size: 56, color: faint),
             const SizedBox(height: 16),
-            Text('Aucun mot pour l\'instant',
+            Text('list_detail.empty_title'.tr(),
                 style: AppTextStyles.grotesk(20, FontWeight.w700)
-                    .copyWith(color: AppColors.ink)),
+                    .copyWith(color: cs.onSurface)),
             const SizedBox(height: 8),
             Text(
-              'Ajoute des paires de mots pour commencer à étudier.',
+              'list_detail.empty_subtitle'.tr(),
               textAlign: TextAlign.center,
-              style: AppTextStyles.body.copyWith(color: AppColors.muted),
+              style: AppTextStyles.body.copyWith(color: muted),
             ),
             const SizedBox(height: 28),
             GestureDetector(
@@ -380,7 +509,7 @@ class _EmptyState extends StatelessWidget {
                   color: AppColors.clay,
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: Text('Ajouter un mot',
+                child: Text('list_detail.empty_button'.tr(),
                     style: AppTextStyles.fig(15, FontWeight.w700)
                         .copyWith(color: Colors.white)),
               ),

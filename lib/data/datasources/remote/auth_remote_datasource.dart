@@ -63,6 +63,19 @@ class AuthRemoteDataSource {
     }
   }
 
+  Future<bool> checkUsernameExists(String username) async {
+    try {
+      final rows = await _client
+          .from('profiles')
+          .select('id')
+          .ilike('username', username)
+          .limit(1);
+      return (rows as List).isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<Result<Map<String, dynamic>>> getProfile(String userId) async {
     try {
       final data = await _client
@@ -122,7 +135,7 @@ class AuthRemoteDataSource {
         newStreak = 1;
       }
 
-      final p2 = (int n) => n.toString().padLeft(2, '0');
+      String p2(int n) => n.toString().padLeft(2, '0');
       await _client.from('profiles').update({
         'current_streak': newStreak,
         'longest_streak': newStreak > longest ? newStreak : longest,

@@ -9,7 +9,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: ^1.0.8
+
+  # Localisation
+  easy_localization: ^3.0.7
 
   # Navigation
   go_router: ^14.6.0
@@ -82,6 +87,9 @@ dependencies:
   # Shimmer skeleton loading
   shimmer: ^3.0.0
 
+  # Charts
+  fl_chart: ^0.70.2
+
   # Animations
   lottie: ^3.3.1
 
@@ -113,3 +121,4 @@ flutter:
     - assets/sounds/
     - assets/images/
     - assets/animations/
+    - assets/translations/

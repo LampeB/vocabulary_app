@@ -3068,6 +3068,574 @@ class SyncQueueTableCompanion extends UpdateCompanion<SyncQueueTableData> {
   }
 }
 
+class $QuizSessionsTableTable extends QuizSessionsTable
+    with TableInfo<$QuizSessionsTableTable, QuizSessionsTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $QuizSessionsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+      'user_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _listIdMeta = const VerificationMeta('listId');
+  @override
+  late final GeneratedColumn<String> listId = GeneratedColumn<String>(
+      'list_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _listNameMeta =
+      const VerificationMeta('listName');
+  @override
+  late final GeneratedColumn<String> listName = GeneratedColumn<String>(
+      'list_name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _modeMeta = const VerificationMeta('mode');
+  @override
+  late final GeneratedColumn<String> mode = GeneratedColumn<String>(
+      'mode', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _directionMeta =
+      const VerificationMeta('direction');
+  @override
+  late final GeneratedColumn<String> direction = GeneratedColumn<String>(
+      'direction', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _cardCountMeta =
+      const VerificationMeta('cardCount');
+  @override
+  late final GeneratedColumn<int> cardCount = GeneratedColumn<int>(
+      'card_count', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _correctCountMeta =
+      const VerificationMeta('correctCount');
+  @override
+  late final GeneratedColumn<int> correctCount = GeneratedColumn<int>(
+      'correct_count', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _durationSecondsMeta =
+      const VerificationMeta('durationSeconds');
+  @override
+  late final GeneratedColumn<int> durationSeconds = GeneratedColumn<int>(
+      'duration_seconds', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _masteredWordCountMeta =
+      const VerificationMeta('masteredWordCount');
+  @override
+  late final GeneratedColumn<int> masteredWordCount = GeneratedColumn<int>(
+      'mastered_word_count', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _completedAtMeta =
+      const VerificationMeta('completedAt');
+  @override
+  late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
+      'completed_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        userId,
+        listId,
+        listName,
+        mode,
+        direction,
+        cardCount,
+        correctCount,
+        durationSeconds,
+        masteredWordCount,
+        completedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'quiz_sessions';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<QuizSessionsTableData> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(_userIdMeta,
+          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('list_id')) {
+      context.handle(_listIdMeta,
+          listId.isAcceptableOrUnknown(data['list_id']!, _listIdMeta));
+    }
+    if (data.containsKey('list_name')) {
+      context.handle(_listNameMeta,
+          listName.isAcceptableOrUnknown(data['list_name']!, _listNameMeta));
+    } else if (isInserting) {
+      context.missing(_listNameMeta);
+    }
+    if (data.containsKey('mode')) {
+      context.handle(
+          _modeMeta, mode.isAcceptableOrUnknown(data['mode']!, _modeMeta));
+    } else if (isInserting) {
+      context.missing(_modeMeta);
+    }
+    if (data.containsKey('direction')) {
+      context.handle(_directionMeta,
+          direction.isAcceptableOrUnknown(data['direction']!, _directionMeta));
+    } else if (isInserting) {
+      context.missing(_directionMeta);
+    }
+    if (data.containsKey('card_count')) {
+      context.handle(_cardCountMeta,
+          cardCount.isAcceptableOrUnknown(data['card_count']!, _cardCountMeta));
+    } else if (isInserting) {
+      context.missing(_cardCountMeta);
+    }
+    if (data.containsKey('correct_count')) {
+      context.handle(
+          _correctCountMeta,
+          correctCount.isAcceptableOrUnknown(
+              data['correct_count']!, _correctCountMeta));
+    } else if (isInserting) {
+      context.missing(_correctCountMeta);
+    }
+    if (data.containsKey('duration_seconds')) {
+      context.handle(
+          _durationSecondsMeta,
+          durationSeconds.isAcceptableOrUnknown(
+              data['duration_seconds']!, _durationSecondsMeta));
+    } else if (isInserting) {
+      context.missing(_durationSecondsMeta);
+    }
+    if (data.containsKey('mastered_word_count')) {
+      context.handle(
+          _masteredWordCountMeta,
+          masteredWordCount.isAcceptableOrUnknown(
+              data['mastered_word_count']!, _masteredWordCountMeta));
+    } else if (isInserting) {
+      context.missing(_masteredWordCountMeta);
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+          _completedAtMeta,
+          completedAt.isAcceptableOrUnknown(
+              data['completed_at']!, _completedAtMeta));
+    } else if (isInserting) {
+      context.missing(_completedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  QuizSessionsTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return QuizSessionsTableData(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      userId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
+      listId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}list_id']),
+      listName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}list_name'])!,
+      mode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}mode'])!,
+      direction: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}direction'])!,
+      cardCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}card_count'])!,
+      correctCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}correct_count'])!,
+      durationSeconds: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}duration_seconds'])!,
+      masteredWordCount: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}mastered_word_count'])!,
+      completedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}completed_at'])!,
+    );
+  }
+
+  @override
+  $QuizSessionsTableTable createAlias(String alias) {
+    return $QuizSessionsTableTable(attachedDatabase, alias);
+  }
+}
+
+class QuizSessionsTableData extends DataClass
+    implements Insertable<QuizSessionsTableData> {
+  final String id;
+  final String userId;
+
+  /// Nullable: list may be deleted, but we keep the history.
+  final String? listId;
+
+  /// Snapshot of the list name at the time of the session.
+  final String listName;
+
+  /// QuizMode name (voice / flashcard / typing / handsFree).
+  final String mode;
+
+  /// QuizDirectionChoice name (frToKo / koToFr / both).
+  final String direction;
+  final int cardCount;
+  final int correctCount;
+  final int durationSeconds;
+
+  /// Total mastered words across ALL lists at the moment the session ended.
+  final int masteredWordCount;
+  final DateTime completedAt;
+  const QuizSessionsTableData(
+      {required this.id,
+      required this.userId,
+      this.listId,
+      required this.listName,
+      required this.mode,
+      required this.direction,
+      required this.cardCount,
+      required this.correctCount,
+      required this.durationSeconds,
+      required this.masteredWordCount,
+      required this.completedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    if (!nullToAbsent || listId != null) {
+      map['list_id'] = Variable<String>(listId);
+    }
+    map['list_name'] = Variable<String>(listName);
+    map['mode'] = Variable<String>(mode);
+    map['direction'] = Variable<String>(direction);
+    map['card_count'] = Variable<int>(cardCount);
+    map['correct_count'] = Variable<int>(correctCount);
+    map['duration_seconds'] = Variable<int>(durationSeconds);
+    map['mastered_word_count'] = Variable<int>(masteredWordCount);
+    map['completed_at'] = Variable<DateTime>(completedAt);
+    return map;
+  }
+
+  QuizSessionsTableCompanion toCompanion(bool nullToAbsent) {
+    return QuizSessionsTableCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      listId:
+          listId == null && nullToAbsent ? const Value.absent() : Value(listId),
+      listName: Value(listName),
+      mode: Value(mode),
+      direction: Value(direction),
+      cardCount: Value(cardCount),
+      correctCount: Value(correctCount),
+      durationSeconds: Value(durationSeconds),
+      masteredWordCount: Value(masteredWordCount),
+      completedAt: Value(completedAt),
+    );
+  }
+
+  factory QuizSessionsTableData.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return QuizSessionsTableData(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      listId: serializer.fromJson<String?>(json['listId']),
+      listName: serializer.fromJson<String>(json['listName']),
+      mode: serializer.fromJson<String>(json['mode']),
+      direction: serializer.fromJson<String>(json['direction']),
+      cardCount: serializer.fromJson<int>(json['cardCount']),
+      correctCount: serializer.fromJson<int>(json['correctCount']),
+      durationSeconds: serializer.fromJson<int>(json['durationSeconds']),
+      masteredWordCount: serializer.fromJson<int>(json['masteredWordCount']),
+      completedAt: serializer.fromJson<DateTime>(json['completedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'listId': serializer.toJson<String?>(listId),
+      'listName': serializer.toJson<String>(listName),
+      'mode': serializer.toJson<String>(mode),
+      'direction': serializer.toJson<String>(direction),
+      'cardCount': serializer.toJson<int>(cardCount),
+      'correctCount': serializer.toJson<int>(correctCount),
+      'durationSeconds': serializer.toJson<int>(durationSeconds),
+      'masteredWordCount': serializer.toJson<int>(masteredWordCount),
+      'completedAt': serializer.toJson<DateTime>(completedAt),
+    };
+  }
+
+  QuizSessionsTableData copyWith(
+          {String? id,
+          String? userId,
+          Value<String?> listId = const Value.absent(),
+          String? listName,
+          String? mode,
+          String? direction,
+          int? cardCount,
+          int? correctCount,
+          int? durationSeconds,
+          int? masteredWordCount,
+          DateTime? completedAt}) =>
+      QuizSessionsTableData(
+        id: id ?? this.id,
+        userId: userId ?? this.userId,
+        listId: listId.present ? listId.value : this.listId,
+        listName: listName ?? this.listName,
+        mode: mode ?? this.mode,
+        direction: direction ?? this.direction,
+        cardCount: cardCount ?? this.cardCount,
+        correctCount: correctCount ?? this.correctCount,
+        durationSeconds: durationSeconds ?? this.durationSeconds,
+        masteredWordCount: masteredWordCount ?? this.masteredWordCount,
+        completedAt: completedAt ?? this.completedAt,
+      );
+  QuizSessionsTableData copyWithCompanion(QuizSessionsTableCompanion data) {
+    return QuizSessionsTableData(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      listId: data.listId.present ? data.listId.value : this.listId,
+      listName: data.listName.present ? data.listName.value : this.listName,
+      mode: data.mode.present ? data.mode.value : this.mode,
+      direction: data.direction.present ? data.direction.value : this.direction,
+      cardCount: data.cardCount.present ? data.cardCount.value : this.cardCount,
+      correctCount: data.correctCount.present
+          ? data.correctCount.value
+          : this.correctCount,
+      durationSeconds: data.durationSeconds.present
+          ? data.durationSeconds.value
+          : this.durationSeconds,
+      masteredWordCount: data.masteredWordCount.present
+          ? data.masteredWordCount.value
+          : this.masteredWordCount,
+      completedAt:
+          data.completedAt.present ? data.completedAt.value : this.completedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuizSessionsTableData(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('listId: $listId, ')
+          ..write('listName: $listName, ')
+          ..write('mode: $mode, ')
+          ..write('direction: $direction, ')
+          ..write('cardCount: $cardCount, ')
+          ..write('correctCount: $correctCount, ')
+          ..write('durationSeconds: $durationSeconds, ')
+          ..write('masteredWordCount: $masteredWordCount, ')
+          ..write('completedAt: $completedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, userId, listId, listName, mode, direction,
+      cardCount, correctCount, durationSeconds, masteredWordCount, completedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is QuizSessionsTableData &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.listId == this.listId &&
+          other.listName == this.listName &&
+          other.mode == this.mode &&
+          other.direction == this.direction &&
+          other.cardCount == this.cardCount &&
+          other.correctCount == this.correctCount &&
+          other.durationSeconds == this.durationSeconds &&
+          other.masteredWordCount == this.masteredWordCount &&
+          other.completedAt == this.completedAt);
+}
+
+class QuizSessionsTableCompanion
+    extends UpdateCompanion<QuizSessionsTableData> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String?> listId;
+  final Value<String> listName;
+  final Value<String> mode;
+  final Value<String> direction;
+  final Value<int> cardCount;
+  final Value<int> correctCount;
+  final Value<int> durationSeconds;
+  final Value<int> masteredWordCount;
+  final Value<DateTime> completedAt;
+  final Value<int> rowid;
+  const QuizSessionsTableCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.listId = const Value.absent(),
+    this.listName = const Value.absent(),
+    this.mode = const Value.absent(),
+    this.direction = const Value.absent(),
+    this.cardCount = const Value.absent(),
+    this.correctCount = const Value.absent(),
+    this.durationSeconds = const Value.absent(),
+    this.masteredWordCount = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  QuizSessionsTableCompanion.insert({
+    required String id,
+    required String userId,
+    this.listId = const Value.absent(),
+    required String listName,
+    required String mode,
+    required String direction,
+    required int cardCount,
+    required int correctCount,
+    required int durationSeconds,
+    required int masteredWordCount,
+    required DateTime completedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        userId = Value(userId),
+        listName = Value(listName),
+        mode = Value(mode),
+        direction = Value(direction),
+        cardCount = Value(cardCount),
+        correctCount = Value(correctCount),
+        durationSeconds = Value(durationSeconds),
+        masteredWordCount = Value(masteredWordCount),
+        completedAt = Value(completedAt);
+  static Insertable<QuizSessionsTableData> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? listId,
+    Expression<String>? listName,
+    Expression<String>? mode,
+    Expression<String>? direction,
+    Expression<int>? cardCount,
+    Expression<int>? correctCount,
+    Expression<int>? durationSeconds,
+    Expression<int>? masteredWordCount,
+    Expression<DateTime>? completedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (listId != null) 'list_id': listId,
+      if (listName != null) 'list_name': listName,
+      if (mode != null) 'mode': mode,
+      if (direction != null) 'direction': direction,
+      if (cardCount != null) 'card_count': cardCount,
+      if (correctCount != null) 'correct_count': correctCount,
+      if (durationSeconds != null) 'duration_seconds': durationSeconds,
+      if (masteredWordCount != null) 'mastered_word_count': masteredWordCount,
+      if (completedAt != null) 'completed_at': completedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  QuizSessionsTableCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? userId,
+      Value<String?>? listId,
+      Value<String>? listName,
+      Value<String>? mode,
+      Value<String>? direction,
+      Value<int>? cardCount,
+      Value<int>? correctCount,
+      Value<int>? durationSeconds,
+      Value<int>? masteredWordCount,
+      Value<DateTime>? completedAt,
+      Value<int>? rowid}) {
+    return QuizSessionsTableCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      listId: listId ?? this.listId,
+      listName: listName ?? this.listName,
+      mode: mode ?? this.mode,
+      direction: direction ?? this.direction,
+      cardCount: cardCount ?? this.cardCount,
+      correctCount: correctCount ?? this.correctCount,
+      durationSeconds: durationSeconds ?? this.durationSeconds,
+      masteredWordCount: masteredWordCount ?? this.masteredWordCount,
+      completedAt: completedAt ?? this.completedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (listId.present) {
+      map['list_id'] = Variable<String>(listId.value);
+    }
+    if (listName.present) {
+      map['list_name'] = Variable<String>(listName.value);
+    }
+    if (mode.present) {
+      map['mode'] = Variable<String>(mode.value);
+    }
+    if (direction.present) {
+      map['direction'] = Variable<String>(direction.value);
+    }
+    if (cardCount.present) {
+      map['card_count'] = Variable<int>(cardCount.value);
+    }
+    if (correctCount.present) {
+      map['correct_count'] = Variable<int>(correctCount.value);
+    }
+    if (durationSeconds.present) {
+      map['duration_seconds'] = Variable<int>(durationSeconds.value);
+    }
+    if (masteredWordCount.present) {
+      map['mastered_word_count'] = Variable<int>(masteredWordCount.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<DateTime>(completedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuizSessionsTableCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('listId: $listId, ')
+          ..write('listName: $listName, ')
+          ..write('mode: $mode, ')
+          ..write('direction: $direction, ')
+          ..write('cardCount: $cardCount, ')
+          ..write('correctCount: $correctCount, ')
+          ..write('durationSeconds: $durationSeconds, ')
+          ..write('masteredWordCount: $masteredWordCount, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3079,10 +3647,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $VariantProgressTableTable variantProgressTable =
       $VariantProgressTableTable(this);
   late final $SyncQueueTableTable syncQueueTable = $SyncQueueTableTable(this);
+  late final $QuizSessionsTableTable quizSessionsTable =
+      $QuizSessionsTableTable(this);
   late final VocabularyListDao vocabularyListDao =
       VocabularyListDao(this as AppDatabase);
   late final ConceptDao conceptDao = ConceptDao(this as AppDatabase);
   late final ProgressDao progressDao = ProgressDao(this as AppDatabase);
+  late final QuizSessionDao quizSessionDao =
+      QuizSessionDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3092,7 +3664,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         conceptsTable,
         wordVariantsTable,
         variantProgressTable,
-        syncQueueTable
+        syncQueueTable,
+        quizSessionsTable
       ];
 }
 
@@ -5085,6 +5658,278 @@ typedef $$SyncQueueTableTableProcessedTableManager = ProcessedTableManager<
     ),
     SyncQueueTableData,
     PrefetchHooks Function()>;
+typedef $$QuizSessionsTableTableCreateCompanionBuilder
+    = QuizSessionsTableCompanion Function({
+  required String id,
+  required String userId,
+  Value<String?> listId,
+  required String listName,
+  required String mode,
+  required String direction,
+  required int cardCount,
+  required int correctCount,
+  required int durationSeconds,
+  required int masteredWordCount,
+  required DateTime completedAt,
+  Value<int> rowid,
+});
+typedef $$QuizSessionsTableTableUpdateCompanionBuilder
+    = QuizSessionsTableCompanion Function({
+  Value<String> id,
+  Value<String> userId,
+  Value<String?> listId,
+  Value<String> listName,
+  Value<String> mode,
+  Value<String> direction,
+  Value<int> cardCount,
+  Value<int> correctCount,
+  Value<int> durationSeconds,
+  Value<int> masteredWordCount,
+  Value<DateTime> completedAt,
+  Value<int> rowid,
+});
+
+class $$QuizSessionsTableTableFilterComposer
+    extends Composer<_$AppDatabase, $QuizSessionsTableTable> {
+  $$QuizSessionsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get listId => $composableBuilder(
+      column: $table.listId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get listName => $composableBuilder(
+      column: $table.listName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mode => $composableBuilder(
+      column: $table.mode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get direction => $composableBuilder(
+      column: $table.direction, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get cardCount => $composableBuilder(
+      column: $table.cardCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get correctCount => $composableBuilder(
+      column: $table.correctCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get durationSeconds => $composableBuilder(
+      column: $table.durationSeconds,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get masteredWordCount => $composableBuilder(
+      column: $table.masteredWordCount,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$QuizSessionsTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $QuizSessionsTableTable> {
+  $$QuizSessionsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get listId => $composableBuilder(
+      column: $table.listId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get listName => $composableBuilder(
+      column: $table.listName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get mode => $composableBuilder(
+      column: $table.mode, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get direction => $composableBuilder(
+      column: $table.direction, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get cardCount => $composableBuilder(
+      column: $table.cardCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get correctCount => $composableBuilder(
+      column: $table.correctCount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get durationSeconds => $composableBuilder(
+      column: $table.durationSeconds,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get masteredWordCount => $composableBuilder(
+      column: $table.masteredWordCount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$QuizSessionsTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $QuizSessionsTableTable> {
+  $$QuizSessionsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get listId =>
+      $composableBuilder(column: $table.listId, builder: (column) => column);
+
+  GeneratedColumn<String> get listName =>
+      $composableBuilder(column: $table.listName, builder: (column) => column);
+
+  GeneratedColumn<String> get mode =>
+      $composableBuilder(column: $table.mode, builder: (column) => column);
+
+  GeneratedColumn<String> get direction =>
+      $composableBuilder(column: $table.direction, builder: (column) => column);
+
+  GeneratedColumn<int> get cardCount =>
+      $composableBuilder(column: $table.cardCount, builder: (column) => column);
+
+  GeneratedColumn<int> get correctCount => $composableBuilder(
+      column: $table.correctCount, builder: (column) => column);
+
+  GeneratedColumn<int> get durationSeconds => $composableBuilder(
+      column: $table.durationSeconds, builder: (column) => column);
+
+  GeneratedColumn<int> get masteredWordCount => $composableBuilder(
+      column: $table.masteredWordCount, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => column);
+}
+
+class $$QuizSessionsTableTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $QuizSessionsTableTable,
+    QuizSessionsTableData,
+    $$QuizSessionsTableTableFilterComposer,
+    $$QuizSessionsTableTableOrderingComposer,
+    $$QuizSessionsTableTableAnnotationComposer,
+    $$QuizSessionsTableTableCreateCompanionBuilder,
+    $$QuizSessionsTableTableUpdateCompanionBuilder,
+    (
+      QuizSessionsTableData,
+      BaseReferences<_$AppDatabase, $QuizSessionsTableTable,
+          QuizSessionsTableData>
+    ),
+    QuizSessionsTableData,
+    PrefetchHooks Function()> {
+  $$QuizSessionsTableTableTableManager(
+      _$AppDatabase db, $QuizSessionsTableTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$QuizSessionsTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$QuizSessionsTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$QuizSessionsTableTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> userId = const Value.absent(),
+            Value<String?> listId = const Value.absent(),
+            Value<String> listName = const Value.absent(),
+            Value<String> mode = const Value.absent(),
+            Value<String> direction = const Value.absent(),
+            Value<int> cardCount = const Value.absent(),
+            Value<int> correctCount = const Value.absent(),
+            Value<int> durationSeconds = const Value.absent(),
+            Value<int> masteredWordCount = const Value.absent(),
+            Value<DateTime> completedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              QuizSessionsTableCompanion(
+            id: id,
+            userId: userId,
+            listId: listId,
+            listName: listName,
+            mode: mode,
+            direction: direction,
+            cardCount: cardCount,
+            correctCount: correctCount,
+            durationSeconds: durationSeconds,
+            masteredWordCount: masteredWordCount,
+            completedAt: completedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String userId,
+            Value<String?> listId = const Value.absent(),
+            required String listName,
+            required String mode,
+            required String direction,
+            required int cardCount,
+            required int correctCount,
+            required int durationSeconds,
+            required int masteredWordCount,
+            required DateTime completedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              QuizSessionsTableCompanion.insert(
+            id: id,
+            userId: userId,
+            listId: listId,
+            listName: listName,
+            mode: mode,
+            direction: direction,
+            cardCount: cardCount,
+            correctCount: correctCount,
+            durationSeconds: durationSeconds,
+            masteredWordCount: masteredWordCount,
+            completedAt: completedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$QuizSessionsTableTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $QuizSessionsTableTable,
+    QuizSessionsTableData,
+    $$QuizSessionsTableTableFilterComposer,
+    $$QuizSessionsTableTableOrderingComposer,
+    $$QuizSessionsTableTableAnnotationComposer,
+    $$QuizSessionsTableTableCreateCompanionBuilder,
+    $$QuizSessionsTableTableUpdateCompanionBuilder,
+    (
+      QuizSessionsTableData,
+      BaseReferences<_$AppDatabase, $QuizSessionsTableTable,
+          QuizSessionsTableData>
+    ),
+    QuizSessionsTableData,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5099,4 +5944,6 @@ class $AppDatabaseManager {
       $$VariantProgressTableTableTableManager(_db, _db.variantProgressTable);
   $$SyncQueueTableTableTableManager get syncQueueTable =>
       $$SyncQueueTableTableTableManager(_db, _db.syncQueueTable);
+  $$QuizSessionsTableTableTableManager get quizSessionsTable =>
+      $$QuizSessionsTableTableTableManager(_db, _db.quizSessionsTable);
 }

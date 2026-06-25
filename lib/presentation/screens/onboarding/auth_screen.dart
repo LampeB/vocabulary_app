@@ -1,4 +1,6 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth/auth_provider.dart';
@@ -38,6 +40,62 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     super.dispose();
   }
 
+  Future<void> _showForgotPassword() async {
+    final emailCtrl = TextEditingController(text: _emailCtrl.text.trim());
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        // Title and content colors come from dialogTheme automatically.
+        title: Text('auth.reset_dialog_title'.tr()),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'auth.reset_dialog_body'.tr(),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: 'auth.field_email'.tr(),
+                prefixIcon: const Icon(Icons.email_outlined),
+              ),
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final email = emailCtrl.text.trim();
+              Navigator.pop(ctx);
+              final result = await ref
+                  .read(authStateProvider.notifier)
+                  .sendPasswordReset(email);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(result.isSuccess
+                    ? 'auth.reset_snackbar_success'.tr()
+                    : 'auth.reset_snackbar_error'.tr()),
+                behavior: SnackBarBehavior.floating,
+              ));
+            },
+            child: Text('auth.reset_send'.tr(),
+                style: AppTextStyles.fig(14, FontWeight.w600)
+                    .copyWith(color: AppColors.teal)),
+          ),
+        ],
+      ),
+    );
+    emailCtrl.dispose();
+  }
+
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _errorMsg = null);
@@ -51,7 +109,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           );
     result.fold(
       onSuccess: (_) {
-        if (mounted) context.go('/home');
+        if (!mounted) return;
+        TextInput.finishAutofillContext(shouldSave: true);
+        context.go('/home');
       },
       onFailure: (e) => setState(() => _errorMsg = e.message),
     );
@@ -60,14 +120,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     final isLoading = ref.watch(authStateProvider).isLoading;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      // Background provided by scaffoldBackgroundColor in AppTheme.
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        // AppBarTheme provides transparent bg and correct icon/title colors.
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.ink, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => context.go('/welcome'),
         ),
       ),
@@ -79,33 +141,36 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
               child: Form(
                 key: _formKey,
+                child: AutofillGroup(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      _isSignIn ? 'Connexion' : 'Créer un compte',
+                      _isSignIn ? 'auth.title_signin'.tr() : 'auth.title_signup'.tr(),
                       style: AppTextStyles.grotesk(32, FontWeight.w700)
-                          .copyWith(color: AppColors.ink),
+                          .copyWith(color: cs.onSurface),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       _isSignIn
-                          ? 'Content de te revoir !'
-                          : 'C\'est gratuit, sans carte bancaire.',
+                          ? 'auth.subtitle_signin'.tr()
+                          : 'auth.subtitle_signup'.tr(),
                       style: AppTextStyles.fig(14, FontWeight.w400)
-                          .copyWith(color: AppColors.muted),
+                          .copyWith(color: muted),
                     ),
                     const SizedBox(height: 32),
                     // ── Username (sign-up only) ──────────────────────────────
                     if (!_isSignIn) ...[
                       TextFormField(
+                        key: const Key('username_field'),
                         controller: _usernameCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Nom d\'utilisateur',
-                          prefixIcon: Icon(Icons.alternate_email),
+                        decoration: InputDecoration(
+                          labelText: 'auth.field_username'.tr(),
+                          prefixIcon: const Icon(Icons.alternate_email),
                         ),
+                        autofillHints: const [AutofillHints.username],
                         validator: (v) => (v?.length ?? 0) < 3
-                            ? 'Au moins 3 caractères'
+                            ? 'auth.validator_username_short'.tr()
                             : null,
                         textInputAction: TextInputAction.next,
                       ),
@@ -115,14 +180,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     TextFormField(
                       key: const Key('email_field'),
                       controller: _emailCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'E-mail',
-                        prefixIcon: Icon(Icons.email_outlined),
+                      decoration: InputDecoration(
+                        labelText: 'auth.field_email'.tr(),
+                        prefixIcon: const Icon(Icons.email_outlined),
                       ),
                       keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
                       validator: (v) => (v?.contains('@') ?? false)
                           ? null
-                          : 'Adresse e-mail invalide',
+                          : 'auth.validator_email_invalid'.tr(),
                       textInputAction: TextInputAction.next,
                     ),
                     const SizedBox(height: 16),
@@ -131,7 +197,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       key: const Key('password_field'),
                       controller: _passwordCtrl,
                       decoration: InputDecoration(
-                        labelText: 'Mot de passe',
+                        labelText: 'auth.field_password'.tr(),
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
                           icon: Icon(_obscure
@@ -142,10 +208,33 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         ),
                       ),
                       obscureText: _obscure,
+                      autofillHints: _isSignIn
+                          ? const [AutofillHints.password]
+                          : const [AutofillHints.newPassword],
                       validator: (v) => (v?.length ?? 0) >= 6
                           ? null
-                          : 'Au moins 6 caractères',
+                          : 'auth.validator_password_short'.tr(),
                     ),
+                    // ── Forgot password (sign-in only) ───────────────────────
+                    if (_isSignIn) ...[
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () => _showForgotPassword(),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            'auth.forgot_password'.tr(),
+                            style: AppTextStyles.fig(13, FontWeight.w500)
+                                .copyWith(color: AppColors.teal),
+                          ),
+                        ),
+                      ),
+                    ],
                     // ── Error message ─────────────────────────────────────────
                     if (_errorMsg != null) ...[
                       const SizedBox(height: 12),
@@ -177,8 +266,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                 )
                               : Text(
                                   _isSignIn
-                                      ? 'Se connecter'
-                                      : 'Créer mon compte',
+                                      ? 'auth.button_signin'.tr()
+                                      : 'auth.button_signup'.tr(),
                                   style: AppTextStyles.fig(
                                           15, FontWeight.w700)
                                       .copyWith(color: Colors.white),
@@ -194,14 +283,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             setState(() => _isSignIn = !_isSignIn),
                         child: Text(
                           _isSignIn
-                              ? 'Pas encore de compte ? Inscription'
-                              : 'Déjà un compte ? Connexion',
+                              ? 'auth.toggle_to_signup'.tr()
+                              : 'auth.toggle_to_signin'.tr(),
                           style: AppTextStyles.fig(13, FontWeight.w500)
                               .copyWith(color: AppColors.teal),
                         ),
                       ),
                     ),
                   ],
+                ),
                 ),
               ),
             ),

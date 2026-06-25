@@ -58,18 +58,30 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
     required String username,
   }) async {
-    final result = await _remote.signUpWithEmail(email, password, username);
+    final normalized = username.trim().toLowerCase();
+
+    if (await _remote.checkUsernameExists(normalized)) {
+      return const Failure(ValidationException('Ce pseudo est déjà utilisé.'));
+    }
+
+    final result = await _remote.signUpWithEmail(email, password, normalized);
     return result.fold(
       onSuccess: (user) async {
-        final profileData = {
+        await _remote.upsertProfile({
           'id': user.id,
-          'username': username,
-          'display_name': username,
-        };
-        await _remote.upsertProfile(profileData);
+          'username': normalized,
+          'display_name': normalized,
+        });
         return Success(_mapUser(user));
       },
-      onFailure: (e) => Failure(e),
+      onFailure: (e) {
+        if (e is AuthException &&
+            e.message.toLowerCase().contains('already registered')) {
+          return const Failure(
+            AuthException('Cette adresse e-mail est déjà utilisée.'));
+        }
+        return Failure(e);
+      },
     );
   }
 
