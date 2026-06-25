@@ -163,9 +163,14 @@ void main() {
           reason: 'One fr variant → one new card for frToKo');
     });
 
-    test('excludes cards scheduled to the future', () async {
+    test('excludes future-scheduled cards when other cards are available',
+        () async {
       final list = await setup();
-      // Set nextReview to tomorrow → card should not be due.
+      // Add a second word so the list isn't reduced to only the future card.
+      await vocabRepo.addConceptWithVariants(
+          listId: list.id, frWord: 'Merci', koWord: '감사합니다');
+
+      // Push the first word's card to tomorrow → it should not be due.
       final base = ((await progressRepo.getProgress(
         variantId: frVariantId,
         direction: QuizDirection.frToKo,
@@ -182,7 +187,35 @@ void main() {
         listId: list.id,
         direction: QuizDirection.frToKo,
       );
-      expect((result as Success<List<VariantProgress>>).value, isEmpty);
+      final cards = (result as Success<List<VariantProgress>>).value;
+      // The future-scheduled word is excluded; only the new second word is due.
+      expect(cards.map((c) => c.variantId), isNot(contains(frVariantId)));
+      expect(cards.length, 1);
+    });
+
+    test('falls back to scheduled cards for early review when nothing is due',
+        () async {
+      final list = await setup();
+      // The list's only word is scheduled for tomorrow (answered well already).
+      final base = ((await progressRepo.getProgress(
+        variantId: frVariantId,
+        direction: QuizDirection.frToKo,
+      )) as Success<VariantProgress>)
+          .value;
+      await progressRepo.updateProgress(base.copyWith(
+        nextReview: DateTime.now().add(const Duration(days: 1)),
+        state: CardState.review,
+        reps: 1,
+      ));
+
+      final result = await progressRepo.getDueCards(
+        userId: _kUserId,
+        listId: list.id,
+        direction: QuizDirection.frToKo,
+      );
+      // Nothing is strictly due, but the quiz must not be empty: the user can
+      // review the scheduled card ahead of time instead of seeing an empty list.
+      expect((result as Success<List<VariantProgress>>).value.length, 1);
     });
 
     test('includes cards past due (nextReview in the past)', () async {
