@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VocabKR — Quiz modes (light)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{--color-background-secondary:#EDEAE3;--color-background-primary:#fff;--color-text-primary:#2B2622;--color-text-secondary:#756C62;--color-text-tertiary:#A99F90;--color-border-secondary:rgba(43,38,34,0.25);--border-radius-lg:12px}
+body{margin:0;background:#F2EFE9;display:flex;justify-content:center;padding:24px;font-family:'Figtree',system-ui,sans-serif}
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Space+Mono:wght@400;700&family=Noto+Sans+KR:wght@500;700&display=swap');
+.vk{font-family:'Figtree',system-ui,sans-serif}
+.vkdotl{background-image:radial-gradient(circle, rgba(43,38,34,0.10) 1px, transparent 1.6px);background-size:12px 12px}
+.eb{font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:0.2em;font-size:12px}
+.gk{font-family:'Space Grotesk',sans-serif}
+.kr{font-family:'Noto Sans KR',sans-serif}
+@keyframes vw{from{transform:scaleY(var(--lo,.3))}to{transform:scaleY(1)}}
+.wv .b{transform:scaleY(.66);transform-origin:center}
+.wv.animate .b{animation:vw var(--dur,.72s) ease-in-out infinite alternate}
+.esc{display:inline-flex;align-items:center;gap:7px;font-family:'Figtree',sans-serif;font-size:13px;font-weight:600;color:#5A534B;padding:11px 18px;border:1px solid rgba(43,38,34,0.16);background:rgba(255,255,255,0.6);border-radius:999px;cursor:pointer}
+.tab{cursor:pointer;font-family:'Figtree',sans-serif;font-size:13px;font-weight:600;padding:9px 16px;border-radius:999px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary)}
+.tab.on{background:var(--color-text-primary);color:var(--color-background-primary);border-color:var(--color-text-primary)}
+.gbtn{flex:1;height:60px;border-radius:16px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:15px;cursor:pointer}
+</style></head>
+<body>
+<div style="background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:14px">
+ <div id="screen" class="vk vkdotl" style="position:relative;background:#F6F1EA;border-radius:32px;overflow:hidden;max-width:340px;margin:0 auto;height:720px;display:flex;flex-direction:column;transition:background .18s;border:0.5px solid rgba(43,38,34,0.12)">
+  <div style="flex:none;display:flex;align-items:center;justify-content:space-between;padding:16px 22px 4px;position:relative;z-index:3">
+   <div style="width:36px;height:36px;border-radius:50%;border:1px solid rgba(43,38,34,0.16);background:rgba(255,255,255,0.6);display:flex;align-items:center;justify-content:center"><i class="ti ti-x" style="font-size:17px;color:#756C62"></i></div>
+   <div style="flex:1;margin:0 14px;height:6px;border-radius:999px;background:#ECE3D7;overflow:hidden"><div style="width:33%;height:100%;background:#4C8C86"></div></div>
+   <span class="eb" style="color:#8A857C">04/12</span>
+  </div>
+  <div id="body" style="flex:1;display:flex;flex-direction:column;position:relative;z-index:2"></div>
+  <div id="fb" style="position:absolute;inset:0;z-index:6;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:0 30px;text-align:center">
+   <div style="width:118px;height:118px;border-radius:50%;background:rgba(255,255,255,0.28);display:flex;align-items:center;justify-content:center"><i id="fbi" class="ti ti-check" style="font-size:70px;color:#fff"></i></div>
+   <div id="fbl" class="gk" style="font-size:34px;font-weight:700;color:#fff">Juste !</div>
+   <div id="fba" class="kr" style="font-size:24px;color:#fff;opacity:.95;height:26px"></div>
+  </div>
+ </div>
+ <div style="max-width:340px;margin:14px auto 0;display:flex;gap:8px;justify-content:center">
+  <span class="tab on" data-m="voix">Voix</span><span class="tab" data-m="cartes">Cartes</span><span class="tab" data-m="ecrire">Écrire</span>
+ </div>
+</div>
+<script>
+(function(){
+ var TEALL='#6BA39D',TEAL='#4C8C86',CLAYL='#E0A079',CLAY='#D08358',CLAYD='#C4703F',FB_OK='#2FA98C',FB_NO='#E8693C',PAPER='#F6F1EA',INK='#2B2622';
+ var mode='voix',flipped=false,busy=false;
+ var body=document.getElementById('body'),screen=document.getElementById('screen'),fb=document.getElementById('fb'),fbi=document.getElementById('fbi'),fbl=document.getElementById('fbl'),fba=document.getElementById('fba');
+ function bars(el){var N=19;for(var i=0;i<N;i++){var d=Math.abs(i-(N-1)/2)/((N-1)/2);var b0=0.28+0.72*Math.sin(Math.PI*i/(N-1));var col=d<0.28?CLAY:(d<0.48?CLAYL:(d<0.72?TEAL:TEALL));var b=document.createElement('span');b.className='b';b.style.cssText='width:7px;border-radius:3px;background:'+col+';height:'+(170*b0)+'px;animation-delay:'+(-d*0.6).toFixed(2)+'s';el.appendChild(b);} }
+ function wave(op){return '<div class="wv" id="wave" style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;gap:6px;height:170px;opacity:'+op+'"></div>'}
+ function feedback(ok,ans){busy=true;screen.style.background=ok?FB_OK:FB_NO;fb.style.display='flex';fbi.className='ti '+(ok?'ti-check':'ti-x');fbl.textContent=ok?'Juste !':'À revoir';fba.textContent=ok?'':ans;setTimeout(function(){fb.style.display='none';screen.style.background=PAPER;busy=false;flipped=false;render();},1400);}
+ var T={
+  voix:function(){return '<div style="flex:1;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center">'+wave(0.5)+'<div class="gk" id="word" style="position:relative;z-index:2;font-size:46px;font-weight:700;color:'+INK+'">le rythme</div><div class="eb" id="cue" style="position:relative;z-index:2;color:#8A857C;margin-top:22px">Appuie et dis-le en coréen</div></div>'
+   +'<div style="flex:none;display:flex;flex-direction:column;align-items:center;gap:18px;padding:0 22px 26px"><div class="mic" style="width:92px;height:92px;border-radius:50%;background:#D08358;display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ti ti-microphone" style="font-size:42px;color:#fff"></i></div><div style="display:flex;gap:12px"><span class="esc"><i class="ti ti-eye" style="font-size:16px"></i> Voir la réponse</span><span class="esc"><i class="ti ti-keyboard" style="font-size:16px"></i> Clavier</span></div></div>';},
+  cartes:function(){
+   if(!flipped){return '<div class="card" style="flex:1;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer">'+wave(0.34)+'<div class="eb" style="position:relative;z-index:2;color:#8A857C;margin-bottom:18px">Français</div><div class="gk" style="position:relative;z-index:2;font-size:46px;font-weight:700;color:'+INK+'">le rythme</div><div class="eb" style="position:relative;z-index:2;color:#A99F90;margin-top:26px"><i class="ti ti-hand-finger" style="font-size:15px"></i> Touche pour révéler</div></div>';}
+   return '<div style="flex:1;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center">'+wave(0.34)+'<div class="eb" style="position:relative;z-index:2;color:'+CLAYD+';margin-bottom:14px">한국어</div><div class="kr" style="position:relative;z-index:2;font-size:50px;font-weight:700;color:'+INK+'">리듬</div><div style="position:relative;z-index:2;color:#8A857C;margin-top:10px;font-family:\'Space Mono\',monospace">ri·deum</div></div>'
+    +'<div style="flex:none;display:flex;gap:12px;padding:0 18px 28px"><div class="gbtn grade" data-ok="0" style="background:rgba(216,131,88,0.12);border:1px solid #D08358;color:#C4703F">À revoir</div><div class="gbtn grade" data-ok="1" style="background:rgba(76,140,134,0.12);border:1px solid #4C8C86;color:#3E726D">Je savais</div></div>';},
+  ecrire:function(){return '<div style="flex:1;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center">'+wave(0.3)+'<div class="eb" style="position:relative;z-index:2;color:#8A857C;margin-bottom:16px">Écris en coréen</div><div class="gk" style="position:relative;z-index:2;font-size:42px;font-weight:700;color:'+INK+'">le rythme</div>'
+   +'<div style="position:relative;z-index:2;margin-top:30px;width:74%;border-bottom:2px solid #4C8C86;padding-bottom:8px;text-align:center"><span class="kr" style="font-size:30px;color:'+INK+'">리듬</span><span style="color:#4C8C86">|</span></div></div>'
+   +'<div style="flex:none;padding:0 18px 16px"><div class="valider" style="height:54px;border-radius:16px;background:#4C8C86;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;cursor:pointer">Valider</div></div>'
+   +'<div style="flex:none;background:#D8D2C8;padding:10px 8px 18px;display:flex;flex-wrap:wrap;gap:5px;justify-content:center">'+['ㅂ','ㅈ','ㄷ','ㄱ','ㅅ','ㅛ','ㅕ','ㅑ','ㅐ','ㅔ','ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅗ','ㅓ','ㅏ','ㅣ'].map(function(k){return '<span class="kr" style="width:26px;height:34px;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:5px;color:'+INK+';font-size:14px">'+k+'</span>'}).join('')+'</div>';}
+ };
+ function render(){body.innerHTML=T[mode]();var w=document.getElementById('wave');if(w)bars(w);}
+ document.addEventListener('click',function(e){
+  var t=e.target.closest('.tab');if(t){mode=t.getAttribute('data-m');flipped=false;document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')});t.classList.add('on');render();return;}
+  if(busy)return;
+  if(e.target.closest('.mic')){var w=document.getElementById('wave'),cue=document.getElementById('cue');if(w){w.classList.add('animate');w.style.opacity='0.62';}if(cue){cue.textContent='Dis-le en coréen…';cue.style.color=CLAYD;}setTimeout(function(){feedback(true,'');},1500);return;}
+  if(e.target.closest('.card')){flipped=true;render();return;}
+  var g=e.target.closest('.grade');if(g){feedback(g.getAttribute('data-ok')==='1','리듬 · ri·deum');return;}
+  if(e.target.closest('.valider')){feedback(true,'');return;}
+ });
+ render();
+})();
+</script>
+</body></html>

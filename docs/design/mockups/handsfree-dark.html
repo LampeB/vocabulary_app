@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VocabKR — Hands-free (dark)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{--color-background-secondary:#EDEAE3;--color-background-primary:#fff;--color-text-primary:#2B2622;--color-text-secondary:#756C62;--color-text-tertiary:#A99F90;--color-border-secondary:rgba(43,38,34,0.25);--border-radius-lg:12px}
+body{margin:0;background:#F2EFE9;display:flex;justify-content:center;padding:24px;font-family:'Figtree',system-ui,sans-serif}
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Space+Mono:wght@400;700&family=Noto+Sans+KR:wght@500;700&display=swap');
+.vk{font-family:'Figtree',system-ui,sans-serif}
+.vkdotd{background-image:radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1.6px);background-size:12px 12px}
+.eb{font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:0.2em;font-size:12px}
+.gk{font-family:'Space Grotesk',sans-serif}
+.kr{font-family:'Noto Sans KR',sans-serif}
+@keyframes vw2{from{transform:scaleY(var(--lo,.3))}to{transform:scaleY(1)}}
+@keyframes breathe{0%,100%{opacity:.12;transform:scale(1)}50%{opacity:.7;transform:scale(1.06)}}
+#wave2.paused .b{animation-play-state:paused!important;transform:scaleY(.14)!important}
+#wave2.frozen .b{animation:none!important;transform:scaleY(.68)!important}
+#pulse.on{animation:breathe 1.9s ease-in-out infinite}
+.bigbtn{flex:1;height:104px;border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.16);cursor:pointer}
+.bigbtn .lbl{font-size:14px;font-weight:700;color:#F6F1EA}
+.sbtn{cursor:pointer;font-family:'Figtree',sans-serif;font-size:12px;font-weight:600;padding:8px 12px;border-radius:999px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary)}
+.sbtn.on{background:var(--color-text-primary);color:var(--color-background-primary);border-color:var(--color-text-primary)}
+</style></head>
+<body>
+<div style="background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:14px">
+ <div id="screen2" class="vk vkdotd" style="position:relative;background:#241F1B;border-radius:32px;overflow:hidden;max-width:340px;margin:0 auto;height:720px;display:flex;flex-direction:column;transition:background .18s">
+  <div id="pulse" style="position:absolute;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(circle at 50% 44%, rgba(224,160,121,0.20), rgba(224,160,121,0) 62%)"></div>
+  <div style="flex:none;display:flex;align-items:center;justify-content:space-between;padding:16px 22px 4px;position:relative;z-index:3">
+   <div style="width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center"><i class="ti ti-x" style="font-size:17px;color:#9A9086"></i></div>
+   <span class="eb" style="color:#9A9086">04 / 12</span><div style="width:36px"></div>
+  </div>
+  <div id="centerZone" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;z-index:2;cursor:pointer">
+   <div id="wave2" style="position:absolute;display:flex;align-items:center;gap:6px;height:190px;opacity:0.32;transition:opacity .3s,filter .3s"></div>
+   <div id="word2" class="gk" style="position:relative;z-index:2;font-size:48px;font-weight:700;color:#F6F1EA;text-align:center;transition:opacity .3s,filter .3s">le rythme</div>
+   <div id="cue2" class="eb" style="position:relative;z-index:2;color:#E0A079;margin-top:22px;min-height:14px;text-align:center;padding:0 24px">Dis-le en coréen</div>
+   <div id="pauseLayer" style="position:absolute;inset:0;z-index:4;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px">
+    <i class="ti ti-player-pause" style="font-size:40px;color:#FFFFFF"></i>
+    <div class="gk" style="font-size:52px;font-weight:700;color:#FFFFFF;letter-spacing:0.02em">EN PAUSE</div>
+   </div>
+   <div id="pauseHint" style="position:relative;z-index:5;font-size:12px;color:#9A9086;margin-top:14px;opacity:0">Touche pour reprendre</div>
+  </div>
+  <div style="flex:none;display:flex;gap:12px;padding:14px 16px 26px;position:relative;z-index:3">
+   <div class="bigbtn"><i class="ti ti-rotate-2" style="font-size:34px;color:#9FE1CB"></i><span class="lbl">Répéter</span></div>
+   <div class="bigbtn"><i class="ti ti-player-skip-forward" style="font-size:34px;color:#E0A079"></i><span class="lbl">Passer</span></div>
+  </div>
+  <div id="fb" style="position:absolute;inset:0;z-index:6;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:0 30px;text-align:center">
+   <div id="fbIcon" style="width:124px;height:124px;border-radius:50%;background:rgba(255,255,255,0.22);display:flex;align-items:center;justify-content:center"><i class="ti ti-check" style="font-size:74px;color:#fff"></i></div>
+   <div id="fbLabel" class="gk" style="font-size:36px;font-weight:700;color:#fff">Juste !</div>
+   <div id="fbAns" class="kr" style="font-size:26px;color:#fff;opacity:0.92;height:28px"></div>
+  </div>
+ </div>
+ <div style="max-width:340px;margin:14px auto 0">
+  <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Aperçu des états</div>
+  <div id="states2" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+ </div>
+</div>
+<script>
+(function(){
+ var TEALL='#6BA39D',TEAL='#4C8C86',CLAYL='#E0A079',CLAY='#D08358',FB_OK='#2FA98C',FB_NO='#E8693C',DARK='#241F1B';
+ var N=21,wave=document.getElementById('wave2');
+ for(var i=0;i<N;i++){var d=Math.abs(i-(N-1)/2)/((N-1)/2);var b0=0.28+0.72*Math.sin(Math.PI*i/(N-1));var col=d<0.28?CLAY:(d<0.48?CLAYL:(d<0.72?TEAL:TEALL));var b=document.createElement('span');b.className='b';b.style.cssText='width:7px;border-radius:3px;background:'+col+';transform-origin:center;height:'+(190*b0)+'px;animation:vw2 var(--dur,0.8s) ease-in-out infinite alternate;animation-delay:'+(-d*0.6).toFixed(2)+'s';wave.appendChild(b);}
+ var screen=document.getElementById('screen2'),cue=document.getElementById('cue2'),word=document.getElementById('word2'),ph=document.getElementById('pauseHint'),pl=document.getElementById('pauseLayer'),pulse=document.getElementById('pulse');
+ var fb=document.getElementById('fb'),fbLabel=document.getElementById('fbLabel'),fbAns=document.getElementById('fbAns'),fbI=document.getElementById('fbIcon').querySelector('i');
+ function base(dur,lo,op,glow){fb.style.display='none';pl.style.display='none';ph.style.opacity='0';pulse.classList.remove('on');screen.style.background=DARK;wave.classList.remove('paused','frozen');wave.style.setProperty('--dur',dur);wave.style.setProperty('--lo',lo);wave.style.opacity=op;wave.style.filter=glow?'drop-shadow(0 0 12px rgba(224,160,121,0.4))':'none';word.style.opacity='1';word.style.filter='none';cue.style.opacity='1';}
+ function feedback(ok,answer){screen.style.background=ok?FB_OK:FB_NO;fb.style.display='flex';fbI.className='ti '+(ok?'ti-check':'ti-x');fbLabel.textContent=ok?'Juste !':'À revoir';fbAns.textContent=ok?'':answer;}
+ var S={
+  prep:function(){base('1.2s','.5','0.16');wave.classList.add('paused');wave.style.opacity='0.16';word.style.opacity='0.4';cue.textContent='';cue.style.color='#9A9086';},
+  play:function(){base('1.2s','.5','0.3');wave.classList.add('frozen');wave.style.opacity='0.3';pulse.classList.add('on');cue.textContent='Écoute le mot';cue.style.color='#9A9086';},
+  listen:function(){base('0.72s','.28','0.42',true);cue.textContent='Dis-le en coréen';cue.style.color=CLAYL;},
+  analyse:function(){base('1.5s','.72','0.24');word.style.opacity='0.85';cue.textContent='…';cue.style.color='#9A9086';},
+  juste:function(){feedback(true,'');},
+  revoir:function(){feedback(false,'리듬 · ri·deum');},
+  inaudible:function(){base('1.8s','.6','0.26');word.style.opacity='0.85';cue.textContent='Je n’ai pas entendu — réessaie';cue.style.color=CLAYL;},
+  pause:function(){base('1.2s','.5','0.12');wave.classList.add('paused');wave.style.opacity='0.12';word.style.opacity='0.18';word.style.filter='blur(3px)';cue.style.opacity='0';pl.style.display='flex';ph.style.opacity='1';}
+ };
+ var labels=[['play','Lecture du mot'],['listen','À toi (écoute)'],['prep','Préparation'],['analyse','Analyse'],['juste','Juste'],['revoir','À revoir'],['inaudible','Pas entendu'],['pause','Pause']];
+ var sc=document.getElementById('states2');
+ sc.innerHTML=labels.map(function(l,i){return '<span class="sbtn'+(i===0?' on':'')+'" data-s="'+l[0]+'">'+l[1]+'</span>'}).join('');
+ sc.addEventListener('click',function(e){var b=e.target.closest('[data-s]');if(!b)return;sc.querySelectorAll('.sbtn').forEach(function(x){x.classList.remove('on')});b.classList.add('on');S[b.getAttribute('data-s')]();});
+ S.play();
+})();
+</script>
+</body></html>

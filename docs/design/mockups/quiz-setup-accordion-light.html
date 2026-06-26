@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VocabKR — Quiz setup (accordion, light)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{--color-background-secondary:#EDEAE3;--color-background-primary:#fff;--color-text-primary:#2B2622;--color-text-secondary:#756C62;--color-text-tertiary:#A99F90;--color-border-secondary:rgba(43,38,34,0.25);--border-radius-lg:12px}
+body{margin:0;background:#F2EFE9;display:flex;justify-content:center;padding:24px;font-family:'Figtree',system-ui,sans-serif}
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Figtree:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+.vk{font-family:'Figtree',system-ui,sans-serif;color:#2B2622}
+.vkdot{background-image:radial-gradient(circle, rgba(43,38,34,0.10) 1px, transparent 1.6px);background-size:12px 12px}
+.eb{font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:0.16em;font-size:11px;color:#8A857C}
+.gk{font-family:'Space Grotesk',sans-serif}
+.opt{cursor:pointer;user-select:none}
+.bdy::-webkit-scrollbar{width:0}
+</style></head>
+<body>
+<div style="background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:14px">
+ <div class="vk vkdot" style="background:#F6F1EA;border-radius:32px;overflow:hidden;max-width:340px;margin:0 auto;height:740px;display:flex;flex-direction:column;border:0.5px solid rgba(43,38,34,0.12)">
+  <div style="flex:none;display:flex;justify-content:space-between;align-items:center;padding:11px 22px 2px;font-family:'Space Mono',monospace;font-size:12px;color:#756C62">
+   <span>9:41</span><i class="ti ti-battery-3" style="font-size:18px" aria-hidden="true"></i>
+  </div>
+  <div style="flex:none;display:flex;align-items:center;gap:12px;padding:8px 18px 8px">
+   <div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.6);border:1px solid rgba(43,38,34,0.18);display:flex;align-items:center;justify-content:center"><i class="ti ti-chevron-left" style="font-size:20px;color:#2B2622" aria-hidden="true"></i></div>
+   <span class="gk" style="font-size:22px;font-weight:700">Nouvelle session</span>
+  </div>
+  <div class="bdy" style="flex:1;overflow-y:auto;padding:8px 18px 8px" id="acc"></div>
+  <div style="flex:none;padding:14px 22px 22px">
+   <div id="start" style="height:54px;border-radius:16px;background:#D08358;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">
+    <i class="ti ti-player-play" style="font-size:20px;color:#fff" aria-hidden="true"></i>
+    <span id="startLbl" style="color:#fff;font-weight:700;font-size:15px">Commencer · 12 mots</span>
+   </div>
+  </div>
+ </div>
+</div>
+<script>
+(function(){
+ var TEAL='#4C8C86',CLAY='#D08358',INK='#2B2622',MUTED='#756C62',LINE='#ECE3D7';
+ var open='list';
+ var st={type:'vocab',list:'q',mode:'voice',dir:null,count:20};
+ var lists=[{k:'learning',name:'En cours d’apprentissage',meta:'32 mots commencés',due:32,dyn:1},{k:'q',name:'Le quotidien',meta:'FR · KR — 12 à réviser',due:12,a:'FR',b:'KR'},{k:'w',name:'Au travail',meta:'FR · KR — 8 à réviser',due:8,a:'FR',b:'KR'},{k:'s',name:'Travel Spanish',meta:'EN · ES — 5 à réviser',due:5,a:'EN',b:'ES'}];
+ var modes=[['voice','ti-microphone','Voix'],['cards','ti-cards','Cartes'],['type','ti-keyboard','Écrire'],['hf','ti-car','Mains libres']];
+ var order=['type','list','mode','dir','count'];
+ function curList(){return lists.filter(function(o){return o.k===st.list})[0]}
+ function dirOpts(){var l=curList();if(!l||!l.a)return [['both','Sens mixte']];return [[l.a+l.b,l.a+' → '+l.b],[l.b+l.a,l.b+' → '+l.a],['both','Les deux']]}
+ function valOf(id){
+  if(id==='type')return st.type==='vocab'?'Vocabulaire':'Grammaire';
+  if(id==='list')return curList().name;
+  if(id==='mode')return modes.filter(function(m){return m[0]===st.mode})[0][2];
+  if(id==='dir'){var d=dirOpts().filter(function(x){return x[0]===st.dir})[0];return d?d[1]:dirOpts()[0][1]}
+  if(id==='count')return st.count+' mots';
+ }
+ function fill(on,clr){return 'background:'+(on?clr:'rgba(255,255,255,0.7)')+';border:0.5px solid '+(on?clr:LINE)+';color:'+(on?'#fff':MUTED)+';font-weight:'+(on?'700':'600')}
+ function bodyHtml(id){
+  if(id==='type'){return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+['vocab','gram'].map(function(k){var on=st.type===k;var soon=k==='gram';return '<div class="'+(soon?'':'opt')+'" data-sel="type" data-v="'+k+'" style="position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border-radius:14px;'+fill(on,TEAL)+';opacity:'+(soon?'0.55':'1')+'"><i class="ti '+(k==='vocab'?'ti-cards':'ti-pencil')+'" style="font-size:22px;color:'+(on?'#fff':'#A99F90')+'"></i><span style="font-size:13px;font-weight:'+(on?'700':'600')+';color:'+(on?'#fff':INK)+'">'+(k==='vocab'?'Vocabulaire':'Grammaire')+'</span>'+(soon?'<span style="position:absolute;top:6px;right:6px;font-family:\'Space Mono\',monospace;font-size:8px;letter-spacing:0.1em;text-transform:uppercase;color:#C4703F;border:1px solid #E0A079;border-radius:999px;padding:1px 5px">Bientôt</span>':'')+'</div>'}).join('')+'</div>';}
+  if(id==='list'){return lists.map(function(o){var on=st.list===o.k;var lead=o.dyn?'<div style="width:26px;height:26px;border-radius:8px;background:'+(on?'rgba(255,255,255,0.22)':'rgba(208,131,88,0.14)')+';display:flex;align-items:center;justify-content:center"><i class="ti ti-bolt" style="font-size:16px;color:'+(on?'#fff':'#C4703F')+'"></i></div>':'<div style="width:22px;height:22px;border-radius:50%;border:3px solid '+(on?'#fff':CLAY)+'"></div>';return '<div class="opt" data-sel="list" data-v="'+o.k+'" style="display:flex;align-items:center;gap:11px;padding:11px 13px;margin-bottom:7px;border-radius:13px;'+fill(on,o.dyn?CLAY:TEAL)+'">'+lead+'<div style="flex:1"><div style="font-size:14px;font-weight:'+(on?'700':'600')+';color:'+(on?'#fff':INK)+'">'+o.name+'</div><div style="font-size:12px;color:'+(on?'rgba(255,255,255,0.82)':MUTED)+'">'+o.meta+'</div></div>'+(on?'<i class="ti ti-check" style="font-size:16px;color:#fff"></i>':'')+'</div>'}).join('');}
+  if(id==='mode'){return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+modes.map(function(m){var on=st.mode===m[0];return '<div class="opt" data-sel="mode" data-v="'+m[0]+'" style="display:flex;align-items:center;gap:8px;padding:11px;border-radius:13px;'+fill(on,TEAL)+'"><i class="ti '+m[1]+'" style="font-size:18px;color:'+(on?'#fff':'#A99F90')+'"></i><span style="font-size:13px;font-weight:'+(on?'700':'600')+';color:'+(on?'#fff':INK)+'">'+m[2]+'</span></div>'}).join('')+'</div>';}
+  if(id==='dir'){return '<div style="display:flex;gap:8px;flex-wrap:wrap">'+dirOpts().map(function(d){var on=st.dir===d[0];return '<div class="opt" data-sel="dir" data-v="'+d[0]+'" style="flex:1;min-width:88px;text-align:center;padding:11px 6px;border-radius:999px;'+fill(on,TEAL)+';font-size:12px">'+d[1]+'</div>'}).join('')+'</div>';}
+  if(id==='count'){return '<div style="display:flex;gap:8px">'+[10,20,50,100].map(function(c){var on=st.count===c;return '<div class="opt" data-sel="count" data-v="'+c+'" style="flex:1;text-align:center;padding:10px 0;border-radius:999px;'+fill(on,TEAL)+';font-size:14px">'+c+'</div>'}).join('')+'</div>';}
+ }
+ var labels={type:'Type de session',list:'Liste',mode:'Type de quiz',dir:'Sens',count:'Nombre de mots'};
+ function render(){
+  var dops=dirOpts();if(!st.dir||!dops.some(function(d){return d[0]===st.dir}))st.dir=dops[0][0];
+  document.getElementById('acc').innerHTML=order.map(function(id){var isOpen=open===id;return '<div style="background:rgba(255,255,255,0.45);border:0.5px solid rgba(43,38,34,0.12);border-radius:16px;margin-bottom:8px;overflow:hidden"><div class="opt" data-head="'+id+'" style="display:flex;align-items:center;padding:14px 15px"><span class="eb" style="flex:none">'+labels[id]+'</span><span style="flex:1;text-align:right;font-size:14px;font-weight:600;color:'+(isOpen?'#A99F90':'#2B2622')+';margin-right:8px">'+(isOpen?'':valOf(id))+'</span><i class="ti ti-chevron-'+(isOpen?'up':'down')+'" style="font-size:18px;color:#8A857C"></i></div>'+(isOpen?'<div style="padding:2px 13px 14px">'+bodyHtml(id)+'</div>':'')+'</div>';}).join('');
+  document.getElementById('startLbl').textContent='Commencer · '+Math.min(curList().due,st.count)+' mots';
+ }
+ document.addEventListener('click',function(e){
+  var h=e.target.closest('[data-head]');if(h){var id=h.getAttribute('data-head');open=open===id?null:id;render();return}
+  var s=e.target.closest('[data-sel]');if(s){var f=s.getAttribute('data-sel'),v=s.getAttribute('data-v');if(f==='count')v=parseInt(v,10);if(f==='list')st.dir=null;st[f]=v;var ni=order.indexOf(f)+1;open=ni<order.length?order[ni]:null;render();return}
+ });
+ render();
+})();
+</script>
+</body></html>
