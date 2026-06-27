@@ -294,5 +294,14 @@
   "quiz.hf_skip": "Salta",
   "quiz.hf_paused": "IN PAUSA",
   "quiz.hf_resume_hint": "Tocca per riprendere",
-  "quiz.hf_not_heard": "Non ho sentito — riprova"
+  "quiz.hf_not_heard": "Non ho sentito — riprova",
+  "start_session.title": "Nuova sessione",
+  "start_session.section_type": "TIPO DI SESSIONE",
+  "start_session.type_vocab": "Vocabolario",
+  "start_session.type_grammar": "Grammatica",
+  "start_session.soon": "Presto",
+  "start_session.section_list": "ELENCO",
+  "start_session.start_with_count": "Inizia · {count} parole",
+  "start_session.empty_lists": "Crea prima un elenco",
+  "shell.nav_study": "Studia"
 }

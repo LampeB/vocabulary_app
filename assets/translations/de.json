@@ -294,5 +294,14 @@
   "quiz.hf_skip": "Überspringen",
   "quiz.hf_paused": "PAUSIERT",
   "quiz.hf_resume_hint": "Zum Fortsetzen tippen",
-  "quiz.hf_not_heard": "Nicht gehört — versuch es nochmal"
+  "quiz.hf_not_heard": "Nicht gehört — versuch es nochmal",
+  "start_session.title": "Neue Sitzung",
+  "start_session.section_type": "SITZUNGSTYP",
+  "start_session.type_vocab": "Vokabeln",
+  "start_session.type_grammar": "Grammatik",
+  "start_session.soon": "Bald",
+  "start_session.section_list": "LISTE",
+  "start_session.start_with_count": "Starten · {count} Wörter",
+  "start_session.empty_lists": "Erstelle zuerst eine Liste",
+  "shell.nav_study": "Lernen"
 }

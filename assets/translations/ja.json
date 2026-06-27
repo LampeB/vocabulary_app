@@ -294,5 +294,14 @@
   "quiz.hf_skip": "スキップ",
   "quiz.hf_paused": "一時停止",
   "quiz.hf_resume_hint": "タップで再開",
-  "quiz.hf_not_heard": "聞き取れませんでした — もう一度"
+  "quiz.hf_not_heard": "聞き取れませんでした — もう一度",
+  "start_session.title": "新しいセッション",
+  "start_session.section_type": "セッションタイプ",
+  "start_session.type_vocab": "語彙",
+  "start_session.type_grammar": "文法",
+  "start_session.soon": "近日",
+  "start_session.section_list": "リスト",
+  "start_session.start_with_count": "開始 · {count}語",
+  "start_session.empty_lists": "まずリストを作成",
+  "shell.nav_study": "学習"
 }

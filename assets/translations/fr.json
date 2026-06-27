@@ -294,5 +294,14 @@
   "quiz.hf_skip": "Passer",
   "quiz.hf_paused": "EN PAUSE",
   "quiz.hf_resume_hint": "Touche pour reprendre",
-  "quiz.hf_not_heard": "Je n'ai pas entendu — réessaie"
+  "quiz.hf_not_heard": "Je n'ai pas entendu — réessaie",
+  "start_session.title": "Nouvelle session",
+  "start_session.section_type": "TYPE DE SESSION",
+  "start_session.type_vocab": "Vocabulaire",
+  "start_session.type_grammar": "Grammaire",
+  "start_session.soon": "Bientôt",
+  "start_session.section_list": "LISTE",
+  "start_session.start_with_count": "Commencer · {count} mots",
+  "start_session.empty_lists": "Crée d'abord une liste",
+  "shell.nav_study": "Étudier"
 }

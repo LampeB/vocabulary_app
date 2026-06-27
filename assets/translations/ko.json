@@ -294,5 +294,14 @@
   "quiz.hf_skip": "건너뛰기",
   "quiz.hf_paused": "일시정지",
   "quiz.hf_resume_hint": "탭하여 계속",
-  "quiz.hf_not_heard": "못 들었어요 — 다시 해보세요"
+  "quiz.hf_not_heard": "못 들었어요 — 다시 해보세요",
+  "start_session.title": "새 세션",
+  "start_session.section_type": "세션 유형",
+  "start_session.type_vocab": "어휘",
+  "start_session.type_grammar": "문법",
+  "start_session.soon": "곧",
+  "start_session.section_list": "목록",
+  "start_session.start_with_count": "시작 · {count}단어",
+  "start_session.empty_lists": "먼저 목록을 만드세요",
+  "shell.nav_study": "학습"
 }

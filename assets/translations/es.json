@@ -294,5 +294,14 @@
   "quiz.hf_skip": "Saltar",
   "quiz.hf_paused": "EN PAUSA",
   "quiz.hf_resume_hint": "Toca para reanudar",
-  "quiz.hf_not_heard": "No te oí — inténtalo de nuevo"
+  "quiz.hf_not_heard": "No te oí — inténtalo de nuevo",
+  "start_session.title": "Nueva sesión",
+  "start_session.section_type": "TIPO DE SESIÓN",
+  "start_session.type_vocab": "Vocabulario",
+  "start_session.type_grammar": "Gramática",
+  "start_session.soon": "Pronto",
+  "start_session.section_list": "LISTA",
+  "start_session.start_with_count": "Empezar · {count} palabras",
+  "start_session.empty_lists": "Crea una lista primero",
+  "shell.nav_study": "Estudiar"
 }

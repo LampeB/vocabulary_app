@@ -294,5 +294,14 @@
   "quiz.hf_skip": "Skip",
   "quiz.hf_paused": "PAUSED",
   "quiz.hf_resume_hint": "Tap to resume",
-  "quiz.hf_not_heard": "Didn't catch that — try again"
+  "quiz.hf_not_heard": "Didn't catch that — try again",
+  "start_session.title": "New session",
+  "start_session.section_type": "SESSION TYPE",
+  "start_session.type_vocab": "Vocabulary",
+  "start_session.type_grammar": "Grammar",
+  "start_session.soon": "Soon",
+  "start_session.section_list": "LIST",
+  "start_session.start_with_count": "Start · {count} words",
+  "start_session.empty_lists": "Create a list first",
+  "shell.nav_study": "Study"
 }

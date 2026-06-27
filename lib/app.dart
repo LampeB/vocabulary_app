@@ -15,6 +15,7 @@ import 'presentation/screens/lists/lists_screen.dart';
 import 'presentation/screens/lists/list_detail_screen.dart';
 import 'presentation/screens/quiz/quiz_setup_screen.dart';
 import 'presentation/screens/quiz/quiz_screen.dart';
+import 'presentation/screens/quiz/start_session_screen.dart';
 import 'presentation/screens/social/social_screen.dart';
 import 'presentation/screens/profile/profile_screen.dart';
 import 'presentation/screens/paywall/paywall_screen.dart';
@@ -144,6 +145,10 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
                 path: '/quiz',
                 builder: (_, state) =>
                     QuizScreen(args: state.extra as QuizArgs),
+              ),
+              GoRoute(
+                path: '/start-session',
+                builder: (_, __) => const StartSessionScreen(),
               ),
               GoRoute(
                   path: '/social',
