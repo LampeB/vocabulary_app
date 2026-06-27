@@ -14,6 +14,9 @@ import '../../../services/audio/sound_effects_service.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/vk_waveform.dart';
 import '../../widgets/mic_button.dart';
+import '../../widgets/study/study_scaffold.dart';
+import '../../widgets/study/word_in_wave.dart';
+import '../../widgets/study/study_feedback_flood.dart';
 
 const _kSimulateSpeech = String.fromEnvironment('SIMULATE_SPEECH');
 
@@ -38,6 +41,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   int _listenToken = 0;
   // Tracks successive early-termination retries to avoid infinite loops.
   int _listenRetries = 0;
+  // Voice "Clavier" escape: when equal to the current card index, that card
+  // shows a text-input fallback instead of the mic.
+  int? _voiceKbIndex;
 
   @override
   void initState() {
@@ -371,7 +377,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       );
     }
 
-    // Dedicated feedback screen for typing / voice modes (not flashcard or hands-free).
+    // Voice mode uses the unified dark study canvas (StudyScaffold + word-in-wave).
+    if (widget.args.mode == QuizMode.voice) {
+      return _buildVoiceStudy(context, quizState, card);
+    }
+
+    // Dedicated feedback screen for typing mode (flashcard/voice/hands-free handled elsewhere).
     if (quizState.answerState != QuizAnswerState.idle &&
         widget.args.mode != QuizMode.flashcard &&
         widget.args.mode != QuizMode.handsFree) {
@@ -475,6 +486,128 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           isHandsFree: widget.args.mode == QuizMode.handsFree,
         ),
     };
+  }
+
+  void _quit() {
+    _stt.stopListening();
+    ref.read(quizProvider.notifier).setListening(false);
+    context.go('/home');
+  }
+
+  // Answer language code for the current card. Derived from the legacy
+  // QuizDirection enum; the generic-language-pairs task replaces this with the
+  // list's target langCode.
+  String _answerLangCode(QuizCard card) =>
+      card.progress.direction == QuizDirection.frToKo ? 'ko' : 'fr';
+
+  String _nextReviewText(int scheduledDays, bool correct) {
+    if (!correct) return 'quiz.next_review_soon'.tr();
+    return scheduledDays <= 1
+        ? 'quiz.next_review_tomorrow'.tr()
+        : 'quiz.next_review_in_days'
+            .tr(namedArgs: {'days': scheduledDays.toString()});
+  }
+
+  /// Voix — the unified dark study canvas: word-in-wave + mic + escape pills,
+  /// with the full-screen flood once answered.
+  Widget _buildVoiceStudy(BuildContext context, QuizState s, QuizCard card) {
+    final isFrToKo = card.progress.direction == QuizDirection.frToKo;
+
+    if (s.answerState != QuizAnswerState.idle) {
+      final correct = s.answerState == QuizAnswerState.correct;
+      return StudyFeedbackFlood(
+        isCorrect: correct,
+        label: correct
+            ? 'quiz.feedback_correct'.tr()
+            : 'quiz.feedback_wrong'.tr(),
+        answer: card.answerWords.join(' / '),
+        answerIsKorean: isFrToKo, // answer is Korean when FR→KO
+        detail: _nextReviewText(s.scheduledDays, correct),
+        continueLabel: 'quiz.continue_button'.tr(),
+        onContinue: () => ref.read(quizProvider.notifier).advance(),
+      );
+    }
+
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final cue = 'quiz.say_in_lang'.tr(
+      namedArgs: {'lang': 'lang.${_answerLangCode(card)}'.tr()},
+    );
+    final cueColor = isDark ? AppColors.clayLight : AppColors.clayDeep;
+    final kbOn = _voiceKbIndex == s.currentIndex;
+
+    return StudyScaffold(
+      current: s.currentIndex + 1,
+      total: s.total,
+      onQuit: _quit,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+        child: Column(
+          children: [
+            Expanded(
+              child: Center(
+                child: WordInWave(
+                  word: card.questionWord,
+                  isKorean: !isFrToKo, // question is Korean when KO→FR
+                  cue: kbOn ? null : cue,
+                  cueColor: cueColor,
+                  waveActive: s.isListening,
+                ),
+              ),
+            ),
+            if (s.partialTranscript.isNotEmpty) ...[
+              Text(
+                s.partialTranscript,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.fig(16, FontWeight.w500).copyWith(
+                    color: isDark ? AppColors.onDarkMuted : AppColors.muted),
+              ),
+              const SizedBox(height: 14),
+            ],
+            if (kbOn)
+              _VoiceKeyboardInput(
+                controller: _answerCtrl,
+                onSubmit: (a) {
+                  ref.read(quizProvider.notifier).submitTextAnswer(a);
+                  _answerCtrl.clear();
+                },
+              )
+            else ...[
+              MicButton(
+                key: const Key('mic_button'),
+                isListening: s.isListening,
+                answerState: s.answerState,
+                onTap: () => _startListening(card),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _EscapePill(
+                    icon: Icons.visibility_outlined,
+                    label: 'quiz.voice_reveal'.tr(),
+                    onTap: () {
+                      _stt.stopListening();
+                      ref.read(quizProvider.notifier).submitVoiceAnswer('');
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  _EscapePill(
+                    icon: Icons.keyboard_outlined,
+                    label: 'quiz.voice_keyboard'.tr(),
+                    onTap: () {
+                      _stt.stopListening();
+                      ref.read(quizProvider.notifier).setListening(false);
+                      setState(() => _voiceKbIndex = s.currentIndex);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -1065,6 +1198,87 @@ class _AnswerFeedback extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Voice escape pill ─────────────────────────────────────────────────────────
+
+class _EscapePill extends StatelessWidget {
+  const _EscapePill({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final fg = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest
+              .withValues(alpha: isDark ? 0.5 : 0.7),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: cs.outline),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: fg),
+            const SizedBox(width: 6),
+            Text(label,
+                style:
+                    AppTextStyles.fig(13, FontWeight.w600).copyWith(color: fg)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Voice "Clavier" text fallback ─────────────────────────────────────────────
+
+class _VoiceKeyboardInput extends StatelessWidget {
+  const _VoiceKeyboardInput({required this.controller, required this.onSubmit});
+  final TextEditingController controller;
+  final ValueChanged<String> onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: controller,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+            decoration: InputDecoration(hintText: 'quiz.typing_hint'.tr()),
+            onSubmitted: onSubmit,
+          ),
+        ),
+        const SizedBox(width: 10),
+        GestureDetector(
+          onTap: () => onSubmit(controller.text),
+          child: Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: AppColors.clay,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child:
+                const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+          ),
+        ),
+      ],
     );
   }
 }

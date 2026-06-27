@@ -274,5 +274,15 @@
   "stats.session_dir_fr_to_kr": "FR → KR",
   "stats.session_dir_kr_to_fr": "KR → FR",
   "stats.session_dir_both": "FR ↔ KR",
-  "stats.session_cards_unit": "cards"
+  "stats.session_cards_unit": "cards",
+  "quiz.voice_reveal": "Show answer",
+  "quiz.voice_keyboard": "Keyboard",
+  "quiz.say_in_lang": "Say it in {lang}",
+  "lang.fr": "French",
+  "lang.en": "English",
+  "lang.es": "Spanish",
+  "lang.de": "German",
+  "lang.it": "Italian",
+  "lang.ja": "Japanese",
+  "lang.ko": "Korean"
 }

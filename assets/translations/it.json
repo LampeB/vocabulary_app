@@ -274,5 +274,15 @@
   "stats.session_dir_fr_to_kr": "FR → KR",
   "stats.session_dir_kr_to_fr": "KR → FR",
   "stats.session_dir_both": "FR ↔ KR",
-  "stats.session_cards_unit": "carte"
+  "stats.session_cards_unit": "carte",
+  "quiz.voice_reveal": "Mostra risposta",
+  "quiz.voice_keyboard": "Tastiera",
+  "quiz.say_in_lang": "Dillo in {lang}",
+  "lang.fr": "francese",
+  "lang.en": "inglese",
+  "lang.es": "spagnolo",
+  "lang.de": "tedesco",
+  "lang.it": "italiano",
+  "lang.ja": "giapponese",
+  "lang.ko": "coreano"
 }

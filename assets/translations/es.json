@@ -274,5 +274,15 @@
   "stats.session_dir_fr_to_kr": "FR → KR",
   "stats.session_dir_kr_to_fr": "KR → FR",
   "stats.session_dir_both": "FR ↔ KR",
-  "stats.session_cards_unit": "tarjetas"
+  "stats.session_cards_unit": "tarjetas",
+  "quiz.voice_reveal": "Ver respuesta",
+  "quiz.voice_keyboard": "Teclado",
+  "quiz.say_in_lang": "Dilo en {lang}",
+  "lang.fr": "francés",
+  "lang.en": "inglés",
+  "lang.es": "español",
+  "lang.de": "alemán",
+  "lang.it": "italiano",
+  "lang.ja": "japonés",
+  "lang.ko": "coreano"
 }

@@ -274,5 +274,15 @@
   "stats.session_dir_fr_to_kr": "FR → KR",
   "stats.session_dir_kr_to_fr": "KR → FR",
   "stats.session_dir_both": "FR ↔ KR",
-  "stats.session_cards_unit": "cartes"
+  "stats.session_cards_unit": "cartes",
+  "quiz.voice_reveal": "Voir la réponse",
+  "quiz.voice_keyboard": "Clavier",
+  "quiz.say_in_lang": "Dis-le en {lang}",
+  "lang.fr": "français",
+  "lang.en": "anglais",
+  "lang.es": "espagnol",
+  "lang.de": "allemand",
+  "lang.it": "italien",
+  "lang.ja": "japonais",
+  "lang.ko": "coréen"
 }
