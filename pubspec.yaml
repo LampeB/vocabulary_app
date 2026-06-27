@@ -96,10 +96,15 @@ dependencies:
   # Fonts
   google_fonts: ^6.2.1
 
-# Note: a dependency_override pinning record_linux to a local path
-# (packages/record_linux) was removed — that folder was never committed, so it
-# broke `flutter pub get` on every fresh checkout. The published record_linux is
-# used instead. record_linux only affects the Linux build, not Windows/mobile.
+# record_linux fix: `record` 5.2.x ships record_android (needs platform_interface
+# ^1.5.0) but pins record_linux <1.0.0 (0.7.2, built for the ^1.0.2 surface). When
+# the interface resolves to 1.6.0 it gains abstract methods (startStream,
+# hasPermission({request})) that record_linux 0.7.2 doesn't implement, so EVERY
+# build (Android included) fails to compile its Dart. Pin both to a matching,
+# PUBLISHED pair — no local path, so fresh checkouts still `pub get` cleanly.
+dependency_overrides:
+  record_platform_interface: 1.5.0
+  record_linux: 1.3.1
 
 dev_dependencies:
   flutter_test:
