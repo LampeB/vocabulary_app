@@ -51,7 +51,7 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       body: RefreshIndicator(
         color: AppColors.clay,
-        backgroundColor: AppColors.card,
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         onRefresh: () async {
           ref.invalidate(myListsProvider);
           ref.invalidate(syncOnLoginProvider);

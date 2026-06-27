@@ -342,7 +342,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
     if (quizState.isLoading) {
       return const Scaffold(
-        backgroundColor: AppColors.paper,
         body: Center(
           child: CircularProgressIndicator(
               color: AppColors.clay, strokeWidth: 2),
@@ -352,7 +351,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
     if (quizState.errorMessage != null) {
       return Scaffold(
-        backgroundColor: AppColors.paper,
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
@@ -401,7 +399,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final card = quizState.currentCard;
     if (card == null) {
       return const Scaffold(
-        backgroundColor: AppColors.paper,
         body: Center(
           child: CircularProgressIndicator(
               color: AppColors.clay, strokeWidth: 2),
@@ -1065,7 +1062,6 @@ class _SummaryScreen extends StatelessWidget {
     final isGreat = pct >= 80;
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
       body: Stack(
         children: [
           const DottedGround(),
