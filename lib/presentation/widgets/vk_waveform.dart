@@ -22,6 +22,10 @@ class VkWaveform extends StatefulWidget {
     this.gap = 5,
     this.isAnimating = true,
     this.opacity = 1.0,
+    this.flatAtRest = false,
+    this.duration = const Duration(milliseconds: 1200),
+    this.amplitude = 1.0,
+    this.glow = false,
   });
 
   /// Total height of the waveform container.
@@ -39,6 +43,27 @@ class VkWaveform extends StatefulWidget {
 
   /// Overall opacity — set to 0.4 for the study-screen watermark.
   final double opacity;
+
+  /// When true and [isAnimating] is false, the bars rest as a flat, even line
+  /// of short bars (a dormant equaliser) instead of the static "mountain"
+  /// shape. Used by the quiz watermark so it reads as still until the mic is
+  /// listening, then ripples to life.
+  ///
+  /// When false and [isAnimating] is false, the bars freeze in the static
+  /// mountain profile ("frozen mountain" — used while the prompt audio reads).
+  final bool flatAtRest;
+
+  /// Animation period for one full ripple. Lower = faster (e.g. ~700 ms while
+  /// listening, ~1200 ms at rest, slower while analysing).
+  final Duration duration;
+
+  /// Scales how far the bars swing from the baseline (1.0 = full ripple, lower =
+  /// a calmer, low-amplitude wobble — e.g. the analysing / "pas entendu" states).
+  final double amplitude;
+
+  /// Adds a soft coloured glow around each bar — the brighter "your turn"
+  /// listening state.
+  final bool glow;
 
   @override
   State<VkWaveform> createState() => _VkWaveformState();
@@ -72,7 +97,7 @@ class _VkWaveformState extends State<VkWaveform>
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: widget.duration,
     );
     if (widget.isAnimating && !_kTestMode) _ctrl.repeat();
   }
@@ -80,6 +105,10 @@ class _VkWaveformState extends State<VkWaveform>
   @override
   void didUpdateWidget(VkWaveform old) {
     super.didUpdateWidget(old);
+    if (widget.duration != old.duration) {
+      _ctrl.duration = widget.duration;
+      if (_ctrl.isAnimating) _ctrl.repeat(); // restart at the new speed
+    }
     final shouldAnimate = widget.isAnimating &&
         !MediaQuery.of(context).disableAnimations &&
         !_kTestMode;
@@ -100,13 +129,16 @@ class _VkWaveformState extends State<VkWaveform>
   @override
   Widget build(BuildContext context) {
     final reducedMotion = MediaQuery.of(context).disableAnimations;
+    final animating = widget.isAnimating && !reducedMotion && !_kTestMode;
+    // Resting flat: bars freeze as an even, short line until animation resumes.
+    final restFlat = !animating && widget.flatAtRest;
 
     return Opacity(
       opacity: widget.opacity,
       child: AnimatedBuilder(
         animation: _ctrl,
         builder: (_, __) {
-          final t = reducedMotion ? 0.5 : _ctrl.value;
+          final t = animating ? _ctrl.value : 0.5;
           return SizedBox(
             height: widget.height,
             child: Row(
@@ -116,8 +148,14 @@ class _VkWaveformState extends State<VkWaveform>
               // Sine wave: 0.28 at trough, 1.0 at peak.
               final raw =
                   math.sin(2 * math.pi * (t + _phases[i])) * 0.5 + 0.5;
-              final scale = 0.28 + raw * 0.72;
-              final barH = widget.height * _heights[i] * scale;
+              // [amplitude] scales the dynamic swing only (baseline stays), so a
+              // low amplitude reads as a calm wobble rather than a full ripple.
+              final scale = 0.28 + raw * 0.72 * widget.amplitude;
+              // Flat rest collapses every bar to a uniform short height so the
+              // gadget reads as "off"; otherwise follow the mountain profile.
+              final barH = restFlat
+                  ? widget.barWidth
+                  : widget.height * _heights[i] * scale;
 
               return Padding(
                 padding: EdgeInsets.only(
@@ -130,6 +168,15 @@ class _VkWaveformState extends State<VkWaveform>
                     color: _colors[i],
                     borderRadius:
                         BorderRadius.circular(widget.barWidth / 2),
+                    boxShadow: widget.glow
+                        ? [
+                            BoxShadow(
+                              color: _colors[i].withValues(alpha: 0.55),
+                              blurRadius: 8,
+                              spreadRadius: 0.5,
+                            ),
+                          ]
+                        : null,
                   ),
                 ),
               );

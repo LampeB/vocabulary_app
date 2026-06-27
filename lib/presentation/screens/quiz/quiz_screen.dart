@@ -427,6 +427,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                               isFlipped: quizState.isFlipped,
                               answerState: quizState.answerState,
                               mode: widget.args.mode,
+                              isListening: quizState.isListening,
                               onFlip: () =>
                                   ref.read(quizProvider.notifier).flipCard(),
                             ),
@@ -532,6 +533,7 @@ class _CardView extends StatelessWidget {
     required this.isFlipped,
     required this.answerState,
     required this.mode,
+    required this.isListening,
     required this.onFlip,
   });
 
@@ -539,6 +541,7 @@ class _CardView extends StatelessWidget {
   final bool isFlipped;
   final QuizAnswerState answerState;
   final QuizMode mode;
+  final bool isListening;
   final VoidCallback onFlip;
 
   @override
@@ -578,8 +581,11 @@ class _CardView extends StatelessWidget {
                     height: 120,
                     barWidth: 10,
                     gap: 6,
-                    opacity: 0.2,
-                    isAnimating: false,
+                    // Comes alive while the mic is listening; flat and still
+                    // otherwise so it doubles as the listening indicator.
+                    opacity: isListening ? 0.32 : 0.2,
+                    isAnimating: isListening,
+                    flatAtRest: true,
                   ),
                 ),
               ),
