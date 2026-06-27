@@ -288,5 +288,11 @@
   "quiz.flashcard_again": "もう一度",
   "quiz.flashcard_knew": "わかった",
   "quiz.write_in_lang": "{lang}で書いてください",
-  "quiz.validate": "確認"
+  "quiz.validate": "確認",
+  "quiz.hf_reading": "聞いてください",
+  "quiz.hf_repeat": "もう一度",
+  "quiz.hf_skip": "スキップ",
+  "quiz.hf_paused": "一時停止",
+  "quiz.hf_resume_hint": "タップで再開",
+  "quiz.hf_not_heard": "聞き取れませんでした — もう一度"
 }

@@ -44,6 +44,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // Voice "Clavier" escape: when equal to the current card index, that card
   // shows a text-input fallback instead of the mic.
   int? _voiceKbIndex;
+  // Hands-free pause state.
+  bool _hfPaused = false;
+  // Whole-screen warm breathing pulse used during the hands-free reading state.
+  late final AnimationController _pulseCtrl;
 
   @override
   void initState() {
@@ -53,6 +57,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _flashColor =
         ColorTween(begin: Colors.transparent, end: Colors.transparent)
             .animate(_flashCtrl);
+    _pulseCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1900))
+      ..repeat(reverse: true);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (_kSimulateSpeech.isEmpty) {
         final ok = await _stt.initialize();
@@ -157,6 +164,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   @override
   void dispose() {
     _flashCtrl.dispose();
+    _pulseCtrl.dispose();
     _stt.dispose();
     _sfx.dispose();
     _answerCtrl.dispose();
@@ -281,10 +289,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 .speak(card.answerWords.first, answerLang));
           }
         }
-        // Flash overlay for hands-free (no dedicated feedback screen there).
-        if (widget.args.mode == QuizMode.handsFree) {
-          unawaited(_triggerFlash(correct));
-        }
+        // Hands-free renders the full-screen StudyFeedbackFlood in build()
+        // (transient — the provider auto-advances in driving mode), so no
+        // separate flash overlay here.
       }
       if (widget.args.mode == QuizMode.handsFree) {
         final cardChanged = prev?.currentIndex != next.currentIndex;
@@ -392,6 +399,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       return _buildEcrireStudy(context, quizState, card);
     }
 
+    // Hands-free on the unified study canvas (eyes-off state machine).
+    if (widget.args.mode == QuizMode.handsFree) {
+      return _buildHandsFreeStudy(context, quizState, card);
+    }
+
     // Dedicated feedback screen for typing mode (flashcard/voice/hands-free handled elsewhere).
     if (quizState.answerState != QuizAnswerState.idle &&
         widget.args.mode != QuizMode.flashcard &&
@@ -464,6 +476,179 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ── Hands-free controls ───────────────────────────────────────────────────
+  void _toggleHfPause() {
+    setState(() => _hfPaused = !_hfPaused);
+    if (_hfPaused) {
+      _stt.stopListening();
+      ref.read(quizProvider.notifier).setListening(false);
+      unawaited(ref.read(audioPlayerServiceProvider).stop());
+    } else {
+      final card = ref.read(quizProvider).currentCard;
+      if (card != null) unawaited(_startListening(card));
+    }
+  }
+
+  void _hfRepeat() {
+    final card = ref.read(quizProvider).currentCard;
+    if (card == null) return;
+    final questionLang =
+        card.progress.direction == QuizDirection.frToKo ? 'fr' : 'ko';
+    unawaited(ref
+        .read(audioPlayerServiceProvider)
+        .speak(card.questionWord, questionLang));
+    unawaited(_startListening(card));
+  }
+
+  void _hfSkip() {
+    _stt.stopListening();
+    ref.read(quizProvider.notifier).submitVoiceAnswer('', isDrivingMode: true);
+  }
+
+  /// Hands-free (Mains libres) — eyes-off canvas: word in the wave with the
+  /// audio-I/O state machine (frozen + screen-pulse while reading vs animated
+  /// while listening), oversized Répéter/Passer, tap-centre to pause, and the
+  /// transient full-screen flood for grading.
+  Widget _buildHandsFreeStudy(BuildContext context, QuizState s, QuizCard card) {
+    final isFrToKo = card.progress.direction == QuizDirection.frToKo;
+
+    if (s.answerState != QuizAnswerState.idle) {
+      final correct = s.answerState == QuizAnswerState.correct;
+      return StudyFeedbackFlood(
+        isCorrect: correct,
+        label: correct
+            ? 'quiz.feedback_correct'.tr()
+            : 'quiz.feedback_wrong'.tr(),
+        answer: correct ? null : card.answerWords.join(' / '),
+        answerIsKorean: isFrToKo,
+        // No onContinue → transient; the provider auto-advances (driving mode).
+      );
+    }
+
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    final listening = s.isListening && !_hfPaused;
+
+    final cue = _hfPaused
+        ? null
+        : (listening
+            ? 'quiz.say_in_lang'.tr(
+                namedArgs: {'lang': 'lang.${_answerLangCode(card)}'.tr()})
+            : 'quiz.hf_reading'.tr());
+    final cueColor = listening
+        ? (isDark ? AppColors.clayLight : AppColors.clayDeep)
+        : (isDark ? AppColors.onDarkMuted : AppColors.muted);
+
+    return StudyScaffold(
+      current: s.currentIndex + 1,
+      total: s.total,
+      onQuit: _quit,
+      showProgress: false,
+      child: Stack(
+        children: [
+          // Reading state: whole-canvas warm breathing pulse.
+          if (!listening && !_hfPaused)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: _pulseCtrl,
+                  builder: (_, __) {
+                    final t = reduceMotion ? 0.5 : _pulseCtrl.value;
+                    return DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          radius: 1.1,
+                          colors: [
+                            AppColors.clay.withValues(alpha: 0.04 + 0.10 * t),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          // Main content — tap centre to pause.
+          GestureDetector(
+            onTap: _toggleHfPause,
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: WordInWave(
+                        word: card.questionWord,
+                        isKorean: !isFrToKo,
+                        cue: cue,
+                        cueColor: cueColor,
+                        waveActive: listening,
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _HfButton(
+                          icon: Icons.replay_rounded,
+                          label: 'quiz.hf_repeat'.tr(),
+                          onTap: _hfRepeat,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: _HfButton(
+                          icon: Icons.skip_next_rounded,
+                          label: 'quiz.hf_skip'.tr(),
+                          onTap: _hfSkip,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Pause overlay.
+          if (_hfPaused)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _toggleHfPause,
+                behavior: HitTestBehavior.opaque,
+                child: ColoredBox(
+                  color: (isDark ? Colors.black : Colors.white)
+                      .withValues(alpha: 0.45),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.pause_rounded,
+                            size: 56, color: cs.onSurface),
+                        const SizedBox(height: 10),
+                        Text('quiz.hf_paused'.tr(),
+                            style: AppTextStyles.grotesk(28, FontWeight.w700)
+                                .copyWith(color: cs.onSurface)),
+                        const SizedBox(height: 6),
+                        Text('quiz.hf_resume_hint'.tr(),
+                            style: AppTextStyles.fig(14, FontWeight.w500)
+                                .copyWith(
+                                    color: isDark
+                                        ? AppColors.onDarkMuted
+                                        : AppColors.muted)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -1452,6 +1637,49 @@ class _GradeButton extends StatelessWidget {
             Text(label,
                 style: AppTextStyles.fig(15, FontWeight.w700)
                     .copyWith(color: Colors.white)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Hands-free oversized control ──────────────────────────────────────────────
+
+class _HfButton extends StatelessWidget {
+  const _HfButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final fg = cs.onSurface;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 104,
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest
+              .withValues(alpha: isDark ? 0.4 : 0.7),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: cs.outline),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 32, color: fg),
+            const SizedBox(height: 8),
+            Text(label,
+                style:
+                    AppTextStyles.fig(15, FontWeight.w700).copyWith(color: fg)),
           ],
         ),
       ),

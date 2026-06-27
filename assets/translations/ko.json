@@ -288,5 +288,11 @@
   "quiz.flashcard_again": "다시 보기",
   "quiz.flashcard_knew": "알았어요",
   "quiz.write_in_lang": "{lang}(으)로 쓰세요",
-  "quiz.validate": "확인"
+  "quiz.validate": "확인",
+  "quiz.hf_reading": "들어보세요",
+  "quiz.hf_repeat": "다시",
+  "quiz.hf_skip": "건너뛰기",
+  "quiz.hf_paused": "일시정지",
+  "quiz.hf_resume_hint": "탭하여 계속",
+  "quiz.hf_not_heard": "못 들었어요 — 다시 해보세요"
 }

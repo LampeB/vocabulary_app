@@ -288,5 +288,11 @@
   "quiz.flashcard_again": "Nochmal",
   "quiz.flashcard_knew": "Gewusst",
   "quiz.write_in_lang": "Schreib es auf {lang}",
-  "quiz.validate": "Prüfen"
+  "quiz.validate": "Prüfen",
+  "quiz.hf_reading": "Hör zu",
+  "quiz.hf_repeat": "Wiederholen",
+  "quiz.hf_skip": "Überspringen",
+  "quiz.hf_paused": "PAUSIERT",
+  "quiz.hf_resume_hint": "Zum Fortsetzen tippen",
+  "quiz.hf_not_heard": "Nicht gehört — versuch es nochmal"
 }

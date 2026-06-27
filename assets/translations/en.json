@@ -288,5 +288,11 @@
   "quiz.flashcard_again": "Review again",
   "quiz.flashcard_knew": "I knew it",
   "quiz.write_in_lang": "Write it in {lang}",
-  "quiz.validate": "Check"
+  "quiz.validate": "Check",
+  "quiz.hf_reading": "Listen",
+  "quiz.hf_repeat": "Repeat",
+  "quiz.hf_skip": "Skip",
+  "quiz.hf_paused": "PAUSED",
+  "quiz.hf_resume_hint": "Tap to resume",
+  "quiz.hf_not_heard": "Didn't catch that — try again"
 }
