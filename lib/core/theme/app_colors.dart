@@ -52,9 +52,16 @@ abstract final class AppColors {
     paletteClay, paletteTeal, paletteIndigo, paletteRose, paletteStone,
   ];
 
-  // ── Feedback flashes ──────────────────────────────────────────────────────
+  // ── Feedback flashes (legacy tint overlay — replaced by the floods below) ──
   static const correctFlash   = Color(0x9934C759); // vivid green 60 %
   static const incorrectFlash = Color(0x99FF3B30); // vivid red 60 %
+
+  // ── Full-screen study feedback floods ─────────────────────────────────────
+  // The redesign's grading takeover: a held, full-screen color flood (not a
+  // tint) so it's catchable peripherally. Bright, max-separation, and
+  // **theme-independent** — identical in light and dark. White icon/text on top.
+  static const feedbackCorrect = Color(0xFF2FA98C); // "Juste !"  (bright teal)
+  static const feedbackWrong   = Color(0xFFE8693C); // "À revoir" (bright orange)
 
   // ── Legacy aliases (keep existing code compiling while screens are migrated)
   static const primary        = clay;
