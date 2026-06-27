@@ -29,8 +29,7 @@
 ## Écrire (typing)
 
 - Word-in-wave up top + underlined text input (clay caret) + **Valider** (teal) → full-screen feedback. Ambient wave behind.
-- Hangul keyboard at the bottom.
-- ⚠ **Open question**: a dark immersive screen paired with the **OS keyboard** (system-themed, usually light) can clash. Decide between the app's own in-screen dark Hangul keyboard (as mocked) or relaxing Écrire to a lighter treatment. Until resolved, Écrire is the one mode that may diverge from full dark-immersive.
+- **Keyboard: the phone's native keyboard** (decided 2026-06-27). No in-app per-language keyboard — it doesn't scale across language pairs, and the OS keyboard handles every script and follows the system theme. The earlier "in-app dark Hangul keyboard vs OS keyboard" question is closed in favour of the OS keyboard; the dark-canvas clash is moot since both follow the system theme.
 
 ## Relation to Hands-free
 
@@ -38,7 +37,7 @@ Hands-free is the same canvas with no manual mic (auto-listen), the screen-pulse
 
 ## Open decisions
 
-- Dark-immersive committed for Voix and Cartes; Écrire pending the keyboard question above.
+- Dark-immersive committed for Voix and Cartes; Écrire uses the native keyboard (decided).
 - Whether the wrong-answer flood auto-advances or holds briefly (shared with hands-free).
 
 ## Theming — follows the system theme (both modes required)

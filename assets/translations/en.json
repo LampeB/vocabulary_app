@@ -286,5 +286,7 @@
   "lang.ja": "Japanese",
   "lang.ko": "Korean",
   "quiz.flashcard_again": "Review again",
-  "quiz.flashcard_knew": "I knew it"
+  "quiz.flashcard_knew": "I knew it",
+  "quiz.write_in_lang": "Write it in {lang}",
+  "quiz.validate": "Check"
 }

@@ -387,6 +387,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       return _buildCartesStudy(context, quizState, card);
     }
 
+    // Écrire (typing) on the unified study canvas (native keyboard).
+    if (widget.args.mode == QuizMode.typing) {
+      return _buildEcrireStudy(context, quizState, card);
+    }
+
     // Dedicated feedback screen for typing mode (flashcard/voice/hands-free handled elsewhere).
     if (quizState.answerState != QuizAnswerState.idle &&
         widget.args.mode != QuizMode.flashcard &&
@@ -587,6 +592,92 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   ),
                 ],
               ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Écrire — word-in-wave + native text input + Valider, with the flood.
+  Widget _buildEcrireStudy(BuildContext context, QuizState s, QuizCard card) {
+    final isFrToKo = card.progress.direction == QuizDirection.frToKo;
+
+    if (s.answerState != QuizAnswerState.idle) {
+      final correct = s.answerState == QuizAnswerState.correct;
+      return StudyFeedbackFlood(
+        isCorrect: correct,
+        label: correct
+            ? 'quiz.feedback_correct'.tr()
+            : 'quiz.feedback_wrong'.tr(),
+        answer: card.answerWords.join(' / '),
+        answerIsKorean: isFrToKo,
+        detail: _nextReviewText(s.scheduledDays, correct),
+        continueLabel: 'quiz.continue_button'.tr(),
+        onContinue: () => ref.read(quizProvider.notifier).advance(),
+      );
+    }
+
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final cue = 'quiz.write_in_lang'.tr(
+      namedArgs: {'lang': 'lang.${_answerLangCode(card)}'.tr()},
+    );
+    final cueColor = isDark ? AppColors.clayLight : AppColors.clayDeep;
+
+    void submit() {
+      ref.read(quizProvider.notifier).submitTextAnswer(_answerCtrl.text);
+      _answerCtrl.clear();
+    }
+
+    return StudyScaffold(
+      current: s.currentIndex + 1,
+      total: s.total,
+      onQuit: _quit,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+        child: Column(
+          children: [
+            Expanded(
+              child: Center(
+                child: WordInWave(
+                  word: card.questionWord,
+                  isKorean: !isFrToKo, // question is Korean when KO→FR
+                  cue: cue,
+                  cueColor: cueColor,
+                  waveActive: false,
+                ),
+              ),
+            ),
+            // Native keyboard — underlined field, clay caret.
+            TextField(
+              controller: _answerCtrl,
+              autofocus: true,
+              textAlign: TextAlign.center,
+              textInputAction: TextInputAction.done,
+              cursorColor: AppColors.clay,
+              style: AppTextStyles.fig(22, FontWeight.w600)
+                  .copyWith(color: cs.onSurface),
+              decoration: InputDecoration(
+                filled: false,
+                hintText: 'quiz.typing_hint'.tr(),
+                border: const UnderlineInputBorder(),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: cs.outline),
+                ),
+                focusedBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.clay, width: 2),
+                ),
+              ),
+              onSubmitted: (_) => submit(),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: submit,
+                child: Text('quiz.validate'.tr()),
+              ),
+            ),
           ],
         ),
       ),

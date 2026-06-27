@@ -7,8 +7,9 @@
 ## Decisions (locked 2026-06-27)
 
 - **Scope:** full plan, Phases 1–8.
-- **Écrire keyboard:** build the app's own **in-app dark Hangul keyboard** (stays
-  dark-immersive; no OS-keyboard clash).
+- **Écrire keyboard:** use the **phone's native keyboard** (revised 2026-06-27 —
+  custom per-language keyboards don't scale with the generic-language goal; the OS
+  keyboard handles every script and follows the system theme).
 - **Hands-free wrong answer:** speak/reveal the answer, **hold the orange flood
   ~2.5 s, then auto-advance**. "Pas entendu" auto re-listens up to **2×** before
   requeuing as *à revoir*.
@@ -49,7 +50,7 @@
 ### Phases 3–5 — Mode restyles (each builds light + dark)
 7. `feat(quiz): restyle Voix onto study canvas (mic + "Voir la réponse"/"Clavier" pills)`
 8. `feat(quiz): restyle Cartes (ambient wave, FR/KR flip, teal/orange self-grade)`
-9. `feat(quiz): restyle Écrire (word-in-wave + input + in-app dark Hangul keyboard)`
+9. `feat(quiz): restyle Écrire (word-in-wave + input + native keyboard)`
 
 ### Phase 6 — Hands-free
 10. `feat(quiz): hands-free word-in-wave screen — state→visual machine, pause, oversized controls`

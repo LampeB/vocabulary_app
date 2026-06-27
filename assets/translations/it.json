@@ -286,5 +286,7 @@
   "lang.ja": "giapponese",
   "lang.ko": "coreano",
   "quiz.flashcard_again": "Da rivedere",
-  "quiz.flashcard_knew": "Lo sapevo"
+  "quiz.flashcard_knew": "Lo sapevo",
+  "quiz.write_in_lang": "Scrivilo in {lang}",
+  "quiz.validate": "Conferma"
 }

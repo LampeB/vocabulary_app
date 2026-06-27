@@ -286,5 +286,7 @@
   "lang.ja": "일본어",
   "lang.ko": "한국어",
   "quiz.flashcard_again": "다시 보기",
-  "quiz.flashcard_knew": "알았어요"
+  "quiz.flashcard_knew": "알았어요",
+  "quiz.write_in_lang": "{lang}(으)로 쓰세요",
+  "quiz.validate": "확인"
 }
