@@ -121,7 +121,9 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-          child: _editMode ? _addWordBar(context) : _startBar(context),
+          // Studying is launched from the central nav button (Start-a-session);
+          // the list screen is for management only.
+          child: _addWordBar(context),
         ),
       ),
     );
@@ -150,26 +152,6 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
             ],
           );
         }),
-      ),
-    );
-  }
-
-  Widget _startBar(BuildContext context) {
-    return ElevatedButton.icon(
-      icon: const Icon(Icons.play_arrow_rounded,
-          color: Colors.white, size: 20),
-      label: Text('list_detail.start_button'.tr(),
-          style: AppTextStyles.fig(15, FontWeight.w700)
-              .copyWith(color: Colors.white)),
-      onPressed: () =>
-          context.push('/lists/${widget.listId}/quiz-setup'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.clay,
-        foregroundColor: Colors.white,
-        minimumSize: const Size.fromHeight(52),
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
-        elevation: 0,
       ),
     );
   }

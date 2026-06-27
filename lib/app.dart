@@ -13,7 +13,6 @@ import 'presentation/screens/onboarding/auth_screen.dart';
 import 'presentation/screens/home/home_screen.dart';
 import 'presentation/screens/lists/lists_screen.dart';
 import 'presentation/screens/lists/list_detail_screen.dart';
-import 'presentation/screens/quiz/quiz_setup_screen.dart';
 import 'presentation/screens/quiz/quiz_screen.dart';
 import 'presentation/screens/quiz/start_session_screen.dart';
 import 'presentation/screens/social/social_screen.dart';
@@ -134,11 +133,6 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
               GoRoute(
                 path: '/lists/:listId',
                 builder: (_, state) => ListDetailScreen(
-                    listId: state.pathParameters['listId']!),
-              ),
-              GoRoute(
-                path: '/lists/:listId/quiz-setup',
-                builder: (_, state) => QuizSetupScreen(
                     listId: state.pathParameters['listId']!),
               ),
               GoRoute(
