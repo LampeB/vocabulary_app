@@ -303,5 +303,6 @@
   "start_session.section_list": "ELENCO",
   "start_session.start_with_count": "Inizia · {count} parole",
   "start_session.empty_lists": "Crea prima un elenco",
-  "shell.nav_study": "Studia"
+  "shell.nav_study": "Studia",
+  "quiz.hf_analyzing": "Analisi…"
 }

@@ -303,5 +303,6 @@
   "start_session.section_list": "LIST",
   "start_session.start_with_count": "Start · {count} words",
   "start_session.empty_lists": "Create a list first",
-  "shell.nav_study": "Study"
+  "shell.nav_study": "Study",
+  "quiz.hf_analyzing": "Analyzing…"
 }

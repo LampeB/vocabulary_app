@@ -48,6 +48,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // Hands-free "pas entendu" recovery: re-listen up to twice before requeuing.
   int _notHeardRetries = 0;
   bool _hfNotHeard = false;
+  // Hands-free: a word was heard; show "Analyse…" (bars stopped) before the verdict.
+  bool _hfAnalyzing = false;
   // Whole-screen warm breathing pulse used during the hands-free reading state.
   late final AnimationController _pulseCtrl;
 
@@ -90,6 +92,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
         if (state.answerState == QuizAnswerState.idle) {
           if (widget.args.mode == QuizMode.handsFree) {
+            // A word was heard and we're showing "Analyse…" before the verdict —
+            // don't let the no-speech recovery fire.
+            if (_hfAnalyzing) return;
             // If the token changed, this callback is stale (a new listen
             // session already started) — ignore it to avoid double-penalising.
             if (capturedToken != _listenToken) {
@@ -193,7 +198,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _listenRetries = 0;
       _notHeardRetries = 0;
     }
-    if (_hfNotHeard) setState(() => _hfNotHeard = false);
+    if (_hfNotHeard || _hfAnalyzing) {
+      setState(() {
+        _hfNotHeard = false;
+        _hfAnalyzing = false;
+      });
+    }
     _listenToken++;
     debugPrint('[HF] _startListening  token=$_listenToken  isRetry=$isRetry  question="${card.questionWord}"  answerWords=${card.answerWords}');
     ref.read(quizProvider.notifier).setListening(true);
@@ -237,11 +247,27 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         // applied to card N+1.
         debugPrint('[HF] onResult: "$text"  sessionToken=$sessionToken  currentToken=$_listenToken  match=${sessionToken == _listenToken}');
         if (mounted && sessionToken == _listenToken) {
-          ref.read(quizProvider.notifier).submitVoiceAnswer(
-                text,
-                isDrivingMode: widget.args.mode == QuizMode.handsFree ||
-                widget.args.mode == QuizMode.voice,
-              );
+          // Hands-free: a word was heard → stop the bars, show "Analyse…", then
+          // deliver the verdict after a short beat so the state reads clearly.
+          if (widget.args.mode == QuizMode.handsFree && text.trim().isNotEmpty) {
+            _stt.stopListening();
+            ref.read(quizProvider.notifier).setListening(false);
+            setState(() => _hfAnalyzing = true);
+            Future.delayed(const Duration(milliseconds: 900), () {
+              if (!mounted || sessionToken != _listenToken) return;
+              if (ref.read(quizProvider).answerState == QuizAnswerState.idle) {
+                ref
+                    .read(quizProvider.notifier)
+                    .submitVoiceAnswer(text, isDrivingMode: true);
+              }
+            });
+          } else {
+            ref.read(quizProvider.notifier).submitVoiceAnswer(
+                  text,
+                  isDrivingMode: widget.args.mode == QuizMode.handsFree ||
+                      widget.args.mode == QuizMode.voice,
+                );
+          }
         } else if (sessionToken != _listenToken) {
           debugPrint('[HF] Late onResult discarded (stale token)');
         }
@@ -467,16 +493,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final cs = Theme.of(context).colorScheme;
     final isDark = cs.brightness == Brightness.dark;
     final reduceMotion = MediaQuery.of(context).disableAnimations;
-    final listening = s.isListening && !_hfPaused;
+    // While analysing, the bars stop (it's no longer the user's turn).
+    final listening = s.isListening && !_hfPaused && !_hfAnalyzing;
 
     final cue = _hfPaused
         ? null
-        : (_hfNotHeard
-            ? 'quiz.hf_not_heard'.tr()
-            : (listening
-                ? 'quiz.say_in_lang'.tr(
-                    namedArgs: {'lang': 'lang.${_answerLangCode(card)}'.tr()})
-                : 'quiz.hf_reading'.tr()));
+        : (_hfAnalyzing
+            ? 'quiz.hf_analyzing'.tr()
+            : (_hfNotHeard
+                ? 'quiz.hf_not_heard'.tr()
+                : (listening
+                    ? 'quiz.say_in_lang'.tr(
+                        namedArgs: {'lang': 'lang.${_answerLangCode(card)}'.tr()})
+                    : 'quiz.hf_reading'.tr())));
     final cueColor = listening
         ? (isDark ? AppColors.clayLight : AppColors.clayDeep)
         : (isDark ? AppColors.onDarkMuted : AppColors.muted);
@@ -488,8 +517,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       showProgress: false,
       child: Stack(
         children: [
-          // Reading state: whole-canvas warm breathing pulse.
-          if (!listening && !_hfPaused)
+          // Reading state only: whole-canvas warm breathing pulse (not while
+          // analysing or in the "pas entendu" state).
+          if (!listening && !_hfPaused && !_hfAnalyzing && !_hfNotHeard)
             Positioned.fill(
               child: IgnorePointer(
                 child: AnimatedBuilder(

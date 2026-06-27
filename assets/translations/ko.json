@@ -303,5 +303,6 @@
   "start_session.section_list": "목록",
   "start_session.start_with_count": "시작 · {count}단어",
   "start_session.empty_lists": "먼저 목록을 만드세요",
-  "shell.nav_study": "학습"
+  "shell.nav_study": "학습",
+  "quiz.hf_analyzing": "분석 중…"
 }

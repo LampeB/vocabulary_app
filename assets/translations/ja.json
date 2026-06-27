@@ -303,5 +303,6 @@
   "start_session.section_list": "リスト",
   "start_session.start_with_count": "開始 · {count}語",
   "start_session.empty_lists": "まずリストを作成",
-  "shell.nav_study": "学習"
+  "shell.nav_study": "学習",
+  "quiz.hf_analyzing": "解析中…"
 }

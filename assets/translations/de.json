@@ -303,5 +303,6 @@
   "start_session.section_list": "LISTE",
   "start_session.start_with_count": "Starten · {count} Wörter",
   "start_session.empty_lists": "Erstelle zuerst eine Liste",
-  "shell.nav_study": "Lernen"
+  "shell.nav_study": "Lernen",
+  "quiz.hf_analyzing": "Analysiere…"
 }
