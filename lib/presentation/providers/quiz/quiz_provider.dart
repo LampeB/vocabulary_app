@@ -340,6 +340,20 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     _advance(isCorrect: isCorrect);
   }
 
+  /// Cartes self-grade on the unified study canvas: persist + set the answer
+  /// state (so the full-screen feedback flood shows), then Continuer advances.
+  void gradeFlashcard(FsrsRating rating) {
+    final card = state.currentCard;
+    if (card == null) return;
+    unawaited(_persistRating(card.progress, rating));
+    final isCorrect = rating == FsrsRating.good || rating == FsrsRating.easy;
+    state = state.copyWith(
+      answerState:
+          isCorrect ? QuizAnswerState.correct : QuizAnswerState.incorrect,
+      scheduledDays: _computeScheduledDays(card.progress, rating),
+    );
+  }
+
   /// Called by the "Continuer" button on the feedback screen.
   void advance() {
     _advance(isCorrect: state.answerState == QuizAnswerState.correct);

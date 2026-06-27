@@ -284,5 +284,7 @@
   "lang.de": "Deutsch",
   "lang.it": "Italienisch",
   "lang.ja": "Japanisch",
-  "lang.ko": "Koreanisch"
+  "lang.ko": "Koreanisch",
+  "quiz.flashcard_again": "Nochmal",
+  "quiz.flashcard_knew": "Gewusst"
 }

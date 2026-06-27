@@ -284,5 +284,7 @@
   "lang.de": "독일어",
   "lang.it": "이탈리아어",
   "lang.ja": "일본어",
-  "lang.ko": "한국어"
+  "lang.ko": "한국어",
+  "quiz.flashcard_again": "다시 보기",
+  "quiz.flashcard_knew": "알았어요"
 }

@@ -382,6 +382,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       return _buildVoiceStudy(context, quizState, card);
     }
 
+    // Cartes (flashcard) on the unified study canvas.
+    if (widget.args.mode == QuizMode.flashcard) {
+      return _buildCartesStudy(context, quizState, card);
+    }
+
     // Dedicated feedback screen for typing mode (flashcard/voice/hands-free handled elsewhere).
     if (quizState.answerState != QuizAnswerState.idle &&
         widget.args.mode != QuizMode.flashcard &&
@@ -506,6 +511,86 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         ? 'quiz.next_review_tomorrow'.tr()
         : 'quiz.next_review_in_days'
             .tr(namedArgs: {'days': scheduledDays.toString()});
+  }
+
+  /// Cartes — flip card on the unified study canvas; self-grade shows the flood.
+  Widget _buildCartesStudy(BuildContext context, QuizState s, QuizCard card) {
+    final isFrToKo = card.progress.direction == QuizDirection.frToKo;
+
+    if (s.answerState != QuizAnswerState.idle) {
+      final correct = s.answerState == QuizAnswerState.correct;
+      return StudyFeedbackFlood(
+        isCorrect: correct,
+        label: correct
+            ? 'quiz.feedback_correct'.tr()
+            : 'quiz.feedback_wrong'.tr(),
+        answer: card.answerWords.join(' / '),
+        answerIsKorean: isFrToKo,
+        detail: _nextReviewText(s.scheduledDays, correct),
+        continueLabel: 'quiz.continue_button'.tr(),
+        onContinue: () => ref.read(quizProvider.notifier).advance(),
+      );
+    }
+
+    final showBack = s.isFlipped;
+    final word = showBack ? card.answerWords.join(' / ') : card.questionWord;
+    // Front = question (Korean only when KO→FR); back = answer (Korean when FR→KO).
+    final wordIsKorean = showBack ? isFrToKo : !isFrToKo;
+
+    return StudyScaffold(
+      current: s.currentIndex + 1,
+      total: s.total,
+      onQuit: _quit,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+        child: Column(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: showBack
+                    ? null
+                    : () => ref.read(quizProvider.notifier).flipCard(),
+                behavior: HitTestBehavior.opaque,
+                child: Center(
+                  child: WordInWave(
+                    word: word,
+                    isKorean: wordIsKorean,
+                    cue: showBack ? null : 'quiz.card_flip_hint'.tr(),
+                    waveActive: false,
+                  ),
+                ),
+              ),
+            ),
+            if (showBack)
+              Row(
+                children: [
+                  Expanded(
+                    child: _GradeButton(
+                      label: 'quiz.flashcard_again'.tr(),
+                      icon: Icons.refresh_rounded,
+                      color: AppColors.feedbackWrong,
+                      onTap: () => ref
+                          .read(quizProvider.notifier)
+                          .gradeFlashcard(FsrsRating.again),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _GradeButton(
+                      label: 'quiz.flashcard_knew'.tr(),
+                      icon: Icons.check_rounded,
+                      color: AppColors.feedbackCorrect,
+                      onTap: () => ref
+                          .read(quizProvider.notifier)
+                          .gradeFlashcard(FsrsRating.good),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Voix — the unified dark study canvas: word-in-wave + mic + escape pills,
@@ -1237,6 +1322,45 @@ class _EscapePill extends StatelessWidget {
             Text(label,
                 style:
                     AppTextStyles.fig(13, FontWeight.w600).copyWith(color: fg)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Cartes self-grade button ──────────────────────────────────────────────────
+
+class _GradeButton extends StatelessWidget {
+  const _GradeButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 60,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Text(label,
+                style: AppTextStyles.fig(15, FontWeight.w700)
+                    .copyWith(color: Colors.white)),
           ],
         ),
       ),
