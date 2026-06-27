@@ -246,7 +246,11 @@ class _StreakCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(24),
       child: Container(
         height: 120,
-        color: AppColors.inkDark,
+        decoration: BoxDecoration(
+          color: AppColors.inkDark,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Theme.of(context).colorScheme.outline),
+        ),
         child: Stack(
           children: [
             // Waveform watermark
@@ -323,7 +327,11 @@ class _ReviewCard extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: Container(
-        color: AppColors.ink,
+        decoration: BoxDecoration(
+          color: AppColors.ink,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Theme.of(context).colorScheme.outline),
+        ),
         padding: const EdgeInsets.all(20),
         child: Row(
           children: [
