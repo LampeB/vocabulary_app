@@ -10,8 +10,8 @@ abstract final class AppColors {
   // ── Text ──────────────────────────────────────────────────────────────────
   static const ink      = Color(0xFF2B2622); // primary text; also dark hero cards
   static const muted    = Color(0xFF756C62); // secondary text
-  static const muted2   = Color(0xFF8A857C); // eyebrow labels, meta
-  static const faint    = Color(0xFFA99F90); // captions, inactive nav
+  static const muted2   = Color(0xFF6F695F); // eyebrow labels, meta (AA on paper)
+  static const faint    = Color(0xFF8A8073); // captions, inactive nav (AA on paper)
   static const line     = Color(0xFFECE3D7); // borders, progress track, dividers
 
   // ── Accents ───────────────────────────────────────────────────────────────
@@ -24,6 +24,12 @@ abstract final class AppColors {
   static const clayDeep  = Color(0xFFC4703F); // clay text on light (AA contrast)
   /// Destructive — delete, sign-out, error states only.
   static const rose      = Color(0xFFB0556B);
+
+  /// Filled-button variants — darkened so white text meets WCAG AA on the fill
+  /// (clay 2.97:1 → ~4.5:1, teal 3.89:1 → ~4.5:1). Use these for solid CTAs;
+  /// keep [clay]/[teal] for accents, fills, progress, and icons (no white text).
+  static const clayButton = Color(0xFFA85A30); // AA white-on-clay CTA
+  static const tealButton = Color(0xFF3E726D); // AA white-on-teal CTA
 
   // ── On-dark text ──────────────────────────────────────────────────────────
   static const onDark      = Color(0xFFF6F1EA);
