@@ -1,6 +1,7 @@
 import 'dart:async' show unawaited;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/quiz/quiz_provider.dart';
@@ -46,6 +47,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   int? _voiceKbIndex;
   // Hands-free pause state.
   bool _hfPaused = false;
+  // Hands-free "pas entendu" recovery: re-listen up to twice before requeuing.
+  int _notHeardRetries = 0;
+  bool _hfNotHeard = false;
   // Whole-screen warm breathing pulse used during the hands-free reading state.
   late final AnimationController _pulseCtrl;
 
@@ -134,16 +138,37 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               _listenRetries = 0;
               Future.delayed(Duration(milliseconds: waitMs), () {
                 if (!mounted) return;
-                if (ref.read(quizProvider).answerState ==
+                if (ref.read(quizProvider).answerState !=
                     QuizAnswerState.idle) {
-                  debugPrint('[HF] ❌ No result arrived in ${waitMs}ms window — submitting empty');
-                  ref.read(quizProvider.notifier).submitVoiceAnswer(
-                    '',
-                    isDrivingMode: true,
-                  );
-                } else {
-                  debugPrint('[HF] ✅ Late onResult arrived before timeout — no action needed');
+                  debugPrint('[HF] ✅ Late onResult arrived before timeout');
+                  return;
                 }
+                // "Pas entendu": a real listen heard nothing. Re-listen up to
+                // twice with a muted cue before requeuing as à revoir, so
+                // silence isn't a hard wrong (ties into the STT-improvement plan).
+                if (hadRealListen &&
+                    !wasPermanentError &&
+                    _notHeardRetries < 2) {
+                  _notHeardRetries++;
+                  debugPrint('[HF] 🔇 Pas entendu — re-listen #$_notHeardRetries');
+                  setState(() => _hfNotHeard = true);
+                  Future.delayed(const Duration(milliseconds: 900), () {
+                    if (!mounted) return;
+                    final card = ref.read(quizProvider).currentCard;
+                    if (card != null &&
+                        ref.read(quizProvider).answerState ==
+                            QuizAnswerState.idle) {
+                      unawaited(_startListening(card, isRetry: true));
+                    }
+                  });
+                  return;
+                }
+                _notHeardRetries = 0;
+                debugPrint('[HF] ❌ No result after retries — requeue (à revoir)');
+                ref.read(quizProvider.notifier).submitVoiceAnswer(
+                      '',
+                      isDrivingMode: true,
+                    );
               });
             }
           } else {
@@ -182,7 +207,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   Future<void> _startListening(QuizCard card, {bool isRetry = false}) async {
-    if (!isRetry) _listenRetries = 0;
+    if (!isRetry) {
+      _listenRetries = 0;
+      _notHeardRetries = 0;
+    }
+    if (_hfNotHeard) setState(() => _hfNotHeard = false);
     _listenToken++;
     debugPrint('[HF] _startListening  token=$_listenToken  isRetry=$isRetry  question="${card.questionWord}"  answerWords=${card.answerWords}');
     ref.read(quizProvider.notifier).setListening(true);
@@ -249,6 +278,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       return;
     }
 
+    // Hands-free is eyes-off: a "your turn" earcon + haptic on listen start.
+    if (ok && widget.args.mode == QuizMode.handsFree) {
+      unawaited(_sfx.playListenCue());
+      HapticFeedback.selectionClick();
+    }
+
     // Failsafe: if the STT callbacks never fire (device bug / audio focus
     // held by another app), reset listening state after listenFor + buffer.
     // IMPORTANT: capture sessionToken so this timer only affects THIS session.
@@ -273,6 +308,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         final correct = next.answerState == QuizAnswerState.correct;
         // Sound effect for every mode.
         if (correct) { _sfx.playCorrect(); } else { _sfx.playIncorrect(); }
+        // Hands-free is eyes-off: pair the earcon with a distinct haptic.
+        if (widget.args.mode == QuizMode.handsFree) {
+          if (correct) {
+            HapticFeedback.mediumImpact();
+          } else {
+            HapticFeedback.heavyImpact();
+          }
+        }
         // Auto-speak the revealed answer (typing / voice modes).
         // In hands-free mode only speak when wrong — the user just said the
         // word correctly, no need to repeat it; but for a wrong answer they
@@ -536,10 +579,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
     final cue = _hfPaused
         ? null
-        : (listening
-            ? 'quiz.say_in_lang'.tr(
-                namedArgs: {'lang': 'lang.${_answerLangCode(card)}'.tr()})
-            : 'quiz.hf_reading'.tr());
+        : (_hfNotHeard
+            ? 'quiz.hf_not_heard'.tr()
+            : (listening
+                ? 'quiz.say_in_lang'.tr(
+                    namedArgs: {'lang': 'lang.${_answerLangCode(card)}'.tr()})
+                : 'quiz.hf_reading'.tr()));
     final cueColor = listening
         ? (isDark ? AppColors.clayLight : AppColors.clayDeep)
         : (isDark ? AppColors.onDarkMuted : AppColors.muted);

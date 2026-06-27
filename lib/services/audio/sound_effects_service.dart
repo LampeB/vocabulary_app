@@ -6,6 +6,7 @@ class SoundEffectsService {
   final _player = AudioPlayer();
   Uint8List? _correctBytes;
   Uint8List? _incorrectBytes;
+  Uint8List? _cueBytes;
 
   // Generates a PCM WAV file in memory — avoids the empty asset placeholders.
   Uint8List _makeBeep(double freqHz, double durationSec, {double volume = 0.55}) {
@@ -56,6 +57,15 @@ class SoundEffectsService {
     try {
       _incorrectBytes ??= _makeBeep(280, 0.22); // low growl
       await _player.play(BytesSource(_incorrectBytes!));
+    } catch (_) {}
+  }
+
+  /// Short soft cue marking the start of listening — the hands-free "your turn"
+  /// earcon (paired with a haptic so it's catchable eyes-off).
+  Future<void> playListenCue() async {
+    try {
+      _cueBytes ??= _makeBeep(620, 0.07, volume: 0.4);
+      await _player.play(BytesSource(_cueBytes!));
     } catch (_) {}
   }
 
