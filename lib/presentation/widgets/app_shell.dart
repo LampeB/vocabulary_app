@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/widget_keys.dart';
 
 const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
@@ -154,7 +155,8 @@ class _VkBottomNav extends StatelessWidget {
                 active: 1 == selectedIndex,
                 onTap: () => onTap(1)),
           ),
-          _StudyButton(onTap: onStudy),
+          _StudyButton(
+              key: const ValueKey(WidgetKeys.navStudy), onTap: onStudy),
           Expanded(
             child: _NavTile(
                 def: _tabs[2],
@@ -176,7 +178,7 @@ class _VkBottomNav extends StatelessWidget {
 // ── Raised centre "study" button ────────────────────────────────────────────
 
 class _StudyButton extends StatelessWidget {
-  const _StudyButton({required this.onTap});
+  const _StudyButton({super.key, required this.onTap});
   final VoidCallback onTap;
 
   @override

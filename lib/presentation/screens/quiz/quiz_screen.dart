@@ -10,6 +10,7 @@ import '../../../domain/entities/variant_progress.dart' show QuizDirection;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/fsrs_algorithm.dart';
+import '../../../core/widget_keys.dart';
 import '../../../services/speech/speech_recognition_service.dart';
 import '../../../services/audio/sound_effects_service.dart';
 import '../../widgets/dotted_ground.dart';
@@ -564,6 +565,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                     children: [
                       Expanded(
                         child: _HfButton(
+                          key: const ValueKey(WidgetKeys.hfRepeat),
                           icon: Icons.replay_rounded,
                           label: 'quiz.hf_repeat'.tr(),
                           onTap: _hfRepeat,
@@ -572,6 +574,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                       const SizedBox(width: 14),
                       Expanded(
                         child: _HfButton(
+                          key: const ValueKey(WidgetKeys.hfSkip),
                           icon: Icons.skip_next_rounded,
                           label: 'quiz.hf_skip'.tr(),
                           onTap: _hfSkip,
@@ -693,6 +696,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 children: [
                   Expanded(
                     child: _GradeButton(
+                      key: const ValueKey(WidgetKeys.gradeAgain),
                       label: 'quiz.flashcard_again'.tr(),
                       icon: Icons.refresh_rounded,
                       color: AppColors.feedbackWrong,
@@ -704,6 +708,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   const SizedBox(width: 12),
                   Expanded(
                     child: _GradeButton(
+                      key: const ValueKey(WidgetKeys.gradeKnew),
                       label: 'quiz.flashcard_knew'.tr(),
                       icon: Icons.check_rounded,
                       color: AppColors.feedbackCorrect,
@@ -772,6 +777,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             ),
             // Native keyboard — underlined field, clay caret.
             TextField(
+              key: const ValueKey(WidgetKeys.ecrireInput),
               controller: _answerCtrl,
               autofocus: true,
               textAlign: TextAlign.center,
@@ -796,6 +802,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             SizedBox(
               width: double.infinity,
               child: FilledButton(
+                key: const ValueKey(WidgetKeys.ecrireValidate),
                 onPressed: submit,
                 child: Text('quiz.validate'.tr()),
               ),
@@ -882,6 +889,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   _EscapePill(
+                    key: const ValueKey(WidgetKeys.voiceReveal),
                     icon: Icons.visibility_outlined,
                     label: 'quiz.voice_reveal'.tr(),
                     onTap: () {
@@ -891,6 +899,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   ),
                   const SizedBox(width: 12),
                   _EscapePill(
+                    key: const ValueKey(WidgetKeys.voiceKeyboard),
                     icon: Icons.keyboard_outlined,
                     label: 'quiz.voice_keyboard'.tr(),
                     onTap: () {
@@ -913,6 +922,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
 class _EscapePill extends StatelessWidget {
   const _EscapePill({
+    super.key,
     required this.icon,
     required this.label,
     required this.onTap,
@@ -955,6 +965,7 @@ class _EscapePill extends StatelessWidget {
 
 class _GradeButton extends StatelessWidget {
   const _GradeButton({
+    super.key,
     required this.label,
     required this.icon,
     required this.color,
@@ -994,6 +1005,7 @@ class _GradeButton extends StatelessWidget {
 
 class _HfButton extends StatelessWidget {
   const _HfButton({
+    super.key,
     required this.icon,
     required this.label,
     required this.onTap,
@@ -1092,6 +1104,7 @@ class _SummaryScreen extends StatelessWidget {
     final isGreat = pct >= 80;
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.summary),
       body: Stack(
         children: [
           const DottedGround(),

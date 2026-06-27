@@ -7,6 +7,7 @@ import '../../providers/lists/vocabulary_provider.dart';
 import '../../providers/quiz/quiz_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../widgets/dotted_ground.dart';
 
 /// The single front door to studying (start-session-screen.md). An accordion:
@@ -115,6 +116,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                     for (final m in QuizMode.values) ...[
                       if (m != QuizMode.values.first) const SizedBox(height: 8),
                       _OptionTile(
+                        key: ValueKey(WidgetKeys.startQuizType(m.name)),
                         label: _modeLabel(m),
                         selected: _mode == m,
                         onTap: () {
@@ -140,6 +142,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                       if (d != QuizDirectionChoice.values.first)
                         const SizedBox(height: 8),
                       _OptionTile(
+                        key: ValueKey(WidgetKeys.startDirection(d.name)),
                         label: _dirLabel(d),
                         selected: _dir == d,
                         onTap: () {
@@ -164,6 +167,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                   children: [
                     for (final n in _limits)
                       _CountChip(
+                        key: ValueKey(WidgetKeys.startCount(n)),
                         n: n,
                         selected: _count == n,
                         onTap: () => setState(() => _count = n),
@@ -181,6 +185,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
             child: SizedBox(
               height: 56,
               child: ElevatedButton.icon(
+                key: const ValueKey(WidgetKeys.startSessionStart),
                 onPressed: _listId == null ? null : _start,
                 icon: const Icon(Icons.play_arrow_rounded,
                     color: Colors.white, size: 22),
@@ -324,6 +329,7 @@ class _Section extends StatelessWidget {
 
 class _OptionTile extends StatelessWidget {
   const _OptionTile({
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,
@@ -385,7 +391,10 @@ class _OptionTile extends StatelessWidget {
 
 class _CountChip extends StatelessWidget {
   const _CountChip(
-      {required this.n, required this.selected, required this.onTap});
+      {super.key,
+      required this.n,
+      required this.selected,
+      required this.onTap});
   final int n;
   final bool selected;
   final VoidCallback onTap;

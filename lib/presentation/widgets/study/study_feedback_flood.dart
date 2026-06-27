@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 
 /// The unified grading feedback used by every study mode: a held, **full-screen
 /// colour flood** (not a tint) so it's catchable peripherally — bright teal for
@@ -53,6 +54,8 @@ class StudyFeedbackFlood extends StatelessWidget {
         isCorrect ? AppColors.feedbackCorrect : AppColors.feedbackWrong;
 
     return Material(
+      key: ValueKey(
+          isCorrect ? WidgetKeys.feedbackCorrect : WidgetKeys.feedbackWrong),
       color: color,
       child: SafeArea(
         child: Padding(
@@ -105,6 +108,7 @@ class StudyFeedbackFlood extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: GestureDetector(
+                    key: const ValueKey(WidgetKeys.feedbackContinue),
                     onTap: onContinue,
                     child: Container(
                       height: 56,
