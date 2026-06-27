@@ -332,14 +332,6 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     }
   }
 
-  void rateCard(FsrsRating rating) {
-    final card = state.currentCard;
-    if (card == null) return;
-    unawaited(_persistRating(card.progress, rating));
-    final isCorrect = rating == FsrsRating.good || rating == FsrsRating.easy;
-    _advance(isCorrect: isCorrect);
-  }
-
   /// Cartes self-grade on the unified study canvas: persist + set the answer
   /// state (so the full-screen feedback flood shows), then Continuer advances.
   void gradeFlashcard(FsrsRating rating) {
