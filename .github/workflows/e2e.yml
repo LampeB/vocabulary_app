@@ -38,6 +38,8 @@ jobs:
             "SUPABASE_ANON_KEY": "${{ secrets.SUPABASE_ANON_KEY }}",
             "REVENUECAT_API_KEY": "YOUR_REVENUECAT_KEY",
             "SIMULATE_SPEECH": "correct",
+            "TEST_LOCALE": "fr",
+            "TEST_MODE": "true",
             "TEST_EMAIL": "${{ secrets.TEST_EMAIL }}",
             "TEST_PASSWORD": "${{ secrets.TEST_PASSWORD }}"
           }

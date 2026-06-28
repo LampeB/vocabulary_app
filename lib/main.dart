@@ -12,6 +12,11 @@ import 'app.dart';
 // Injected by test env files; false in production.
 const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
+// Forces the app's locale in E2E tests (e.g. 'fr') so emulators that default to
+// English still render the language the tests expect. Empty in production →
+// device locale is used.
+const _kTestLocale = String.fromEnvironment('TEST_LOCALE');
+
 // Guards one-time init so repeated app.main() calls in E2E tests are safe.
 bool _initialized = false;
 
@@ -55,6 +60,7 @@ Future<void> main() async {
       ],
       path: 'assets/translations',
       fallbackLocale: const Locale('fr'),
+      startLocale: _kTestLocale.isEmpty ? null : Locale(_kTestLocale),
       child: ProviderScope(
         overrides: [
           notificationServiceProvider

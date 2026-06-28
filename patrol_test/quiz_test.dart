@@ -12,12 +12,9 @@ const _fr = 'Bonjour';
 const _ko = '안녕하세요';
 
 void main() {
-  // ART JIT warmup — MUST run first; absorbs the cold-JIT cost on Samsung S22 so
-  // every later test starts on warm code. See test_helpers.warmupJitCache.
-  patrolTest('warmup: prime ART JIT cache',
-      timeout: const Timeout(Duration(minutes: 60)), ($) async {
-    await warmupJitCache($);
-  });
+  // (No ART-JIT warmup test: that was a physical Samsung-S22 hack. On the x86_64
+  // CI emulator there's no cold-JIT penalty, and the warmup's wait-for-welcome
+  // loop would otherwise burn the whole job budget.)
 
   // ── Voice ───────────────────────────────────────────────────────────────────
 

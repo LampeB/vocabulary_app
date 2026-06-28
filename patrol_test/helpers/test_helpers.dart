@@ -24,9 +24,9 @@ Future<void> launchAndSignIn(PatrolIntegrationTester $) async {
   // start with the app already visible and no timeout has been eaten.
   try {
     await $(find.text('J\'ai déjà un compte')).waitUntilVisible(
-      // 28 min: cold ART JIT on Samsung S22 takes 15-20 min in debug mode.
-      // All warm-JIT tests (any test after the first) find the element in < 5 s.
-      timeout: const Duration(minutes: 28),
+      // 5 min: ample for the CI emulator / a warm device. (The old 28-min value
+      // was for a cold Samsung S22; we no longer run a JIT warmup.)
+      timeout: const Duration(minutes: 5),
     );
   } catch (_) {
     // Welcome screen not found within 28 min — could be:
