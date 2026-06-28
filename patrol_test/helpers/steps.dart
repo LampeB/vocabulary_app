@@ -127,6 +127,59 @@ class WhenSteps {
       await $.pump(const Duration(milliseconds: 1200));
     }
   }
+
+  /// Flashcards: flip and self-grade every card as "Je savais" (known) until the
+  /// session ends. Cartes isn't auto-advanced, so each card is flip → grade →
+  /// Continuer.
+  Future<void> answersEachCardAsKnown() => _gradeEachCard(WidgetKeys.gradeKnew);
+
+  /// Flashcards: flip and self-grade every card as "À revoir" (forgotten).
+  Future<void> answersEachCardAsForgotten() =>
+      _gradeEachCard(WidgetKeys.gradeAgain);
+
+  Future<void> _gradeEachCard(String gradeKey) async {
+    final summary = find.byKey(const ValueKey(WidgetKeys.summary));
+    final card = find.byKey(const ValueKey(WidgetKeys.cartesCard));
+    final grade = find.byKey(ValueKey(gradeKey));
+    final cont = find.byKey(const ValueKey(WidgetKeys.feedbackContinue));
+    await $(card).waitUntilVisible(timeout: const Duration(seconds: 30));
+    for (var i = 0; i < 240; i++) {
+      if (summary.evaluate().isNotEmpty) return;
+      if (grade.evaluate().isNotEmpty) {
+        await $(grade).tap(); // back is showing → grade it
+      } else if (cont.evaluate().isNotEmpty) {
+        await $(cont).tap(); // verdict flood → next card
+      } else if (card.evaluate().isNotEmpty) {
+        await $(card).tap(); // front is showing → flip to reveal
+      }
+      await $.pump(const Duration(milliseconds: 400));
+    }
+  }
+
+  /// Typing: enter [word] and validate on every card until the session ends.
+  Future<void> typesCorrectAnswerForEachCard(String word) =>
+      _typeEachCard(word);
+
+  /// Typing: enter a deliberately wrong answer on every card.
+  Future<void> typesWrongAnswerForEachCard() => _typeEachCard('___nope___');
+
+  Future<void> _typeEachCard(String text) async {
+    final summary = find.byKey(const ValueKey(WidgetKeys.summary));
+    final input = find.byKey(const ValueKey(WidgetKeys.ecrireInput));
+    final validate = find.byKey(const ValueKey(WidgetKeys.ecrireValidate));
+    final cont = find.byKey(const ValueKey(WidgetKeys.feedbackContinue));
+    await $(input).waitUntilVisible(timeout: const Duration(seconds: 30));
+    for (var i = 0; i < 240; i++) {
+      if (summary.evaluate().isNotEmpty) return;
+      if (input.evaluate().isNotEmpty) {
+        await $(input).enterText(text);
+        await $(validate).tap();
+      } else if (cont.evaluate().isNotEmpty) {
+        await $(cont).tap(); // verdict flood → next card
+      }
+      await $.pump(const Duration(milliseconds: 400));
+    }
+  }
 }
 
 // ── THEN — assertions ─────────────────────────────────────────────────────────

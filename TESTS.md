@@ -2,32 +2,36 @@
 
 ## E2E tests — Patrol (real device)
 
-Run with:
+Scenarios are written as readable **given / when / then** steps from a shared
+step library (`patrol_test/helpers/steps.dart`), selecting widgets by stable keys
+(`lib/core/widget_keys.dart`) rather than localized text. STT is mocked via
+`SttSimulator` (`lib/core/stt_simulator.dart`), which is runtime-controllable, so
+a step can state intent — `given.theLearnerWillAnswerCorrectly()` — and one run
+covers both correct and wrong cases.
+
+Run the quiz suite via its umbrella target:
 ```
-patrol test patrol_test/ --dart-define-from-file=test.<env>.env.json -d <device-id>
+patrol test --target patrol_test/quiz_all_test.dart \
+            --dart-define-from-file=test.env.json -d <device-id>
 ```
 
-| File | Test | Env required |
-|------|------|--------------|
-| `auth_test.dart` | sign-in lands on Today screen | any |
-| `auth_test.dart` | profile data is loaded after sign-in | any |
-| `quiz_session_test.dart` | voice quiz: correct answer → session completes at 100% | `SIMULATE_SPEECH=correct` |
-| `quiz_session_test.dart` | voice quiz: wrong answer → session completes at 0% | `SIMULATE_SPEECH=wrong` |
-| `quiz_session_test.dart` | hands-free quiz: auto-starts and completes at 100% | `SIMULATE_SPEECH=correct` |
-| `quiz_session_test.dart` | voice quiz: STT timeout → snackbar and mic reset | real STT (nosim) |
-| `quiz_session_test.dart` | hands-free quiz: STT timeout → auto-retries | real STT (nosim) |
-| `quiz_session_test.dart` | hands-free quiz: close button responsive mid-session | `SIMULATE_SPEECH=correct` |
-| `vocab_list_test.dart` | created list appears in Lists screen | any |
-| `vocab_list_test.dart` | word added to list is visible in detail screen | any |
-| `vocab_list_test.dart` | word count in list view matches words in detail | any |
+| File | Scenarios |
+|------|-----------|
+| `quiz_test.dart` | Voice all-correct→100% · Voice all-wrong→0% · Hands-free auto→100% · Cartes known→100% · Cartes forgotten→0% · Écrire correct→100% · Écrire wrong→0% (+ JIT warmup) |
+| `auth_test.dart` | sign-in lands on Today · profile loaded after sign-in |
+| `vocab_list_test.dart` | created list appears · word added is visible · word count matches |
+| `sign_up_test.dart` | sign-up flow |
+
+Real-STT ("nosim") timeout/retry checks are exercised manually on-device (leave
+the simulator off — don't call a `given.theLearnerWillAnswer…` step).
 
 ### Env files
 
-| File | `SIMULATE_SPEECH` | Use |
-|------|-------------------|-----|
-| `test.env.json` | `correct` | Default — all simulated tests |
-| `test.free.env.json` | `correct` | Alias for free plan |
-| `test.nosim.env.json` | *(absent)* | Real STT on device |
+| File | Use |
+|------|-----|
+| `test.env.json` | Default — `SIMULATE_SPEECH=correct` seeds the simulator; steps override per scenario |
+| `test.free.env.json` | Alias for the free plan |
+| `test.nosim.env.json` | Real STT on device (simulator off) |
 
 ---
 
@@ -169,7 +173,8 @@ Progress/FSRS layer over in-memory DB.
 
 ---
 
-**Total: 206 tests** (11 E2E on device, 195 unit/integration on host)
+**Total: 224 unit/integration tests on host** (`flutter test`), plus the Patrol
+E2E suite above (run on a device).
 
 ---
 

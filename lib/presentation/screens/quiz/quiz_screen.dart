@@ -677,6 +677,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           children: [
             Expanded(
               child: GestureDetector(
+                key: const ValueKey(WidgetKeys.cartesCard),
                 onTap: showBack
                     ? null
                     : () => ref.read(quizProvider.notifier).flipCard(),
