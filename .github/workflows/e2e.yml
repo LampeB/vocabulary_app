@@ -42,6 +42,7 @@ jobs:
             "SIMULATE_SPEECH": "correct",
             "TEST_LOCALE": "fr",
             "TEST_MODE": "true",
+            "TEST_CARD_LIMIT": "5",
             "TEST_EMAIL": "${{ secrets.TEST_EMAIL }}",
             "TEST_PASSWORD": "${{ secrets.TEST_PASSWORD }}"
           }
