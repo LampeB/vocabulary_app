@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:patrol/patrol.dart';
+import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/main.dart' as app;
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 
@@ -16,29 +17,32 @@ const kTestUsername = String.fromEnvironment('TEST_USERNAME');
 Future<void> launchAndSignIn(PatrolIntegrationTester $) async {
   unawaited(app.main());
 
-  // Replace the old fixed 4.5-second pump with an adaptive wait.
-  // On the FIRST Patrol session after an ART cache wipe, cold JIT compilation
-  // takes 6-15 min on Samsung S22 (debug mode) before the first frame renders.
-  // Subsequent tests hit warm ART code and see the welcome screen in < 5 s.
-  // waitUntilVisible here absorbs the cold-JIT cost so all real test steps
-  // start with the app already visible and no timeout has been eaten.
-  try {
-    await $(find.text('J\'ai déjà un compte')).waitUntilVisible(
-      // 5 min: ample for the CI emulator / a warm device. (The old 28-min value
-      // was for a cold Samsung S22; we no longer run a JIT warmup.)
-      timeout: const Duration(minutes: 5),
-    );
-  } catch (_) {
-    // Welcome screen not found within 28 min — could be:
-    //   • auth screen (Supabase session survived clearPackageData via Keystore)
-    //   • home screen (same reason)
-    // The guards below handle both cases.
+  // Settle into one of two known states, breaking on whichever appears first:
+  //   • the welcome screen        → we still need to sign in;
+  //   • the signed-in nav shell   → a previous test's Supabase session survived
+  //     in this process, so we're already home.
+  // Polling (instead of waitUntilVisible on the welcome text) is what keeps the
+  // 2nd..Nth test fast: when already signed in the welcome screen never appears,
+  // so waiting it out would otherwise burn the full timeout PER test.
+  final welcome = find.text('J\'ai déjà un compte');
+  final shell = find.byKey(const ValueKey(WidgetKeys.navStudy));
+  final deadline = DateTime.now().add(const Duration(minutes: 5));
+  while (DateTime.now().isBefore(deadline)) {
+    if (welcome.evaluate().isNotEmpty || shell.evaluate().isNotEmpty) break;
+    try {
+      await $.pump(const Duration(milliseconds: 400));
+    } catch (_) {
+      break;
+    }
   }
 
+  // Already signed in → nothing to do.
+  if (shell.evaluate().isNotEmpty) return;
+
   // Welcome screen → navigate to sign-in.
-  if ($(find.text('J\'ai déjà un compte')).exists) {
-    await $(find.text('J\'ai déjà un compte')).tap();
-    // Fixed pump — local navigation is instant, 500ms is plenty.
+  if ($(welcome).exists) {
+    await $(welcome).tap();
+    // Local navigation is instant; 500ms is plenty.
     await $.pump(const Duration(milliseconds: 500));
   }
 
