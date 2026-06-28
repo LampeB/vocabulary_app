@@ -64,7 +64,19 @@ jobs:
           profile: pixel_6
           ram-size: 4096M
           disable-animations: true
-          script: >
-            patrol test
-            --target patrol_test/quiz_all_test.dart
-            --dart-define-from-file=.env.json
+          # Capture full device logcat in the background so a native crash / app
+          # restart between tests (which leaves no Dart output) is diagnosable.
+          script: |
+            adb logcat -c || true
+            adb logcat > "$GITHUB_WORKSPACE/logcat.txt" 2>&1 &
+            patrol test \
+              --target patrol_test/quiz_all_test.dart \
+              --dart-define-from-file=.env.json
+
+      - name: Upload logcat
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logcat
+          path: logcat.txt
+          if-no-files-found: warn
