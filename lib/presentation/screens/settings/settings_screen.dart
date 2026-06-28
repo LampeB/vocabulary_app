@@ -9,6 +9,7 @@ import '../../providers/settings/audio_settings_provider.dart';
 import '../../../domain/entities/subscription_type.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
 
@@ -28,6 +29,7 @@ class SettingsScreen extends ConsumerWidget {
     final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenSettings),
       // Background from AppTheme.scaffoldBackgroundColor.
       appBar: AppBar(
         // AppBarTheme provides title style and icon colors.

@@ -7,6 +7,7 @@ import '../../providers/purchases/purchase_provider.dart';
 import '../../../domain/entities/subscription_type.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
 
@@ -29,6 +30,7 @@ class ProfileScreen extends ConsumerWidget {
     final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenProfile),
       // Background from AppTheme.scaffoldBackgroundColor.
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -204,6 +206,7 @@ class ProfileScreen extends ConsumerWidget {
                 _Section(label: 'profile.section_progress'.tr()),
                 const SizedBox(height: 10),
                 _ActionTile(
+                  key: const ValueKey(WidgetKeys.profileTileStats),
                   icon: Icons.bar_chart_rounded,
                   label: 'profile.nav_stats'.tr(),
                   onTap: () => context.push('/stats'),
@@ -213,18 +216,21 @@ class ProfileScreen extends ConsumerWidget {
                 _Section(label: 'profile.section_account'.tr()),
                 const SizedBox(height: 10),
                 _ActionTile(
+                  key: const ValueKey(WidgetKeys.profileTileSettings),
                   icon: Icons.settings_outlined,
                   label: 'profile.nav_settings'.tr(),
                   onTap: () => context.push('/settings'),
                 ),
                 const SizedBox(height: 8),
                 _ActionTile(
+                  key: const ValueKey(WidgetKeys.profileTileNotifications),
                   icon: Icons.notifications_outlined,
                   label: 'profile.nav_notifications'.tr(),
                   onTap: () => context.push('/notifications'),
                 ),
                 const SizedBox(height: 8),
                 _ActionTile(
+                  key: const ValueKey(WidgetKeys.profileSignOut),
                   icon: Icons.logout_rounded,
                   label: 'profile.nav_signout'.tr(),
                   destructive: true,
@@ -382,6 +388,7 @@ class _Section extends StatelessWidget {
 
 class _ActionTile extends StatelessWidget {
   const _ActionTile({
+    super.key,
     required this.icon,
     required this.label,
     required this.onTap,

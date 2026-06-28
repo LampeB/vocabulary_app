@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../../domain/entities/quiz_session.dart';
 import '../../providers/quiz/quiz_history_provider.dart';
 import '../../providers/quiz/quiz_provider.dart';
@@ -22,6 +23,7 @@ class StatsScreen extends ConsumerWidget {
     final streak = ref.watch(currentUserProvider)?.currentStreak ?? 0;
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenStats),
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),

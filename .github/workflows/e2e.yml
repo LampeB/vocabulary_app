@@ -47,6 +47,46 @@ jobs:
           }
           EOF
 
+      - name: Reset test account data (server-side, pre-run)
+        # Wipes the test user's vocabulary lists on Supabase so rows left by a
+        # previous run don't sync down into the fresh emulator and pre-fill the
+        # free-plan list quota. Deleting a list cascades to its concepts →
+        # word_variants → variant_progress (FK ON DELETE CASCADE). Uses ONLY the
+        # existing secrets — no service-role key: we sign in as the test user and
+        # rely on RLS (policy lists_owner: owner_id = auth.uid()) to scope it.
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: |
+          set -euo pipefail
+          payload=$(jq -nc --arg e "$TEST_EMAIL" --arg p "$TEST_PASSWORD" \
+            '{email:$e,password:$p}')
+          resp=$(curl -sS -X POST \
+            "$SUPABASE_URL/auth/v1/token?grant_type=password" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$payload")
+          token=$(echo "$resp" | jq -r '.access_token // empty')
+          uid=$(echo "$resp" | jq -r '.user.id // empty')
+          if [ -z "$token" ] || [ -z "$uid" ]; then
+            echo "::error::Supabase sign-in failed for the test account"
+            echo "$resp"
+            exit 1
+          fi
+          echo "Deleting vocabulary_lists for test user $uid …"
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -X DELETE "$SUPABASE_URL/rest/v1/vocabulary_lists?owner_id=eq.$uid" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $token" \
+            -H "Prefer: return=minimal")
+          echo "DELETE vocabulary_lists -> HTTP $code"
+          case "$code" in
+            2*) echo "Test account lists cleared." ;;
+            *)  echo "::error::cleanup delete failed (HTTP $code)"; exit 1 ;;
+          esac
+
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \

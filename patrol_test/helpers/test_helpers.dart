@@ -93,7 +93,18 @@ Future<void> warmupJitCache(PatrolIntegrationTester $) async {
 /// Deletes all lists named [name] via Riverpod (bypasses the UI).
 /// Call this before creating a test list to avoid hitting the free-plan quota
 /// when the test account has accumulated stale lists from previous runs.
-Future<void> deleteListsByName(PatrolIntegrationTester $, String name) async {
+Future<void> deleteListsByName(PatrolIntegrationTester $, String name) =>
+    _deleteLists($, (l) => l.name == name);
+
+/// Deletes EVERY list owned by the test account via Riverpod (bypasses the UI).
+/// A fast data-layer reset — use it as a test precondition so the free-plan list
+/// quota is guaranteed empty regardless of what previous runs left behind.
+Future<void> deleteAllLists(PatrolIntegrationTester $) =>
+    _deleteLists($, (_) => true);
+
+/// Shared core: deletes the lists matching [where] through the provider layer.
+Future<void> _deleteLists(
+    PatrolIntegrationTester $, bool Function(dynamic list) where) async {
   // The widget tree may be transitioning between tests; bail out gracefully.
   final BuildContext context;
   try {
@@ -110,7 +121,7 @@ Future<void> deleteListsByName(PatrolIntegrationTester $, String name) async {
   }
 
   final lists = container.read(myListsProvider).valueOrNull ?? [];
-  final toDelete = lists.where((l) => l.name == name).toList();
+  final toDelete = lists.where(where).toList();
   // Parallel deletes with a per-call cap so that a slow Supabase connection
   // cannot cause tearDown to hang for the HTTP timeout (60-120 s).
   await Future.wait(toDelete.map((list) async {

@@ -7,6 +7,7 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
 
@@ -27,8 +28,10 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
     final conceptsAsync = ref.watch(listDetailProvider(widget.listId));
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenListDetail),
       appBar: AppBar(
         leading: IconButton(
+          key: const ValueKey(WidgetKeys.listDetailBack),
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => context.pop(),
         ),
@@ -56,6 +59,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                       context, listAsync.valueOrNull?.name ?? ''),
                 ),
                 PopupMenuButton<String>(
+                  key: const ValueKey(WidgetKeys.listDetailMenu),
                   icon: const Icon(Icons.more_vert),
                   onSelected: (value) {
                     if (value == 'edit') setState(() => _editMode = true);
@@ -66,6 +70,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                   },
                   itemBuilder: (ctx) => [
                     PopupMenuItem(
+                      key: const ValueKey(WidgetKeys.listDetailEditItem),
                       value: 'edit',
                       child: Row(
                         children: [
@@ -133,6 +138,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
 
   Widget _addWordBar(BuildContext context) {
     return GestureDetector(
+      key: const ValueKey(WidgetKeys.listDetailAddWord),
       onTap: () => _showAddWordDialog(context),
       child: FrostedBox(
         borderRadius: BorderRadius.circular(999),
@@ -187,6 +193,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextFormField(
+                key: const ValueKey(WidgetKeys.addWordFr),
                 controller: frCtrl,
                 autofocus: true,
                 decoration: InputDecoration(
@@ -197,6 +204,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
               ),
               const SizedBox(height: 12),
               TextFormField(
+                key: const ValueKey(WidgetKeys.addWordKo),
                 controller: koCtrl,
                 decoration: InputDecoration(
                     labelText: 'list_detail.field_korean'.tr(), prefixText: '🇰🇷  '),
@@ -211,6 +219,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
               onPressed: () => Navigator.pop(ctx),
               child: Text('common.cancel'.tr())),
           FilledButton(
+            key: const ValueKey(WidgetKeys.addWordConfirm),
             onPressed: () async {
               if (!(formKey.currentState?.validate() ?? false)) return;
               final result = await ref
@@ -290,6 +299,7 @@ class _ConceptTile extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextFormField(
+                      key: const ValueKey(WidgetKeys.editWordFr),
                       controller: frCtrl,
                       autofocus: true,
                       decoration: InputDecoration(
@@ -300,6 +310,7 @@ class _ConceptTile extends ConsumerWidget {
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
+                      key: const ValueKey(WidgetKeys.editWordKo),
                       controller: koCtrl,
                       decoration: InputDecoration(
                           labelText: 'list_detail.field_korean'.tr(), prefixText: '🇰🇷  '),
@@ -315,6 +326,7 @@ class _ConceptTile extends ConsumerWidget {
                   child: Text('common.cancel'.tr()),
                 ),
                 FilledButton(
+                  key: const ValueKey(WidgetKeys.editWordConfirm),
                   onPressed: () async {
                     if (!(formKey.currentState?.validate() ?? false)) return;
                     await ref
@@ -347,6 +359,7 @@ class _ConceptTile extends ConsumerWidget {
                   child: Text('common.cancel'.tr()),
                 ),
                 TextButton(
+                  key: const ValueKey(WidgetKeys.deleteWordConfirm),
                   style: TextButton.styleFrom(
                       foregroundColor: AppColors.rose),
                   onPressed: () => Navigator.pop(ctx, true),
@@ -416,6 +429,7 @@ class _ConceptTile extends ConsumerWidget {
                 if (editMode) ...[
                   const SizedBox(width: 8),
                   GestureDetector(
+                    key: ValueKey(WidgetKeys.conceptEditIcon(frWord)),
                     onTap: showEditDialog,
                     child: Padding(
                       padding: const EdgeInsets.all(4),
@@ -426,6 +440,7 @@ class _ConceptTile extends ConsumerWidget {
                   ),
                   const SizedBox(width: 4),
                   GestureDetector(
+                    key: ValueKey(WidgetKeys.conceptDeleteIcon(frWord)),
                     onTap: confirmDelete,
                     child: Padding(
                       padding: const EdgeInsets.all(4),

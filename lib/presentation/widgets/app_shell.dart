@@ -145,12 +145,14 @@ class _VkBottomNav extends StatelessWidget {
           // 2 tabs · raised "study" centre button · 2 tabs.
           Expanded(
             child: _NavTile(
+                key: ValueKey(WidgetKeys.navTab('home')),
                 def: _tabs[0],
                 active: 0 == selectedIndex,
                 onTap: () => onTap(0)),
           ),
           Expanded(
             child: _NavTile(
+                key: ValueKey(WidgetKeys.navTab('lists')),
                 def: _tabs[1],
                 active: 1 == selectedIndex,
                 onTap: () => onTap(1)),
@@ -159,12 +161,14 @@ class _VkBottomNav extends StatelessWidget {
               key: const ValueKey(WidgetKeys.navStudy), onTap: onStudy),
           Expanded(
             child: _NavTile(
+                key: ValueKey(WidgetKeys.navTab('social')),
                 def: _tabs[2],
                 active: 2 == selectedIndex,
                 onTap: () => onTap(2)),
           ),
           Expanded(
             child: _NavTile(
+                key: ValueKey(WidgetKeys.navTab('profile')),
                 def: _tabs[3],
                 active: 3 == selectedIndex,
                 onTap: () => onTap(3)),
@@ -223,6 +227,7 @@ class _SlotDef {
 
 class _NavTile extends StatelessWidget {
   const _NavTile({
+    super.key,
     required this.def,
     required this.active,
     required this.onTap,

@@ -44,6 +44,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
     final listsAsync = ref.watch(myListsProvider);
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenStartSession),
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
@@ -67,6 +68,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                 child: Column(
                   children: [
                     _OptionTile(
+                      key: ValueKey(WidgetKeys.startType('vocab')),
                       label: 'start_session.type_vocab'.tr(),
                       selected: true,
                       onTap: () => _select(1),
@@ -293,6 +295,7 @@ class _Section extends StatelessWidget {
       child: Column(
         children: [
           InkWell(
+            key: ValueKey(WidgetKeys.startSection(index)),
             onTap: onHeaderTap,
             borderRadius: BorderRadius.circular(16),
             child: Padding(

@@ -7,6 +7,7 @@ import '../../providers/lists/vocabulary_provider.dart';
 import '../../providers/notifications/notification_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../../domain/entities/vocabulary_list.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
@@ -49,6 +50,7 @@ class HomeScreen extends ConsumerWidget {
     final name = user?.displayName ?? user?.username ?? '';
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenHome),
       body: RefreshIndicator(
         color: AppColors.clay,
         backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -169,6 +171,7 @@ class _Header extends StatelessWidget {
             ),
             const Spacer(),
             IconButton(
+              key: const ValueKey(WidgetKeys.homeBell),
               icon: Icon(Icons.notifications_outlined,
                   color: muted, size: 22),
               tooltip: 'home.header_notification_tooltip'.tr(),

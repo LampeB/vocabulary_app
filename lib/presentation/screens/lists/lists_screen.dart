@@ -8,6 +8,7 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../../domain/entities/vocabulary_list.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
@@ -20,6 +21,7 @@ class ListsScreen extends ConsumerWidget {
     final listsAsync = ref.watch(myListsProvider);
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenLists),
       // Background from AppTheme.scaffoldBackgroundColor.
       appBar: AppBar(
         // AppBarTheme provides title style and icon colors.
@@ -84,6 +86,7 @@ class ListsScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        key: const ValueKey(WidgetKeys.listsFab),
         onPressed: () => _showCreateDialog(context, ref),
         backgroundColor: AppColors.clay,
         foregroundColor: Colors.white,
@@ -439,6 +442,7 @@ class _ListNameDialog extends StatelessWidget {
     return AlertDialog(
       title: Text(title),
       content: TextField(
+        key: const ValueKey(WidgetKeys.listNameField),
         controller: controller,
         autofocus: true,
         decoration: InputDecoration(labelText: 'lists.name_field_label'.tr()),
@@ -450,7 +454,9 @@ class _ListNameDialog extends StatelessWidget {
             onPressed: () => Navigator.pop(context),
             child: Text('common.cancel'.tr())),
         FilledButton(
-            onPressed: onConfirm, child: Text(confirmLabel)),
+            key: const ValueKey(WidgetKeys.listNameConfirm),
+            onPressed: onConfirm,
+            child: Text(confirmLabel)),
       ],
     );
   }

@@ -67,8 +67,10 @@ patrolTest('Voice — all answers correct → 100%',
 Rules:
 - **`final app = Steps($);`** then read top-to-bottom: `given.*` (preconditions),
   `when.*` (actions), `then.*` (assertions). Don't interleave them.
-- **Always `addTearDown`** to delete anything you seeded — tests share one signed-in
-  account and run in sequence in the same process.
+- **Always start and end clean** — call `given.aCleanSlate()` right after
+  `given.signedIn()`, and register `addTearDown(() => deleteAllLists($))` at the
+  top of the body. Tests share one signed-in account and run in sequence in the
+  same process, so each must both *start from* and *leave* a clean slate (§2.9).
 - One comment line above the `patrolTest` saying *what user behaviour* it proves.
 - Keep the body to `Steps` calls. No `$(...).tap()` in a scenario file.
 
@@ -84,6 +86,8 @@ grouped `given` / `when` / `then`. Each does **one** thing and is named for it.
 | `given.aListWithOneWord({name, french, korean})` | Create a fresh list with exactly one FR/KO word (deletes any stale list of the same name first). Seeded via the provider layer (fast; skips the add-word dialog). |
 | `given.theLearnerWillAnswerCorrectly()` | Script the STT simulator so every spoken answer matches the card. |
 | `given.theLearnerWillAnswerIncorrectly()` | Script the STT simulator so every spoken answer is wrong. |
+| `given.aCleanSlate()` | Delete **all** the account's lists via the data layer (fast; no UI). Call right after `signedIn()` so the test starts clean and the free-plan quota is empty. |
+| `given.noListNamed(name)` | Delete only the lists named `name` (narrower than `aCleanSlate`). |
 
 **when (actions)**
 | Step | Effect |
@@ -184,7 +188,8 @@ When a spec needs something the steps don't cover:
   `TEST_LOCALE=fr`. Prefer keys to dodge this entirely.
 - **Shared session**: tests run in sequence in one process and the sign-in
   persists. `given.signedIn()` is therefore a fast no-op after the first test —
-  rely on it, and **clean up seeded data** so later tests start clean.
+  rely on it. Isolation comes from every test **starting and ending clean**
+  (§2.9), not from a fresh app per test.
 - **Padding**: a session pads a short list up to the card limit by repeating, so a
   one-word list still yields N cards. Keep N small in CI (`TEST_CARD_LIMIT`).
 - **Per-card cost**: each card is real wall-clock on the emulator (~seconds).
@@ -204,6 +209,29 @@ patrol test --target patrol_test/quiz_all_test.dart \
 New scenario files must be imported by the umbrella
 [`patrol_test/quiz_all_test.dart`](../patrol_test/quiz_all_test.dart) (or another
 target) to run in CI.
+
+### 2.9 Test data isolation & cleanup
+
+Tests share one signed-in account, so list data must not leak between them.
+**Three layers** keep every run isolated — and a `create`-via-UI step can never
+hit the free-plan list quota (max 3 lists):
+
+1. **Server-side reset before the run (CI).** The `e2e.yml` *"Reset test account
+   data"* step signs in as the test user over the Supabase REST API and deletes
+   their `vocabulary_lists` (cascading to concepts → word_variants →
+   variant_progress). This stops rows from a *previous* run syncing down into the
+   fresh emulator and pre-filling the quota. Uses only the existing secrets — it
+   relies on RLS (`owner_id = auth.uid()`), no service-role key.
+2. **Clean before every test.** Each scenario calls `given.aCleanSlate()` right
+   after `signedIn()` — it deletes every list through the **provider/data layer**
+   (`deleteAllLists`), not raw HTTP. That matters because the app is offline-first
+   and renders from the local SQLite DB; a remote-only delete wouldn't clear what
+   the UI shows. (The seeding helpers use the same layer.)
+3. **Clean after every test.** Each scenario registers
+   `addTearDown(() => deleteAllLists($))` at the top, so the account is wiped even
+   if the test fails partway through.
+
+Net effect: every test starts from and leaves a clean slate.
 
 ---
 

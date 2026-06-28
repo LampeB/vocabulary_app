@@ -15,6 +15,51 @@ enum Quiz { voice, flashcard, typing, handsFree }
 /// Study directions. Names match the app's `QuizDirectionChoice` enum.
 enum Dir { frToKo, koToFr, both }
 
+/// App screens, each identified by the stable key on its root Scaffold
+/// (`WidgetKeys.screen*`). Used by `then.onScreen(...)` to assert arrival.
+enum Screen {
+  home,
+  lists,
+  listDetail,
+  startSession,
+  social,
+  profile,
+  stats,
+  settings,
+  notifications,
+  paywall,
+  importLink,
+}
+
+/// Bottom-nav destinations. Names match `WidgetKeys.navTab(name)`.
+enum NavTab { home, lists, social, profile }
+
+/// Tappable navigation tiles on the Profile screen.
+enum ProfileTile { stats, settings, notifications, signOut }
+
+/// Maps a [Screen] to the widget-key on its root Scaffold.
+String _screenRootKey(Screen s) => switch (s) {
+      Screen.home => WidgetKeys.screenHome,
+      Screen.lists => WidgetKeys.screenLists,
+      Screen.listDetail => WidgetKeys.screenListDetail,
+      Screen.startSession => WidgetKeys.screenStartSession,
+      Screen.social => WidgetKeys.screenSocial,
+      Screen.profile => WidgetKeys.screenProfile,
+      Screen.stats => WidgetKeys.screenStats,
+      Screen.settings => WidgetKeys.screenSettings,
+      Screen.notifications => WidgetKeys.screenNotifications,
+      Screen.paywall => WidgetKeys.screenPaywall,
+      Screen.importLink => WidgetKeys.screenImport,
+    };
+
+/// Maps a [ProfileTile] to its widget-key.
+String _profileTileKey(ProfileTile t) => switch (t) {
+      ProfileTile.stats => WidgetKeys.profileTileStats,
+      ProfileTile.settings => WidgetKeys.profileTileSettings,
+      ProfileTile.notifications => WidgetKeys.profileTileNotifications,
+      ProfileTile.signOut => WidgetKeys.profileSignOut,
+    };
+
 /// Readable E2E steps grouped Given / When / Then. Each step does ONE thing and
 /// is named for it, so a scenario reads top-to-bottom like a description of the
 /// user's actions. Usage:
@@ -82,6 +127,14 @@ class GivenSteps {
   /// Speech recognition will return a wrong word for every answer.
   Future<void> theLearnerWillAnswerIncorrectly() async =>
       SttSimulator.mode = SttSimulator.wrong;
+
+  /// No list named [name] exists — clears stale data before a UI-driven create
+  /// so the free-plan quota isn't already full from a previous run.
+  Future<void> noListNamed(String name) => deleteListsByName($, name);
+
+  /// A clean slate: deletes EVERY existing list via the data layer, so the
+  /// free-plan list quota is empty before a UI-driven create. Fast (no UI).
+  Future<void> aCleanSlate() => deleteAllLists($);
 }
 
 // ── WHEN — actions ────────────────────────────────────────────────────────────
@@ -97,12 +150,131 @@ class WhenSteps {
         .waitUntilVisible(timeout: const Duration(seconds: 30));
   }
 
+  /// Taps a bottom-nav tab (Home / Lists / Social / Profile). The nav bar lives
+  /// in the shell, so it stays visible on every signed-in screen.
+  Future<void> tapsNavTab(NavTab tab) async {
+    await $(find.byKey(ValueKey(WidgetKeys.navTab(tab.name)))).tap();
+    await $.pump(const Duration(milliseconds: 600));
+  }
+
+  /// Opens a list's detail screen by tapping its card (from the Lists screen).
+  Future<void> opensList(String name) async {
+    await $(find.text(name)).tap();
+    await $.pump(const Duration(milliseconds: 600));
+  }
+
+  /// Opens a Profile navigation tile (Stats / Settings / Notifications / Sign out).
+  Future<void> opensProfileTile(ProfileTile tile) async {
+    await $(find.byKey(ValueKey(_profileTileKey(tile)))).tap();
+    await $.pump(const Duration(milliseconds: 600));
+  }
+
+  /// Opens Notification settings via the Home header bell.
+  Future<void> opensNotificationsFromBell() async {
+    await $(find.byKey(const ValueKey(WidgetKeys.homeBell))).tap();
+    await $.pump(const Duration(milliseconds: 600));
+  }
+
+  // ── List & word management (UI-driven, not provider-seeded) ─────────────────
+
+  /// Pumps until [finder] disappears — e.g. a dialog's keyed confirm button
+  /// after a submit. A bounded poll (no pumpAndSettle, which hangs on the
+  /// Supabase realtime stream emitting after each write).
+  Future<void> _waitUntilGone(Finder finder,
+      {Duration timeout = const Duration(seconds: 15)}) async {
+    final deadline = DateTime.now().add(timeout);
+    while (finder.evaluate().isNotEmpty) {
+      if (DateTime.now().isAfter(deadline)) return;
+      await $.pump(const Duration(milliseconds: 150));
+    }
+    await $.pump(const Duration(milliseconds: 300));
+  }
+
+  /// Creates a vocabulary list via the FAB + name dialog (must be on Lists).
+  Future<void> createsList(String name) async {
+    await $(find.byKey(const ValueKey(WidgetKeys.listsFab))).tap();
+    final field = find.byKey(const ValueKey(WidgetKeys.listNameField));
+    await $(field).waitUntilVisible(timeout: const Duration(seconds: 15));
+    await $(field).enterText(name);
+    await $(find.byKey(const ValueKey(WidgetKeys.listNameConfirm))).tap();
+    await _waitUntilGone(find.byKey(const ValueKey(WidgetKeys.listNameConfirm)));
+    await $(find.text(name)).waitUntilVisible(timeout: const Duration(seconds: 30));
+  }
+
+  /// Adds a word ([fr]/[ko]) via the add-word dialog (must be in List Detail).
+  Future<void> addsWord(String fr, String ko) async {
+    await $(find.byKey(const ValueKey(WidgetKeys.listDetailAddWord))).tap();
+    final frField = find.byKey(const ValueKey(WidgetKeys.addWordFr));
+    await $(frField).waitUntilVisible(timeout: const Duration(seconds: 15));
+    await $(frField).enterText(fr);
+    await $(find.byKey(const ValueKey(WidgetKeys.addWordKo))).enterText(ko);
+    await $(find.byKey(const ValueKey(WidgetKeys.addWordConfirm))).tap();
+    await _waitUntilGone(find.byKey(const ValueKey(WidgetKeys.addWordConfirm)));
+  }
+
+  /// Switches List Detail into edit mode (reveals per-word edit/delete icons).
+  Future<void> entersEditMode() async {
+    await $(find.byKey(const ValueKey(WidgetKeys.listDetailMenu))).tap();
+    await $(find.byKey(const ValueKey(WidgetKeys.listDetailEditItem))).tap();
+    await $.pump(const Duration(milliseconds: 400));
+  }
+
+  /// Edits the word whose French side is [fromFr], replacing it with
+  /// [toFr]/[toKo]. Requires edit mode (see [entersEditMode]).
+  Future<void> editsWord({
+    required String fromFr,
+    required String toFr,
+    required String toKo,
+  }) async {
+    await $(find.byKey(ValueKey(WidgetKeys.conceptEditIcon(fromFr)))).tap();
+    final frField = find.byKey(const ValueKey(WidgetKeys.editWordFr));
+    await $(frField).waitUntilVisible(timeout: const Duration(seconds: 15));
+    await $(frField).enterText(toFr);
+    await $(find.byKey(const ValueKey(WidgetKeys.editWordKo))).enterText(toKo);
+    await $(find.byKey(const ValueKey(WidgetKeys.editWordConfirm))).tap();
+    await _waitUntilGone(find.byKey(const ValueKey(WidgetKeys.editWordConfirm)));
+  }
+
+  /// Deletes the word whose French side is [fr] (trash icon + confirm).
+  /// Requires edit mode (see [entersEditMode]).
+  Future<void> deletesWord(String fr) async {
+    await $(find.byKey(ValueKey(WidgetKeys.conceptDeleteIcon(fr)))).tap();
+    final confirm = find.byKey(const ValueKey(WidgetKeys.deleteWordConfirm));
+    await $(confirm).waitUntilVisible(timeout: const Duration(seconds: 15));
+    await $(confirm).tap();
+    await _waitUntilGone(confirm);
+  }
+
+  /// Leaves List Detail via the app-bar back button (returns to Lists).
+  Future<void> leavesListDetail() async {
+    await $(find.byKey(const ValueKey(WidgetKeys.listDetailBack))).tap();
+    await $.pump(const Duration(milliseconds: 600));
+  }
+
+  /// Opens the Start-session "Type" section and (re)selects Vocabulaire —
+  /// the only enabled session type. Lets a scenario touch every section.
+  Future<void> choosesSessionType() async {
+    await $(find.byKey(ValueKey(WidgetKeys.startSection(0)))).tap();
+    await $(find.byKey(ValueKey(WidgetKeys.startType('vocab')))).tap();
+    await $.pump(const Duration(milliseconds: 300));
+  }
+
   /// Picks the list to study (its accordion section is open by default).
   Future<void> choosesList(String name) => $(find.text(name)).tap();
 
   /// Picks the quiz input mode (voice / flashcard / typing / hands-free).
   Future<void> choosesQuizType(Quiz quiz) =>
       $(find.byKey(ValueKey(WidgetKeys.startQuizType(quiz.name)))).tap();
+
+  /// Picks the study direction (FR→KO / KO→FR / both). Defaults to FR→KO, so
+  /// only call this when a scenario needs the reverse or both directions.
+  Future<void> choosesDirection(Dir dir) =>
+      $(find.byKey(ValueKey(WidgetKeys.startDirection(dir.name)))).tap();
+
+  /// Picks how many cards the session runs. This OVERRIDES `TEST_CARD_LIMIT`,
+  /// so a chosen count of 10 yields a 10-card session even in CI — keep it small.
+  Future<void> choosesCardCount(int n) =>
+      $(find.byKey(ValueKey(WidgetKeys.startCount(n)))).tap();
 
   /// Taps Commencer to start the session (grants the mic on real-STT runs).
   Future<void> startsTheSession() async {
@@ -163,6 +335,17 @@ class WhenSteps {
   /// Typing: enter a deliberately wrong answer on every card.
   Future<void> typesWrongAnswerForEachCard() => _typeEachCard('___nope___');
 
+  /// Typing: enter [text] and validate exactly ONE card, then stop on the
+  /// verdict flood (does NOT tap Continue). Pair with `then.verdictIs…` to
+  /// assert the per-card feedback. Typing's flood is manual, so it persists.
+  Future<void> typesAnswerForOneCard(String text) async {
+    final input = find.byKey(const ValueKey(WidgetKeys.ecrireInput));
+    await $(input).waitUntilVisible(timeout: const Duration(seconds: 30));
+    await $(input).enterText(text);
+    await $(find.byKey(const ValueKey(WidgetKeys.ecrireValidate))).tap();
+    await $.pump(const Duration(milliseconds: 600));
+  }
+
   Future<void> _typeEachCard(String text) async {
     final summary = find.byKey(const ValueKey(WidgetKeys.summary));
     final input = find.byKey(const ValueKey(WidgetKeys.ecrireInput));
@@ -187,6 +370,21 @@ class WhenSteps {
 class ThenSteps {
   ThenSteps(this.$);
   final PatrolIntegrationTester $;
+
+  /// The given [screen] is showing (its root Scaffold is visible).
+  Future<void> onScreen(Screen screen) =>
+      $(find.byKey(ValueKey(_screenRootKey(screen))))
+          .waitUntilVisible(timeout: const Duration(seconds: 30));
+
+  /// The given user-data [text] (a word or list name — not localized UI copy)
+  /// is visible on screen.
+  Future<void> seesText(String text) =>
+      $(find.text(text)).waitUntilVisible(timeout: const Duration(seconds: 15));
+
+  /// The given [text] is not present on screen.
+  Future<void> doesNotSeeText(String text) async {
+    expect(find.text(text), findsNothing);
+  }
 
   /// The verdict flood shows "correct" (teal).
   Future<void> verdictIsCorrect() =>
