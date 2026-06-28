@@ -9,6 +9,7 @@ import '../../providers/audio/audio_provider.dart';
 import '../../../domain/entities/variant_progress.dart' show QuizDirection;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/stt_simulator.dart';
 import '../../../core/utils/fsrs_algorithm.dart';
 import '../../../core/widget_keys.dart';
 import '../../../services/speech/speech_recognition_service.dart';
@@ -20,7 +21,6 @@ import '../../widgets/study/study_scaffold.dart';
 import '../../widgets/study/word_in_wave.dart';
 import '../../widgets/study/study_feedback_flood.dart';
 
-const _kSimulateSpeech = String.fromEnvironment('SIMULATE_SPEECH');
 
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({super.key, required this.args});
@@ -61,7 +61,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         vsync: this, duration: const Duration(milliseconds: 1900))
       ..repeat(reverse: true);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (_kSimulateSpeech.isEmpty) {
+      if (!SttSimulator.isOn) {
         final ok = await _stt.initialize();
         if (!ok && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -209,10 +209,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     debugPrint('[HF] _startListening  token=$_listenToken  isRetry=$isRetry  question="${card.questionWord}"  answerWords=${card.answerWords}');
     ref.read(quizProvider.notifier).setListening(true);
 
-    if (_kSimulateSpeech.isNotEmpty) {
+    if (SttSimulator.isOn) {
       await Future.delayed(const Duration(milliseconds: 800));
       if (!mounted) return;
-      final answer = switch (_kSimulateSpeech) {
+      final answer = switch (SttSimulator.mode) {
         'correct' => card.answerWords.isNotEmpty ? card.answerWords.first : '',
         'wrong'   => '__wrong__',
         _         => '',
