@@ -10,7 +10,9 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Expected runtime is ~20-25 min (build + emulator + 8 scenarios). Cap at 30
+    # so a hang fails fast instead of burning the old 45-min ceiling.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
