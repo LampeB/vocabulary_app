@@ -10,12 +10,18 @@ import 'test_helpers.dart';
 
 /// Shared Patrol config for the whole E2E suite. The study screens animate
 /// continuously (waveform, pulse, dotted ground), so Patrol's default
-/// `trySettle` never settles and EVERY action would otherwise burn the full 10 s
-/// `settleTimeout`. Capping it at 2 s is a ~5× speedup with no behaviour change —
-/// our steps gate on their own `waitUntilVisible`/bounded pumps, not on settling.
-/// Pass to every `patrolTest(..., config: kFastSettle, ...)`.
-const kFastSettle =
-    PatrolTesterConfig(settleTimeout: Duration(seconds: 2), printLogs: true);
+/// `trySettle` would pumpAndSettle until it times out after every action.
+/// `noSettle` skips that wait entirely (one frame, then proceed) — safe here
+/// because every step gates on its own `waitUntilVisible`/bounded pumps, never on
+/// auto-settle. Pass to every `patrolTest(..., config: kFastSettle, ...)`.
+///
+/// NOTE: the dominant per-action cost on study screens is Patrol's internal
+/// `waitUntilVisible` (it polls until the target is hit-testable, which the
+/// animating overlays delay) — that's app-animation-driven, not a settle knob.
+const kFastSettle = PatrolTesterConfig(
+  settlePolicy: SettlePolicy.noSettle,
+  printLogs: true,
+);
 
 /// Quiz input modes. Names match the app's `QuizMode` enum, so they line up with
 /// the widget keys (`WidgetKeys.startQuizType(quiz.name)`).

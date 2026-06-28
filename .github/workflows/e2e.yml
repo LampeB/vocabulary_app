@@ -10,8 +10,12 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    # Expected ~22 min; emulator boot+build varies (11-16 min observed).
-    timeout-minutes: 35
+    # 18 E2E scenarios. Each Patrol UI action on the animating study screens costs
+    # ~10s (waitUntilVisible polls until the target clears the animations), so the
+    # full suite runs long. 60 min covers emulator boot (~10-16 min) + the suite.
+    # Faster options if needed: shard into a matrix, or make the study animations
+    # respect MediaQuery.disableAnimations so actions settle instantly.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -41,7 +45,7 @@ jobs:
             "SIMULATE_SPEECH": "correct",
             "TEST_LOCALE": "fr",
             "TEST_MODE": "true",
-            "TEST_CARD_LIMIT": "5",
+            "TEST_CARD_LIMIT": "3",
             "TEST_EMAIL": "${{ secrets.TEST_EMAIL }}",
             "TEST_PASSWORD": "${{ secrets.TEST_PASSWORD }}"
           }
