@@ -8,6 +8,15 @@ import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'test_helpers.dart';
 
+/// Shared Patrol config for the whole E2E suite. The study screens animate
+/// continuously (waveform, pulse, dotted ground), so Patrol's default
+/// `trySettle` never settles and EVERY action would otherwise burn the full 10 s
+/// `settleTimeout`. Capping it at 2 s is a ~5× speedup with no behaviour change —
+/// our steps gate on their own `waitUntilVisible`/bounded pumps, not on settling.
+/// Pass to every `patrolTest(..., config: kFastSettle, ...)`.
+const kFastSettle =
+    PatrolTesterConfig(settleTimeout: Duration(seconds: 2), printLogs: true);
+
 /// Quiz input modes. Names match the app's `QuizMode` enum, so they line up with
 /// the widget keys (`WidgetKeys.startQuizType(quiz.name)`).
 enum Quiz { voice, flashcard, typing, handsFree }

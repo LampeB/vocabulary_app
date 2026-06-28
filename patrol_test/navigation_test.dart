@@ -17,7 +17,8 @@ const _navList = 'E2E Nav Test List';
 void main() {
   // Each bottom-nav tab opens its corresponding screen.
   patrolTest('Navigation — bottom-nav tabs open Home/Lists/Social/Profile',
-      timeout: const Timeout(Duration(minutes: 7)), ($) async {
+      timeout: const Timeout(Duration(minutes: 7)),
+      config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
 
@@ -40,7 +41,8 @@ void main() {
 
   // The raised centre Study button opens the Start-a-session screen.
   patrolTest('Navigation — Study button opens Start-a-session',
-      timeout: const Timeout(Duration(minutes: 7)), ($) async {
+      timeout: const Timeout(Duration(minutes: 7)),
+      config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
 
@@ -55,7 +57,8 @@ void main() {
 
   // The Home header bell opens Notification settings.
   patrolTest('Navigation — Home bell opens Notifications',
-      timeout: const Timeout(Duration(minutes: 7)), ($) async {
+      timeout: const Timeout(Duration(minutes: 7)),
+      config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
 
@@ -72,7 +75,8 @@ void main() {
 
   // The Profile nav tiles open Stats, Settings, and Notifications in turn.
   patrolTest('Navigation — Profile tiles open Stats / Settings / Notifications',
-      timeout: const Timeout(Duration(minutes: 7)), ($) async {
+      timeout: const Timeout(Duration(minutes: 7)),
+      config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
 
@@ -100,7 +104,8 @@ void main() {
 
   // Tapping a list on the Lists screen opens its detail screen.
   patrolTest('Navigation — tapping a list opens its detail',
-      timeout: const Timeout(Duration(minutes: 7)), ($) async {
+      timeout: const Timeout(Duration(minutes: 7)),
+      config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
 

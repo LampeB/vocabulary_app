@@ -16,7 +16,8 @@ void main() {
   // value is chosen in EVERY section of the start screen.
   patrolTest(
       'Full flow — create a list, add/edit/delete words, then start a custom quiz',
-      timeout: const Timeout(Duration(minutes: 9)), ($) async {
+      timeout: const Timeout(Duration(minutes: 9)),
+      config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
 
@@ -73,7 +74,8 @@ void main() {
   // studies it with flashcards, grading every card "known" → 100%. Proves the
   // UI-built data flows straight into a study session.
   patrolTest('Flow — build a list in the UI, then study it with flashcards',
-      timeout: const Timeout(Duration(minutes: 8)), ($) async {
+      timeout: const Timeout(Duration(minutes: 8)),
+      config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
 
