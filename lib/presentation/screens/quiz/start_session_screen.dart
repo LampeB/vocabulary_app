@@ -31,7 +31,9 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   String _listName = '';
   QuizMode _mode = QuizMode.voice;
   QuizDirectionChoice _dir = QuizDirectionChoice.frToKo;
-  int _count = 20;
+  // Default 20 in production; E2E sets a small TEST_CARD_LIMIT so a session is a
+  // handful of cards (each card costs real wall-clock on the CI emulator).
+  int _count = const int.fromEnvironment('TEST_CARD_LIMIT', defaultValue: 20);
 
   static const _limits = [10, 20, 50, 100];
 
