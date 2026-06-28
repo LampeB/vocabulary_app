@@ -46,3 +46,16 @@ jobs:
           name: vocabkr-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+
+      # Optional: publish to Appetize.io for in-browser manual testing (no phone).
+      # Add an APPETIZE_API_TOKEN secret to enable; otherwise this step is skipped.
+      - name: Publish to Appetize.io
+        if: ${{ secrets.APPETIZE_API_TOKEN != '' }}
+        run: |
+          resp=$(curl -sf https://api.appetize.io/v1/apps \
+            -u "${{ secrets.APPETIZE_API_TOKEN }}:" \
+            -F "file=@build/app/outputs/flutter-apk/app-release.apk" \
+            -F "platform=android")
+          url=$(echo "$resp" | python3 -c "import sys,json;print(json.load(sys.stdin).get('publicURL',''))")
+          echo "Appetize: $url"
+          echo "### 📱 Appetize (browser emulator): $url" >> "$GITHUB_STEP_SUMMARY"
