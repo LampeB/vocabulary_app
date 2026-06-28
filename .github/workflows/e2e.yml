@@ -10,10 +10,8 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    # Expected ~22 min, but emulator boot+build varies (11-16 min observed). Cap
-    # at 40 so a slow boot + all 7 scenarios still fits, while a true hang is
-    # bounded (the per-test timeouts + monitor catch it sooner).
-    timeout-minutes: 40
+    # Expected ~22 min; emulator boot+build varies (11-16 min observed).
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
 
@@ -65,25 +63,7 @@ jobs:
           profile: pixel_6
           ram-size: 4096M
           disable-animations: true
-          # Capture device logcat so a native crash / app restart between tests
-          # (which leaves no Dart output) is diagnosable. Enlarge the ring buffer
-          # and dump ONCE at the end — streaming it in the background contends
-          # with Patrol's own adb channel and hangs the tests.
-          script: |
-            adb logcat -c || true
-            adb logcat -G 16M || true
-            set +e
-            patrol test \
-              --target patrol_test/quiz_all_test.dart \
-              --dart-define-from-file=.env.json
-            RC=$?
-            adb logcat -d > "$GITHUB_WORKSPACE/logcat.txt" 2>&1 || true
-            exit $RC
-
-      - name: Upload logcat
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: logcat
-          path: logcat.txt
-          if-no-files-found: warn
+          script: >
+            patrol test
+            --target patrol_test/quiz_all_test.dart
+            --dart-define-from-file=.env.json
