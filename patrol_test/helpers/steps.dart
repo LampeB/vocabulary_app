@@ -8,20 +8,15 @@ import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'test_helpers.dart';
 
-/// Shared Patrol config for the whole E2E suite. The study screens animate
-/// continuously (waveform, pulse, dotted ground), so Patrol's default
-/// `trySettle` would pumpAndSettle until it times out after every action.
-/// `noSettle` skips that wait entirely (one frame, then proceed) — safe here
-/// because every step gates on its own `waitUntilVisible`/bounded pumps, never on
-/// auto-settle. Pass to every `patrolTest(..., config: kFastSettle, ...)`.
+/// Shared Patrol config for the whole E2E suite.
 ///
-/// NOTE: the dominant per-action cost on study screens is Patrol's internal
-/// `waitUntilVisible` (it polls until the target is hit-testable, which the
-/// animating overlays delay) — that's app-animation-driven, not a settle knob.
-const kFastSettle = PatrolTesterConfig(
-  settlePolicy: SettlePolicy.noSettle,
-  printLogs: true,
-);
+/// Uses the default `trySettle` policy. This is correct *now that the app
+/// freezes its study/social animations under TEST_MODE* — with no perpetual
+/// ticker, `pumpAndSettle` completes in ~one frame, so actions stay fast AND we
+/// keep proper settling between steps. (We briefly used `noSettle` to dodge the
+/// never-settling animations; that introduced races — e.g. `enterText` +
+/// validate firing before the text registered — so it's reverted.)
+const kFastSettle = PatrolTesterConfig(printLogs: true);
 
 /// Quiz input modes. Names match the app's `QuizMode` enum, so they line up with
 /// the widget keys (`WidgetKeys.startQuizType(quiz.name)`).
