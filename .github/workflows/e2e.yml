@@ -107,9 +107,6 @@ jobs:
           profile: pixel_6
           ram-size: 4096M
           disable-animations: true
-          # NOTE: android-emulator-runner runs each script LINE as its own
-          # `sh -c`, so the retry loop MUST be a single line. Both real bugs are
-          # fixed (the perpetual pulse animation + a settle race); the residual
-          # ~1 random crash per run is an environmental live-binding flake, so
-          # retry the whole suite up to 3× (each attempt's Patrol summary prints).
-          script: "for attempt in 1 2 3; do echo \"=== Patrol attempt $attempt/3 ===\"; patrol test --target patrol_test/quiz_all_test.dart --dart-define-from-file=.env.json && exit 0; done; exit 1"
+          # TEMP DIAGNOSTIC: run navigation_test directly with logcat capture to
+          # get the real crash stack trace. Restore the quiz retry line after.
+          script: "adb logcat -c; adb logcat -v threadtime > /tmp/lc.txt 2>&1 & LCPID=$!; patrol test --target patrol_test/navigation_test.dart --dart-define-from-file=.env.json; code=$?; sleep 3; kill $LCPID 2>/dev/null; echo '===== LOGCAT TAIL ====='; grep -iaE 'flutter|AndroidRuntime|FATAL|E/|Exception|assert|Scaffold|RenderObject' /tmp/lc.txt | tail -300; exit $code"
