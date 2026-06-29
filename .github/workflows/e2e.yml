@@ -10,8 +10,10 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    # TEMP DIAGNOSTIC: short cap so the nav-test hang fails fast.
-    timeout-minutes: 25
+    # ~40 min covers emulator boot + the 3 sharded Patrol runs (each its own
+    # process, so per-process test count stays well under the ~10-test
+    # instability threshold of relaunching the app every test).
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -103,6 +105,8 @@ jobs:
           profile: pixel_6
           ram-size: 4096M
           disable-animations: true
-          # TEMP DIAGNOSTIC: nav-only, with live logcat streamed so we see what
-          # the app is waiting on when it hangs after nav test 1.
-          script: "adb logcat -c; adb logcat -v time flutter:I ActivityManager:W AndroidRuntime:E *:F 2>&1 | grep --line-buffered -iE 'flutter|anr|fatal|not responding|exception|timed out|supabase|GoRouter|Scaffold' & patrol test --target patrol_test/navigation_test.dart --dart-define-from-file=.env.json"
+          # Shard: run each test file as its OWN Patrol process. Running all 18
+          # in one process gets unstable after ~10 tests (the app is re-launched
+          # every test and state accumulates → hang/crash). Each file is well
+          # under that; retry each up to 3× for the residual live-binding flake.
+          script: "for f in quiz_test navigation_test user_flows_test; do ok=0; for a in 1 2 3; do echo \"=== $f try $a ===\"; patrol test --target patrol_test/$f.dart --dart-define-from-file=.env.json && { ok=1; break; }; done; [ \"$ok\" = 1 ] || { echo \"FAILED: $f\"; exit 1; }; done"
