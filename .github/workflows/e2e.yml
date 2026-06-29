@@ -10,10 +10,9 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    # ~40 min covers emulator boot + the 3 sharded Patrol runs (each its own
-    # process, so per-process test count stays well under the ~10-test
-    # instability threshold of relaunching the app every test).
-    timeout-minutes: 40
+    # Each shard is a separate `patrol test` (full rebuild ~11 min) and may retry,
+    # so the budget is large. 60 min covers boot + quiz + nav(+retry) + user_flows.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
