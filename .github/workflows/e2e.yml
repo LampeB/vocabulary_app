@@ -10,12 +10,8 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    # 18 E2E scenarios. Each Patrol UI action on the animating study screens costs
-    # ~10s (waitUntilVisible polls until the target clears the animations), so the
-    # full suite runs long. 60 min covers emulator boot (~10-16 min) + the suite.
-    # Faster options if needed: shard into a matrix, or make the study animations
-    # respect MediaQuery.disableAnimations so actions settle instantly.
-    timeout-minutes: 60
+    # TEMP DIAGNOSTIC: short cap so the nav-test hang fails fast.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
@@ -107,6 +103,6 @@ jobs:
           profile: pixel_6
           ram-size: 4096M
           disable-animations: true
-          # Single line (runner does sh -c per line). Retry the whole suite up to
-          # 3× to absorb the residual ~1-random-crash-per-run live-binding flake.
-          script: "for attempt in 1 2 3; do echo \"=== Patrol attempt $attempt/3 ===\"; patrol test --target patrol_test/quiz_all_test.dart --dart-define-from-file=.env.json && exit 0; done; exit 1"
+          # TEMP DIAGNOSTIC: nav-only, with live logcat streamed so we see what
+          # the app is waiting on when it hangs after nav test 1.
+          script: "adb logcat -c; adb logcat -v time flutter:I ActivityManager:W AndroidRuntime:E *:F 2>&1 | grep --line-buffered -iE 'flutter|anr|fatal|not responding|exception|timed out|supabase|GoRouter|Scaffold' & patrol test --target patrol_test/navigation_test.dart --dart-define-from-file=.env.json"
