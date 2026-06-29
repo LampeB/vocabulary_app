@@ -16,7 +16,7 @@ const _navList = 'E2E Nav Test List';
 
 void main() {
   // Each bottom-nav tab opens its corresponding screen.
-  patrolTest('Navigation — bottom-nav tabs open Home/Lists/Social/Profile',
+  patrolTest('Navigation — bottom-nav tabs open Home, Lists, Social, Profile',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
@@ -74,7 +74,7 @@ void main() {
   });
 
   // The Profile nav tiles open Stats, Settings, and Notifications in turn.
-  patrolTest('Navigation — Profile tiles open Stats / Settings / Notifications',
+  patrolTest('Navigation — Profile tiles open Stats, Settings, Notifications',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);

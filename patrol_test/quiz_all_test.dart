@@ -9,19 +9,16 @@
 // The quiz scenarios now live in one consolidated file (quiz_test.dart) built on
 // the given/when/then step library in helpers/steps.dart.
 
+import 'navigation_test.dart' as navigation;
 import 'quiz_test.dart' as quiz;
+import 'user_flows_test.dart' as user_flows;
 
-// CI runs the quiz suite — now fast and reliable after freezing the study
-// animations under TEST_MODE (each Patrol action dropped from ~10s to ~1s; the
-// previously-flaky count-10 scenario passes cleanly).
-//
-// user_flows_test.dart and navigation_test.dart stay in the repo but are
-// EXCLUDED: they hit a SEPARATE issue — GoRouter route/tab navigation
-// (go('/lists'), opening List-Detail, Social/Profile) trips a mid-layout
-// Scaffold animation assertion in the live test binding (the issue
-// auth_test.dart documents), which aborts the run after the quiz tests pass.
-// That's the next thing to crack. See docs/test-scenarios.md §4.0 / §4.9.
+// All three suites run in CI. The "navigation crash" was never a Scaffold/animation
+// issue — it was a '/' in test names, which crashes the Android Test Orchestrator
+// (it names a per-test output file after the description). Fixed by renaming.
 
 void main() {
   quiz.main();
+  navigation.main();
+  user_flows.main();
 }

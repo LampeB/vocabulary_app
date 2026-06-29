@@ -15,7 +15,7 @@ void main() {
   // The headline journey: connect → build & curate a list → start a quiz where a
   // value is chosen in EVERY section of the start screen.
   patrolTest(
-      'Full flow — create a list, add/edit/delete words, then start a custom quiz',
+      'Full flow — create a list, add-edit-delete words, then start a custom quiz',
       timeout: const Timeout(Duration(minutes: 9)),
       config: kFastSettle, ($) async {
     final app = Steps($);
