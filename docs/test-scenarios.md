@@ -208,11 +208,22 @@ calls; select by keys.** Always `addTearDown(deleteListsByName(...))`. Keep card
 counts small (`TEST_CARD_LIMIT`). New scenario files must be imported by
 `patrol_test/quiz_all_test.dart`.
 
-### 4.0 Navigation graph — `navigation_test.dart` ✅ IMPLEMENTED
+### 4.0 Navigation graph — `navigation_test.dart` ⚠️ BLOCKED (written, not in CI)
 The screen-reachability backbone: every signed-in destination must open and
 render. Assertions use **screen-root keys** (`WidgetKeys.screen*`), never text.
-All destinations live inside the `ShellRoute`, so the bottom nav stays visible
-and each test returns via a tab tap (no back-presses).
+
+> **Blocked by a test-binding limitation.** Tapping into Social/Profile/Stats
+> performs GoRouter navigation that triggers *"mid-layout Scaffold animation"*
+> assertions in Flutter's integration-test binding (the same issue
+> [`auth_test.dart`](../patrol_test/auth_test.dart) documents) — it aborts the
+> whole run (CI run #3: the 11 quiz tests passed, then the first nav test crashed
+> the process with `Gradle code 1`, 0 failures). The file stays in the repo but
+> is **excluded from the `quiz_all_test` umbrella**. Unblocking it needs an app
+> change: the study/social screen animations (waveform, pulse, `TabController`)
+> must freeze when `MediaQuery.disableAnimations` is true (CI sets this). That
+> same fix would also remove the ~10 s-per-action settle cost (see §2.9 follow-ups
+> in the how-to). Until then, screen presence is partially covered by the quiz +
+> user-flow journeys.
 
 | # | Scenario | Reaches | Status |
 |---|----------|---------|--------|
