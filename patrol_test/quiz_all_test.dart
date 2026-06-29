@@ -10,16 +10,15 @@
 // the given/when/then step library in helpers/steps.dart.
 
 import 'quiz_test.dart' as quiz;
+import 'user_flows_test.dart' as user_flows;
 
-// Only the quiz suite runs in CI for now — the proven-stable set (short 3-card
-// sessions). navigation_test.dart and user_flows_test.dart stay in the repo but
-// are EXCLUDED: they (and any long >3-card session) trigger an intermittent
-// "mid-layout Scaffold animation" assertion in Flutter's integration-test
-// binding during GoRouter navigation / repeated feedback-flood animations,
-// which aborts the whole run (the same issue auth_test.dart documents). The
-// unblock is app-side: freeze the study/social animations when
-// MediaQuery.disableAnimations is true. See docs/test-scenarios.md §4.0.
+// navigation_test.dart is still excluded pending one more verification round: it
+// navigates into Social/Profile/Stats. The app's perpetual study animations
+// (the quiz pulse) are now frozen under TEST_MODE, which should remove the
+// binding flakiness; quiz + user_flows are re-enabled to confirm before adding
+// navigation back. See docs/test-scenarios.md §4.0.
 
 void main() {
   quiz.main();
+  user_flows.main();
 }

@@ -13,6 +13,10 @@ import '../../../domain/entities/vocabulary_list.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
 
+// Freeze the loading shimmer under test — it animates forever and would keep the
+// widget tree from ever settling.
+const _kTestMode = bool.fromEnvironment('TEST_MODE');
+
 class ListsScreen extends ConsumerWidget {
   const ListsScreen({super.key});
 
@@ -353,6 +357,7 @@ class _ListsShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
+      enabled: !_kTestMode,
       baseColor: const Color(0xFFE8E0D4),
       highlightColor: const Color(0xFFF4EFE8),
       child: ListView.separated(

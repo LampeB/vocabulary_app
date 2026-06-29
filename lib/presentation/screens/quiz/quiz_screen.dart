@@ -21,6 +21,10 @@ import '../../widgets/study/study_scaffold.dart';
 import '../../widgets/study/word_in_wave.dart';
 import '../../widgets/study/study_feedback_flood.dart';
 
+// Under test, animations are frozen so Patrol's pumpAndSettle actually settles
+// (a perpetual ticker on any study screen otherwise makes every action wait out
+// the settle timeout and intermittently trips mid-layout binding assertions).
+const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({super.key, required this.args});
@@ -58,8 +62,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   void initState() {
     super.initState();
     _pulseCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1900))
-      ..repeat(reverse: true);
+        vsync: this, duration: const Duration(milliseconds: 1900));
+    // Don't run the perpetual breathing pulse under test — it never settles.
+    if (!_kTestMode) _pulseCtrl.repeat(reverse: true);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!SttSimulator.isOn) {
         final ok = await _stt.initialize();
