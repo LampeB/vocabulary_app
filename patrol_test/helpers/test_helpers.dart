@@ -15,58 +15,65 @@ const kTestUsername = String.fromEnvironment('TEST_USERNAME');
 /// Launches the app and signs in with [kTestEmail] / [kTestPassword].
 /// Handles three starting states: welcome screen, auth screen, already signed in.
 Future<void> launchAndSignIn(PatrolIntegrationTester $) async {
-  unawaited(app.main());
-
-  // Settle into one of two known states, breaking on whichever appears first:
-  //   • the welcome screen        → we still need to sign in;
-  //   • the signed-in nav shell   → a previous test's Supabase session survived
-  //     in this process, so we're already home.
-  // Polling (instead of waitUntilVisible on the welcome text) is what keeps the
-  // 2nd..Nth test fast: when already signed in the welcome screen never appears,
-  // so waiting it out would otherwise burn the full timeout PER test.
   final welcome = find.text('J\'ai déjà un compte');
   final shell = find.byKey(const ValueKey(WidgetKeys.navStudy));
-  final deadline = DateTime.now().add(const Duration(minutes: 5));
-  while (DateTime.now().isBefore(deadline)) {
-    if (welcome.evaluate().isNotEmpty || shell.evaluate().isNotEmpty) break;
+
+  // Launch the app ONLY if it isn't already running. Re-calling app.main() on
+  // every test leaks providers/Supabase listeners and destabilises the Patrol
+  // process after ~10 tests (hang/crash). If the binding tore the tree down
+  // between tests (no MaterialApp), we relaunch as before; otherwise we reuse
+  // the already-running app — one launch for the whole suite.
+  final alreadyRunning = find.byType(MaterialApp).evaluate().isNotEmpty;
+  if (!alreadyRunning) {
+    unawaited(app.main());
+    // Poll for welcome (signed-out) or the shell (a prior Supabase session
+    // survived in this process). Polling keeps it fast when already signed in.
+    final deadline = DateTime.now().add(const Duration(minutes: 5));
+    while (DateTime.now().isBefore(deadline)) {
+      if (welcome.evaluate().isNotEmpty || shell.evaluate().isNotEmpty) break;
+      try {
+        await $.pump(const Duration(milliseconds: 400));
+      } catch (_) {
+        break;
+      }
+    }
+  } else {
     try {
-      await $.pump(const Duration(milliseconds: 400));
-    } catch (_) {
-      break;
+      await $.pump(const Duration(milliseconds: 300));
+    } catch (_) {}
+  }
+
+  // Sign in if we're not already in the signed-in shell.
+  if (shell.evaluate().isEmpty) {
+    if ($(welcome).exists) {
+      await $(welcome).tap();
+      await $.pump(const Duration(milliseconds: 500));
+    }
+    if ($(find.byKey(const Key('email_field'))).exists) {
+      await $(find.byKey(const Key('email_field'))).enterText(kTestEmail);
+      // Brief settle: a SmartLock/autofill overlay or a resolving Supabase
+      // session check can briefly hide the password field.
+      await $.pump(const Duration(seconds: 2));
+      if ($(find.byKey(const Key('password_field'))).exists) {
+        await $(find.byKey(const Key('password_field'))).enterText(kTestPassword);
+        await $(find.byKey(const Key('auth_submit_button'))).tap();
+        // Allow time for Supabase auth + profile load. Fixed pump — NOT
+        // pumpAndSettle, which hangs on home-screen providers.
+        await $.pump(const Duration(seconds: 4));
+        await $.pump(const Duration(milliseconds: 1000));
+      }
     }
   }
 
-  // Already signed in → nothing to do.
-  if (shell.evaluate().isNotEmpty) return;
-
-  // Welcome screen → navigate to sign-in.
-  if ($(welcome).exists) {
-    await $(welcome).tap();
-    // Local navigation is instant; 500ms is plenty.
-    await $.pump(const Duration(milliseconds: 500));
+  // Reset to Home so every test starts from a known screen when the app is
+  // reused across tests (the home tab lives in the persistent shell).
+  final homeTab = find.byKey(ValueKey(WidgetKeys.navTab('home')));
+  if (homeTab.evaluate().isNotEmpty) {
+    try {
+      await $(homeTab).tap();
+      await $.pump(const Duration(milliseconds: 500));
+    } catch (_) {}
   }
-
-  // Auth screen → sign in.
-  if ($(find.byKey(const Key('email_field'))).exists) {
-    await $(find.byKey(const Key('email_field'))).enterText(kTestEmail);
-    // Brief settle after email entry: on Samsung a SmartLock/autofill overlay
-    // can briefly cover the password field, AND a pending Supabase session
-    // check may resolve here and navigate the app to home — making the
-    // password field disappear before we reach it.  The 2 s pump lets both
-    // settle; we then re-check whether the password field is still present.
-    await $.pump(const Duration(seconds: 2));
-    if ($(find.byKey(const Key('password_field'))).exists) {
-      await $(find.byKey(const Key('password_field'))).enterText(kTestPassword);
-      await $(find.byKey(const Key('auth_submit_button'))).tap();
-      // Allow time for Supabase auth + profile load.
-      await $.pump(const Duration(seconds: 4));
-      // Fixed pump — NOT pumpAndSettle which hangs on home-screen providers.
-      await $.pump(const Duration(milliseconds: 1000));
-    }
-    // else: the session resolved mid-sign-in → router already navigating to home.
-  }
-
-  // At this point we should be on the home (Today) screen.
 }
 
 /// Launches the app and pumps until the welcome screen appears or 36 min elapses.
