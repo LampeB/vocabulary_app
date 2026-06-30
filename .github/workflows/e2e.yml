@@ -10,9 +10,11 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    # One Patrol run for all 18 (the app is launched once and reused), retried up
-    # to 3×. 40 min covers boot + a couple of attempts.
-    timeout-minutes: 40
+    # clearPackageData isolates each test (fresh process + sign-in), so there's no
+    # cross-test accumulation — but a single fresh sign-in/launch occasionally
+    # deadlocks. Each attempt is hard-capped with `timeout` so a hang is killed and
+    # RETRIED rather than eating the whole budget. 60 min fits boot + 2 attempts.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -104,6 +106,7 @@ jobs:
           profile: pixel_6
           ram-size: 4096M
           disable-animations: true
-          # One run for all 18 (app launched once, reused across tests), retried
-          # up to 3× to absorb the residual live-binding flake.
-          script: "for attempt in 1 2 3; do echo \"=== attempt $attempt/3 ===\"; patrol test --target patrol_test/quiz_all_test.dart --dart-define-from-file=.env.json && exit 0; done; exit 1"
+          # Each attempt is hard-capped at 23 min: a clean run is ~22 min, so a
+          # hung attempt is killed at 23 min and the next attempt runs (a single
+          # deadlocked sign-in no longer eats the whole job).
+          script: "for attempt in 1 2 3; do echo \"=== attempt $attempt/3 ===\"; timeout 23m patrol test --target patrol_test/quiz_all_test.dart --dart-define-from-file=.env.json && exit 0; done; exit 1"
