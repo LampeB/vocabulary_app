@@ -7,6 +7,7 @@ import '../../providers/auth/auth_provider.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../widgets/dotted_ground.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
@@ -56,6 +57,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ),
             const SizedBox(height: 16),
             TextField(
+              key: const ValueKey(WidgetKeys.authResetEmail),
               controller: emailCtrl,
               keyboardType: TextInputType.emailAddress,
               decoration: InputDecoration(
@@ -72,6 +74,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             child: const Text('Annuler'),
           ),
           TextButton(
+            key: const ValueKey(WidgetKeys.authResetSend),
             onPressed: () async {
               final email = emailCtrl.text.trim();
               Navigator.pop(ctx);
@@ -80,9 +83,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   .sendPasswordReset(email);
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(result.isSuccess
-                    ? 'auth.reset_snackbar_success'.tr()
-                    : 'auth.reset_snackbar_error'.tr()),
+                content: Text(
+                  result.isSuccess
+                      ? 'auth.reset_snackbar_success'.tr()
+                      : 'auth.reset_snackbar_error'.tr(),
+                  key: ValueKey(result.isSuccess
+                      ? WidgetKeys.authResetSuccess
+                      : WidgetKeys.authResetError),
+                ),
                 behavior: SnackBarBehavior.floating,
               ));
             },
@@ -221,6 +229,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
+                          key: const ValueKey(WidgetKeys.authForgotPassword),
                           onPressed: () => _showForgotPassword(),
                           style: TextButton.styleFrom(
                             padding: EdgeInsets.zero,

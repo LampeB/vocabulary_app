@@ -88,4 +88,13 @@ abstract final class WidgetKeys {
   // ── Start-session accordion sections + type tile ───────────────────────────
   static String startSection(int index) => 'ss.section.$index'; // header
   static String startType(String name) => 'ss.type.$name'; // e.g. 'vocab'
+
+  // ── Auth flows (sign-out, password reset) ──────────────────────────────────
+  static const screenWelcome = 'screen.welcome';
+  static const signOutConfirm = 'profile.signout.confirm';
+  static const authForgotPassword = 'auth.forgot_password';
+  static const authResetEmail = 'auth.reset.email';
+  static const authResetSend = 'auth.reset.send';
+  static const authResetSuccess = 'auth.reset.success';
+  static const authResetError = 'auth.reset.error';
 }

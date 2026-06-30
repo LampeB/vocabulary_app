@@ -255,6 +255,7 @@ class ProfileScreen extends ConsumerWidget {
               onPressed: () => Navigator.pop(ctx, false),
               child: Text('common.cancel'.tr())),
           TextButton(
+            key: const ValueKey(WidgetKeys.signOutConfirm),
             style: TextButton.styleFrom(foregroundColor: AppColors.rose),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text('profile.signout_confirm'.tr(),

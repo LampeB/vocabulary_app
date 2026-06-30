@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/vk_waveform.dart';
 
@@ -14,6 +15,7 @@ class WelcomeScreen extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenWelcome),
       // Background from AppTheme.scaffoldBackgroundColor.
       body: Stack(
         children: [

@@ -28,6 +28,7 @@ enum Dir { frToKo, koToFr, both }
 /// App screens, each identified by the stable key on its root Scaffold
 /// (`WidgetKeys.screen*`). Used by `then.onScreen(...)` to assert arrival.
 enum Screen {
+  welcome,
   home,
   lists,
   listDetail,
@@ -49,6 +50,7 @@ enum ProfileTile { stats, settings, notifications, signOut }
 
 /// Maps a [Screen] to the widget-key on its root Scaffold.
 String _screenRootKey(Screen s) => switch (s) {
+      Screen.welcome => WidgetKeys.screenWelcome,
       Screen.home => WidgetKeys.screenHome,
       Screen.lists => WidgetKeys.screenLists,
       Screen.listDetail => WidgetKeys.screenListDetail,
@@ -186,6 +188,35 @@ class WhenSteps {
   Future<void> opensNotificationsFromBell() async {
     await $(find.byKey(const ValueKey(WidgetKeys.homeBell))).tap();
     await $.pump(const Duration(milliseconds: 600));
+  }
+
+  // ── Auth flows ──────────────────────────────────────────────────────────────
+
+  /// Signs out via the Profile sign-out tile + confirmation (→ Welcome).
+  Future<void> signsOut() async {
+    await tapsNavTab(NavTab.profile);
+    final tile = find.byKey(const ValueKey(WidgetKeys.profileSignOut));
+    await $(tile).scrollTo();
+    await $(tile).tap();
+    await $(find.byKey(const ValueKey(WidgetKeys.signOutConfirm))).tap();
+    await $.pump(const Duration(milliseconds: 800));
+  }
+
+  /// From the Welcome screen, opens the sign-in screen.
+  Future<void> goesToSignIn() async {
+    await $(find.text('J\'ai déjà un compte')).tap();
+    await $.pump(const Duration(milliseconds: 600));
+  }
+
+  /// On the sign-in screen, requests a password reset for [email]
+  /// (forgot-password link → email → send).
+  Future<void> requestsPasswordReset(String email) async {
+    await $(find.byKey(const ValueKey(WidgetKeys.authForgotPassword))).tap();
+    final field = find.byKey(const ValueKey(WidgetKeys.authResetEmail));
+    await $(field).waitUntilVisible(timeout: const Duration(seconds: 15));
+    await $(field).enterText(email);
+    await $(find.byKey(const ValueKey(WidgetKeys.authResetSend))).tap();
+    await $.pump(const Duration(milliseconds: 800));
   }
 
   // ── List & word management (UI-driven, not provider-seeded) ─────────────────
@@ -398,6 +429,11 @@ class ThenSteps {
   Future<void> doesNotSeeText(String text) async {
     expect(find.text(text), findsNothing);
   }
+
+  /// The password-reset request reported success.
+  Future<void> passwordResetSucceeded() =>
+      $(find.byKey(const ValueKey(WidgetKeys.authResetSuccess)))
+          .waitUntilVisible(timeout: const Duration(seconds: 15));
 
   /// The verdict flood shows "correct" (teal).
   Future<void> verdictIsCorrect() =>
