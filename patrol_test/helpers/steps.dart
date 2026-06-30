@@ -174,8 +174,11 @@ class WhenSteps {
   }
 
   /// Opens a Profile navigation tile (Stats / Settings / Notifications / Sign out).
+  /// Scrolls it into view first — the lower tiles sit below the fold.
   Future<void> opensProfileTile(ProfileTile tile) async {
-    await $(find.byKey(ValueKey(_profileTileKey(tile)))).tap();
+    final f = find.byKey(ValueKey(_profileTileKey(tile)));
+    await $(f).scrollTo();
+    await $(f).tap();
     await $.pump(const Duration(milliseconds: 600));
   }
 
