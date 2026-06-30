@@ -173,6 +173,9 @@ class ListActionsNotifier extends Notifier<void> {
   }) async {
     await _repo.updateVariant(frVariant.copyWith(word: newFrWord));
     await _repo.updateVariant(koVariant.copyWith(word: newKoWord));
+    // variantsProvider is a cached FutureProvider, so the edited words won't
+    // show until it's invalidated (otherwise the tile keeps the stale value).
+    ref.invalidate(variantsProvider(frVariant.conceptId));
   }
 
   // Returns an error message on failure, null on success.
