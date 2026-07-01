@@ -17,6 +17,13 @@ const _kTestMode = bool.fromEnvironment('TEST_MODE');
 // device locale is used.
 const _kTestLocale = String.fromEnvironment('TEST_LOCALE');
 
+// A pre-seeded Supabase session (Session JSON) injected under TEST_MODE. Each
+// isolated E2E test runs in a fresh process with cleared storage
+// (clearPackageData), so without this every test would do a slow, flaky network
+// sign-in. Restoring a fresh (unexpired) session is local — no network, no
+// refresh-token rotation — so all tests start signed in instantly. Empty in prod.
+const _kTestSession = String.fromEnvironment('TEST_SESSION');
+
 // Guards one-time init so repeated app.main() calls in E2E tests are safe.
 bool _initialized = false;
 
@@ -33,6 +40,15 @@ Future<void> main() async {
       url: AppConfig.supabaseUrl,
       publishableKey: AppConfig.supabaseAnonKey,
     );
+
+    // E2E: start already signed in from the injected session (see above).
+    if (_kTestMode && _kTestSession.isNotEmpty) {
+      try {
+        await Supabase.instance.client.auth.recoverSession(_kTestSession);
+      } catch (_) {
+        // Fall back to the UI sign-in path if the session can't be restored.
+      }
+    }
 
     await NotificationService.instance.init();
 

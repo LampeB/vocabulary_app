@@ -78,6 +78,12 @@ jobs:
             echo "$resp"
             exit 1
           fi
+          # Seed the fresh session (as a JSON string) into .env.json so the app
+          # restores it under TEST_MODE and every isolated test starts signed in
+          # (no slow, flaky per-test UI sign-in). recoverSession() parses this.
+          jq --argjson s "$resp" '. + {TEST_SESSION: ($s | tostring)}' \
+            .env.json > .env.json.tmp && mv .env.json.tmp .env.json
+          echo "Seeded TEST_SESSION into .env.json."
           echo "Deleting vocabulary_lists for test user $uid …"
           code=$(curl -sS -o /dev/null -w '%{http_code}' \
             -X DELETE "$SUPABASE_URL/rest/v1/vocabulary_lists?owner_id=eq.$uid" \
