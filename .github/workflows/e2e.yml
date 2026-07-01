@@ -120,4 +120,4 @@ jobs:
           # Each attempt is hard-capped at 23 min: a clean run is ~22 min, so a
           # hung attempt is killed at 23 min and the next attempt runs (a single
           # deadlocked sign-in no longer eats the whole job).
-          script: "for attempt in 1 2 3; do echo \"=== attempt $attempt/3 (${{ inputs.target }}) ===\"; timeout 23m patrol test --target ${{ inputs.target }} --dart-define-from-file=.env.json && exit 0; done; exit 1"
+          script: "adb logcat -c; adb logcat -v time *:E flutter:V AndroidRuntime:V 2>&1 | grep --line-buffered -iE 'flutter|AndroidRuntime|FATAL|exception|SIGSEGV|SIGABRT|native crash|libc|tombstone' & timeout 23m patrol test --target ${{ inputs.target }} --dart-define-from-file=.env.json"
