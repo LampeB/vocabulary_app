@@ -61,3 +61,6 @@ app.*.map.json
 /playwright-report/
 /test-results/
 /test_bundle.dart
+
+# Patrol generates this per --target; never commit it
+patrol_test/test_bundle.dart
