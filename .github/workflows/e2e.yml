@@ -6,6 +6,11 @@ name: E2E (emulator)
 # Requires repo secrets: SUPABASE_URL, SUPABASE_ANON_KEY, TEST_EMAIL, TEST_PASSWORD.
 on:
   workflow_dispatch:
+    inputs:
+      target:
+        description: 'Patrol target — a single _test.dart file for a quick run, or the umbrella for all'
+        default: 'patrol_test/quiz_all_test.dart'
+        required: false
 
 jobs:
   e2e:
@@ -115,4 +120,4 @@ jobs:
           # Each attempt is hard-capped at 23 min: a clean run is ~22 min, so a
           # hung attempt is killed at 23 min and the next attempt runs (a single
           # deadlocked sign-in no longer eats the whole job).
-          script: "for attempt in 1 2 3; do echo \"=== attempt $attempt/3 ===\"; timeout 23m patrol test --target patrol_test/quiz_all_test.dart --dart-define-from-file=.env.json && exit 0; done; exit 1"
+          script: "for attempt in 1 2 3; do echo \"=== attempt $attempt/3 (${{ inputs.target }}) ===\"; timeout 23m patrol test --target ${{ inputs.target }} --dart-define-from-file=.env.json && exit 0; done; exit 1"
