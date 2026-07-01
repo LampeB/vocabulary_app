@@ -208,6 +208,16 @@ class WhenSteps {
     await $.pump(const Duration(milliseconds: 600));
   }
 
+  /// Signs in through the REAL email/password UI (not the injected session).
+  /// Must be on the sign-in screen (see goesToSignIn).
+  Future<void> signsInWith(String email, String password) async {
+    await $(find.byKey(const Key('email_field'))).enterText(email);
+    await $.pump(const Duration(seconds: 1));
+    await $(find.byKey(const Key('password_field'))).enterText(password);
+    await $(find.byKey(const Key('auth_submit_button'))).tap();
+    await $.pump(const Duration(seconds: 4));
+  }
+
   /// On the sign-in screen, requests a password reset for [email]
   /// (forgot-password link → email → send).
   Future<void> requestsPasswordReset(String email) async {
