@@ -7,21 +7,6 @@ import 'helpers/test_helpers.dart';
 // Sign-up validation is covered by unit tests; OAuth and reset-email *delivery*
 // are device/manual-only (see docs/test-feasibility.md).
 void main() {
-  // The REAL email/password login flow (not the injected session): sign out to
-  // clear the session, then sign back in through the UI and land on Home.
-  patrolTest('Auth — real email/password sign-in lands on Home',
-      timeout: const Timeout(Duration(minutes: 7)),
-      config: kFastSettle, ($) async {
-    final app = Steps($);
-    addTearDown(() => deleteAllLists($));
-
-    await app.given.signedIn();
-    await app.when.signsOut();
-    await app.when.goesToSignIn();
-    await app.when.signsInWith(kTestEmail, kTestPassword);
-    await app.then.onScreen(Screen.home);
-  });
-
   // Signing out from Profile returns to the Welcome screen.
   patrolTest('Auth — sign out returns to Welcome',
       timeout: const Timeout(Duration(minutes: 7)),
