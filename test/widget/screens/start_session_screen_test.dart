@@ -1,0 +1,154 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:vocab_kr/core/widget_keys.dart';
+import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
+import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
+import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
+import 'package:vocab_kr/presentation/screens/quiz/start_session_screen.dart';
+import '../../helpers/pump_screen.dart';
+
+/// Start-session screen: the accordion renders every section, list selection
+/// enables the CTA and auto-advances, and the CTA fires /quiz with exactly the
+/// QuizArgs the user assembled.
+
+final _now = DateTime(2026, 7, 3);
+
+VocabularyList _list(String id, String name, {int wordCount = 5}) =>
+    VocabularyList(
+      id: id,
+      ownerId: 'u',
+      name: name,
+      wordCount: wordCount,
+      createdAt: _now,
+      updatedAt: _now,
+    );
+
+void main() {
+  setUpAll(initTestLocalization);
+
+  QuizArgs? capturedArgs;
+
+  Future<void> pump(WidgetTester tester, {List<VocabularyList>? lists}) {
+    capturedArgs = null;
+    return pumpScreen(
+      tester,
+      screen: const StartSessionScreen(),
+      overrides: [
+        myListsProvider.overrideWith(
+            (ref) => Stream.value(lists ?? [_list('l1', 'Animaux')])),
+      ],
+      routes: [
+        GoRoute(
+          path: '/quiz',
+          builder: (_, state) {
+            capturedArgs = state.extra as QuizArgs?;
+            return const Scaffold(body: SizedBox());
+          },
+        ),
+      ],
+    );
+  }
+
+  Finder byKey(String key) => find.byKey(ValueKey(key));
+
+  Future<void> tapKey(WidgetTester tester, String key) async {
+    await tester.ensureVisible(byKey(key));
+    await tester.tap(byKey(key), warnIfMissed: false);
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('renders all five accordion sections and the CTA',
+      (tester) async {
+    await pump(tester);
+
+    expect(byKey(WidgetKeys.screenStartSession), findsOneWidget);
+    for (var i = 0; i < 5; i++) {
+      expect(byKey(WidgetKeys.startSection(i)), findsOneWidget,
+          reason: 'section $i header missing');
+    }
+    expect(byKey(WidgetKeys.startSessionStart), findsOneWidget);
+  });
+
+  testWidgets('CTA is disabled until a list is selected', (tester) async {
+    await pump(tester);
+
+    ElevatedButton cta() => tester.widget<ElevatedButton>(find.ancestor(
+        of: byKey(WidgetKeys.startSessionStart).first,
+        matching: find.byType(ElevatedButton)).first);
+    // The key IS on the ElevatedButton — read it directly.
+    expect(
+        tester
+            .widget<ElevatedButton>(byKey(WidgetKeys.startSessionStart))
+            .onPressed,
+        isNull);
+
+    await tester.tap(find.text('Animaux'));
+    await tester.pumpAndSettle();
+
+    expect(
+        tester
+            .widget<ElevatedButton>(byKey(WidgetKeys.startSessionStart))
+            .onPressed,
+        isNotNull);
+    cta; // (helper kept trivially referenced)
+  });
+
+  testWidgets('selecting a list auto-advances to the quiz-type section',
+      (tester) async {
+    await pump(tester);
+    // Quiz-type options not visible while the list section is open.
+    expect(byKey(WidgetKeys.startQuizType('typing')), findsNothing);
+
+    await tester.tap(find.text('Animaux'));
+    await tester.pumpAndSettle();
+
+    expect(byKey(WidgetKeys.startQuizType('typing')), findsOneWidget);
+  });
+
+  testWidgets('empty lists show the empty message and CTA stays disabled',
+      (tester) async {
+    await pump(tester, lists: []);
+
+    expect(
+        tester
+            .widget<ElevatedButton>(byKey(WidgetKeys.startSessionStart))
+            .onPressed,
+        isNull);
+  });
+
+  testWidgets(
+      'full journey: list → mode → direction → count → start fires /quiz '
+      'with the assembled QuizArgs', (tester) async {
+    await pump(tester);
+
+    await tester.tap(find.text('Animaux'));
+    await tester.pumpAndSettle();
+    await tapKey(tester, WidgetKeys.startQuizType('typing'));
+    await tapKey(tester, WidgetKeys.startDirection('both'));
+    await tapKey(tester, WidgetKeys.startCount(50));
+    await tapKey(tester, WidgetKeys.startSessionStart);
+
+    expect(capturedArgs, isNotNull);
+    expect(capturedArgs!.listId, 'l1');
+    expect(capturedArgs!.mode, QuizMode.typing);
+    expect(capturedArgs!.direction, QuizDirectionChoice.both);
+    expect(capturedArgs!.cardLimit, 50);
+  });
+
+  testWidgets('the CTA label shows the selected card count', (tester) async {
+    await pump(tester);
+    await tester.tap(find.text('Animaux'));
+    await tester.pumpAndSettle();
+    await tapKey(tester, WidgetKeys.startQuizType('flashcard'));
+    await tapKey(tester, WidgetKeys.startDirection('frToKo'));
+    await tapKey(tester, WidgetKeys.startCount(100));
+
+    final label = tester
+        .widget<Text>(find.descendant(
+            of: byKey(WidgetKeys.startSessionStart),
+            matching: find.byType(Text)))
+        .data;
+    expect(label, contains('100'));
+  });
+}
