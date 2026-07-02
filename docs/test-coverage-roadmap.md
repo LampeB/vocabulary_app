@@ -68,28 +68,46 @@
 names. We built coverage by feature area; a line-coverage report will show the
 actual blind spots.
 
-- [ ] Run locally: `LD_LIBRARY_PATH=... flutter test --coverage`
+- [x] Run locally: `LD_LIBRARY_PATH=... flutter test --coverage`
       → produces `coverage/lcov.info`.
-- [ ] Summarize it. Without lcov installed, a quick summary works:
-      count `DA:` hit/total per `SF:` block in `lcov.info` (small script), or
-      `apt-get install lcov` and use `lcov --summary` / `genhtml`.
-- [ ] Produce a short ranked list: the 15 least-covered files under `lib/`
-      **excluding** generated code (`*.g.dart`, `*.freezed.dart`) and screens
-      (screens are Phase 3's concern). Paste that list into this document
-      under "Coverage findings" below.
-- [ ] Add coverage to CI: in `.github/workflows/test.yml` change the test step
-      to `flutter test --coverage`, then add a step that prints the total line
-      coverage % to the job log (and optionally uploads `lcov.info` as an
-      artifact). **Do not add a hard threshold gate yet** — set the threshold
-      in Phase 5 once the number is stable, to avoid blocking unrelated work.
-- [ ] Note the baseline % here: **baseline = ____ %** (fill in).
+- [x] Summarize it (script: count `DA:` hit/total per `SF:` block).
+- [x] Ranked least-covered list → see "Coverage findings" below.
+- [x] Coverage in CI: `test.yml` now runs `flutter test --coverage`, prints the
+      total % to the log and `$GITHUB_STEP_SUMMARY` (with `LC_ALL=C` — comma
+      locales break `printf %.1f`), and uploads `lcov.info` as an artifact.
+      No hard threshold yet — that's Phase 5.
+- [x] Baseline (2026-07-03): **32.9 %** overall / **46.0 %** excluding
+      generated (`*.g.dart`, `*.freezed.dart`) files.
 
 **Done when:** CI prints a coverage number on every push and the findings list
-below is filled in.
+below is filled in. ✅ 2026-07-03
 
-### Coverage findings (fill in during Phase 1)
+### Coverage findings (2026-07-03)
 
-_TODO: ranked list of least-covered non-generated, non-screen files._
+Ranked by uncovered lines, non-generated and non-screen files. Screens do not
+appear in lcov at all — no test imports them (confirms Phase 3).
+
+| % | lines hit | uncovered | file | note |
+|---|-----------|-----------|------|------|
+| 1.4 | 3/213 | 210 | `presentation/providers/quiz/quiz_provider.dart` | **Phase 2 target** |
+| 0.0 | 0/92 | 92 | `data/repositories/auth_repository_impl.dart` | Supabase-coupled; auth is E2E-covered. Profile-row mapping (~l.185) could be extracted+tested |
+| 17.9 | 17/95 | 78 | `presentation/providers/lists/vocabulary_provider.dart` | Phase 4 (notifier actions beyond the paywall gate) |
+| 0.0 | 0/70 | 70 | `data/datasources/remote/auth_remote_datasource.dart` | Supabase-coupled; low host-test value |
+| 0.0 | 0/65 | 65 | `data/datasources/remote/vocabulary_remote_datasource.dart` | Supabase-coupled; exercised indirectly via FakeRemote's interface |
+| 79.9 | 243/304 | 61 | `data/repositories/vocabulary_repository_impl.dart` | Phase 4 (delete/update/sync paths) |
+| 0.0 | 0/50 | 50 | `presentation/providers/auth/auth_provider.dart` | auth state plumbing; consider with Phase 3 harness |
+| 0.0 | 0/42 | 42 | `services/audio/elevenlabs_service.dart` | device/mock-only by decision (see strategy) |
+| 18.8 | 9/48 | 39 | `presentation/providers/notifications/notification_provider.dart` | notifier persistence paths untested (only the model is) |
+| 0.0 | 0/39 | 39 | `services/notifications/notification_service.dart` | native plugin wrapper — rules extracted+tested, wrapper stays device-only |
+| 2.9 | 1/34 | 33 | `presentation/providers/purchases/purchase_provider.dart` | RevenueCat-coupled; isPremium fallback logic partially reachable |
+| 0.0 | 0/31 | 31 | `services/audio/flutter_tts_service.dart` | device-only by decision |
+| 0.0 | 0/23 | 23 | `services/purchases/purchase_service.dart` | RevenueCat wrapper — device-only |
+| 27.6 | 8/29 | 21 | `core/theme/app_text_styles.dart` | cosmetic; covered incidentally by Phase 3 |
+| 66.7 | 34/51 | 17 | `core/utils/answer_validator.dart` | pure logic, partly tested — **top up in Phase 2** (cheap win) |
+
+Interpretation: after excluding files that are device/backend-coupled by
+deliberate decision, the real host-testable gaps are exactly Phases 2–4 of
+this roadmap, plus `answer_validator.dart` (added to Phase 2).
 
 ---
 
@@ -137,8 +155,11 @@ bug-prone rules:
       - Check how `audioPlayerServiceProvider` and `_kTestMode` behave under
         test before writing; if the notifier autoplays audio on load, override
         the audio service with a recording fake.
+- [ ] **Top up `lib/core/utils/answer_validator.dart`** (66.7% — found in
+      Phase 1): pure logic, existing tests in `test/unit/core/`. Cover the
+      untested branches (check the lcov `DA:0` lines to see which).
 
-**Done when:** both files pass, `flutter analyze` clean, full suite green.
+**Done when:** all three items pass, `flutter analyze` clean, full suite green.
 
 ---
 
@@ -291,3 +312,4 @@ PR**:
 | Date | Phase | What was done | By |
 |------|-------|---------------|-----|
 | 2026-07-03 | — | Roadmap written; phases 1–7 defined | Claude (session with Thomas) |
+| 2026-07-03 | 1 | **Phase 1 done.** Baseline 32.9% (46.0% excl. generated); CI prints % + uploads lcov artifact; findings table filled; answer_validator added to Phase 2 | Claude (session with Thomas) |

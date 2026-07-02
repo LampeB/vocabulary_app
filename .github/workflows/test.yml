@@ -25,4 +25,19 @@ jobs:
 
       - run: flutter pub get
 
-      - run: flutter test
+      - run: flutter test --coverage
+
+      # Print total line coverage (plain awk over lcov.info — no lcov dependency).
+      # Informational for now; a floor gate is planned for Phase 5 of
+      # docs/test-coverage-roadmap.md once Phases 2-4 have landed.
+      - name: Report coverage
+        run: |
+          pct=$(LC_ALL=C awk -F, '/^DA:/ {t++; if ($2 > 0) h++} END {printf "%.1f", 100 * h / t}' coverage/lcov.info)
+          echo "Total line coverage: ${pct}%"
+          echo "### Line coverage: ${pct}%" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload lcov report
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov
+          path: coverage/lcov.info
