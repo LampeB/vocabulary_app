@@ -311,6 +311,26 @@ Android orchestrator; cleanup: `given.aCleanSlate()`).
 **Done when:** umbrella still ≥ as reliable as before (3 consecutive green
 dispatch runs).
 
+### Known issue — umbrella run-level flakiness (diagnosed 2026-07-03)
+
+Symptom: an E2E run fails with `Gradle test execution failed with code 1`
+while Patrol reports `Failed: 0`. Diagnosis from run 28627235936: each attempt
+randomly DROPS 1-3 of the 20 tests — the per-test app process dies at spawn
+before the test registers (no start line, no crash marker in Patrol output),
+so the orchestrator exits 1 for "tests did not run" even though everything
+that ran passed. The dropped subset differs per attempt (pure spawn
+flakiness, likely emulator load + clearPackageData cold starts).
+
+This PREDATES the study-redesign test work: the last green run (28544920836,
+2026-07-01) also had a 19/20 attempt and only passed because its second
+attempt happened to drop nothing. A run is green only if ONE attempt drops
+zero tests — a coin flip. Mitigations to consider if it worsens: more retry
+attempts, splitting the umbrella into two shorter targets (fewer spawns per
+attempt → higher odds of a clean one), or investigating orchestrator spawn
+timeouts on the emulator. When triaging a red E2E run, FIRST check
+`Total:` vs 20 and `Failed:` — if Failed is 0, it's this issue, not a broken
+test.
+
 ---
 
 ## Phase 7 — Golden (screenshot) tests — deliberately deferred
