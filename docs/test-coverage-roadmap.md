@@ -291,18 +291,22 @@ release-blocking and that host tests genuinely cannot see. Follow
 `docs/writing-tests.md` §2 (naming: **no `/` in test names** — it crashes the
 Android orchestrator; cleanup: `given.aCleanSlate()`).
 
-- [ ] **Share/import deep link**: create list → `generatesShareLink` → import
-      via `vocabkr://import?token=…` intent (Patrol can launch intents; if
-      intent-launching proves unreliable on the CI emulator, drop this and
-      rely on the host-side share_import tests — note the decision here).
-- [ ] **Stabilize the real-login test** (`patrol_test/auth_login_test.dart`,
-      currently isolated and flaky, run via workflow input
-      `-f target=patrol_test/auth_login_test.dart`): add retry-with-backoff
-      around the login tap, longer settle after auth network round-trip.
-      Goal: green 3 consecutive runs, then add it to the umbrella. If it
-      can't be stabilized in ~2 attempts, leave it isolated and note why.
-- [ ] **Quiz completion journey**: finish a full 3-card session (TEST_CARD_LIMIT=3
-      in CI) → completion screen shows → stats/streak reflect the session.
+- [x] **Share/import deep link**: DROPPED 2026-07-03. Patrol's native
+      automation has no API to launch a custom-scheme VIEW intent (openApp
+      takes an appId only), so the journey can't be driven reliably. The
+      share-token logic is fully host-covered (share_import_test.dart +
+      sync_from_remote_test.dart getListByShareToken); the residual untested
+      surface is only the OS-intent → route wiring. Revisit if Patrol gains
+      an intent API.
+- [~] **Stabilize the real-login test**: `signsInWith` reworked 2026-07-03 —
+      submit is retried up to 3× with growing waits (20/40/60s) for the Home
+      screen instead of one fixed 4s pump; a vanished submit button counts as
+      progress. STILL TO DO: dispatch
+      `gh workflow run e2e.yml -f target=patrol_test/auth_login_test.dart`
+      3 times; if all green, add auth_login_test to the quiz_all umbrella.
+- [x] **Quiz completion journey**: ALREADY COVERED — the existing umbrella
+      (quiz_test.dart) finishes full 3-card sessions in every mode with score
+      assertions (100%/0% + verdicts). Verified 2026-07-03, nothing added.
 
 **Done when:** umbrella still ≥ as reliable as before (3 consecutive green
 dispatch runs).

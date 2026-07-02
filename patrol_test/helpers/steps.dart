@@ -210,12 +210,31 @@ class WhenSteps {
 
   /// Signs in through the REAL email/password UI (not the injected session).
   /// Must be on the sign-in screen (see goesToSignIn).
+  ///
+  /// The live Supabase round-trip on the CI emulator is slow and sometimes
+  /// drops the first request, so the submit is retried with growing waits
+  /// instead of a single fixed pump. If sign-in already succeeded, the submit
+  /// button is gone — that's treated as progress, not an error.
   Future<void> signsInWith(String email, String password) async {
     await $(find.byKey(const Key('email_field'))).enterText(email);
     await $.pump(const Duration(seconds: 1));
     await $(find.byKey(const Key('password_field'))).enterText(password);
-    await $(find.byKey(const Key('auth_submit_button'))).tap();
-    await $.pump(const Duration(seconds: 4));
+
+    final home = $(find.byKey(const ValueKey(WidgetKeys.screenHome)));
+    for (var attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await $(find.byKey(const Key('auth_submit_button'))).tap();
+      } catch (_) {
+        // Button no longer on screen — likely mid-navigation to Home.
+      }
+      try {
+        await home.waitUntilVisible(timeout: Duration(seconds: 20 * attempt));
+        return;
+      } catch (_) {
+        // Still on the sign-in screen — retry with a longer wait.
+      }
+    }
+    // Fall through: the caller's then.onScreen(...) raises the real failure.
   }
 
   /// On the sign-in screen, requests a password reset for [email]
