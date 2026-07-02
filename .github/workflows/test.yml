@@ -1,0 +1,28 @@
+name: Tests (unit + widget + integration)
+
+# Fast host-side test suite — runs on the CI runner (no emulator), so it's quick
+# and reliable. Covers unit, widget, and drift-in-memory integration tests.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # drift's integration tests use the native sqlite3 library.
+      - name: Install sqlite3
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - run: flutter test
