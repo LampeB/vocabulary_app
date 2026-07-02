@@ -243,26 +243,30 @@ Check against existing tests in `test/integration/` first —
 `vocabulary_repository_test.dart` already covers JSON roundtrip; don't
 duplicate.
 
-- [ ] `updateList` / rename (via `ListActionsNotifier.renameList` or repo
-      directly): persists, bumps `updatedAt`, `isSynced` false.
-- [ ] `deleteList`: soft-delete semantics — row still exists with
-      `isDeleted: true` (see `softDelete` in the DAO) and disappears from
-      `watchMyLists`.
-- [ ] `deleteConcept` / `deleteVariant`: word-count bookkeeping
-      (`_updateWordCount`) stays consistent.
-- [ ] `getListByShareToken`: found/not-found.
-- [ ] `updateVariants` (in `vocabulary_provider.dart`): the E2E-found bug —
-      after update, `variantsProvider(conceptId)` is invalidated. A regression
-      test at provider level: read `variantsProvider`, update, read again →
-      fresh data. (This bug shipped once already; pin it.)
-- [ ] `syncFromRemote`: with a `FakeRemote` returning remote rows — remote
-      lists/concepts land locally; local-only unsynced rows are not clobbered.
-      Read the implementation first and test what it *does*; if it has no
-      conflict handling yet, test the happy path and note the gap here rather
-      than inventing expected behavior.
+- [x] `updateList` / rename — was ALREADY covered by the pre-existing
+      `test/integration/vocabulary_list_test.dart` (name, updatedAt, isSynced,
+      createdAt preserved). Checked 2026-07-03, no duplicate written.
+- [x] `deleteList` soft-delete — ALREADY covered (vocabulary_list_test.dart:
+      disappears from watchMyLists, raw row isDeleted=true, no cascade).
+- [x] `deleteConcept` / variants CRUD + word-count bookkeeping — ALREADY
+      covered (concept_variant_test.dart).
+- [x] `getListByShareToken`: found/not-found — added in
+      `test/integration/sync_from_remote_test.dart` (2026-07-03).
+- [x] `updateVariants` invalidation regression — pinned at the WIDGET level
+      instead (stronger): `test/widget/screens/list_detail_screen_test.dart`
+      "editing a word updates the tile". Done in Phase 3.
+- [x] `syncFromRemote` — `test/integration/sync_from_remote_test.dart`
+      (2026-07-03): pull lands lists/concepts/variants locally, local-only
+      lists not clobbered, idempotent re-run, empty userId short-circuits.
+      Behavior note discovered: the post-sync word-count recount goes through
+      `updateWordCount`, which by design re-flags the list `isSynced=false` —
+      pulled lists therefore end up marked for re-push. Harmless but worth
+      knowing. No conflict resolution exists (last-write-wins upsert) — that
+      is a product decision for later, not a test gap.
 
 **Done when:** each box ticked with a passing test or an explicit note here
 saying why it was skipped.
+✅ Phase 4 complete 2026-07-03 — 360 tests total, 45.8% overall.
 
 ---
 
@@ -339,4 +343,5 @@ PR**:
 | 2026-07-03 | — | Roadmap written; phases 1–7 defined | Claude (session with Thomas) |
 | 2026-07-03 | 1 | **Phase 1 done.** Baseline 32.9% (46.0% excl. generated); CI prints % + uploads lcov artifact; findings table filled; answer_validator added to Phase 2 | Claude (session with Thomas) |
 | 2026-07-03 | 2 | **Phase 2 done.** session_assembly extracted (14 tests), loadCards provider-level (8 tests), answer_validator (12 tests, →100%). 327 total, 35.2% / 51.8% | Claude (session with Thomas) |
+| 2026-07-03 | 4 | **Phase 4 done.** syncFromRemote + getListByShareToken added (6 tests); the rest was already covered by pre-existing integration tests. 360 total, 45.8% | Claude (session with Thomas) |
 | 2026-07-03 | 3 | **Phase 3 done.** pump_screen harness + 27 tests over 5 screens; 4 real 360dp/text-scale layout bugs found & fixed. 354 total, 44.9% / 64.8% | Claude (session with Thomas) |
