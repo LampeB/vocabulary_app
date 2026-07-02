@@ -73,6 +73,10 @@ Rules:
   same process, so each must both *start from* and *leave* a clean slate (§2.9).
 - One comment line above the `patrolTest` saying *what user behaviour* it proves.
 - Keep the body to `Steps` calls. No `$(...).tap()` in a scenario file.
+- **Never put `/` in a `patrolTest` name.** The Android Test Orchestrator names
+  a per-test output file after the description, so a path separator crashes the
+  whole run (`Total: 0`, `IllegalArgumentException` in `makeFilename`). Use `-`,
+  `,`, or "and" instead (e.g. `email-password`, not `email/password`).
 
 ### 2.2 The step library — your vocabulary
 
