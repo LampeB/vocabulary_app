@@ -3,6 +3,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/network/connectivity_status.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widget_keys.dart';
@@ -13,9 +14,6 @@ final _connectivityProvider = StreamProvider<List<ConnectivityResult>>((ref) {
   if (_kTestMode) return Stream.value([ConnectivityResult.wifi]);
   return Connectivity().onConnectivityChanged;
 });
-
-bool _isOffline(List<ConnectivityResult> results) =>
-    results.isEmpty || results.every((r) => r == ConnectivityResult.none);
 
 class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.child});
@@ -35,7 +33,7 @@ class AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final connectivityAsync = ref.watch(_connectivityProvider);
     final offline = connectivityAsync.valueOrNull != null &&
-        _isOffline(connectivityAsync.valueOrNull!);
+        isOffline(connectivityAsync.valueOrNull!);
     final selected = _selectedIndex(context);
     final safeBottom = MediaQuery.of(context).padding.bottom;
 
