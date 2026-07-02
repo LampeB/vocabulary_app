@@ -34,11 +34,15 @@ Future<void> initTestLocalization() async {
 /// Real French strings work (`find.text('Commencer…')`) because
 /// [initTestLocalization] hydrated the global `.tr()` table; `WidgetKeys`
 /// remain the preferred stable selectors.
+/// Set [settle] to false for screens with perpetual animations (e.g. an
+/// animating waveform) — pumpAndSettle would never return; a couple of fixed
+/// pumps render the frame instead.
 Future<void> pumpScreen(
   WidgetTester tester, {
   required Widget screen,
   List<Override> overrides = const [],
   List<RouteBase> routes = const [],
+  bool settle = true,
 }) async {
   // Phone-like viewport (360×780 logical). The flutter_test default is
   // 800×600 physical at DPR 3 → ~267 logical px wide, narrower than any real
@@ -60,7 +64,12 @@ Future<void> pumpScreen(
       child: MaterialApp.router(routerConfig: router),
     ),
   );
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+  }
 }
 
 /// Call at the END of any test whose screen watches drift streams: closing a

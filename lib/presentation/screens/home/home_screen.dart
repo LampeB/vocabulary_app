@@ -16,11 +16,27 @@ import '../../widgets/vk_waveform.dart';
 // ── French date helpers (no intl dependency) ──────────────────────────────────
 
 const _kFrDays = [
-  'LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI', 'SAMEDI', 'DIMANCHE'
+  'LUNDI',
+  'MARDI',
+  'MERCREDI',
+  'JEUDI',
+  'VENDREDI',
+  'SAMEDI',
+  'DIMANCHE'
 ];
 const _kFrMonths = [
-  'JAN', 'FÉV', 'MAR', 'AVR', 'MAI', 'JUIN',
-  'JUIL', 'AOÛT', 'SEP', 'OCT', 'NOV', 'DÉC',
+  'JAN',
+  'FÉV',
+  'MAR',
+  'AVR',
+  'MAI',
+  'JUIN',
+  'JUIL',
+  'AOÛT',
+  'SEP',
+  'OCT',
+  'NOV',
+  'DÉC',
 ];
 
 String _frDate(DateTime d) =>
@@ -35,10 +51,10 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(syncOnLoginProvider); // pulls remote data on login
 
-    final user      = ref.watch(currentUserProvider);
+    final user = ref.watch(currentUserProvider);
     final listsAsync = ref.watch(myListsProvider);
-    final dueCount  = ref.watch(dueCountProvider).valueOrNull ?? 0;
-    final streak    = user?.currentStreak ?? 0;
+    final dueCount = ref.watch(dueCountProvider).valueOrNull ?? 0;
+    final streak = user?.currentStreak ?? 0;
 
     // Schedule streak warning once user data is available.
     if (streak > 0) {
@@ -105,7 +121,8 @@ class HomeScreen extends ConsumerWidget {
                   error: (e, _) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24),
                     child: Text(
-                        'home.error_loading'.tr(namedArgs: {'error': e.toString()}),
+                        'home.error_loading'
+                            .tr(namedArgs: {'error': e.toString()}),
                         style: AppTextStyles.caption
                             .copyWith(color: AppColors.rose)),
                   ),
@@ -113,9 +130,7 @@ class HomeScreen extends ConsumerWidget {
                       ? _EmptyLists(onTap: () => context.go('/lists'))
                       : Column(
                           children: [
-                            for (int i = 0;
-                                i < lists.length && i < 5;
-                                i++) ...[
+                            for (int i = 0; i < lists.length && i < 5; i++) ...[
                               _ListCard(
                                 list: lists[i],
                                 accentColor: AppColors.listPalette[
@@ -128,8 +143,7 @@ class HomeScreen extends ConsumerWidget {
                             ],
                             if (lists.length > 5) ...[
                               const SizedBox(height: 8),
-                              _SeeAllButton(
-                                  onTap: () => context.go('/lists')),
+                              _SeeAllButton(onTap: () => context.go('/lists')),
                             ],
                           ],
                         ),
@@ -172,8 +186,7 @@ class _Header extends StatelessWidget {
             const Spacer(),
             IconButton(
               key: const ValueKey(WidgetKeys.homeBell),
-              icon: Icon(Icons.notifications_outlined,
-                  color: muted, size: 22),
+              icon: Icon(Icons.notifications_outlined, color: muted, size: 22),
               tooltip: 'home.header_notification_tooltip'.tr(),
               onPressed: () => context.push('/notifications'),
               padding: EdgeInsets.zero,
@@ -188,7 +201,7 @@ class _Header extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                '${'home.greeting'.tr()}${ firstName.isNotEmpty ? ', $firstName' : '' } !',
+                '${'home.greeting'.tr()}${firstName.isNotEmpty ? ', $firstName' : ''} !',
                 style: AppTextStyles.grotesk(28, FontWeight.w700)
                     .copyWith(color: cs.onSurface),
               ),
@@ -221,7 +234,8 @@ class _Avatar extends StatelessWidget {
       ),
       child: avatarUrl != null && avatarUrl!.isNotEmpty
           ? ClipOval(
-              child: Image.network(avatarUrl!, fit: BoxFit.cover,
+              child: Image.network(avatarUrl!,
+                  fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) =>
                       Center(child: _initial(initials))),
             )
@@ -274,41 +288,48 @@ class _StreakCard extends StatelessWidget {
             // Streak content
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(
-                        '$streak',
-                        style: AppTextStyles.heroNumber.copyWith(
-                          color: isActive
-                              ? AppColors.clayDark
-                              : AppColors.onDarkFaint,
+              // FittedBox: the card height is fixed (120) but the text is not —
+              // large accessibility text scales (and the test font) overflow it
+              // otherwise; shrink the block instead.
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          '$streak',
+                          style: AppTextStyles.heroNumber.copyWith(
+                            color: isActive
+                                ? AppColors.clayDark
+                                : AppColors.onDarkFaint,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        streak == 1
-                            ? 'home.streak_days_one'.tr()
-                            : 'home.streak_days_other'.tr(),
-                        style: AppTextStyles.grotesk(22, FontWeight.w600)
-                            .copyWith(color: AppColors.onDarkMuted),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    isActive
-                        ? 'home.streak_active'.tr()
-                        : 'home.streak_inactive'.tr(),
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.onDarkFaint),
-                  ),
-                ],
+                        const SizedBox(width: 8),
+                        Text(
+                          streak == 1
+                              ? 'home.streak_days_one'.tr()
+                              : 'home.streak_days_other'.tr(),
+                          style: AppTextStyles.grotesk(22, FontWeight.w600)
+                              .copyWith(color: AppColors.onDarkMuted),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isActive
+                          ? 'home.streak_active'.tr()
+                          : 'home.streak_inactive'.tr(),
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.onDarkFaint),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -359,8 +380,8 @@ class _ReviewCard extends StatelessWidget {
             GestureDetector(
               onTap: onStart,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 decoration: BoxDecoration(
                   color: AppColors.clay,
                   borderRadius: BorderRadius.circular(999),
@@ -465,8 +486,8 @@ class _EmptyLists extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'home.empty_title'.tr(),
-              style: AppTextStyles.fig(15, FontWeight.w600)
-                  .copyWith(color: muted),
+              style:
+                  AppTextStyles.fig(15, FontWeight.w600).copyWith(color: muted),
             ),
             const SizedBox(height: 4),
             Text(

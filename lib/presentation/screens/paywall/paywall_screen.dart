@@ -120,9 +120,12 @@ class PaywallScreen extends ConsumerWidget {
                               color: AppColors.clay, size: 17),
                         ),
                         const SizedBox(width: 14),
-                        Text(f.$1.tr(),
-                            style: AppTextStyles.fig(15, FontWeight.w500)
-                                .copyWith(color: cs.onSurface)),
+                        // Expanded: long FR labels overflow 360dp screens otherwise.
+                        Expanded(
+                          child: Text(f.$1.tr(),
+                              style: AppTextStyles.fig(15, FontWeight.w500)
+                                  .copyWith(color: cs.onSurface)),
+                        ),
                       ],
                     ),
                   )),

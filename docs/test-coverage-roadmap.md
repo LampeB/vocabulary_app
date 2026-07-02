@@ -182,41 +182,56 @@ emulator. Screen-level widget tests catch these host-side in milliseconds.
 
 **Harness to build first (one-time):**
 
-- [ ] `test/helpers/pump_screen.dart` — a `pumpScreen(tester, widget, {overrides})`
-      helper that wraps the widget in `ProviderScope(overrides: ...)` +
-      `MaterialApp` + `EasyLocalization` (check how `lib/app.dart` initializes
-      easy_localization; in widget tests you can also stub translations by
-      loading the real `assets/translations` or using
-      `EasyLocalization.ensureInitialized()` in `setUpAll`). Reuse the fake
-      repo/provider patterns from `paywall_gate_test.dart`.
-      **If easy_localization proves painful**, it is acceptable to assert on
-      `WidgetKeys` and icons instead of translated strings — keys are the
-      project's stable selector convention (`lib/core/widget_keys.dart`).
+- [x] `test/helpers/pump_screen.dart` — DONE 2026-07-03. Key learnings, all
+      documented in the helper itself:
+      - Do NOT pump the `EasyLocalization` widget: its async delegate can only
+        load once per test process (second pump renders an empty shell
+        forever). Instead `initTestLocalization()` hydrates the global
+        `Localization` table from `fr.json` in `setUpAll` — real French
+        strings and `.tr()` work in tests, no async widget.
+      - Screens that read `context.locale` were switched to
+        `Localizations.localeOf(context)` (identical in-app).
+      - Phone-like 360×780 viewport (default 800×600 hides real overflows).
+      - drift awaits deadlock under FakeAsync → seed/assert via
+        `tester.runAsync`; call `unmountScreen()` at the end of drift-stream
+        tests (flushes drift's zero-duration close timers).
+      - `settle: false` for screens with perpetual animations (waveform).
 
 **Screens, in value order** (use `WidgetKeys` for all finds/taps):
 
-- [ ] **Start-session screen** (`lib/presentation/screens/quiz/` — the screen
+- [x] **Start-session screen** — 6 tests. (sections, CTA gating, auto-advance, /quiz args capture)
+      _Original spec:_ **Start-session screen** (`lib/presentation/screens/quiz/` — the screen
       with `startSection(i)` / `startType(name)` keys): every section renders,
       selecting direction/count/type updates the pending args, start button
       fires with the chosen `QuizArgs` (capture via overridden provider).
       Free-vs-premium differences if any section is gated.
-- [ ] **List detail screen**: add-word flow opens dialog and calls
+- [x] **List detail screen** — 4 tests against a REAL in-memory-drift repo (tiles, add, edit incl. the variantsProvider regression pin, delete).
+      _Original spec:_ **List detail screen**: add-word flow opens dialog and calls
       `addConcept` with typed words; edit mode toggles; delete confirmation
       calls `deleteWord`; the word-count and tiles render from a fake
       concepts stream.
-- [ ] **Paywall screen** (`lib/presentation/screens/paywall/paywall_screen.dart`):
+- [x] **Paywall screen** — 4 tests (static content, null/error/loading offerings). Purchase buttons need real RevenueCat Package objects — deferred, purchase flow is device/mock-only by decision.
+      _Original spec:_ **Paywall screen** (`lib/presentation/screens/paywall/paywall_screen.dart`):
       renders offerings from a fake `offeringsProvider`, purchase button calls
       the purchase notifier, error/loading states, "already premium" state.
-- [ ] **Settings screen**: theme toggle calls `themeModeProvider.set`,
+- [x] **Settings screen** — 8 tests (theme pills, audio pills, premium row + /paywall, sign-out confirm/cancel, /notifications).
+      _Original spec:_ **Settings screen**: theme toggle calls `themeModeProvider.set`,
       premium row reflects `isPremiumProvider` both ways, audio sliders call
       `setSpeechRate`/`setPitch`.
-- [ ] **Home screen**: renders with fake lists/user; notification bell
+- [x] **Home screen** — 5 tests (render, list-tile nav, bell, streak-warning arming / not-arming).
+      _Original spec:_ **Home screen**: renders with fake lists/user; notification bell
       navigates (router can be faked with a `GoRouter` test instance or by
       asserting navigation intent).
 
 **Done when:** each screen has a `test/widget/screens/<name>_test.dart` that
 would fail if its main interactive elements disappeared or stopped calling
 their providers.
+✅ Phase 3 complete 2026-07-03 — 27 screen tests. The realistic viewport
+immediately caught FOUR real layout bugs, all fixed: popup-menu labels
+(list detail), audio pills row (settings), feature-list labels (paywall) —
+all overflowing at 360dp — and the fixed-height streak card (home)
+overflowing at large text scales. 354 tests total; 44.9% / 64.8% excl.
+generated.
 
 ---
 
@@ -324,3 +339,4 @@ PR**:
 | 2026-07-03 | — | Roadmap written; phases 1–7 defined | Claude (session with Thomas) |
 | 2026-07-03 | 1 | **Phase 1 done.** Baseline 32.9% (46.0% excl. generated); CI prints % + uploads lcov artifact; findings table filled; answer_validator added to Phase 2 | Claude (session with Thomas) |
 | 2026-07-03 | 2 | **Phase 2 done.** session_assembly extracted (14 tests), loadCards provider-level (8 tests), answer_validator (12 tests, →100%). 327 total, 35.2% / 51.8% | Claude (session with Thomas) |
+| 2026-07-03 | 3 | **Phase 3 done.** pump_screen harness + 27 tests over 5 screens; 4 real 360dp/text-scale layout bugs found & fixed. 354 total, 44.9% / 64.8% | Claude (session with Thomas) |
