@@ -133,7 +133,7 @@ bug-prone rules:
 
 **Recommended approach (two layers):**
 
-- [ ] **Extract the list mechanics** (steps 2, 3, 7 — interleave, truncate,
+- [x] **Extract the list mechanics** (steps 2, 3, 7 — interleave, truncate,
       pad-cyclically) into pure top-level functions in a new file
       `lib/presentation/providers/quiz/session_assembly.dart` (or into
       `quiz_provider.dart` as top-level functions like `shouldSpeakAnswer`).
@@ -142,7 +142,8 @@ bug-prone rules:
       odd/even `cardLimit` halving, unequal FR/KO lengths, empty one side,
       truncation order (interleaved prefix), padding cycles the *assembled*
       list, single-card padding.
-- [ ] **Test `loadCards` end-to-end at the provider level** in
+      ✅ Done 2026-07-03 — `halfLimit`/`interleaveAndCap`/`padCyclically`, 14 tests, 100% file coverage.
+- [x] **Test `loadCards` end-to-end at the provider level** in
       `test/integration/quiz_load_cards_test.dart`, following the
       `paywall_gate_test.dart` harness pattern: `ProviderContainer` with
       overrides for `getDueCardsUseCaseProvider` (fake returning canned
@@ -155,11 +156,20 @@ bug-prone rules:
       - Check how `audioPlayerServiceProvider` and `_kTestMode` behave under
         test before writing; if the notifier autoplays audio on load, override
         the audio service with a recording fake.
-- [ ] **Top up `lib/core/utils/answer_validator.dart`** (66.7% — found in
-      Phase 1): pure logic, existing tests in `test/unit/core/`. Cover the
-      untested branches (check the lcov `DA:0` lines to see which).
+      ✅ Done 2026-07-03 — `test/integration/quiz_load_cards_test.dart`, 8 tests.
+      The notifier provider is named `quizProvider` (not quizNotifierProvider);
+      the autoplay-on-load branch needed the `_NoopAudio` override as predicted.
+- [x] **Top up `lib/core/utils/answer_validator.dart`** (66.7% — found in
+      Phase 1): pure logic. There was NO existing test file (the 66.7% was
+      incidental via other tests). Created `test/unit/core/answer_validator_test.dart`,
+      12 tests: base verdicts incl. the acceptable/typo Dice-score boundaries,
+      the multi-word transcript pass, and both Korean particle passes
+      (prefix ≥2 chars; trailing-strip for 1-char answers). File now 100%.
 
 **Done when:** all three items pass, `flutter analyze` clean, full suite green.
+✅ Phase 2 complete 2026-07-03 — 327 tests total, coverage 35.2% (51.8% excl.
+generated); `quiz_provider.dart` 1.4% → 41.5% (the remainder is submit/voice/
+session-complete flows — device-coupled or covered elsewhere).
 
 ---
 
@@ -313,3 +323,4 @@ PR**:
 |------|-------|---------------|-----|
 | 2026-07-03 | — | Roadmap written; phases 1–7 defined | Claude (session with Thomas) |
 | 2026-07-03 | 1 | **Phase 1 done.** Baseline 32.9% (46.0% excl. generated); CI prints % + uploads lcov artifact; findings table filled; answer_validator added to Phase 2 | Claude (session with Thomas) |
+| 2026-07-03 | 2 | **Phase 2 done.** session_assembly extracted (14 tests), loadCards provider-level (8 tests), answer_validator (12 tests, →100%). 327 total, 35.2% / 51.8% | Claude (session with Thomas) |

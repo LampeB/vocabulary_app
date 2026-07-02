@@ -18,6 +18,7 @@ import '../lists/vocabulary_provider.dart';
 import '../auth/auth_provider.dart';
 import '../../../services/audio/audio_player_service.dart';
 import '../notifications/notification_provider.dart';
+import 'session_assembly.dart';
 
 const _uuid = Uuid();
 
@@ -208,18 +209,18 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     // Fetch progress entries — one or two calls depending on direction choice.
     List<VariantProgress> progressList;
     if (args.direction == QuizDirectionChoice.both) {
-      final halfLimit = (args.cardLimit + 1) ~/ 2;
+      final limit = halfLimit(args.cardLimit);
       final frResult = await getDueCards.call(
         userId: userId,
         listId: args.listId,
         direction: QuizDirection.frToKo,
-        limit: halfLimit,
+        limit: limit,
       );
       final koResult = await getDueCards.call(
         userId: userId,
         listId: args.listId,
         direction: QuizDirection.koToFr,
-        limit: halfLimit,
+        limit: limit,
       );
       if (frResult.isFailure && koResult.isFailure) {
         state = state.copyWith(
@@ -228,18 +229,12 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         );
         return;
       }
-      final frCards = frResult.valueOrNull ?? [];
-      final koCards = koResult.valueOrNull ?? [];
-      // Interleave FR and KO cards: FR, KO, FR, KO, …
-      progressList = [];
-      final maxLen = frCards.length > koCards.length ? frCards.length : koCards.length;
-      for (int i = 0; i < maxLen; i++) {
-        if (i < frCards.length) progressList.add(frCards[i]);
-        if (i < koCards.length) progressList.add(koCards[i]);
-      }
-      if (progressList.length > args.cardLimit) {
-        progressList = progressList.take(args.cardLimit).toList();
-      }
+      // Interleave FR and KO cards (FR, KO, FR, KO, …), capped at the limit.
+      progressList = interleaveAndCap(
+        frResult.valueOrNull ?? [],
+        koResult.valueOrNull ?? [],
+        args.cardLimit,
+      );
     } else {
       final direction = args.direction == QuizDirectionChoice.frToKo
           ? QuizDirection.frToKo
@@ -291,7 +286,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     }
 
     // Assemble QuizCards, dropping any whose variant can't be resolved.
-    final quizCards = <QuizCard>[];
+    var quizCards = <QuizCard>[];
     for (final p in progressList) {
       final q = questionVariantMap[p.variantId];
       final cId = conceptIdMap[p.variantId];
@@ -305,12 +300,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     }
 
     // Pad to the requested limit by repeating cards cyclically.
-    if (quizCards.isNotEmpty && quizCards.length < args.cardLimit) {
-      final base = List.of(quizCards);
-      while (quizCards.length < args.cardLimit) {
-        quizCards.add(base[quizCards.length % base.length]);
-      }
-    }
+    quizCards = padCyclically(quizCards, args.cardLimit);
 
     state = state.copyWith(
       cards: quizCards,
