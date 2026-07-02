@@ -47,6 +47,13 @@ class QuizCard {
 
 enum QuizMode { flashcard, typing, voice, handsFree }
 
+/// Whether the revealed answer should be auto-spoken, given the mode and whether
+/// the user's answer was correct. Flashcard never speaks (visual-only). Hands-free
+/// speaks only on a wrong answer — the user just said the word aloud correctly, so
+/// only a mistake needs the correct pronunciation. Typing/voice always speak.
+bool shouldSpeakAnswer(QuizMode mode, {required bool correct}) =>
+    mode != QuizMode.flashcard && (mode != QuizMode.handsFree || !correct);
+
 /// UI-level direction choice. `both` means load cards in both FR→KR and KR→FR
 /// directions — each individual card still has a single concrete direction.
 /// Never stored in the DB; only used in QuizArgs.

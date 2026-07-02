@@ -330,12 +330,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             HapticFeedback.heavyImpact();
           }
         }
-        // Auto-speak the revealed answer (typing / voice modes).
-        // In hands-free mode only speak when wrong — the user just said the
-        // word correctly, no need to repeat it; but for a wrong answer they
-        // need to hear the correct pronunciation before moving on.
-        final shouldSpeak = widget.args.mode != QuizMode.flashcard &&
-            (widget.args.mode != QuizMode.handsFree || !correct);
+        // Auto-speak the revealed answer — see shouldSpeakAnswer for the policy.
+        final shouldSpeak = shouldSpeakAnswer(widget.args.mode, correct: correct);
         if (shouldSpeak) {
           final card = next.currentCard;
           if (card != null && card.answerWords.isNotEmpty) {
