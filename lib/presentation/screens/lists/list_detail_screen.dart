@@ -76,7 +76,12 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                         children: [
                           const Icon(Icons.edit_outlined, size: 18),
                           const SizedBox(width: 12),
-                          Text('list_detail.menu_edit'.tr()),
+                          // Flexible: the popup caps its width (~256 on 360dp
+                          // screens) and long FR labels overflow otherwise.
+                          Flexible(
+                            child: Text('list_detail.menu_edit'.tr(),
+                                overflow: TextOverflow.ellipsis),
+                          ),
                         ],
                       ),
                     ),
@@ -86,7 +91,10 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                         children: [
                           const Icon(Icons.ios_share_outlined, size: 18),
                           const SizedBox(width: 12),
-                          Text('list_detail.menu_export'.tr()),
+                          Flexible(
+                            child: Text('list_detail.menu_export'.tr(),
+                                overflow: TextOverflow.ellipsis),
+                          ),
                         ],
                       ),
                     ),

@@ -238,7 +238,11 @@ class SettingsScreen extends ConsumerWidget {
               _NavTile(
                 icon: Icons.language_rounded,
                 label: 'settings.language_label'.tr(),
-                subtitle: _languageName(context.locale.languageCode),
+                // Localizations.localeOf == context.locale in the app (MaterialApp
+                // gets its locale from EasyLocalization) but doesn't require the
+                // EasyLocalization ancestor, so the screen stays widget-testable.
+                subtitle: _languageName(
+                    Localizations.localeOf(context).languageCode),
                 onTap: () => _showLanguagePicker(context),
               ),
               const SizedBox(height: 24),
@@ -311,7 +315,7 @@ void _showLanguagePicker(BuildContext context) {
     builder: (_) => SimpleDialog(
       title: Text('settings.language_label'.tr()),
       children: locales.map((locale) {
-        final isSelected = context.locale == locale;
+        final isSelected = Localizations.localeOf(context) == locale;
         return SimpleDialogOption(
           onPressed: () {
             context.setLocale(locale);
@@ -468,17 +472,24 @@ class _AudioSettingRow extends StatelessWidget {
               style: AppTextStyles.fig(15, FontWeight.w500)
                   .copyWith(color: cs.onSurface)),
         ),
-        Row(
-          children: [
-            for (var i = 0; i < options.length; i++) ...[
-              if (i > 0) const SizedBox(width: 6),
-              _AudioPill(
-                label: options[i],
-                selected: (current - values[i]).abs() < 0.01,
-                onTap: () => onSelect(values[i]),
-              ),
-            ],
-          ],
+        // Flexible + FittedBox: the three pills exceed the remaining width on
+        // narrow (360dp) screens; scale them down instead of overflowing.
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              children: [
+                for (var i = 0; i < options.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 6),
+                  _AudioPill(
+                    label: options[i],
+                    selected: (current - values[i]).abs() < 0.01,
+                    onTap: () => onSelect(values[i]),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ],
     );

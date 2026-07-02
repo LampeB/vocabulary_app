@@ -40,6 +40,13 @@ Future<void> pumpScreen(
   List<Override> overrides = const [],
   List<RouteBase> routes = const [],
 }) async {
+  // Phone-like viewport (360×780 logical). The flutter_test default is
+  // 800×600 physical at DPR 3 → ~267 logical px wide, narrower than any real
+  // phone, which causes spurious RenderFlex overflows in row-heavy screens.
+  tester.view.physicalSize = const Size(1080, 2340);
+  tester.view.devicePixelRatio = 3.0;
+  addTearDown(tester.view.reset);
+
   final router = GoRouter(
     initialLocation: '/',
     routes: [
@@ -54,4 +61,16 @@ Future<void> pumpScreen(
     ),
   );
   await tester.pumpAndSettle();
+}
+
+/// Call at the END of any test whose screen watches drift streams: closing a
+/// drift query stream (on ProviderScope dispose) schedules a zero-duration
+/// Timer, and the framework's automatic teardown checks the pending-timer
+/// invariant before that timer can fire. Unmounting inside the test body and
+/// pumping once lets it run.
+Future<void> unmountScreen(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox());
+  // Advance the fake clock — a plain pump() elapses no time, so drift's
+  // zero-duration close timers would still be "pending" at the invariant check.
+  await tester.pump(const Duration(milliseconds: 1));
 }
