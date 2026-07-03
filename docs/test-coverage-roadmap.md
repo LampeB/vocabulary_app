@@ -321,13 +321,19 @@ so the orchestrator exits 1 for "tests did not run" even though everything
 that ran passed. The dropped subset differs per attempt (pure spawn
 flakiness, likely emulator load + clearPackageData cold starts).
 
-MITIGATION SHIPPED 2026-07-03: e2e.yml no longer runs the 20-test umbrella in
-one patrol invocation. The default (`target: all`) runs the 4 suite files
-(navigation, auth_flows, user_flows, quiz) sequentially, each with its own
-3-attempt/15-min-capped retry loop — fewer spawns per attempt makes a clean
-attempt likely, and a retry re-runs one suite (~5 min) instead of all 20
-tests. `quiz_all_test.dart` still exists for a single-invocation run via the
-target input.
+MITIGATIONS SHIPPED 2026-07-03, gate GREEN (run 28634155576):
+1. e2e.yml default (`target: all`) runs 5 suite files sequentially
+   (navigation, auth_flows, user_flows, quiz, quiz_ecrire — none over ~6
+   tests), each with its own 3-attempt/15-min-capped retry loop. A retry
+   re-runs one short suite, not all 20 tests. `quiz_all_test.dart` still
+   works for a single-invocation run via the target input.
+2. ALL quiz audio output is muted under TEST_MODE (sound effects, listen cue,
+   answer/flip/next-question TTS — quiz_screen.dart + quiz_provider.dart).
+   Evidence: the three audio-free suites passed first-attempt in every run,
+   while only the audio-playing quiz suites dropped spawns; after muting,
+   quiz_ecrire went 6/6 first attempt. Suspect emulator audio-HAL
+   destabilization. A rare drop still occurs (~1 per run) but the per-suite
+   retry absorbs it cheaply.
 
 This PREDATES the study-redesign test work: the last green run (28544920836,
 2026-07-01) also had a 19/20 attempt and only passed because its second
