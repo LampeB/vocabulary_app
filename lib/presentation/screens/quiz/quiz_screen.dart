@@ -999,9 +999,15 @@ class _GradeButton extends StatelessWidget {
           children: [
             Icon(icon, color: Colors.white, size: 20),
             const SizedBox(width: 8),
-            Text(label,
-                style: AppTextStyles.fig(15, FontWeight.w700)
-                    .copyWith(color: Colors.white)),
+            // Flexible: the half-width grade buttons clip long labels on
+            // narrow (360dp) screens instead of overflowing.
+            Flexible(
+              child: Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.fig(15, FontWeight.w700)
+                      .copyWith(color: Colors.white)),
+            ),
           ],
         ),
       ),
