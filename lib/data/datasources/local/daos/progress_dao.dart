@@ -42,6 +42,56 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
         .get();
   }
 
+  /// Due rows for [userId]+[direction] across ALL lists (the "À réviser
+  /// maintenant" smart list). "Due" = an existing progress row scheduled at or
+  /// before now — never-studied words are not due. Soft-deleted variants are
+  /// excluded via the join.
+  Future<List<VariantProgressTableData>> getDueAcrossLists({
+    required String userId,
+    required String direction,
+    int limit = 20,
+  }) {
+    final now = DateTime.now();
+    final query = select(variantProgressTable).join([
+      innerJoin(wordVariantsTable,
+          wordVariantsTable.id.equalsExp(variantProgressTable.variantId)),
+    ])
+      ..where(variantProgressTable.userId.equals(userId) &
+          variantProgressTable.direction.equals(direction) &
+          wordVariantsTable.isDeleted.equals(false) &
+          (variantProgressTable.nextReview.isNull() |
+              variantProgressTable.nextReview.isSmallerOrEqualValue(now)))
+      ..orderBy([
+        OrderingTerm.asc(variantProgressTable.nextReview),
+        OrderingTerm.asc(variantProgressTable.reps),
+      ])
+      ..limit(limit);
+    return query.map((row) => row.readTable(variantProgressTable)).get();
+  }
+
+  /// Started rows (FSRS state ≠ newCard) for [userId]+[direction] across ALL
+  /// lists (the "En cours d'apprentissage" smart list), due or not.
+  Future<List<VariantProgressTableData>> getInProgressAcrossLists({
+    required String userId,
+    required String direction,
+    int limit = 20,
+  }) {
+    final query = select(variantProgressTable).join([
+      innerJoin(wordVariantsTable,
+          wordVariantsTable.id.equalsExp(variantProgressTable.variantId)),
+    ])
+      ..where(variantProgressTable.userId.equals(userId) &
+          variantProgressTable.direction.equals(direction) &
+          wordVariantsTable.isDeleted.equals(false) &
+          variantProgressTable.state.equals('newCard').not())
+      ..orderBy([
+        OrderingTerm.asc(variantProgressTable.nextReview),
+        OrderingTerm.asc(variantProgressTable.reps),
+      ])
+      ..limit(limit);
+    return query.map((row) => row.readTable(variantProgressTable)).get();
+  }
+
   Future<VariantProgressTableData?> getByVariantAndDirection(
           String variantId, String direction) =>
       (select(variantProgressTable)

@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +10,9 @@ import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/notifications/notification_provider.dart';
+import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart'
+    show QuizSource;
+import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
 import 'package:vocab_kr/presentation/screens/home/home_screen.dart';
 import '../../helpers/pump_screen.dart';
 
@@ -59,6 +63,7 @@ void main() {
   setUpAll(initTestLocalization);
 
   String? navigatedTo;
+  QuizArgs? capturedQuizArgs;
 
   Future<void> pump(
     WidgetTester tester, {
@@ -91,6 +96,15 @@ void main() {
         stub('/lists'),
         stub('/lists/:id'),
         stub('/notifications'),
+        GoRoute(
+          path: '/quiz',
+          pageBuilder: (_, state) {
+            navigatedTo = '/quiz';
+            capturedQuizArgs = state.extra as QuizArgs?;
+            return const MaterialPage<void>(
+                child: Scaffold(body: SizedBox()));
+          },
+        ),
       ],
       settle: settle,
     );
@@ -132,6 +146,20 @@ void main() {
       (tester) async {
     await pump(tester, user: _user(streak: 8), settle: false);
     expect(_lastNotif!.scheduledStreak, 8);
+  });
+
+  testWidgets(
+      'the À réviser card one-taps into an all-due session (skips the '
+      'accordion)', (tester) async {
+    await pump(tester, dueCount: 3);
+
+    await tester.tap(find.text('home.review_start'.tr()));
+    await tester.pumpAndSettle();
+
+    expect(navigatedTo, '/quiz');
+    expect(capturedQuizArgs!.source, QuizSource.allDue);
+    expect(capturedQuizArgs!.listId, isNull);
+    expect(capturedQuizArgs!.direction, QuizDirectionChoice.both);
   });
 
   testWidgets('zero streak does not touch the notification scheduler',

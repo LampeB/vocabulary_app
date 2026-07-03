@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../domain/entities/vocabulary_list.dart';
+import '../../../domain/usecases/quiz/get_due_cards_usecase.dart'
+    show QuizSource;
 import '../../providers/lists/vocabulary_provider.dart';
 import '../../providers/quiz/quiz_provider.dart';
 import '../../../core/theme/app_colors.dart';
@@ -28,6 +30,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   // Sections: 0 type · 1 list · 2 quiz-type · 3 direction · 4 count.
   int _open = 1; // type defaults to Vocabulaire, so start on List.
   String? _listId;
+  QuizSource _source = QuizSource.list;
   String _listName = '';
   QuizMode _mode = QuizMode.voice;
   QuizDirectionChoice _dir = QuizDirectionChoice.frToKo;
@@ -190,7 +193,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
               height: 56,
               child: ElevatedButton.icon(
                 key: const ValueKey(WidgetKeys.startSessionStart),
-                onPressed: _listId == null ? null : _start,
+                onPressed: _canStart ? _start : null,
                 icon: const Icon(Icons.play_arrow_rounded,
                     color: Colors.white, size: 22),
                 label: Text(
@@ -208,7 +211,27 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   }
 
   Widget _listOptions(List<VocabularyList> lists) {
-    if (lists.isEmpty) {
+    final dueCount = ref.watch(dueCountProvider).valueOrNull ?? 0;
+    // Smart lists first (cross-list FSRS sources), then the user's own lists.
+    final smartTiles = [
+      _OptionTile(
+        key: ValueKey(WidgetKeys.startSmart('due')),
+        label: 'start_session.smart_due'.tr(),
+        trailing: '$dueCount',
+        selected: _source == QuizSource.allDue,
+        onTap: () => _selectSmart(QuizSource.allDue,
+            'start_session.smart_due'.tr()),
+      ),
+      const SizedBox(height: 8),
+      _OptionTile(
+        key: ValueKey(WidgetKeys.startSmart('inprogress')),
+        label: 'start_session.smart_in_progress'.tr(),
+        selected: _source == QuizSource.inProgress,
+        onTap: () => _selectSmart(QuizSource.inProgress,
+            'start_session.smart_in_progress'.tr()),
+      ),
+    ];
+    if (lists.isEmpty && dueCount == 0) {
       return Padding(
         padding: const EdgeInsets.all(16),
         child: Text('start_session.empty_lists'.tr(),
@@ -217,14 +240,16 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
     }
     return Column(
       children: [
+        ...smartTiles,
         for (final l in lists) ...[
-          if (l != lists.first) const SizedBox(height: 8),
+          const SizedBox(height: 8),
           _OptionTile(
             label: l.name,
             trailing: '${l.wordCount}',
-            selected: _listId == l.id,
+            selected: _source == QuizSource.list && _listId == l.id,
             onTap: () {
               setState(() {
+                _source = QuizSource.list;
                 _listId = l.id;
                 _listName = l.name;
               });
@@ -234,6 +259,15 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
         ],
       ],
     );
+  }
+
+  void _selectSmart(QuizSource source, String label) {
+    setState(() {
+      _source = source;
+      _listId = null;
+      _listName = label;
+    });
+    _select(2);
   }
 
   String _modeLabel(QuizMode m) => switch (m) {
@@ -249,11 +283,14 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
         QuizDirectionChoice.both => 'quiz_setup.dir_both'.tr(),
       };
 
+  bool get _canStart => _source != QuizSource.list || _listId != null;
+
   void _start() {
     context.go(
       '/quiz',
       extra: QuizArgs(
-        listId: _listId!,
+        listId: _listId,
+        source: _source,
         mode: _mode,
         direction: _dir,
         cardLimit: _count,

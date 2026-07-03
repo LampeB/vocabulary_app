@@ -38,6 +38,8 @@
 | Behavior | Status | Verified by |
 |---|---|---|
 | Session setup (list/mode/direction/count accordion) | ✅ | widget `start_session` (args captured exactly) + E2E |
+| Smart lists ("À réviser maintenant" / "En cours") + cross-list queries | ✅ | integration `smart_lists_test` (due vs future vs new vs deleted semantics, use-case routing) + widget (tile → allDue/inProgress args, CTA without a list) |
+| Home "À réviser" one-tap → all-due session | ✅ | widget (card CTA → /quiz with allDue args, no accordion) |
 | Session assembly (both-directions interleave, cap, padding, drop rule, failure policy) | ✅ | unit `session_assembly` + provider `quiz_load_cards` |
 | Flashcard: flip, self-grade, FSRS persisted | ✅ | widget `quiz_screen` + E2E `Cartes ×2` |
 | Typing: verdicts, KO→FR direction, card-count 10 | ✅ | widget + unit `answer_validator` + E2E `Écrire ×6` |

@@ -1,4 +1,5 @@
 import 'dart:async' show unawaited;
+import 'package:easy_localization/easy_localization.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_review/in_app_review.dart';
@@ -62,12 +63,18 @@ enum QuizDirectionChoice { frToKo, koToFr, both }
 
 class QuizArgs {
   const QuizArgs({
-    required this.listId,
+    this.listId,
+    this.source = QuizSource.list,
     required this.mode,
     required this.direction,
     required this.cardLimit,
-  });
-  final String listId;
+  }) : assert(source != QuizSource.list || listId != null,
+            'a list-sourced session needs a listId');
+
+  /// The list to study — required when [source] is [QuizSource.list],
+  /// ignored for the cross-list smart sources.
+  final String? listId;
+  final QuizSource source;
   final QuizMode mode;
   final QuizDirectionChoice direction;
   final int cardLimit;
@@ -213,12 +220,14 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       final frResult = await getDueCards.call(
         userId: userId,
         listId: args.listId,
+        source: args.source,
         direction: QuizDirection.frToKo,
         limit: limit,
       );
       final koResult = await getDueCards.call(
         userId: userId,
         listId: args.listId,
+        source: args.source,
         direction: QuizDirection.koToFr,
         limit: limit,
       );
@@ -242,6 +251,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       final result = await getDueCards.call(
         userId: userId,
         listId: args.listId,
+        source: args.source,
         direction: direction,
         limit: args.cardLimit,
       );
@@ -440,11 +450,17 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         ? 0
         : DateTime.now().difference(_sessionStartTime!).inSeconds;
 
-    // Look up list name from the DAO.
-    final listRow = await ref
-        .read(vocabularyListDaoProvider)
-        .getById(args.listId);
-    final listName = listRow?.name ?? '';
+    // List sessions record the list's name; smart sessions their label.
+    final String listName;
+    if (args.source == QuizSource.list) {
+      final listRow =
+          await ref.read(vocabularyListDaoProvider).getById(args.listId!);
+      listName = listRow?.name ?? '';
+    } else {
+      listName = args.source == QuizSource.allDue
+          ? 'start_session.smart_due'.tr()
+          : 'start_session.smart_in_progress'.tr();
+    }
 
     // Snapshot total mastered-word count at session end.
     final masteredResult = await ref

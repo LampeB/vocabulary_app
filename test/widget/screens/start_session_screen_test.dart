@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
+import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart'
+    show QuizSource;
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
 import 'package:vocab_kr/presentation/screens/quiz/start_session_screen.dart';
@@ -37,6 +39,7 @@ void main() {
       overrides: [
         myListsProvider.overrideWith(
             (ref) => Stream.value(lists ?? [_list('l1', 'Animaux')])),
+        dueCountProvider.overrideWith((ref) => Stream.value(4)),
       ],
       routes: [
         GoRoute(
@@ -134,6 +137,45 @@ void main() {
     expect(capturedArgs!.mode, QuizMode.typing);
     expect(capturedArgs!.direction, QuizDirectionChoice.both);
     expect(capturedArgs!.cardLimit, 50);
+  });
+
+  testWidgets(
+      'smart list: picking "À réviser maintenant" enables the CTA and starts '
+      'an all-due session (no listId)', (tester) async {
+    await pump(tester);
+
+    // The due smart tile shows the live due count.
+    expect(byKey(WidgetKeys.startSmart('due')), findsOneWidget);
+    await tester.tap(byKey(WidgetKeys.startSmart('due')));
+    await tester.pumpAndSettle();
+
+    // Selecting it enables the CTA without any list chosen.
+    expect(
+        tester
+            .widget<ElevatedButton>(byKey(WidgetKeys.startSessionStart))
+            .onPressed,
+        isNotNull);
+
+    await tapKey(tester, WidgetKeys.startQuizType('flashcard'));
+    await tapKey(tester, WidgetKeys.startDirection('frToKo'));
+    await tapKey(tester, WidgetKeys.startSessionStart);
+
+    expect(capturedArgs, isNotNull);
+    expect(capturedArgs!.source, QuizSource.allDue);
+    expect(capturedArgs!.listId, isNull);
+  });
+
+  testWidgets('smart list: "En cours d\'apprentissage" starts an in-progress '
+      'session', (tester) async {
+    await pump(tester);
+
+    await tester.tap(byKey(WidgetKeys.startSmart('inprogress')));
+    await tester.pumpAndSettle();
+    await tapKey(tester, WidgetKeys.startQuizType('flashcard'));
+    await tapKey(tester, WidgetKeys.startDirection('frToKo'));
+    await tapKey(tester, WidgetKeys.startSessionStart);
+
+    expect(capturedArgs!.source, QuizSource.inProgress);
   });
 
   testWidgets('the CTA label shows the selected card count', (tester) async {

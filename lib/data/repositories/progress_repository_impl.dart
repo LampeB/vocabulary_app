@@ -97,6 +97,36 @@ class ProgressRepositoryImpl implements ProgressRepository {
   }
 
   @override
+  Future<Result<List<VariantProgress>>> getAllDueCards({
+    required String userId,
+    required QuizDirection direction,
+    int limit = 20,
+  }) async {
+    try {
+      final rows = await _progressDao.getDueAcrossLists(
+          userId: userId, direction: direction.name, limit: limit);
+      return Success(rows.map((r) => r.toDomain()).toList());
+    } catch (e) {
+      return Failure(StorageException(e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<List<VariantProgress>>> getInProgressCards({
+    required String userId,
+    required QuizDirection direction,
+    int limit = 20,
+  }) async {
+    try {
+      final rows = await _progressDao.getInProgressAcrossLists(
+          userId: userId, direction: direction.name, limit: limit);
+      return Success(rows.map((r) => r.toDomain()).toList());
+    } catch (e) {
+      return Failure(StorageException(e.toString()));
+    }
+  }
+
+  @override
   Future<Result<VariantProgress>> getProgress({
     required String variantId,
     required QuizDirection direction,

@@ -9,6 +9,22 @@ abstract interface class ProgressRepository {
     int limit = 20,
   });
 
+  /// Cross-list due cards — the "À réviser maintenant" smart list. Only
+  /// already-started cards scheduled at or before now (new words are not due).
+  Future<Result<List<VariantProgress>>> getAllDueCards({
+    required String userId,
+    required QuizDirection direction,
+    int limit = 20,
+  });
+
+  /// Cross-list started cards (FSRS state ≠ new), due or not — the
+  /// "En cours d'apprentissage" smart list.
+  Future<Result<List<VariantProgress>>> getInProgressCards({
+    required String userId,
+    required QuizDirection direction,
+    int limit = 20,
+  });
+
   Future<Result<VariantProgress>> getProgress({
     required String variantId,
     required QuizDirection direction,

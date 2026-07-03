@@ -303,6 +303,10 @@
   "start_session.section_list": "목록",
   "start_session.start_with_count": "시작 · {count}단어",
   "start_session.empty_lists": "먼저 목록을 만드세요",
+  "start_session.smart_due": "지금 복습하기",
+  "start_session.smart_in_progress": "학습 중",
+  "start_session.smart_due_sub": "모든 리스트의 복습 대상",
+  "start_session.smart_in_progress_sub": "이미 시작한 단어",
   "shell.nav_study": "학습",
   "quiz.hf_analyzing": "분석 중…"
 }

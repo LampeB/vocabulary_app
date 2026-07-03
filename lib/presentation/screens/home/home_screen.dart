@@ -5,6 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/lists/vocabulary_provider.dart';
 import '../../providers/notifications/notification_provider.dart';
+import '../../providers/quiz/quiz_provider.dart';
+import '../../../domain/usecases/quiz/get_due_cards_usecase.dart'
+    show QuizSource;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widget_keys.dart';
@@ -95,7 +98,18 @@ class HomeScreen extends ConsumerWidget {
                 if (dueCount > 0) ...[
                   _ReviewCard(
                     dueCount: dueCount,
-                    onStart: () => context.go('/lists'),
+                    // One-tap review: straight into an all-due session with
+                    // smart defaults, skipping the start-session accordion.
+                    onStart: () => context.go(
+                      '/quiz',
+                      extra: const QuizArgs(
+                        source: QuizSource.allDue,
+                        mode: QuizMode.voice,
+                        direction: QuizDirectionChoice.both,
+                        cardLimit:
+                            int.fromEnvironment('TEST_CARD_LIMIT', defaultValue: 20),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 24),
                 ],

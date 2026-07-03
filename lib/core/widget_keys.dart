@@ -87,6 +87,7 @@ abstract final class WidgetKeys {
 
   // ── Start-session accordion sections + type tile ───────────────────────────
   static String startSection(int index) => 'ss.section.$index'; // header
+  static String startSmart(String name) => 'ss.smart.$name'; // 'due' | 'inprogress'
   static String startType(String name) => 'ss.type.$name'; // e.g. 'vocab'
 
   // ── Auth flows (sign-out, password reset) ──────────────────────────────────

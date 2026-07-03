@@ -303,6 +303,10 @@
   "start_session.section_list": "LISTA",
   "start_session.start_with_count": "Empezar · {count} palabras",
   "start_session.empty_lists": "Crea una lista primero",
+  "start_session.smart_due": "Para repasar ahora",
+  "start_session.smart_in_progress": "En curso",
+  "start_session.smart_due_sub": "Todo lo pendiente, de todas las listas",
+  "start_session.smart_in_progress_sub": "Palabras ya empezadas",
   "shell.nav_study": "Estudiar",
   "quiz.hf_analyzing": "Analizando…"
 }
