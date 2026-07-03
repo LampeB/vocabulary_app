@@ -382,6 +382,7 @@ PR**:
 | 2026-07-03 | — | Roadmap written; phases 1–7 defined | Claude (session with Thomas) |
 | 2026-07-03 | 1 | **Phase 1 done.** Baseline 32.9% (46.0% excl. generated); CI prints % + uploads lcov artifact; findings table filled; answer_validator added to Phase 2 | Claude (session with Thomas) |
 | 2026-07-03 | 2 | **Phase 2 done.** session_assembly extracted (14 tests), loadCards provider-level (8 tests), answer_validator (12 tests, →100%). 327 total, 35.2% / 51.8% | Claude (session with Thomas) |
+| 2026-07-03 | 6 | **Gate certified.** Final 6-suite run 28636232833: ALL suites first-attempt green, 21/21 tests, zero retries — strongest evidence the audio mute was the root fix. Roadmap fully executed (Phase 7 goldens deferred by decision) | Claude (session with Thomas) |
 | 2026-07-03 | 6 | **Phase 6 done.** E2E gate split to per-suite invocations + TEST_MODE audio mute → green; real-login stabilized, 3/3 validated, promoted to the gate; deep-link dropped (no Patrol intent API, host-covered) | Claude (session with Thomas) |
 | 2026-07-03 | 5 | **Phase 5 done.** Coverage floor gate in CI: fail < 43.5% (measured 45.8%) | Claude (session with Thomas) |
 | 2026-07-03 | 4 | **Phase 4 done.** syncFromRemote + getListByShareToken added (6 tests); the rest was already covered by pre-existing integration tests. 360 total, 45.8% | Claude (session with Thomas) |
