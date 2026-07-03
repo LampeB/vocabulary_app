@@ -11,6 +11,7 @@
 
 import 'auth_flows_test.dart' as auth_flows;
 import 'navigation_test.dart' as navigation;
+import 'quiz_ecrire_test.dart' as quiz_ecrire;
 import 'quiz_test.dart' as quiz;
 import 'user_flows_test.dart' as user_flows;
 
@@ -21,6 +22,7 @@ import 'user_flows_test.dart' as user_flows;
 
 void main() {
   quiz.main();
+  quiz_ecrire.main();
   navigation.main();
   user_flows.main();
   auth_flows.main();
