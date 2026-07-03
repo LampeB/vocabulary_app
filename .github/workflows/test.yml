@@ -27,17 +27,17 @@ jobs:
 
       - run: flutter test --coverage
 
-      # Coverage floor (Phase 5 of docs/test-coverage-roadmap.md). Measured
-      # 45.8% on 2026-07-03 after Phases 1-4; the floor leaves ~2 points of
-      # slack so unrelated work isn't blocked, while a test-deleting PR fails.
-      # Raise the floor when coverage grows; never lower it to make CI pass.
-      - name: Report coverage (floor 43.5%)
+      # Coverage floor (Phases 5+8 of docs/test-coverage-roadmap.md). Measured
+      # 49.7% on 2026-07-03 after the Phase 8 push; the floor leaves ~2 points
+      # of slack so unrelated work isn't blocked, while a test-deleting PR
+      # fails. Raise the floor when coverage grows; never lower it to pass.
+      - name: Report coverage (floor 47.5%)
         run: |
           pct=$(LC_ALL=C awk -F, '/^DA:/ {t++; if ($2 > 0) h++} END {printf "%.1f", 100 * h / t}' coverage/lcov.info)
           echo "Total line coverage: ${pct}%"
           echo "### Line coverage: ${pct}%" >> "$GITHUB_STEP_SUMMARY"
-          if LC_ALL=C awk "BEGIN {exit !($pct < 43.5)}"; then
-            echo "::error::Line coverage ${pct}% fell below the 43.5% floor (see docs/test-coverage-roadmap.md Phase 5)"
+          if LC_ALL=C awk "BEGIN {exit !($pct < 47.5)}"; then
+            echo "::error::Line coverage ${pct}% fell below the 47.5% floor (see docs/test-coverage-roadmap.md Phase 5)"
             exit 1
           fi
 

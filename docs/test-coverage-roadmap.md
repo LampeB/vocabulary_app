@@ -367,29 +367,43 @@ by 41 files (~6.8k lines) no test imports at all. Work biggest-first with the
 Phase 3 harness (`pumpScreen`); commit per batch; keep the floor gate ratcheted
 (+raise it after each batch lands).
 
-- [ ] `quiz_screen.dart` (1208 lines) — widget tests per mode: flashcard flip
+- [x] `quiz_screen.dart` — 3 tests (flashcard flip/grade→summary with FSRS
+      persistence, typing correct/wrong verdicts). 34.8% file coverage — the
+      remainder is voice/hands-free STT logic (device-coupled; the E2E suites
+      cover it via the STT simulator). Eighth layout bug fixed (grade buttons).
+      _Original spec:_ `quiz_screen.dart` (1208 lines) — widget tests per mode: flashcard flip
       + self-grade, typing submit → verdict, session completion. Reuse the
       quiz_load_cards harness (fake GetDueCards + real in-memory dao + noop
       audio). CAUTION: mic/STT widgets may instantiate native speech services —
       fake or avoid the voice modes if they touch plugins at build time.
-- [ ] `lists_screen.dart` (468) — clone the list_detail pattern (real repo on
+- [x] `lists_screen.dart` — 4 tests incl. the free-quota → /paywall path.
+      _Original spec:_ `lists_screen.dart` (468) — clone the list_detail pattern (real repo on
       in-memory drift): render, create-list dialog, navigation to detail.
-- [ ] `social_screen.dart` (888) — fake SocialRepository streams (friends,
+- [x] `social_screen.dart` — 3 tests (friends, accept request, leaderboard);
+      64.4% (search + challenge sections remain).
+      _Original spec:_ `social_screen.dart` (888) — fake SocialRepository streams (friends,
       requests, leaderboard tabs).
-- [ ] `profile_screen.dart` (442) + `stats_screen.dart` (355) — fake providers.
-- [ ] `auth_screen.dart` (312) + `welcome_screen.dart` (107) — fake
-      AuthNotifier; form validation, error states, navigation.
-- [ ] `notification_settings_screen.dart` (278) — fake notification notifier.
-- [ ] Provider flows: `quiz_provider` submit/completion (→ from 41.5%),
-      `auth_provider` with a fake AuthRepository (8%),
-      `notification_provider` notifier with a fake NotificationService
-      (`implements` works around the private constructor) (22.9%),
-      `purchase_provider` with a fake PurchaseService (14.7%),
-      `social_provider` (0%), `vocabulary_provider` remaining actions (41.1%).
-- [ ] After each batch: re-run coverage, raise the CI floor to (current − 2).
+- [x] `profile_screen.dart` + `stats_screen.dart` — 5 tests; profile streak
+      row overflow fixed (bug #7).
+- [x] `auth_screen.dart` + `welcome_screen.dart` — 6 tests (validators,
+      success/failure paths, reset dialog, mode routing).
+- [x] `notification_settings_screen.dart` — 4 tests with the REAL notifier +
+      recording fake service (covers the notifier's persistence paths too).
+- [x] Provider flows: `quiz_provider` → 78% (submit/grade paths exercised by
+      the quiz_screen tests), `auth_provider` → real notifier over a scripted
+      repo, 7 tests (build restore, sign-in success/failure, sign-out, reload,
+      reactive sign-out event). `notification_provider` covered via the
+      settings screen tests. REMAINING (diminishing returns, noted): purchase
+      notifier internals (RevenueCat types), vocabulary_provider import/export
+      actions (file-picker/share-sheet device paths), social search section.
+- [x] Floor raised 43.5% → **47.5%** (measured 49.7% / 64.5% excl. generated,
+      392 tests, 2026-07-03).
 
 **Done when:** every remaining host-testable file ≥ ~80% or has a written
 exclusion reason (device wrapper / stub), and the floor reflects the result.
+✅ Phase 8 executed 2026-07-03 — 360 → 392 tests, floor 43.5 → 47.5%. Every
+lib file is now either tested, device/backend-coupled by written decision, or
+a not-built-yet stub. Two more real layout bugs found & fixed (8 total).
 
 ---
 
@@ -415,6 +429,7 @@ PR**:
 | 2026-07-03 | — | Roadmap written; phases 1–7 defined | Claude (session with Thomas) |
 | 2026-07-03 | 1 | **Phase 1 done.** Baseline 32.9% (46.0% excl. generated); CI prints % + uploads lcov artifact; findings table filled; answer_validator added to Phase 2 | Claude (session with Thomas) |
 | 2026-07-03 | 2 | **Phase 2 done.** session_assembly extracted (14 tests), loadCards provider-level (8 tests), answer_validator (12 tests, →100%). 327 total, 35.2% / 51.8% | Claude (session with Thomas) |
+| 2026-07-03 | 8 | **Phase 8 done.** All screens widget-tested (32 new tests), auth notifier flows, 2 more layout bugs fixed. 392 tests, 49.7% (64.5% excl. gen), floor 47.5% | Claude (session with Thomas) |
 | 2026-07-03 | 6 | **Gate certified.** Final 6-suite run 28636232833: ALL suites first-attempt green, 21/21 tests, zero retries — strongest evidence the audio mute was the root fix. Roadmap fully executed (Phase 7 goldens deferred by decision) | Claude (session with Thomas) |
 | 2026-07-03 | 6 | **Phase 6 done.** E2E gate split to per-suite invocations + TEST_MODE audio mute → green; real-login stabilized, 3/3 validated, promoted to the gate; deep-link dropped (no Patrol intent API, host-covered) | Claude (session with Thomas) |
 | 2026-07-03 | 5 | **Phase 5 done.** Coverage floor gate in CI: fail < 43.5% (measured 45.8%) | Claude (session with Thomas) |
