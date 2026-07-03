@@ -41,7 +41,8 @@ class AppShell extends ConsumerWidget {
     final safeBottom = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      // Background comes from the theme (paper in light, paperDark in dark) —
+      // hardcoding AppColors.paper here forced a light shell in dark mode.
       body: Stack(
         children: [
           // Content — padded at bottom so nothing hides behind the frosted bar.

@@ -92,6 +92,7 @@
 | Behavior | Status | Verified by |
 |---|---|---|
 | Theme switching (persist + restore) | ✅ | unit + widget |
+| Every screen renders correctly in BOTH themes | ✅ | `theme_sweep_test`: 14 screens × light/dark under the real AppTheme — fails on per-theme layout errors or a scaffold background that ignores the theme. Found+fixed: app_shell forced light paper in dark mode |
 | Audio prefs (rate/pitch) | ✅ | unit + widget |
 | Language picker | ⚠️ | dialog opens; actual locale switch is EasyLocalization-coupled (can't re-init in tests — documented) |
 | Subscription row (free vs premium, upgrade → paywall) | ✅ | widget |

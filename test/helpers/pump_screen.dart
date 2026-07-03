@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vocab_kr/core/theme/app_theme.dart';
 
 /// Loads the real French translations into the global [Localization] that
 /// `.tr()` (without a context) reads. Call once from `setUpAll`.
@@ -37,12 +38,16 @@ Future<void> initTestLocalization() async {
 /// Set [settle] to false for screens with perpetual animations (e.g. an
 /// animating waveform) — pumpAndSettle would never return; a couple of fixed
 /// pumps render the frame instead.
+/// [themeMode] pumps the screen under the real AppTheme (light by default,
+/// [ThemeMode.dark] for dark-mode verification) — the same themes the app
+/// ships, so hardcoded-color bugs surface in tests.
 Future<void> pumpScreen(
   WidgetTester tester, {
   required Widget screen,
   List<Override> overrides = const [],
   List<RouteBase> routes = const [],
   bool settle = true,
+  ThemeMode themeMode = ThemeMode.light,
 }) async {
   // Phone-like viewport (360×780 logical). The flutter_test default is
   // 800×600 physical at DPR 3 → ~267 logical px wide, narrower than any real
@@ -61,7 +66,12 @@ Future<void> pumpScreen(
   await tester.pumpWidget(
     ProviderScope(
       overrides: overrides,
-      child: MaterialApp.router(routerConfig: router),
+      child: MaterialApp.router(
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: themeMode,
+        routerConfig: router,
+      ),
     ),
   );
   if (settle) {
