@@ -298,18 +298,21 @@ Android orchestrator; cleanup: `given.aCleanSlate()`).
       sync_from_remote_test.dart getListByShareToken); the residual untested
       surface is only the OS-intent → route wiring. Revisit if Patrol gains
       an intent API.
-- [~] **Stabilize the real-login test**: `signsInWith` reworked 2026-07-03 —
-      submit is retried up to 3× with growing waits (20/40/60s) for the Home
-      screen instead of one fixed 4s pump; a vanished submit button counts as
-      progress. STILL TO DO: dispatch
-      `gh workflow run e2e.yml -f target=patrol_test/auth_login_test.dart`
-      3 times; if all green, add auth_login_test to the quiz_all umbrella.
+- [x] **Stabilize the real-login test**: DONE 2026-07-03. `signsInWith`
+      retries the submit up to 3× with growing Home waits (20/40/60s); a
+      vanished submit button counts as progress. Validated with 3 consecutive
+      green dispatches, then PROMOTED into the default gate as the 6th suite
+      in e2e.yml's TARGETS (it stays out of quiz_all_test.dart — the live
+      sign-in belongs in its own invocation with its own retries).
 - [x] **Quiz completion journey**: ALREADY COVERED — the existing umbrella
       (quiz_test.dart) finishes full 3-card sessions in every mode with score
       assertions (100%/0% + verdicts). Verified 2026-07-03, nothing added.
 
 **Done when:** umbrella still ≥ as reliable as before (3 consecutive green
 dispatch runs).
+✅ Phase 6 complete 2026-07-03 — gate green (5-suite run 28634155576), real
+login validated 3/3 and promoted to a 6-suite gate. Phase 7 (goldens) remains
+deferred by decision; the roadmap is fully executed.
 
 ### Known issue — umbrella run-level flakiness (diagnosed 2026-07-03)
 
@@ -379,6 +382,7 @@ PR**:
 | 2026-07-03 | — | Roadmap written; phases 1–7 defined | Claude (session with Thomas) |
 | 2026-07-03 | 1 | **Phase 1 done.** Baseline 32.9% (46.0% excl. generated); CI prints % + uploads lcov artifact; findings table filled; answer_validator added to Phase 2 | Claude (session with Thomas) |
 | 2026-07-03 | 2 | **Phase 2 done.** session_assembly extracted (14 tests), loadCards provider-level (8 tests), answer_validator (12 tests, →100%). 327 total, 35.2% / 51.8% | Claude (session with Thomas) |
+| 2026-07-03 | 6 | **Phase 6 done.** E2E gate split to per-suite invocations + TEST_MODE audio mute → green; real-login stabilized, 3/3 validated, promoted to the gate; deep-link dropped (no Patrol intent API, host-covered) | Claude (session with Thomas) |
 | 2026-07-03 | 5 | **Phase 5 done.** Coverage floor gate in CI: fail < 43.5% (measured 45.8%) | Claude (session with Thomas) |
 | 2026-07-03 | 4 | **Phase 4 done.** syncFromRemote + getListByShareToken added (6 tests); the rest was already covered by pre-existing integration tests. 360 total, 45.8% | Claude (session with Thomas) |
 | 2026-07-03 | 3 | **Phase 3 done.** pump_screen harness + 27 tests over 5 screens; 4 real 360dp/text-scale layout bugs found & fixed. 354 total, 44.9% / 64.8% | Claude (session with Thomas) |

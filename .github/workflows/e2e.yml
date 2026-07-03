@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Patrol target — a single _test.dart file for a quick run; default runs the 5 suites sequentially'
+        description: 'Patrol target — a single _test.dart file for a quick run; default runs the 6 suites sequentially'
         default: 'all'
         required: false
 
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     # clearPackageData isolates each test (fresh process + sign-in), so there's no
     # cross-test accumulation — but a per-test app spawn occasionally dies
-    # silently. The suites therefore run as 5 separate patrol invocations, each
+    # silently. The suites therefore run as 6 separate patrol invocations, each
     # with its own capped-and-retried attempts (see the script below). A clean
     # full pass is ~35 min incl. boot; 60 min leaves room for several retries.
     timeout-minutes: 60
@@ -121,9 +121,9 @@ jobs:
           # The 20-test umbrella in ONE patrol invocation is a coin flip: each
           # per-test app spawn has a small chance of dying silently (see the
           # roadmap's "umbrella run-level flakiness"), and one dropped spawn
-          # fails the whole attempt. Running the 5 suite files (max ~6 tests each) sequentially,
+          # fails the whole attempt. Running the 6 suite files (max ~6 tests each) sequentially,
           # each with its own retry loop, makes a clean attempt per suite far
           # more likely (fewer spawns per attempt) and a retry far cheaper
           # (~5 min re-runs one suite, not all 20 tests). Single-line script:
           # the emulator-runner executes each line as a separate sh -c.
-          script: "if [ \"${{ inputs.target }}\" = all ]; then TARGETS=\"patrol_test/navigation_test.dart patrol_test/auth_flows_test.dart patrol_test/user_flows_test.dart patrol_test/quiz_test.dart patrol_test/quiz_ecrire_test.dart\"; else TARGETS=\"${{ inputs.target }}\"; fi; for t in $TARGETS; do ok=0; for attempt in 1 2 3; do echo \"=== $t attempt $attempt/3 ===\"; timeout 15m patrol test --target $t --dart-define-from-file=.env.json && { ok=1; break; }; done; [ $ok -eq 1 ] || { echo \"::error::$t failed 3 attempts\"; exit 1; }; done"
+          script: "if [ \"${{ inputs.target }}\" = all ]; then TARGETS=\"patrol_test/navigation_test.dart patrol_test/auth_flows_test.dart patrol_test/user_flows_test.dart patrol_test/quiz_test.dart patrol_test/quiz_ecrire_test.dart patrol_test/auth_login_test.dart\"; else TARGETS=\"${{ inputs.target }}\"; fi; for t in $TARGETS; do ok=0; for attempt in 1 2 3; do echo \"=== $t attempt $attempt/3 ===\"; timeout 15m patrol test --target $t --dart-define-from-file=.env.json && { ok=1; break; }; done; [ $ok -eq 1 ] || { echo \"::error::$t failed 3 attempts\"; exit 1; }; done"
