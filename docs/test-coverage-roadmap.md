@@ -360,6 +360,39 @@ use `golden_toolkit`).
 
 ---
 
+## Phase 8 — Coverage push (added 2026-07-03, user directive: "as high as possible")
+
+Phases 1-6 got hand-written coverage to 66.6%. The remaining gap is dominated
+by 41 files (~6.8k lines) no test imports at all. Work biggest-first with the
+Phase 3 harness (`pumpScreen`); commit per batch; keep the floor gate ratcheted
+(+raise it after each batch lands).
+
+- [ ] `quiz_screen.dart` (1208 lines) — widget tests per mode: flashcard flip
+      + self-grade, typing submit → verdict, session completion. Reuse the
+      quiz_load_cards harness (fake GetDueCards + real in-memory dao + noop
+      audio). CAUTION: mic/STT widgets may instantiate native speech services —
+      fake or avoid the voice modes if they touch plugins at build time.
+- [ ] `lists_screen.dart` (468) — clone the list_detail pattern (real repo on
+      in-memory drift): render, create-list dialog, navigation to detail.
+- [ ] `social_screen.dart` (888) — fake SocialRepository streams (friends,
+      requests, leaderboard tabs).
+- [ ] `profile_screen.dart` (442) + `stats_screen.dart` (355) — fake providers.
+- [ ] `auth_screen.dart` (312) + `welcome_screen.dart` (107) — fake
+      AuthNotifier; form validation, error states, navigation.
+- [ ] `notification_settings_screen.dart` (278) — fake notification notifier.
+- [ ] Provider flows: `quiz_provider` submit/completion (→ from 41.5%),
+      `auth_provider` with a fake AuthRepository (8%),
+      `notification_provider` notifier with a fake NotificationService
+      (`implements` works around the private constructor) (22.9%),
+      `purchase_provider` with a fake PurchaseService (14.7%),
+      `social_provider` (0%), `vocabulary_provider` remaining actions (41.1%).
+- [ ] After each batch: re-run coverage, raise the CI floor to (current − 2).
+
+**Done when:** every remaining host-testable file ≥ ~80% or has a written
+exclusion reason (device wrapper / stub), and the floor reflects the result.
+
+---
+
 ## Standing rule (applies forever, not a phase)
 
 Every new feature or stub implementation ships **with its tests in the same
