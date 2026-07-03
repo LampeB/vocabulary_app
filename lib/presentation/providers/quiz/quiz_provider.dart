@@ -320,7 +320,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   void flipCard() {
     final flipped = !state.isFlipped;
     state = state.copyWith(isFlipped: flipped);
-    if (flipped) {
+    // TTS muted in TEST_MODE — emulator audio destabilizes the E2E runner.
+    if (flipped && !_kTestMode) {
       final card = state.currentCard;
       if (card != null && card.answerWords.isNotEmpty) {
         final answerLang = card.progress.direction == QuizDirection.frToKo ? 'ko' : 'fr';
@@ -520,7 +521,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         scheduledDays: 0,
       );
       final nextCard = state.currentCard;
-      if (nextCard != null) {
+      if (nextCard != null && !_kTestMode) {
         final nextLang = nextCard.progress.direction == QuizDirection.frToKo ? 'fr' : 'ko';
         unawaited(_audio?.speak(nextCard.questionWord, nextLang));
       }

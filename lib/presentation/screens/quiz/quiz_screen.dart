@@ -293,7 +293,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
 
     // Hands-free is eyes-off: a "your turn" earcon + haptic on listen start.
-    if (ok && widget.args.mode == QuizMode.handsFree) {
+    if (ok && widget.args.mode == QuizMode.handsFree && !_kTestMode) {
       unawaited(_sfx.playListenCue());
       HapticFeedback.selectionClick();
     }
@@ -320,8 +320,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       if (prev?.answerState == QuizAnswerState.idle &&
           next.answerState != QuizAnswerState.idle) {
         final correct = next.answerState == QuizAnswerState.correct;
-        // Sound effect for every mode.
-        if (correct) { _sfx.playCorrect(); } else { _sfx.playIncorrect(); }
+        // Sound effect for every mode. Muted in TEST_MODE: audio HAL calls
+        // destabilize the CI emulator (suspected cause of the silent app-spawn
+        // deaths that only ever hit the quiz E2E suites).
+        if (!_kTestMode) {
+          if (correct) { _sfx.playCorrect(); } else { _sfx.playIncorrect(); }
+        }
         // Hands-free is eyes-off: pair the earcon with a distinct haptic.
         if (widget.args.mode == QuizMode.handsFree) {
           if (correct) {
@@ -331,7 +335,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           }
         }
         // Auto-speak the revealed answer — see shouldSpeakAnswer for the policy.
-        final shouldSpeak = shouldSpeakAnswer(widget.args.mode, correct: correct);
+        // (Also muted in TEST_MODE, same emulator-audio rationale as above.)
+        final shouldSpeak =
+            !_kTestMode && shouldSpeakAnswer(widget.args.mode, correct: correct);
         if (shouldSpeak) {
           final card = next.currentCard;
           if (card != null && card.answerWords.isNotEmpty) {
