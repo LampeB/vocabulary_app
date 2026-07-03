@@ -16,13 +16,13 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user      = ref.watch(currentUserProvider);
+    final user = ref.watch(currentUserProvider);
     final isPremium = ref.watch(isPremiumProvider);
-    final name      = user?.displayName ?? user?.username ?? '';
-    final username  = user?.username ?? '';
-    final streak    = user?.currentStreak ?? 0;
-    final mastered  = user?.totalWordsMastered ?? 0;
-    final best      = user?.longestStreak ?? 0;
+    final name = user?.displayName ?? user?.username ?? '';
+    final username = user?.username ?? '';
+    final streak = user?.currentStreak ?? 0;
+    final mastered = user?.totalWordsMastered ?? 0;
+    final best = user?.longestStreak ?? 0;
 
     final cs = Theme.of(context).colorScheme;
     final isDark = cs.brightness == Brightness.dark;
@@ -72,8 +72,8 @@ class ProfileScreen extends ConsumerWidget {
                 // ── Streak block ─────────────────────────────────────────────
                 FrostedBox(
                   borderRadius: BorderRadius.circular(20),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 24, vertical: 20),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                   child: Row(
                     children: [
                       Icon(
@@ -82,41 +82,43 @@ class ProfileScreen extends ConsumerWidget {
                         size: 32,
                       ),
                       const SizedBox(width: 14),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
-                            children: [
-                              Text(
-                                '$streak',
-                                style: AppTextStyles.grotesk(
-                                        36, FontWeight.w700)
-                                    .copyWith(
-                                  color: streak > 0
-                                      ? AppColors.clay
-                                      : faint,
+                      // Expanded: the text column overflows narrow (360dp)
+                      // screens by a hair otherwise.
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Text(
+                                  '$streak',
+                                  style:
+                                      AppTextStyles.grotesk(36, FontWeight.w700)
+                                          .copyWith(
+                                    color: streak > 0 ? AppColors.clay : faint,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                streak == 1
-                                    ? 'home.streak_days_one'.tr()
-                                    : 'home.streak_days_other'.tr(),
-                                style: AppTextStyles.fig(16, FontWeight.w600)
-                                    .copyWith(color: muted),
-                              ),
-                            ],
-                          ),
-                          Text(
-                            streak > 0
-                                ? 'profile.streak_active'.tr()
-                                : 'profile.streak_inactive'.tr(),
-                            style: AppTextStyles.caption
-                                .copyWith(color: faint),
-                          ),
-                        ],
+                                const SizedBox(width: 6),
+                                Text(
+                                  streak == 1
+                                      ? 'home.streak_days_one'.tr()
+                                      : 'home.streak_days_other'.tr(),
+                                  style: AppTextStyles.fig(16, FontWeight.w600)
+                                      .copyWith(color: muted),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              streak > 0
+                                  ? 'profile.streak_active'.tr()
+                                  : 'profile.streak_inactive'.tr(),
+                              style:
+                                  AppTextStyles.caption.copyWith(color: faint),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -177,8 +179,8 @@ class ProfileScreen extends ConsumerWidget {
                             ),
                             Text(
                               _subscriptionLabel(ref),
-                              style: AppTextStyles.caption
-                                  .copyWith(color: muted),
+                              style:
+                                  AppTextStyles.caption.copyWith(color: muted),
                             ),
                           ],
                         ),
@@ -361,8 +363,7 @@ class _StatCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 2),
-            Text(label,
-                style: AppTextStyles.caption.copyWith(color: muted)),
+            Text(label, style: AppTextStyles.caption.copyWith(color: muted)),
           ],
         ),
       ),
@@ -380,8 +381,7 @@ class _Section extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
-    return Text(label,
-        style: AppTextStyles.eyebrow.copyWith(color: muted));
+    return Text(label, style: AppTextStyles.eyebrow.copyWith(color: muted));
   }
 }
 
