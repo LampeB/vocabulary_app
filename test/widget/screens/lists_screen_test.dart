@@ -3,6 +3,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
@@ -58,6 +59,10 @@ void main() {
 
   Finder byKey(String key) => find.byKey(ValueKey(key));
 
+  // The list tile's menu icon is size 20; the app bar's is the default 24.
+  Finder tileMenu() => find.byWidgetPredicate(
+      (w) => w is Icon && w.icon == Icons.more_vert && w.size == 20);
+
   testWidgets('renders seeded lists', (tester) async {
     await pump(tester, seedLists: ['Animaux', 'Cuisine']);
 
@@ -92,6 +97,38 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(pushedRoute, startsWith('/lists/'));
+    await unmountScreen(tester);
+  });
+
+  testWidgets('renaming a list through the tile menu updates the tile',
+      (tester) async {
+    await pump(tester, seedLists: ['Animaux']);
+
+    await tester.tap(tileMenu()); // tile menu (appbar has its own more_vert)
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('lists.menu_rename'.tr()));
+    await tester.pumpAndSettle();
+    await tester.enterText(byKey(WidgetKeys.listNameField), 'Bêtes');
+    await tester.tap(byKey(WidgetKeys.listNameConfirm));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bêtes'), findsOneWidget);
+    expect(find.text('Animaux'), findsNothing);
+    await unmountScreen(tester);
+  });
+
+  testWidgets('deleting a list confirms first, then removes the tile',
+      (tester) async {
+    await pump(tester, seedLists: ['Cuisine']);
+
+    await tester.tap(tileMenu());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('lists.menu_delete'.tr()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('lists.delete_confirm'.tr()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cuisine'), findsNothing);
     await unmountScreen(tester);
   });
 

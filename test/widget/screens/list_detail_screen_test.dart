@@ -1,6 +1,7 @@
 // ignore_for_file: invalid_use_of_internal_member
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
@@ -28,7 +29,11 @@ void main() {
   // drift awaits deadlock under testWidgets' FakeAsync zone (nothing flushes
   // their microtasks outside a pump), so all direct DB work — seeding and
   // assertions — must run under tester.runAsync.
-  Future<void> pump(WidgetTester tester) async {
+  String? pushedRoute;
+
+  Future<void> pump(WidgetTester tester,
+      {bool premium = true, int? forceWordCount}) async {
+    pushedRoute = null;
     await tester.runAsync(() async {
       db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
@@ -40,13 +45,26 @@ void main() {
           listId: listId, frWord: 'chat', koWord: '고양이');
       await repo.addConceptWithVariants(
           listId: listId, frWord: 'chien', koWord: '개');
+      if (forceWordCount != null) {
+        // Simulate a list at the free-plan word quota without 50 inserts.
+        await db.vocabularyListDao.updateWordCount(listId, forceWordCount);
+      }
     });
     await pumpScreen(
       tester,
       screen: ListDetailScreen(listId: listId),
       overrides: [
         vocabularyRepositoryProvider.overrideWithValue(repo),
-        isPremiumProvider.overrideWithValue(true),
+        isPremiumProvider.overrideWithValue(premium),
+      ],
+      routes: [
+        GoRoute(
+          path: '/paywall',
+          pageBuilder: (_, state) {
+            pushedRoute = '/paywall';
+            return const MaterialPage<void>(child: Scaffold(body: SizedBox()));
+          },
+        ),
       ],
     );
   }
@@ -106,6 +124,23 @@ void main() {
     // The bug: the tile kept showing the stale cached variant after an edit.
     expect(find.text('chaton'), findsOneWidget);
     expect(find.text('chat'), findsNothing);
+    await unmountScreen(tester);
+  });
+
+  testWidgets(
+      'free plan at the word quota: adding a word routes to /paywall',
+      (tester) async {
+    await pump(tester, premium: false, forceWordCount: 50);
+
+    await tester.tap(byKey(WidgetKeys.listDetailAddWord));
+    await tester.pumpAndSettle();
+    await tester.enterText(byKey(WidgetKeys.addWordFr), 'trop');
+    await tester.enterText(byKey(WidgetKeys.addWordKo), '초과');
+    await tester.tap(byKey(WidgetKeys.addWordConfirm));
+    await tester.pumpAndSettle();
+
+    expect(pushedRoute, '/paywall');
+    expect(find.text('trop'), findsNothing);
     await unmountScreen(tester);
   });
 

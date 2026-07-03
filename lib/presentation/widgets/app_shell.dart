@@ -10,7 +10,10 @@ import '../../core/widget_keys.dart';
 
 const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
-final _connectivityProvider = StreamProvider<List<ConnectivityResult>>((ref) {
+/// Public so widget tests can override it (the plugin stream doesn't exist on
+/// the host); behavior unchanged.
+final connectivityStreamProvider =
+    StreamProvider<List<ConnectivityResult>>((ref) {
   if (_kTestMode) return Stream.value([ConnectivityResult.wifi]);
   return Connectivity().onConnectivityChanged;
 });
@@ -31,7 +34,7 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final connectivityAsync = ref.watch(_connectivityProvider);
+    final connectivityAsync = ref.watch(connectivityStreamProvider);
     final offline = connectivityAsync.valueOrNull != null &&
         isOffline(connectivityAsync.valueOrNull!);
     final selected = _selectedIndex(context);
@@ -58,10 +61,14 @@ class AppShell extends ConsumerWidget {
                           children: [
                             const Icon(Icons.wifi_off, size: 16, color: Colors.white),
                             const SizedBox(width: 8),
-                            Text(
-                              'shell.offline_banner'.tr(),
-                              style:
-                                  const TextStyle(color: Colors.white, fontSize: 12),
+                            // Expanded: the banner message is wider than any
+                            // phone screen — let it wrap instead of clipping.
+                            Expanded(
+                              child: Text(
+                                'shell.offline_banner'.tr(),
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 12),
+                              ),
                             ),
                           ],
                         ),
@@ -250,9 +257,16 @@ class _NavTile extends StatelessWidget {
         children: [
           Icon(active ? def.activeIcon : def.icon, color: color, size: 24),
           const SizedBox(height: 4),
-          Text(
-            def.labelKey.tr(),
-            style: AppTextStyles.eyebrowSm.copyWith(color: color),
+          // Flexible+FittedBox: the fixed-height bar overflows with larger
+          // text (accessibility scales / test font); shrink the label instead.
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                def.labelKey.tr(),
+                style: AppTextStyles.eyebrowSm.copyWith(color: color),
+              ),
+            ),
           ),
         ],
       ),

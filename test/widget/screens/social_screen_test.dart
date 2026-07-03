@@ -29,6 +29,9 @@ AppUserSummary _summary(String id, String name) => AppUserSummary(
 
 class _FakeSocialRepo implements SocialRepository {
   final accepted = <String>[];
+  final declined = <String>[];
+  final removed = <String>[];
+  final sentTo = <String>[];
   List<Friendship> friends = [];
   List<FriendRequest> pending = [];
 
@@ -42,6 +45,35 @@ class _FakeSocialRepo implements SocialRepository {
     accepted.add(requestId);
     return const Success(null);
   }
+
+  @override
+  Future<Result<void>> declineFriendRequest(String requestId) async {
+    declined.add(requestId);
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> removeFriend(String friendshipId) async {
+    removed.add(friendshipId);
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> sendFriendRequest(String toUserId) async {
+    sentTo.add(toUserId);
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<List<AppUser>>> searchUsers(String query) async => Success([
+        AppUser(
+          id: 'found-user',
+          email: '',
+          username: 'claire',
+          subscriptionType: SubscriptionType.free,
+          createdAt: _now,
+        ),
+      ]);
 
   @override
   Future<Result<List<LeaderboardEntry>>> getLeaderboard({
@@ -138,6 +170,62 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repo.accepted, ['r1']);
+  });
+
+  testWidgets('declining a pending request calls the repository',
+      (tester) async {
+    repo.pending = [
+      FriendRequest(
+          id: 'r2', fromUserId: 'b', toUserId: 'me', createdAt: _now),
+    ];
+    await pump(tester);
+
+    await tester.tap(find.byIcon(Icons.close_rounded).first);
+    await tester.pumpAndSettle();
+
+    expect(repo.declined, ['r2']);
+  });
+
+  testWidgets('removing a friend confirms first, then calls the repository',
+      (tester) async {
+    repo.friends = [
+      Friendship(
+          id: 'f1',
+          userAId: 'me',
+          userBId: 'b',
+          friend: _summary('b', 'bob'),
+          createdAt: _now),
+    ];
+    await pump(tester);
+
+    // Open the friend card's menu and choose remove.
+    await tester.tap(find.byType(PopupMenuButton<String>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('social.remove_friend_menu'.tr()));
+    await tester.pumpAndSettle();
+    // Confirm.
+    await tester.tap(find.text('social.remove_confirm'.tr()));
+    await tester.pumpAndSettle();
+
+    expect(repo.removed, ['f1']);
+  });
+
+  testWidgets('searching a user and tapping add sends a friend request',
+      (tester) async {
+    await pump(tester);
+
+    await tester.tap(find.text('social.add_friend_button'.tr()));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'cla');
+    await tester.pumpAndSettle(const Duration(milliseconds: 400)); // debounce
+    expect(find.text('claire'), findsOneWidget);
+
+    // Both the header opener and the result tile render the same label; the
+    // tile's is the last one in the tree.
+    await tester.tap(find.text('social.search_add_button'.tr()).last);
+    await tester.pumpAndSettle();
+
+    expect(repo.sentTo, ['found-user']);
   });
 
   testWidgets('leaderboard tab shows entries with ranks and my score',
