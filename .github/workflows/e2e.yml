@@ -8,17 +8,18 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Patrol target — a single _test.dart file for a quick run, or the umbrella for all'
-        default: 'patrol_test/quiz_all_test.dart'
+        description: 'Patrol target — a single _test.dart file for a quick run; default runs the 4 suites sequentially'
+        default: 'all'
         required: false
 
 jobs:
   e2e:
     runs-on: ubuntu-latest
     # clearPackageData isolates each test (fresh process + sign-in), so there's no
-    # cross-test accumulation — but a single fresh sign-in/launch occasionally
-    # deadlocks. Each attempt is hard-capped with `timeout` so a hang is killed and
-    # RETRIED rather than eating the whole budget. 60 min fits boot + 2 attempts.
+    # cross-test accumulation — but a per-test app spawn occasionally dies
+    # silently. The suites therefore run as 4 separate patrol invocations, each
+    # with its own capped-and-retried attempts (see the script below). A clean
+    # full pass is ~35 min incl. boot; 60 min leaves room for several retries.
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -117,7 +118,12 @@ jobs:
           profile: pixel_6
           ram-size: 4096M
           disable-animations: true
-          # Each attempt is hard-capped at 23 min: a clean run is ~22 min, so a
-          # hung attempt is killed at 23 min and the next attempt runs (a single
-          # deadlocked sign-in no longer eats the whole job).
-          script: "for attempt in 1 2 3; do echo \"=== attempt $attempt/3 (${{ inputs.target }}) ===\"; timeout 23m patrol test --target ${{ inputs.target }} --dart-define-from-file=.env.json && exit 0; done; exit 1"
+          # The 20-test umbrella in ONE patrol invocation is a coin flip: each
+          # per-test app spawn has a small chance of dying silently (see the
+          # roadmap's "umbrella run-level flakiness"), and one dropped spawn
+          # fails the whole attempt. Running the 4 suite files sequentially,
+          # each with its own retry loop, makes a clean attempt per suite far
+          # more likely (fewer spawns per attempt) and a retry far cheaper
+          # (~5 min re-runs one suite, not all 20 tests). Single-line script:
+          # the emulator-runner executes each line as a separate sh -c.
+          script: "if [ \"${{ inputs.target }}\" = all ]; then TARGETS=\"patrol_test/navigation_test.dart patrol_test/auth_flows_test.dart patrol_test/user_flows_test.dart patrol_test/quiz_test.dart\"; else TARGETS=\"${{ inputs.target }}\"; fi; for t in $TARGETS; do ok=0; for attempt in 1 2 3; do echo \"=== $t attempt $attempt/3 ===\"; timeout 15m patrol test --target $t --dart-define-from-file=.env.json && { ok=1; break; }; done; [ $ok -eq 1 ] || { echo \"::error::$t failed 3 attempts\"; exit 1; }; done"

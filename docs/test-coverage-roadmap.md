@@ -321,13 +321,19 @@ so the orchestrator exits 1 for "tests did not run" even though everything
 that ran passed. The dropped subset differs per attempt (pure spawn
 flakiness, likely emulator load + clearPackageData cold starts).
 
+MITIGATION SHIPPED 2026-07-03: e2e.yml no longer runs the 20-test umbrella in
+one patrol invocation. The default (`target: all`) runs the 4 suite files
+(navigation, auth_flows, user_flows, quiz) sequentially, each with its own
+3-attempt/15-min-capped retry loop — fewer spawns per attempt makes a clean
+attempt likely, and a retry re-runs one suite (~5 min) instead of all 20
+tests. `quiz_all_test.dart` still exists for a single-invocation run via the
+target input.
+
 This PREDATES the study-redesign test work: the last green run (28544920836,
 2026-07-01) also had a 19/20 attempt and only passed because its second
 attempt happened to drop nothing. A run is green only if ONE attempt drops
-zero tests — a coin flip. Mitigations to consider if it worsens: more retry
-attempts, splitting the umbrella into two shorter targets (fewer spawns per
-attempt → higher odds of a clean one), or investigating orchestrator spawn
-timeouts on the emulator. When triaging a red E2E run, FIRST check
+zero tests — a coin flip. Remaining option if it worsens further: investigate orchestrator spawn
+timeouts on the emulator itself. When triaging a red E2E run, FIRST check
 `Total:` vs 20 and `Failed:` — if Failed is 0, it's this issue, not a broken
 test.
 
