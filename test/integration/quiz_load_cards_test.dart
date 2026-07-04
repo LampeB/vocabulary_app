@@ -32,6 +32,8 @@ class _NoopAudio implements AudioPlayerService {
   @override
   Future<PlayerState> get state async => PlayerState.stopped;
   @override
+  bool get isSpeaking => false;
+  @override
   void dispose() {}
 }
 

@@ -54,6 +54,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // Hands-free "pas entendu" recovery: re-listen up to twice before requeuing.
   int _notHeardRetries = 0;
   bool _hfNotHeard = false;
+  // Hands-free app-audio pickup guard: wrong results arriving implausibly
+  // fast are discarded and the mic re-listens (max twice per card).
+  int _noiseRetries = 0;
   // Whole-screen warm breathing pulse used during the hands-free reading state.
   late final AnimationController _pulseCtrl;
 
@@ -76,8 +79,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       }
       // Real hardware/network errors (not error_no_match, which is normal
       // "no speech recognised" and is handled by onListeningDone instead).
+      // Transient engine hiccups — timeouts, audio-focus races, busy engine —
+      // recover on their own via the retry paths; surfacing them just spams
+      // "mic error" banners while the mic works fine (user report 2026-07-05).
+      const transientSttErrors = {
+        'error_speech_timeout',
+        'error_busy',
+        'error_audio',
+        'error_client',
+      };
       _stt.onError = (msg) {
-        if (!mounted) return;
+        if (!mounted || transientSttErrors.contains(msg)) return;
+        // Hands-free is eyes-off and self-recovering — never banner it.
+        if (widget.args.mode == QuizMode.handsFree) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('quiz.stt_error'.tr(namedArgs: {'msg': msg})),
           duration: const Duration(seconds: 4),
@@ -195,10 +209,36 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     super.dispose();
   }
 
+  /// Opens the mic only AFTER the app has finished talking (question TTS,
+  /// and on a new card after a mistake, the KO correction still in flight).
+  /// The old fixed 300ms delay cut speech mid-word via the mic's audio-stop
+  /// AND let the recognizer transcribe the app's own voice as the user's
+  /// answer (user feedback 2026-07-05).
+  Future<void> _waitForSpeechThenListen(QuizCard card) async {
+    final audio = ref.read(audioPlayerServiceProvider);
+    // Give the provider's fire-and-forget speak() a beat to actually start.
+    await Future.delayed(const Duration(milliseconds: 300));
+    final deadline = DateTime.now().add(const Duration(seconds: 8));
+    while (mounted &&
+        audio.isSpeaking &&
+        DateTime.now().isBefore(deadline)) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+    // Echo tail: let the room go quiet before the mic opens.
+    await Future.delayed(const Duration(milliseconds: 250));
+    if (mounted && !_stt.isListening) {
+      debugPrint('[HF] speech finished — calling _startListening');
+      unawaited(_startListening(card));
+    } else {
+      debugPrint('[HF] speech finished but mounted=$mounted stt.isListening=${_stt.isListening} — skipping');
+    }
+  }
+
   Future<void> _startListening(QuizCard card, {bool isRetry = false}) async {
     if (!isRetry) {
       _listenRetries = 0;
       _notHeardRetries = 0;
+      _noiseRetries = 0;
     }
     if (_hfNotHeard) {
       setState(() => _hfNotHeard = false);
@@ -231,6 +271,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
+    // Hands-free is eyes-off: "your turn" earcon + haptic BEFORE the mic
+    // opens — played while listening, the recognizer hears the earcon itself
+    // and can transcribe it as a (wrong) answer.
+    if (widget.args.mode == QuizMode.handsFree && !_kTestMode) {
+      unawaited(_sfx.playListenCue());
+      HapticFeedback.selectionClick();
+      await Future.delayed(const Duration(milliseconds: 250));
+      if (!mounted) return;
+    }
+
     final currentDir = ref.read(quizProvider).currentCard?.progress.direction;
     final langCode = currentDir?.answerLang ?? widget.args.langB;
     // Capture token so late-arriving onResult from this session is ignored
@@ -252,6 +302,30 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           if (widget.args.mode == QuizMode.handsFree && text.trim().isNotEmpty) {
             _stt.stopListening();
             if (ref.read(quizProvider).answerState == QuizAnswerState.idle) {
+              // A WRONG result arriving faster than a human could think and
+              // speak is almost certainly the mic transcribing the app's own
+              // audio (TTS tail, earcon echo) — discard it and re-listen
+              // instead of penalising the user. Correct results always land.
+              final elapsed = _stt.listenElapsedMs;
+              if (elapsed < 800 && _noiseRetries < 2) {
+                final validation = AnswerValidator.validate(
+                  userAnswer: text,
+                  acceptedAnswers: card.answerWords,
+                  isDrivingMode: true,
+                );
+                if (!validation.isCorrect) {
+                  _noiseRetries++;
+                  debugPrint('[HF] 🔇 wrong result after only ${elapsed}ms — treating as app-audio pickup, re-listen #$_noiseRetries');
+                  Future.delayed(const Duration(milliseconds: 300), () {
+                    if (mounted &&
+                        ref.read(quizProvider).answerState ==
+                            QuizAnswerState.idle) {
+                      unawaited(_startListening(card, isRetry: true));
+                    }
+                  });
+                  return;
+                }
+              }
               ref
                   .read(quizProvider.notifier)
                   .submitVoiceAnswer(text, isDrivingMode: true);
@@ -371,15 +445,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         final card = next.currentCard;
         if ((cardChanged || justLoaded || cardsJustAppeared) && card != null && !next.isComplete) {
           debugPrint('[HF] Card trigger: cardChanged=$cardChanged justLoaded=$justLoaded cardsJustAppeared=$cardsJustAppeared  idx=${next.currentIndex}  question="${card.questionWord}"  answers=${card.answerWords}');
-          debugPrint('[HF] Scheduling _startListening in 300ms...');
-          Future.delayed(const Duration(milliseconds: 300), () {
-            if (mounted && !_stt.isListening) {
-              debugPrint('[HF] 300ms elapsed — calling _startListening');
-              unawaited(_startListening(card));
-            } else {
-              debugPrint('[HF] 300ms elapsed but mounted=$mounted stt.isListening=${_stt.isListening} — skipping');
-            }
-          });
+          unawaited(_waitForSpeechThenListen(card));
         }
       }
     });

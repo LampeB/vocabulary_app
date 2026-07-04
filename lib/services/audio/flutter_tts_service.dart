@@ -26,6 +26,13 @@ class FlutterTtsService implements AudioService {
   final _ttsByLang = <String, FlutterTts>{};
   List<dynamic>? _availableEngines;
 
+  // Overlapping speaks (e.g. KO answer then FR question) each count.
+  int _activeSpeaks = 0;
+
+  /// Whether any utterance is still in flight — hands-free must not open the
+  /// mic (which stops audio AND hears the speaker) while this is true.
+  bool get isSpeaking => _activeSpeaks > 0;
+
   Future<FlutterTts> _ttsFor(String langCode) async {
     final existing = _ttsByLang[langCode];
     if (existing != null) return existing;
@@ -45,6 +52,9 @@ class FlutterTtsService implements AudioService {
     );
     if (engine.isNotEmpty) await tts.setEngine(engine);
     await tts.setVolume(1.0);
+    // speak() resolves when the utterance FINISHES, so callers (and
+    // isSpeaking) can coordinate with real speech, not just its start.
+    await tts.awaitSpeakCompletion(true);
     _ttsByLang[langCode] = tts;
     return tts;
   }
@@ -56,7 +66,12 @@ class FlutterTtsService implements AudioService {
     // Must set rate/pitch AFTER setLanguage — Android TTS resets them on language change.
     await tts.setSpeechRate(speechRate);
     await tts.setPitch(pitch);
-    await tts.speak(text);
+    _activeSpeaks++;
+    try {
+      await tts.speak(text);
+    } finally {
+      _activeSpeaks--;
+    }
   }
 
   @override

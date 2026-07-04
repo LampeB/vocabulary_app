@@ -38,6 +38,12 @@ class AudioPlayerService {
 
   Future<PlayerState> get state async => _player.state;
 
+  /// Whether speech (TTS or premium audio) is still playing. Hands-free polls
+  /// this before opening the mic so questions/corrections are never cut off
+  /// or picked up by the recognizer as the user's answer.
+  bool get isSpeaking =>
+      _tts.isSpeaking || _player.state == PlayerState.playing;
+
   void dispose() {
     _player.dispose();
     _tts.dispose();

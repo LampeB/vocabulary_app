@@ -88,6 +88,8 @@
   "lists.empty_title": "Pas encore de listes",
   "lists.empty_subtitle": "Crée ta première liste de vocabulaire pour commencer.",
   "lists.empty_button": "Créer une liste",
+  "lists.list_word_count_one": "mot",
+  "lists.list_word_count_other": "mots",
   "list_detail.appbar_fallback": "Liste",
   "list_detail.action_done": "Terminer",
   "list_detail.tooltip_export": "Exporter",

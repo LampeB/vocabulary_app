@@ -88,6 +88,8 @@
   "lists.empty_title": "아직 목록이 없습니다",
   "lists.empty_subtitle": "시작하려면 첫 번째 단어 목록을 만드세요.",
   "lists.empty_button": "목록 만들기",
+  "lists.list_word_count_one": "단어",
+  "lists.list_word_count_other": "단어",
   "list_detail.appbar_fallback": "목록",
   "list_detail.action_done": "완료",
   "list_detail.tooltip_export": "내보내기",

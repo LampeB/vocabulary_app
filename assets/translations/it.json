@@ -88,6 +88,8 @@
   "lists.empty_title": "Ancora nessuna lista",
   "lists.empty_subtitle": "Crea la tua prima lista di vocaboli per iniziare.",
   "lists.empty_button": "Crea una lista",
+  "lists.list_word_count_one": "parola",
+  "lists.list_word_count_other": "parole",
   "list_detail.appbar_fallback": "Lista",
   "list_detail.action_done": "Fine",
   "list_detail.tooltip_export": "Esporta",
