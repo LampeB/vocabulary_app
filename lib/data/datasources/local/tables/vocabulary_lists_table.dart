@@ -11,6 +11,10 @@ class VocabularyListsTable extends Table {
   TextColumn get visibility => text().withDefault(const Constant('private'))();
   IntColumn get wordCount => integer().named('word_count').withDefault(const Constant(0))();
   TextColumn get shareToken => text().named('share_token').nullable()();
+  // The list's studied language pair (generic-language-pairs epic). Existing
+  // lists predate the columns, hence the fr/ko defaults.
+  TextColumn get langA => text().named('lang_a').withDefault(const Constant('fr'))();
+  TextColumn get langB => text().named('lang_b').withDefault(const Constant('ko'))();
   BoolColumn get isSynced => boolean().named('is_synced').withDefault(const Constant(false))();
   BoolColumn get isDeleted => boolean().named('is_deleted').withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().named('created_at')();

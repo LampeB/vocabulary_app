@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../domain/entities/vocabulary_list.dart';
+import '../../../core/languages.dart';
 import '../../../domain/usecases/quiz/get_due_cards_usecase.dart'
     show QuizSource;
 import '../../providers/lists/vocabulary_provider.dart';
@@ -32,6 +33,10 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   String? _listId;
   QuizSource _source = QuizSource.list;
   String _listName = '';
+  // The selected list's language pair drives the direction labels (smart
+  // sources span lists — all FR/KR today, so they use the defaults).
+  String _langA = 'fr';
+  String _langB = 'ko';
   QuizMode _mode = QuizMode.voice;
   QuizDirectionChoice _dir = QuizDirectionChoice.frToKo;
   // Default 20 in production; E2E sets a small TEST_CARD_LIMIT so a session is a
@@ -252,6 +257,8 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                 _source = QuizSource.list;
                 _listId = l.id;
                 _listName = l.name;
+                _langA = l.langA;
+                _langB = l.langB;
               });
               _select(2);
             },
@@ -266,6 +273,8 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
       _source = source;
       _listId = null;
       _listName = label;
+      _langA = 'fr';
+      _langB = 'ko';
     });
     _select(2);
   }
@@ -277,11 +286,21 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
         QuizMode.handsFree => 'quiz_setup.mode_hands_free_label'.tr(),
       };
 
-  String _dirLabel(QuizDirectionChoice d) => switch (d) {
-        QuizDirectionChoice.frToKo => 'quiz_setup.dir_fr_to_kr'.tr(),
-        QuizDirectionChoice.koToFr => 'quiz_setup.dir_kr_to_fr'.tr(),
-        QuizDirectionChoice.both => 'quiz_setup.dir_both'.tr(),
-      };
+  // Direction labels are DERIVED from the selected list's language pair —
+  // never hardcoded (generic-language-pairs epic). The enum values keep their
+  // legacy names until the generic-direction sub-task lands.
+  String _dirLabel(QuizDirectionChoice d) {
+    final a = _cap(Languages.displayName(_langA));
+    final b = _cap(Languages.displayName(_langB));
+    return switch (d) {
+      QuizDirectionChoice.frToKo => '$a → $b',
+      QuizDirectionChoice.koToFr => '$b → $a',
+      QuizDirectionChoice.both => 'quiz_setup.dir_both'.tr(),
+    };
+  }
+
+  static String _cap(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
   bool get _canStart => _source != QuizSource.list || _listId != null;
 

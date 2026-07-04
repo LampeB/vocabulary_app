@@ -15,6 +15,8 @@ class VocabularyList with _$VocabularyList {
     @Default(ListVisibility.private) ListVisibility visibility,
     @Default(0) int wordCount,
     String? shareToken,
+    @Default('fr') String langA,
+    @Default('ko') String langB,
     @Default(false) bool isSynced,
     @Default(false) bool isDeleted,
     required DateTime createdAt,

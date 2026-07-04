@@ -16,12 +16,15 @@ import '../../helpers/pump_screen.dart';
 
 final _now = DateTime(2026, 7, 3);
 
-VocabularyList _list(String id, String name, {int wordCount = 5}) =>
+VocabularyList _list(String id, String name,
+        {int wordCount = 5, String langA = 'fr', String langB = 'ko'}) =>
     VocabularyList(
       id: id,
       ownerId: 'u',
       name: name,
       wordCount: wordCount,
+      langA: langA,
+      langB: langB,
       createdAt: _now,
       updatedAt: _now,
     );
@@ -176,6 +179,21 @@ void main() {
     await tapKey(tester, WidgetKeys.startSessionStart);
 
     expect(capturedArgs!.source, QuizSource.inProgress);
+  });
+
+  testWidgets(
+      'direction labels derive from the list language pair (EN↔ES list shows '
+      'anglais/espagnol, not FR/KR)', (tester) async {
+    await pump(tester,
+        lists: [_list('l9', 'Inglés', langA: 'en', langB: 'es')]);
+
+    await tester.tap(find.text('Inglés'));
+    await tester.pumpAndSettle();
+    await tapKey(tester, WidgetKeys.startQuizType('flashcard'));
+
+    // The direction section is now open with labels from lang.en / lang.es.
+    expect(find.text('Anglais → Espagnol'), findsOneWidget);
+    expect(find.text('Espagnol → Anglais'), findsOneWidget);
   });
 
   testWidgets('the CTA label shows the selected card count', (tester) async {

@@ -35,7 +35,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -49,6 +49,12 @@ class AppDatabase extends _$AppDatabase {
             await customStatement(
                 'CREATE INDEX IF NOT EXISTS idx_sessions_user '
                 'ON quiz_sessions(user_id, completed_at)');
+          }
+          if (from < 3) {
+            // Language pair per list (generic-language-pairs epic); existing
+            // lists are all FR/KR.
+            await m.addColumn(vocabularyListsTable, vocabularyListsTable.langA);
+            await m.addColumn(vocabularyListsTable, vocabularyListsTable.langB);
           }
         },
       );
