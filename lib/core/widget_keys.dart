@@ -85,12 +85,12 @@ abstract final class WidgetKeys {
   static String conceptEditIcon(String frWord) => 'word.tile.edit.$frWord';
   static String conceptDeleteIcon(String frWord) => 'word.tile.delete.$frWord';
 
-  // ── Start-session accordion sections + type tile ───────────────────────────
+  // ── Start-session accordion sections ────────────────────────────────────────
   static String startSection(int index) => 'ss.section.$index'; // header
   static String startSmart(String name) => 'ss.smart.$name'; // 'due' | 'inprogress'
   static String startRule(String ruleId) => 'ss.rule.$ruleId';
   static const grammarLessonStart = 'grammar.lesson.start';
-  static String startType(String name) => 'ss.type.$name'; // e.g. 'vocab'
+  static const homeGrammar = 'home.grammar'; // Home card → grammar setup
 
   // ── Auth flows (sign-out, password reset) ──────────────────────────────────
   static const screenWelcome = 'screen.welcome';

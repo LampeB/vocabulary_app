@@ -57,11 +57,10 @@ void main() {
     // ── Start a quiz, choosing a value in every section ───────────────────────
     await app.when.opensStartASession();
     await app.then.onScreen(Screen.startSession);
-    await app.when.choosesSessionType(); // section 0 — Vocabulaire
-    await app.when.choosesList(_flowList); // section 1 — the list
-    await app.when.choosesQuizType(Quiz.typing); // section 2 — Écrire
-    await app.when.choosesDirection(Dir.koToFr); // section 3 — KO→FR
-    await app.when.choosesCardCount(10); // section 4 — 10 cards
+    await app.when.choosesList(_flowList); // section 0 — the list
+    await app.when.choosesQuizType(Quiz.typing); // section 1 — Écrire
+    await app.when.choosesDirection(Dir.koToFr); // section 2 — KO→FR
+    await app.when.choosesCardCount(10); // section 3 — 10 cards
     await app.when.startsTheSession();
 
     // KO→FR → the expected answer is the French word; only 'Bonsoir' remains and

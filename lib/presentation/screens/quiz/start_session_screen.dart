@@ -15,24 +15,26 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widget_keys.dart';
 import '../../widgets/dotted_ground.dart';
 
-/// The single front door to studying (start-session-screen.md). An accordion:
-/// one section open at a time; selecting a value auto-advances to the next.
+/// Session setup (start-session-screen.md). An accordion: one section open
+/// at a time; selecting a value auto-advances to the next.
 ///
-/// MVP scope: real vocab lists + quiz type + direction + count. The dynamic
-/// smart-lists ("En cours d'apprentissage" / "À réviser maintenant") and the
-/// Home one-tap deep link are deferred — they need cross-list FSRS queries
-/// (tracked separately).
+/// Vocabulary and grammar are SEPARATE flows (product decision 2026-07-05):
+/// the default screen is vocabulary-only — list + quiz type + direction +
+/// count, no grammar anywhere. `grammar: true` (its own route, entered from
+/// the Home grammar card) swaps the flow to rule + quiz type + count.
 class StartSessionScreen extends ConsumerStatefulWidget {
-  const StartSessionScreen({super.key});
+  const StartSessionScreen({super.key, this.grammar = false});
+
+  final bool grammar;
 
   @override
   ConsumerState<StartSessionScreen> createState() => _StartSessionScreenState();
 }
 
 class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
-  // Sections: 0 type · 1 list · 2 quiz-type · 3 direction · 4 count.
-  int _open = 1; // type defaults to Vocabulaire, so start on List.
-  bool _grammar = false; // Vocabulaire vs Grammaire session
+  // Sections: 0 list|rule · 1 quiz-type · 2 direction (vocab only) · 3 count.
+  int _open = 0;
+  bool get _grammar => widget.grammar;
   String? _ruleId;
   String _ruleTitle = '';
   String? _listId;
@@ -63,7 +65,10 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => context.pop(),
         ),
-        title: Text('start_session.title'.tr()),
+        title: Text((_grammar
+                ? 'start_session.title_grammar'
+                : 'start_session.title')
+            .tr()),
       ),
       body: Stack(
         children: [
@@ -71,56 +76,16 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
           ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
             children: [
-              // 0 — Type de session.
+              // 0 — Liste (vocab) | Règle (grammar).
               _Section(
                 index: 0,
                 isOpen: _open == 0,
-                label: 'start_session.section_type'.tr(),
-                value: (_grammar
-                        ? 'start_session.type_grammar'
-                        : 'start_session.type_vocab')
-                    .tr(),
-                onHeaderTap: () => _select(0),
-                child: Column(
-                  children: [
-                    _OptionTile(
-                      key: ValueKey(WidgetKeys.startType('vocab')),
-                      label: 'start_session.type_vocab'.tr(),
-                      selected: !_grammar,
-                      onTap: () {
-                        setState(() => _grammar = false);
-                        _select(1);
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    _OptionTile(
-                      key: ValueKey(WidgetKeys.startType('grammar')),
-                      label: 'start_session.type_grammar'.tr(),
-                      selected: _grammar,
-                      onTap: () {
-                        setState(() {
-                          _grammar = true;
-                          _listId = null;
-                          _source = QuizSource.list;
-                          _listName = '';
-                        });
-                        _select(1);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              // 1 — Liste.
-              _Section(
-                index: 1,
-                isOpen: _open == 1,
                 label: (_grammar
                         ? 'start_session.section_rule'
                         : 'start_session.section_list')
                     .tr(),
                 value: _grammar ? _ruleTitle : _listName,
-                onHeaderTap: () => _select(1),
+                onHeaderTap: () => _select(0),
                 child: _grammar
                     ? _ruleOptions()
                     : listsAsync.when(
@@ -139,13 +104,13 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                       ),
               ),
               const SizedBox(height: 10),
-              // 2 — Type de quiz.
+              // 1 — Type de quiz.
               _Section(
-                index: 2,
-                isOpen: _open == 2,
+                index: 1,
+                isOpen: _open == 1,
                 label: 'quiz_setup.section_mode'.tr(),
                 value: _modeLabel(_mode),
-                onHeaderTap: () => _select(2),
+                onHeaderTap: () => _select(1),
                 child: Column(
                   children: [
                     for (final m in QuizMode.values) ...[
@@ -156,7 +121,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                         selected: _mode == m,
                         onTap: () {
                           setState(() => _mode = m);
-                          _select(_grammar ? 4 : 3);
+                          _select(_grammar ? 3 : 2);
                         },
                       ),
                     ],
@@ -164,14 +129,14 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              // 3 — Sens (vocab only: grammar drills are FR → KR by nature).
+              // 2 — Sens (vocab only: grammar drills are FR → KR by nature).
               if (!_grammar)
                 _Section(
-                index: 3,
-                isOpen: _open == 3,
+                index: 2,
+                isOpen: _open == 2,
                 label: 'quiz_setup.section_direction'.tr(),
                 value: _dirLabel(_dir),
-                onHeaderTap: () => _select(3),
+                onHeaderTap: () => _select(2),
                 child: Column(
                   children: [
                     for (final d in QuizDirectionChoice.values) ...[
@@ -183,7 +148,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                         selected: _dir == d,
                         onTap: () {
                           setState(() => _dir = d);
-                          _select(4);
+                          _select(3);
                         },
                       ),
                     ],
@@ -191,13 +156,13 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              // 4 — Nombre de mots.
+              // 3 — Nombre de mots.
               _Section(
-                index: 4,
-                isOpen: _open == 4,
+                index: 3,
+                isOpen: _open == 3,
                 label: 'quiz_setup.section_card_count'.tr(),
                 value: '$_count',
-                onHeaderTap: () => _select(4),
+                onHeaderTap: () => _select(3),
                 child: Wrap(
                   spacing: 8,
                   children: [
@@ -284,7 +249,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                 _langA = l.langA;
                 _langB = l.langB;
               });
-              _select(2);
+              _select(1);
             },
           ),
         ],
@@ -388,7 +353,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
         _ruleId = rule.id;
         _ruleTitle = rule.titleFr;
       });
-      _select(2);
+      _select(1);
     }
   }
 
@@ -400,7 +365,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
       _langA = 'fr';
       _langB = 'ko';
     });
-    _select(2);
+    _select(1);
   }
 
   String _modeLabel(QuizMode m) => switch (m) {
@@ -478,10 +443,16 @@ class _Section extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final isDark = cs.brightness == Brightness.dark;
     final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    // Sections must stand out from the page: lighter than the background in
+    // dark mode, darker in light mode — and the expanded section pushes
+    // further in the same direction so the active step reads at a glance.
+    final bg = isDark
+        ? Color.lerp(cs.surface, Colors.white, isOpen ? 0.16 : 0.08)!
+        : Color.lerp(cs.surface, Colors.black, isOpen ? 0.10 : 0.05)!;
 
     return Container(
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: isDark ? 0.4 : 0.6),
+        color: bg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: cs.outline),
       ),

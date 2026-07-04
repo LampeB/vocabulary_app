@@ -51,11 +51,12 @@ void main() {
 
   QuizArgs? capturedArgs;
 
-  Future<void> pump(WidgetTester tester, {List<VocabularyList>? lists}) {
+  Future<void> pump(WidgetTester tester,
+      {List<VocabularyList>? lists, bool grammar = false}) {
     capturedArgs = null;
     return pumpScreen(
       tester,
-      screen: const StartSessionScreen(),
+      screen: StartSessionScreen(grammar: grammar),
       overrides: [
         myListsProvider.overrideWith(
             (ref) => Stream.value(lists ?? [_list('l1', 'Animaux')])),
@@ -97,16 +98,19 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('renders all five accordion sections and the CTA',
+  testWidgets('vocab flow renders its four sections — and NO grammar anywhere',
       (tester) async {
     await pump(tester);
 
     expect(byKey(WidgetKeys.screenStartSession), findsOneWidget);
-    for (var i = 0; i < 5; i++) {
+    for (var i = 0; i < 4; i++) {
       expect(byKey(WidgetKeys.startSection(i)), findsOneWidget,
           reason: 'section $i header missing');
     }
     expect(byKey(WidgetKeys.startSessionStart), findsOneWidget);
+    // Vocabulary setup never mentions grammar (product decision 2026-07-05).
+    expect(find.textContaining('rammaire'), findsNothing);
+    expect(byKey(WidgetKeys.startRule('regle-debloquee')), findsNothing);
   });
 
   testWidgets('CTA is disabled until a list is selected', (tester) async {
@@ -230,15 +234,9 @@ void main() {
   });
 
   testWidgets(
-      'grammar: unlocked rule opens the lesson sheet, starting fires /quiz '
-      'with a grammar source; locked rules are disabled', (tester) async {
-    await pump(tester);
-
-    // The type section is collapsed by default — open it, then pick Grammaire.
-    await tester.tap(byKey(WidgetKeys.startSection(0)));
-    await tester.pumpAndSettle();
-    await tester.tap(byKey(WidgetKeys.startType('grammar')));
-    await tester.pumpAndSettle();
+      'grammar flow: unlocked rule opens the lesson sheet, starting fires '
+      '/quiz with a grammar source; locked rules are disabled', (tester) async {
+    await pump(tester, grammar: true);
 
     // Locked rule: disabled, shows what to master first.
     expect(find.textContaining('La nourriture'), findsOneWidget);

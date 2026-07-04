@@ -96,6 +96,7 @@ void main() {
         stub('/lists'),
         stub('/lists/:id'),
         stub('/notifications'),
+        stub('/start-session-grammar'),
         GoRoute(
           path: '/quiz',
           pageBuilder: (_, state) {
@@ -140,6 +141,19 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(navigatedTo, '/notifications');
+  });
+
+  testWidgets('the grammar card opens the separate grammar session setup',
+      (tester) async {
+    await pump(tester);
+
+    await tester.ensureVisible(
+        find.byKey(const ValueKey(WidgetKeys.homeGrammar)));
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.homeGrammar)),
+        warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    expect(navigatedTo, '/start-session-grammar');
   });
 
   testWidgets('a positive streak arms the streak warning once',

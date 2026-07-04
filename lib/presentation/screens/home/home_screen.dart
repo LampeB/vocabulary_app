@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth/auth_provider.dart';
+import '../../providers/grammar/grammar_provider.dart';
 import '../../providers/lists/vocabulary_provider.dart';
 import '../../providers/notifications/notification_provider.dart';
 import '../../providers/quiz/quiz_provider.dart';
@@ -114,6 +115,10 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
                 ],
+                // ── Grammaire (its own flow — never mixed into vocab setup) ─
+                _GrammarCard(
+                    onOpen: () => context.push('/start-session-grammar')),
+                const SizedBox(height: 24),
                 // ── Tes listes ──────────────────────────────────────────────
                 Builder(builder: (ctx) {
                   final isDark = Theme.of(ctx).brightness == Brightness.dark;
@@ -355,6 +360,69 @@ class _StreakCard extends StatelessWidget {
 }
 
 // ── Review card ───────────────────────────────────────────────────────────────
+
+/// Entry to the grammar flow: shows how many rules are unlocked and opens
+/// the grammar session setup. Grammar never appears inside the vocab setup.
+class _GrammarCard extends ConsumerWidget {
+  const _GrammarCard({required this.onOpen});
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final statuses = ref.watch(ruleStatusesProvider).valueOrNull;
+    final unlocked = statuses
+            ?.where((s) => s.availability != RuleAvailability.locked)
+            .length ??
+        0;
+    final total = statuses?.length ?? 0;
+
+    return GestureDetector(
+      key: const ValueKey(WidgetKeys.homeGrammar),
+      onTap: onOpen,
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest.withValues(alpha: isDark ? 0.4 : 0.6),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: cs.outline),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'home.grammar_label'.tr(),
+                    style: AppTextStyles.eyebrow.copyWith(
+                        color:
+                            isDark ? AppColors.onDarkMuted : AppColors.muted),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    statuses == null
+                        ? 'home.grammar_subtitle'.tr()
+                        : 'home.grammar_unlocked'.tr(namedArgs: {
+                            'unlocked': '$unlocked',
+                            'total': '$total',
+                          }),
+                    style: AppTextStyles.fig(15, FontWeight.w600)
+                        .copyWith(color: cs.onSurface),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded,
+                size: 16,
+                color: isDark ? AppColors.onDarkMuted : AppColors.muted),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _ReviewCard extends StatelessWidget {
   const _ReviewCard({required this.dueCount, required this.onStart});

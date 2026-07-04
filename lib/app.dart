@@ -143,6 +143,11 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
                 path: '/start-session',
                 builder: (_, __) => const StartSessionScreen(),
               ),
+              // Grammar is a separate flow, never mixed into vocab setup.
+              GoRoute(
+                path: '/start-session-grammar',
+                builder: (_, __) => const StartSessionScreen(grammar: true),
+              ),
               GoRoute(
                   path: '/social',
                   builder: (_, __) => const SocialScreen()),

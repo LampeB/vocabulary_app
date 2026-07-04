@@ -324,14 +324,6 @@ class WhenSteps {
     await $.pump(const Duration(milliseconds: 600));
   }
 
-  /// Opens the Start-session "Type" section and (re)selects Vocabulaire —
-  /// the only enabled session type. Lets a scenario touch every section.
-  Future<void> choosesSessionType() async {
-    await $(find.byKey(ValueKey(WidgetKeys.startSection(0)))).tap();
-    await $(find.byKey(ValueKey(WidgetKeys.startType('vocab')))).tap();
-    await $.pump(const Duration(milliseconds: 300));
-  }
-
   /// Picks the list to study (its accordion section is open by default).
   Future<void> choosesList(String name) => $(find.text(name)).tap();
 
