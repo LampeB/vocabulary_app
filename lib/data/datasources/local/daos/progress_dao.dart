@@ -132,6 +132,50 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
         .get();
   }
 
+  /// Progress rows (paired with their concept id) for every live variant of
+  /// the given concepts — the raw material for per-list stats. Aggregation
+  /// happens in the repository (lists are small; no SQL group-by needed).
+  Future<List<({String conceptId, VariantProgressTableData progress})>>
+      getProgressForConcepts({
+    required String userId,
+    required List<String> conceptIds,
+  }) {
+    final query = select(variantProgressTable).join([
+      innerJoin(wordVariantsTable,
+          wordVariantsTable.id.equalsExp(variantProgressTable.variantId)),
+    ])
+      ..where(variantProgressTable.userId.equals(userId) &
+          wordVariantsTable.isDeleted.equals(false) &
+          wordVariantsTable.conceptId.isIn(conceptIds));
+    return query
+        .map((row) => (
+              conceptId: row.readTable(wordVariantsTable).conceptId,
+              progress: row.readTable(variantProgressTable),
+            ))
+        .get();
+  }
+
+  /// All live variant ids belonging to the given concepts (any language).
+  Future<List<String>> getVariantIdsForConcepts(List<String> conceptIds) =>
+      (selectOnly(wordVariantsTable)
+            ..addColumns([wordVariantsTable.id])
+            ..where(wordVariantsTable.conceptId.isIn(conceptIds) &
+                wordVariantsTable.isDeleted.equals(false)))
+          .map((row) => row.read(wordVariantsTable.id)!)
+          .get();
+
+  /// Deletes this user's progress for the given variants — the "reset list
+  /// progress" action. Rows are deleted (not zeroed) so the words become
+  /// genuinely NEW cards again for the due/new quiz logic.
+  Future<int> deleteProgressForVariants({
+    required String userId,
+    required List<String> variantIds,
+  }) =>
+      (delete(variantProgressTable)
+            ..where((t) =>
+                t.userId.equals(userId) & t.variantId.isIn(variantIds)))
+          .go();
+
   Future<List<VariantProgressTableData>> getUnsyncedProgress() =>
       (select(variantProgressTable)
             ..where((t) => t.isSynced.equals(false)))

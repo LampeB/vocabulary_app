@@ -59,7 +59,7 @@
 | Streak display (home card, profile) | ✅ | widget |
 | Mastery rule (review + ≥21 days) | ✅ | unit |
 | History list + mastered-over-time chart render | ✅ | widget (render) + integration (DAO write→read + mapping via the session-history test) |
-| Per-list stats | 🚧 | `getListStats` stub |
+| Per-list stats (total/mastered/due) + reset progress | ✅ | integration `list_stats_test` (mastery/due semantics, cross-list isolation, reset) — implemented 2026-07-04, no longer stubs. Includes the pure `isListKnown` grammar-prerequisite gate |
 
 ## 5. Notifications
 
@@ -145,7 +145,6 @@ same day — see the ✅ rows above.
   STT, TTS audio output, notification delivery, RevenueCat purchases, share
   sheet/file picker, password-reset email delivery, OS deep-link intent
   routing.
-- **Stubs awaiting implementation (test with the feature):** challenges,
-  per-list stats, reset progress, sync queue.
+- **Stubs awaiting implementation (test with the feature):** challenges, sync queue.
 - Housekeeping: legacy patrol files (`auth_test`, `sign_up_test`,
   `vocab_list_test`) are not in the gate — fold in or delete (owner call).

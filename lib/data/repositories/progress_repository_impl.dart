@@ -165,7 +165,37 @@ class ProgressRepositoryImpl implements ProgressRepository {
 
   @override
   Future<Result<Map<String, int>>> getListStats(String listId) async {
-    return const Success({'total': 0, 'mastered': 0, 'due': 0});
+    try {
+      final concepts = await _conceptDao.getConceptsByList(listId);
+      if (concepts.isEmpty) {
+        return const Success({'total': 0, 'mastered': 0, 'due': 0});
+      }
+      final conceptIds = concepts.map((c) => c.id).toList();
+      final rows = await _progressDao.getProgressForConcepts(
+          userId: _userId, conceptIds: conceptIds);
+
+      // A WORD (concept) is mastered/due when any of its variant-direction
+      // progress rows is — the list is small, aggregate in Dart.
+      final now = DateTime.now();
+      final mastered = <String>{};
+      final due = <String>{};
+      for (final r in rows) {
+        final p = r.progress;
+        if (p.state == 'review' && p.scheduledDays >= kMasteryThresholdDays) {
+          mastered.add(r.conceptId);
+        }
+        if (p.nextReview == null || !p.nextReview!.isAfter(now)) {
+          due.add(r.conceptId);
+        }
+      }
+      return Success({
+        'total': concepts.length,
+        'mastered': mastered.length,
+        'due': due.length,
+      });
+    } catch (e) {
+      return Failure(StorageException(e.toString()));
+    }
   }
 
   @override
@@ -181,7 +211,19 @@ class ProgressRepositoryImpl implements ProgressRepository {
 
   @override
   Future<Result<void>> resetProgress(String listId) async {
-    return const Success(null);
+    try {
+      final concepts = await _conceptDao.getConceptsByList(listId);
+      if (concepts.isEmpty) return const Success(null);
+      final variantIds = await _progressDao
+          .getVariantIdsForConcepts(concepts.map((c) => c.id).toList());
+      // Rows are deleted (not zeroed) so the words become genuinely NEW cards
+      // again for the due/new quiz logic.
+      await _progressDao.deleteProgressForVariants(
+          userId: _userId, variantIds: variantIds);
+      return const Success(null);
+    } catch (e) {
+      return Failure(StorageException(e.toString()));
+    }
   }
 
   @override

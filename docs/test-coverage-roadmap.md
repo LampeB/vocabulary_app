@@ -55,10 +55,9 @@
    suite before each commit.
 7. **Known stubs — do NOT write tests asserting their current hardcoded
    behavior** (they will be implemented later; test them then):
-   - `ProgressRepositoryImpl.getListStats` (returns hardcoded zeros)
-   - `ProgressRepositoryImpl.resetProgress` (no-op)
    - `SocialRepositoryImpl.watchChallenges` (returns empty stream)
    - `sync_queue` table (defined in drift, no consumer anywhere)
+   - ~~getListStats / resetProgress~~ — implemented + tested 2026-07-04
 
 ---
 
