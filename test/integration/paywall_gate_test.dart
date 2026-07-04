@@ -11,12 +11,17 @@ import 'package:vocab_kr/presentation/providers/purchases/purchase_provider.dart
 
 final _now = DateTime(2026, 7, 2);
 
-VocabularyList _list({String id = 'l', String name = 'L', int wordCount = 0}) =>
+VocabularyList _list(
+        {String id = 'l',
+        String name = 'L',
+        int wordCount = 0,
+        String origin = 'user'}) =>
     VocabularyList(
       id: id,
       ownerId: 'u',
       name: name,
       wordCount: wordCount,
+      origin: origin,
       createdAt: _now,
       updatedAt: _now,
     );
@@ -98,6 +103,31 @@ void main() {
       final result = await container
           .read(listActionsProvider.notifier)
           .createList('OK', null);
+
+      expect(result.isSuccess, isTrue);
+      expect(repo.createListCalls, 1);
+    });
+
+    test('seeded starter lists do NOT count against the free quota',
+        () async {
+      final repo = _FakeRepo();
+      final container = ProviderContainer(overrides: [
+        isPremiumProvider.overrideWithValue(false),
+        vocabularyRepositoryProvider.overrideWithValue(repo),
+        myListsProvider.overrideWith((ref) => Stream.value([
+              // 6 seeded lists + 2 user lists: still under the 3-user-list cap.
+              for (var i = 0; i < 6; i++)
+                _list(id: 's$i', origin: 'starter'),
+              _list(id: 'u1'),
+              _list(id: 'u2'),
+            ])),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(myListsProvider.future);
+
+      final result = await container
+          .read(listActionsProvider.notifier)
+          .createList('Une de plus', null);
 
       expect(result.isSuccess, isTrue);
       expect(repo.createListCalls, 1);

@@ -57,6 +57,8 @@ void main() {
     expect(lists.length, 6);
     expect(lists.map((l) => l.name),
         contains('Les particules essentielles'));
+    expect(lists.every((l) => l.origin == 'starter'), isTrue,
+        reason: 'seeded lists must be quota-exempt');
     var totalConcepts = 0;
     for (final l in lists) {
       totalConcepts += (await db.conceptDao.getConceptsByList(l.id)).length;

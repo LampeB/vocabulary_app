@@ -136,6 +136,42 @@ void main() {
     });
   });
 
+  group('deleteList mastery loss (product decision 2026-07-04)', () {
+    test('deleting a list removes its words from mastery and smart lists',
+        () async {
+      final list = (await vocabRepo.createList(name: 'A')).valueOrNull!;
+      final v = await seedWord(list.id, 'chat', '고양이');
+      await seedProgress(v,
+          state: 'review',
+          scheduledDays: 30,
+          nextReview: _now.subtract(const Duration(days: 1)));
+      // Mastered and due before deletion…
+      expect((await progressRepo.getMasteredVariants(_kUserId))
+          .valueOrNull!.length, 1);
+      expect(
+          (await progressRepo.getAllDueCards(
+                  userId: _kUserId, direction: QuizDirection.frToKo))
+              .valueOrNull!,
+          isNotEmpty);
+
+      await vocabRepo.deleteList(list.id);
+
+      // …gone everywhere after: mastery deleted, smart lists empty.
+      expect((await progressRepo.getMasteredVariants(_kUserId))
+          .valueOrNull!, isEmpty);
+      expect(
+          (await progressRepo.getAllDueCards(
+                  userId: _kUserId, direction: QuizDirection.frToKo))
+              .valueOrNull!,
+          isEmpty);
+      expect(
+          (await progressRepo.getInProgressCards(
+                  userId: _kUserId, direction: QuizDirection.frToKo))
+              .valueOrNull!,
+          isEmpty);
+    });
+  });
+
   group('isListKnown (grammar prerequisite gate)', () {
     test('≥90% mastered → known', () {
       expect(isListKnown(total: 10, mastered: 9), isTrue);

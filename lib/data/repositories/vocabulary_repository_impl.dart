@@ -73,7 +73,24 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   @override
   Future<Result<void>> deleteList(String listId) async {
     try {
-      await _listDao.softDelete(listId);
+      // Deleting a list frees a quota slot but the user LOSES its mastery
+      // (product decision 2026-07-04): soft-delete the words so they vanish
+      // from smart lists, and delete their progress rows outright.
+      final concepts = await _conceptDao.getConceptsByList(listId);
+      final conceptIds = concepts.map((c) => c.id).toList();
+      final variantIds =
+          await _database.progressDao.getVariantIdsForConcepts(conceptIds);
+      await _database.transaction(() async {
+        await _listDao.softDelete(listId);
+        for (final id in conceptIds) {
+          await _conceptDao.softDelete(id);
+        }
+        for (final id in variantIds) {
+          await _conceptDao.softDeleteVariant(id);
+        }
+        await _database.progressDao.deleteProgressForVariants(
+            userId: _userId, variantIds: variantIds);
+      });
       unawaited(_remote.deleteList(listId));
       return const Success(null);
     } catch (e) {
@@ -360,7 +377,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   }
 
   @override
-  Future<Result<VocabularyList>> importFromJson(Map<String, dynamic> json) async {
+  Future<Result<VocabularyList>> importFromJson(Map<String, dynamic> json,
+      {String origin = 'user'}) async {
     try {
       final listData = json['list'] as Map<String, dynamic>?;
       if (listData == null) {
@@ -382,6 +400,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
           name: Value(name),
           description: Value(description),
           wordCount: Value(concepts.length),
+          origin: Value(origin),
           isSynced: const Value(false),
           isDeleted: const Value(false),
           createdAt: Value(now),

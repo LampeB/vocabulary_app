@@ -15,6 +15,10 @@ class VocabularyListsTable extends Table {
   // lists predate the columns, hence the fr/ko defaults.
   TextColumn get langA => text().named('lang_a').withDefault(const Constant('fr'))();
   TextColumn get langB => text().named('lang_b').withDefault(const Constant('ko'))();
+  // Who a list belongs to conceptually: 'user' (counts against the free
+  // quota), 'starter' (seeded defaults, quota-exempt), 'premium' (tier-gated
+  // content packs, quota-exempt).
+  TextColumn get origin => text().withDefault(const Constant('user'))();
   BoolColumn get isSynced => boolean().named('is_synced').withDefault(const Constant(false))();
   BoolColumn get isDeleted => boolean().named('is_deleted').withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().named('created_at')();

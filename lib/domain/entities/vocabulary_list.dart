@@ -17,6 +17,7 @@ class VocabularyList with _$VocabularyList {
     String? shareToken,
     @Default('fr') String langA,
     @Default('ko') String langB,
+    @Default('user') String origin,
     @Default(false) bool isSynced,
     @Default(false) bool isDeleted,
     required DateTime createdAt,

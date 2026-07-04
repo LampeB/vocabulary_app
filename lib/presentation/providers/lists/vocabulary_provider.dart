@@ -128,7 +128,8 @@ final seedStarterListsProvider = FutureProvider<void>((ref) async {
   if (existing.isEmpty) {
     final raw = await rootBundle.loadString('assets/seed/starter_lists.json');
     for (final entry in jsonDecode(raw) as List<dynamic>) {
-      await repo.importFromJson(entry as Map<String, dynamic>);
+      await repo.importFromJson(entry as Map<String, dynamic>,
+          origin: 'starter');
     }
   }
   await prefs.setBool(flagKey, true);
@@ -154,7 +155,14 @@ class ListActionsNotifier extends Notifier<void> {
   Future<Result<VocabularyList>> createList(
       String name, String? description) async {
     if (!ref.read(isPremiumProvider)) {
-      final count = ref.read(myListsProvider).valueOrNull?.length ?? 0;
+      // Only USER-created lists count against the free quota — seeded starter
+      // lists and premium packs are exempt (product decision 2026-07-04).
+      final count = ref
+              .read(myListsProvider)
+              .valueOrNull
+              ?.where((l) => l.origin == 'user')
+              .length ??
+          0;
       if (count >= AppConfig.maxFreeVocabLists) {
         return const Failure(QuotaExceededException(
           'Free plan includes ${AppConfig.maxFreeVocabLists} lists. Upgrade to create more.',

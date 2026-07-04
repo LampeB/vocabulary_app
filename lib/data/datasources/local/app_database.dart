@@ -33,7 +33,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -67,6 +67,12 @@ class AppDatabase extends _$AppDatabase {
             // The sync_queue table never got a consumer — the isSynced flags
             // won as the outbound-queue mechanism (see data/sync/push_sync).
             await customStatement('DROP TABLE IF EXISTS sync_queue');
+          }
+          if (from < 6) {
+            // List origin: user-created vs seeded starter vs premium packs.
+            // Only 'user' lists count against the free quota.
+            await m.addColumn(
+                vocabularyListsTable, vocabularyListsTable.origin);
           }
         },
       );

@@ -67,6 +67,13 @@ class $VocabularyListsTableTable extends VocabularyListsTable
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('ko'));
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+      'origin', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('user'));
   static const VerificationMeta _isSyncedMeta =
       const VerificationMeta('isSynced');
   @override
@@ -110,6 +117,7 @@ class $VocabularyListsTableTable extends VocabularyListsTable
         shareToken,
         langA,
         langB,
+        origin,
         isSynced,
         isDeleted,
         createdAt,
@@ -173,6 +181,10 @@ class $VocabularyListsTableTable extends VocabularyListsTable
       context.handle(
           _langBMeta, langB.isAcceptableOrUnknown(data['lang_b']!, _langBMeta));
     }
+    if (data.containsKey('origin')) {
+      context.handle(_originMeta,
+          origin.isAcceptableOrUnknown(data['origin']!, _originMeta));
+    }
     if (data.containsKey('is_synced')) {
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
@@ -221,6 +233,8 @@ class $VocabularyListsTableTable extends VocabularyListsTable
           .read(DriftSqlType.string, data['${effectivePrefix}lang_a'])!,
       langB: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}lang_b'])!,
+      origin: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}origin'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
       isDeleted: attachedDatabase.typeMapping
@@ -249,6 +263,7 @@ class VocabularyListsTableData extends DataClass
   final String? shareToken;
   final String langA;
   final String langB;
+  final String origin;
   final bool isSynced;
   final bool isDeleted;
   final DateTime createdAt;
@@ -263,6 +278,7 @@ class VocabularyListsTableData extends DataClass
       this.shareToken,
       required this.langA,
       required this.langB,
+      required this.origin,
       required this.isSynced,
       required this.isDeleted,
       required this.createdAt,
@@ -283,6 +299,7 @@ class VocabularyListsTableData extends DataClass
     }
     map['lang_a'] = Variable<String>(langA);
     map['lang_b'] = Variable<String>(langB);
+    map['origin'] = Variable<String>(origin);
     map['is_synced'] = Variable<bool>(isSynced);
     map['is_deleted'] = Variable<bool>(isDeleted);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -305,6 +322,7 @@ class VocabularyListsTableData extends DataClass
           : Value(shareToken),
       langA: Value(langA),
       langB: Value(langB),
+      origin: Value(origin),
       isSynced: Value(isSynced),
       isDeleted: Value(isDeleted),
       createdAt: Value(createdAt),
@@ -325,6 +343,7 @@ class VocabularyListsTableData extends DataClass
       shareToken: serializer.fromJson<String?>(json['shareToken']),
       langA: serializer.fromJson<String>(json['langA']),
       langB: serializer.fromJson<String>(json['langB']),
+      origin: serializer.fromJson<String>(json['origin']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -344,6 +363,7 @@ class VocabularyListsTableData extends DataClass
       'shareToken': serializer.toJson<String?>(shareToken),
       'langA': serializer.toJson<String>(langA),
       'langB': serializer.toJson<String>(langB),
+      'origin': serializer.toJson<String>(origin),
       'isSynced': serializer.toJson<bool>(isSynced),
       'isDeleted': serializer.toJson<bool>(isDeleted),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -361,6 +381,7 @@ class VocabularyListsTableData extends DataClass
           Value<String?> shareToken = const Value.absent(),
           String? langA,
           String? langB,
+          String? origin,
           bool? isSynced,
           bool? isDeleted,
           DateTime? createdAt,
@@ -375,6 +396,7 @@ class VocabularyListsTableData extends DataClass
         shareToken: shareToken.present ? shareToken.value : this.shareToken,
         langA: langA ?? this.langA,
         langB: langB ?? this.langB,
+        origin: origin ?? this.origin,
         isSynced: isSynced ?? this.isSynced,
         isDeleted: isDeleted ?? this.isDeleted,
         createdAt: createdAt ?? this.createdAt,
@@ -395,6 +417,7 @@ class VocabularyListsTableData extends DataClass
           data.shareToken.present ? data.shareToken.value : this.shareToken,
       langA: data.langA.present ? data.langA.value : this.langA,
       langB: data.langB.present ? data.langB.value : this.langB,
+      origin: data.origin.present ? data.origin.value : this.origin,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -414,6 +437,7 @@ class VocabularyListsTableData extends DataClass
           ..write('shareToken: $shareToken, ')
           ..write('langA: $langA, ')
           ..write('langB: $langB, ')
+          ..write('origin: $origin, ')
           ..write('isSynced: $isSynced, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('createdAt: $createdAt, ')
@@ -433,6 +457,7 @@ class VocabularyListsTableData extends DataClass
       shareToken,
       langA,
       langB,
+      origin,
       isSynced,
       isDeleted,
       createdAt,
@@ -450,6 +475,7 @@ class VocabularyListsTableData extends DataClass
           other.shareToken == this.shareToken &&
           other.langA == this.langA &&
           other.langB == this.langB &&
+          other.origin == this.origin &&
           other.isSynced == this.isSynced &&
           other.isDeleted == this.isDeleted &&
           other.createdAt == this.createdAt &&
@@ -467,6 +493,7 @@ class VocabularyListsTableCompanion
   final Value<String?> shareToken;
   final Value<String> langA;
   final Value<String> langB;
+  final Value<String> origin;
   final Value<bool> isSynced;
   final Value<bool> isDeleted;
   final Value<DateTime> createdAt;
@@ -482,6 +509,7 @@ class VocabularyListsTableCompanion
     this.shareToken = const Value.absent(),
     this.langA = const Value.absent(),
     this.langB = const Value.absent(),
+    this.origin = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -498,6 +526,7 @@ class VocabularyListsTableCompanion
     this.shareToken = const Value.absent(),
     this.langA = const Value.absent(),
     this.langB = const Value.absent(),
+    this.origin = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.isDeleted = const Value.absent(),
     required DateTime createdAt,
@@ -518,6 +547,7 @@ class VocabularyListsTableCompanion
     Expression<String>? shareToken,
     Expression<String>? langA,
     Expression<String>? langB,
+    Expression<String>? origin,
     Expression<bool>? isSynced,
     Expression<bool>? isDeleted,
     Expression<DateTime>? createdAt,
@@ -534,6 +564,7 @@ class VocabularyListsTableCompanion
       if (shareToken != null) 'share_token': shareToken,
       if (langA != null) 'lang_a': langA,
       if (langB != null) 'lang_b': langB,
+      if (origin != null) 'origin': origin,
       if (isSynced != null) 'is_synced': isSynced,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (createdAt != null) 'created_at': createdAt,
@@ -552,6 +583,7 @@ class VocabularyListsTableCompanion
       Value<String?>? shareToken,
       Value<String>? langA,
       Value<String>? langB,
+      Value<String>? origin,
       Value<bool>? isSynced,
       Value<bool>? isDeleted,
       Value<DateTime>? createdAt,
@@ -567,6 +599,7 @@ class VocabularyListsTableCompanion
       shareToken: shareToken ?? this.shareToken,
       langA: langA ?? this.langA,
       langB: langB ?? this.langB,
+      origin: origin ?? this.origin,
       isSynced: isSynced ?? this.isSynced,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt ?? this.createdAt,
@@ -605,6 +638,9 @@ class VocabularyListsTableCompanion
     if (langB.present) {
       map['lang_b'] = Variable<String>(langB.value);
     }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
@@ -635,6 +671,7 @@ class VocabularyListsTableCompanion
           ..write('shareToken: $shareToken, ')
           ..write('langA: $langA, ')
           ..write('langB: $langB, ')
+          ..write('origin: $origin, ')
           ..write('isSynced: $isSynced, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('createdAt: $createdAt, ')
@@ -3383,6 +3420,7 @@ typedef $$VocabularyListsTableTableCreateCompanionBuilder
   Value<String?> shareToken,
   Value<String> langA,
   Value<String> langB,
+  Value<String> origin,
   Value<bool> isSynced,
   Value<bool> isDeleted,
   required DateTime createdAt,
@@ -3400,6 +3438,7 @@ typedef $$VocabularyListsTableTableUpdateCompanionBuilder
   Value<String?> shareToken,
   Value<String> langA,
   Value<String> langB,
+  Value<String> origin,
   Value<bool> isSynced,
   Value<bool> isDeleted,
   Value<DateTime> createdAt,
@@ -3463,6 +3502,9 @@ class $$VocabularyListsTableTableFilterComposer
 
   ColumnFilters<String> get langB => $composableBuilder(
       column: $table.langB, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get origin => $composableBuilder(
+      column: $table.origin, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
@@ -3534,6 +3576,9 @@ class $$VocabularyListsTableTableOrderingComposer
   ColumnOrderings<String> get langB => $composableBuilder(
       column: $table.langB, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get origin => $composableBuilder(
+      column: $table.origin, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
@@ -3582,6 +3627,9 @@ class $$VocabularyListsTableTableAnnotationComposer
 
   GeneratedColumn<String> get langB =>
       $composableBuilder(column: $table.langB, builder: (column) => column);
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
@@ -3652,6 +3700,7 @@ class $$VocabularyListsTableTableTableManager extends RootTableManager<
             Value<String?> shareToken = const Value.absent(),
             Value<String> langA = const Value.absent(),
             Value<String> langB = const Value.absent(),
+            Value<String> origin = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<bool> isDeleted = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
@@ -3668,6 +3717,7 @@ class $$VocabularyListsTableTableTableManager extends RootTableManager<
             shareToken: shareToken,
             langA: langA,
             langB: langB,
+            origin: origin,
             isSynced: isSynced,
             isDeleted: isDeleted,
             createdAt: createdAt,
@@ -3684,6 +3734,7 @@ class $$VocabularyListsTableTableTableManager extends RootTableManager<
             Value<String?> shareToken = const Value.absent(),
             Value<String> langA = const Value.absent(),
             Value<String> langB = const Value.absent(),
+            Value<String> origin = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<bool> isDeleted = const Value.absent(),
             required DateTime createdAt,
@@ -3700,6 +3751,7 @@ class $$VocabularyListsTableTableTableManager extends RootTableManager<
             shareToken: shareToken,
             langA: langA,
             langB: langB,
+            origin: origin,
             isSynced: isSynced,
             isDeleted: isDeleted,
             createdAt: createdAt,

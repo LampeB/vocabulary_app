@@ -44,7 +44,10 @@ abstract interface class VocabularyRepository {
   Future<Result<void>> deleteVariant(String variantId);
 
   // Import / Export
-  Future<Result<VocabularyList>> importFromJson(Map<String, dynamic> json);
+  /// [origin] tags the created list: 'user' (default, counts against the
+  /// free quota), 'starter' or 'premium' (quota-exempt content).
+  Future<Result<VocabularyList>> importFromJson(Map<String, dynamic> json,
+      {String origin = 'user'});
   Future<Result<Map<String, dynamic>>> exportToJson(String listId);
   Future<Result<String>> generateShareLink(String listId);
   Future<Result<VocabularyList>> importFromShareToken(String token);
