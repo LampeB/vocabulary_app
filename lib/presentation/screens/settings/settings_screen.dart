@@ -1,4 +1,5 @@
 import 'package:easy_localization/easy_localization.dart';
+import '../../../core/languages.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -289,16 +290,9 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-String _languageName(String code) => switch (code) {
-  'fr' => 'Français',
-  'en' => 'English',
-  'es' => 'Español',
-  'de' => 'Deutsch',
-  'it' => 'Italiano',
-  'ja' => '日本語',
-  'ko' => '한국어',
-  _ => code,
-};
+// Display names come from i18n (`lang.<code>`), shared with the content-
+// language axis — no hardcoded name switch (generic-language-pairs epic).
+String _languageName(String code) => Languages.displayName(code);
 
 void _showLanguagePicker(BuildContext context) {
   final locales = [

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../core/languages.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:speech_to_text/speech_recognition_error.dart';
 
@@ -93,7 +94,7 @@ class SpeechRecognitionService {
 
     _sessionDone = false;
     lastError = null;
-    final localeId = langCode == 'ko' ? 'ko-KR' : 'fr-FR';
+    final localeId = Languages.speechLocaleFor(langCode);
     debugPrint('[STT] startListening() localeId=$localeId');
 
     try {

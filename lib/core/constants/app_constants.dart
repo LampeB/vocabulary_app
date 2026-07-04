@@ -1,7 +1,12 @@
+import '../languages.dart';
+
 class AppConstants {
+  // Content-language identity now lives in core/languages.dart (Languages).
+  // These remain only for call sites not yet migrated by the
+  // generic-language-pairs epic; do not add new uses.
   static const langFr = 'fr';
   static const langKo = 'ko';
-  static const supportedLanguages = [langFr, langKo];
+  static List<String> get supportedLanguages => Languages.supported;
 
   static const fsrsDefaultStability = 1.0;
   static const fsrsDefaultDifficulty = 5.0;

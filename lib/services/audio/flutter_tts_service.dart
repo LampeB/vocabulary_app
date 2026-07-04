@@ -1,5 +1,6 @@
 import 'package:flutter_tts/flutter_tts.dart';
 import 'audio_service.dart';
+import '../../core/languages.dart';
 
 // Priority-ordered engine IDs per language.
 // The first engine found on the device wins.
@@ -57,7 +58,7 @@ class FlutterTtsService implements AudioService {
     await _init();
     final isKorean = langCode == 'ko';
     final tts    = isKorean ? _koTts : _frTts;
-    final locale = isKorean ? 'ko-KR' : 'fr-FR';
+    final locale = Languages.speechLocaleFor(langCode);
     await tts.setLanguage(locale);
     // Must set rate/pitch AFTER setLanguage — Android TTS resets them on language change.
     await tts.setSpeechRate(speechRate);
