@@ -202,8 +202,9 @@ void main() {
     await tick(tester, times: 6);
     await tapIfPresent(tester, WidgetKeys.feedbackContinue);
 
-    // FSRS progress was persisted for both cards.
-    expect(progressRepo.saved.length, 2);
+    // Cartes NEVER persists mastery (self-grading is too easy to fake) —
+    // the session completes but no FSRS rating is written.
+    expect(progressRepo.saved, isEmpty);
 
     // Summary → done → /home.
     final done = find.text('quiz.summary_done'.tr());

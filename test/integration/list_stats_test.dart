@@ -136,13 +136,13 @@ void main() {
   });
 
   group('isListKnown (grammar prerequisite gate)', () {
-    test('≥80% mastered → known', () {
-      expect(isListKnown(total: 10, mastered: 8), isTrue);
+    test('≥90% mastered → known', () {
+      expect(isListKnown(total: 10, mastered: 9), isTrue);
       expect(isListKnown(total: 10, mastered: 10), isTrue);
     });
 
     test('below the threshold → not known', () {
-      expect(isListKnown(total: 10, mastered: 7), isFalse);
+      expect(isListKnown(total: 10, mastered: 8), isFalse);
       expect(isListKnown(total: 3, mastered: 0), isFalse);
     });
 

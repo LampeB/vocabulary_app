@@ -4,7 +4,7 @@
 
 /// Fraction of a prerequisite list that must be mastered (FSRS review state,
 /// ≥ kMasteryThresholdDays scheduled) for the list to count as known.
-const double kListKnownThreshold = 0.8;
+const double kListKnownThreshold = 0.9;
 
 /// Mastered fraction of a list; 0 for an empty list.
 double listMasteryRatio({required int total, required int mastered}) =>

@@ -345,12 +345,16 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   void gradeFlashcard(FsrsRating rating) {
     final card = state.currentCard;
     if (card == null) return;
-    unawaited(_persistRating(card.progress, rating));
+    // Cartes NEVER advances mastery (product decision 2026-07-04): self-graded
+    // flips are too easy to fake, so no FSRS rating is persisted — the mode is
+    // pure practice. Session score/history still record normally. Applies to
+    // vocab today and to grammar when it lands. scheduledDays stays 0 so the
+    // feedback screen doesn't show an interval that was never scheduled.
     final isCorrect = rating == FsrsRating.good || rating == FsrsRating.easy;
     state = state.copyWith(
       answerState:
           isCorrect ? QuizAnswerState.correct : QuizAnswerState.incorrect,
-      scheduledDays: _computeScheduledDays(card.progress, rating),
+      scheduledDays: 0,
     );
   }
 

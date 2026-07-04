@@ -41,7 +41,7 @@
 | Smart lists ("À réviser maintenant" / "En cours") + cross-list queries | ✅ | integration `smart_lists_test` (due vs future vs new vs deleted semantics, use-case routing) + widget (tile → allDue/inProgress args, CTA without a list) |
 | Home "À réviser" one-tap → all-due session | ✅ | widget (card CTA → /quiz with allDue args, no accordion) |
 | Session assembly (both-directions interleave, cap, padding, drop rule, failure policy) | ✅ | unit `session_assembly` + provider `quiz_load_cards` |
-| Flashcard: flip, self-grade, FSRS persisted | ✅ | widget `quiz_screen` + E2E `Cartes ×2` |
+| Flashcard: flip, self-grade — practice only, NEVER persists mastery (product decision 2026-07-04: self-grading is too easy to fake) | ✅ | widget `quiz_screen` (asserts zero FSRS writes) + E2E `Cartes ×2` (score/summary) |
 | Typing: verdicts, KO→FR direction, card-count 10 | ✅ | widget + unit `answer_validator` + E2E `Écrire ×6` |
 | Voice mode | ⚠️ | E2E via the STT **simulator** (deterministic). 📵 real microphone recognition |
 | Hands-free mode (auto-advance, earcon/haptic, STT retry/failsafe timers) | ⚠️ | E2E via simulator. The Samsung-STT retry/failsafe logic in quiz_screen is 📵 (device timing) |
