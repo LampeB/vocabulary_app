@@ -308,5 +308,19 @@
   "start_session.smart_due_sub": "Everything due, across lists",
   "start_session.smart_in_progress_sub": "Words you've already started",
   "shell.nav_study": "Study",
-  "quiz.hf_analyzing": "Analyzing…"
+  "quiz.hf_analyzing": "Analyzing…",
+  "grammar.drill.particle": "Add the particle to “{word}”",
+  "grammar.drill.particle_variant": "Add the {hint} particle to “{word}”",
+  "grammar.drill.conjugate": "Conjugate “{word}” in the polite present",
+  "grammar.drill.negate": "Make “{word}” negative",
+  "grammar.hint.subject": "subject",
+  "grammar.hint.object": "object",
+  "grammar.hint.destination_or_time": "destination/time",
+  "grammar.hint.action_location": "action-location",
+  "grammar.lesson.examples": "Examples",
+  "grammar.lesson.start": "Let's go!",
+  "start_session.rule_locked": "First master: {lists}",
+  "start_session.rule_mastered": "Mastered",
+  "start_session.rule_not_enough_words": "Master more vocabulary to practise",
+  "start_session.section_rule": "Grammar rule"
 }

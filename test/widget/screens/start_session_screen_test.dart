@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
+import 'package:vocab_kr/domain/entities/grammar_rule.dart';
 import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart'
     show QuizSource;
+import 'package:vocab_kr/presentation/providers/grammar/grammar_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
 import 'package:vocab_kr/presentation/screens/quiz/start_session_screen.dart';
@@ -29,6 +31,21 @@ VocabularyList _list(String id, String name,
       updatedAt: _now,
     );
 
+GrammarRule _rule(String id, String title) => GrammarRule(
+      id: id,
+      titleFr: title,
+      descriptionFr: '',
+      explanationFr: 'Une explication.',
+      workedExamples: const [WorkedExample(ko: '저는 학생이에요', fr: 'Je suis étudiant')],
+      prerequisiteLists: const ['Salutations & politesse'],
+      appliesToCategories: const ['nom'],
+      minKnownWords: const {'nom': 5},
+      mechanics: const ParticleMechanics(variants: [
+        ParticleVariant(key: 'default', afterConsonant: '은', afterVowel: '는'),
+      ]),
+      testVectors: const [],
+    );
+
 void main() {
   setUpAll(initTestLocalization);
 
@@ -43,6 +60,22 @@ void main() {
         myListsProvider.overrideWith(
             (ref) => Stream.value(lists ?? [_list('l1', 'Animaux')])),
         dueCountProvider.overrideWith((ref) => Stream.value(4)),
+        ruleStatusesProvider.overrideWith((ref) async => [
+              RuleStatus(
+                rule: _rule('regle-debloquee', 'La particule de thème'),
+                availability: RuleAvailability.unlocked,
+                missingLists: const [],
+                enoughWords: true,
+                correct: 3,
+              ),
+              RuleStatus(
+                rule: _rule('regle-verrouillee', 'Le présent poli'),
+                availability: RuleAvailability.locked,
+                missingLists: const ['La nourriture'],
+                enoughWords: true,
+                correct: 0,
+              ),
+            ]),
       ],
       routes: [
         GoRoute(
@@ -194,6 +227,40 @@ void main() {
     // The direction section is now open with labels from lang.en / lang.es.
     expect(find.text('Anglais → Espagnol'), findsOneWidget);
     expect(find.text('Espagnol → Anglais'), findsOneWidget);
+  });
+
+  testWidgets(
+      'grammar: unlocked rule opens the lesson sheet, starting fires /quiz '
+      'with a grammar source; locked rules are disabled', (tester) async {
+    await pump(tester);
+
+    // The type section is collapsed by default — open it, then pick Grammaire.
+    await tester.tap(byKey(WidgetKeys.startSection(0)));
+    await tester.pumpAndSettle();
+    await tester.tap(byKey(WidgetKeys.startType('grammar')));
+    await tester.pumpAndSettle();
+
+    // Locked rule: disabled, shows what to master first.
+    expect(find.textContaining('La nourriture'), findsOneWidget);
+
+    // Unlocked rule → lesson sheet with the explanation.
+    await tester.tap(byKey(WidgetKeys.startRule('regle-debloquee')));
+    await tester.pumpAndSettle();
+    expect(find.text('Une explication.'), findsOneWidget);
+    expect(find.text('저는 학생이에요'), findsOneWidget);
+
+    await tester.tap(byKey(WidgetKeys.grammarLessonStart));
+    await tester.pumpAndSettle();
+
+    // Direction section is skipped for grammar; mode then count then start.
+    await tapKey(tester, WidgetKeys.startQuizType('typing'));
+    expect(byKey(WidgetKeys.startDirection('frToKo')), findsNothing);
+    await tapKey(tester, WidgetKeys.startSessionStart);
+
+    expect(capturedArgs, isNotNull);
+    expect(capturedArgs!.source, QuizSource.grammar);
+    expect(capturedArgs!.ruleId, 'regle-debloquee');
+    expect(capturedArgs!.mode, QuizMode.typing);
   });
 
   testWidgets('the CTA label shows the selected card count', (tester) async {

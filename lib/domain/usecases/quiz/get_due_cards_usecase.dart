@@ -3,8 +3,9 @@ import '../../entities/variant_progress.dart';
 import '../../../core/errors/failure.dart';
 
 /// Where a study session draws its cards from: one list, everything due
-/// across lists, or everything already started across lists.
-enum QuizSource { list, allDue, inProgress }
+/// across lists, everything already started across lists — or a grammar
+/// rule (cards are then GENERATED, not fetched; see GrammarDrillGenerator).
+enum QuizSource { list, allDue, inProgress, grammar }
 
 class GetDueCardsUseCase {
   const GetDueCardsUseCase(this._repo);
@@ -18,6 +19,8 @@ class GetDueCardsUseCase {
     int limit = 20,
   }) =>
       switch (source) {
+        QuizSource.grammar =>
+          throw StateError('grammar cards are generated, not fetched'),
         QuizSource.list => _repo.getDueCards(
             userId: userId,
             listId: listId!,

@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../domain/entities/vocabulary_list.dart';
 import '../../../core/languages.dart';
+import '../../../domain/entities/grammar_rule.dart';
+import '../../providers/grammar/grammar_provider.dart';
 import '../../../domain/usecases/quiz/get_due_cards_usecase.dart'
     show QuizSource;
 import '../../providers/lists/vocabulary_provider.dart';
@@ -30,6 +32,9 @@ class StartSessionScreen extends ConsumerStatefulWidget {
 class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   // Sections: 0 type · 1 list · 2 quiz-type · 3 direction · 4 count.
   int _open = 1; // type defaults to Vocabulaire, so start on List.
+  bool _grammar = false; // Vocabulaire vs Grammaire session
+  String? _ruleId;
+  String _ruleTitle = '';
   String? _listId;
   QuizSource _source = QuizSource.list;
   String _listName = '';
@@ -71,23 +76,36 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                 index: 0,
                 isOpen: _open == 0,
                 label: 'start_session.section_type'.tr(),
-                value: 'start_session.type_vocab'.tr(),
+                value: (_grammar
+                        ? 'start_session.type_grammar'
+                        : 'start_session.type_vocab')
+                    .tr(),
                 onHeaderTap: () => _select(0),
                 child: Column(
                   children: [
                     _OptionTile(
                       key: ValueKey(WidgetKeys.startType('vocab')),
                       label: 'start_session.type_vocab'.tr(),
-                      selected: true,
-                      onTap: () => _select(1),
+                      selected: !_grammar,
+                      onTap: () {
+                        setState(() => _grammar = false);
+                        _select(1);
+                      },
                     ),
                     const SizedBox(height: 8),
                     _OptionTile(
+                      key: ValueKey(WidgetKeys.startType('grammar')),
                       label: 'start_session.type_grammar'.tr(),
-                      selected: false,
-                      disabled: true,
-                      trailing: 'start_session.soon'.tr(),
-                      onTap: () {},
+                      selected: _grammar,
+                      onTap: () {
+                        setState(() {
+                          _grammar = true;
+                          _listId = null;
+                          _source = QuizSource.list;
+                          _listName = '';
+                        });
+                        _select(1);
+                      },
                     ),
                   ],
                 ),
@@ -97,23 +115,28 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
               _Section(
                 index: 1,
                 isOpen: _open == 1,
-                label: 'start_session.section_list'.tr(),
-                value: _listName,
+                label: (_grammar
+                        ? 'start_session.section_rule'
+                        : 'start_session.section_list')
+                    .tr(),
+                value: _grammar ? _ruleTitle : _listName,
                 onHeaderTap: () => _select(1),
-                child: listsAsync.when(
-                  loading: () => const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                          color: AppColors.clay, strokeWidth: 2),
-                    ),
-                  ),
-                  error: (_, __) => Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text('common.error'.tr()),
-                  ),
-                  data: (lists) => _listOptions(lists),
-                ),
+                child: _grammar
+                    ? _ruleOptions()
+                    : listsAsync.when(
+                        loading: () => const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                                color: AppColors.clay, strokeWidth: 2),
+                          ),
+                        ),
+                        error: (_, __) => Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text('common.error'.tr()),
+                        ),
+                        data: (lists) => _listOptions(lists),
+                      ),
               ),
               const SizedBox(height: 10),
               // 2 — Type de quiz.
@@ -133,7 +156,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                         selected: _mode == m,
                         onTap: () {
                           setState(() => _mode = m);
-                          _select(3);
+                          _select(_grammar ? 4 : 3);
                         },
                       ),
                     ],
@@ -141,8 +164,9 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              // 3 — Sens.
-              _Section(
+              // 3 — Sens (vocab only: grammar drills are FR → KR by nature).
+              if (!_grammar)
+                _Section(
                 index: 3,
                 isOpen: _open == 3,
                 label: 'quiz_setup.section_direction'.tr(),
@@ -268,6 +292,106 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
     );
   }
 
+  Widget _ruleOptions() {
+    final statusesAsync = ref.watch(ruleStatusesProvider);
+    return statusesAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(
+          child:
+              CircularProgressIndicator(color: AppColors.clay, strokeWidth: 2),
+        ),
+      ),
+      error: (_, __) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text('common.error'.tr()),
+      ),
+      data: (statuses) => Column(
+        children: [
+          for (final st in statuses) ...[
+            if (st != statuses.first) const SizedBox(height: 8),
+            _OptionTile(
+              key: ValueKey(WidgetKeys.startRule(st.rule.id)),
+              label: st.rule.titleFr,
+              selected: _ruleId == st.rule.id,
+              disabled: st.availability == RuleAvailability.locked ||
+                  !st.enoughWords,
+              trailing: switch (st.availability) {
+                RuleAvailability.mastered =>
+                  'start_session.rule_mastered'.tr(),
+                RuleAvailability.unlocked when !st.enoughWords =>
+                  'start_session.rule_not_enough_words'.tr(),
+                RuleAvailability.unlocked =>
+                  '${st.correct}/$ruleMasteryTarget',
+                RuleAvailability.locked => 'start_session.rule_locked'
+                    .tr(namedArgs: {'lists': st.missingLists.join(', ')}),
+              },
+              onTap: () => _showLessonSheet(st.rule),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Stage-2 lesson: the rule explanation + worked examples, then start.
+  Future<void> _showLessonSheet(GrammarRule rule) async {
+    final start = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(rule.titleFr,
+                    style: AppTextStyles.grotesk(22, FontWeight.w700)
+                        .copyWith(color: cs.onSurface)),
+                const SizedBox(height: 12),
+                Text(rule.explanationFr,
+                    style: AppTextStyles.body.copyWith(color: cs.onSurface)),
+                const SizedBox(height: 16),
+                Text('grammar.lesson.examples'.tr(),
+                    style: AppTextStyles.eyebrow
+                        .copyWith(color: AppColors.muted)),
+                const SizedBox(height: 8),
+                for (final e in rule.workedExamples) ...[
+                  Text(e.ko,
+                      style: AppTextStyles.kr(16, FontWeight.w600)
+                          .copyWith(color: cs.onSurface)),
+                  Text(e.fr,
+                      style:
+                          AppTextStyles.caption.copyWith(color: AppColors.muted)),
+                  const SizedBox(height: 8),
+                ],
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    key: const ValueKey(WidgetKeys.grammarLessonStart),
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: Text('grammar.lesson.start'.tr()),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (start == true && mounted) {
+      setState(() {
+        _ruleId = rule.id;
+        _ruleTitle = rule.titleFr;
+      });
+      _select(2);
+    }
+  }
+
   void _selectSmart(QuizSource source, String label) {
     setState(() {
       _source = source;
@@ -302,20 +426,31 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   static String _cap(String s) =>
       s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
-  bool get _canStart => _source != QuizSource.list || _listId != null;
+  bool get _canStart => _grammar
+      ? _ruleId != null
+      : (_source != QuizSource.list || _listId != null);
 
   void _start() {
     context.go(
       '/quiz',
-      extra: QuizArgs(
-        listId: _listId,
-        source: _source,
-        mode: _mode,
-        direction: _dir,
-        cardLimit: _count,
-        langA: _langA,
-        langB: _langB,
-      ),
+      extra: _grammar
+          ? QuizArgs(
+              source: QuizSource.grammar,
+              ruleId: _ruleId,
+              ruleTitle: _ruleTitle,
+              mode: _mode,
+              direction: QuizDirectionChoice.frToKo,
+              cardLimit: _count,
+            )
+          : QuizArgs(
+              listId: _listId,
+              source: _source,
+              mode: _mode,
+              direction: _dir,
+              cardLimit: _count,
+              langA: _langA,
+              langB: _langB,
+            ),
     );
   }
 }
@@ -434,9 +569,15 @@ class _OptionTile extends StatelessWidget {
                         .copyWith(color: fg)),
               ),
               if (trailing != null)
-                Text(trailing!,
-                    style: AppTextStyles.caption.copyWith(
-                        color: selected ? Colors.white70 : muted)),
+                // Flexible: long trailings (e.g. a locked rule's prerequisite
+                // list names) must ellipsize, not overflow the tile.
+                Flexible(
+                  child: Text(trailing!,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                      style: AppTextStyles.caption.copyWith(
+                          color: selected ? Colors.white70 : muted)),
+                ),
               if (selected)
                 const Padding(
                   padding: EdgeInsets.only(left: 8),

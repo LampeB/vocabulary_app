@@ -308,5 +308,19 @@
   "start_session.smart_due_sub": "Tout ce qui est dû, toutes listes",
   "start_session.smart_in_progress_sub": "Les mots déjà commencés",
   "shell.nav_study": "Étudier",
-  "quiz.hf_analyzing": "Analyse…"
+  "quiz.hf_analyzing": "Analyse…",
+  "grammar.drill.particle": "Ajoute la particule à « {word} »",
+  "grammar.drill.particle_variant": "Ajoute la particule de {hint} à « {word} »",
+  "grammar.drill.conjugate": "Conjugue « {word} » au présent poli",
+  "grammar.drill.negate": "Mets « {word} » à la forme négative",
+  "grammar.hint.subject": "sujet",
+  "grammar.hint.object": "objet",
+  "grammar.hint.destination_or_time": "destination ou de temps",
+  "grammar.hint.action_location": "lieu de l'action",
+  "grammar.lesson.examples": "Exemples",
+  "grammar.lesson.start": "C'est parti !",
+  "start_session.rule_locked": "Maîtrise d'abord : {lists}",
+  "start_session.rule_mastered": "Maîtrisée",
+  "start_session.rule_not_enough_words": "Maîtrise plus de vocabulaire pour t'entraîner",
+  "start_session.section_rule": "Règle de grammaire"
 }

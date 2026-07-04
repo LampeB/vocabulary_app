@@ -3378,6 +3378,478 @@ class QuizSessionsTableCompanion
   }
 }
 
+class $GrammarProgressTableTable extends GrammarProgressTable
+    with TableInfo<$GrammarProgressTableTable, GrammarProgressTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $GrammarProgressTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+      'user_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _ruleIdMeta = const VerificationMeta('ruleId');
+  @override
+  late final GeneratedColumn<String> ruleId = GeneratedColumn<String>(
+      'rule_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _shownMeta = const VerificationMeta('shown');
+  @override
+  late final GeneratedColumn<int> shown = GeneratedColumn<int>(
+      'shown', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _correctMeta =
+      const VerificationMeta('correct');
+  @override
+  late final GeneratedColumn<int> correct = GeneratedColumn<int>(
+      'correct', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _masteredAtMeta =
+      const VerificationMeta('masteredAt');
+  @override
+  late final GeneratedColumn<DateTime> masteredAt = GeneratedColumn<DateTime>(
+      'mastered_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _isSyncedMeta =
+      const VerificationMeta('isSynced');
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+      'is_synced', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        userId,
+        ruleId,
+        shown,
+        correct,
+        masteredAt,
+        isSynced,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'grammar_progress';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<GrammarProgressTableData> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(_userIdMeta,
+          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('rule_id')) {
+      context.handle(_ruleIdMeta,
+          ruleId.isAcceptableOrUnknown(data['rule_id']!, _ruleIdMeta));
+    } else if (isInserting) {
+      context.missing(_ruleIdMeta);
+    }
+    if (data.containsKey('shown')) {
+      context.handle(
+          _shownMeta, shown.isAcceptableOrUnknown(data['shown']!, _shownMeta));
+    }
+    if (data.containsKey('correct')) {
+      context.handle(_correctMeta,
+          correct.isAcceptableOrUnknown(data['correct']!, _correctMeta));
+    }
+    if (data.containsKey('mastered_at')) {
+      context.handle(
+          _masteredAtMeta,
+          masteredAt.isAcceptableOrUnknown(
+              data['mastered_at']!, _masteredAtMeta));
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(_isSyncedMeta,
+          isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  GrammarProgressTableData map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return GrammarProgressTableData(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      userId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
+      ruleId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}rule_id'])!,
+      shown: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}shown'])!,
+      correct: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}correct'])!,
+      masteredAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}mastered_at']),
+      isSynced: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $GrammarProgressTableTable createAlias(String alias) {
+    return $GrammarProgressTableTable(attachedDatabase, alias);
+  }
+}
+
+class GrammarProgressTableData extends DataClass
+    implements Insertable<GrammarProgressTableData> {
+  final String id;
+  final String userId;
+  final String ruleId;
+  final int shown;
+  final int correct;
+  final DateTime? masteredAt;
+  final bool isSynced;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const GrammarProgressTableData(
+      {required this.id,
+      required this.userId,
+      required this.ruleId,
+      required this.shown,
+      required this.correct,
+      this.masteredAt,
+      required this.isSynced,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['rule_id'] = Variable<String>(ruleId);
+    map['shown'] = Variable<int>(shown);
+    map['correct'] = Variable<int>(correct);
+    if (!nullToAbsent || masteredAt != null) {
+      map['mastered_at'] = Variable<DateTime>(masteredAt);
+    }
+    map['is_synced'] = Variable<bool>(isSynced);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  GrammarProgressTableCompanion toCompanion(bool nullToAbsent) {
+    return GrammarProgressTableCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      ruleId: Value(ruleId),
+      shown: Value(shown),
+      correct: Value(correct),
+      masteredAt: masteredAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(masteredAt),
+      isSynced: Value(isSynced),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory GrammarProgressTableData.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return GrammarProgressTableData(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      ruleId: serializer.fromJson<String>(json['ruleId']),
+      shown: serializer.fromJson<int>(json['shown']),
+      correct: serializer.fromJson<int>(json['correct']),
+      masteredAt: serializer.fromJson<DateTime?>(json['masteredAt']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'ruleId': serializer.toJson<String>(ruleId),
+      'shown': serializer.toJson<int>(shown),
+      'correct': serializer.toJson<int>(correct),
+      'masteredAt': serializer.toJson<DateTime?>(masteredAt),
+      'isSynced': serializer.toJson<bool>(isSynced),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  GrammarProgressTableData copyWith(
+          {String? id,
+          String? userId,
+          String? ruleId,
+          int? shown,
+          int? correct,
+          Value<DateTime?> masteredAt = const Value.absent(),
+          bool? isSynced,
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      GrammarProgressTableData(
+        id: id ?? this.id,
+        userId: userId ?? this.userId,
+        ruleId: ruleId ?? this.ruleId,
+        shown: shown ?? this.shown,
+        correct: correct ?? this.correct,
+        masteredAt: masteredAt.present ? masteredAt.value : this.masteredAt,
+        isSynced: isSynced ?? this.isSynced,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  GrammarProgressTableData copyWithCompanion(
+      GrammarProgressTableCompanion data) {
+    return GrammarProgressTableData(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      ruleId: data.ruleId.present ? data.ruleId.value : this.ruleId,
+      shown: data.shown.present ? data.shown.value : this.shown,
+      correct: data.correct.present ? data.correct.value : this.correct,
+      masteredAt:
+          data.masteredAt.present ? data.masteredAt.value : this.masteredAt,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GrammarProgressTableData(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('ruleId: $ruleId, ')
+          ..write('shown: $shown, ')
+          ..write('correct: $correct, ')
+          ..write('masteredAt: $masteredAt, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, userId, ruleId, shown, correct,
+      masteredAt, isSynced, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is GrammarProgressTableData &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.ruleId == this.ruleId &&
+          other.shown == this.shown &&
+          other.correct == this.correct &&
+          other.masteredAt == this.masteredAt &&
+          other.isSynced == this.isSynced &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class GrammarProgressTableCompanion
+    extends UpdateCompanion<GrammarProgressTableData> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> ruleId;
+  final Value<int> shown;
+  final Value<int> correct;
+  final Value<DateTime?> masteredAt;
+  final Value<bool> isSynced;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const GrammarProgressTableCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.ruleId = const Value.absent(),
+    this.shown = const Value.absent(),
+    this.correct = const Value.absent(),
+    this.masteredAt = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  GrammarProgressTableCompanion.insert({
+    required String id,
+    required String userId,
+    required String ruleId,
+    this.shown = const Value.absent(),
+    this.correct = const Value.absent(),
+    this.masteredAt = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        userId = Value(userId),
+        ruleId = Value(ruleId),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<GrammarProgressTableData> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? ruleId,
+    Expression<int>? shown,
+    Expression<int>? correct,
+    Expression<DateTime>? masteredAt,
+    Expression<bool>? isSynced,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (ruleId != null) 'rule_id': ruleId,
+      if (shown != null) 'shown': shown,
+      if (correct != null) 'correct': correct,
+      if (masteredAt != null) 'mastered_at': masteredAt,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  GrammarProgressTableCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? userId,
+      Value<String>? ruleId,
+      Value<int>? shown,
+      Value<int>? correct,
+      Value<DateTime?>? masteredAt,
+      Value<bool>? isSynced,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return GrammarProgressTableCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      ruleId: ruleId ?? this.ruleId,
+      shown: shown ?? this.shown,
+      correct: correct ?? this.correct,
+      masteredAt: masteredAt ?? this.masteredAt,
+      isSynced: isSynced ?? this.isSynced,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (ruleId.present) {
+      map['rule_id'] = Variable<String>(ruleId.value);
+    }
+    if (shown.present) {
+      map['shown'] = Variable<int>(shown.value);
+    }
+    if (correct.present) {
+      map['correct'] = Variable<int>(correct.value);
+    }
+    if (masteredAt.present) {
+      map['mastered_at'] = Variable<DateTime>(masteredAt.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GrammarProgressTableCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('ruleId: $ruleId, ')
+          ..write('shown: $shown, ')
+          ..write('correct: $correct, ')
+          ..write('masteredAt: $masteredAt, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3390,12 +3862,16 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $VariantProgressTableTable(this);
   late final $QuizSessionsTableTable quizSessionsTable =
       $QuizSessionsTableTable(this);
+  late final $GrammarProgressTableTable grammarProgressTable =
+      $GrammarProgressTableTable(this);
   late final VocabularyListDao vocabularyListDao =
       VocabularyListDao(this as AppDatabase);
   late final ConceptDao conceptDao = ConceptDao(this as AppDatabase);
   late final ProgressDao progressDao = ProgressDao(this as AppDatabase);
   late final QuizSessionDao quizSessionDao =
       QuizSessionDao(this as AppDatabase);
+  late final GrammarProgressDao grammarProgressDao =
+      GrammarProgressDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3405,7 +3881,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         conceptsTable,
         wordVariantsTable,
         variantProgressTable,
-        quizSessionsTable
+        quizSessionsTable,
+        grammarProgressTable
       ];
 }
 
@@ -5517,6 +5994,245 @@ typedef $$QuizSessionsTableTableProcessedTableManager = ProcessedTableManager<
     ),
     QuizSessionsTableData,
     PrefetchHooks Function()>;
+typedef $$GrammarProgressTableTableCreateCompanionBuilder
+    = GrammarProgressTableCompanion Function({
+  required String id,
+  required String userId,
+  required String ruleId,
+  Value<int> shown,
+  Value<int> correct,
+  Value<DateTime?> masteredAt,
+  Value<bool> isSynced,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$GrammarProgressTableTableUpdateCompanionBuilder
+    = GrammarProgressTableCompanion Function({
+  Value<String> id,
+  Value<String> userId,
+  Value<String> ruleId,
+  Value<int> shown,
+  Value<int> correct,
+  Value<DateTime?> masteredAt,
+  Value<bool> isSynced,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$GrammarProgressTableTableFilterComposer
+    extends Composer<_$AppDatabase, $GrammarProgressTableTable> {
+  $$GrammarProgressTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ruleId => $composableBuilder(
+      column: $table.ruleId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get shown => $composableBuilder(
+      column: $table.shown, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get correct => $composableBuilder(
+      column: $table.correct, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get masteredAt => $composableBuilder(
+      column: $table.masteredAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+      column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$GrammarProgressTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $GrammarProgressTableTable> {
+  $$GrammarProgressTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ruleId => $composableBuilder(
+      column: $table.ruleId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get shown => $composableBuilder(
+      column: $table.shown, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get correct => $composableBuilder(
+      column: $table.correct, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get masteredAt => $composableBuilder(
+      column: $table.masteredAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+      column: $table.isSynced, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$GrammarProgressTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $GrammarProgressTableTable> {
+  $$GrammarProgressTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get ruleId =>
+      $composableBuilder(column: $table.ruleId, builder: (column) => column);
+
+  GeneratedColumn<int> get shown =>
+      $composableBuilder(column: $table.shown, builder: (column) => column);
+
+  GeneratedColumn<int> get correct =>
+      $composableBuilder(column: $table.correct, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get masteredAt => $composableBuilder(
+      column: $table.masteredAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$GrammarProgressTableTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $GrammarProgressTableTable,
+    GrammarProgressTableData,
+    $$GrammarProgressTableTableFilterComposer,
+    $$GrammarProgressTableTableOrderingComposer,
+    $$GrammarProgressTableTableAnnotationComposer,
+    $$GrammarProgressTableTableCreateCompanionBuilder,
+    $$GrammarProgressTableTableUpdateCompanionBuilder,
+    (
+      GrammarProgressTableData,
+      BaseReferences<_$AppDatabase, $GrammarProgressTableTable,
+          GrammarProgressTableData>
+    ),
+    GrammarProgressTableData,
+    PrefetchHooks Function()> {
+  $$GrammarProgressTableTableTableManager(
+      _$AppDatabase db, $GrammarProgressTableTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$GrammarProgressTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$GrammarProgressTableTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$GrammarProgressTableTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> userId = const Value.absent(),
+            Value<String> ruleId = const Value.absent(),
+            Value<int> shown = const Value.absent(),
+            Value<int> correct = const Value.absent(),
+            Value<DateTime?> masteredAt = const Value.absent(),
+            Value<bool> isSynced = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              GrammarProgressTableCompanion(
+            id: id,
+            userId: userId,
+            ruleId: ruleId,
+            shown: shown,
+            correct: correct,
+            masteredAt: masteredAt,
+            isSynced: isSynced,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String userId,
+            required String ruleId,
+            Value<int> shown = const Value.absent(),
+            Value<int> correct = const Value.absent(),
+            Value<DateTime?> masteredAt = const Value.absent(),
+            Value<bool> isSynced = const Value.absent(),
+            required DateTime createdAt,
+            required DateTime updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              GrammarProgressTableCompanion.insert(
+            id: id,
+            userId: userId,
+            ruleId: ruleId,
+            shown: shown,
+            correct: correct,
+            masteredAt: masteredAt,
+            isSynced: isSynced,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$GrammarProgressTableTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $GrammarProgressTableTable,
+        GrammarProgressTableData,
+        $$GrammarProgressTableTableFilterComposer,
+        $$GrammarProgressTableTableOrderingComposer,
+        $$GrammarProgressTableTableAnnotationComposer,
+        $$GrammarProgressTableTableCreateCompanionBuilder,
+        $$GrammarProgressTableTableUpdateCompanionBuilder,
+        (
+          GrammarProgressTableData,
+          BaseReferences<_$AppDatabase, $GrammarProgressTableTable,
+              GrammarProgressTableData>
+        ),
+        GrammarProgressTableData,
+        PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5531,4 +6247,6 @@ class $AppDatabaseManager {
       $$VariantProgressTableTableTableManager(_db, _db.variantProgressTable);
   $$QuizSessionsTableTableTableManager get quizSessionsTable =>
       $$QuizSessionsTableTableTableManager(_db, _db.quizSessionsTable);
+  $$GrammarProgressTableTableTableManager get grammarProgressTable =>
+      $$GrammarProgressTableTableTableManager(_db, _db.grammarProgressTable);
 }

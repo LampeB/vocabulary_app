@@ -1,0 +1,151 @@
+import 'dart:convert';
+
+import '../../../core/errors/failure.dart';
+
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/grammar/grammar_drill_generator.dart';
+import '../../../core/grammar/grammar_language_module.dart';
+import '../../../core/grammar/rule_mastery.dart';
+import '../../../core/utils/list_mastery.dart';
+import '../../../domain/entities/grammar_rule.dart';
+import '../auth/auth_provider.dart';
+import '../lists/vocabulary_provider.dart';
+import '../quiz/quiz_provider.dart' show progressRepositoryProvider;
+
+/// The bundled grammar rules (per-language content; Korean today).
+final grammarRulesProvider = FutureProvider<List<GrammarRule>>((ref) async {
+  final raw = await rootBundle.loadString('assets/seed/grammar_rules.json');
+  return [
+    for (final j in jsonDecode(raw) as List)
+      GrammarRule.fromJson(j as Map<String, dynamic>),
+  ];
+});
+
+/// The language module registry — one entry per studyable grammar language.
+/// Adding a language = adding its module here + its rule content (the
+/// language-pluggable boundary; see the session-architecture epic).
+final grammarModuleProvider =
+    FutureProvider<GrammarLanguageModule>((ref) async {
+  final rules = await ref.watch(grammarRulesProvider.future);
+  final conjugation = rules
+      .map((r) => r.mechanics)
+      .whereType<ConjugationMechanics>()
+      .firstOrNull;
+  return KoreanGrammarModule(
+      conjugationIrregulars: conjugation?.irregulars ?? const {});
+});
+
+/// Mastered vocabulary resolved for drills: the target-language (KO) word of
+/// every concept the user has mastered, with its category.
+final drillWordsProvider = FutureProvider<List<DrillWord>>((ref) async {
+  final userId = ref.watch(currentUserProvider)?.id ?? '';
+  if (userId.isEmpty) return const [];
+  final progressRepo = ref.watch(progressRepositoryProvider);
+  final conceptDao = ref.watch(conceptDaoProvider);
+
+  final mastered =
+      (await progressRepo.getMasteredVariants(userId)).valueOrNull ?? [];
+  final words = <String, DrillWord>{}; // conceptId → word (dedup)
+  for (final p in mastered) {
+    final variant = await conceptDao.getVariantById(p.variantId);
+    if (variant == null) continue;
+    if (words.containsKey(variant.conceptId)) continue;
+    final concept = await conceptDao.getById(variant.conceptId);
+    if (concept == null || concept.category == null) continue;
+    final all = await conceptDao.getVariantsByConcept(variant.conceptId);
+    final ko = all.where((v) => v.langCode == 'ko').firstOrNull;
+    if (ko == null) continue;
+    words[variant.conceptId] =
+        DrillWord(word: ko.word, category: concept.category!);
+  }
+  return words.values.toList();
+});
+
+/// Per-rule grammar progress, keyed by rule id.
+final grammarProgressProvider =
+    StreamProvider<Map<String, ({int shown, int correct, bool mastered})>>(
+        (ref) {
+  final userId = ref.watch(currentUserProvider)?.id ?? '';
+  if (userId.isEmpty) return Stream.value(const {});
+  return ref.watch(appDatabaseProvider).grammarProgressDao.watchByUser(userId).map(
+        (rows) => {
+          for (final r in rows)
+            r.ruleId: (
+              shown: r.shown,
+              correct: r.correct,
+              mastered: r.masteredAt != null,
+            ),
+        },
+      );
+});
+
+enum RuleAvailability { locked, unlocked, mastered }
+
+class RuleStatus {
+  const RuleStatus({
+    required this.rule,
+    required this.availability,
+    required this.missingLists,
+    required this.enoughWords,
+    required this.correct,
+  });
+
+  final GrammarRule rule;
+  final RuleAvailability availability;
+
+  /// Prerequisite list names not yet known (isListKnown < 90%).
+  final List<String> missingLists;
+
+  /// Whether enough vocabulary is mastered to generate a session.
+  final bool enoughWords;
+  final int correct;
+}
+
+/// Availability of every rule: prerequisite lists gate unlocking (≥90%
+/// mastered per list — kListKnownThreshold), rule progress gates "mastered".
+final ruleStatusesProvider = FutureProvider<List<RuleStatus>>((ref) async {
+  final rules = await ref.watch(grammarRulesProvider.future);
+  final lists = await ref.watch(myListsProvider.future);
+  final progressRepo = ref.watch(progressRepositoryProvider);
+  final progress = await ref.watch(grammarProgressProvider.future);
+  final drillWords = await ref.watch(drillWordsProvider.future);
+  final module = await ref.watch(grammarModuleProvider.future);
+  final generator = GrammarDrillGenerator(module);
+
+  // Known-ness per prerequisite list name (lists are matched by name — the
+  // starter lists carry the canonical names the rules reference).
+  final knownByName = <String, bool>{};
+  for (final list in lists) {
+    final stats = (await progressRepo.getListStats(list.id)).valueOrNull;
+    knownByName[list.name] = stats != null &&
+        isListKnown(total: stats['total']!, mastered: stats['mastered']!);
+  }
+
+  return [
+    for (final rule in rules)
+      () {
+        final missing = [
+          for (final name in rule.prerequisiteLists)
+            if (!(knownByName[name] ?? false)) name,
+        ];
+        final p = progress[rule.id];
+        final mastered = p?.mastered ?? false;
+        return RuleStatus(
+          rule: rule,
+          availability: mastered
+              ? RuleAvailability.mastered
+              : missing.isEmpty
+                  ? RuleAvailability.unlocked
+                  : RuleAvailability.locked,
+          missingLists: missing,
+          enoughWords: generator.canGenerate(rule, drillWords),
+          correct: p?.correct ?? 0,
+        );
+      }(),
+  ];
+});
+
+/// How many correct answers master a rule — re-exported for UI progress bars.
+const ruleMasteryTarget = kRuleMasteryTarget;

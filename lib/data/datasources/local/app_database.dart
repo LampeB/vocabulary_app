@@ -4,10 +4,12 @@ import 'tables/vocabulary_lists_table.dart';
 import 'tables/concepts_table.dart';
 import 'tables/word_variants_table.dart';
 import 'tables/variant_progress_table.dart';
+import 'tables/grammar_progress_table.dart';
 import 'tables/quiz_sessions_table.dart';
 import 'daos/vocabulary_list_dao.dart';
 import 'daos/concept_dao.dart';
 import 'daos/progress_dao.dart';
+import 'daos/grammar_progress_dao.dart';
 import 'daos/quiz_session_dao.dart';
 
 part 'app_database.g.dart';
@@ -19,12 +21,14 @@ part 'app_database.g.dart';
     WordVariantsTable,
     VariantProgressTable,
     QuizSessionsTable,
+    GrammarProgressTable,
   ],
   daos: [
     VocabularyListDao,
     ConceptDao,
     ProgressDao,
     QuizSessionDao,
+    GrammarProgressDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -33,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -73,6 +77,10 @@ class AppDatabase extends _$AppDatabase {
             // Only 'user' lists count against the free quota.
             await m.addColumn(
                 vocabularyListsTable, vocabularyListsTable.origin);
+          }
+          if (from < 7) {
+            // Per-rule grammar mastery (the grammar feature's stage-2 gate).
+            await m.createTable(grammarProgressTable);
           }
         },
       );

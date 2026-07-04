@@ -308,5 +308,19 @@
   "start_session.smart_due_sub": "全リストの復習対象すべて",
   "start_session.smart_in_progress_sub": "学習を始めた単語",
   "shell.nav_study": "学習",
-  "quiz.hf_analyzing": "解析中…"
+  "quiz.hf_analyzing": "解析中…",
+  "grammar.drill.particle": "「{word}」に助詞を付けてください",
+  "grammar.drill.particle_variant": "「{word}」に{hint}の助詞を付けてください",
+  "grammar.drill.conjugate": "「{word}」を丁寧形の現在形に活用してください",
+  "grammar.drill.negate": "「{word}」を否定形にしてください",
+  "grammar.hint.subject": "主語",
+  "grammar.hint.object": "目的語",
+  "grammar.hint.destination_or_time": "方向・時間",
+  "grammar.hint.action_location": "動作の場所",
+  "grammar.lesson.examples": "例文",
+  "grammar.lesson.start": "始めましょう！",
+  "start_session.rule_locked": "まず習得：{lists}",
+  "start_session.rule_mastered": "習得済み",
+  "start_session.rule_not_enough_words": "練習にはもっと単語を習得してください",
+  "start_session.section_rule": "文法ルール"
 }

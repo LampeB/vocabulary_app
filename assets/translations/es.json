@@ -308,5 +308,19 @@
   "start_session.smart_due_sub": "Todo lo pendiente, de todas las listas",
   "start_session.smart_in_progress_sub": "Palabras ya empezadas",
   "shell.nav_study": "Estudiar",
-  "quiz.hf_analyzing": "Analizando…"
+  "quiz.hf_analyzing": "Analizando…",
+  "grammar.drill.particle": "Añade la partícula a « {word} »",
+  "grammar.drill.particle_variant": "Añade la partícula de {hint} a « {word} »",
+  "grammar.drill.conjugate": "Conjuga « {word} » en presente formal",
+  "grammar.drill.negate": "Pon « {word} » en forma negativa",
+  "grammar.hint.subject": "sujeto",
+  "grammar.hint.object": "objeto",
+  "grammar.hint.destination_or_time": "destino o tiempo",
+  "grammar.hint.action_location": "lugar de la acción",
+  "grammar.lesson.examples": "Ejemplos",
+  "grammar.lesson.start": "¡Vamos!",
+  "start_session.rule_locked": "Domina primero: {lists}",
+  "start_session.rule_mastered": "Dominada",
+  "start_session.rule_not_enough_words": "Domina más vocabulario para practicar",
+  "start_session.section_rule": "Regla gramatical"
 }

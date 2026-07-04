@@ -18,7 +18,10 @@ import '../audio/audio_provider.dart';
 import '../lists/vocabulary_provider.dart';
 import '../auth/auth_provider.dart';
 import '../../../services/audio/audio_player_service.dart';
+import '../grammar/grammar_provider.dart';
 import '../notifications/notification_provider.dart';
+import '../../../core/grammar/grammar_drill_generator.dart';
+import '../../../core/grammar/rule_mastery.dart';
 import 'session_assembly.dart';
 
 const _uuid = Uuid();
@@ -70,8 +73,12 @@ class QuizArgs {
     required this.cardLimit,
     this.langA = 'fr',
     this.langB = 'ko',
-  }) : assert(source != QuizSource.list || listId != null,
-            'a list-sourced session needs a listId');
+    this.ruleId,
+    this.ruleTitle,
+  })  : assert(source != QuizSource.list || listId != null,
+            'a list-sourced session needs a listId'),
+        assert(source != QuizSource.grammar || ruleId != null,
+            'a grammar session needs a ruleId');
 
   /// The list to study — required when [source] is [QuizSource.list],
   /// ignored for the cross-list smart sources.
@@ -87,6 +94,10 @@ class QuizArgs {
   /// forward/backward/both.
   final String langA;
   final String langB;
+
+  /// Grammar sessions: the rule being drilled (+ its title for history).
+  final String? ruleId;
+  final String? ruleTitle;
 
   QuizDirection get forward =>
       QuizDirection(questionLang: langA, answerLang: langB);
@@ -224,6 +235,11 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     state = state.copyWith(isLoading: true, isComplete: false, errorMessage: null);
 
     final userId = ref.read(currentUserProvider)?.id ?? '';
+
+    if (args.source == QuizSource.grammar) {
+      await _loadGrammarCards(args);
+      return;
+    }
     final getDueCards = ref.read(getDueCardsUseCaseProvider);
 
     // Fetch progress entries — one or two calls depending on direction choice.
@@ -334,11 +350,57 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       correctCount: 0,
     );
 
-    if (quizCards.isNotEmpty && !_kTestMode) {
+    if (quizCards.isNotEmpty && !_kTestMode && args.source != QuizSource.grammar) {
       final first = quizCards.first;
       final firstLang = first.progress.direction.questionLang;
       unawaited(_audio?.speak(first.questionWord, firstLang));
     }
+  }
+
+  /// Grammar sessions: cards are GENERATED from the rule + mastered words
+  /// (stage-2 drills today; the sentence composer replaces the generator's
+  /// output as rules get mastered). The question is the localized prompt;
+  /// the answer is validated against the module's accepted forms; answers
+  /// record grammar progress instead of FSRS.
+  Future<void> _loadGrammarCards(QuizArgs args) async {
+    final rules = await ref.read(grammarRulesProvider.future);
+    final rule = rules.firstWhere((r) => r.id == args.ruleId);
+    final module = await ref.read(grammarModuleProvider.future);
+    final words = await ref.read(drillWordsProvider.future);
+
+    final exercises = GrammarDrillGenerator(module)
+        .generate(rule, words, count: args.cardLimit);
+    if (exercises.isEmpty) {
+      state = state.copyWith(isLoading: false, isComplete: true);
+      return;
+    }
+
+    final now = DateTime.now();
+    final cards = [
+      for (final e in exercises)
+        QuizCard(
+          progress: VariantProgress(
+            id: 'grammar|${e.ruleId}',
+            userId: ref.read(currentUserProvider)?.id ?? '',
+            variantId: 'grammar|${e.ruleId}|${e.variantKey ?? ''}',
+            direction: args.forward,
+            createdAt: now,
+            updatedAt: now,
+          ),
+          questionWord: e.promptKey.tr(namedArgs: {
+            for (final entry in e.promptParams.entries)
+              entry.key: entry.key == 'hint' ? entry.value.tr() : entry.value,
+          }),
+          answerWords: e.accepted,
+        ),
+    ];
+    state = state.copyWith(
+      cards: cards,
+      currentIndex: 0,
+      isLoading: false,
+      isComplete: false,
+      correctCount: 0,
+    );
   }
 
   void flipCard() {
@@ -468,9 +530,12 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         ? 0
         : DateTime.now().difference(_sessionStartTime!).inSeconds;
 
-    // List sessions record the list's name; smart sessions their label.
+    // List sessions record the list's name; smart sessions their label;
+    // grammar sessions the rule's title.
     final String listName;
-    if (args.source == QuizSource.list) {
+    if (args.source == QuizSource.grammar) {
+      listName = args.ruleTitle ?? args.ruleId ?? '';
+    } else if (args.source == QuizSource.list) {
       final listRow =
           await ref.read(vocabularyListDaoProvider).getById(args.listId!);
       listName = listRow?.name ?? '';
@@ -527,6 +592,20 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
 
   Future<void> _persistRating(
       VariantProgress progress, FsrsRating rating) async {
+    final args = _lastArgs;
+    if (args?.source == QuizSource.grammar) {
+      // Grammar mastery, not FSRS. Only non-cartes paths reach here (cartes
+      // never persists), so every recorded answer counts toward the rule.
+      final userId = ref.read(currentUserProvider)?.id ?? '';
+      if (userId.isEmpty) return;
+      await ref.read(appDatabaseProvider).grammarProgressDao.recordAnswer(
+            userId: userId,
+            ruleId: args!.ruleId!,
+            correct: rating != FsrsRating.again,
+            masteredWhenCorrectReaches: kRuleMasteryTarget,
+          );
+      return;
+    }
     await ref
         .read(submitAnswerUseCaseProvider)
         .call(progress: progress, rating: rating);
@@ -555,7 +634,9 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         scheduledDays: 0,
       );
       final nextCard = state.currentCard;
-      if (nextCard != null && !_kTestMode) {
+      if (nextCard != null &&
+          !_kTestMode &&
+          _lastArgs?.source != QuizSource.grammar) {
         final nextLang = nextCard.progress.direction.questionLang;
         unawaited(_audio?.speak(nextCard.questionWord, nextLang));
       }

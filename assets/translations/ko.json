@@ -308,5 +308,19 @@
   "start_session.smart_due_sub": "모든 리스트의 복습 대상",
   "start_session.smart_in_progress_sub": "이미 시작한 단어",
   "shell.nav_study": "학습",
-  "quiz.hf_analyzing": "분석 중…"
+  "quiz.hf_analyzing": "분석 중…",
+  "grammar.drill.particle": "「{word}」에 조사를 붙이세요",
+  "grammar.drill.particle_variant": "「{word}」에 {hint} 조사를 붙이세요",
+  "grammar.drill.conjugate": "「{word}」를 해요체 현재형으로 활용하세요",
+  "grammar.drill.negate": "「{word}」를 부정형으로 만드세요",
+  "grammar.hint.subject": "주격",
+  "grammar.hint.object": "목적격",
+  "grammar.hint.destination_or_time": "방향·시간",
+  "grammar.hint.action_location": "행위 장소",
+  "grammar.lesson.examples": "예문",
+  "grammar.lesson.start": "시작해요!",
+  "start_session.rule_locked": "먼저 마스터: {lists}",
+  "start_session.rule_mastered": "마스터함",
+  "start_session.rule_not_enough_words": "연습하려면 단어를 더 마스터하세요",
+  "start_session.section_rule": "문법 규칙"
 }

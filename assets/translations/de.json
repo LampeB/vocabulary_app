@@ -308,5 +308,19 @@
   "start_session.smart_due_sub": "Alles Fällige, über alle Listen",
   "start_session.smart_in_progress_sub": "Bereits begonnene Wörter",
   "shell.nav_study": "Lernen",
-  "quiz.hf_analyzing": "Analysiere…"
+  "quiz.hf_analyzing": "Analysiere…",
+  "grammar.drill.particle": "Füge die Partikel an „{word}“ an",
+  "grammar.drill.particle_variant": "Füge die {hint}-Partikel an „{word}“ an",
+  "grammar.drill.conjugate": "Konjugiere „{word}“ im höflichen Präsens",
+  "grammar.drill.negate": "Verneine „{word}“",
+  "grammar.hint.subject": "Subjekt",
+  "grammar.hint.object": "Objekt",
+  "grammar.hint.destination_or_time": "Ziel/Zeit",
+  "grammar.hint.action_location": "Handlungsort",
+  "grammar.lesson.examples": "Beispiele",
+  "grammar.lesson.start": "Los geht's!",
+  "start_session.rule_locked": "Meistere zuerst: {lists}",
+  "start_session.rule_mastered": "Gemeistert",
+  "start_session.rule_not_enough_words": "Meistere mehr Vokabeln zum Üben",
+  "start_session.section_rule": "Grammatikregel"
 }
