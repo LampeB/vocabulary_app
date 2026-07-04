@@ -300,6 +300,7 @@
   "quiz.hf_not_heard": "Je n'ai pas entendu — réessaie",
   "start_session.title": "Nouvelle session",
   "start_session.title_grammar": "Session de grammaire",
+  "start_session.start": "Commencer",
   "start_session.soon": "Bientôt",
   "start_session.section_list": "LISTE",
   "start_session.start_with_count": "Commencer · {count} mots",

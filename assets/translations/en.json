@@ -300,6 +300,7 @@
   "quiz.hf_not_heard": "Didn't catch that — try again",
   "start_session.title": "New session",
   "start_session.title_grammar": "Grammar session",
+  "start_session.start": "Start",
   "start_session.soon": "Soon",
   "start_session.section_list": "LIST",
   "start_session.start_with_count": "Start · {count} words",

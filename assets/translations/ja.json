@@ -300,6 +300,7 @@
   "quiz.hf_not_heard": "聞き取れませんでした — もう一度",
   "start_session.title": "新しいセッション",
   "start_session.title_grammar": "文法セッション",
+  "start_session.start": "開始",
   "start_session.soon": "近日",
   "start_session.section_list": "リスト",
   "start_session.start_with_count": "開始 · {count}語",

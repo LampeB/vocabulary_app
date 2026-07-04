@@ -98,6 +98,13 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  // Everything starts collapsed — open the first section, then pick a list.
+  Future<void> pickList(WidgetTester tester, String name) async {
+    await tapKey(tester, WidgetKeys.startSection(0));
+    await tester.tap(find.text(name));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('vocab flow renders its four sections — and NO grammar anywhere',
       (tester) async {
     await pump(tester);
@@ -113,38 +120,40 @@ void main() {
     expect(byKey(WidgetKeys.startRule('regle-debloquee')), findsNothing);
   });
 
-  testWidgets('CTA is disabled until a list is selected', (tester) async {
+  testWidgets(
+      'no defaults: every section starts collapsed and empty, and the CTA '
+      'stays disabled until EVERY field is chosen', (tester) async {
     await pump(tester);
 
-    ElevatedButton cta() => tester.widget<ElevatedButton>(find.ancestor(
-        of: byKey(WidgetKeys.startSessionStart).first,
-        matching: find.byType(ElevatedButton)).first);
-    // The key IS on the ElevatedButton — read it directly.
-    expect(
+    bool ctaEnabled() =>
         tester
             .widget<ElevatedButton>(byKey(WidgetKeys.startSessionStart))
-            .onPressed,
-        isNull);
+            .onPressed !=
+        null;
 
-    await tester.tap(find.text('Animaux'));
-    await tester.pumpAndSettle();
+    // All collapsed: no option from any section is in the tree.
+    expect(find.text('Animaux'), findsNothing);
+    expect(byKey(WidgetKeys.startQuizType('typing')), findsNothing);
+    expect(byKey(WidgetKeys.startCount(20)), findsNothing);
+    expect(ctaEnabled(), isFalse);
 
-    expect(
-        tester
-            .widget<ElevatedButton>(byKey(WidgetKeys.startSessionStart))
-            .onPressed,
-        isNotNull);
-    cta; // (helper kept trivially referenced)
+    await pickList(tester, 'Animaux');
+    expect(ctaEnabled(), isFalse); // mode, direction, count still unset
+    await tapKey(tester, WidgetKeys.startQuizType('typing'));
+    expect(ctaEnabled(), isFalse);
+    await tapKey(tester, WidgetKeys.startDirection('frToKo'));
+    expect(ctaEnabled(), isFalse);
+    await tapKey(tester, WidgetKeys.startCount(20));
+    expect(ctaEnabled(), isTrue);
   });
 
   testWidgets('selecting a list auto-advances to the quiz-type section',
       (tester) async {
     await pump(tester);
-    // Quiz-type options not visible while the list section is open.
+    // Quiz-type options not visible before the list is chosen.
     expect(byKey(WidgetKeys.startQuizType('typing')), findsNothing);
 
-    await tester.tap(find.text('Animaux'));
-    await tester.pumpAndSettle();
+    await pickList(tester, 'Animaux');
 
     expect(byKey(WidgetKeys.startQuizType('typing')), findsOneWidget);
   });
@@ -165,8 +174,7 @@ void main() {
       'with the assembled QuizArgs', (tester) async {
     await pump(tester);
 
-    await tester.tap(find.text('Animaux'));
-    await tester.pumpAndSettle();
+    await pickList(tester, 'Animaux');
     await tapKey(tester, WidgetKeys.startQuizType('typing'));
     await tapKey(tester, WidgetKeys.startDirection('both'));
     await tapKey(tester, WidgetKeys.startCount(50));
@@ -184,20 +192,15 @@ void main() {
       'an all-due session (no listId)', (tester) async {
     await pump(tester);
 
-    // The due smart tile shows the live due count.
+    // The due smart tile shows the live due count (open the section first).
+    await tapKey(tester, WidgetKeys.startSection(0));
     expect(byKey(WidgetKeys.startSmart('due')), findsOneWidget);
     await tester.tap(byKey(WidgetKeys.startSmart('due')));
     await tester.pumpAndSettle();
 
-    // Selecting it enables the CTA without any list chosen.
-    expect(
-        tester
-            .widget<ElevatedButton>(byKey(WidgetKeys.startSessionStart))
-            .onPressed,
-        isNotNull);
-
     await tapKey(tester, WidgetKeys.startQuizType('flashcard'));
     await tapKey(tester, WidgetKeys.startDirection('frToKo'));
+    await tapKey(tester, WidgetKeys.startCount(20));
     await tapKey(tester, WidgetKeys.startSessionStart);
 
     expect(capturedArgs, isNotNull);
@@ -209,10 +212,12 @@ void main() {
       'session', (tester) async {
     await pump(tester);
 
+    await tapKey(tester, WidgetKeys.startSection(0));
     await tester.tap(byKey(WidgetKeys.startSmart('inprogress')));
     await tester.pumpAndSettle();
     await tapKey(tester, WidgetKeys.startQuizType('flashcard'));
     await tapKey(tester, WidgetKeys.startDirection('frToKo'));
+    await tapKey(tester, WidgetKeys.startCount(20));
     await tapKey(tester, WidgetKeys.startSessionStart);
 
     expect(capturedArgs!.source, QuizSource.inProgress);
@@ -224,8 +229,7 @@ void main() {
     await pump(tester,
         lists: [_list('l9', 'Inglés', langA: 'en', langB: 'es')]);
 
-    await tester.tap(find.text('Inglés'));
-    await tester.pumpAndSettle();
+    await pickList(tester, 'Inglés');
     await tapKey(tester, WidgetKeys.startQuizType('flashcard'));
 
     // The direction section is now open with labels from lang.en / lang.es.
@@ -237,6 +241,9 @@ void main() {
       'grammar flow: unlocked rule opens the lesson sheet, starting fires '
       '/quiz with a grammar source; locked rules are disabled', (tester) async {
     await pump(tester, grammar: true);
+
+    // Rule section starts collapsed too — open it.
+    await tapKey(tester, WidgetKeys.startSection(0));
 
     // Locked rule: disabled, shows what to master first.
     expect(find.textContaining('La nourriture'), findsOneWidget);
@@ -253,6 +260,7 @@ void main() {
     // Direction section is skipped for grammar; mode then count then start.
     await tapKey(tester, WidgetKeys.startQuizType('typing'));
     expect(byKey(WidgetKeys.startDirection('frToKo')), findsNothing);
+    await tapKey(tester, WidgetKeys.startCount(10));
     await tapKey(tester, WidgetKeys.startSessionStart);
 
     expect(capturedArgs, isNotNull);
@@ -263,8 +271,7 @@ void main() {
 
   testWidgets('the CTA label shows the selected card count', (tester) async {
     await pump(tester);
-    await tester.tap(find.text('Animaux'));
-    await tester.pumpAndSettle();
+    await pickList(tester, 'Animaux');
     await tapKey(tester, WidgetKeys.startQuizType('flashcard'));
     await tapKey(tester, WidgetKeys.startDirection('frToKo'));
     await tapKey(tester, WidgetKeys.startCount(100));

@@ -32,8 +32,15 @@ class StartSessionScreen extends ConsumerStatefulWidget {
 }
 
 class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
+  static const _kTestMode = bool.fromEnvironment('TEST_MODE');
+
   // Sections: 0 list|rule · 1 quiz-type · 2 direction (vocab only) · 3 count.
-  int _open = 0;
+  // Everything starts EMPTY and COLLAPSED (user feedback 2026-07-05: no
+  // preselected values); each choice auto-opens the next section. E2E is the
+  // exception: the list section starts open and direction/count stay
+  // prefilled there, so emulator sessions keep the tiny TEST_CARD_LIMIT
+  // instead of a 10-card minimum.
+  int _open = _kTestMode ? 0 : -1;
   bool get _grammar => widget.grammar;
   String? _ruleId;
   String _ruleTitle = '';
@@ -44,11 +51,11 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   // sources span lists — all FR/KR today, so they use the defaults).
   String _langA = 'fr';
   String _langB = 'ko';
-  QuizMode _mode = QuizMode.voice;
-  QuizDirectionChoice _dir = QuizDirectionChoice.frToKo;
-  // Default 20 in production; E2E sets a small TEST_CARD_LIMIT so a session is a
-  // handful of cards (each card costs real wall-clock on the CI emulator).
-  int _count = const int.fromEnvironment('TEST_CARD_LIMIT', defaultValue: 20);
+  QuizMode? _mode;
+  QuizDirectionChoice? _dir = _kTestMode ? QuizDirectionChoice.frToKo : null;
+  int? _count = _kTestMode
+      ? const int.fromEnvironment('TEST_CARD_LIMIT', defaultValue: 20)
+      : null;
 
   static const _limits = [10, 20, 50, 100];
 
@@ -109,7 +116,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                 index: 1,
                 isOpen: _open == 1,
                 label: 'quiz_setup.section_mode'.tr(),
-                value: _modeLabel(_mode),
+                value: _mode == null ? '' : _modeLabel(_mode!),
                 onHeaderTap: () => _select(1),
                 child: Column(
                   children: [
@@ -135,7 +142,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                 index: 2,
                 isOpen: _open == 2,
                 label: 'quiz_setup.section_direction'.tr(),
-                value: _dirLabel(_dir),
+                value: _dir == null ? '' : _dirLabel(_dir!),
                 onHeaderTap: () => _select(2),
                 child: Column(
                   children: [
@@ -161,7 +168,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                 index: 3,
                 isOpen: _open == 3,
                 label: 'quiz_setup.section_card_count'.tr(),
-                value: '$_count',
+                value: _count == null ? '' : '$_count',
                 onHeaderTap: () => _select(3),
                 child: Wrap(
                   spacing: 8,
@@ -171,7 +178,11 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                         key: ValueKey(WidgetKeys.startCount(n)),
                         n: n,
                         selected: _count == n,
-                        onTap: () => setState(() => _count = n),
+                        // Last choice: picking the count folds the accordion.
+                        onTap: () {
+                          setState(() => _count = n);
+                          _select(-1);
+                        },
                       ),
                   ],
                 ),
@@ -191,8 +202,10 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                 icon: const Icon(Icons.play_arrow_rounded,
                     color: Colors.white, size: 22),
                 label: Text(
-                  'start_session.start_with_count'
-                      .tr(namedArgs: {'count': _count.toString()}),
+                  _count == null
+                      ? 'start_session.start'.tr()
+                      : 'start_session.start_with_count'
+                          .tr(namedArgs: {'count': _count.toString()}),
                   style: AppTextStyles.fig(15, FontWeight.w700)
                       .copyWith(color: Colors.white),
                 ),
@@ -391,9 +404,13 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   static String _cap(String s) =>
       s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
-  bool get _canStart => _grammar
-      ? _ruleId != null
-      : (_source != QuizSource.list || _listId != null);
+  // No field has a default, so every one must be chosen before starting.
+  bool get _canStart {
+    if (_mode == null || _count == null) return false;
+    if (_grammar) return _ruleId != null;
+    if (_dir == null) return false;
+    return _source != QuizSource.list || _listId != null;
+  }
 
   void _start() {
     context.go(
@@ -403,16 +420,16 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
               source: QuizSource.grammar,
               ruleId: _ruleId,
               ruleTitle: _ruleTitle,
-              mode: _mode,
+              mode: _mode!,
               direction: QuizDirectionChoice.frToKo,
-              cardLimit: _count,
+              cardLimit: _count!,
             )
           : QuizArgs(
               listId: _listId,
               source: _source,
-              mode: _mode,
-              direction: _dir,
-              cardLimit: _count,
+              mode: _mode!,
+              direction: _dir!,
+              cardLimit: _count!,
               langA: _langA,
               langB: _langB,
             ),
@@ -450,7 +467,9 @@ class _Section extends StatelessWidget {
         ? Color.lerp(cs.surface, Colors.white, isOpen ? 0.16 : 0.08)!
         : Color.lerp(cs.surface, Colors.black, isOpen ? 0.10 : 0.05)!;
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeInOut,
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(16),
@@ -477,17 +496,30 @@ class _Section extends StatelessWidget {
                               .copyWith(color: cs.onSurface)),
                     ),
                   const SizedBox(width: 8),
-                  Icon(isOpen ? Icons.expand_less : Icons.expand_more,
-                      color: muted, size: 20),
+                  AnimatedRotation(
+                    turns: isOpen ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeInOut,
+                    child: Icon(Icons.expand_more, color: muted, size: 20),
+                  ),
                 ],
               ),
             ),
           ),
-          if (isOpen)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: child,
+          // Open/close slides the body in and out (user feedback 2026-07-05).
+          ClipRect(
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeInOut,
+              alignment: Alignment.topCenter,
+              child: isOpen
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                      child: child,
+                    )
+                  : const SizedBox(width: double.infinity),
             ),
+          ),
         ],
       ),
     );
