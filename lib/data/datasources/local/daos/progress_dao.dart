@@ -195,4 +195,8 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
                 t.scheduledDays.isBiggerOrEqualValue(minScheduledDays))
             ..orderBy([(t) => OrderingTerm.desc(t.scheduledDays)]))
           .get();
+
+  Future<int> markProgressSynced(List<String> ids) =>
+      (update(variantProgressTable)..where((t) => t.id.isIn(ids)))
+          .write(const VariantProgressTableCompanion(isSynced: Value(true)));
 }

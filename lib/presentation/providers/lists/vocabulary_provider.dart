@@ -10,6 +10,7 @@ import '../../../data/datasources/local/daos/concept_dao.dart';
 import '../../../data/datasources/local/daos/progress_dao.dart';
 import '../../../data/datasources/remote/vocabulary_remote_datasource.dart';
 import '../../../data/repositories/vocabulary_repository_impl.dart';
+import '../../../data/sync/push_sync.dart';
 import '../../../domain/entities/vocabulary_list.dart';
 import '../../../domain/entities/concept.dart';
 import '../../../domain/entities/word_variant.dart';
@@ -101,6 +102,14 @@ final syncOnLoginProvider = FutureProvider<void>((ref) async {
   if (user == null) return;
   await ref.watch(vocabularyRepositoryProvider).syncFromRemote();
 });
+
+/// Outbound sync (the isSynced flags are the queue — see data/sync/push_sync).
+final pushSyncProvider = Provider<PushSync>((ref) => PushSync(
+      ref.watch(vocabularyListDaoProvider),
+      ref.watch(conceptDaoProvider),
+      ref.watch(progressDaoProvider),
+      ref.watch(vocabularyRemoteProvider),
+    ));
 
 final listActionsProvider =
     NotifierProvider<ListActionsNotifier, void>(ListActionsNotifier.new);

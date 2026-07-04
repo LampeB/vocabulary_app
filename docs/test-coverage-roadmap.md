@@ -56,8 +56,9 @@
 7. **Known stubs — do NOT write tests asserting their current hardcoded
    behavior** (they will be implemented later; test them then):
    - `SocialRepositoryImpl.watchChallenges` (returns empty stream)
-   - `sync_queue` table (defined in drift, no consumer anywhere)
    - ~~getListStats / resetProgress~~ — implemented + tested 2026-07-04
+   - ~~sync_queue~~ — resolved 2026-07-04: the isSynced flags won as the queue
+     (data/sync/push_sync.dart); the dead table was dropped in schema v5
 
 ---
 

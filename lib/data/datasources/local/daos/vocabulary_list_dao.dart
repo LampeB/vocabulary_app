@@ -55,4 +55,8 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
           updatedAt: Value(DateTime.now()),
         ),
       );
+
+  Future<int> markListsSynced(List<String> ids) =>
+      (update(vocabularyListsTable)..where((t) => t.id.isIn(ids)))
+          .write(const VocabularyListsTableCompanion(isSynced: Value(true)));
 }

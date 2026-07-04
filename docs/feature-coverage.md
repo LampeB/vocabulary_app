@@ -87,7 +87,7 @@
 | Local-first writes survive dead backend | ✅ | integration `offline_resilience` |
 | Pull sync (lists/concepts/variants land, idempotent, no clobber) | ✅ | integration `sync_from_remote` |
 | Offline banner UI (app_shell) | ✅ | widget: banner appears offline / absent online, content stays usable. Found+fixed: the banner text overflowed EVERY phone by 468px |
-| Push-sync retry queue | 🚧 | sync_queue stub |
+| Push-sync drain (offline writes reach the server on reconnect/login) | ✅ | integration `push_sync_test`: offline writes drained + marked synced, idempotent re-drain, per-table failure retries only the failed rows, soft-deletes propagate. The isSynced flags ARE the queue; the dead sync_queue table was dropped (schema v5) |
 
 ## 8. Settings
 
@@ -145,6 +145,6 @@ same day — see the ✅ rows above.
   STT, TTS audio output, notification delivery, RevenueCat purchases, share
   sheet/file picker, password-reset email delivery, OS deep-link intent
   routing.
-- **Stubs awaiting implementation (test with the feature):** challenges, sync queue.
+- **Stubs awaiting implementation (test with the feature):** challenges.
 - Housekeeping: legacy patrol files (`auth_test`, `sign_up_test`,
   `vocab_list_test`) are not in the gate — fold in or delete (owner call).

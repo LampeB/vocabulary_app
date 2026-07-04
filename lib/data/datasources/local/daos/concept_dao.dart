@@ -76,4 +76,21 @@ class ConceptDao extends DatabaseAccessor<AppDatabase>
     final row = await query.getSingle();
     return row.read(count) ?? 0;
   }
+
+  // ── Push-sync support (the isSynced flags are the outbound queue) ──────────
+
+  Future<List<ConceptsTableData>> getUnsyncedConcepts() =>
+      (select(conceptsTable)..where((t) => t.isSynced.equals(false))).get();
+
+  Future<List<WordVariantsTableData>> getUnsyncedVariants() =>
+      (select(wordVariantsTable)..where((t) => t.isSynced.equals(false)))
+          .get();
+
+  Future<int> markConceptsSynced(List<String> ids) =>
+      (update(conceptsTable)..where((t) => t.id.isIn(ids)))
+          .write(const ConceptsTableCompanion(isSynced: Value(true)));
+
+  Future<int> markVariantsSynced(List<String> ids) =>
+      (update(wordVariantsTable)..where((t) => t.id.isIn(ids)))
+          .write(const WordVariantsTableCompanion(isSynced: Value(true)));
 }

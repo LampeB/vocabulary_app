@@ -1,9 +1,13 @@
+import 'dart:async' show unawaited;
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/network/connectivity_status.dart';
+import '../providers/auth/auth_provider.dart';
+import '../providers/lists/vocabulary_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widget_keys.dart';
@@ -16,6 +20,26 @@ final connectivityStreamProvider =
     StreamProvider<List<ConnectivityResult>>((ref) {
   if (_kTestMode) return Stream.value([ConnectivityResult.wifi]);
   return Connectivity().onConnectivityChanged;
+});
+
+/// Drains the outbound sync queue on login and whenever connectivity comes
+/// back. Watched by [AppShell] so it lives exactly as long as the signed-in
+/// shell. Skipped in TEST_MODE (same isolation rationale as syncOnLoginProvider).
+final pushOnReconnectProvider = Provider<void>((ref) {
+  if (_kTestMode) return;
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return;
+  ref.listen(connectivityStreamProvider, (prev, next) {
+    final wasOffline =
+        prev?.valueOrNull != null && isOffline(prev!.valueOrNull!);
+    final nowOnline =
+        next.valueOrNull != null && !isOffline(next.valueOrNull!);
+    if (wasOffline && nowOnline) {
+      unawaited(ref.read(pushSyncProvider).pushAll());
+    }
+  });
+  // Initial drain on login / app start.
+  unawaited(ref.read(pushSyncProvider).pushAll());
 });
 
 class AppShell extends ConsumerWidget {
@@ -34,6 +58,7 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(pushOnReconnectProvider);
     final connectivityAsync = ref.watch(connectivityStreamProvider);
     final offline = connectivityAsync.valueOrNull != null &&
         isOffline(connectivityAsync.valueOrNull!);

@@ -4,7 +4,6 @@ import 'tables/vocabulary_lists_table.dart';
 import 'tables/concepts_table.dart';
 import 'tables/word_variants_table.dart';
 import 'tables/variant_progress_table.dart';
-import 'tables/sync_queue_table.dart';
 import 'tables/quiz_sessions_table.dart';
 import 'daos/vocabulary_list_dao.dart';
 import 'daos/concept_dao.dart';
@@ -19,7 +18,6 @@ part 'app_database.g.dart';
     ConceptsTable,
     WordVariantsTable,
     VariantProgressTable,
-    SyncQueueTable,
     QuizSessionsTable,
   ],
   daos: [
@@ -35,7 +33,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -64,6 +62,11 @@ class AppDatabase extends _$AppDatabase {
                 "UPDATE variant_progress SET direction = 'fr>ko' WHERE direction = 'frToKo'");
             await customStatement(
                 "UPDATE variant_progress SET direction = 'ko>fr' WHERE direction = 'koToFr'");
+          }
+          if (from < 5) {
+            // The sync_queue table never got a consumer — the isSynced flags
+            // won as the outbound-queue mechanism (see data/sync/push_sync).
+            await customStatement('DROP TABLE IF EXISTS sync_queue');
           }
         },
       );
