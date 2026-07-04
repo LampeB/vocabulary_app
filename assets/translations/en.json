@@ -309,7 +309,6 @@
   "start_session.smart_due_sub": "Everything due, across lists",
   "start_session.smart_in_progress_sub": "Words you've already started",
   "shell.nav_study": "Study",
-  "quiz.hf_analyzing": "Analyzing…",
   "grammar.drill.particle": "Add the particle to “{word}”",
   "grammar.drill.particle_variant": "Add the {hint} particle to “{word}”",
   "grammar.drill.conjugate": "Conjugate “{word}” in the polite present",

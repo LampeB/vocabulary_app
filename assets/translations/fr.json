@@ -309,7 +309,6 @@
   "start_session.smart_due_sub": "Tout ce qui est dû, toutes listes",
   "start_session.smart_in_progress_sub": "Les mots déjà commencés",
   "shell.nav_study": "Étudier",
-  "quiz.hf_analyzing": "Analyse…",
   "grammar.drill.particle": "Ajoute la particule à « {word} »",
   "grammar.drill.particle_variant": "Ajoute la particule de {hint} à « {word} »",
   "grammar.drill.conjugate": "Conjugue « {word} » au présent poli",

@@ -309,7 +309,6 @@
   "start_session.smart_due_sub": "全リストの復習対象すべて",
   "start_session.smart_in_progress_sub": "学習を始めた単語",
   "shell.nav_study": "学習",
-  "quiz.hf_analyzing": "解析中…",
   "grammar.drill.particle": "「{word}」に助詞を付けてください",
   "grammar.drill.particle_variant": "「{word}」に{hint}の助詞を付けてください",
   "grammar.drill.conjugate": "「{word}」を丁寧形の現在形に活用してください",

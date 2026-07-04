@@ -309,7 +309,6 @@
   "start_session.smart_due_sub": "Tutto ciò che è in scadenza, in tutte le liste",
   "start_session.smart_in_progress_sub": "Parole già iniziate",
   "shell.nav_study": "Studia",
-  "quiz.hf_analyzing": "Analisi…",
   "grammar.drill.particle": "Aggiungi la particella a « {word} »",
   "grammar.drill.particle_variant": "Aggiungi la particella di {hint} a « {word} »",
   "grammar.drill.conjugate": "Coniuga « {word} » al presente formale",

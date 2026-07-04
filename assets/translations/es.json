@@ -309,7 +309,6 @@
   "start_session.smart_due_sub": "Todo lo pendiente, de todas las listas",
   "start_session.smart_in_progress_sub": "Palabras ya empezadas",
   "shell.nav_study": "Estudiar",
-  "quiz.hf_analyzing": "Analizando…",
   "grammar.drill.particle": "Añade la partícula a « {word} »",
   "grammar.drill.particle_variant": "Añade la partícula de {hint} a « {word} »",
   "grammar.drill.conjugate": "Conjuga « {word} » en presente formal",
