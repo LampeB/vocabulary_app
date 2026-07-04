@@ -24,6 +24,7 @@ class _FakeProgressRepo implements ProgressRepository {
   @override Future<Result<void>> resetProgress(String listId) async => throw UnimplementedError();
   @override Stream<int> watchDueCount(String userId) => throw UnimplementedError();
   @override Future<Result<List<VariantProgress>>> getMasteredVariants(String userId) async => throw UnimplementedError();
+  @override Future<Result<List<VariantProgress>>> getKnownVariants(String userId) async => throw UnimplementedError();
   @override Future<Result<List<VariantProgress>>> getAllDueCards({required String userId, required QuizDirection direction, int limit = 20}) async => throw UnimplementedError();
   @override Future<Result<List<VariantProgress>>> getInProgressCards({required String userId, required QuizDirection direction, int limit = 20}) async => throw UnimplementedError();
 }

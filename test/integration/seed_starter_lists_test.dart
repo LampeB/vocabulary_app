@@ -13,7 +13,9 @@ import '../helpers/fake_remote.dart';
 
 /// First-login seeding of the bundled starter lists (the REAL asset, so this
 /// also validates the shipped content imports cleanly): 6 lists / 111
-/// concepts for a brand-new user, once ever, never over existing data.
+/// concepts, once ever. Accounts with pre-existing lists still receive the
+/// starter lists they're MISSING (matched by name) — otherwise grammar's
+/// prerequisite lists never exist for them and every rule stays locked.
 
 AppUser _user(String id) => AppUser(
       id: id,
@@ -76,15 +78,32 @@ void main() {
     expect((await repo.watchMyLists().first).length, 6);
   });
 
-  test('a user who already has lists is never seeded', () async {
+  test(
+      'a user with pre-existing lists still receives the missing starter '
+      'lists (grammar prerequisites must exist for old accounts)', () async {
     await repo.createList(name: 'Ma liste');
     final c = makeContainer();
 
     await c.read(seedStarterListsProvider.future);
 
     final lists = await repo.watchMyLists().first;
-    expect(lists.length, 1);
-    expect(lists.single.name, 'Ma liste');
+    expect(lists.length, 7); // their own list + the 6 starter lists
+    expect(lists.map((l) => l.name), contains('Ma liste'));
+    expect(lists.where((l) => l.origin == 'starter').length, 6);
+  });
+
+  test('a starter list the user already has (by name) is not duplicated',
+      () async {
+    // Simulate a pulled copy of one starter list already on the account.
+    await repo.createList(name: 'Salutations & politesse');
+    final c = makeContainer();
+
+    await c.read(seedStarterListsProvider.future);
+
+    final lists = await repo.watchMyLists().first;
+    expect(lists.length, 6); // 1 existing + 5 topped up, no duplicate
+    expect(
+        lists.where((l) => l.name == 'Salutations & politesse').length, 1);
   });
 
   test('deleting everything later does NOT re-seed (flag is per-user, sticky)',

@@ -79,7 +79,22 @@ void main() {
 
       expect(stats['total'], 4);
       expect(stats['mastered'], 1); // only review + ≥21 scheduled days
+      // 'known' (graduated from learning — the grammar gate) is lighter:
+      // both review words count, the learning and never-studied ones don't.
+      expect(stats['known'], 2);
       expect(stats['due'], 1); // only the past-scheduled learning card
+    });
+
+    test('a relearning (lapsed) word still counts as known, not mastered',
+        () async {
+      final list = (await vocabRepo.createList(name: 'A')).valueOrNull!;
+      final lapsed = await seedWord(list.id, 'chat', '고양이');
+      await seedProgress(lapsed, state: 'relearning', scheduledDays: 1);
+
+      final stats = (await progressRepo.getListStats(list.id)).valueOrNull!;
+
+      expect(stats['known'], 1); // it graduated once — the user learned it
+      expect(stats['mastered'], 0);
     });
 
     test('a mastered word in ANOTHER list does not leak in', () async {
@@ -98,7 +113,7 @@ void main() {
     test('empty list → zeros', () async {
       final list = (await vocabRepo.createList(name: 'Vide')).valueOrNull!;
       final stats = (await progressRepo.getListStats(list.id)).valueOrNull!;
-      expect(stats, {'total': 0, 'mastered': 0, 'due': 0});
+      expect(stats, {'total': 0, 'mastered': 0, 'known': 0, 'due': 0});
     });
   });
 

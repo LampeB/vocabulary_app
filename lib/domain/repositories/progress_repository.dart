@@ -39,7 +39,12 @@ abstract interface class ProgressRepository {
   Stream<int> watchDueCount(String userId);
 
   /// Returns all progress entries the user has mastered (FSRS review state,
-  /// scheduled ≥ [kMasteryThresholdDays] days). Used by the grammar exercise
-  /// feature to build personalised sentence exercises from known vocabulary.
+  /// scheduled ≥ [kMasteryThresholdDays] days) — the long-retention bar
+  /// shown in stats.
   Future<Result<List<VariantProgress>>> getMasteredVariants(String userId);
+
+  /// Returns all progress entries the user KNOWS (FSRS card graduated from
+  /// the learning phase) — the lighter bar that gates grammar rules and
+  /// feeds drill vocabulary, reachable within days of steady study.
+  Future<Result<List<VariantProgress>>> getKnownVariants(String userId);
 }

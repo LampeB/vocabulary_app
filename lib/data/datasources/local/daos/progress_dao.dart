@@ -200,6 +200,17 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
             ..orderBy([(t) => OrderingTerm.desc(t.scheduledDays)]))
           .get();
 
+  /// Rows whose FSRS card graduated from the learning phase (review or
+  /// relearning — a lapsed word was still learned once). The "known" bar
+  /// that gates grammar; lighter than [getMasteredProgress].
+  Future<List<VariantProgressTableData>> getGraduatedProgress(
+          {required String userId}) =>
+      (select(variantProgressTable)
+            ..where((t) =>
+                t.userId.equals(userId) & t.state.equals('learning').not())
+            ..orderBy([(t) => OrderingTerm.desc(t.scheduledDays)]))
+          .get();
+
   Future<int> markProgressSynced(List<String> ids) =>
       (update(variantProgressTable)..where((t) => t.id.isIn(ids)))
           .write(const VariantProgressTableCompanion(isSynced: Value(true)));

@@ -37,8 +37,9 @@ final grammarModuleProvider =
       conjugationIrregulars: conjugation?.irregulars ?? const {});
 });
 
-/// Mastered vocabulary resolved for drills: the target-language (KO) word of
-/// every concept the user has mastered, with its category.
+/// Known vocabulary resolved for drills: the target-language (KO) word of
+/// every concept the user knows (graduated from FSRS learning — the same
+/// bar that unlocks the rules), with its category.
 final drillWordsProvider = FutureProvider<List<DrillWord>>((ref) async {
   final userId = ref.watch(currentUserProvider)?.id ?? '';
   if (userId.isEmpty) return const [];
@@ -46,7 +47,7 @@ final drillWordsProvider = FutureProvider<List<DrillWord>>((ref) async {
   final conceptDao = ref.watch(conceptDaoProvider);
 
   final mastered =
-      (await progressRepo.getMasteredVariants(userId)).valueOrNull ?? [];
+      (await progressRepo.getKnownVariants(userId)).valueOrNull ?? [];
   final words = <String, DrillWord>{}; // conceptId → word (dedup)
   for (final p in mastered) {
     final variant = await conceptDao.getVariantById(p.variantId);
@@ -115,12 +116,13 @@ final ruleStatusesProvider = FutureProvider<List<RuleStatus>>((ref) async {
   final generator = GrammarDrillGenerator(module);
 
   // Known-ness per prerequisite list name (lists are matched by name — the
-  // starter lists carry the canonical names the rules reference).
+  // starter lists carry the canonical names the rules reference). Gated on
+  // the 'known' bar (graduated from learning), not the 21-day mastery bar.
   final knownByName = <String, bool>{};
   for (final list in lists) {
     final stats = (await progressRepo.getListStats(list.id)).valueOrNull;
     knownByName[list.name] = stats != null &&
-        isListKnown(total: stats['total']!, mastered: stats['mastered']!);
+        isListKnown(total: stats['total']!, mastered: stats['known']!);
   }
 
   return [

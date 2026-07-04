@@ -108,11 +108,15 @@ final syncOnLoginProvider = FutureProvider<void>((ref) async {
 });
 
 /// Seeds the bundled starter lists (assets/seed/starter_lists.json — 6 themed
-/// FR/KR lists that are also the grammar lessons' prerequisites) for a user
-/// who has never had any lists. Runs AFTER the pull sync so an existing
-/// account's lists arrive first and suppress seeding; a per-user flag makes
-/// it once-ever (deleting all lists later does NOT re-seed). Skipped in
-/// TEST_MODE — E2E owns its own data.
+/// FR/KR lists that are also the grammar lessons' prerequisites). Runs AFTER
+/// the pull sync so an existing account's lists arrive first, then seeds any
+/// starter list the account is MISSING (matched by name — the canonical names
+/// the grammar rules reference). Accounts created before the starter lists
+/// shipped must still receive them, or grammar is permanently locked for
+/// them; starter lists are quota-exempt, so topping up is always safe.
+/// A per-user flag (v2: the v1 flag was set without seeding on pre-existing
+/// accounts) makes it once-ever — deleting a starter list later does NOT
+/// bring it back. Skipped in TEST_MODE — E2E owns its own data.
 final seedStarterListsProvider = FutureProvider<void>((ref) async {
   if (_kTestMode) return;
   final user = ref.watch(currentUserProvider);
@@ -120,17 +124,18 @@ final seedStarterListsProvider = FutureProvider<void>((ref) async {
   await ref.watch(syncOnLoginProvider.future);
 
   final prefs = await SharedPreferences.getInstance();
-  final flagKey = 'seeded_starter_lists_${user.id}';
+  final flagKey = 'seeded_starter_lists_v2_${user.id}';
   if (prefs.getBool(flagKey) ?? false) return;
 
   final repo = ref.read(vocabularyRepositoryProvider);
-  final existing = await repo.watchMyLists().first;
-  if (existing.isEmpty) {
-    final raw = await rootBundle.loadString('assets/seed/starter_lists.json');
-    for (final entry in jsonDecode(raw) as List<dynamic>) {
-      await repo.importFromJson(entry as Map<String, dynamic>,
-          origin: 'starter');
-    }
+  final existingNames =
+      (await repo.watchMyLists().first).map((l) => l.name).toSet();
+  final raw = await rootBundle.loadString('assets/seed/starter_lists.json');
+  for (final entry in jsonDecode(raw) as List<dynamic>) {
+    final map = entry as Map<String, dynamic>;
+    final name = (map['list'] as Map<String, dynamic>)['name'] as String?;
+    if (name != null && existingNames.contains(name)) continue;
+    await repo.importFromJson(map, origin: 'starter');
   }
   await prefs.setBool(flagKey, true);
 });

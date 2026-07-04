@@ -168,21 +168,28 @@ class ProgressRepositoryImpl implements ProgressRepository {
     try {
       final concepts = await _conceptDao.getConceptsByList(listId);
       if (concepts.isEmpty) {
-        return const Success({'total': 0, 'mastered': 0, 'due': 0});
+        return const Success({'total': 0, 'mastered': 0, 'known': 0, 'due': 0});
       }
       final conceptIds = concepts.map((c) => c.id).toList();
       final rows = await _progressDao.getProgressForConcepts(
           userId: _userId, conceptIds: conceptIds);
 
-      // A WORD (concept) is mastered/due when any of its variant-direction
-      // progress rows is — the list is small, aggregate in Dart.
+      // A WORD (concept) is mastered/known/due when any of its
+      // variant-direction progress rows is — the list is small, aggregate in
+      // Dart. 'mastered' is the long-retention bar (review ≥ 21d) shown in
+      // stats; 'known' is the graduated bar (left the learning phase) that
+      // gates grammar rules.
       final now = DateTime.now();
       final mastered = <String>{};
+      final known = <String>{};
       final due = <String>{};
       for (final r in rows) {
         final p = r.progress;
         if (p.state == 'review' && p.scheduledDays >= kMasteryThresholdDays) {
           mastered.add(r.conceptId);
+        }
+        if (p.state != 'learning') {
+          known.add(r.conceptId);
         }
         if (p.nextReview == null || !p.nextReview!.isAfter(now)) {
           due.add(r.conceptId);
@@ -191,6 +198,7 @@ class ProgressRepositoryImpl implements ProgressRepository {
       return Success({
         'total': concepts.length,
         'mastered': mastered.length,
+        'known': known.length,
         'due': due.length,
       });
     } catch (e) {
@@ -203,6 +211,17 @@ class ProgressRepositoryImpl implements ProgressRepository {
       String userId) async {
     try {
       final rows = await _progressDao.getMasteredProgress(userId: userId);
+      return Success(rows.map((r) => r.toDomain()).toList());
+    } catch (e) {
+      return Failure(StorageException(e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<List<VariantProgress>>> getKnownVariants(
+      String userId) async {
+    try {
+      final rows = await _progressDao.getGraduatedProgress(userId: userId);
       return Success(rows.map((r) => r.toDomain()).toList());
     } catch (e) {
       return Failure(StorageException(e.toString()));
