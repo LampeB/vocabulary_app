@@ -7,16 +7,21 @@ import 'audio_service.dart';
 import '../../core/config/app_config.dart';
 
 class ElevenLabsService implements AudioService {
-  ElevenLabsService({this.frVoiceId = 'Charlotte', this.koVoiceId = 'Elli'});
+  ElevenLabsService({Map<String, String>? voiceIds})
+      : voiceIds = voiceIds ?? const {'fr': 'Charlotte', 'ko': 'Elli'};
 
-  final String frVoiceId;
-  final String koVoiceId;
+  /// ElevenLabs voice per content langCode; unmapped languages use the
+  /// service's default voice (generic-language-pairs epic).
+  final Map<String, String> voiceIds;
+  static const _defaultVoiceId = 'Charlotte';
+
+  String voiceIdFor(String langCode) => voiceIds[langCode] ?? _defaultVoiceId;
 
   final _cache = <String, String>{}; // hash → file path
 
   @override
   Future<void> speak(String text, String langCode, {String? voiceId}) async {
-    final id = voiceId ?? (langCode == 'ko' ? koVoiceId : frVoiceId);
+    final id = voiceId ?? voiceIdFor(langCode);
     final path = await _getOrGenerate(text, langCode, id);
     if (path == null) return;
     // Play via audioplayers — caller injects the player; here we return path only

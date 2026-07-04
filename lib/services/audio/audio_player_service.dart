@@ -5,14 +5,10 @@ import 'flutter_tts_service.dart';
 class AudioPlayerService {
   AudioPlayerService({
     required bool usePremium,
-    String? frVoiceId,
-    String? koVoiceId,
+    Map<String, String>? voiceIds,
     double speechRate = 0.85,
     double pitch = 1.0,
-  })  : _elevenlabs = ElevenLabsService(
-          frVoiceId: frVoiceId ?? 'Charlotte',
-          koVoiceId: koVoiceId ?? 'Elli',
-        ),
+  })  : _elevenlabs = ElevenLabsService(voiceIds: voiceIds),
         _tts = FlutterTtsService(speechRate: speechRate, pitch: pitch),
         _usePremium = usePremium;
 
@@ -26,8 +22,8 @@ class AudioPlayerService {
       await _tts.speak(text, langCode);
       return;
     }
-    final voiceId = langCode == 'ko' ? _elevenlabs.koVoiceId : _elevenlabs.frVoiceId;
-    final path = await _elevenlabs.generateAndCache(text, langCode, voiceId);
+    final path = await _elevenlabs.generateAndCache(
+        text, langCode, _elevenlabs.voiceIdFor(langCode));
     if (path != null) {
       await _player.play(DeviceFileSource(path));
     } else {

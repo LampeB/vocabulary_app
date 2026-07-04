@@ -360,7 +360,8 @@ class _ConceptTile extends ConsumerWidget {
             builder: (ctx) => AlertDialog(
               title: Text('list_detail.delete_dialog_title'.tr()),
               content: Text(
-                  'list_detail.delete_dialog_body'.tr(namedArgs: {'frWord': frWord, 'koWord': koWord})),
+                  'list_detail.delete_dialog_body'.tr(
+                      namedArgs: {'wordA': frWord, 'wordB': koWord})),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx, false),

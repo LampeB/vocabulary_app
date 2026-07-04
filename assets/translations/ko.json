@@ -99,7 +99,7 @@
   "list_detail.edit_dialog_title": "단어 편집",
   "list_detail.edit_confirm": "저장",
   "list_detail.delete_dialog_title": "단어를 삭제하시겠습니까?",
-  "list_detail.delete_dialog_body": "'{frWord} / {koWord}'이(가) 이 목록에서 삭제됩니다.",
+  "list_detail.delete_dialog_body": "'{wordA} / {wordB}'이(가) 이 목록에서 삭제됩니다.",
   "list_detail.lang_fr": "FR",
   "list_detail.lang_kr": "KR",
   "list_detail.empty_title": "아직 단어가 없습니다",

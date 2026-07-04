@@ -99,7 +99,7 @@
   "list_detail.edit_dialog_title": "Editar palabra",
   "list_detail.edit_confirm": "Guardar",
   "list_detail.delete_dialog_title": "¿Eliminar palabra?",
-  "list_detail.delete_dialog_body": "\"{frWord} / {koWord}\" será eliminado de esta lista.",
+  "list_detail.delete_dialog_body": "\"{wordA} / {wordB}\" será eliminado de esta lista.",
   "list_detail.lang_fr": "FR",
   "list_detail.lang_kr": "KR",
   "list_detail.empty_title": "Aún no hay palabras",

@@ -99,7 +99,7 @@
   "list_detail.edit_dialog_title": "Edit word",
   "list_detail.edit_confirm": "Save",
   "list_detail.delete_dialog_title": "Delete word?",
-  "list_detail.delete_dialog_body": "\"{frWord} / {koWord}\" will be removed from this list.",
+  "list_detail.delete_dialog_body": "\"{wordA} / {wordB}\" will be removed from this list.",
   "list_detail.lang_fr": "FR",
   "list_detail.lang_kr": "KR",
   "list_detail.empty_title": "No words yet",

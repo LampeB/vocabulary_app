@@ -99,7 +99,7 @@
   "list_detail.edit_dialog_title": "単語を編集",
   "list_detail.edit_confirm": "保存",
   "list_detail.delete_dialog_title": "単語を削除しますか？",
-  "list_detail.delete_dialog_body": "「{frWord} / {koWord}」をこのリストから削除します。",
+  "list_detail.delete_dialog_body": "「{wordA} / {wordB}」をこのリストから削除します。",
   "list_detail.lang_fr": "FR",
   "list_detail.lang_kr": "KR",
   "list_detail.empty_title": "まだ単語がありません",

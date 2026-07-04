@@ -16,6 +16,8 @@ Map<String, dynamic> _remoteList(String id, String name) => {
       'visibility': 'private',
       'word_count': 1,
       'share_token': null,
+      'lang_a': 'en',
+      'lang_b': 'es',
       'is_deleted': false,
       'created_at': '2026-07-01T10:00:00Z',
       'updated_at': '2026-07-01T10:00:00Z',
@@ -106,6 +108,8 @@ void main() {
       final list = await db.vocabularyListDao.getById('rl1');
       expect(list, isNotNull);
       expect(list!.name, 'Remote List');
+      expect(list.langA, 'en'); // the pair round-trips through sync
+      expect(list.langB, 'es');
       // Word count is recounted from actual local rows, not trusted from the
       // remote payload. (That recount goes through updateWordCount, which by
       // design re-flags the list isSynced=false — so no isSynced assertion.)

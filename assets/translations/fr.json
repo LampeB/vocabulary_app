@@ -99,7 +99,7 @@
   "list_detail.edit_dialog_title": "Modifier le mot",
   "list_detail.edit_confirm": "Enregistrer",
   "list_detail.delete_dialog_title": "Supprimer le mot ?",
-  "list_detail.delete_dialog_body": "« {frWord} / {koWord} » sera supprimé de cette liste.",
+  "list_detail.delete_dialog_body": "« {wordA} / {wordB} » sera supprimé de cette liste.",
   "list_detail.lang_fr": "FR",
   "list_detail.lang_kr": "KR",
   "list_detail.empty_title": "Aucun mot pour l'instant",
