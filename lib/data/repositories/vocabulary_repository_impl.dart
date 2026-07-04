@@ -10,6 +10,7 @@ import '../datasources/local/daos/vocabulary_list_dao.dart';
 import '../datasources/local/daos/concept_dao.dart';
 import '../datasources/local/app_database.dart';
 import '../datasources/remote/vocabulary_remote_datasource.dart';
+import '../models/variant_progress_dto.dart';
 import '../models/vocabulary_list_dto.dart';
 import '../models/word_variant_dto.dart';
 import 'package:drift/drift.dart' show Value;
@@ -570,6 +571,23 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         // is always authoritative, regardless of what the remote sent.
         final actualCount = await _conceptDao.countByList(list.id);
         await _listDao.updateWordCount(list.id, actualCount);
+      }
+    }
+
+    // Progress comes down AFTER content so its variant rows exist locally.
+    // A local row still marked unsynced is a pending outbound write — newer
+    // than anything the server has — so the remote copy must not clobber it.
+    // Per-row failures are skipped: one malformed row can't abort restoring
+    // the rest.
+    final progressResult = await _remote.fetchProgress(_userId);
+    if (progressResult case Success(:final value)) {
+      final progressDao = _database.progressDao;
+      for (final map in value) {
+        try {
+          final local = await progressDao.getById(map['id'] as String);
+          if (local != null && !local.isSynced) continue;
+          await progressDao.upsert(variantProgressCompanionFromRemote(map));
+        } catch (_) {}
       }
     }
   }

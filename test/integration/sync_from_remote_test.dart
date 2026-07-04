@@ -1,8 +1,10 @@
 // ignore_for_file: invalid_use_of_internal_member
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
+import 'package:vocab_kr/data/models/variant_progress_dto.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import '../helpers/fake_remote.dart';
 
@@ -62,11 +64,39 @@ Map<String, dynamic> _remoteConcept(String id, String listId,
       ],
     };
 
-/// Remote with canned lists/concepts, as Supabase would return them.
+Map<String, dynamic> _remoteProgress(String variantId,
+        {String direction = 'fr>ko', int reps = 7, double mastery = 0.8}) =>
+    {
+      'id': '$_kUserId|$variantId|$direction',
+      'user_id': _kUserId,
+      'variant_id': variantId,
+      'direction': direction,
+      'stability': 12.5,
+      'difficulty': 4.2,
+      'elapsed_days': 3,
+      'scheduled_days': 10,
+      'reps': reps,
+      'lapses': 1,
+      'state': 'review',
+      'last_review': '2026-07-01T10:00:00Z',
+      'next_review': '2026-07-11T10:00:00Z',
+      'times_shown': 20,
+      'times_correct': 17,
+      'mastery_level': mastery,
+      'created_at': '2026-06-01T10:00:00Z',
+      'updated_at': '2026-07-01T10:00:00Z',
+    };
+
+/// Remote with canned lists/concepts/progress, as Supabase would return them.
 class _SyncRemote extends FakeRemote {
-  _SyncRemote({this.lists = const [], this.conceptsByList = const {}});
+  _SyncRemote({
+    this.lists = const [],
+    this.conceptsByList = const {},
+    this.progress = const [],
+  });
   final List<Map<String, dynamic>> lists;
   final Map<String, List<Map<String, dynamic>>> conceptsByList;
+  final List<Map<String, dynamic>> progress;
   int fetchListsCalls = 0;
 
   @override
@@ -80,6 +110,11 @@ class _SyncRemote extends FakeRemote {
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
           String listId) async =>
       Success(conceptsByList[listId] ?? []);
+
+  @override
+  Future<Result<List<Map<String, dynamic>>>> fetchProgress(
+          String userId) async =>
+      Success(progress);
 }
 
 void main() {
@@ -163,6 +198,87 @@ void main() {
 
       expect(remote.fetchListsCalls, 0);
       expect(await db.vocabularyListDao.getById('rl1'), isNull);
+    });
+  });
+
+  group('syncFromRemote — progress restore (fresh install / new device)', () {
+    _SyncRemote remoteWithProgress(List<Map<String, dynamic>> progress) =>
+        _SyncRemote(
+          lists: [_remoteList('rl1', 'Remote List')],
+          conceptsByList: {
+            'rl1': [_remoteConcept('rc1', 'rl1')],
+          },
+          progress: progress,
+        );
+
+    test('pulls remote progress rows into the local DB, marked synced',
+        () async {
+      final repo = repoWith(remoteWithProgress([
+        _remoteProgress('rc1-ko'),
+        _remoteProgress('rc1-fr', direction: 'ko>fr', reps: 2, mastery: 0.3),
+      ]));
+
+      await repo.syncFromRemote();
+
+      final restored =
+          await db.progressDao.getById('$_kUserId|rc1-ko|fr>ko');
+      expect(restored, isNotNull);
+      expect(restored!.reps, 7);
+      expect(restored.masteryLevel, 0.8);
+      expect(restored.state, 'review');
+      expect(restored.direction, 'fr>ko');
+      // Drift returns local-time DateTimes; compare instants, not zones.
+      expect(
+          restored.nextReview!
+              .isAtSameMomentAs(DateTime.parse('2026-07-11T10:00:00Z')),
+          isTrue);
+      expect(restored.isSynced, isTrue); // restored rows must not re-push
+
+      expect(await db.progressDao.getById('$_kUserId|rc1-fr|ko>fr'),
+          isNotNull);
+    });
+
+    test('legacy direction spellings are normalized on the way in', () async {
+      final repo = repoWith(remoteWithProgress([
+        _remoteProgress('rc1-ko', direction: 'frToKo'),
+      ]));
+
+      await repo.syncFromRemote();
+
+      // The row keeps its remote id but stores the canonical direction form.
+      final restored =
+          await db.progressDao.getById('$_kUserId|rc1-ko|frToKo');
+      expect(restored, isNotNull);
+      expect(restored!.direction, 'fr>ko');
+    });
+
+    test('a pending local write (isSynced=false) is never clobbered',
+        () async {
+      final repo = repoWith(remoteWithProgress([_remoteProgress('rc1-ko')]));
+      final remoteRow = _remoteProgress('rc1-ko');
+      // Simulate offline reviews: same row id, more reps, not yet pushed.
+      await db.progressDao.upsert(
+        variantProgressCompanionFromRemote(remoteRow)
+            .copyWith(reps: const Value(9), isSynced: const Value(false)),
+      );
+
+      await repo.syncFromRemote();
+
+      final kept =
+          await db.progressDao.getById(remoteRow['id'] as String);
+      expect(kept!.reps, 9); // local pending write wins
+      expect(kept.isSynced, isFalse); // still queued for the next push
+    });
+
+    test('a malformed row is skipped without aborting the rest', () async {
+      final bad = _remoteProgress('rc1-fr')..['state'] = 'not-a-state';
+      final repo = repoWith(remoteWithProgress([bad, _remoteProgress('rc1-ko')]));
+
+      await repo.syncFromRemote();
+
+      expect(await db.progressDao.getById(bad['id'] as String), isNull);
+      expect(await db.progressDao.getById('$_kUserId|rc1-ko|fr>ko'),
+          isNotNull);
     });
   });
 

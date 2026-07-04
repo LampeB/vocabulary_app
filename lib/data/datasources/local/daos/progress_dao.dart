@@ -102,6 +102,10 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
   Future<int> upsert(VariantProgressTableCompanion companion) =>
       into(variantProgressTable).insertOnConflictUpdate(companion);
 
+  Future<VariantProgressTableData?> getById(String id) =>
+      (select(variantProgressTable)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+
   Future<List<String>> getExistingVariantIds({
     required String userId,
     required String direction,
