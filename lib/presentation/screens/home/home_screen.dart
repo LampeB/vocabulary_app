@@ -53,6 +53,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(syncOnLoginProvider); // pulls remote data on login
+    ref.watch(seedStarterListsProvider); // first-ever login: starter content
 
     final user = ref.watch(currentUserProvider);
     final listsAsync = ref.watch(myListsProvider);

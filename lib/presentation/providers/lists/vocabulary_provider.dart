@@ -1,7 +1,11 @@
 import 'dart:convert' show jsonDecode, jsonEncode;
 import 'dart:io' show File;
 import 'package:file_picker/file_picker.dart';
+import 'dart:convert';
+
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../data/datasources/local/app_database.dart';
@@ -101,6 +105,33 @@ final syncOnLoginProvider = FutureProvider<void>((ref) async {
   final user = ref.watch(currentUserProvider);
   if (user == null) return;
   await ref.watch(vocabularyRepositoryProvider).syncFromRemote();
+});
+
+/// Seeds the bundled starter lists (assets/seed/starter_lists.json — 6 themed
+/// FR/KR lists that are also the grammar lessons' prerequisites) for a user
+/// who has never had any lists. Runs AFTER the pull sync so an existing
+/// account's lists arrive first and suppress seeding; a per-user flag makes
+/// it once-ever (deleting all lists later does NOT re-seed). Skipped in
+/// TEST_MODE — E2E owns its own data.
+final seedStarterListsProvider = FutureProvider<void>((ref) async {
+  if (_kTestMode) return;
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return;
+  await ref.watch(syncOnLoginProvider.future);
+
+  final prefs = await SharedPreferences.getInstance();
+  final flagKey = 'seeded_starter_lists_${user.id}';
+  if (prefs.getBool(flagKey) ?? false) return;
+
+  final repo = ref.read(vocabularyRepositoryProvider);
+  final existing = await repo.watchMyLists().first;
+  if (existing.isEmpty) {
+    final raw = await rootBundle.loadString('assets/seed/starter_lists.json');
+    for (final entry in jsonDecode(raw) as List<dynamic>) {
+      await repo.importFromJson(entry as Map<String, dynamic>);
+    }
+  }
+  await prefs.setBool(flagKey, true);
 });
 
 /// Outbound sync (the isSynced flags are the queue — see data/sync/push_sync).
