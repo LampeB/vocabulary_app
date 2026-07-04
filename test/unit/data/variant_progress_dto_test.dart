@@ -53,14 +53,22 @@ void main() {
   });
 
   group('toRemoteMap — enum serialisation', () {
-    test('frToKo direction serialises to "frToKo"', () {
+    test('frToKo direction serialises to the generic "fr>ko" form', () {
       final map = _makeProgress(direction: QuizDirection.frToKo).toRemoteMap();
-      expect(map['direction'], 'frToKo');
+      expect(map['direction'], 'fr>ko');
     });
 
-    test('koToFr direction serialises to "koToFr"', () {
+    test('koToFr direction serialises to the generic "ko>fr" form', () {
       final map = _makeProgress(direction: QuizDirection.koToFr).toRemoteMap();
-      expect(map['direction'], 'koToFr');
+      expect(map['direction'], 'ko>fr');
+    });
+
+    test('parse reads BOTH the generic form and the legacy enum names', () {
+      expect(QuizDirection.parse('fr>ko'), QuizDirection.frToKo);
+      expect(QuizDirection.parse('frToKo'), QuizDirection.frToKo);
+      expect(QuizDirection.parse('koToFr'), QuizDirection.koToFr);
+      expect(QuizDirection.parse('en>es'),
+          const QuizDirection(questionLang: 'en', answerLang: 'es'));
     });
 
     test('newCard state serialises to "newCard"', () {

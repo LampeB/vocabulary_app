@@ -54,7 +54,7 @@ extension VariantProgressFromLocal on VariantProgressTableData {
         id: id,
         userId: userId,
         variantId: variantId,
-        direction: QuizDirection.values.byName(direction),
+        direction: QuizDirection.parse(direction),
         stability: stability,
         difficulty: difficulty,
         elapsedDays: elapsedDays,

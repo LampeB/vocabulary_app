@@ -313,6 +313,8 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
         mode: _mode,
         direction: _dir,
         cardLimit: _count,
+        langA: _langA,
+        langB: _langB,
       ),
     );
   }

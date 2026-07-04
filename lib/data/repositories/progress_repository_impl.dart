@@ -32,7 +32,7 @@ class ProgressRepositoryImpl implements ProgressRepository {
     int limit = 20,
   }) async {
     try {
-      final questionLang = direction == QuizDirection.frToKo ? 'fr' : 'ko';
+      final questionLang = direction.questionLang;
 
       final concepts = await _conceptDao.getConceptsByList(listId);
       if (concepts.isEmpty) return const Success([]);

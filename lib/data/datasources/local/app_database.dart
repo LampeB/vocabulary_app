@@ -35,7 +35,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -55,6 +55,15 @@ class AppDatabase extends _$AppDatabase {
             // lists are all FR/KR.
             await m.addColumn(vocabularyListsTable, vocabularyListsTable.langA);
             await m.addColumn(vocabularyListsTable, vocabularyListsTable.langB);
+          }
+          if (from < 4) {
+            // Generic direction storage ('fr>ko') replaces the legacy enum
+            // names. QuizDirection.parse still accepts the old form, but
+            // queries compare exact strings — so rewrite in place.
+            await customStatement(
+                "UPDATE variant_progress SET direction = 'fr>ko' WHERE direction = 'frToKo'");
+            await customStatement(
+                "UPDATE variant_progress SET direction = 'ko>fr' WHERE direction = 'koToFr'");
           }
         },
       );

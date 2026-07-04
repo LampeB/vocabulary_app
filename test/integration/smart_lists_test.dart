@@ -40,7 +40,7 @@ void main() {
         id: 'p-$variantId',
         userId: _kUserId,
         variantId: variantId,
-        direction: 'frToKo',
+        direction: QuizDirection.frToKo.name,
         state: Value(state),
         nextReview: Value(nextReview),
         createdAt: _now,

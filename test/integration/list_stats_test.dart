@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/core/utils/list_mastery.dart';
+import 'package:vocab_kr/domain/entities/variant_progress.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/repositories/progress_repository_impl.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
@@ -39,7 +40,7 @@ void main() {
         id: 'p-$variantId',
         userId: _kUserId,
         variantId: variantId,
-        direction: 'frToKo',
+        direction: QuizDirection.frToKo.name,
         state: Value(state),
         scheduledDays: Value(scheduledDays),
         nextReview: Value(nextReview),

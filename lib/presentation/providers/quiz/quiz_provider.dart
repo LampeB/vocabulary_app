@@ -68,6 +68,8 @@ class QuizArgs {
     required this.mode,
     required this.direction,
     required this.cardLimit,
+    this.langA = 'fr',
+    this.langB = 'ko',
   }) : assert(source != QuizSource.list || listId != null,
             'a list-sourced session needs a listId');
 
@@ -78,6 +80,17 @@ class QuizArgs {
   final QuizMode mode;
   final QuizDirectionChoice direction;
   final int cardLimit;
+
+  /// The studied language pair (from the selected list; smart sources use the
+  /// fr/ko defaults until multi-pair exists). Directions are RESOLVED from
+  /// this pair — the QuizDirectionChoice names are legacy labels for
+  /// forward/backward/both.
+  final String langA;
+  final String langB;
+
+  QuizDirection get forward =>
+      QuizDirection(questionLang: langA, answerLang: langB);
+  QuizDirection get backward => forward.reversed;
 }
 
 enum QuizAnswerState { idle, correct, incorrect }
@@ -221,14 +234,14 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         userId: userId,
         listId: args.listId,
         source: args.source,
-        direction: QuizDirection.frToKo,
+        direction: args.forward,
         limit: limit,
       );
       final koResult = await getDueCards.call(
         userId: userId,
         listId: args.listId,
         source: args.source,
-        direction: QuizDirection.koToFr,
+        direction: args.backward,
         limit: limit,
       );
       if (frResult.isFailure && koResult.isFailure) {
@@ -246,8 +259,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       );
     } else {
       final direction = args.direction == QuizDirectionChoice.frToKo
-          ? QuizDirection.frToKo
-          : QuizDirection.koToFr;
+          ? args.forward
+          : args.backward;
       final result = await getDueCards.call(
         userId: userId,
         listId: args.listId,
@@ -285,10 +298,11 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       }
     }
 
-    // Fetch answer variants for both langs — needed for mixed-direction "both" mode.
+    // Fetch answer variants for both languages of the session's pair —
+    // needed for mixed-direction "both" mode.
     final allConceptIds = conceptIdMap.values.toSet().toList();
     final answerByConceptAndLang = <String, Map<String, List<String>>>{};
-    for (final langCode in ['fr', 'ko']) {
+    for (final langCode in {args.langA, args.langB}) {
       final rows = await conceptDao.getVariantsByConceptIds(allConceptIds, langCode);
       for (final v in rows) {
         ((answerByConceptAndLang[v.conceptId] ??= {})[langCode] ??= []).add(v.word);
@@ -301,7 +315,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       final q = questionVariantMap[p.variantId];
       final cId = conceptIdMap[p.variantId];
       if (q == null || cId == null) continue;
-      final answerLang = p.direction == QuizDirection.frToKo ? 'ko' : 'fr';
+      final answerLang = p.direction.answerLang;
       quizCards.add(QuizCard(
         progress: p,
         questionWord: q,
@@ -322,7 +336,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
 
     if (quizCards.isNotEmpty && !_kTestMode) {
       final first = quizCards.first;
-      final firstLang = first.progress.direction == QuizDirection.frToKo ? 'fr' : 'ko';
+      final firstLang = first.progress.direction.questionLang;
       unawaited(_audio?.speak(first.questionWord, firstLang));
     }
   }
@@ -334,7 +348,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     if (flipped && !_kTestMode) {
       final card = state.currentCard;
       if (card != null && card.answerWords.isNotEmpty) {
-        final answerLang = card.progress.direction == QuizDirection.frToKo ? 'ko' : 'fr';
+        final answerLang = card.progress.direction.answerLang;
         unawaited(_audio?.speak(card.answerWords.first, answerLang));
       }
     }
@@ -542,7 +556,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       );
       final nextCard = state.currentCard;
       if (nextCard != null && !_kTestMode) {
-        final nextLang = nextCard.progress.direction == QuizDirection.frToKo ? 'fr' : 'ko';
+        final nextLang = nextCard.progress.direction.questionLang;
         unawaited(_audio?.speak(nextCard.questionWord, nextLang));
       }
     }

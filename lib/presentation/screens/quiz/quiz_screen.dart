@@ -239,8 +239,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (!mounted) return;
 
     final currentDir = ref.read(quizProvider).currentCard?.progress.direction;
-    final langCode =
-        currentDir == QuizDirection.koToFr ? 'fr' : 'ko';
+    final langCode = currentDir?.answerLang ?? widget.args.langB;
     // Capture token so late-arriving onResult from this session is ignored
     // once a new session (next card) has started.
     final sessionToken = _listenToken;
@@ -342,7 +341,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           final card = next.currentCard;
           if (card != null && card.answerWords.isNotEmpty) {
             final answerLang =
-                card.progress.direction == QuizDirection.frToKo ? 'ko' : 'fr';
+                card.progress.direction.answerLang;
             unawaited(ref
                 .read(audioPlayerServiceProvider)
                 .speak(card.answerWords.first, answerLang));
@@ -466,7 +465,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final card = ref.read(quizProvider).currentCard;
     if (card == null) return;
     final questionLang =
-        card.progress.direction == QuizDirection.frToKo ? 'fr' : 'ko';
+        card.progress.direction.questionLang;
     unawaited(ref
         .read(audioPlayerServiceProvider)
         .speak(card.questionWord, questionLang));
@@ -640,7 +639,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // QuizDirection enum; the generic-language-pairs task replaces this with the
   // list's target langCode.
   String _answerLangCode(QuizCard card) =>
-      card.progress.direction == QuizDirection.frToKo ? 'ko' : 'fr';
+      card.progress.direction.answerLang;
 
   String _nextReviewText(int scheduledDays, bool correct) {
     if (!correct) return 'quiz.next_review_soon'.tr();
