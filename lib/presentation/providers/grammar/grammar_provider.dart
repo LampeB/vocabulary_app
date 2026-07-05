@@ -9,6 +9,7 @@ import '../../../core/grammar/grammar_drill_generator.dart';
 import '../../../core/grammar/grammar_language_module.dart';
 import '../../../core/grammar/rule_mastery.dart';
 import '../../../core/utils/list_mastery.dart';
+import '../../../data/datasources/remote/grammar_exercise_remote_datasource.dart';
 import '../../../domain/entities/grammar_rule.dart';
 import '../auth/auth_provider.dart';
 import '../lists/vocabulary_provider.dart';
@@ -22,6 +23,33 @@ final grammarRulesProvider = FutureProvider<List<GrammarRule>>((ref) async {
       GrammarRule.fromJson(j as Map<String, dynamic>),
   ];
 });
+
+/// The same rules as raw JSON, keyed by id — the payload sent to the AI
+/// exercise generator (test vectors and legacy templates stripped: they're
+/// engine/authoring artifacts, not generation context).
+final grammarRulesRawProvider =
+    FutureProvider<Map<String, Map<String, dynamic>>>((ref) async {
+  final raw = await rootBundle.loadString('assets/seed/grammar_rules.json');
+  return {
+    // Entries are wrapped as {"rule": {...}} — same shape GrammarRule.fromJson
+    // unwraps.
+    for (final j in jsonDecode(raw) as List)
+      ((j as Map<String, dynamic>)['rule'] as Map<String, dynamic>)['id']
+          as String: {
+        for (final e in (j['rule'] as Map<String, dynamic>).entries)
+          if (e.key != 'test_vectors' && e.key != 'templates') e.key: e.value,
+      },
+  };
+});
+
+/// Remote AI exercise generation (Supabase edge function → Claude) + its
+/// offline cache. Overridden in tests.
+final grammarExerciseRemoteProvider = Provider<GrammarExerciseRemoteDataSource>(
+  (ref) => GrammarExerciseRemoteDataSource(ref.watch(supabaseClientProvider)),
+);
+
+final compositionCacheProvider =
+    Provider<CompositionExerciseCache>((ref) => CompositionExerciseCache());
 
 /// The language module registry — one entry per studyable grammar language.
 /// Adding a language = adding its module here + its rule content (the
