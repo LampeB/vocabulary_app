@@ -336,11 +336,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   .read(quizProvider.notifier)
                   .submitVoiceAnswer(text, isDrivingMode: true);
             }
+          } else if (widget.args.mode == QuizMode.handsFree) {
+            // Empty final result: the engine heard something but recognized
+            // no words (parasitic speech, noise). NOT an answer — the
+            // not-heard recovery owns this case. Submitting it graded the
+            // card wrong through no fault of the user (found by the acoustic
+            // harness, 2026-07-06: French speech near the phone failed the
+            // card before the user spoke).
+            sttLog('[HF] empty final result ignored — not-heard recovery owns it');
           } else {
             ref.read(quizProvider.notifier).submitVoiceAnswer(
                   text,
-                  isDrivingMode: widget.args.mode == QuizMode.handsFree ||
-                      widget.args.mode == QuizMode.voice,
+                  isDrivingMode: widget.args.mode == QuizMode.voice,
                 );
           }
         } else if (sessionToken != _listenToken) {
