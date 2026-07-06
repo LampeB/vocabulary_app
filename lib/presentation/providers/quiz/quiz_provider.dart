@@ -542,13 +542,26 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       acceptedAnswers: card.answerWords,
     );
     final rating = result.isCorrect ? FsrsRating.good : FsrsRating.again;
-    unawaited(_persistRating(card.progress, rating));
+    // Same best-effort rule as submitVoiceAnswer: the verdict always lands.
+    var scheduledDays = 0;
+    try {
+      scheduledDays = _computeScheduledDays(card.progress, rating);
+    } catch (e) {
+      sttLog('[QUIZ] ⚠️ scheduledDays computation failed: $e');
+    }
+    try {
+      unawaited(_persistRating(card.progress, rating).catchError((Object e) {
+        sttLog('[QUIZ] ⚠️ persistRating failed (async): $e');
+      }));
+    } catch (e) {
+      sttLog('[QUIZ] ⚠️ persistRating failed (sync): $e');
+    }
     state = state.copyWith(
       userAnswer: answer,
       answerState: result.isCorrect
           ? QuizAnswerState.correct
           : QuizAnswerState.incorrect,
-      scheduledDays: _computeScheduledDays(card.progress, rating),
+      scheduledDays: scheduledDays,
     );
     // Advance is triggered by user tapping "Continuer" on the feedback screen.
   }
@@ -562,14 +575,31 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       isDrivingMode: isDrivingMode,
     );
     final rating = result.isCorrect ? FsrsRating.good : FsrsRating.again;
-    unawaited(_persistRating(card.progress, rating));
+    // GRADING MUST NEVER BE BLOCKED by FSRS math or persistence: a throw
+    // here used to abort before the state change, leaving the card
+    // ungraded while the user repeated the (validated-correct) answer
+    // into a re-listening mic (field log 2026-07-07). Persist and
+    // scheduling are best-effort; the verdict always lands.
+    var scheduledDays = 0;
+    try {
+      scheduledDays = _computeScheduledDays(card.progress, rating);
+    } catch (e) {
+      sttLog('[QUIZ] ⚠️ scheduledDays computation failed: $e');
+    }
+    try {
+      unawaited(_persistRating(card.progress, rating).catchError((Object e) {
+        sttLog('[QUIZ] ⚠️ persistRating failed (async): $e');
+      }));
+    } catch (e) {
+      sttLog('[QUIZ] ⚠️ persistRating failed (sync): $e');
+    }
     state = state.copyWith(
       userAnswer: transcript,
       answerState: result.isCorrect
           ? QuizAnswerState.correct
           : QuizAnswerState.incorrect,
       isListening: false,
-      scheduledDays: _computeScheduledDays(card.progress, rating),
+      scheduledDays: scheduledDays,
     );
     if (isDrivingMode) {
       // Correct: short pause for the flash/sound then move on (no TTS plays).
