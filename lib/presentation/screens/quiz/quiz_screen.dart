@@ -283,7 +283,32 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     unawaited(_startListening(card));
   }
 
+  /// Serializes mic starts: multiple recovery paths (not-heard, stopped-too-
+  /// fast, noise-guard) schedule delayed retries, and two firing close
+  /// together used to start OVERLAPPING sessions — the second killed the
+  /// first, spawning death events, another retry, and another of Samsung's
+  /// own recognizer chimes ("1 to 3 bips" per card, field log 2026-07-07).
+  bool _listenStartInFlight = false;
+
   Future<void> _startListening(QuizCard card, {bool isRetry = false}) async {
+    if (_listenStartInFlight) {
+      sttLog('[HF] _startListening skipped — another start is in flight');
+      return;
+    }
+    if (isRetry && _stt.isListening) {
+      sttLog('[HF] retry skipped — a live session is already listening');
+      return;
+    }
+    _listenStartInFlight = true;
+    try {
+      await _startListeningInner(card, isRetry: isRetry);
+    } finally {
+      _listenStartInFlight = false;
+    }
+  }
+
+  Future<void> _startListeningInner(QuizCard card,
+      {required bool isRetry}) async {
     if (!isRetry) {
       _listenRetries = 0;
       _notHeardRetries = 0;
