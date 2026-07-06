@@ -8,12 +8,14 @@ class SoundEffectsService {
     // contests focus with SpeechRecognizer and kills young listen sessions
     // within tens of ms — field log 2026-07-07: every hands-free retry
     // beeped, instantly lost the mic, and the card was skipped ("it bips a
-    // few times then skips"). Sonification + FOCUS_NONE plays the beep on
-    // top of whatever else holds audio, without contesting it.
+    // few times then skips"). FOCUS_NONE plays the beep on top of whatever
+    // holds audio without contesting it. Usage stays MEDIA on purpose:
+    // assistanceSonification routes to Samsung's system-sounds stream,
+    // which is silent for most users ("all the bips disappeared").
     _ready = _player.setAudioContext(AudioContext(
       android: const AudioContextAndroid(
         contentType: AndroidContentType.sonification,
-        usageType: AndroidUsageType.assistanceSonification,
+        usageType: AndroidUsageType.media,
         audioFocus: AndroidAudioFocus.none,
       ),
       iOS: AudioContextIOS(

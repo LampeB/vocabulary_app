@@ -217,7 +217,12 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
     );
   }
 
-  Widget _listOptions(List<VocabularyList> lists) {
+  Widget _listOptions(List<VocabularyList> unsorted) {
+    // STABLE alphabetical order. The provider streams by updatedAt, and a
+    // background sync re-sorting the tiles between the user's glance and
+    // tap selects the wrong list (field report 2026-07-07).
+    final lists = [...unsorted]
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     final dueCount = ref.watch(dueCountProvider).valueOrNull ?? 0;
     // Smart lists first (cross-list FSRS sources), then the user's own lists.
     final smartTiles = [

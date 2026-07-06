@@ -107,7 +107,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
       // Called exactly once per listen session (debounced in SpeechRecognitionService).
       // answerState is still idle → no result was recognised this round.
-      _stt.onListeningDone = () {
+      _stt.onListeningDone = () async {
         if (!mounted) return;
         final capturedToken = _listenToken;
         final elapsed = _stt.listenElapsedMs;
@@ -130,17 +130,29 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             // up to 2.5 s for the late result before declaring it wrong.
             final hadRealListen = elapsed >= 1500;
 
-            // error_client is a permanent engine error (locale unavailable,
-            // audio focus totally lost).  Retrying immediately will keep failing;
-            // fall through to the delayed empty-submission path instead.
-            final wasPermanentError = _stt.lastError == 'error_client' ||
-                _stt.lastError == 'error_audio';
+            // The engine's error verdict (error_client etc.) arrives ~1-5ms
+            // AFTER the notListening status that got us here — deciding
+            // immediately always saw lastError=null and retried blind
+            // (field log 2026-07-07: an error_client retry storm at 700ms
+            // cadence, each restart re-throttled by Android). Sense first.
+            await Future.delayed(const Duration(milliseconds: 250));
+            if (!mounted || capturedToken != _listenToken) return;
+            if (ref.read(quizProvider).answerState != QuizAnswerState.idle) {
+              return; // a late result graded the card while we sensed
+            }
+
+            // error_client/error_busy = Android throttling rapid restarts;
+            // it needs a real cooldown, not a faster hammer.
+            final err = _stt.lastError;
+            final wasThrottled = err == 'error_client' || err == 'error_busy';
+            final wasPermanentError = err == 'error_audio';
 
             if (!wasPermanentError && !hadRealListen && _listenRetries < 2) {
-              // STT stopped instantly — audio-focus race. Retry.
+              // STT stopped instantly — back off, longer if throttled.
               _listenRetries++;
-              sttLog('[HF] 🔁 STT stopped too fast (${elapsed}ms) — retry #$_listenRetries in 700ms');
-              Future.delayed(const Duration(milliseconds: 700), () {
+              final backoffMs = wasThrottled ? 2000 : 1200;
+              sttLog('[HF] 🔁 STT stopped too fast (${elapsed}ms, err=$err) — retry #$_listenRetries in ${backoffMs}ms');
+              Future.delayed(Duration(milliseconds: backoffMs), () {
                 if (!mounted) return;
                 final card = ref.read(quizProvider).currentCard;
                 if (card != null &&
