@@ -229,6 +229,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     super.dispose();
   }
 
+  String? _firstCorrectCandidate(List<String> candidates, QuizCard card) =>
+      AnswerValidator.firstCorrect(
+        candidates: candidates,
+        acceptedAnswers: card.answerWords,
+        isDrivingMode: true,
+      );
+
   /// Opens the mic only AFTER the app has finished talking (question TTS,
   /// and on a new card after a mistake, the KO correction still in flight).
   /// The old fixed 300ms delay cut speech mid-word via the mic's audio-stop
@@ -320,7 +327,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     sttLog('[HF] Calling stt.startListening  langCode=$langCode  token=$sessionToken');
     final ok = await _stt.startListening(
       langCode: langCode,
-      onResult: (text) {
+      onResult: (text, candidates) {
         // Samsung STT can fire the final onResult 1-2s AFTER notListening,
         // and retries rotate sessions fast. Gate by CARD identity, not
         // session: a correct answer for the card on screen is accepted no
@@ -331,26 +338,24 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         final sameCard = ref.read(quizProvider).currentCard?.progress
                 .variantId ==
             card.progress.variantId;
-        sttLog('[HF] onResult: "$text"  sessionToken=$sessionToken  currentToken=$_listenToken  sameSession=${sessionToken == _listenToken}  sameCard=$sameCard');
+        sttLog('[HF] onResult: "$text"  candidates=$candidates  sessionToken=$sessionToken  currentToken=$_listenToken  sameSession=${sessionToken == _listenToken}  sameCard=$sameCard');
         if (!mounted || !sameCard) {
           if (!sameCard) sttLog('[HF] Late onResult discarded (card changed)');
           return;
         }
-        if (widget.args.mode == QuizMode.handsFree && text.trim().isNotEmpty) {
+        if (widget.args.mode == QuizMode.handsFree && candidates.isNotEmpty) {
           if (ref.read(quizProvider).answerState != QuizAnswerState.idle) {
             return; // already graded (e.g. by a partial)
           }
-          final validation = AnswerValidator.validate(
-            userAnswer: text,
-            acceptedAnswers: card.answerWords,
-            isDrivingMode: true,
-          );
-          if (validation.isCorrect) {
+          // ANY candidate transcript counts — the engine's top pick is
+          // often wrong while an alternate is the user's actual word.
+          final correct = _firstCorrectCandidate(candidates, card);
+          if (correct != null) {
             _stt.stopListening();
             _consecutiveSilentCards = 0; // real speech reached us
             ref
                 .read(quizProvider.notifier)
-                .submitVoiceAnswer(text, isDrivingMode: true);
+                .submitVoiceAnswer(correct, isDrivingMode: true);
             return;
           }
           // Wrong results: only the CURRENT session may fail the card, and
@@ -393,13 +398,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               );
         }
       },
-      onPartial: (text) {
+      onPartial: (text, candidates) {
         // Same card-identity gate as onResult: a correct partial for the
         // card on screen counts even if delivered by a retry's session.
         final sameCard = ref.read(quizProvider).currentCard?.progress
                 .variantId ==
             card.progress.variantId;
-        sttLog('[HF] partial: "$text"  sameCard=$sameCard');
+        sttLog('[HF] partial: "$text"  candidates=$candidates  sameCard=$sameCard');
         if (mounted && sameCard) {
           if (sessionToken == _listenToken) {
             ref.read(quizProvider.notifier).setPartialTranscript(text);
@@ -409,21 +414,25 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           // Only exact matches short-circuit (fuzzy ones wait for the final
           // result), and only correctness can fire early — a partial is
           // never graded wrong, since the user may still be speaking.
+          // Checked across ALL candidates, not just the engine's top pick.
           if (widget.args.mode == QuizMode.handsFree &&
-              text.trim().isNotEmpty &&
               ref.read(quizProvider).answerState == QuizAnswerState.idle) {
-            final early = AnswerValidator.validate(
-              userAnswer: text,
-              acceptedAnswers: card.answerWords,
-              isDrivingMode: true,
-            );
-            if (early.isCorrect && early.type == ValidationResultType.exact) {
-              sttLog('[HF] ⚡ exact partial match — grading immediately');
-              _stt.stopListening();
-              _consecutiveSilentCards = 0; // real speech reached us
-              ref
-                  .read(quizProvider.notifier)
-                  .submitVoiceAnswer(text, isDrivingMode: true);
+            for (final candidate in candidates) {
+              final early = AnswerValidator.validate(
+                userAnswer: candidate,
+                acceptedAnswers: card.answerWords,
+                isDrivingMode: true,
+              );
+              if (early.isCorrect &&
+                  early.type == ValidationResultType.exact) {
+                sttLog('[HF] ⚡ exact partial match ("$candidate") — grading immediately');
+                _stt.stopListening();
+                _consecutiveSilentCards = 0; // real speech reached us
+                ref
+                    .read(quizProvider.notifier)
+                    .submitVoiceAnswer(candidate, isDrivingMode: true);
+                break;
+              }
             }
           }
         }

@@ -76,8 +76,8 @@ class SpeechRecognitionService {
 
   Future<bool> startListening({
     required String langCode,
-    required void Function(String) onResult,
-    void Function(String)? onPartial,
+    required void Function(String primary, List<String> candidates) onResult,
+    void Function(String primary, List<String> candidates)? onPartial,
     Duration pauseFor = const Duration(seconds: 5),
     Duration listenFor = const Duration(seconds: 10),
   }) async {
@@ -87,8 +87,7 @@ class SpeechRecognitionService {
     }
     if (_isListening) {
       sttLog('[STT] startListening() — stopping stale session first');
-      await _speech.stop();
-      _isListening = false;
+      await stopListening();
       await Future.delayed(const Duration(milliseconds: 200));
     }
 
@@ -101,18 +100,26 @@ class SpeechRecognitionService {
       await _speech.listen(
         onResult: (result) {
           // Every interpretation the engine considered, with confidence —
-          // the raw evidence for "what did it actually hear".
+          // the raw evidence for "what did it actually hear". The engine's
+          // top pick is often NOT the right one while an alternate is
+          // (field log 2026-07-06: primary "병환이" 0.87, alternate
+          // "병아리" 1.00 — the user's actual word), so ALL candidates are
+          // forwarded for validation.
           final alternates = [
             for (final a in result.alternates)
               '"${a.recognizedWords}"(${a.confidence.toStringAsFixed(2)})',
           ].join(' | ');
+          final candidates = <String>{
+            result.recognizedWords,
+            for (final a in result.alternates) a.recognizedWords,
+          }.where((w) => w.trim().isNotEmpty).toList();
           sttLog('[STT] onResult: "${result.recognizedWords}"  final=${result.finalResult}  confidence=${result.confidence.toStringAsFixed(2)}  elapsed=${listenElapsedMs}ms  alternates=[$alternates]');
           if (result.finalResult) {
-            sttLog('[STT] ✅ Final result → forwarding "${result.recognizedWords}"');
-            onResult(result.recognizedWords);
+            sttLog('[STT] ✅ Final result → forwarding ${candidates.length} candidate(s)');
+            onResult(result.recognizedWords, candidates);
           } else if (result.recognizedWords.isNotEmpty) {
             sttLog('[STT] ⏳ Partial: "${result.recognizedWords}"');
-            onPartial?.call(result.recognizedWords);
+            onPartial?.call(result.recognizedWords, candidates);
           }
         },
         listenOptions: stt.SpeechListenOptions(
@@ -136,6 +143,11 @@ class SpeechRecognitionService {
   Future<void> stopListening() async {
     sttLog('[STT] stopListening() _isListening=$_isListening');
     if (_isListening) {
+      // Swallow the killed session's trailing done/error events: without
+      // this they fire onListeningDone AFTER the next session begins and
+      // get misattributed to the new card — burning its retry budget and
+      // skipping it before the user speaks (field log 2026-07-06).
+      _sessionDone = true;
       await _speech.stop();
       _isListening = false;
     }

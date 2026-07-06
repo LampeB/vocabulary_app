@@ -23,6 +23,27 @@ class ValidationResult {
 }
 
 abstract final class AnswerValidator {
+  /// The first recognizer candidate that validates as correct, or null.
+  /// Speech engines frequently rank a near-homophone above the user's
+  /// actual word (field log 2026-07-06: primary "병환이" 0.87 with
+  /// alternate "병아리" 1.00 — the answer); grading must consider every
+  /// candidate, not just the top transcript.
+  static String? firstCorrect({
+    required List<String> candidates,
+    required List<String> acceptedAnswers,
+    bool isDrivingMode = false,
+  }) {
+    for (final candidate in candidates) {
+      final v = validate(
+        userAnswer: candidate,
+        acceptedAnswers: acceptedAnswers,
+        isDrivingMode: isDrivingMode,
+      );
+      if (v.isCorrect) return candidate;
+    }
+    return null;
+  }
+
   static ValidationResult validate({
     required String userAnswer,
     required List<String> acceptedAnswers,
