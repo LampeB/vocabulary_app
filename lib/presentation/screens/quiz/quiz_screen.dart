@@ -11,6 +11,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/stt_simulator.dart';
 import '../../../core/utils/answer_validator.dart';
+import '../../../core/utils/stt_debug_log.dart';
 import '../../../core/utils/fsrs_algorithm.dart';
 import '../../../core/widget_keys.dart';
 import '../../../services/speech/speech_recognition_service.dart';
@@ -106,7 +107,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         final capturedToken = _listenToken;
         final elapsed = _stt.listenElapsedMs;
         final state = ref.read(quizProvider);
-        debugPrint('[HF] onListeningDone  capturedToken=$capturedToken  currentToken=$_listenToken  elapsed=${elapsed}ms  answerState=${state.answerState}  retries=$_listenRetries');
+        sttLog('[HF] onListeningDone  capturedToken=$capturedToken  currentToken=$_listenToken  elapsed=${elapsed}ms  answerState=${state.answerState}  retries=$_listenRetries');
         ref.read(quizProvider.notifier).setListening(false);
 
         if (state.answerState == QuizAnswerState.idle) {
@@ -114,7 +115,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             // If the token changed, this callback is stale (a new listen
             // session already started) — ignore it to avoid double-penalising.
             if (capturedToken != _listenToken) {
-              debugPrint('[HF] ⚠️ Stale callback (token mismatch) — ignoring');
+              sttLog('[HF] ⚠️ Stale callback (token mismatch) — ignoring');
               return;
             }
 
@@ -133,7 +134,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             if (!wasPermanentError && !hadRealListen && _listenRetries < 2) {
               // STT stopped instantly — audio-focus race. Retry.
               _listenRetries++;
-              debugPrint('[HF] 🔁 STT stopped too fast (${elapsed}ms) — retry #$_listenRetries in 700ms');
+              sttLog('[HF] 🔁 STT stopped too fast (${elapsed}ms) — retry #$_listenRetries in 700ms');
               Future.delayed(const Duration(milliseconds: 700), () {
                 if (!mounted) return;
                 final card = ref.read(quizProvider).currentCard;
@@ -148,13 +149,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               // Wait up to 2.5 s for Samsung's late final-result callback;
               // only submit wrong if no answer arrives in that window.
               final waitMs = hadRealListen && !wasPermanentError ? 2500 : 0;
-              debugPrint('[HF] Waiting ${waitMs}ms for possible late Samsung onResult before submitting empty (elapsed=${elapsed}ms  permanentError=$wasPermanentError  retries=$_listenRetries)');
+              sttLog('[HF] Waiting ${waitMs}ms for possible late Samsung onResult before submitting empty (elapsed=${elapsed}ms  permanentError=$wasPermanentError  retries=$_listenRetries)');
               _listenRetries = 0;
               Future.delayed(Duration(milliseconds: waitMs), () {
                 if (!mounted) return;
                 if (ref.read(quizProvider).answerState !=
                     QuizAnswerState.idle) {
-                  debugPrint('[HF] ✅ Late onResult arrived before timeout');
+                  sttLog('[HF] ✅ Late onResult arrived before timeout');
                   return;
                 }
                 // "Pas entendu": a real listen heard nothing. Re-listen up to
@@ -164,7 +165,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                     !wasPermanentError &&
                     _notHeardRetries < 2) {
                   _notHeardRetries++;
-                  debugPrint('[HF] 🔇 Pas entendu — re-listen #$_notHeardRetries');
+                  sttLog('[HF] 🔇 Pas entendu — re-listen #$_notHeardRetries');
                   setState(() => _hfNotHeard = true);
                   Future.delayed(const Duration(milliseconds: 900), () {
                     if (!mounted) return;
@@ -178,7 +179,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   return;
                 }
                 _notHeardRetries = 0;
-                debugPrint('[HF] ❌ No result after retries — requeue (à revoir)');
+                sttLog('[HF] ❌ No result after retries — requeue (à revoir)');
                 ref.read(quizProvider.notifier).submitVoiceAnswer(
                       '',
                       isDrivingMode: true,
@@ -193,7 +194,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             ));
           }
         } else {
-          debugPrint('[HF] onListeningDone: answerState already ${state.answerState} — no action needed');
+          sttLog('[HF] onListeningDone: answerState already ${state.answerState} — no action needed');
         }
       };
       if (mounted) ref.read(quizProvider.notifier).loadCards(widget.args);
@@ -216,6 +217,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// answer (user feedback 2026-07-05).
   Future<void> _waitForSpeechThenListen(QuizCard card) async {
     final audio = ref.read(audioPlayerServiceProvider);
+    final waitStart = DateTime.now();
     // Give the provider's fire-and-forget speak() a beat to actually start.
     await Future.delayed(const Duration(milliseconds: 300));
     final deadline = DateTime.now().add(const Duration(seconds: 8));
@@ -224,13 +226,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         DateTime.now().isBefore(deadline)) {
       await Future.delayed(const Duration(milliseconds: 100));
     }
+    final speechWaitMs =
+        DateTime.now().difference(waitStart).inMilliseconds - 300;
+    sttLog('[HF] waited ${speechWaitMs}ms for TTS to finish (isSpeaking=${audio.isSpeaking}) — starting 250ms echo tail');
     // Echo tail: let the room go quiet before the mic opens.
     await Future.delayed(const Duration(milliseconds: 250));
     if (mounted && !_stt.isListening) {
-      debugPrint('[HF] speech finished — calling _startListening');
+      sttLog('[HF] speech finished — calling _startListening');
       unawaited(_startListening(card));
     } else {
-      debugPrint('[HF] speech finished but mounted=$mounted stt.isListening=${_stt.isListening} — skipping');
+      sttLog('[HF] speech finished but mounted=$mounted stt.isListening=${_stt.isListening} — skipping');
     }
   }
 
@@ -244,7 +249,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       setState(() => _hfNotHeard = false);
     }
     _listenToken++;
-    debugPrint('[HF] _startListening  token=$_listenToken  isRetry=$isRetry  question="${card.questionWord}"  answerWords=${card.answerWords}');
+    sttLog('[HF] _startListening  token=$_listenToken  isRetry=$isRetry  question="${card.questionWord}"  answerWords=${card.answerWords}');
     ref.read(quizProvider.notifier).setListening(true);
 
     if (SttSimulator.isOn) {
@@ -266,7 +271,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // Stop audio without awaiting — let Android's audio-focus system handle the
     // handover concurrently.  We still wait 300 ms so ExoPlayer has time to
     // release the focus before STT grabs the mic (Samsung requirement).
-    debugPrint('[HF] Triggering audio stop + 300ms focus-handover wait');
+    sttLog('[HF] Triggering audio stop + 300ms focus-handover wait');
     unawaited(ref.read(audioPlayerServiceProvider).stop());
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
@@ -275,6 +280,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // opens — played while listening, the recognizer hears the earcon itself
     // and can transcribe it as a (wrong) answer.
     if (widget.args.mode == QuizMode.handsFree && !_kTestMode) {
+      sttLog('[HF] 🔔 playing listen earcon (mic opens in 250ms)');
       unawaited(_sfx.playListenCue());
       HapticFeedback.selectionClick();
       await Future.delayed(const Duration(milliseconds: 250));
@@ -286,14 +292,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // Capture token so late-arriving onResult from this session is ignored
     // once a new session (next card) has started.
     final sessionToken = _listenToken;
-    debugPrint('[HF] Calling stt.startListening  langCode=$langCode  token=$sessionToken');
+    sttLog('[HF] Calling stt.startListening  langCode=$langCode  token=$sessionToken');
     final ok = await _stt.startListening(
       langCode: langCode,
       onResult: (text) {
         // Samsung STT can fire the final onResult 1-2s AFTER notListening.
         // Guard with the captured token so a late result from card N isn't
         // applied to card N+1.
-        debugPrint('[HF] onResult: "$text"  sessionToken=$sessionToken  currentToken=$_listenToken  match=${sessionToken == _listenToken}');
+        sttLog('[HF] onResult: "$text"  sessionToken=$sessionToken  currentToken=$_listenToken  match=${sessionToken == _listenToken}');
         if (mounted && sessionToken == _listenToken) {
           // Hands-free: the verdict fires the moment the result arrives — no
           // staged "Analyse…" beat (user feedback 2026-07-05: feedback came
@@ -315,7 +321,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 );
                 if (!validation.isCorrect) {
                   _noiseRetries++;
-                  debugPrint('[HF] 🔇 wrong result after only ${elapsed}ms — treating as app-audio pickup, re-listen #$_noiseRetries');
+                  sttLog('[HF] 🔇 wrong result after only ${elapsed}ms — treating as app-audio pickup, re-listen #$_noiseRetries');
                   Future.delayed(const Duration(milliseconds: 300), () {
                     if (mounted &&
                         ref.read(quizProvider).answerState ==
@@ -338,11 +344,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 );
           }
         } else if (sessionToken != _listenToken) {
-          debugPrint('[HF] Late onResult discarded (stale token)');
+          sttLog('[HF] Late onResult discarded (stale token)');
         }
       },
       onPartial: (text) {
-        debugPrint('[HF] partial: "$text"');
+        sttLog('[HF] partial: "$text"');
         if (mounted && sessionToken == _listenToken) {
           ref.read(quizProvider.notifier).setPartialTranscript(text);
           // Hands-free: an exact partial match IS the answer — grade it now
@@ -359,7 +365,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               isDrivingMode: true,
             );
             if (early.isCorrect && early.type == ValidationResultType.exact) {
-              debugPrint('[HF] ⚡ exact partial match — grading immediately');
+              sttLog('[HF] ⚡ exact partial match — grading immediately');
               _stt.stopListening();
               ref
                   .read(quizProvider.notifier)
@@ -369,9 +375,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         }
       },
     );
-    debugPrint('[HF] stt.startListening returned ok=$ok  token=$_listenToken');
+    sttLog('[HF] stt.startListening returned ok=$ok  token=$_listenToken');
     if (!ok && mounted) {
-      debugPrint('[HF] ❌ STT failed to start — clearing listening state');
+      sttLog('[HF] ❌ STT failed to start — clearing listening state');
       ref.read(quizProvider.notifier).setListening(false);
       return;
     }
@@ -389,7 +395,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // stops card N+1's session — the primary cause of premature termination.
     Future.delayed(const Duration(seconds: 12), () {
       if (mounted && _stt.isListening && sessionToken == _listenToken) {
-        debugPrint('[HF] ⏰ Failsafe timeout for token=$sessionToken — stopping STT');
+        sttLog('[HF] ⏰ Failsafe timeout for token=$sessionToken — stopping STT');
         _stt.stopListening();
         ref.read(quizProvider.notifier).setListening(false);
       }
@@ -444,7 +450,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             (prev?.cards.isEmpty ?? true) && next.cards.isNotEmpty;
         final card = next.currentCard;
         if ((cardChanged || justLoaded || cardsJustAppeared) && card != null && !next.isComplete) {
-          debugPrint('[HF] Card trigger: cardChanged=$cardChanged justLoaded=$justLoaded cardsJustAppeared=$cardsJustAppeared  idx=${next.currentIndex}  question="${card.questionWord}"  answers=${card.answerWords}');
+          sttLog('[HF] Card trigger: cardChanged=$cardChanged justLoaded=$justLoaded cardsJustAppeared=$cardsJustAppeared  idx=${next.currentIndex}  question="${card.questionWord}"  answers=${card.answerWords}');
           unawaited(_waitForSpeechThenListen(card));
         }
       }

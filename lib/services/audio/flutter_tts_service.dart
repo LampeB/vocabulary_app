@@ -1,6 +1,7 @@
 import 'package:flutter_tts/flutter_tts.dart';
 import 'audio_service.dart';
 import '../../core/languages.dart';
+import '../../core/utils/stt_debug_log.dart';
 
 // Priority-ordered engine IDs per language — device-quality tuning, the first
 // engine found on the device wins. Languages without an entry fall back to
@@ -67,15 +68,20 @@ class FlutterTtsService implements AudioService {
     await tts.setSpeechRate(speechRate);
     await tts.setPitch(pitch);
     _activeSpeaks++;
+    sttLog('[TTS] ▶ speak start lang=$langCode "$text" (active=$_activeSpeaks)');
     try {
       await tts.speak(text);
     } finally {
       _activeSpeaks--;
+      sttLog('[TTS] ■ speak done  lang=$langCode "$text" (active=$_activeSpeaks)');
     }
   }
 
   @override
   Future<void> stop() async {
+    if (_activeSpeaks > 0) {
+      sttLog('[TTS] ✋ stop() while $_activeSpeaks utterance(s) in flight — speech is being CUT OFF');
+    }
     for (final tts in _ttsByLang.values) {
       await tts.stop();
     }

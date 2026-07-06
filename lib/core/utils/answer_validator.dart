@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'stt_debug_log.dart';
 import 'package:string_similarity/string_similarity.dart';
 import '../constants/app_constants.dart';
 import '../extensions/string_ext.dart';
@@ -28,10 +28,10 @@ abstract final class AnswerValidator {
     required List<String> acceptedAnswers,
     bool isDrivingMode = false,
   }) {
-    debugPrint('[VAL] validate: transcript="$userAnswer"  accepted=$acceptedAnswers  isDrivingMode=$isDrivingMode');
+    sttLog('[VAL] validate: transcript="$userAnswer"  accepted=$acceptedAnswers  isDrivingMode=$isDrivingMode');
 
     if (userAnswer.trim().isEmpty) {
-      debugPrint('[VAL] → empty transcript → incorrect');
+      sttLog('[VAL] → empty transcript → incorrect');
       return const ValidationResult(
         isCorrect: false,
         score: 0,
@@ -44,20 +44,20 @@ abstract final class AnswerValidator {
         : AppConstants.fuzzyThresholdTyping;
 
     final normalizedUser = _normalize(userAnswer);
-    debugPrint('[VAL] normalized: "$normalizedUser"  threshold=$threshold');
+    sttLog('[VAL] normalized: "$normalizedUser"  threshold=$threshold');
 
     double bestScore = 0;
     String? bestMatch;
 
     for (final answer in acceptedAnswers) {
       final score = _scoreAgainst(normalizedUser, _normalize(answer));
-      debugPrint('[VAL]   vs "$answer" → score=${score.toStringAsFixed(3)}');
+      sttLog('[VAL]   vs "$answer" → score=${score.toStringAsFixed(3)}');
       if (score > bestScore) {
         bestScore = score;
         bestMatch = answer;
       }
     }
-    debugPrint('[VAL] After main loop: bestScore=${bestScore.toStringAsFixed(3)}  bestMatch="$bestMatch"');
+    sttLog('[VAL] After main loop: bestScore=${bestScore.toStringAsFixed(3)}  bestMatch="$bestMatch"');
 
     if (bestScore < threshold && normalizedUser.contains(' ')) {
       for (final word in normalizedUser.split(RegExp(r'\s+'))) {
@@ -80,12 +80,12 @@ abstract final class AnswerValidator {
     //     which catches single-character particles that skew the similarity.
     if (bestScore < threshold &&
         HangulDecomposer.containsHangul(normalizedUser)) {
-      debugPrint('[VAL] Below threshold — running Korean particle-strip pass');
+      sttLog('[VAL] Below threshold — running Korean particle-strip pass');
       outer:
       for (final answer in acceptedAnswers) {
         final normAnswer = _normalize(answer);
         if (normAnswer.length >= 2 && normalizedUser.startsWith(normAnswer)) {
-          debugPrint('[VAL]   prefix match: "$normalizedUser" starts with "$normAnswer" → score=1.0');
+          sttLog('[VAL]   prefix match: "$normalizedUser" starts with "$normAnswer" → score=1.0');
           bestScore = 1.0;
           bestMatch = answer;
           break outer;
@@ -96,18 +96,18 @@ abstract final class AnswerValidator {
           final stripped =
               normalizedUser.substring(0, normalizedUser.length - strip);
           final score = _scoreAgainst(stripped, normAnswer);
-          debugPrint('[VAL]   strip=$strip → "$stripped" vs "$normAnswer" = ${score.toStringAsFixed(3)}');
+          sttLog('[VAL]   strip=$strip → "$stripped" vs "$normAnswer" = ${score.toStringAsFixed(3)}');
           if (score > bestScore) {
             bestScore = score;
             bestMatch = answer;
           }
         }
       }
-      debugPrint('[VAL] After particle-strip pass: bestScore=${bestScore.toStringAsFixed(3)}  bestMatch="$bestMatch"');
+      sttLog('[VAL] After particle-strip pass: bestScore=${bestScore.toStringAsFixed(3)}  bestMatch="$bestMatch"');
     }
 
     if (bestScore >= 0.98) {
-      debugPrint('[VAL] ✅ EXACT  score=${bestScore.toStringAsFixed(3)}');
+      sttLog('[VAL] ✅ EXACT  score=${bestScore.toStringAsFixed(3)}');
       return ValidationResult(
         isCorrect: true,
         score: bestScore,
@@ -116,7 +116,7 @@ abstract final class AnswerValidator {
       );
     }
     if (bestScore >= threshold) {
-      debugPrint('[VAL] ✅ ACCEPTABLE  score=${bestScore.toStringAsFixed(3)}');
+      sttLog('[VAL] ✅ ACCEPTABLE  score=${bestScore.toStringAsFixed(3)}');
       return ValidationResult(
         isCorrect: true,
         score: bestScore,
@@ -126,7 +126,7 @@ abstract final class AnswerValidator {
         matchedWord: bestMatch,
       );
     }
-    debugPrint('[VAL] ❌ INCORRECT  score=${bestScore.toStringAsFixed(3)}  threshold=$threshold');
+    sttLog('[VAL] ❌ INCORRECT  score=${bestScore.toStringAsFixed(3)}  threshold=$threshold');
     return ValidationResult(
       isCorrect: false,
       score: bestScore,
