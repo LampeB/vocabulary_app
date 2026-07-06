@@ -311,7 +311,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // Hands-free is eyes-off: "your turn" earcon + haptic BEFORE the mic
     // opens — played while listening, the recognizer hears the earcon itself
     // and can transcribe it as a (wrong) answer.
-    if (widget.args.mode == QuizMode.handsFree && !_kTestMode) {
+    // Retries stay SILENT: the user was already cued for this card, and
+    // each replayed earcon re-contested audio focus and killed the young
+    // session (the "bips a few times then skips" loop, field log 2026-07-07).
+    if (widget.args.mode == QuizMode.handsFree && !_kTestMode && !isRetry) {
       sttLog('[HF] 🔔 playing listen earcon (mic opens in 250ms)');
       unawaited(_sfx.playListenCue());
       HapticFeedback.selectionClick();

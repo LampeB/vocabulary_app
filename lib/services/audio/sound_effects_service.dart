@@ -3,7 +3,27 @@ import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 
 class SoundEffectsService {
+  SoundEffectsService() {
+    // Earcons must NEVER take Android audio focus: the default (GAIN)
+    // contests focus with SpeechRecognizer and kills young listen sessions
+    // within tens of ms — field log 2026-07-07: every hands-free retry
+    // beeped, instantly lost the mic, and the card was skipped ("it bips a
+    // few times then skips"). Sonification + FOCUS_NONE plays the beep on
+    // top of whatever else holds audio, without contesting it.
+    _ready = _player.setAudioContext(AudioContext(
+      android: const AudioContextAndroid(
+        contentType: AndroidContentType.sonification,
+        usageType: AndroidUsageType.assistanceSonification,
+        audioFocus: AndroidAudioFocus.none,
+      ),
+      iOS: AudioContextIOS(
+        category: AVAudioSessionCategory.ambient,
+      ),
+    ));
+  }
+
   final _player = AudioPlayer();
+  late final Future<void> _ready;
   Uint8List? _correctBytes;
   Uint8List? _incorrectBytes;
   Uint8List? _cueBytes;
@@ -48,6 +68,7 @@ class SoundEffectsService {
 
   Future<void> playCorrect() async {
     try {
+      await _ready;
       _correctBytes ??= _makeBeep(880, 0.14); // high A — bright ding
       await _player.play(BytesSource(_correctBytes!));
     } catch (_) {}
@@ -55,6 +76,7 @@ class SoundEffectsService {
 
   Future<void> playIncorrect() async {
     try {
+      await _ready;
       _incorrectBytes ??= _makeBeep(280, 0.22); // low growl
       await _player.play(BytesSource(_incorrectBytes!));
     } catch (_) {}
@@ -64,6 +86,7 @@ class SoundEffectsService {
   /// earcon (paired with a haptic so it's catchable eyes-off).
   Future<void> playListenCue() async {
     try {
+      await _ready;
       _cueBytes ??= _makeBeep(620, 0.07, volume: 0.4);
       await _player.play(BytesSource(_cueBytes!));
     } catch (_) {}
