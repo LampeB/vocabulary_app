@@ -298,6 +298,7 @@
   "quiz.hf_repeat": "Wiederholen",
   "quiz.hf_skip": "Überspringen",
   "quiz.hf_paused": "PAUSIERT",
+  "quiz.hf_paused_silence": "Ich höre dich nicht",
   "quiz.hf_resume_hint": "Zum Fortsetzen tippen",
   "quiz.hf_not_heard": "Nicht gehört — versuch es nochmal",
   "start_session.title": "Neue Sitzung",

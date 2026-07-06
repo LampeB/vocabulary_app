@@ -58,6 +58,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // Hands-free app-audio pickup guard: wrong results arriving implausibly
   // fast are discarded and the mic re-listens (max twice per card).
   int _noiseRetries = 0;
+  // Cards in a row that ended with zero usable speech. At 2 the session
+  // auto-pauses (the room is too loud / mic broken) instead of skipping
+  // through every card. Reset by any real recognition or manual resume.
+  int _consecutiveSilentCards = 0;
+  bool _hfAutoPausedSilence = false;
   // Whole-screen warm breathing pulse used during the hands-free reading state.
   late final AnimationController _pulseCtrl;
 
@@ -179,11 +184,25 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   return;
                 }
                 _notHeardRetries = 0;
-                sttLog('[HF] ❌ No result after retries — requeue (à revoir)');
-                ref.read(quizProvider.notifier).submitVoiceAnswer(
-                      '',
-                      isDrivingMode: true,
-                    );
+                // Nothing heard after all retries. NEVER a wrong answer —
+                // the user didn't speak (user feedback 2026-07-06). Skip
+                // without grading; the card comes back later in the session.
+                _consecutiveSilentCards++;
+                if (_consecutiveSilentCards >= 2) {
+                  // Two cards in a row with zero usable speech: the
+                  // environment can't support hands-free right now. Pause
+                  // instead of burning through the whole session.
+                  sttLog('[HF] 🔇🔇 $_consecutiveSilentCards consecutive silent cards — auto-pausing session');
+                  _stt.stopListening();
+                  ref.read(quizProvider.notifier).setListening(false);
+                  setState(() {
+                    _hfAutoPausedSilence = true;
+                    _hfPaused = true;
+                  });
+                  return;
+                }
+                sttLog('[HF] ❌ No result after retries — skipping WITHOUT grading (silent card #$_consecutiveSilentCards)');
+                ref.read(quizProvider.notifier).skipCurrentCard();
               });
             }
           } else {
@@ -332,6 +351,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   return;
                 }
               }
+              _consecutiveSilentCards = 0; // real speech reached us
               ref
                   .read(quizProvider.notifier)
                   .submitVoiceAnswer(text, isDrivingMode: true);
@@ -374,6 +394,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             if (early.isCorrect && early.type == ValidationResultType.exact) {
               sttLog('[HF] ⚡ exact partial match — grading immediately');
               _stt.stopListening();
+              _consecutiveSilentCards = 0; // real speech reached us
               ref
                   .read(quizProvider.notifier)
                   .submitVoiceAnswer(text, isDrivingMode: true);
@@ -540,12 +561,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   // ── Hands-free controls ───────────────────────────────────────────────────
   void _toggleHfPause() {
-    setState(() => _hfPaused = !_hfPaused);
+    setState(() {
+      _hfPaused = !_hfPaused;
+      _hfAutoPausedSilence = false;
+    });
     if (_hfPaused) {
       _stt.stopListening();
       ref.read(quizProvider.notifier).setListening(false);
       unawaited(ref.read(audioPlayerServiceProvider).stop());
     } else {
+      // Manual resume = the user says the environment is OK again.
+      _consecutiveSilentCards = 0;
       final card = ref.read(quizProvider).currentCard;
       if (card != null) unawaited(_startListening(card));
     }
@@ -563,8 +589,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   void _hfSkip() {
+    // A deliberate skip is not a wrong answer: nothing is graded, the card
+    // returns later in the session.
     _stt.stopListening();
-    ref.read(quizProvider.notifier).submitVoiceAnswer('', isDrivingMode: true);
+    ref.read(quizProvider.notifier).skipCurrentCard();
   }
 
   /// Hands-free (Mains libres) — eyes-off canvas: word in the wave with the
@@ -692,10 +720,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.pause_rounded,
-                            size: 56, color: cs.onSurface),
+                        Icon(
+                            _hfAutoPausedSilence
+                                ? Icons.hearing_disabled_rounded
+                                : Icons.pause_rounded,
+                            size: 56,
+                            color: cs.onSurface),
                         const SizedBox(height: 10),
-                        Text('quiz.hf_paused'.tr(),
+                        Text(
+                            (_hfAutoPausedSilence
+                                    ? 'quiz.hf_paused_silence'
+                                    : 'quiz.hf_paused')
+                                .tr(),
+                            textAlign: TextAlign.center,
                             style: AppTextStyles.grotesk(28, FontWeight.w700)
                                 .copyWith(color: cs.onSurface)),
                         const SizedBox(height: 6),

@@ -298,6 +298,7 @@
   "quiz.hf_repeat": "다시",
   "quiz.hf_skip": "건너뛰기",
   "quiz.hf_paused": "일시정지",
+  "quiz.hf_paused_silence": "잘 안 들려요",
   "quiz.hf_resume_hint": "탭하여 계속",
   "quiz.hf_not_heard": "못 들었어요 — 다시 해보세요",
   "start_session.title": "새 세션",

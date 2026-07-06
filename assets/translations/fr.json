@@ -298,6 +298,7 @@
   "quiz.hf_repeat": "Répéter",
   "quiz.hf_skip": "Passer",
   "quiz.hf_paused": "EN PAUSE",
+  "quiz.hf_paused_silence": "Je ne t'entends pas",
   "quiz.hf_resume_hint": "Touche pour reprendre",
   "quiz.hf_not_heard": "Je n'ai pas entendu — réessaie",
   "start_session.title": "Nouvelle session",

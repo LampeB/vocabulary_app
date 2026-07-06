@@ -239,6 +239,39 @@ void main() {
         isNull);
   });
 
+  test(
+      'skipCurrentCard grades NOTHING and requeues the card once — silence '
+      'is never a wrong answer', () async {
+    final sub = container.listen(quizProvider, (_, __) {});
+    final notifier = container.read(quizProvider.notifier);
+    await notifier.loadCards(args());
+    final initialTotal = sub.read().total;
+    final skipped = sub.read().currentCard!;
+
+    notifier.skipCurrentCard();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    // No grammar progress, no FSRS write — the user never answered.
+    expect(await db.grammarProgressDao.get('u', 'particule-theme-eun-neun'),
+        isNull);
+    expect(await db.progressDao.getUnsyncedProgress(), isEmpty);
+    // The card went to the back of the queue (total grew by one slot).
+    expect(sub.read().total, initialTotal + 1);
+    expect(sub.read().cards.last.progress.variantId,
+        skipped.progress.variantId);
+    expect(sub.read().currentIndex, 1);
+
+    // A second skip of the SAME card does not requeue again (no infinite
+    // session in a persistently silent room).
+    while (sub.read().currentCard?.progress.variantId !=
+        skipped.progress.variantId) {
+      notifier.skipCurrentCard();
+    }
+    final totalBefore = sub.read().total;
+    notifier.skipCurrentCard();
+    expect(sub.read().total, totalBefore);
+  });
+
   test('the mastery target sets masteredAt exactly once', () async {
     for (var i = 0; i < kRuleMasteryTarget; i++) {
       await db.grammarProgressDao.recordAnswer(

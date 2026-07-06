@@ -235,6 +235,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   Future<void> loadCards(QuizArgs args) async {
     _lastArgs = args;
     _sessionStartTime = DateTime.now();
+    _requeuedOnce.clear();
     state = state.copyWith(isLoading: true, isComplete: false, errorMessage: null);
 
     final userId = ref.read(currentUserProvider)?.id ?? '';
@@ -693,6 +694,29 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     await ref
         .read(submitAnswerUseCaseProvider)
         .call(progress: progress, rating: rating);
+  }
+
+  /// Variant ids already requeued once by [skipCurrentCard] — a card comes
+  /// back at most once, so a persistently silent environment can't loop a
+  /// session forever.
+  final _requeuedOnce = <String>{};
+
+  /// Skips the current card WITHOUT grading: nothing is persisted (no FSRS
+  /// rating, no grammar progress), and the card is requeued at the end of
+  /// the session (once) so the user gets another shot. This is what
+  /// "the mic heard nothing" and the hands-free Passer button do — silence
+  /// or a noisy room is an environment problem, never a wrong answer
+  /// (user feedback 2026-07-06: background noise was failing words the
+  /// user never spoke).
+  void skipCurrentCard() {
+    final card = state.currentCard;
+    if (card == null || state.answerState != QuizAnswerState.idle) return;
+    final requeue = _requeuedOnce.add(card.progress.variantId);
+    if (requeue) {
+      // total is cards.length, so the session naturally grows by one slot.
+      state = state.copyWith(cards: [...state.cards, card]);
+    }
+    _advance(isCorrect: false);
   }
 
   void _advance({required bool isCorrect}) {
