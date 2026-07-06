@@ -14,6 +14,7 @@ import '../../../domain/usecases/quiz/submit_answer_usecase.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/utils/answer_validator.dart';
 import '../../../core/utils/fsrs_algorithm.dart';
+import '../../../core/utils/stt_debug_log.dart';
 import '../audio/audio_provider.dart';
 import '../lists/vocabulary_provider.dart';
 import '../auth/auth_provider.dart';
@@ -336,10 +337,19 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       final cId = conceptIdMap[p.variantId];
       if (q == null || cId == null) continue;
       final answerLang = p.direction.answerLang;
+      final answers = answerByConceptAndLang[cId]?[answerLang] ?? [];
+      if (answers.isEmpty) {
+        // A concept missing its answer-language variant is UNANSWERABLE —
+        // every attempt would grade wrong no matter what the user says
+        // (field log 2026-07-06: "singe" had no KO word; the user's correct
+        // 원숭이 scored 0 against an empty list). Never deal such a card.
+        sttLog('[QUIZ] dropping unanswerable card "$q" — no $answerLang variant');
+        continue;
+      }
       quizCards.add(QuizCard(
         progress: p,
         questionWord: q,
-        answerWords: answerByConceptAndLang[cId]?[answerLang] ?? [],
+        answerWords: answers,
       ));
     }
 

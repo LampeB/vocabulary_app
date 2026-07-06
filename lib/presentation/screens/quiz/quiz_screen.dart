@@ -250,12 +250,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     sttLog('[HF] waited ${speechWaitMs}ms for TTS to finish (isSpeaking=${audio.isSpeaking}) — starting 250ms echo tail');
     // Echo tail: let the room go quiet before the mic opens.
     await Future.delayed(const Duration(milliseconds: 250));
-    if (mounted && !_stt.isListening) {
-      sttLog('[HF] speech finished — calling _startListening');
-      unawaited(_startListening(card));
-    } else {
-      sttLog('[HF] speech finished but mounted=$mounted stt.isListening=${_stt.isListening} — skipping');
+    if (!mounted) return;
+    if (_stt.isListening) {
+      // A stale session must not swallow this card's window (it would hear
+      // our TTS and validate against the wrong card) — stop it, then start
+      // fresh. Never skip: skipping left cards without their own session.
+      sttLog('[HF] stale session still open — stopping it before this card\'s listen');
+      await _stt.stopListening();
+      await Future.delayed(const Duration(milliseconds: 200));
+      if (!mounted) return;
     }
+    sttLog('[HF] speech finished — calling _startListening');
+    unawaited(_startListening(card));
   }
 
   Future<void> _startListening(QuizCard card, {bool isRetry = false}) async {
@@ -315,69 +321,89 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final ok = await _stt.startListening(
       langCode: langCode,
       onResult: (text) {
-        // Samsung STT can fire the final onResult 1-2s AFTER notListening.
-        // Guard with the captured token so a late result from card N isn't
-        // applied to card N+1.
-        sttLog('[HF] onResult: "$text"  sessionToken=$sessionToken  currentToken=$_listenToken  match=${sessionToken == _listenToken}');
-        if (mounted && sessionToken == _listenToken) {
-          // Hands-free: the verdict fires the moment the result arrives — no
-          // staged "Analyse…" beat (user feedback 2026-07-05: feedback came
-          // too long after speaking). A partial may already have graded this
-          // card; the idle guard keeps the late final from double-submitting.
-          if (widget.args.mode == QuizMode.handsFree && text.trim().isNotEmpty) {
-            _stt.stopListening();
-            if (ref.read(quizProvider).answerState == QuizAnswerState.idle) {
-              // A WRONG result arriving faster than a human could think and
-              // speak is almost certainly the mic transcribing the app's own
-              // audio (TTS tail, earcon echo) — discard it and re-listen
-              // instead of penalising the user. Correct results always land.
-              final elapsed = _stt.listenElapsedMs;
-              if (elapsed < 800 && _noiseRetries < 2) {
-                final validation = AnswerValidator.validate(
-                  userAnswer: text,
-                  acceptedAnswers: card.answerWords,
-                  isDrivingMode: true,
-                );
-                if (!validation.isCorrect) {
-                  _noiseRetries++;
-                  sttLog('[HF] 🔇 wrong result after only ${elapsed}ms — treating as app-audio pickup, re-listen #$_noiseRetries');
-                  Future.delayed(const Duration(milliseconds: 300), () {
-                    if (mounted &&
-                        ref.read(quizProvider).answerState ==
-                            QuizAnswerState.idle) {
-                      unawaited(_startListening(card, isRetry: true));
-                    }
-                  });
-                  return;
-                }
-              }
-              _consecutiveSilentCards = 0; // real speech reached us
-              ref
-                  .read(quizProvider.notifier)
-                  .submitVoiceAnswer(text, isDrivingMode: true);
-            }
-          } else if (widget.args.mode == QuizMode.handsFree) {
-            // Empty final result: the engine heard something but recognized
-            // no words (parasitic speech, noise). NOT an answer — the
-            // not-heard recovery owns this case. Submitting it graded the
-            // card wrong through no fault of the user (found by the acoustic
-            // harness, 2026-07-06: French speech near the phone failed the
-            // card before the user spoke).
-            sttLog('[HF] empty final result ignored — not-heard recovery owns it');
-          } else {
-            ref.read(quizProvider.notifier).submitVoiceAnswer(
-                  text,
-                  isDrivingMode: widget.args.mode == QuizMode.voice,
-                );
+        // Samsung STT can fire the final onResult 1-2s AFTER notListening,
+        // and retries rotate sessions fast. Gate by CARD identity, not
+        // session: a correct answer for the card on screen is accepted no
+        // matter which listen session delivered it (field log 2026-07-06:
+        // "poussin" heard at 0.93 was discarded twice for a stale token).
+        // WRONG results are held to the stricter same-session gate so a
+        // stale session can't fail the current card.
+        final sameCard = ref.read(quizProvider).currentCard?.progress
+                .variantId ==
+            card.progress.variantId;
+        sttLog('[HF] onResult: "$text"  sessionToken=$sessionToken  currentToken=$_listenToken  sameSession=${sessionToken == _listenToken}  sameCard=$sameCard');
+        if (!mounted || !sameCard) {
+          if (!sameCard) sttLog('[HF] Late onResult discarded (card changed)');
+          return;
+        }
+        if (widget.args.mode == QuizMode.handsFree && text.trim().isNotEmpty) {
+          if (ref.read(quizProvider).answerState != QuizAnswerState.idle) {
+            return; // already graded (e.g. by a partial)
           }
-        } else if (sessionToken != _listenToken) {
-          sttLog('[HF] Late onResult discarded (stale token)');
+          final validation = AnswerValidator.validate(
+            userAnswer: text,
+            acceptedAnswers: card.answerWords,
+            isDrivingMode: true,
+          );
+          if (validation.isCorrect) {
+            _stt.stopListening();
+            _consecutiveSilentCards = 0; // real speech reached us
+            ref
+                .read(quizProvider.notifier)
+                .submitVoiceAnswer(text, isDrivingMode: true);
+            return;
+          }
+          // Wrong results: only the CURRENT session may fail the card, and
+          // implausibly fast ones are treated as app-audio pickup.
+          if (sessionToken != _listenToken) {
+            sttLog('[HF] wrong result from a stale session — discarded');
+            return;
+          }
+          final elapsed = _stt.listenElapsedMs;
+          if (elapsed < 800 && _noiseRetries < 2) {
+            _noiseRetries++;
+            sttLog('[HF] 🔇 wrong result after only ${elapsed}ms — treating as app-audio pickup, re-listen #$_noiseRetries');
+            _stt.stopListening();
+            Future.delayed(const Duration(milliseconds: 300), () {
+              if (mounted &&
+                  ref.read(quizProvider).answerState ==
+                      QuizAnswerState.idle) {
+                unawaited(_startListening(card, isRetry: true));
+              }
+            });
+            return;
+          }
+          _stt.stopListening();
+          _consecutiveSilentCards = 0; // real speech reached us
+          ref
+              .read(quizProvider.notifier)
+              .submitVoiceAnswer(text, isDrivingMode: true);
+        } else if (widget.args.mode == QuizMode.handsFree) {
+          // Empty final result: the engine heard something but recognized
+          // no words (parasitic speech, noise). NOT an answer — the
+          // not-heard recovery owns this case. Submitting it graded the
+          // card wrong through no fault of the user (found by the acoustic
+          // harness, 2026-07-06: French speech near the phone failed the
+          // card before the user spoke).
+          sttLog('[HF] empty final result ignored — not-heard recovery owns it');
+        } else if (sessionToken == _listenToken) {
+          ref.read(quizProvider.notifier).submitVoiceAnswer(
+                text,
+                isDrivingMode: widget.args.mode == QuizMode.voice,
+              );
         }
       },
       onPartial: (text) {
-        sttLog('[HF] partial: "$text"');
-        if (mounted && sessionToken == _listenToken) {
-          ref.read(quizProvider.notifier).setPartialTranscript(text);
+        // Same card-identity gate as onResult: a correct partial for the
+        // card on screen counts even if delivered by a retry's session.
+        final sameCard = ref.read(quizProvider).currentCard?.progress
+                .variantId ==
+            card.progress.variantId;
+        sttLog('[HF] partial: "$text"  sameCard=$sameCard');
+        if (mounted && sameCard) {
+          if (sessionToken == _listenToken) {
+            ref.read(quizProvider.notifier).setPartialTranscript(text);
+          }
           // Hands-free: an exact partial match IS the answer — grade it now
           // instead of sitting through STT's end-of-speech silence timer.
           // Only exact matches short-circuit (fuzzy ones wait for the final
@@ -479,6 +505,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         final card = next.currentCard;
         if ((cardChanged || justLoaded || cardsJustAppeared) && card != null && !next.isComplete) {
           sttLog('[HF] Card trigger: cardChanged=$cardChanged justLoaded=$justLoaded cardsJustAppeared=$cardsJustAppeared  idx=${next.currentIndex}  question="${card.questionWord}"  answers=${card.answerWords}');
+          // Invalidate the previous card's session NOW: a session left open
+          // across the transition hears the new card's TTS question and
+          // grades it against the old card (field log 2026-07-06 — "mouton"
+          // spoken by the app's own voice failed the 양 card).
+          _listenToken++;
+          if (_stt.isListening) {
+            sttLog('[HF] stopping stale listen session from previous card');
+            unawaited(_stt.stopListening());
+          }
           unawaited(_waitForSpeechThenListen(card));
         }
       }

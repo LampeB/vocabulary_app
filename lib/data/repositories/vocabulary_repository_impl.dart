@@ -527,6 +527,9 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       for (final map in value) {
         final list = map.toVocabularyListDomain();
         await _listDao.upsert(list.toLocalCompanion());
+        // Tombstone: the upsert above marks the local copy deleted; its
+        // contents no longer matter.
+        if (list.isDeleted) continue;
 
         final conceptsResult = await _remote.fetchConcepts(list.id);
         if (conceptsResult case Success(:final value)) {

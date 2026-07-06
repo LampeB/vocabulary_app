@@ -172,6 +172,26 @@ void main() {
       expect(await db.vocabularyListDao.getById('rl1'), isNotNull);
     });
 
+    test(
+        'server-side deletions propagate: a remotely deleted list is '
+        'tombstoned locally and disappears from the watch', () async {
+      // First sync: the list exists.
+      final live = _remoteList('rl1', 'Remote List');
+      final remote = _SyncRemote(lists: [live]);
+      final repo = repoWith(remote);
+      await repo.syncFromRemote();
+      expect((await repo.watchMyLists().first).map((l) => l.id),
+          contains('rl1'));
+
+      // Second sync: the server says it's deleted.
+      remote.lists.clear();
+      remote.lists.add({...live, 'is_deleted': true});
+      await repo.syncFromRemote();
+
+      expect((await repo.watchMyLists().first).map((l) => l.id),
+          isNot(contains('rl1')));
+    });
+
     test('re-running is idempotent (upserts, no duplicates)', () async {
       final remote = _SyncRemote(
         lists: [_remoteList('rl1', 'Remote List')],
