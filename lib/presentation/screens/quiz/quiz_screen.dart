@@ -69,6 +69,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   bool _hfAutoPausedSilence = false;
   // Whole-screen warm breathing pulse used during the hands-free reading state.
   late final AnimationController _pulseCtrl;
+  // Listening-window countdown bar: fills left→right over the mic's
+  // listenFor window; a full bar means the attempt timed out. Restarted on
+  // every mic open (retries included).
+  late final AnimationController _listenBarCtrl;
 
   @override
   void initState() {
@@ -77,6 +81,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         vsync: this, duration: const Duration(milliseconds: 1900));
     // Don't run the perpetual breathing pulse under test — it never settles.
     if (!_kTestMode) _pulseCtrl.repeat(reverse: true);
+    // Duration mirrors SpeechRecognitionService.startListening's listenFor.
+    _listenBarCtrl = AnimationController(
+        vsync: this, duration: const Duration(seconds: 10));
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!SttSimulator.isOn) {
         final ok = await _stt.initialize();
@@ -253,6 +260,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   @override
   void dispose() {
     _pulseCtrl.dispose();
+    _listenBarCtrl.dispose();
     _stt.dispose();
     _sfx.dispose();
     _answerCtrl.dispose();
@@ -314,6 +322,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// reset when a new listen or card starts.
   void _enterAnalyzing() {
     if (_hfAnalyzing || widget.args.mode != QuizMode.handsFree) return;
+    _listenBarCtrl.stop(); // mic closed — freeze the countdown
     if (!_kTestMode) unawaited(_sfx.playListenDone());
     if (mounted) setState(() => _hfAnalyzing = true);
   }
@@ -525,6 +534,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // No earcon here: the "your turn" cue already played BEFORE the mic
     // opened (see above). A second cue after startListening plays into the
     // live recognizer — the "double bip" field report of 2026-07-07.
+
+    // Restart the listening-window countdown bar for this attempt.
+    if (!_kTestMode) {
+      _listenBarCtrl
+        ..reset()
+        ..forward();
+    }
 
     // Pre-warm the NEXT card's voice while the user answers: switching
     // fr↔ko on the shared native TTS engine costs 1–3.7s (field log
@@ -838,6 +854,31 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                             waveActive: listening && !_hfAnalyzing,
                           );
                         },
+                      ),
+                    ),
+                  ),
+                  // Listening-window countdown: fills left→right while the
+                  // mic is open; a full bar = this attempt timed out. Hidden
+                  // outside the listening phase.
+                  AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: listening && !_hfAnalyzing ? 1.0 : 0.0,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: AnimatedBuilder(
+                        animation: _listenBarCtrl,
+                        builder: (_, __) => ClipRRect(
+                          borderRadius: BorderRadius.circular(3),
+                          child: LinearProgressIndicator(
+                            value: _listenBarCtrl.value,
+                            minHeight: 5,
+                            backgroundColor:
+                                cs.onSurface.withValues(alpha: 0.08),
+                            valueColor: AlwaysStoppedAnimation(isDark
+                                ? AppColors.clayLight
+                                : AppColors.clayDeep),
+                          ),
+                        ),
                       ),
                     ),
                   ),
