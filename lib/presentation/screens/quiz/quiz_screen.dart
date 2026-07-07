@@ -153,7 +153,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               final backoffMs = wasThrottled ? 2000 : 1200;
               sttLog('[HF] 🔁 STT stopped too fast (${elapsed}ms, err=$err) — retry #$_listenRetries in ${backoffMs}ms');
               Future.delayed(Duration(milliseconds: backoffMs), () {
-                if (!mounted) return;
+                if (!mounted || capturedToken != _listenToken) return;
                 final card = ref.read(quizProvider).currentCard;
                 if (card != null &&
                     ref.read(quizProvider).answerState ==
@@ -170,6 +170,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               _listenRetries = 0;
               Future.delayed(Duration(milliseconds: waitMs), () {
                 if (!mounted) return;
+                // answerState alone isn't enough: if the card was answered
+                // AND advanced during the wait, the NEW card is idle again
+                // and would be declared "pas entendu" (field log 2026-07-07:
+                // card 1's timer re-listened over card 2's TTS).
+                if (capturedToken != _listenToken) {
+                  sttLog('[HF] Empty-wait timer stale (token moved on) — dropping');
+                  return;
+                }
                 if (ref.read(quizProvider).answerState !=
                     QuizAnswerState.idle) {
                   sttLog('[HF] ✅ Late onResult arrived before timeout');
@@ -185,7 +193,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   sttLog('[HF] 🔇 Pas entendu — re-listen #$_notHeardRetries');
                   setState(() => _hfNotHeard = true);
                   Future.delayed(const Duration(milliseconds: 900), () {
-                    if (!mounted) return;
+                    if (!mounted || capturedToken != _listenToken) return;
                     final card = ref.read(quizProvider).currentCard;
                     if (card != null &&
                         ref.read(quizProvider).answerState ==
@@ -485,11 +493,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       return;
     }
 
-    // Hands-free is eyes-off: a "your turn" earcon + haptic on listen start.
-    if (ok && widget.args.mode == QuizMode.handsFree && !_kTestMode) {
-      unawaited(_sfx.playListenCue());
-      HapticFeedback.selectionClick();
-    }
+    // No earcon here: the "your turn" cue already played BEFORE the mic
+    // opened (see above). A second cue after startListening plays into the
+    // live recognizer — the "double bip" field report of 2026-07-07.
 
     // Failsafe: if the STT callbacks never fire (device bug / audio focus
     // held by another app), reset listening state after listenFor + buffer.
