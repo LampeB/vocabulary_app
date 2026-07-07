@@ -96,8 +96,25 @@ class SpeechRecognitionService {
     final localeId = Languages.speechLocaleFor(langCode);
     sttLog('[STT] startListening() localeId=$localeId');
 
+    // Mic energy telemetry: distinguishes "engine ignored real speech"
+    // (level spikes, no hypothesis) from "signal never reached the engine"
+    // (flat level) — field case 2026-07-08: short words in a noisy room
+    // produced zero hypotheses, not even wrong ones.
+    var rmsMin = double.infinity, rmsMax = double.negativeInfinity;
+    var rmsLastLogged = DateTime.now();
+
     try {
       await _speech.listen(
+        onSoundLevelChange: (level) {
+          if (level < rmsMin) rmsMin = level;
+          if (level > rmsMax) rmsMax = level;
+          // One line per second keeps the trace readable at 10+ events/s.
+          final now = DateTime.now();
+          if (now.difference(rmsLastLogged).inMilliseconds >= 1000) {
+            rmsLastLogged = now;
+            sttLog('[STT] 🎚 level=${level.toStringAsFixed(1)}  min=${rmsMin.toStringAsFixed(1)}  max=${rmsMax.toStringAsFixed(1)}  elapsed=${listenElapsedMs}ms');
+          }
+        },
         onResult: (result) {
           // Every interpretation the engine considered, with confidence —
           // the raw evidence for "what did it actually hear". The engine's
