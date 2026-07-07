@@ -301,6 +301,8 @@
   "quiz.hf_paused_silence": "Non ti sento",
   "quiz.hf_resume_hint": "Tocca per riprendere",
   "quiz.hf_not_heard": "Non ho sentito — riprova",
+  "quiz.hf_analyzing": "Analisi della risposta…",
+  "quiz.hf_not_heard_retry": "Non ti ho sentito bene — ripeti (tentativo {attempt}/{total})",
   "start_session.title": "Nuova sessione",
   "start_session.title_grammar": "Sessione di grammatica",
   "start_session.start": "Inizia",

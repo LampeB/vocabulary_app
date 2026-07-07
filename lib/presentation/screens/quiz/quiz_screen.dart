@@ -55,6 +55,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // Hands-free "pas entendu" recovery: re-listen up to twice before requeuing.
   int _notHeardRetries = 0;
   bool _hfNotHeard = false;
+  // Hands-free "analyse" phase: mic closed, answer captured, verdict pending.
+  // Marked by a low closing tick + pulsing status text so the user knows to
+  // stop talking (protocol spec, user request 2026-07-08).
+  bool _hfAnalyzing = false;
   // Hands-free app-audio pickup guard: wrong results arriving implausibly
   // fast are discarded and the mic re-listens (max twice per card).
   int _noiseRetries = 0;
@@ -167,6 +171,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               // only submit wrong if no answer arrives in that window.
               final waitMs = hadRealListen && !wasPermanentError ? 2500 : 0;
               sttLog('[HF] Waiting ${waitMs}ms for possible late Samsung onResult before submitting empty (elapsed=${elapsed}ms  permanentError=$wasPermanentError  retries=$_listenRetries)');
+              // Mic is closed and a result may still land: that IS the
+              // "analyse" phase from the user's perspective.
+              if (waitMs > 0) _enterAnalyzing();
               _listenRetries = 0;
               Future.delayed(Duration(milliseconds: waitMs), () {
                 if (!mounted) return;
@@ -191,7 +198,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                     _notHeardRetries < 2) {
                   _notHeardRetries++;
                   sttLog('[HF] 🔇 Pas entendu — re-listen #$_notHeardRetries');
-                  setState(() => _hfNotHeard = true);
+                  setState(() {
+                    _hfNotHeard = true;
+                    _hfAnalyzing = false; // retry prompt outranks "analyse"
+                  });
                   Future.delayed(const Duration(milliseconds: 900), () {
                     if (!mounted || capturedToken != _listenToken) return;
                     final card = ref.read(quizProvider).currentCard;
@@ -298,6 +308,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// own recognizer chimes ("1 to 3 bips" per card, field log 2026-07-07).
   bool _listenStartInFlight = false;
 
+  /// Enters the hands-free "analyse" phase: the mic captured speech (or
+  /// closed after a real listen) and the verdict is pending. Plays the low
+  /// closing tick so the user knows to stop talking. Idempotent per phase —
+  /// reset when a new listen or card starts.
+  void _enterAnalyzing() {
+    if (_hfAnalyzing || widget.args.mode != QuizMode.handsFree) return;
+    if (!_kTestMode) unawaited(_sfx.playListenDone());
+    if (mounted) setState(() => _hfAnalyzing = true);
+  }
+
   Future<void> _startListening(QuizCard card, {bool isRetry = false}) async {
     if (_listenStartInFlight) {
       sttLog('[HF] _startListening skipped — another start is in flight');
@@ -322,8 +342,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _notHeardRetries = 0;
       _noiseRetries = 0;
     }
-    if (_hfNotHeard) {
-      setState(() => _hfNotHeard = false);
+    // Fresh listens reset the banner to "speak now"; retry listens KEEP the
+    // "try x/3" prompt visible — it already reads "please repeat".
+    if ((_hfNotHeard && !isRetry) || _hfAnalyzing) {
+      setState(() {
+        _hfNotHeard = _hfNotHeard && isRetry;
+        _hfAnalyzing = false;
+      });
     }
     _listenToken++;
     sttLog('[HF] _startListening  token=$_listenToken  isRetry=$isRetry  question="${card.questionWord}"  answerWords=${card.answerWords}');
@@ -356,10 +381,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // Hands-free is eyes-off: "your turn" earcon + haptic BEFORE the mic
     // opens — played while listening, the recognizer hears the earcon itself
     // and can transcribe it as a (wrong) answer.
-    // Retries stay SILENT: the user was already cued for this card, and
-    // each replayed earcon re-contested audio focus and killed the young
-    // session (the "bips a few times then skips" loop, field log 2026-07-07).
-    if (widget.args.mode == QuizMode.handsFree && !_kTestMode && !isRetry) {
+    // Retries are cued too: the protocol is "retry message → start bip"
+    // (user request 2026-07-08). Safe now that earcons use FOCUS_NONE and
+    // session starts are serialized — the old silent-retry rule guarded
+    // against focus-contest kills that no longer happen.
+    if (widget.args.mode == QuizMode.handsFree && !_kTestMode) {
       sttLog('[HF] 🔔 playing listen earcon (mic opens in 250ms)');
       unawaited(_sfx.playListenCue());
       HapticFeedback.selectionClick();
@@ -400,6 +426,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           final correct = _firstCorrectCandidate(candidates, card);
           if (correct != null) {
             _stt.stopListening();
+            _enterAnalyzing();
             _consecutiveSilentCards = 0; // real speech reached us
             ref
                 .read(quizProvider.notifier)
@@ -427,6 +454,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             return;
           }
           _stt.stopListening();
+          _enterAnalyzing();
           _consecutiveSilentCards = 0; // real speech reached us
           ref
               .read(quizProvider.notifier)
@@ -475,6 +503,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   early.type == ValidationResultType.exact) {
                 sttLog('[HF] ⚡ exact partial match ("$candidate") — grading immediately');
                 _stt.stopListening();
+                _enterAnalyzing();
                 _consecutiveSilentCards = 0; // real speech reached us
                 ref
                     .read(quizProvider.notifier)
@@ -580,6 +609,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           if (_stt.isListening) {
             sttLog('[HF] stopping stale listen session from previous card');
             unawaited(_stt.stopListening());
+          }
+          // New card = back to the reading phase; don't let the previous
+          // card's "analyse" banner linger over the new word.
+          if (_hfAnalyzing || _hfNotHeard) {
+            setState(() {
+              _hfAnalyzing = false;
+              _hfNotHeard = false;
+            });
           }
           unawaited(_waitForSpeechThenListen(card));
         }
@@ -722,15 +759,24 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final reduceMotion = MediaQuery.of(context).disableAnimations;
     final listening = s.isListening && !_hfPaused;
 
+    // Phase priority: paused > analyzing (mic closed, verdict pending) >
+    // not-heard (retry prompt with attempt count) > listening (speak now) >
+    // reading the word.
     final cue = _hfPaused
         ? null
-        : (_hfNotHeard
-            ? 'quiz.hf_not_heard'.tr()
-            : (listening
-                ? 'quiz.say_in_lang'.tr(
-                    namedArgs: {'lang': 'lang.${_answerLangCode(card)}'.tr()})
-                : 'quiz.hf_reading'.tr()));
-    final cueColor = listening
+        : (_hfAnalyzing
+            ? 'quiz.hf_analyzing'.tr()
+            : (_hfNotHeard
+                ? 'quiz.hf_not_heard_retry'.tr(namedArgs: {
+                    'attempt': '${_notHeardRetries + 1}',
+                    'total': '3',
+                  })
+                : (listening
+                    ? 'quiz.say_in_lang'.tr(namedArgs: {
+                        'lang': 'lang.${_answerLangCode(card)}'.tr()
+                      })
+                    : 'quiz.hf_reading'.tr())));
+    final cueColor = listening && !_hfAnalyzing
         ? (isDark ? AppColors.clayLight : AppColors.clayDeep)
         : (isDark ? AppColors.onDarkMuted : AppColors.muted);
 
@@ -775,12 +821,23 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 children: [
                   Expanded(
                     child: Center(
-                      child: WordInWave(
-                        word: card.questionWord,
-                        isKorean: !isFrToKo,
-                        cue: cue,
-                        cueColor: cueColor,
-                        waveActive: listening,
+                      // During "analyse" the status text breathes (slow fade
+                      // in/out) and the wave freezes — the mic is closed.
+                      child: AnimatedBuilder(
+                        animation: _pulseCtrl,
+                        builder: (_, __) {
+                          final fade = _hfAnalyzing && !reduceMotion
+                              ? 0.35 + 0.65 * _pulseCtrl.value
+                              : 1.0;
+                          return WordInWave(
+                            word: card.questionWord,
+                            isKorean: !isFrToKo,
+                            cue: cue,
+                            cueColor:
+                                cueColor.withValues(alpha: fade),
+                            waveActive: listening && !_hfAnalyzing,
+                          );
+                        },
                       ),
                     ),
                   ),

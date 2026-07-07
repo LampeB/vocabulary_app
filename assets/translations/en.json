@@ -301,6 +301,8 @@
   "quiz.hf_paused_silence": "I can't hear you",
   "quiz.hf_resume_hint": "Tap to resume",
   "quiz.hf_not_heard": "Didn't catch that — try again",
+  "quiz.hf_analyzing": "Analyzing your answer…",
+  "quiz.hf_not_heard_retry": "I didn't hear you clearly — try again ({attempt}/{total})",
   "start_session.title": "New session",
   "start_session.title_grammar": "Grammar session",
   "start_session.start": "Start",

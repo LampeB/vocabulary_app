@@ -31,6 +31,7 @@ class SoundEffectsService {
   Uint8List? _correctBytes;
   Uint8List? _incorrectBytes;
   Uint8List? _cueBytes;
+  Uint8List? _doneBytes;
 
   // Generates a PCM WAV file in memory — avoids the empty asset placeholders.
   Uint8List _makeBeep(double freqHz, double durationSec, {double volume = 0.55}) {
@@ -119,6 +120,18 @@ class SoundEffectsService {
       _cueBytes ??= _makeBeep(620, 0.07, volume: 0.4);
       sttLog('[SFX] 🎵 playListenCue (soft tick)');
       await _player.play(BytesSource(_cueBytes!));
+    } catch (_) {}
+  }
+
+  /// Mirror of [playListenCue]: lower soft tick marking that the mic has
+  /// CLOSED and the answer is being analyzed — the eyes-off signal to stop
+  /// talking (hands-free protocol, user request 2026-07-08).
+  Future<void> playListenDone() async {
+    try {
+      await _ready;
+      _doneBytes ??= _makeBeep(440, 0.07, volume: 0.4);
+      sttLog('[SFX] 🎵 playListenDone (soft low tick)');
+      await _player.play(BytesSource(_doneBytes!));
     } catch (_) {}
   }
 
