@@ -497,6 +497,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // opened (see above). A second cue after startListening plays into the
     // live recognizer — the "double bip" field report of 2026-07-07.
 
+    // Pre-warm the NEXT card's voice while the user answers: switching
+    // fr↔ko on the shared native TTS engine costs 1–3.7s (field log
+    // 2026-07-07 22:30 — "singe" took 3.7s to become audible after a
+    // Korean utterance). Loading it now, during the listening window,
+    // makes the next question start near-instantly. Produces no audio.
+    final upcoming = ref.read(quizProvider).nextCard;
+    if (upcoming != null) {
+      unawaited(ref
+          .read(audioPlayerServiceProvider)
+          .warmUp(upcoming.progress.direction.questionLang));
+    }
+
     // Failsafe: if the STT callbacks never fire (device bug / audio focus
     // held by another app), reset listening state after listenFor + buffer.
     // IMPORTANT: capture sessionToken so this timer only affects THIS session.

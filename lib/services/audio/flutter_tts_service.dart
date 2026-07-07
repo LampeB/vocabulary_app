@@ -60,13 +60,45 @@ class FlutterTtsService implements AudioService {
     return tts;
   }
 
-  @override
-  Future<void> speak(String text, String langCode, {String? voiceId}) async {
+  // flutter_tts shares ONE native TextToSpeech engine across all Dart
+  // instances, and switching its language (fr↔ko) costs 1–3.7s on device
+  // (field log 2026-07-07 22:30: "singe" took 3.7s to become audible after
+  // a Korean utterance). Track what the native engine is configured for so
+  // redundant switches are skipped, and let callers pre-load the next
+  // language during idle windows via [warmUp].
+  String? _nativeLang;
+  Future<void> _nativeOps = Future.value();
+
+  /// Serializes native-engine configuration calls — a warmUp racing a speak
+  /// would interleave setLanguage/setSpeechRate across the shared engine.
+  Future<T> _serialized<T>(Future<T> Function() action) {
+    final result = _nativeOps.then((_) => action());
+    _nativeOps = result.then((_) {}, onError: (_) {});
+    return result;
+  }
+
+  Future<FlutterTts> _configure(String langCode) async {
     final tts = await _ttsFor(langCode);
+    if (_nativeLang == langCode) return tts;
+    final sw = Stopwatch()..start();
     await tts.setLanguage(Languages.speechLocaleFor(langCode));
     // Must set rate/pitch AFTER setLanguage — Android TTS resets them on language change.
     await tts.setSpeechRate(speechRate);
     await tts.setPitch(pitch);
+    _nativeLang = langCode;
+    sttLog('[TTS] 🔥 voice switched to $langCode in ${sw.elapsedMilliseconds}ms');
+    return tts;
+  }
+
+  /// Pre-loads [langCode]'s voice on the shared engine so the next speak()
+  /// in that language starts instantly. Call during idle windows (e.g. while
+  /// the hands-free mic is listening); it produces no audio.
+  Future<void> warmUp(String langCode) =>
+      _serialized(() async => _configure(langCode));
+
+  @override
+  Future<void> speak(String text, String langCode, {String? voiceId}) async {
+    final tts = await _serialized(() => _configure(langCode));
     _activeSpeaks++;
     sttLog('[TTS] ▶ speak start lang=$langCode "$text" (active=$_activeSpeaks)');
     try {

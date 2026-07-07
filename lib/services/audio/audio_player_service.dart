@@ -31,6 +31,11 @@ class AudioPlayerService {
     }
   }
 
+  /// Pre-loads [langCode]'s TTS voice so the next speak() starts instantly.
+  /// No audio is produced. (Premium/ElevenLabs plays cached files, so the
+  /// device TTS warm-up is the only one that matters.)
+  Future<void> warmUp(String langCode) => _tts.warmUp(langCode);
+
   Future<void> stop() async {
     await _player.stop();
     await _tts.stop();

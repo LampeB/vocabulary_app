@@ -145,6 +145,12 @@ class QuizState {
   QuizCard? get currentCard =>
       currentIndex < cards.length ? cards[currentIndex] : null;
 
+  /// The card that will follow — used to pre-warm its TTS voice while the
+  /// user answers the current one. Requeues can still change the actual
+  /// successor; a mis-warm just falls back to the on-demand voice switch.
+  QuizCard? get nextCard =>
+      currentIndex + 1 < cards.length ? cards[currentIndex + 1] : null;
+
   int get total => cards.length;
 
   double get accuracy => total == 0 ? 0 : correctCount / total;

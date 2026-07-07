@@ -33,6 +33,8 @@ final _now = DateTime(2026, 7, 3);
 
 class _NoopAudio implements AudioPlayerService {
   @override
+  Future<void> warmUp(String langCode) async {}
+  @override
   Future<void> speak(String text, String langCode) async {}
   @override
   Future<void> stop() async {}

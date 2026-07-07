@@ -33,6 +33,8 @@ import '../helpers/pump_screen.dart' show initTestLocalization;
 
 class _NoopAudio implements AudioPlayerService {
   @override
+  Future<void> warmUp(String langCode) async {}
+  @override
   Future<void> speak(String text, String langCode) async {}
   @override
   Future<void> stop() async {}
