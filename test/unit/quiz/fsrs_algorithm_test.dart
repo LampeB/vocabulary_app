@@ -74,6 +74,74 @@ void main() {
     });
   });
 
+  group('corrupt restored rows (zeroed FSRS fields)', () {
+    // Field bug 2026-07-07: progress rows pulled from the server were in
+    // review state with stability/difficulty 0.0. The power-law math then
+    // produced 0 × pow(0, -w9) = NaN and `.round()` threw
+    // "Unsupported operation: Infinity or NaN toInt", silently killing
+    // scheduling AND persistence for every review of those cards.
+    FsrsCard zeroedCard(CardState state) => FsrsCard(
+          stability: 0,
+          difficulty: 0,
+          state: state,
+          reps: 3,
+          lastReview: now.subtract(const Duration(days: 5)),
+        );
+
+    test('zeroed review card schedules without throwing, all fields finite',
+        () {
+      for (final state in CardState.values) {
+        for (final r in FsrsRating.values) {
+          final c = AppFsrs.schedule(zeroedCard(state), r, now);
+          expect(c.stability.isFinite, isTrue, reason: 'state=$state r=$r');
+          expect(c.stability, greaterThan(0), reason: 'state=$state r=$r');
+          expect(c.difficulty.isFinite, isTrue, reason: 'state=$state r=$r');
+          expect(c.scheduledDays, greaterThanOrEqualTo(1),
+              reason: 'state=$state r=$r');
+        }
+      }
+    });
+
+    test('zeroed row self-heals: scheduled output is a valid input', () {
+      var c = zeroedCard(CardState.review);
+      // Two consecutive reviews — the second consumes the first's output.
+      c = AppFsrs.schedule(c, FsrsRating.good, now);
+      c = AppFsrs.schedule(c, FsrsRating.good, now.add(Duration(days: c.scheduledDays)));
+      expect(c.stability.isFinite, isTrue);
+      expect(c.stability, greaterThan(0));
+      expect(c.difficulty, inInclusiveRange(1.0, 10.0));
+    });
+
+    test('NaN/Infinity in stored fields is also recovered', () {
+      final c = AppFsrs.schedule(
+        FsrsCard(
+          stability: double.nan,
+          difficulty: double.infinity,
+          state: CardState.review,
+          lastReview: now.subtract(const Duration(days: 2)),
+        ),
+        FsrsRating.good,
+        now,
+      );
+      expect(c.stability.isFinite, isTrue);
+      expect(c.difficulty, inInclusiveRange(1.0, 10.0));
+      expect(c.scheduledDays, greaterThanOrEqualTo(1));
+    });
+
+    test('healthy cards are untouched by sanitizing', () {
+      final healthy = FsrsCard(
+        stability: 20,
+        difficulty: 5,
+        state: CardState.review,
+        lastReview: now.subtract(const Duration(days: 10)),
+      );
+      final c = AppFsrs.schedule(healthy, FsrsRating.good, now);
+      // Same result as the pre-sanitize algorithm for legal inputs:
+      // stability grows on a successful review.
+      expect(c.stability, greaterThan(20));
+    });
+  });
+
   test('every schedule keeps the interval >= 1 day', () {
     for (final state in CardState.values) {
       for (final r in FsrsRating.values) {

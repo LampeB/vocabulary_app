@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../core/utils/stt_debug_log.dart';
+
 class SoundEffectsService {
   SoundEffectsService() {
     // Earcons must NEVER take Android audio focus: the default (GAIN)
@@ -68,10 +70,34 @@ class SoundEffectsService {
     return raw;
   }
 
+  /// Two sequential tones in one buffer — verdict sounds must be melodic so
+  /// the ear separates them from the single-tone listen cue; with three
+  /// near-identical sine beeps users hear an undifferentiated "bip bip"
+  /// between cards (field report 2026-07-07: the correct-ding of card N
+  /// followed by card N+1's listen cue read as "two bips").
+  Uint8List _makeTwoTone(double f1, double f2, double durationSec,
+      {double volume = 0.55}) {
+    final half = durationSec / 2;
+    final a = _makeBeep(f1, half, volume: volume);
+    final b = _makeBeep(f2, half, volume: volume);
+    // Concatenate the PCM payloads under a single WAV header.
+    final dataA = a.sublist(44);
+    final dataB = b.sublist(44);
+    final out = Uint8List(44 + dataA.length + dataB.length);
+    out.setRange(0, 44, a);
+    final bd = ByteData.view(out.buffer);
+    bd.setUint32(4, 36 + dataA.length + dataB.length, Endian.little);
+    bd.setUint32(40, dataA.length + dataB.length, Endian.little);
+    out.setRange(44, 44 + dataA.length, dataA);
+    out.setRange(44 + dataA.length, out.length, dataB);
+    return out;
+  }
+
   Future<void> playCorrect() async {
     try {
       await _ready;
-      _correctBytes ??= _makeBeep(880, 0.14); // high A — bright ding
+      _correctBytes ??= _makeTwoTone(660, 990, 0.22); // rising chirp
+      sttLog('[SFX] 🎵 playCorrect (rising chirp)');
       await _player.play(BytesSource(_correctBytes!));
     } catch (_) {}
   }
@@ -79,7 +105,8 @@ class SoundEffectsService {
   Future<void> playIncorrect() async {
     try {
       await _ready;
-      _incorrectBytes ??= _makeBeep(280, 0.22); // low growl
+      _incorrectBytes ??= _makeTwoTone(330, 220, 0.28); // falling low buzz
+      sttLog('[SFX] 🎵 playIncorrect (falling buzz)');
       await _player.play(BytesSource(_incorrectBytes!));
     } catch (_) {}
   }
@@ -90,6 +117,7 @@ class SoundEffectsService {
     try {
       await _ready;
       _cueBytes ??= _makeBeep(620, 0.07, volume: 0.4);
+      sttLog('[SFX] 🎵 playListenCue (soft tick)');
       await _player.play(BytesSource(_cueBytes!));
     } catch (_) {}
   }
