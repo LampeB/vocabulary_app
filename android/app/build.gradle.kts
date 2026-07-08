@@ -39,6 +39,13 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // R8 keep rules for JNA/Vosk + gson reflection (see the .pro file):
+            // without them the shrinker renames fields those libs resolve by
+            // name at runtime, crashing hands-free start (2026-07-08).
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
