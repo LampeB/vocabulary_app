@@ -257,10 +257,14 @@ void main() {
     expect(await db.grammarProgressDao.get('u', 'particule-theme-eun-neun'),
         isNull);
     expect(await db.progressDao.getUnsyncedProgress(), isEmpty);
-    // The card went to the back of the queue (total grew by one slot).
+    // The card went to the back of the queue (internal total grew by one
+    // slot so it replays) — but the USER-FACING displayTotal must not grow
+    // ("I chose 10 words but ended up with 12", field report 2026-07-09).
     expect(sub.read().total, initialTotal + 1);
+    expect(sub.read().displayTotal, initialTotal);
     expect(sub.read().cards.last.progress.variantId,
         skipped.progress.variantId);
+    expect(sub.read().cards.last.isRequeue, isTrue);
     expect(sub.read().currentIndex, 1);
 
     // A second skip of the SAME card does not requeue again (no infinite

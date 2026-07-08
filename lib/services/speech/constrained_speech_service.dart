@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:vosk_flutter/vosk_flutter.dart';
 
+import '../../core/utils/answer_validator.dart';
 import '../../core/utils/stt_debug_log.dart';
 
 /// Grammar-constrained offline recognition (Vosk) for vocabulary hands-free.
@@ -39,6 +40,10 @@ class ConstrainedSpeechService {
   String? _recognizerLang;
   StreamSubscription<String>? _resultSub;
   StreamSubscription<String>? _partialSub;
+  // Active per-card callbacks — swapped on every startListening (the stream
+  // subscriptions outlive individual cards).
+  void Function(String text, double? minConfidence)? _onFinal;
+  void Function(String text)? _onPartial;
 
   bool _isListening = false;
   DateTime? _listenStart;
@@ -85,11 +90,42 @@ class ConstrainedSpeechService {
 
   /// The per-card grammar: normalized accepted answers plus [unk], which
   /// absorbs everything else (noise, wrong words, other speech).
+  /// Annotations are stripped ("café (boisson)" → "café") — the recognizer
+  /// can only ever hear the spoken form (field log 2026-07-09).
   static List<String> buildGrammar(List<String> acceptedAnswers) {
     final phrases = <String>{
-      for (final a in acceptedAnswers) a.trim().toLowerCase(),
+      for (final a in acceptedAnswers)
+        AnswerValidator.stripAnnotations(a).toLowerCase(),
     }..removeWhere((p) => p.isEmpty);
     return [...phrases, '[unk]'];
+  }
+
+  /// Parses a Vosk FINAL result: cleaned text plus the minimum word-level
+  /// confidence across non-[unk] words (null when the engine gave none).
+  /// Confidence is the false-accept gate: with a tiny grammar Vosk force-
+  /// maps almost any speech onto a grammar word (field log 2026-07-09 —
+  /// deliberately wrong answers were validated), but forced matches come
+  /// back with low conf while true matches sit near 1.0.
+  static ({String text, double? minConfidence})? parseFinal(String json) {
+    try {
+      final map = jsonDecode(json) as Map<String, dynamic>;
+      final text = parseText(json, partial: false);
+      if (text == null) return null;
+      double? minConf;
+      final words = map['result'];
+      if (words is List) {
+        for (final w in words) {
+          if (w is! Map || w['word'] == '[unk]') continue;
+          final conf = (w['conf'] as num?)?.toDouble();
+          if (conf != null && (minConf == null || conf < minConf)) {
+            minConf = conf;
+          }
+        }
+      }
+      return (text: text, minConfidence: minConf);
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Extracts usable text from a Vosk result/partial JSON payload.
@@ -108,11 +144,13 @@ class ConstrainedSpeechService {
   }
 
   /// Opens the mic with a grammar built from [acceptedAnswers].
-  /// [onFinal]/[onPartial] receive cleaned text (never empty, never [unk]).
+  /// [onFinal]/[onPartial] receive cleaned text (never empty, never [unk]);
+  /// [onFinal] also gets the minimum word confidence (null = engine gave
+  /// none) so the caller can gate forced grammar matches.
   Future<bool> startListening({
     required String langCode,
     required List<String> acceptedAnswers,
-    required void Function(String text) onFinal,
+    required void Function(String text, double? minConfidence) onFinal,
     void Function(String text)? onPartial,
   }) async {
     final model = _models[langCode];
@@ -123,6 +161,12 @@ class ConstrainedSpeechService {
     if (_isListening) await stopListening();
 
     final grammar = buildGrammar(acceptedAnswers);
+    // Callbacks live in fields, NOT in the stream subscriptions' closures:
+    // the subscriptions are created once per speech service, and a same-
+    // language card swap keeps them — a closure would deliver results to
+    // the FIRST card forever.
+    _onFinal = onFinal;
+    _onPartial = onPartial;
     try {
       if (_recognizer == null || _recognizerLang != langCode) {
         // The native plugin allows ONE SpeechService bound to ONE recognizer,
@@ -134,6 +178,8 @@ class ConstrainedSpeechService {
           sampleRate: _sampleRate,
           grammar: grammar,
         );
+        // Word-level confidences in final results — the false-accept gate.
+        await _recognizer!.setWords(words: true);
         _recognizerLang = langCode;
         sttLog('[VOSK] recognizer created lang=$langCode grammar=$grammar');
       } else {
@@ -144,14 +190,16 @@ class ConstrainedSpeechService {
       _speech ??= await _plugin!.initSpeechService(_recognizer!);
       _resultSub ??= _speech!.onResult().listen((json) {
         sttLog('[VOSK] result: $json  elapsed=${listenElapsedMs}ms');
-        final text = parseText(json, partial: false);
-        if (text != null && _isListening) onFinal(text);
+        final parsed = parseFinal(json);
+        if (parsed != null && _isListening) {
+          _onFinal?.call(parsed.text, parsed.minConfidence);
+        }
       });
       _partialSub ??= _speech!.onPartial().listen((json) {
         final text = parseText(json, partial: true);
         if (text != null && _isListening) {
           sttLog('[VOSK] partial: $json  elapsed=${listenElapsedMs}ms');
-          onPartial?.call(text);
+          _onPartial?.call(text);
         }
       });
 

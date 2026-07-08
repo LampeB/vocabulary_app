@@ -38,9 +38,14 @@ class QuizCard {
     required this.progress,
     required this.questionWord,
     required this.answerWords,
+    this.isRequeue = false,
   });
 
   final VariantProgress progress;
+
+  /// True for the queue-tail copy created by skipCurrentCard — excluded
+  /// from user-facing counts so skips don't inflate the session size.
+  final bool isRequeue;
 
   /// The word shown as the question (French or Korean depending on direction).
   final String questionWord;
@@ -151,9 +156,21 @@ class QuizState {
   QuizCard? get nextCard =>
       currentIndex + 1 < cards.length ? cards[currentIndex + 1] : null;
 
+  /// Internal queue length — drives advancement/completion. Requeued
+  /// copies (skipCurrentCard) count here so they actually replay.
   int get total => cards.length;
 
-  double get accuracy => total == 0 ? 0 : correctCount / total;
+  /// User-facing session size: requeued copies excluded, so skips don't
+  /// inflate it ("I chose 10 words but ended up with 12" + a progress bar
+  /// stalling against a growing denominator — field report 2026-07-09).
+  int get displayTotal => cards.where((c) => !c.isRequeue).length;
+
+  /// User-facing position, clamped: while replaying requeued copies past
+  /// the planned count it displays as total/total.
+  int get position =>
+      currentIndex + 1 > displayTotal ? displayTotal : currentIndex + 1;
+
+  double get accuracy => displayTotal == 0 ? 0 : correctCount / displayTotal;
 
   QuizState copyWith({
     List<QuizCard>? cards,
@@ -759,8 +776,17 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     if (card == null || state.answerState != QuizAnswerState.idle) return;
     final requeue = _requeuedOnce.add(card.progress.variantId);
     if (requeue) {
-      // total is cards.length, so the session naturally grows by one slot.
-      state = state.copyWith(cards: [...state.cards, card]);
+      // The copy is flagged: it replays (cards.length grows) but does not
+      // inflate the user-facing displayTotal.
+      state = state.copyWith(cards: [
+        ...state.cards,
+        QuizCard(
+          progress: card.progress,
+          questionWord: card.questionWord,
+          answerWords: card.answerWords,
+          isRequeue: true,
+        ),
+      ]);
     }
     _advance(isCorrect: false);
   }

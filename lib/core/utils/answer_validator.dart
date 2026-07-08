@@ -44,11 +44,27 @@ abstract final class AnswerValidator {
     return null;
   }
 
+  /// Removes disambiguation annotations from an accepted answer:
+  /// "café (boisson)" → "café". Spoken/typed answers never contain the
+  /// parenthetical, so scoring against the raw string only rejected
+  /// correct answers over and over (field log 2026-07-09: "café" vs
+  /// "café (boisson)" failed dozens of times in one session).
+  static String stripAnnotations(String s) => s
+      .replaceAll(RegExp(r'\([^)]*\)'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
   static ValidationResult validate({
     required String userAnswer,
     required List<String> acceptedAnswers,
     bool isDrivingMode = false,
   }) {
+    // Score against both the raw answers and their annotation-stripped
+    // forms; matching either counts.
+    acceptedAnswers = <String>{
+      ...acceptedAnswers,
+      for (final a in acceptedAnswers) stripAnnotations(a),
+    }.where((a) => a.trim().isNotEmpty).toList();
     sttLog('[VAL] validate: transcript="$userAnswer"  accepted=$acceptedAnswers  isDrivingMode=$isDrivingMode');
 
     if (userAnswer.trim().isEmpty) {

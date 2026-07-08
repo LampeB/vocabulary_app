@@ -104,4 +104,31 @@ void main() {
       expect(r.type, ValidationResultType.incorrect);
     });
   });
+
+  group('annotated answers (field bug 2026-07-09)', () {
+    // "café" spoken against stored answer "café (boisson)" was rejected
+    // dozens of times in one hands-free session — the parenthetical is a
+    // disambiguation note, never part of the spoken/typed answer.
+    test('spoken form matches an annotated accepted answer exactly', () {
+      final r = validate('café', ['café (boisson)']);
+      expect(r.isCorrect, isTrue);
+      expect(r.type, ValidationResultType.exact);
+    });
+
+    test('typing the full annotated string still matches', () {
+      final r = validate('café (boisson)', ['café (boisson)']);
+      expect(r.isCorrect, isTrue);
+    });
+
+    test('annotation does not open the door to wrong words', () {
+      final r = validate('vin', ['café (boisson)']);
+      expect(r.isCorrect, isFalse);
+    });
+
+    test('stripAnnotations collapses whitespace', () {
+      expect(AnswerValidator.stripAnnotations('café (boisson)'), 'café');
+      expect(AnswerValidator.stripAnnotations('avoir (posséder) qqch'),
+          'avoir qqch');
+    });
+  });
 }

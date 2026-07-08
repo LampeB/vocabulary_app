@@ -321,35 +321,39 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           .submitVoiceAnswer(text, isDrivingMode: true);
     }
 
+    // Below this, a grammar-forced match is treated as noise. True matches
+    // come back ~1.0; deliberately wrong words force-mapped onto the
+    // grammar word arrive with visibly lower conf (field log 2026-07-09:
+    // wrong-on-purpose answers were being validated).
+    const minAcceptConfidence = 0.85;
+
     final ok = await _vosk.startListening(
       langCode: langCode,
       acceptedAnswers: card.answerWords,
-      onFinal: (text) {
+      onFinal: (text, minConfidence) {
         if (!mounted || !sameCard()) return;
         if (ref.read(quizProvider).answerState != QuizAnswerState.idle) return;
+        if (minConfidence != null && minConfidence < minAcceptConfidence) {
+          sttLog('[HF][VOSK] ⚠️ "$text" rejected — conf=${minConfidence.toStringAsFixed(2)} < $minAcceptConfidence (forced match) — window stays open');
+          return;
+        }
         final correct = _firstCorrectCandidate([text], card);
         if (correct != null) {
-          accept(correct, via: 'final');
+          accept(correct, via: 'final conf=${minConfidence?.toStringAsFixed(2) ?? "n/a"}');
         } else {
           // Grammar-constrained text that still fails validation is residue
           // around [unk] — treat as unheard and keep the window open.
           sttLog('[HF][VOSK] non-matching text "$text" ignored — window stays open');
         }
       },
+      // Partials carry NO confidence, so they must never grade: the exact-
+      // partial short-circuit was the false-accept hole (wrong-on-purpose
+      // answers force-matched and instantly validated, 2026-07-09). Display
+      // only; the final result follows within ~0.5s of end of speech.
       onPartial: (text) {
         if (!mounted || !sameCard()) return;
         if (sessionToken == _listenToken) {
           ref.read(quizProvider.notifier).setPartialTranscript(text);
-        }
-        if (ref.read(quizProvider).answerState != QuizAnswerState.idle) return;
-        // Same rule as the system engine: only EXACT partials short-circuit.
-        final early = AnswerValidator.validate(
-          userAnswer: text,
-          acceptedAnswers: card.answerWords,
-          isDrivingMode: true,
-        );
-        if (early.isCorrect && early.type == ValidationResultType.exact) {
-          accept(text, via: '⚡ exact partial');
         }
       },
     );
@@ -802,7 +806,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (quizState.isComplete) {
       return _SummaryScreen(
         correct: quizState.correctCount,
-        total: quizState.total,
+        total: quizState.displayTotal,
         onDone: () => context.go('/home'),
         onRestart: () {
           ref.read(quizProvider.notifier).loadCards(widget.args);
@@ -914,8 +918,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         : (isDark ? AppColors.onDarkMuted : AppColors.muted);
 
     return StudyScaffold(
-      current: s.currentIndex + 1,
-      total: s.total,
+      current: s.position,
+      total: s.displayTotal,
       onQuit: _quit,
       showProgress: false,
       child: Stack(
@@ -1116,8 +1120,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final wordIsKorean = showBack ? isFrToKo : !isFrToKo;
 
     return StudyScaffold(
-      current: s.currentIndex + 1,
-      total: s.total,
+      current: s.position,
+      total: s.displayTotal,
       onQuit: _quit,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
@@ -1206,8 +1210,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
 
     return StudyScaffold(
-      current: s.currentIndex + 1,
-      total: s.total,
+      current: s.position,
+      total: s.displayTotal,
       onQuit: _quit,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
@@ -1291,8 +1295,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final kbOn = _voiceKbIndex == s.currentIndex;
 
     return StudyScaffold(
-      current: s.currentIndex + 1,
-      total: s.total,
+      current: s.position,
+      total: s.displayTotal,
       onQuit: _quit,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),

@@ -21,6 +21,46 @@ void main() {
     test('empty answers still yield a grammar with [unk] only', () {
       expect(ConstrainedSpeechService.buildGrammar([]), ['[unk]']);
     });
+
+    test('annotations are stripped — the recognizer can only hear the spoken form', () {
+      // Field bug 2026-07-09: grammar "café (boisson)" could never be
+      // recognized; the user's correct "café" was rejected all session.
+      expect(
+        ConstrainedSpeechService.buildGrammar(['café (boisson)']),
+        ['café', '[unk]'],
+      );
+    });
+  });
+
+  group('parseFinal (confidence gate)', () {
+    test('extracts text and min word confidence', () {
+      final r = ConstrainedSpeechService.parseFinal(
+          '{"result":[{"conf":0.62,"word":"차"}],"text":"차"}');
+      expect(r!.text, '차');
+      expect(r.minConfidence, 0.62);
+    });
+
+    test('[unk] words are excluded from the confidence floor', () {
+      final r = ConstrainedSpeechService.parseFinal(
+          '{"result":[{"conf":0.10,"word":"[unk]"},{"conf":0.95,"word":"차"}],"text":"[unk] 차"}');
+      expect(r!.text, '차');
+      expect(r.minConfidence, 0.95);
+    });
+
+    test('no result array → null confidence, text still parsed', () {
+      final r = ConstrainedSpeechService.parseFinal('{"text":"thé"}');
+      expect(r!.text, 'thé');
+      expect(r.minConfidence, isNull);
+    });
+
+    test('empty/pure-[unk] finals → null', () {
+      expect(ConstrainedSpeechService.parseFinal('{"text":""}'), isNull);
+      expect(
+        ConstrainedSpeechService.parseFinal(
+            '{"result":[{"conf":0.3,"word":"[unk]"}],"text":"[unk]"}'),
+        isNull,
+      );
+    });
   });
 
   group('parseText', () {
