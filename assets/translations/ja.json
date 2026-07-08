@@ -303,6 +303,7 @@
   "quiz.hf_not_heard": "聞き取れませんでした — もう一度",
   "quiz.hf_analyzing": "回答を分析中…",
   "quiz.hf_not_heard_retry": "聞き取れませんでした — もう一度どうぞ（{attempt}/{total}回目）",
+  "quiz.review_tail": "復習 {n}/{m}",
   "start_session.title": "新しいセッション",
   "start_session.title_grammar": "文法セッション",
   "start_session.start": "開始",

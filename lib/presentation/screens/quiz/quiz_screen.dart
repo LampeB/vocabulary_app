@@ -70,6 +70,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // Hands-free app-audio pickup guard: wrong results arriving implausibly
   // fast are discarded and the mic re-listens (max twice per card).
   int _noiseRetries = 0;
+  // Armed by the not-heard ladder for the LAST retry of a vocab card:
+  // that attempt runs on the constrained (Vosk) engine as a rescue.
+  bool _voskRescueAttempt = false;
   // Cards in a row that ended with zero usable speech. At 2 the session
   // auto-pauses (the room is too loud / mic broken) instead of skipping
   // through every card. Reset by any real recognition or manual resume.
@@ -262,8 +265,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   Future<void> _waitForSpeechThenListen(QuizCard card) async {
     final audio = ref.read(audioPlayerServiceProvider);
     final waitStart = DateTime.now();
-    // Give the provider's fire-and-forget speak() a beat to actually start.
-    await Future.delayed(const Duration(milliseconds: 300));
+    // Wait for TTS to actually START before waiting for it to end: speak()
+    // is fire-and-forget and a voice switch can delay its onset past any
+    // fixed grace — a fixed 300ms saw isSpeaking=false and opened the mic
+    // DURING the question ("fruit" card, field log 2026-07-09: earcon at
+    // :00.3, word finished at :02.1 — the start bip was masked by TTS).
+    final startDeadline =
+        DateTime.now().add(const Duration(milliseconds: 2500));
+    while (mounted &&
+        !audio.isSpeaking &&
+        DateTime.now().isBefore(startDeadline)) {
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
     final deadline = DateTime.now().add(const Duration(seconds: 8));
     while (mounted &&
         audio.isSpeaking &&
@@ -271,7 +284,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       await Future.delayed(const Duration(milliseconds: 100));
     }
     final speechWaitMs =
-        DateTime.now().difference(waitStart).inMilliseconds - 300;
+        DateTime.now().difference(waitStart).inMilliseconds;
     sttLog('[HF] waited ${speechWaitMs}ms for TTS to finish (isSpeaking=${audio.isSpeaking}) — starting 250ms echo tail');
     // Echo tail: let the room go quiet before the mic opens.
     await Future.delayed(const Duration(milliseconds: 250));
@@ -321,22 +334,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           .submitVoiceAnswer(text, isDrivingMode: true);
     }
 
-    // Below this, a grammar-forced match is treated as noise. True matches
-    // come back ~1.0; deliberately wrong words force-mapped onto the
-    // grammar word arrive with visibly lower conf (field log 2026-07-09:
-    // wrong-on-purpose answers were being validated).
-    const minAcceptConfidence = 0.85;
-
     final ok = await _vosk.startListening(
       langCode: langCode,
       acceptedAnswers: card.answerWords,
       onFinal: (text, minConfidence) {
         if (!mounted || !sameCard()) return;
         if (ref.read(quizProvider).answerState != QuizAnswerState.idle) return;
-        if (minConfidence != null && minConfidence < minAcceptConfidence) {
-          sttLog('[HF][VOSK] ⚠️ "$text" rejected — conf=${minConfidence.toStringAsFixed(2)} < $minAcceptConfidence (forced match) — window stays open');
-          return;
-        }
+        // Confidence is logged but NOT gated: Vosk grammar mode returns
+        // conf=1.00 for forced matches too (field log 2026-07-09), so it
+        // carries no signal. Rescue-only routing is the real safeguard.
         final correct = _firstCorrectCandidate([text], card);
         if (correct != null) {
           accept(correct, via: 'final conf=${minConfidence?.toStringAsFixed(2) ?? "n/a"}');
@@ -382,7 +388,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   void _notHeardLadder(int capturedToken, {required bool canRetry}) {
     if (canRetry && _notHeardRetries < 2) {
       _notHeardRetries++;
-      sttLog('[HF] 🔇 Pas entendu — re-listen #$_notHeardRetries');
+      // Last chance (attempt 3/3): hand the mic to the constrained engine —
+      // the system recognizer heard nothing twice, so a grammar-constrained
+      // catch attempt beats skipping the card. It can only accept, never
+      // fail (its conf is degenerate; wrong words map to [unk]).
+      _voskRescueAttempt = _notHeardRetries >= 2;
+      sttLog('[HF] 🔇 Pas entendu — re-listen #$_notHeardRetries${_voskRescueAttempt ? " (vosk rescue)" : ""}');
       setState(() {
         _hfNotHeard = true;
         _hfAnalyzing = false; // retry prompt outranks "analyse"
@@ -455,6 +466,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _notHeardRetries = 0;
       _noiseRetries = 0;
     }
+    if (!isRetry) _voskRescueAttempt = false;
     // Fresh listens reset the banner to "speak now"; retry listens KEEP the
     // "try x/3" prompt visible — it already reads "please repeat".
     if ((_hfNotHeard && !isRetry) || _hfAnalyzing) {
@@ -512,12 +524,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // once a new session (next card) has started.
     final sessionToken = _listenToken;
 
-    // Engine routing (ticket 2026-07-08): vocabulary hands-free prefers the
-    // constrained offline engine — a per-card grammar of accepted answers
-    // catches short words in noise where the system recognizer hears
-    // nothing. Grammar sessions (free-form sentences) and not-yet-downloaded
-    // models fall through to the system recognizer.
-    if (widget.args.mode == QuizMode.handsFree &&
+    // Engine routing, v2 (field verdict 2026-07-09): the system recognizer
+    // is PRIMARY — Vosk's grammar mode returns conf=1.00 for everything
+    // (can't tell right from wrong) and out-of-vocabulary words are
+    // unrecognizable, so constrained-as-primary both false-accepted and
+    // false-rejected. Vosk is now a RESCUE only: the LAST not-heard retry
+    // of a vocab card, where the system engine already heard nothing twice
+    // and a catch-the-short-word-in-noise attempt beats a skip.
+    if (_voskRescueAttempt &&
+        widget.args.mode == QuizMode.handsFree &&
         widget.args.source != QuizSource.grammar &&
         _vosk.isReady(langCode)) {
       final started = await _startVoskListening(card, langCode, sessionToken);
@@ -920,6 +935,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     return StudyScaffold(
       current: s.position,
       total: s.displayTotal,
+      counterOverride: s.inReviewTail
+          ? 'quiz.review_tail'.tr(namedArgs: {
+              'n': '${s.reviewPosition}',
+              'm': '${s.reviewTotal}',
+            })
+          : null,
       onQuit: _quit,
       showProgress: false,
       child: Stack(
@@ -1122,6 +1143,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     return StudyScaffold(
       current: s.position,
       total: s.displayTotal,
+      counterOverride: s.inReviewTail
+          ? 'quiz.review_tail'.tr(namedArgs: {
+              'n': '${s.reviewPosition}',
+              'm': '${s.reviewTotal}',
+            })
+          : null,
       onQuit: _quit,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
@@ -1212,6 +1239,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     return StudyScaffold(
       current: s.position,
       total: s.displayTotal,
+      counterOverride: s.inReviewTail
+          ? 'quiz.review_tail'.tr(namedArgs: {
+              'n': '${s.reviewPosition}',
+              'm': '${s.reviewTotal}',
+            })
+          : null,
       onQuit: _quit,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
@@ -1297,6 +1330,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     return StudyScaffold(
       current: s.position,
       total: s.displayTotal,
+      counterOverride: s.inReviewTail
+          ? 'quiz.review_tail'.tr(namedArgs: {
+              'n': '${s.reviewPosition}',
+              'm': '${s.reviewTotal}',
+            })
+          : null,
       onQuit: _quit,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),

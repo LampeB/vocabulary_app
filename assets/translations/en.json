@@ -303,6 +303,7 @@
   "quiz.hf_not_heard": "Didn't catch that — try again",
   "quiz.hf_analyzing": "Analyzing your answer…",
   "quiz.hf_not_heard_retry": "I didn't hear you clearly — try again ({attempt}/{total})",
+  "quiz.review_tail": "Review {n}/{m}",
   "start_session.title": "New session",
   "start_session.title_grammar": "Grammar session",
   "start_session.start": "Start",

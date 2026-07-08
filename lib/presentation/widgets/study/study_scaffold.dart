@@ -22,6 +22,7 @@ class StudyScaffold extends StatelessWidget {
     required this.onQuit,
     required this.child,
     this.showProgress = true,
+    this.counterOverride,
   });
 
   /// 1-based position of the current card.
@@ -40,13 +41,18 @@ class StudyScaffold extends StatelessWidget {
   /// off and centres the counter instead.
   final bool showProgress;
 
+  /// When non-null, replaces the numeric counter — used for the requeue
+  /// tail ("Rattrapage 1/2") so skipped-card replays don't read as a
+  /// frozen 10/10 (field report 2026-07-09).
+  final String? counterOverride;
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final isDark = cs.brightness == Brightness.dark;
     final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
 
-    final counter =
+    final counter = counterOverride ??
         '${current.toString().padLeft(2, '0')} / ${total.toString().padLeft(2, '0')}';
     final progress = total > 0 ? (current / total).clamp(0.0, 1.0) : 0.0;
 

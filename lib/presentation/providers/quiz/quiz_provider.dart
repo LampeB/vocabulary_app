@@ -172,6 +172,15 @@ class QuizState {
 
   double get accuracy => displayTotal == 0 ? 0 : correctCount / displayTotal;
 
+  /// True once the planned cards are done and requeued skips are replaying.
+  bool get inReviewTail => currentIndex + 1 > displayTotal;
+
+  /// 1-based position within the requeue tail (valid when [inReviewTail]).
+  int get reviewPosition => currentIndex + 1 - displayTotal;
+
+  /// Number of requeued cards in the tail.
+  int get reviewTotal => cards.length - displayTotal;
+
   QuizState copyWith({
     List<QuizCard>? cards,
     int? currentIndex,

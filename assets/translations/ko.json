@@ -303,6 +303,7 @@
   "quiz.hf_not_heard": "못 들었어요 — 다시 해보세요",
   "quiz.hf_analyzing": "답변 분석 중…",
   "quiz.hf_not_heard_retry": "잘 들리지 않았어요 — 다시 말해 주세요 ({attempt}/{total})",
+  "quiz.review_tail": "복습 {n}/{m}",
   "start_session.title": "새 세션",
   "start_session.title_grammar": "문법 세션",
   "start_session.start": "시작하기",
