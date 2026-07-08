@@ -17,8 +17,8 @@ import '../../../core/utils/stt_debug_log.dart';
 import '../../../core/utils/fsrs_algorithm.dart';
 import '../../../core/widget_keys.dart';
 import '../../../services/speech/speech_recognition_service.dart';
-import '../../../services/speech/constrained_speech_service.dart';
-import '../../providers/speech/constrained_speech_provider.dart';
+import '../../../services/speech/whisper_speech_service.dart';
+import '../../providers/speech/whisper_speech_provider.dart';
 import '../../../services/audio/sound_effects_service.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/vk_waveform.dart';
@@ -44,10 +44,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     with TickerProviderStateMixin {
   final _stt = SpeechRecognitionService();
   final _sfx = SoundEffectsService();
-  // Constrained (Vosk) engine — app-lifetime via provider; models are heavy.
-  // Initialized in initState: a lazy `late` here would first resolve in
-  // dispose(), where ref is no longer usable.
-  late final ConstrainedSpeechService _vosk;
+  // Whisper engine (own capture + own endpointing) — app-lifetime via
+  // provider; the model is heavy. Initialized in initState: a lazy `late`
+  // here would first resolve in dispose(), where ref is no longer usable.
+  late final WhisperSpeechService _whisper;
   final _answerCtrl = TextEditingController();
   // Guards against stale STT callbacks firing on a new card.
   // Incremented every time _startListening is called; onListeningDone
@@ -71,8 +71,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // fast are discarded and the mic re-listens (max twice per card).
   int _noiseRetries = 0;
   // Armed by the not-heard ladder for the LAST retry of a vocab card:
-  // that attempt runs on the constrained (Vosk) engine as a rescue.
-  bool _voskRescueAttempt = false;
+  // that attempt runs on the SYSTEM recognizer as a rescue — a second
+  // opinion with different failure modes than the Whisper primary.
+  bool _systemRescueAttempt = false;
   // Cards in a row that ended with zero usable speech. At 2 the session
   // auto-pauses (the room is too loud / mic broken) instead of skipping
   // through every card. Reset by any real recognition or manual resume.
@@ -88,7 +89,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   @override
   void initState() {
     super.initState();
-    _vosk = ref.read(constrainedSpeechProvider);
+    _whisper = ref.read(whisperSpeechProvider);
     _pulseCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1900));
     // Don't run the perpetual breathing pulse under test — it never settles.
@@ -105,8 +106,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           widget.args.source != QuizSource.grammar &&
           !SttSimulator.isOn &&
           !_kTestMode) {
-        unawaited(_vosk.ensureModel(widget.args.langA));
-        unawaited(_vosk.ensureModel(widget.args.langB));
+        unawaited(_whisper.ensureModel()); // one multilingual model
       }
       if (!SttSimulator.isOn) {
         final ok = await _stt.initialize();
@@ -244,7 +244,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _pulseCtrl.dispose();
     _listenBarCtrl.dispose();
     _stt.dispose();
-    unawaited(_vosk.stopListening());
+    unawaited(_whisper.stopListening());
     _sfx.dispose();
     _answerCtrl.dispose();
     super.dispose();
@@ -295,7 +295,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       // fresh. Never skip: skipping left cards without their own session.
       sttLog('[HF] stale session still open — stopping it before this card\'s listen');
       await _stt.stopListening();
-      await _vosk.stopListening();
+      await _whisper.stopListening();
       await Future.delayed(const Duration(milliseconds: 200));
       if (!mounted) return;
     }
@@ -310,70 +310,78 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// own recognizer chimes ("1 to 3 bips" per card, field log 2026-07-07).
   bool _listenStartInFlight = false;
 
-  /// Starts a constrained (Vosk) listen for [card]: the recognizer's grammar
-  /// is the card's accepted answers + [unk], so any recognized text IS an
-  /// accepted answer. Wrong words map to [unk] and keep the window open —
-  /// with this engine a card can only be answered correctly or requeued,
-  /// never voice-failed (wrong-answer detection is a ticketed follow-up).
+  /// Starts a Whisper listen for [card]: raw mic capture, our segmenter's
+  /// endpointing (pre-roll included), per-segment on-device transcription
+  /// in the card's answer language. Open vocabulary: correct answers grade
+  /// correct, real wrong words grade wrong, noise/hallucinations are
+  /// filtered in the service and never reach grading.
   /// Returns false if the engine could not start (caller falls back).
-  Future<bool> _startVoskListening(
+  Future<bool> _startWhisperListening(
       QuizCard card, String langCode, int sessionToken) async {
-    sttLog('[HF][VOSK] using constrained engine  langCode=$langCode  token=$sessionToken  answers=${card.answerWords}');
+    sttLog('[HF][WSP] using whisper engine  langCode=$langCode  token=$sessionToken  answers=${card.answerWords}');
 
     bool sameCard() =>
         ref.read(quizProvider).currentCard?.progress.variantId ==
         card.progress.variantId;
 
-    void accept(String text, {required String via}) {
-      sttLog('[HF][VOSK] ✅ accepted "$text" via $via');
-      unawaited(_vosk.stopListening());
-      _enterAnalyzing();
-      _consecutiveSilentCards = 0; // real speech reached us
-      ref
-          .read(quizProvider.notifier)
-          .submitVoiceAnswer(text, isDrivingMode: true);
-    }
-
-    final ok = await _vosk.startListening(
+    final ok = await _whisper.startListening(
       langCode: langCode,
-      acceptedAnswers: card.answerWords,
-      onFinal: (text, minConfidence) {
+      onFinal: (text, segmentMs) {
         if (!mounted || !sameCard()) return;
         if (ref.read(quizProvider).answerState != QuizAnswerState.idle) return;
-        // Confidence is logged but NOT gated: Vosk grammar mode returns
-        // conf=1.00 for forced matches too (field log 2026-07-09), so it
-        // carries no signal. Rescue-only routing is the real safeguard.
-        final correct = _firstCorrectCandidate([text], card);
-        if (correct != null) {
-          accept(correct, via: 'final conf=${minConfidence?.toStringAsFixed(2) ?? "n/a"}');
-        } else {
-          // Grammar-constrained text that still fails validation is residue
-          // around [unk] — treat as unheard and keep the window open.
-          sttLog('[HF][VOSK] non-matching text "$text" ignored — window stays open');
-        }
-      },
-      // Partials carry NO confidence, so they must never grade: the exact-
-      // partial short-circuit was the false-accept hole (wrong-on-purpose
-      // answers force-matched and instantly validated, 2026-07-09). Display
-      // only; the final result follows within ~0.5s of end of speech.
-      onPartial: (text) {
-        if (!mounted || !sameCard()) return;
+        // Show what was heard (there are no streaming partials — the
+        // transcript IS the display).
         if (sessionToken == _listenToken) {
           ref.read(quizProvider.notifier).setPartialTranscript(text);
         }
+        final correct = _firstCorrectCandidate([text], card);
+        if (correct != null) {
+          sttLog('[HF][WSP] ✅ accepted "$text" (${segmentMs}ms segment)');
+          unawaited(_whisper.stopListening());
+          _enterAnalyzing();
+          _consecutiveSilentCards = 0; // real speech reached us
+          ref
+              .read(quizProvider.notifier)
+              .submitVoiceAnswer(correct, isDrivingMode: true);
+          return;
+        }
+        // Open vocabulary: a clean transcript that fails validation is a
+        // REAL wrong answer — grade it (unlike Vosk, where non-matches were
+        // [unk] residue). Same-session gate: only the live window may fail
+        // the card. Single-char junk is treated as noise, not an answer.
+        if (sessionToken != _listenToken) {
+          sttLog('[HF][WSP] wrong transcript from stale window — discarded');
+          return;
+        }
+        if (text.length < 2) {
+          sttLog('[HF][WSP] 1-char transcript "$text" ignored as noise');
+          return;
+        }
+        sttLog('[HF][WSP] ❌ wrong answer "$text" — grading');
+        unawaited(_whisper.stopListening());
+        _enterAnalyzing();
+        _consecutiveSilentCards = 0;
+        ref
+            .read(quizProvider.notifier)
+            .submitVoiceAnswer(text, isDrivingMode: true);
       },
     );
     if (!ok) return false;
 
-    // The constrained engine has no OS endpointing killing the session — WE
-    // own the window. Mirror the listen bar: 10s, then the shared ladder.
+    // WE own the window (no OS endpointing): 10s, mirroring the countdown
+    // bar, then the shared not-heard ladder. Extra grace when a segment is
+    // still being transcribed at expiry is covered by the 1s re-check.
     Future.delayed(const Duration(seconds: 10), () async {
       if (!mounted || sessionToken != _listenToken) return;
-      if (!_vosk.isListening) return;
+      if (!_whisper.isListening) return;
       if (ref.read(quizProvider).answerState != QuizAnswerState.idle) return;
-      sttLog('[HF][VOSK] window expired with no accepted answer');
-      await _vosk.stopListening();
+      sttLog('[HF][WSP] window expired with no accepted answer');
+      await _whisper.stopListening(keepPendingTranscripts: true);
+      // A segment captured near the deadline may still be in inference —
+      // give it a beat before declaring "not heard".
+      await Future.delayed(const Duration(milliseconds: 1000));
       if (!mounted || sessionToken != _listenToken) return;
+      if (ref.read(quizProvider).answerState != QuizAnswerState.idle) return;
       ref.read(quizProvider.notifier).setListening(false);
       _notHeardLadder(sessionToken, canRetry: true);
     });
@@ -388,12 +396,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   void _notHeardLadder(int capturedToken, {required bool canRetry}) {
     if (canRetry && _notHeardRetries < 2) {
       _notHeardRetries++;
-      // Last chance (attempt 3/3): hand the mic to the constrained engine —
-      // the system recognizer heard nothing twice, so a grammar-constrained
-      // catch attempt beats skipping the card. It can only accept, never
-      // fail (its conf is degenerate; wrong words map to [unk]).
-      _voskRescueAttempt = _notHeardRetries >= 2;
-      sttLog('[HF] 🔇 Pas entendu — re-listen #$_notHeardRetries${_voskRescueAttempt ? " (vosk rescue)" : ""}');
+      // Last chance (attempt 3/3): hand the mic to the system recognizer —
+      // Whisper heard nothing twice, so a different engine's ears beat
+      // skipping the card outright.
+      _systemRescueAttempt = _notHeardRetries >= 2;
+      sttLog('[HF] 🔇 Pas entendu — re-listen #$_notHeardRetries${_systemRescueAttempt ? " (system rescue)" : ""}');
       setState(() {
         _hfNotHeard = true;
         _hfAnalyzing = false; // retry prompt outranks "analyse"
@@ -419,7 +426,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       // instead of burning through the whole session.
       sttLog('[HF] 🔇🔇 $_consecutiveSilentCards consecutive silent cards — auto-pausing session');
       _stt.stopListening();
-      unawaited(_vosk.stopListening());
+      unawaited(_whisper.stopListening());
       ref.read(quizProvider.notifier).setListening(false);
       setState(() {
         _hfAutoPausedSilence = true;
@@ -466,7 +473,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _notHeardRetries = 0;
       _noiseRetries = 0;
     }
-    if (!isRetry) _voskRescueAttempt = false;
+    if (!isRetry) _systemRescueAttempt = false;
     // Fresh listens reset the banner to "speak now"; retry listens KEEP the
     // "try x/3" prompt visible — it already reads "please repeat".
     if ((_hfNotHeard && !isRetry) || _hfAnalyzing) {
@@ -524,20 +531,20 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // once a new session (next card) has started.
     final sessionToken = _listenToken;
 
-    // Engine routing, v2 (field verdict 2026-07-09): the system recognizer
-    // is PRIMARY — Vosk's grammar mode returns conf=1.00 for everything
-    // (can't tell right from wrong) and out-of-vocabulary words are
-    // unrecognizable, so constrained-as-primary both false-accepted and
-    // false-rejected. Vosk is now a RESCUE only: the LAST not-heard retry
-    // of a vocab card, where the system engine already heard nothing twice
-    // and a catch-the-short-word-in-noise attempt beats a skip.
-    if (_voskRescueAttempt &&
+    // Engine routing, v3 (user decision 2026-07-09): Whisper is PRIMARY for
+    // vocab hands-free — our capture, our endpointing, one multilingual
+    // model, identical behavior on every device. The system recognizer
+    // remains for grammar sessions (long sentences, streaming partials),
+    // as the rescue attempt when Whisper hears nothing twice, and as the
+    // fallback while the model downloads.
+    if (!_systemRescueAttempt &&
         widget.args.mode == QuizMode.handsFree &&
         widget.args.source != QuizSource.grammar &&
-        _vosk.isReady(langCode)) {
-      final started = await _startVoskListening(card, langCode, sessionToken);
+        _whisper.isReady) {
+      final started =
+          await _startWhisperListening(card, langCode, sessionToken);
       if (started) return;
-      sttLog('[HF] constrained engine failed to start — falling back to system STT');
+      sttLog('[HF] whisper failed to start — falling back to system STT');
     }
 
     sttLog('[HF] Calling stt.startListening  langCode=$langCode  token=$sessionToken');
@@ -755,10 +762,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           // grades it against the old card (field log 2026-07-06 — "mouton"
           // spoken by the app's own voice failed the 양 card).
           _listenToken++;
-          if (_stt.isListening || _vosk.isListening) {
+          if (_stt.isListening || _whisper.isListening) {
             sttLog('[HF] stopping stale listen session from previous card');
             unawaited(_stt.stopListening());
-            unawaited(_vosk.stopListening());
+            unawaited(_whisper.stopListening());
           }
           // New card = back to the reading phase; don't let the previous
           // card's "analyse" banner linger over the new word.
@@ -856,7 +863,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     });
     if (_hfPaused) {
       _stt.stopListening();
-      unawaited(_vosk.stopListening());
+      unawaited(_whisper.stopListening());
       ref.read(quizProvider.notifier).setListening(false);
       unawaited(ref.read(audioPlayerServiceProvider).stop());
     } else {
@@ -882,7 +889,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // A deliberate skip is not a wrong answer: nothing is graded, the card
     // returns later in the session.
     _stt.stopListening();
-    unawaited(_vosk.stopListening());
+    unawaited(_whisper.stopListening());
     ref.read(quizProvider.notifier).skipCurrentCard();
   }
 
@@ -1097,7 +1104,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   void _quit() {
     _stt.stopListening();
-    unawaited(_vosk.stopListening());
+    unawaited(_whisper.stopListening());
     ref.read(quizProvider.notifier).setListening(false);
     context.go('/home');
   }
