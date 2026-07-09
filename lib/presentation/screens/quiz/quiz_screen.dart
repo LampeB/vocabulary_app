@@ -78,6 +78,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // Consecutive low-score (clearly-wrong) transcripts on the current card —
   // grading wrong requires two (garbage-transcription protection).
   int _lowScoreStrikes = 0;
+  // A borderline transcript was seen on this card: probably a garbled
+  // CORRECT answer — strikes may not grade the card wrong anymore.
+  bool _sawBorderline = false;
   // Armed by the not-heard ladder for the LAST retry of a vocab card:
   // that attempt runs on the SYSTEM recognizer as a rescue — a second
   // opinion with different failure modes than the Whisper primary.
@@ -280,8 +283,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // 2026-07-10: 'fruit' truncated mid-word). Up to 3 cycles of
     // [wait-for-start → wait-for-end]; a cycle with no new speech ends it.
     for (var cycle = 0; cycle < 3; cycle++) {
-      final startDeadline =
-          DateTime.now().add(const Duration(milliseconds: 2500));
+      // First cycle waits generously for the question TTS to spin up; the
+      // follow-up checks are just "did another utterance queue behind it?"
+      // — a full 2.5s there added dead air to EVERY card (waited ~4s while
+      // speech ended ~1.5s in — field log 2026-07-10 01:20).
+      final startDeadline = DateTime.now()
+          .add(Duration(milliseconds: cycle == 0 ? 2500 : 400));
       while (mounted &&
           !audio.isSpeaking &&
           DateTime.now().isBefore(startDeadline)) {
@@ -405,7 +412,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           sttLog('[HF][WSP] wrong transcript from stale window — discarded');
           return;
         }
-        if (text.length < 2 || text.split(' ').length > 3) {
+        // Junk-length is ANSWER-RELATIVE: Korean single-syllable answers
+        // ("밥") are one character — a fixed <2 gate made those cards
+        // unanswerable (field log 2026-07-10 01:21).
+        final minAnswerLen = card.answerWords
+            .map((a) => AnswerValidator.stripAnnotations(a).length)
+            .fold<int>(99, (m, l) => l < m ? l : m);
+        if (text.length < (minAnswerLen <= 1 ? 1 : 2) ||
+            text.split(' ').length > 3) {
           sttLog('[HF][WSP] junk-length transcript "$text" — asking to repeat');
           promptRepeat('junk length');
           return;
@@ -416,6 +430,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           isDrivingMode: true,
         );
         if (v.score >= 0.35) {
+          // Borderline = evidence the user is probably RIGHT but garbled by
+          // transcription. Shield the card: strikes can no longer grade it
+          // wrong (field log 2026-07-10: "mauvais" → Mauvi 0.60 borderline,
+          // then two garbles → strike-2 failed a correct answer).
+          _sawBorderline = true;
           sttLog('[HF][WSP] borderline "$text" (score=${v.score.toStringAsFixed(2)}) — likely mis-heard correct answer, asking to repeat');
           promptRepeat('borderline ${v.score.toStringAsFixed(2)}');
           return;
@@ -426,9 +445,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         // strike asks to repeat; only a second consecutive low-score
         // transcript grades wrong.
         _lowScoreStrikes++;
-        if (_lowScoreStrikes < 2) {
-          sttLog('[HF][WSP] ⚠️ low-score "$text" (${v.score.toStringAsFixed(2)}) — strike 1, asking to repeat');
-          promptRepeat('low-score strike 1');
+        if (_lowScoreStrikes < 2 || _sawBorderline) {
+          sttLog('[HF][WSP] ⚠️ low-score "$text" (${v.score.toStringAsFixed(2)}) — strike $_lowScoreStrikes${_sawBorderline ? " (borderline shield)" : ""}, asking to repeat');
+          promptRepeat('low-score strike $_lowScoreStrikes');
           return;
         }
         sttLog('[HF][WSP] ❌ wrong answer "$text" (score=${v.score.toStringAsFixed(2)}, strike 2) — grading');
@@ -551,6 +570,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _systemRescueAttempt = false;
       _misheardRetries = 0;
       _lowScoreStrikes = 0;
+      _sawBorderline = false;
     }
     // Fresh listens reset the banner to "speak now"; retry listens KEEP the
     // "try x/3" / "répète" prompts visible — they already say what to do.

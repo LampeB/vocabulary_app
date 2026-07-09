@@ -175,7 +175,9 @@ class SettingsScreen extends ConsumerWidget {
                       ],
                       // Acceptance threshold for spoken answers: lower =
                       // more forgiving of recognition near-misses.
-                      values: const [0.65, 0.75, 0.85],
+                      // Souple 0.55: near-misses like "Mauvi" for
+                      // "mauvais" score ~0.60 — 0.65 still bounced them.
+                      values: const [0.55, 0.75, 0.85],
                       current: audioSettings.voiceStrictness,
                       onSelect: (v) => ref
                           .read(audioSettingsProvider.notifier)
