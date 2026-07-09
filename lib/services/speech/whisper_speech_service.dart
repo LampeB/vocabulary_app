@@ -24,11 +24,11 @@ import '../../core/utils/wav_writer.dart';
 class WhisperSpeechService {
   WhisperSpeechService();
 
-  /// ggml-tiny multilingual (~75MB): base transcribed a 2s segment in
-  /// 5.6-6.8s on a Galaxy S22 Ultra (field log 2026-07-09) — verdicts
-  /// landed during the NEXT card. Tiny is ~5x faster; accuracy on short
-  /// quiz words is evaluated from the same logs.
-  static const _model = WhisperModel.tiny;
+  /// ggml-base multilingual (~142MB): tiny's French on short words was
+  /// garbage ("pomme" → "Bonne", field log 2026-07-10); base was accurate
+  /// but slow — until the vendored audio_ctx patch, which cuts the fixed
+  /// 30s encoder window down to the actual clip length.
+  static const _model = WhisperModel.base;
   static const _sampleRate = 16000;
 
   Whisper? _whisper;

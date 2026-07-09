@@ -105,7 +105,11 @@ dependencies:
 
   # Fonts
   google_fonts: ^6.2.1
-  whisper_flutter_new: ^1.0.1
+  # Vendored (packages/): patched native inference — audio_ctx scaled to
+  # clip length; upstream always paid the full 30s encoder window (~6s per
+  # answer on-device, field logs 2026-07-09/10).
+  whisper_flutter_new:
+    path: packages/whisper_flutter_new
 
 dev_dependencies:
   flutter_test:
