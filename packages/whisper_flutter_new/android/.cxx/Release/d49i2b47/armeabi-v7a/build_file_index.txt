@@ -1,1 +1,0 @@
-/home/thomas/vocabulary_app/packages/whisper_flutter_new/src/CMakeLists.txt

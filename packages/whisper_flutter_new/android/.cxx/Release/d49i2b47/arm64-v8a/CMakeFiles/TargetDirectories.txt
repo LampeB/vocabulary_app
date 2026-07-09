@@ -1,4 +1,0 @@
-/home/thomas/vocabulary_app/packages/whisper_flutter_new/android/.cxx/Release/d49i2b47/arm64-v8a/CMakeFiles/whisper_flutter.dir
-/home/thomas/vocabulary_app/packages/whisper_flutter_new/android/.cxx/Release/d49i2b47/arm64-v8a/CMakeFiles/whisper.dir
-/home/thomas/vocabulary_app/packages/whisper_flutter_new/android/.cxx/Release/d49i2b47/arm64-v8a/CMakeFiles/edit_cache.dir
-/home/thomas/vocabulary_app/packages/whisper_flutter_new/android/.cxx/Release/d49i2b47/arm64-v8a/CMakeFiles/rebuild_cache.dir
