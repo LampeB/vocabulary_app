@@ -198,7 +198,11 @@ json transcribe(json jsonBody) noexcept
             const float clip_seconds = float(pcmf32.size()) / WHISPER_SAMPLE_RATE;
             const int full_ctx = 1500; // encoder frames for the 30s window
             int audio_ctx = int(clip_seconds / 30.0f * full_ctx) + 128;
-            if (audio_ctx < 256) audio_ctx = 256;
+            // Floor raised 256 → 512: at 256 short-word accuracy degraded
+            // noticeably ("thé"→"T", "생선"→"섽선" — field 2026-07-10);
+            // 512 keeps ~3x the speed of the full window while restoring
+            // most of the encoder's discrimination.
+            if (audio_ctx < 512) audio_ctx = 512;
             if (audio_ctx > full_ctx) audio_ctx = full_ctx;
             wparams.audio_ctx = audio_ctx;
         }
