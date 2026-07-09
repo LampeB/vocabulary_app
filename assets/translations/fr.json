@@ -302,6 +302,7 @@
   "quiz.hf_resume_hint": "Touche pour reprendre",
   "quiz.hf_not_heard": "Je n'ai pas entendu — réessaie",
   "quiz.hf_analyzing": "Analyse de la réponse…",
+  "quiz.hf_misheard": "Je n'ai pas bien compris — répète",
   "quiz.hf_not_heard_retry": "Je ne t'ai pas bien entendu — répète (essai {attempt}/{total})",
   "quiz.review_tail": "Rattrapage {n}/{m}",
   "start_session.title": "Nouvelle session",

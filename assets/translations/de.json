@@ -302,6 +302,7 @@
   "quiz.hf_resume_hint": "Zum Fortsetzen tippen",
   "quiz.hf_not_heard": "Nicht gehört — versuch es nochmal",
   "quiz.hf_analyzing": "Antwort wird ausgewertet…",
+  "quiz.hf_misheard": "Das habe ich nicht verstanden — sag es nochmal",
   "quiz.hf_not_heard_retry": "Ich habe dich nicht gut verstanden — versuch es nochmal ({attempt}/{total})",
   "quiz.review_tail": "Wiederholung {n}/{m}",
   "start_session.title": "Neue Sitzung",

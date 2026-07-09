@@ -70,6 +70,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // Hands-free app-audio pickup guard: wrong results arriving implausibly
   // fast are discarded and the mic re-listens (max twice per card).
   int _noiseRetries = 0;
+  // Hands-free "je n'ai pas compris" prompt: a captured utterance came
+  // back as junk/borderline — the mic reopens and the user should repeat.
+  // Distinct from not-heard (which means NO speech was captured at all).
+  bool _hfMisheard = false;
+  int _misheardRetries = 0;
   // Armed by the not-heard ladder for the LAST retry of a vocab card:
   // that attempt runs on the SYSTEM recognizer as a rescue — a second
   // opinion with different failure modes than the Whisper primary.
@@ -324,8 +329,39 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         ref.read(quizProvider).currentCard?.progress.variantId ==
         card.progress.variantId;
 
+    // Junk/borderline transcripts reopen the attempt with an explicit
+    // "répète" prompt — silently staying in listening was indistinguishable
+    // from "didn't hear you" (user report 2026-07-10). Capped so a noisy
+    // loop degrades into the regular not-heard ladder.
+    void promptRepeat(String why) {
+      if (!mounted || sessionToken != _listenToken) return;
+      if (_misheardRetries >= 3) {
+        sttLog('[HF][WSP] mishears exhausted — handing to not-heard ladder');
+        unawaited(_whisper.stopListening());
+        ref.read(quizProvider.notifier).setListening(false);
+        _notHeardLadder(sessionToken, canRetry: true);
+        return;
+      }
+      _misheardRetries++;
+      sttLog('[HF][WSP] 🔁 repeat prompt #$_misheardRetries ($why)');
+      setState(() {
+        _hfAnalyzing = false;
+        _hfMisheard = true;
+      });
+      if (!_kTestMode) {
+        unawaited(_sfx.playListenCue()); // mic is live again — your turn
+        HapticFeedback.selectionClick();
+      }
+      _listenBarCtrl
+        ..reset()
+        ..forward();
+    }
+
     final ok = await _whisper.startListening(
       langCode: langCode,
+      // The utterance is captured and inference is running: low tick +
+      // pulsing "Analyse…" — the moment the user can stop talking.
+      onSegment: _enterAnalyzing,
       onFinal: (text, segmentMs) {
         if (!mounted || !sameCard()) return;
         if (ref.read(quizProvider).answerState != QuizAnswerState.idle) return;
@@ -359,7 +395,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           return;
         }
         if (text.length < 2 || text.split(' ').length > 3) {
-          sttLog('[HF][WSP] junk-length transcript "$text" ignored as noise');
+          sttLog('[HF][WSP] junk-length transcript "$text" — asking to repeat');
+          promptRepeat('junk length');
           return;
         }
         final v = AnswerValidator.validate(
@@ -368,7 +405,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           isDrivingMode: true,
         );
         if (v.score >= 0.35) {
-          sttLog('[HF][WSP] borderline "$text" (score=${v.score.toStringAsFixed(2)}) — likely mis-heard correct answer, window stays open');
+          sttLog('[HF][WSP] borderline "$text" (score=${v.score.toStringAsFixed(2)}) — likely mis-heard correct answer, asking to repeat');
+          promptRepeat('borderline ${v.score.toStringAsFixed(2)}');
           return;
         }
         sttLog('[HF][WSP] ❌ wrong answer "$text" (score=${v.score.toStringAsFixed(2)}) — grading');
@@ -487,12 +525,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _notHeardRetries = 0;
       _noiseRetries = 0;
     }
-    if (!isRetry) _systemRescueAttempt = false;
+    if (!isRetry) {
+      _systemRescueAttempt = false;
+      _misheardRetries = 0;
+    }
     // Fresh listens reset the banner to "speak now"; retry listens KEEP the
-    // "try x/3" prompt visible — it already reads "please repeat".
-    if ((_hfNotHeard && !isRetry) || _hfAnalyzing) {
+    // "try x/3" / "répète" prompts visible — they already say what to do.
+    if ((_hfNotHeard && !isRetry) || (_hfMisheard && !isRetry) || _hfAnalyzing) {
       setState(() {
         _hfNotHeard = _hfNotHeard && isRetry;
+        _hfMisheard = _hfMisheard && isRetry;
         _hfAnalyzing = false;
       });
     }
@@ -783,10 +825,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           }
           // New card = back to the reading phase; don't let the previous
           // card's "analyse" banner linger over the new word.
-          if (_hfAnalyzing || _hfNotHeard) {
+          if (_hfAnalyzing || _hfNotHeard || _hfMisheard) {
             setState(() {
               _hfAnalyzing = false;
               _hfNotHeard = false;
+              _hfMisheard = false;
             });
           }
           unawaited(_waitForSpeechThenListen(card));
@@ -939,7 +982,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         ? null
         : (_hfAnalyzing
             ? 'quiz.hf_analyzing'.tr()
-            : (_hfNotHeard
+            : (_hfMisheard
+                ? 'quiz.hf_misheard'.tr()
+                : (_hfNotHeard
                 ? 'quiz.hf_not_heard_retry'.tr(namedArgs: {
                     'attempt': '${_notHeardRetries + 1}',
                     'total': '3',
@@ -948,7 +993,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                     ? 'quiz.say_in_lang'.tr(namedArgs: {
                         'lang': 'lang.${_answerLangCode(card)}'.tr()
                       })
-                    : 'quiz.hf_reading'.tr())));
+                    : 'quiz.hf_reading'.tr()))));
     final cueColor = listening && !_hfAnalyzing
         ? (isDark ? AppColors.clayLight : AppColors.clayDeep)
         : (isDark ? AppColors.onDarkMuted : AppColors.muted);

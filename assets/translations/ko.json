@@ -302,6 +302,7 @@
   "quiz.hf_resume_hint": "탭하여 계속",
   "quiz.hf_not_heard": "못 들었어요 — 다시 해보세요",
   "quiz.hf_analyzing": "답변 분석 중…",
+  "quiz.hf_misheard": "잘 알아듣지 못했어요 — 다시 말해 주세요",
   "quiz.hf_not_heard_retry": "잘 들리지 않았어요 — 다시 말해 주세요 ({attempt}/{total})",
   "quiz.review_tail": "복습 {n}/{m}",
   "start_session.title": "새 세션",

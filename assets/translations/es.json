@@ -302,6 +302,7 @@
   "quiz.hf_resume_hint": "Toca para reanudar",
   "quiz.hf_not_heard": "No te oí — inténtalo de nuevo",
   "quiz.hf_analyzing": "Analizando la respuesta…",
+  "quiz.hf_misheard": "No te he entendido bien — repítelo",
   "quiz.hf_not_heard_retry": "No te he oído bien — repite (intento {attempt}/{total})",
   "quiz.review_tail": "Repaso {n}/{m}",
   "start_session.title": "Nueva sesión",

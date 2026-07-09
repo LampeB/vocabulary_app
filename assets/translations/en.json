@@ -302,6 +302,7 @@
   "quiz.hf_resume_hint": "Tap to resume",
   "quiz.hf_not_heard": "Didn't catch that — try again",
   "quiz.hf_analyzing": "Analyzing your answer…",
+  "quiz.hf_misheard": "I didn't quite get that — say it again",
   "quiz.hf_not_heard_retry": "I didn't hear you clearly — try again ({attempt}/{total})",
   "quiz.review_tail": "Review {n}/{m}",
   "start_session.title": "New session",

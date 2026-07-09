@@ -46,6 +46,7 @@ class WhisperSpeechService {
   // Active per-window callbacks (swapped on every startListening).
   void Function(String text, int segmentMs)? _onFinal;
   void Function()? _onSpeechStart;
+  void Function()? _onSegment;
 
   bool get isReady => _modelReady;
   bool get isListening => _isListening;
@@ -135,6 +136,7 @@ class WhisperSpeechService {
     required String langCode,
     required void Function(String text, int segmentMs) onFinal,
     void Function()? onSpeechStart,
+    void Function()? onSegment,
   }) async {
     if (!_modelReady) {
       sttLog('[WSP] startListening skipped — model not ready');
@@ -144,6 +146,7 @@ class WhisperSpeechService {
 
     _onFinal = onFinal;
     _onSpeechStart = onSpeechStart;
+    _onSegment = onSegment;
     final windowSerial = ++_inferenceSerial;
 
     try {
@@ -174,6 +177,7 @@ class WhisperSpeechService {
         }
         for (final s in segments) {
           sttLog('[WSP] segment complete: ${s.durationMs}ms  peak=${s.peakRms.toStringAsFixed(0)}');
+          _onSegment?.call(); // utterance captured — inference starting
           _enqueueInference(s, langCode, windowSerial);
         }
       });
