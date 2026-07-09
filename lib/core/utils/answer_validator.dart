@@ -59,11 +59,14 @@ abstract final class AnswerValidator {
     required List<String> acceptedAnswers,
     bool isDrivingMode = false,
   }) {
-    // Score against both the raw answers and their annotation-stripped
-    // forms; matching either counts.
+    // Expand the accepted answers before scoring; matching ANY form counts:
+    //  - annotation-stripped: "café (boisson)" → "café"
+    //  - slash-alternatives:  "riz / repas"    → "riz", "repas"
     acceptedAnswers = <String>{
       ...acceptedAnswers,
       for (final a in acceptedAnswers) stripAnnotations(a),
+      for (final a in acceptedAnswers)
+        ...a.split('/').map((p) => stripAnnotations(p)),
     }.where((a) => a.trim().isNotEmpty).toList();
     sttLog('[VAL] validate: transcript="$userAnswer"  accepted=$acceptedAnswers  isDrivingMode=$isDrivingMode');
 

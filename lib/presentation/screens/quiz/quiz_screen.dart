@@ -270,27 +270,31 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   Future<void> _waitForSpeechThenListen(QuizCard card) async {
     final audio = ref.read(audioPlayerServiceProvider);
     final waitStart = DateTime.now();
-    // Wait for TTS to actually START before waiting for it to end: speak()
-    // is fire-and-forget and a voice switch can delay its onset past any
-    // fixed grace — a fixed 300ms saw isSpeaking=false and opened the mic
-    // DURING the question ("fruit" card, field log 2026-07-09: earcon at
-    // :00.3, word finished at :02.1 — the start bip was masked by TTS).
-    final startDeadline =
-        DateTime.now().add(const Duration(milliseconds: 2500));
-    while (mounted &&
-        !audio.isSpeaking &&
-        DateTime.now().isBefore(startDeadline)) {
-      await Future.delayed(const Duration(milliseconds: 50));
-    }
-    final deadline = DateTime.now().add(const Duration(seconds: 8));
-    while (mounted &&
-        audio.isSpeaking &&
-        DateTime.now().isBefore(deadline)) {
-      await Future.delayed(const Duration(milliseconds: 100));
+    // Speech at a card boundary is a CHAIN, not one utterance: the previous
+    // card's correction replay may still be playing with the question queued
+    // behind it (_speakWhenQuiet). A single start→end wait latched onto the
+    // replay and the mic path's audio-stop CUT OFF the question (field log
+    // 2026-07-10: 'fruit' truncated mid-word). Up to 3 cycles of
+    // [wait-for-start → wait-for-end]; a cycle with no new speech ends it.
+    for (var cycle = 0; cycle < 3; cycle++) {
+      final startDeadline =
+          DateTime.now().add(const Duration(milliseconds: 2500));
+      while (mounted &&
+          !audio.isSpeaking &&
+          DateTime.now().isBefore(startDeadline)) {
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
+      if (!audio.isSpeaking) break; // chain over — nothing new started
+      final deadline = DateTime.now().add(const Duration(seconds: 8));
+      while (mounted &&
+          audio.isSpeaking &&
+          DateTime.now().isBefore(deadline)) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
     }
     final speechWaitMs =
         DateTime.now().difference(waitStart).inMilliseconds;
-    sttLog('[HF] waited ${speechWaitMs}ms for TTS to finish (isSpeaking=${audio.isSpeaking}) — starting 250ms echo tail');
+    sttLog('[HF] waited ${speechWaitMs}ms for TTS chain (isSpeaking=${audio.isSpeaking}) — starting 250ms echo tail');
     // Echo tail: let the room go quiet before the mic opens.
     await Future.delayed(const Duration(milliseconds: 250));
     if (!mounted) return;
@@ -359,6 +363,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
     final ok = await _whisper.startListening(
       langCode: langCode,
+      promptHints: card.answerWords,
       // The utterance is captured and inference is running: low tick +
       // pulsing "Analyse…" — the moment the user can stop talking.
       onSegment: _enterAnalyzing,

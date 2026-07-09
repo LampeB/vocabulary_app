@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:whisper_flutter_new/whisper_flutter_new.dart';
 
+import '../../core/utils/answer_validator.dart';
 import '../../core/utils/pcm_segmenter.dart';
 import '../../core/utils/stt_debug_log.dart';
 import '../../core/utils/wav_writer.dart';
@@ -47,6 +48,7 @@ class WhisperSpeechService {
   void Function(String text, int segmentMs)? _onFinal;
   void Function()? _onSpeechStart;
   void Function()? _onSegment;
+  String _promptHints = '';
 
   bool get isReady => _modelReady;
   bool get isListening => _isListening;
@@ -132,11 +134,15 @@ class WhisperSpeechService {
   /// Opens the mic and transcribes each detected utterance in [langCode].
   /// [onFinal] receives cleaned non-empty transcripts; [onSpeechStart]
   /// fires when the segmenter detects speech onset (UI feedback).
+  /// [promptHints]: expected answers used as decoder-bias context —
+  /// dramatically improves short-word transcription ("thé" → "T" without
+  /// it, field 2026-07-10). Annotations/slashes are cleaned here.
   Future<bool> startListening({
     required String langCode,
     required void Function(String text, int segmentMs) onFinal,
     void Function()? onSpeechStart,
     void Function()? onSegment,
+    List<String> promptHints = const [],
   }) async {
     if (!_modelReady) {
       sttLog('[WSP] startListening skipped — model not ready');
@@ -147,6 +153,10 @@ class WhisperSpeechService {
     _onFinal = onFinal;
     _onSpeechStart = onSpeechStart;
     _onSegment = onSegment;
+    _promptHints = {
+      for (final h in promptHints)
+        ...h.split('/').map(AnswerValidator.stripAnnotations),
+    }.where((h) => h.isNotEmpty).join(', ');
     final windowSerial = ++_inferenceSerial;
 
     try {
@@ -207,6 +217,7 @@ class WhisperSpeechService {
             language: langCode,
             isNoTimestamps: true,
           ),
+          initialPrompt: _promptHints,
         );
         unawaited(f.delete().catchError((_) => f));
         final cleaned = cleanTranscript(res.text);

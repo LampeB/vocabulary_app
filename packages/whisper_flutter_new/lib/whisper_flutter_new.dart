@@ -73,14 +73,23 @@ class Whisper {
 
   Future<Map<String, dynamic>> _request({
     required WhisperRequestDto whisperRequest,
+    String? prompt,
   }) async {
     if (model != WhisperModel.none) {
       await _initModel();
     }
     return Isolate.run(
       () async {
-        final Pointer<Utf8> data =
-            whisperRequest.toRequestString().toNativeUtf8();
+        // VocabKR patch: inject decoder-bias prompt without touching the
+        // generated freezed DTOs.
+        String body = whisperRequest.toRequestString();
+        if (prompt != null && prompt.isNotEmpty) {
+          final Map<String, dynamic> map =
+              json.decode(body) as Map<String, dynamic>;
+          map["prompt"] = prompt;
+          body = json.encode(map);
+        }
+        final Pointer<Utf8> data = body.toNativeUtf8();
         final Pointer<Char> res =
             WhisperFlutterBindings(_openLib()).request(data.cast<Char>());
         final Map<String, dynamic> result = json.decode(
@@ -101,6 +110,7 @@ class Whisper {
   /// Transcribe audio file to text
   Future<WhisperTranscribeResponse> transcribe({
     required TranscribeRequest transcribeRequest,
+    String? initialPrompt,
   }) async {
     final String modelDir = await _getModelDir();
     final Map<String, dynamic> result = await _request(
@@ -108,6 +118,7 @@ class Whisper {
         transcribeRequest,
         model.getPath(modelDir),
       ),
+      prompt: initialPrompt,
     );
     if (kDebugMode) {
       debugPrint("Transcribe request $result");

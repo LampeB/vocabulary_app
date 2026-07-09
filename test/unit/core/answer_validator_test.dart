@@ -125,6 +125,12 @@ void main() {
       expect(r.isCorrect, isFalse);
     });
 
+    test('slash-alternatives: either side of "riz / repas" matches', () {
+      expect(validate('riz', ['riz / repas']).isCorrect, isTrue);
+      expect(validate('repas', ['riz / repas']).isCorrect, isTrue);
+      expect(validate('pain', ['riz / repas']).isCorrect, isFalse);
+    });
+
     test('stripAnnotations collapses whitespace', () {
       expect(AnswerValidator.stripAnnotations('café (boisson)'), 'café');
       expect(AnswerValidator.stripAnnotations('avoir (posséder) qqch'),

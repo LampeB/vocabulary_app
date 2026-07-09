@@ -81,6 +81,11 @@ json transcribe(json jsonBody) noexcept
     params.verbose = jsonBody["is_verbose"];
     params.translate = jsonBody["is_translate"];
     params.language = jsonBody["language"];
+    // VocabKR patch: decoder context biasing — the quiz knows the expected
+    // answers, and priming the decoder with them dramatically improves
+    // short-word transcription ("thé" came back as "T", field 2026-07-10).
+    if (jsonBody.contains("prompt"))
+        params.prompt = jsonBody["prompt"];
     params.print_special_tokens = jsonBody["is_special_tokens"];
     params.no_timestamps = jsonBody["is_no_timestamps"];
     params.model = jsonBody["model"];
@@ -181,6 +186,8 @@ json transcribe(json jsonBody) noexcept
         wparams.language = params.language.c_str();
         wparams.n_threads = params.n_threads;
         wparams.split_on_word = params.split_on_word;
+        if (!params.prompt.empty())
+            wparams.initial_prompt = params.prompt.c_str();
 
         // VocabKR patch: whisper's encoder always processes a fixed 30s
         // window, so a 1-2s quiz answer paid the full-window cost (~3.3s
