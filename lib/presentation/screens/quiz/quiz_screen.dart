@@ -75,6 +75,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // Distinct from not-heard (which means NO speech was captured at all).
   bool _hfMisheard = false;
   int _misheardRetries = 0;
+  // Consecutive low-score (clearly-wrong) transcripts on the current card —
+  // grading wrong requires two (garbage-transcription protection).
+  int _lowScoreStrikes = 0;
   // Armed by the not-heard ladder for the LAST retry of a vocab card:
   // that attempt runs on the SYSTEM recognizer as a rescue — a second
   // opinion with different failure modes than the Whisper primary.
@@ -363,7 +366,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
     final ok = await _whisper.startListening(
       langCode: langCode,
-      promptHints: card.answerWords,
+      // NO promptHints: decoder biasing made transcription WORSE on this
+      // whisper.cpp build ("먹다"→"목사", "lait"→"L'i", counting
+      // hallucinations — field log 2026-07-10 00:58). Plumbing kept for
+      // future experiments with a newer whisper.cpp.
       // The utterance is captured and inference is running: low tick +
       // pulsing "Analyse…" — the moment the user can stop talking.
       onSegment: _enterAnalyzing,
@@ -414,7 +420,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           promptRepeat('borderline ${v.score.toStringAsFixed(2)}');
           return;
         }
-        sttLog('[HF][WSP] ❌ wrong answer "$text" (score=${v.score.toStringAsFixed(2)}) — grading');
+        // Two-strike wrong grading: a single low-score transcript can be a
+        // garbage transcription of a CORRECT answer (field log 2026-07-10:
+        // "먹다" heard as "목사" scored 0.00 and failed the card). First
+        // strike asks to repeat; only a second consecutive low-score
+        // transcript grades wrong.
+        _lowScoreStrikes++;
+        if (_lowScoreStrikes < 2) {
+          sttLog('[HF][WSP] ⚠️ low-score "$text" (${v.score.toStringAsFixed(2)}) — strike 1, asking to repeat');
+          promptRepeat('low-score strike 1');
+          return;
+        }
+        sttLog('[HF][WSP] ❌ wrong answer "$text" (score=${v.score.toStringAsFixed(2)}, strike 2) — grading');
         unawaited(_whisper.stopListening());
         _enterAnalyzing();
         _consecutiveSilentCards = 0;
@@ -533,6 +550,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (!isRetry) {
       _systemRescueAttempt = false;
       _misheardRetries = 0;
+      _lowScoreStrikes = 0;
     }
     // Fresh listens reset the banner to "speak now"; retry listens KEEP the
     // "try x/3" / "répète" prompts visible — they already say what to do.
