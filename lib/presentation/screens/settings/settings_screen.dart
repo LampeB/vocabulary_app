@@ -164,6 +164,23 @@ class SettingsScreen extends ConsumerWidget {
                       onSelect: (v) =>
                           ref.read(audioSettingsProvider.notifier).setPitch(v),
                     ),
+                    const SizedBox(height: 12),
+                    _AudioSettingRow(
+                      icon: Icons.hearing_rounded,
+                      label: 'settings.voice_tolerance_label'.tr(),
+                      options: [
+                        'settings.voice_tolerance_lenient'.tr(),
+                        'settings.voice_tolerance_normal'.tr(),
+                        'settings.voice_tolerance_strict'.tr(),
+                      ],
+                      // Acceptance threshold for spoken answers: lower =
+                      // more forgiving of recognition near-misses.
+                      values: const [0.65, 0.75, 0.85],
+                      current: audioSettings.voiceStrictness,
+                      onSelect: (v) => ref
+                          .read(audioSettingsProvider.notifier)
+                          .setVoiceStrictness(v),
+                    ),
                   ],
                 ),
               ),

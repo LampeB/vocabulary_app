@@ -1,16 +1,32 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/answer_validator.dart';
+
 const _keySpeechRate = 'audio_speech_rate';
 const _keyPitch      = 'audio_pitch';
+const _keyVoiceStrictness = 'voice_strictness';
 
 class AudioSettings {
-  const AudioSettings({this.speechRate = 0.85, this.pitch = 1.0});
+  const AudioSettings({
+    this.speechRate = 0.85,
+    this.pitch = 1.0,
+    this.voiceStrictness = AppConstants.fuzzyThresholdDriving,
+  });
   final double speechRate;
   final double pitch;
-  AudioSettings copyWith({double? speechRate, double? pitch}) => AudioSettings(
+
+  /// Spoken-answer acceptance threshold (user-tunable): how close the
+  /// transcription must be to count as correct.
+  final double voiceStrictness;
+
+  AudioSettings copyWith(
+          {double? speechRate, double? pitch, double? voiceStrictness}) =>
+      AudioSettings(
         speechRate: speechRate ?? this.speechRate,
         pitch: pitch ?? this.pitch,
+        voiceStrictness: voiceStrictness ?? this.voiceStrictness,
       );
 }
 
@@ -31,7 +47,11 @@ class AudioSettingsNotifier extends Notifier<AudioSettings> {
     state = AudioSettings(
       speechRate: prefs.getDouble(_keySpeechRate) ?? 0.85,
       pitch: prefs.getDouble(_keyPitch) ?? 1.0,
+      voiceStrictness: prefs.getDouble(_keyVoiceStrictness) ??
+          AppConstants.fuzzyThresholdDriving,
     );
+    // The validator is static (used across layers) — push the loaded value.
+    AnswerValidator.drivingThreshold = state.voiceStrictness;
   }
 
   Future<void> setSpeechRate(double rate) async {
@@ -44,5 +64,12 @@ class AudioSettingsNotifier extends Notifier<AudioSettings> {
     state = state.copyWith(pitch: pitch);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_keyPitch, pitch);
+  }
+
+  Future<void> setVoiceStrictness(double threshold) async {
+    state = state.copyWith(voiceStrictness: threshold);
+    AnswerValidator.drivingThreshold = threshold;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_keyVoiceStrictness, threshold);
   }
 }

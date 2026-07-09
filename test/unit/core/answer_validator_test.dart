@@ -131,6 +131,22 @@ void main() {
       expect(validate('pain', ['riz / repas']).isCorrect, isFalse);
     });
 
+    test('drivingThreshold is tunable: a 0.78 near-miss flips with it', () {
+      // "Restourant" vs "restaurant" ≈ 0.78 — accepted at the default
+      // (0.75), rejected once the user picks Strict (0.85).
+      final prev = AnswerValidator.drivingThreshold;
+      try {
+        AnswerValidator.drivingThreshold = 0.75;
+        expect(validate('Restourant', ['restaurant'], driving: true).isCorrect,
+            isTrue);
+        AnswerValidator.drivingThreshold = 0.85;
+        expect(validate('Restourant', ['restaurant'], driving: true).isCorrect,
+            isFalse);
+      } finally {
+        AnswerValidator.drivingThreshold = prev;
+      }
+    });
+
     test('stripAnnotations collapses whitespace', () {
       expect(AnswerValidator.stripAnnotations('café (boisson)'), 'café');
       expect(AnswerValidator.stripAnnotations('avoir (posséder) qqch'),

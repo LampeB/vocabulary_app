@@ -23,6 +23,11 @@ class ValidationResult {
 }
 
 abstract final class AnswerValidator {
+  /// Spoken-answer acceptance threshold. Mutable: user-tunable in settings
+  /// ("tolérance vocale") — accents, environments and patience differ.
+  /// Typed answers keep the fixed [AppConstants.fuzzyThresholdTyping].
+  static double drivingThreshold = AppConstants.fuzzyThresholdDriving;
+
   /// The first recognizer candidate that validates as correct, or null.
   /// Speech engines frequently rank a near-homophone above the user's
   /// actual word (field log 2026-07-06: primary "병환이" 0.87 with
@@ -79,9 +84,8 @@ abstract final class AnswerValidator {
       );
     }
 
-    final threshold = isDrivingMode
-        ? AppConstants.fuzzyThresholdDriving
-        : AppConstants.fuzzyThresholdTyping;
+    final threshold =
+        isDrivingMode ? drivingThreshold : AppConstants.fuzzyThresholdTyping;
 
     final normalizedUser = _normalize(userAnswer);
     sttLog('[VAL] normalized: "$normalizedUser"  threshold=$threshold');
