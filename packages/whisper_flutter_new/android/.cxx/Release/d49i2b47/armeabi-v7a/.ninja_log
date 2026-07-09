@@ -1,0 +1,6 @@
+# ninja log v5
+1	1717	1783635231375666458	CMakeFiles/whisper.dir/whisper.cpp/ggml.c.o	96ca9aa126569c07
+0	3166	1783635232804658345	CMakeFiles/whisper_flutter.dir/main.cpp.o	46a8bcbad6049f8d
+0	5577	1783635235219644632	CMakeFiles/whisper.dir/whisper.cpp/whisper.cpp.o	6872fe92bfabc005
+5577	5593	1783635235254644433	libwhisper.a	8dd315b74512da32
+5593	9258	1783635238899623732	/home/thomas/vocabulary_app/build/whisper_flutter_new/intermediates/cxx/Release/d49i2b47/obj/armeabi-v7a/libwhisper.so	8d878e297781943

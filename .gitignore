@@ -30,8 +30,9 @@ test*.env.json
 # Test output
 quiz_test_out.txt
 
-# Pub packages checked out locally
-/packages/
+# Pub packages checked out locally — EXCEPT vendored ones we patch
+/packages/*
+!/packages/whisper_flutter_new/
 
 # Android build artifacts (beyond the default /build/ exclusion)
 /android/build/
