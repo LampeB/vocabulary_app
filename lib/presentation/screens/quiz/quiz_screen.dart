@@ -345,19 +345,33 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               .submitVoiceAnswer(correct, isDrivingMode: true);
           return;
         }
-        // Open vocabulary: a clean transcript that fails validation is a
-        // REAL wrong answer — grade it (unlike Vosk, where non-matches were
-        // [unk] residue). Same-session gate: only the live window may fail
-        // the card. Single-char junk is treated as noise, not an answer.
+        // Open vocabulary, but grading wrong is CONSERVATIVE (field log
+        // 2026-07-09: "délicieux" transcribed as "Désliez-le" was graded
+        // wrong and the surprise correction audio overlapped the next
+        // question). Three tiers by validation score:
+        //  - correct → accepted above;
+        //  - borderline (≥0.35): probably a mis-transcribed CORRECT answer
+        //    → keep the window open, let the user repeat;
+        //  - clearly different short answer → a real wrong answer, grade.
+        // Long transcripts are ambient speech/hallucination, never answers.
         if (sessionToken != _listenToken) {
           sttLog('[HF][WSP] wrong transcript from stale window — discarded');
           return;
         }
-        if (text.length < 2) {
-          sttLog('[HF][WSP] 1-char transcript "$text" ignored as noise');
+        if (text.length < 2 || text.split(' ').length > 3) {
+          sttLog('[HF][WSP] junk-length transcript "$text" ignored as noise');
           return;
         }
-        sttLog('[HF][WSP] ❌ wrong answer "$text" — grading');
+        final v = AnswerValidator.validate(
+          userAnswer: text,
+          acceptedAnswers: card.answerWords,
+          isDrivingMode: true,
+        );
+        if (v.score >= 0.35) {
+          sttLog('[HF][WSP] borderline "$text" (score=${v.score.toStringAsFixed(2)}) — likely mis-heard correct answer, window stays open');
+          return;
+        }
+        sttLog('[HF][WSP] ❌ wrong answer "$text" (score=${v.score.toStringAsFixed(2)}) — grading');
         unawaited(_whisper.stopListening());
         _enterAnalyzing();
         _consecutiveSilentCards = 0;

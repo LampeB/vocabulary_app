@@ -24,9 +24,11 @@ import '../../core/utils/wav_writer.dart';
 class WhisperSpeechService {
   WhisperSpeechService();
 
-  /// ggml-base multilingual: ~142MB one-time download from HuggingFace,
-  /// ~300-700ms inference for word-length audio on a modern phone.
-  static const _model = WhisperModel.base;
+  /// ggml-tiny multilingual (~75MB): base transcribed a 2s segment in
+  /// 5.6-6.8s on a Galaxy S22 Ultra (field log 2026-07-09) — verdicts
+  /// landed during the NEXT card. Tiny is ~5x faster; accuracy on short
+  /// quiz words is evaluated from the same logs.
+  static const _model = WhisperModel.tiny;
   static const _sampleRate = 16000;
 
   Whisper? _whisper;
@@ -113,7 +115,9 @@ class WhisperSpeechService {
     var t = raw
         .replaceAll(RegExp(r'\[[^\]]*\]'), ' ')
         .replaceAll(RegExp(r'\([^)]*\)'), ' ')
-        .replaceAll(RegExp(r'[.,!?;:…"«»]'), ' ')
+        .replaceAll(RegExp(r'\*[^*]*\*'), ' ') // *musique d'outro*
+        .replaceAll(RegExp(r'[.,!?;:…"«»*]'), ' ')
+        .replaceAll(RegExp(r'(^|\s)-+|-+(?=\s|\$)'), ' ') // caption dashes
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     if (t.isEmpty) return null;

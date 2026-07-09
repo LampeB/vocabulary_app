@@ -827,8 +827,21 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
           !_kTestMode &&
           _lastArgs?.source != QuizSource.grammar) {
         final nextLang = nextCard.progress.direction.questionLang;
-        unawaited(_audio?.speak(nextCard.questionWord, nextLang));
+        unawaited(_speakWhenQuiet(nextCard.questionWord, nextLang));
       }
     }
+  }
+
+  /// Speaks after any in-flight utterance finishes: a wrong-answer replay
+  /// can still be playing when the session advances, and starting the next
+  /// question over it produced overlapping audio (field log 2026-07-09,
+  /// TTS active=2 near the end of the session).
+  Future<void> _speakWhenQuiet(String text, String langCode) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while ((_audio?.isSpeaking ?? false) &&
+        DateTime.now().isBefore(deadline)) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+    await _audio?.speak(text, langCode);
   }
 }
