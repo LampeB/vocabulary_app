@@ -2,6 +2,7 @@ import 'stt_debug_log.dart';
 import 'package:string_similarity/string_similarity.dart';
 import '../constants/app_constants.dart';
 import '../extensions/string_ext.dart';
+import 'french_phonetics.dart';
 import 'hangul_decomposer.dart';
 
 enum ValidationResultType { exact, acceptable, typo, incorrect }
@@ -187,12 +188,19 @@ abstract final class AnswerValidator {
 
     final directScore = a.similarityTo(b);
 
-    if (!isKorean) return directScore;
+    if (isKorean) {
+      final jamoScore = HangulDecomposer.decompose(a)
+          .similarityTo(HangulDecomposer.decompose(b));
+      return directScore > jamoScore ? directScore : jamoScore;
+    }
 
-    final jamoScore = HangulDecomposer.decompose(a)
-        .similarityTo(HangulDecomposer.decompose(b));
-
-    return directScore > jamoScore ? directScore : jamoScore;
+    // Latin text: also score in sound-space — STT errors are phonetic
+    // ("Mauvi" for "mauvais" shares no bigrams but the same sounds).
+    // Capped at 0.97 so only orthographic identity reaches the EXACT tier.
+    final phoneticScore = FrenchPhonetics.encode(a)
+        .similarityTo(FrenchPhonetics.encode(b))
+        .clamp(0.0, 0.97);
+    return directScore > phoneticScore ? directScore : phoneticScore;
   }
 
   static String _normalize(String text) {

@@ -40,11 +40,14 @@ void main() {
       expect(r.type, ValidationResultType.acceptable);
     });
 
-    test('near-miss between threshold and 0.90 → typo', () {
-      // "bibliotheqe" vs "bibliotheque": dice ≈ 0.857 → in [0.85, 0.90).
+    test('near-miss between threshold and 0.90 still accepts', () {
+      // "bibliotheqe" vs "bibliotheque": orthographic dice ≈ 0.857. Since
+      // the phonetic pass (2026-07-10) it is also SOUND-identical (silent
+      // letters), which lifts it into the acceptable tier — the tier
+      // matters less than the verdict.
       final r = validate('bibliotheqe', ['bibliothèque']);
       expect(r.isCorrect, isTrue);
-      expect(r.type, ValidationResultType.typo);
+      expect(r.type, isNot(ValidationResultType.exact));
     });
 
     test('unrelated word → incorrect with the best score reported', () {
@@ -102,6 +105,38 @@ void main() {
       final r = validate('바나나', ['사과']);
       expect(r.isCorrect, isFalse);
       expect(r.type, ValidationResultType.incorrect);
+    });
+  });
+
+  group('phonetic pass (field bug 2026-07-10 — whisper garbles sounds)', () {
+    test('"Mauvi" scores close to "mauvais" — same sounds, alien spelling',
+        () {
+      final r = validate('Mauvi', ['mauvais'], driving: true);
+      // /movi/ vs /move/ — sound-space similarity must beat the near-zero
+      // bigram score and clear the lenient (Souple 0.55) bar.
+      expect(r.score, greaterThanOrEqualTo(0.55));
+    });
+
+    test('"Tadung" stays garbage against "mauvais"', () {
+      final r = validate('Tadung', ['mauvais'], driving: true);
+      expect(r.score, lessThan(0.35));
+    });
+
+    test('"Doigre" vs "boire" lands in the borderline band, not a fail', () {
+      final r = validate('Doigre', ['boire'], driving: true);
+      expect(r.isCorrect, isFalse);
+      expect(r.score, greaterThanOrEqualTo(0.35));
+    });
+
+    test('phonetic near-match never claims the EXACT tier', () {
+      final r = validate('mauvé', ['mauvais'], driving: true);
+      expect(r.isCorrect, isTrue);
+      expect(r.type, isNot(ValidationResultType.exact));
+    });
+
+    test('unrelated French words remain rejected', () {
+      expect(validate('bonjour', ['mauvais'], driving: true).isCorrect,
+          isFalse);
     });
   });
 
