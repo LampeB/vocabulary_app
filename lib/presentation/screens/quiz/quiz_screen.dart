@@ -81,6 +81,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // A borderline transcript was seen on this card: probably a garbled
   // CORRECT answer — strikes may not grade the card wrong anymore.
   bool _sawBorderline = false;
+  // Whisper window generation: repeat prompts re-arm a fresh 10s window
+  // (aligned with the restarted countdown bar); stale timers no-op.
+  int _whisperWindowGen = 0;
   // Armed by the not-heard ladder for the LAST retry of a vocab card:
   // that attempt runs on the SYSTEM recognizer as a rescue — a second
   // opinion with different failure modes than the Whisper primary.
@@ -343,6 +346,35 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         ref.read(quizProvider).currentCard?.progress.variantId ==
         card.progress.variantId;
 
+    // The listening window and the countdown bar must move TOGETHER: the
+    // repeat prompt restarts the bar, so it must also re-arm a fresh window
+    // — the original timer kept running and expired mid-bar ("progress bar
+    // stuck", field logs 2026-07-09/10). Generation counter voids stale
+    // timers.
+    void armWindow() {
+      final gen = ++_whisperWindowGen;
+      Future.delayed(const Duration(seconds: 10), () async {
+        if (!mounted || sessionToken != _listenToken) return;
+        if (gen != _whisperWindowGen) return; // re-armed since — stale
+        if (!_whisper.isListening) return;
+        if (ref.read(quizProvider).answerState != QuizAnswerState.idle) {
+          return;
+        }
+        sttLog('[HF][WSP] window expired with no accepted answer');
+        await _whisper.stopListening(keepPendingTranscripts: true);
+        // A segment captured near the deadline may still be in inference —
+        // give it a beat before declaring "not heard".
+        await Future.delayed(const Duration(milliseconds: 1000));
+        if (!mounted || sessionToken != _listenToken) return;
+        if (gen != _whisperWindowGen) return;
+        if (ref.read(quizProvider).answerState != QuizAnswerState.idle) {
+          return;
+        }
+        ref.read(quizProvider.notifier).setListening(false);
+        _notHeardLadder(sessionToken, canRetry: true);
+      });
+    }
+
     // Junk/borderline transcripts reopen the attempt with an explicit
     // "répète" prompt — silently staying in listening was indistinguishable
     // from "didn't hear you" (user report 2026-07-10). Capped so a noisy
@@ -369,6 +401,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _listenBarCtrl
         ..reset()
         ..forward();
+      armWindow(); // fresh 10s window, aligned with the restarted bar
     }
 
     final ok = await _whisper.startListening(
@@ -462,22 +495,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (!ok) return false;
 
     // WE own the window (no OS endpointing): 10s, mirroring the countdown
-    // bar, then the shared not-heard ladder. Extra grace when a segment is
-    // still being transcribed at expiry is covered by the 1s re-check.
-    Future.delayed(const Duration(seconds: 10), () async {
-      if (!mounted || sessionToken != _listenToken) return;
-      if (!_whisper.isListening) return;
-      if (ref.read(quizProvider).answerState != QuizAnswerState.idle) return;
-      sttLog('[HF][WSP] window expired with no accepted answer');
-      await _whisper.stopListening(keepPendingTranscripts: true);
-      // A segment captured near the deadline may still be in inference —
-      // give it a beat before declaring "not heard".
-      await Future.delayed(const Duration(milliseconds: 1000));
-      if (!mounted || sessionToken != _listenToken) return;
-      if (ref.read(quizProvider).answerState != QuizAnswerState.idle) return;
-      ref.read(quizProvider.notifier).setListening(false);
-      _notHeardLadder(sessionToken, canRetry: true);
-    });
+    // bar, then the shared not-heard ladder — re-armed by every repeat
+    // prompt so the bar and the window always agree.
+    armWindow();
     return true;
   }
 
