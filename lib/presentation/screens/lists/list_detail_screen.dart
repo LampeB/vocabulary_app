@@ -10,6 +10,9 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widget_keys.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
+import '../../providers/lists/vocab_assistant_provider.dart';
+import '../../../data/datasources/remote/vocab_assistant_datasource.dart';
+import '../../../domain/entities/word_variant.dart';
 
 class ListDetailScreen extends ConsumerStatefulWidget {
   const ListDetailScreen({super.key, required this.listId});
@@ -67,6 +70,9 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                       _exportList(
                           context, listAsync.valueOrNull?.name ?? '');
                     }
+                    if (value == 'ai_suggest') {
+                      _showAiSuggestionsSheet(context);
+                    }
                   },
                   itemBuilder: (ctx) => [
                     PopupMenuItem(
@@ -80,6 +86,19 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                           // screens) and long FR labels overflow otherwise.
                           Flexible(
                             child: Text('list_detail.menu_edit'.tr(),
+                                overflow: TextOverflow.ellipsis),
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'ai_suggest',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.auto_awesome_rounded, size: 18),
+                          const SizedBox(width: 12),
+                          Flexible(
+                            child: Text('list_detail.menu_ai_suggest'.tr(),
                                 overflow: TextOverflow.ellipsis),
                           ),
                         ],
@@ -185,74 +204,383 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
   }
 
   Future<void> _showAddWordDialog(BuildContext context) async {
-    final frCtrl = TextEditingController();
-    final koCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
     var quotaExceeded = false;
+    // Existing FR words give the assistant the list's theme context.
+    final concepts = ref.read(listDetailProvider(widget.listId)).valueOrNull;
+    final existingFr = <String>[
+      if (concepts != null)
+        for (final c in concepts)
+          ...?ref
+              .read(variantsProvider(c.id))
+              .valueOrNull
+              ?.where((v) => v.langCode == 'fr' && !v.isDeleted)
+              .map((v) => v.word),
+    ];
 
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Text('list_detail.add_dialog_title'.tr()),
-        content: Form(
-          key: formKey,
+      builder: (ctx) => _AddWordDialog(
+        existingFr: existingFr,
+        onSubmit: (frWord, koWord) async {
+          final result =
+              await ref.read(listActionsProvider.notifier).addConcept(
+                    listId: widget.listId,
+                    frWord: frWord,
+                    koWord: koWord,
+                  );
+          if (result.isFailure &&
+              result.exceptionOrNull is QuotaExceededException) {
+            quotaExceeded = true;
+            return false;
+          }
+          return result.isSuccess;
+        },
+      ),
+    );
+
+    if (quotaExceeded && context.mounted) context.push('/paywall');
+  }
+
+  /// Themed AI suggestions: infer the list's theme from its pairs, propose
+  /// new words, add the checked ones (user request 2026-07-11).
+  Future<void> _showAiSuggestionsSheet(BuildContext context) async {
+    final concepts =
+        ref.read(listDetailProvider(widget.listId)).valueOrNull ?? [];
+    final pairs = <WordPairSuggestion>[];
+    for (final c in concepts) {
+      final variants =
+          await ref
+          .read(variantsProvider(c.id).future)
+          .catchError((_) => <WordVariant>[]);
+      final fr = variants.where((v) => v.langCode == 'fr' && !v.isDeleted);
+      final ko = variants.where((v) => v.langCode == 'ko' && !v.isDeleted);
+      if (fr.isNotEmpty && ko.isNotEmpty) {
+        pairs.add(WordPairSuggestion(
+            source: fr.first.word, target: ko.first.word));
+      }
+    }
+    if (!context.mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => _AiSuggestionsSheet(
+        existingPairs: pairs,
+        onAdd: (selected) async {
+          for (final p in selected) {
+            await ref.read(listActionsProvider.notifier).addConcept(
+                  listId: widget.listId,
+                  frWord: p.source,
+                  koWord: p.target,
+                );
+          }
+        },
+      ),
+    );
+  }
+}
+
+/// Add-word dialog with AI assistance: type one side, get translation
+/// suggestions (+ voice-friendly longer forms for short words) as tappable
+/// chips. The manual flow is unchanged — AI is one optional button.
+class _AddWordDialog extends ConsumerStatefulWidget {
+  const _AddWordDialog({required this.existingFr, required this.onSubmit});
+  final List<String> existingFr;
+
+  /// Returns true when the pair was added (dialog closes).
+  final Future<bool> Function(String frWord, String koWord) onSubmit;
+
+  @override
+  ConsumerState<_AddWordDialog> createState() => _AddWordDialogState();
+}
+
+class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
+  final _frCtrl = TextEditingController();
+  final _koCtrl = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  bool _loading = false;
+  TranslateAssist? _assist;
+  String? _assistError;
+
+  @override
+  void dispose() {
+    _frCtrl.dispose();
+    _koCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _askAssistant() async {
+    final fr = _frCtrl.text.trim();
+    final ko = _koCtrl.text.trim();
+    // Whichever side has text is the source; FR wins when both do.
+    final fromFr = fr.isNotEmpty || ko.isEmpty;
+    final word = fromFr ? fr : ko;
+    if (word.isEmpty) return;
+    setState(() {
+      _loading = true;
+      _assist = null;
+      _assistError = null;
+    });
+    final result = await ref.read(vocabAssistantProvider).translate(
+          word: word,
+          sourceLang: fromFr ? 'fr' : 'ko',
+          targetLang: fromFr ? 'ko' : 'fr',
+          existingWords: widget.existingFr,
+        );
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      result.fold(
+        onSuccess: (a) => _assist = a,
+        onFailure: (_) => _assistError = 'list_detail.ai_error'.tr(),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fromFr = _frCtrl.text.trim().isNotEmpty || _koCtrl.text.trim().isEmpty;
+    return AlertDialog(
+      title: Text('list_detail.add_dialog_title'.tr()),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextFormField(
                 key: const ValueKey(WidgetKeys.addWordFr),
-                controller: frCtrl,
+                controller: _frCtrl,
                 autofocus: true,
                 decoration: InputDecoration(
-                    labelText: 'list_detail.field_french'.tr(), prefixText: '🇫🇷  '),
+                    labelText: 'list_detail.field_french'.tr(),
+                    prefixText: '🇫🇷  '),
                 textInputAction: TextInputAction.next,
-                validator: (v) =>
-                    (v?.trim().isEmpty ?? true) ? 'Requis' : null,
+                validator: (v) => (v?.trim().isEmpty ?? true) ? 'Requis' : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 key: const ValueKey(WidgetKeys.addWordKo),
-                controller: koCtrl,
+                controller: _koCtrl,
                 decoration: InputDecoration(
-                    labelText: 'list_detail.field_korean'.tr(), prefixText: '🇰🇷  '),
-                validator: (v) =>
-                    (v?.trim().isEmpty ?? true) ? 'Requis' : null,
+                    labelText: 'list_detail.field_korean'.tr(),
+                    prefixText: '🇰🇷  '),
+                validator: (v) => (v?.trim().isEmpty ?? true) ? 'Requis' : null,
               ),
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: _loading
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 6),
+                        child: SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2)),
+                      )
+                    : TextButton.icon(
+                        key: const ValueKey(WidgetKeys.addWordAiSuggest),
+                        onPressed: _askAssistant,
+                        icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                        label: Text('list_detail.ai_translate'.tr()),
+                      ),
+              ),
+              if (_assistError != null)
+                Text(_assistError!,
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.rose)),
+              if (_assist != null) ...[
+                // Translation chips fill the EMPTY side.
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final t in _assist!.translations)
+                      ActionChip(
+                        avatar: const Icon(Icons.translate_rounded, size: 14),
+                        label: Text(t.display),
+                        onPressed: () => setState(() {
+                          (fromFr ? _koCtrl : _frCtrl).text = t.display;
+                        }),
+                      ),
+                  ],
+                ),
+                if (_assist!.voiceFriendly.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('list_detail.ai_voice_friendly'.tr(),
+                        style: AppTextStyles.caption),
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final p in _assist!.voiceFriendly)
+                        ActionChip(
+                          avatar: const Icon(Icons.mic_rounded, size: 14),
+                          label: Text(fromFr
+                              ? '${p.source} → ${p.target}'
+                              : '${p.target} → ${p.source}'),
+                          // Voice-friendly pairs replace BOTH sides.
+                          onPressed: () => setState(() {
+                            if (fromFr) {
+                              _frCtrl.text = p.source;
+                              _koCtrl.text = p.target;
+                            } else {
+                              _koCtrl.text = p.source;
+                              _frCtrl.text = p.target;
+                            }
+                          }),
+                        ),
+                    ],
+                  ),
+                ],
+              ],
             ],
           ),
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text('common.cancel'.tr())),
-          FilledButton(
-            key: const ValueKey(WidgetKeys.addWordConfirm),
-            onPressed: () async {
-              if (!(formKey.currentState?.validate() ?? false)) return;
-              final result = await ref
-                  .read(listActionsProvider.notifier)
-                  .addConcept(
-                    listId: widget.listId,
-                    frWord: frCtrl.text.trim(),
-                    koWord: koCtrl.text.trim(),
-                  );
-              if (!ctx.mounted) return;
-              if (result.isFailure &&
-                  result.exceptionOrNull is QuotaExceededException) {
-                quotaExceeded = true;
-                Navigator.pop(ctx);
-              } else if (result.isSuccess) {
-                Navigator.pop(ctx);
-              }
-            },
-            child: Text('list_detail.add_confirm'.tr()),
-          ),
-        ],
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('common.cancel'.tr())),
+        FilledButton(
+          key: const ValueKey(WidgetKeys.addWordConfirm),
+          onPressed: () async {
+            if (!(_formKey.currentState?.validate() ?? false)) return;
+            final ok = await widget.onSubmit(
+                _frCtrl.text.trim(), _koCtrl.text.trim());
+            if (context.mounted && ok) Navigator.pop(context);
+            if (context.mounted && !ok) Navigator.pop(context);
+          },
+          child: Text('list_detail.add_confirm'.tr()),
+        ),
+      ],
+    );
+  }
+}
+
+/// Bottom sheet: AI-inferred theme + checkable new word pairs.
+class _AiSuggestionsSheet extends ConsumerStatefulWidget {
+  const _AiSuggestionsSheet({required this.existingPairs, required this.onAdd});
+  final List<WordPairSuggestion> existingPairs;
+  final Future<void> Function(List<WordPairSuggestion> selected) onAdd;
+
+  @override
+  ConsumerState<_AiSuggestionsSheet> createState() =>
+      _AiSuggestionsSheetState();
+}
+
+class _AiSuggestionsSheetState extends ConsumerState<_AiSuggestionsSheet> {
+  ThemedSuggestions? _result;
+  String? _error;
+  final _selected = <int>{};
+  bool _adding = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+  }
+
+  Future<void> _fetch() async {
+    final result = await ref.read(vocabAssistantProvider).suggest(
+          sourceLang: 'fr',
+          targetLang: 'ko',
+          existingPairs: widget.existingPairs,
+        );
+    if (!mounted) return;
+    setState(() {
+      result.fold(
+        onSuccess: (r) {
+          _result = r;
+          _selected.addAll(List.generate(r.pairs.length, (i) => i));
+        },
+        onFailure: (_) => _error = 'list_detail.ai_error'.tr(),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+        child: _error != null
+            ? Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(_error!,
+                    style:
+                        AppTextStyles.caption.copyWith(color: AppColors.rose)),
+              )
+            : _result == null
+                ? const Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2)),
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'list_detail.ai_suggest_title'
+                            .tr(namedArgs: {'theme': _result!.theme}),
+                        style: AppTextStyles.sectionTitle,
+                      ),
+                      const SizedBox(height: 8),
+                      Flexible(
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: _result!.pairs.length,
+                          itemBuilder: (ctx, i) {
+                            final p = _result!.pairs[i];
+                            return CheckboxListTile(
+                              dense: true,
+                              controlAffinity:
+                                  ListTileControlAffinity.leading,
+                              value: _selected.contains(i),
+                              onChanged: (v) => setState(() {
+                                if (v == true) {
+                                  _selected.add(i);
+                                } else {
+                                  _selected.remove(i);
+                                }
+                              }),
+                              title: Text('${p.source}  —  ${p.target}'),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: _selected.isEmpty || _adding
+                              ? null
+                              : () async {
+                                  setState(() => _adding = true);
+                                  await widget.onAdd([
+                                    for (final i in _selected)
+                                      _result!.pairs[i],
+                                  ]);
+                                  if (context.mounted) {
+                                    Navigator.pop(context);
+                                  }
+                                },
+                          child: Text(_adding
+                              ? '…'
+                              : 'list_detail.ai_add_selected'.tr(
+                                  namedArgs: {'n': '${_selected.length}'})),
+                        ),
+                      ),
+                    ],
+                  ),
       ),
     );
-
-    if (quotaExceeded && context.mounted) context.push('/paywall');
   }
 }
 

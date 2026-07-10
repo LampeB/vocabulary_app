@@ -76,6 +76,7 @@ abstract final class WidgetKeys {
   static const addWordFr = 'word.add.fr';
   static const addWordKo = 'word.add.ko';
   static const addWordConfirm = 'word.add.confirm';
+  static const addWordAiSuggest = 'word.add.ai_suggest';
   static const editWordFr = 'word.edit.fr';
   static const editWordKo = 'word.edit.ko';
   static const editWordConfirm = 'word.edit.confirm';
