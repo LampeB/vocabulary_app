@@ -408,10 +408,20 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
                 ),
                 if (_assist!.voiceFriendly.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('list_detail.ai_voice_friendly'.tr(),
-                        style: AppTextStyles.caption),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 1),
+                        child: Icon(Icons.mic_rounded,
+                            size: 14, color: AppColors.clay),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text('list_detail.ai_voice_friendly'.tr(),
+                            style: AppTextStyles.caption),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Wrap(

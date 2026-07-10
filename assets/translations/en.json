@@ -97,7 +97,7 @@
   "list_detail.menu_export": "Export",
   "list_detail.menu_ai_suggest": "AI suggestions",
   "list_detail.ai_translate": "Suggest translation",
-  "list_detail.ai_voice_friendly": "Longer forms (better voice recognition):",
+  "list_detail.ai_voice_friendly": "These forms work better in hands-free and voice recognition modes:",
   "list_detail.ai_error": "Assistant unavailable",
   "list_detail.ai_suggest_title": "Theme: {theme}",
   "list_detail.ai_add_selected": "Add {n} word(s)",

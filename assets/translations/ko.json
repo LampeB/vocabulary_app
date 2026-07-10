@@ -97,7 +97,7 @@
   "list_detail.menu_export": "내보내기",
   "list_detail.menu_ai_suggest": "AI 추천",
   "list_detail.ai_translate": "번역 제안",
-  "list_detail.ai_voice_friendly": "더 긴 형태 (음성 인식에 유리):",
+  "list_detail.ai_voice_friendly": "이 형태는 핸즈프리·음성 인식 모드에서 더 잘 인식돼요:",
   "list_detail.ai_error": "도우미를 사용할 수 없어요",
   "list_detail.ai_suggest_title": "주제: {theme}",
   "list_detail.ai_add_selected": "{n}개 단어 추가",

@@ -97,7 +97,7 @@
   "list_detail.menu_export": "エクスポート",
   "list_detail.menu_ai_suggest": "AIのおすすめ",
   "list_detail.ai_translate": "翻訳を提案",
-  "list_detail.ai_voice_friendly": "長い形（音声認識に有利）：",
+  "list_detail.ai_voice_friendly": "これらの形はハンズフリー・音声認識モードでより正確に認識されます：",
   "list_detail.ai_error": "アシスタントを利用できません",
   "list_detail.ai_suggest_title": "テーマ：{theme}",
   "list_detail.ai_add_selected": "{n}語を追加",

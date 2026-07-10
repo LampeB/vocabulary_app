@@ -97,7 +97,7 @@
   "list_detail.menu_export": "Exportar",
   "list_detail.menu_ai_suggest": "Sugerencias IA",
   "list_detail.ai_translate": "Sugerir traducción",
-  "list_detail.ai_voice_friendly": "Formas más largas (mejor reconocimiento de voz):",
+  "list_detail.ai_voice_friendly": "Estas formas funcionan mejor en modo manos libres y reconocimiento de voz:",
   "list_detail.ai_error": "Asistente no disponible",
   "list_detail.ai_suggest_title": "Tema: {theme}",
   "list_detail.ai_add_selected": "Añadir {n} palabra(s)",
