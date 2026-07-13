@@ -9,14 +9,18 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# Static engine, linked into our shared lib.
-set(BUILD_SHARED_LIBS OFF)
-set(WHISPER_BUILD_EXAMPLES OFF)
-set(WHISPER_BUILD_TESTS OFF)
-set(WHISPER_BUILD_SERVER OFF)
-set(GGML_OPENMP OFF)
+# Static engine, linked into our shared lib. CACHE FORCE is required:
+# whisper.cpp's cmake_minimum resets CMP0077 to OLD inside the subproject,
+# so its option() calls STOMP plain set() — that built ggml/whisper as
+# SHARED libs whose libwhisper.so clobbered ours (the FFI 'request' symbol
+# vanished; field 2026-07-14, silent fallback to the system engine).
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(WHISPER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(WHISPER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(WHISPER_BUILD_SERVER OFF CACHE BOOL "" FORCE)
+set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
 # Cross-compiling for a fixed ABI set — no -march=native.
-set(GGML_NATIVE OFF)
+set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(whisper.cpp)
 
