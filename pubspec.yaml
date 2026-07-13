@@ -37,15 +37,6 @@ dependencies:
   # Remote backend + auth
   supabase_flutter: ^2.8.4
 
-  # Offline constrained recognition (vocab hands-free, ticket 2026-07-08).
-  # The pub.dev release pins http ^0.13 (conflicts with supabase); the Vosk
-  # team fixed it on master but never republished — pinned to that commit
-  # (user-approved source, 2026-07-08).
-  vosk_flutter:
-    git:
-      url: https://github.com/alphacep/vosk-flutter.git
-      ref: e655a96f0ce0dadb5ea8900aa1ba23260c3ec904
-
   # Payments
   purchases_flutter: ^8.4.0
 
@@ -100,8 +91,7 @@ dependencies:
   fl_chart: ^0.70.2
 
   # Animations
-  # 3.3.0 (not 3.3.1): 3.3.1 requires archive ^4 while vosk_flutter needs ^3.
-  lottie: 3.3.0
+  lottie: ^3.3.1
 
   # Fonts
   google_fonts: ^6.2.1
