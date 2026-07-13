@@ -1,8 +1,9 @@
 #include "main.h"
-#include "whisper.cpp/whisper.h"
+#include "whisper.cpp/include/whisper.h"
 
-#define DR_WAV_IMPLEMENTATION
-#include "whisper.cpp/examples/dr_wav.h"
+#include <cstdint>
+#include <cstring>
+#include <fstream>
 
 #include <cstdio>
 #include <string>
@@ -118,66 +119,54 @@ json transcribe(json jsonBody) noexcept
     {
         if (g_ctx != nullptr)
             whisper_free(g_ctx);
-        g_ctx = whisper_init_from_file(params.model.c_str());
+        struct whisper_context_params cparams = whisper_context_default_params();
+        g_ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
         g_ctx_model = params.model;
     }
     struct whisper_context *ctx = g_ctx;
     std::string text_result = "";
     const auto fname_inp = params.audio;
-    // WAV input
+    // WAV input — minimal reader for the app's own capture format
+    // (44-byte canonical header, 16kHz mono PCM16, written by wav_writer.dart).
     std::vector<float> pcmf32;
     {
-        drwav wav;
-        if (!drwav_init_file(&wav, fname_inp.c_str(), NULL))
+        std::ifstream f(fname_inp, std::ios::binary);
+        if (!f)
         {
             jsonResult["@type"] = "error";
             jsonResult["message"] = " failed to open WAV file ";
             return jsonResult;
         }
-
-        if (wav.channels != 1 && wav.channels != 2)
+        uint8_t header[44];
+        f.read(reinterpret_cast<char *>(header), 44);
+        if (f.gcount() != 44 || memcmp(header, "RIFF", 4) != 0 || memcmp(header + 8, "WAVE", 4) != 0)
         {
             jsonResult["@type"] = "error";
-            jsonResult["message"] = "must be mono or stereo";
+            jsonResult["message"] = "not a WAV file";
             return jsonResult;
         }
-
-        if (wav.sampleRate != WHISPER_SAMPLE_RATE)
+        const uint16_t channels = header[22] | (header[23] << 8);
+        const uint32_t sampleRate = header[24] | (header[25] << 8) | (header[26] << 16) | (uint32_t(header[27]) << 24);
+        const uint16_t bits = header[34] | (header[35] << 8);
+        if (channels != 1 || bits != 16 || sampleRate != WHISPER_SAMPLE_RATE)
         {
             jsonResult["@type"] = "error";
-            jsonResult["message"] = "WAV file  must be 16 kHz";
+            jsonResult["message"] = "WAV must be 16kHz mono 16-bit";
             return jsonResult;
         }
-
-        if (wav.bitsPerSample != 16)
-        {
-            jsonResult["@type"] = "error";
-            jsonResult["message"] = "WAV file  must be 16 bit";
-            return jsonResult;
-        }
-
-        int n = wav.totalPCMFrameCount;
-
         std::vector<int16_t> pcm16;
-        pcm16.resize(n * wav.channels);
-        drwav_read_pcm_frames_s16(&wav, n, pcm16.data());
-        drwav_uninit(&wav);
-
-        // convert to mono, float
-        pcmf32.resize(n);
-        if (wav.channels == 1)
         {
-            for (int i = 0; i < n; i++)
-            {
-                pcmf32[i] = float(pcm16[i]) / 32768.0f;
-            }
+            f.seekg(0, std::ios::end);
+            const auto fileSize = static_cast<size_t>(f.tellg());
+            const size_t dataBytes = fileSize > 44 ? fileSize - 44 : 0;
+            pcm16.resize(dataBytes / 2);
+            f.seekg(44, std::ios::beg);
+            f.read(reinterpret_cast<char *>(pcm16.data()), dataBytes);
         }
-        else
+        pcmf32.resize(pcm16.size());
+        for (size_t i = 0; i < pcm16.size(); i++)
         {
-            for (int i = 0; i < n; i++)
-            {
-                pcmf32[i] = float(pcm16[2 * i] + pcm16[2 * i + 1]) / 65536.0f;
-            }
+            pcmf32[i] = float(pcm16[i]) / 32768.0f;
         }
     }
 

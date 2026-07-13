@@ -406,10 +406,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
     final ok = await _whisper.startListening(
       langCode: langCode,
-      // NO promptHints: decoder biasing made transcription WORSE on this
-      // whisper.cpp build ("먹다"→"목사", "lait"→"L'i", counting
-      // hallucinations — field log 2026-07-10 00:58). Plumbing kept for
-      // future experiments with a newer whisper.cpp.
+      // Prompt hints RE-ENABLED with whisper.cpp v1.9.1: the old 2023-era
+      // engine mangled initial_prompt ("먹다"→"목사", counting
+      // hallucinations — 2026-07-10); the modern implementation is the
+      // main accuracy lever for a known-answer quiz.
+      promptHints: card.answerWords,
       // The utterance is captured and inference is running: low tick +
       // pulsing "Analyse…" — the moment the user can stop talking.
       onSegment: _enterAnalyzing,

@@ -1,32 +1,28 @@
-# The Flutter tooling requires that developers have CMake 3.10 or later
-# installed. You should not increase this version, as doing so will cause
-# the plugin to fail to compile for some customers of the plugin.
-cmake_minimum_required(VERSION 3.10)
+# VocabKR: rebuilt for whisper.cpp v1.9.1 (upgraded from the flat 2023-era
+# vintage the plugin shipped — modern ARM kernels, fixed initial_prompt,
+# better decoding). whisper.cpp builds as a static subproject and links
+# wholly into the libwhisper.so the Dart FFI opens.
+cmake_minimum_required(VERSION 3.19)
 
 project(whisper_flutter_library LANGUAGES C CXX)
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -s -flto=thin -fdata-sections -ffunction-sections -fvisibility=hidden -fvisibility-inlines-hidden")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -s -flto=thin -fdata-sections -ffunction-sections -fvisibility=hidden -fvisibility-inlines-hidden")
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections -Wl,--exclude-libs,ALL")
-set(CMAKE_BUILD_PARALLEL_LEVEL 6)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+# Static engine, linked into our shared lib.
+set(BUILD_SHARED_LIBS OFF)
+set(WHISPER_BUILD_EXAMPLES OFF)
+set(WHISPER_BUILD_TESTS OFF)
+set(WHISPER_BUILD_SERVER OFF)
+set(GGML_OPENMP OFF)
+# Cross-compiling for a fixed ABI set — no -march=native.
+set(GGML_NATIVE OFF)
+
+add_subdirectory(whisper.cpp)
+
 add_library(whisper_flutter SHARED main.cpp)
-file(GLOB WHISPER_SRC whisper.cpp/*.cpp whisper.cpp/*.c)
-add_library(whisper ${WHISPER_SRC})
-
-set_target_properties(whisper_flutter PROPERTIES
-  PUBLIC_HEADER whisper.cpp/whisper.h 
-  OUTPUT_NAME "whisper"
-)
-
-if (${ANDROID_ABI} STREQUAL "arm64-v8a")
-    target_compile_options(whisper PRIVATE -march=armv8.2-a+fp16)
-elseif (${ANDROID_ABI} STREQUAL "armeabi-v7a")
-    target_compile_options(whisper PRIVATE -mfpu=neon-vfpv4)
-endif ()
-
-target_compile_options(whisper PRIVATE -O3 -s -flto=thin -fvisibility=hidden -fvisibility-inlines-hidden -ffunction-sections -fdata-sections)
-target_compile_options(whisper_flutter PRIVATE -O3 -s -flto=thin -fvisibility=hidden -fvisibility-inlines-hidden -ffunction-sections -fdata-sections)
-target_link_options(whisper PRIVATE -Wl,--gc-sections,--exclude-libs,ALL)
-target_link_options(whisper_flutter PRIVATE -Wl,--gc-sections,--exclude-libs,ALL)
+set_target_properties(whisper_flutter PROPERTIES OUTPUT_NAME "whisper")
 target_compile_definitions(whisper_flutter PUBLIC DART_SHARED_LIB)
+target_compile_options(whisper_flutter PRIVATE -O3 -fvisibility=hidden -fvisibility-inlines-hidden -ffunction-sections -fdata-sections)
+target_link_options(whisper_flutter PRIVATE -Wl,--gc-sections)
 target_link_libraries(whisper_flutter PRIVATE whisper ${CMAKE_THREAD_LIBS_INIT})
