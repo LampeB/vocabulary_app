@@ -302,6 +302,10 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
   bool _loading = false;
   TranslateAssist? _assist;
   String? _assistError;
+  // Captured at request time so the chips fill BOTH fields consistently,
+  // regardless of what the fields hold when a chip is tapped.
+  String _reqWord = '';
+  bool _reqFromFr = true;
 
   @override
   void dispose() {
@@ -317,6 +321,8 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
     final fromFr = fr.isNotEmpty || ko.isEmpty;
     final word = fromFr ? fr : ko;
     if (word.isEmpty) return;
+    _reqWord = word;
+    _reqFromFr = fromFr;
     setState(() {
       _loading = true;
       _assist = null;
@@ -340,7 +346,6 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final fromFr = _frCtrl.text.trim().isNotEmpty || _koCtrl.text.trim().isEmpty;
     return AlertDialog(
       title: Text('list_detail.add_dialog_title'.tr()),
       content: Form(
@@ -391,7 +396,10 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
                     style: AppTextStyles.caption
                         .copyWith(color: AppColors.rose)),
               if (_assist != null) ...[
-                // Translation chips fill the EMPTY side.
+                // Translation chips fill BOTH sides as a coherent pair
+                // (source word → translation), shown FR → KO regardless of
+                // which side was typed — tapping one never leaves a stale
+                // 'optimized' word on the other side (bug 2026-07-14).
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
@@ -399,9 +407,17 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
                     for (final t in _assist!.translations)
                       ActionChip(
                         avatar: const Icon(Icons.translate_rounded, size: 14),
-                        label: Text(t.display),
+                        label: Text(_reqFromFr
+                            ? '$_reqWord → ${t.display}'
+                            : '${t.display} → $_reqWord'),
                         onPressed: () => setState(() {
-                          (fromFr ? _koCtrl : _frCtrl).text = t.display;
+                          if (_reqFromFr) {
+                            _frCtrl.text = _reqWord;
+                            _koCtrl.text = t.display;
+                          } else {
+                            _koCtrl.text = _reqWord;
+                            _frCtrl.text = t.display;
+                          }
                         }),
                       ),
                   ],
@@ -431,12 +447,12 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
                       for (final p in _assist!.voiceFriendly)
                         ActionChip(
                           avatar: const Icon(Icons.mic_rounded, size: 14),
-                          label: Text(fromFr
+                          label: Text(_reqFromFr
                               ? '${p.source} → ${p.target}'
                               : '${p.target} → ${p.source}'),
                           // Voice-friendly pairs replace BOTH sides.
                           onPressed: () => setState(() {
-                            if (fromFr) {
+                            if (_reqFromFr) {
                               _frCtrl.text = p.source;
                               _koCtrl.text = p.target;
                             } else {
