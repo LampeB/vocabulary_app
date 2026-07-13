@@ -106,8 +106,22 @@ json transcribe(json jsonBody) noexcept
         params.seed = time(NULL);
     }
 
-    // whisper init
-    struct whisper_context *ctx = whisper_init_from_file(params.model.c_str());
+    // VocabKR patch: the context (the ~142MB model) is loaded ONCE and kept
+    // resident. Upstream re-loaded it from disk on EVERY request and freed
+    // it after — 1-2s wasted per inference at best, and under session load
+    // the alloc churn degraded inference to 8-26s and got the process
+    // OOM-killed mid-quiz (field 2026-07-13, 'WINDOW DIED', no Java trace).
+    // Calls are serialized by the Dart side, so no locking is needed.
+    static struct whisper_context *g_ctx = nullptr;
+    static std::string g_ctx_model;
+    if (g_ctx == nullptr || g_ctx_model != params.model)
+    {
+        if (g_ctx != nullptr)
+            whisper_free(g_ctx);
+        g_ctx = whisper_init_from_file(params.model.c_str());
+        g_ctx_model = params.model;
+    }
+    struct whisper_context *ctx = g_ctx;
     std::string text_result = "";
     const auto fname_inp = params.audio;
     // WAV input
@@ -260,8 +274,8 @@ json transcribe(json jsonBody) noexcept
         }
     }
     jsonResult["text"] = text_result;
-    
-    whisper_free(ctx);
+
+    // ctx is cached (see init above) — do NOT free it.
     return jsonResult;
 }
 extern "C"

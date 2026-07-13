@@ -42,6 +42,7 @@ class WhisperSpeechService {
   bool _isListening = false;
   DateTime? _listenStart;
   int _inferenceSerial = 0;
+  int _pendingInferences = 0;
   Future<void> _inferenceChain = Future.value();
 
   // Active per-window callbacks (swapped on every startListening).
@@ -206,7 +207,17 @@ class WhisperSpeechService {
   }
 
   void _enqueueInference(PcmSegment segment, String langCode, int serial) {
+    // Backpressure: a conversation-heavy room can produce segments faster
+    // than inference clears them; an unbounded queue is how the 2026-07-13
+    // session snowballed. Newest segments matter least (the answer usually
+    // comes first) — drop them when the queue is deep.
+    if (_pendingInferences >= 3) {
+      sttLog('[WSP] inference queue full ($_pendingInferences) — dropping ${segment.durationMs}ms segment');
+      return;
+    }
+    _pendingInferences++;
     _inferenceChain = _inferenceChain.then((_) async {
+      _pendingInferences--;
       if (serial != _inferenceSerial) return; // window closed meanwhile
       try {
         final sw = Stopwatch()..start();

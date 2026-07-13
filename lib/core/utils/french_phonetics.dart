@@ -44,8 +44,17 @@ abstract final class FrenchPhonetics {
     return words.map(_encodeWord).where((w) => w.isNotEmpty).join(' ');
   }
 
+  static const _digits = {
+    '0': 'zero', '1': 'un', '2': 'deux', '3': 'trois', '4': 'quatre',
+    '5': 'cinq', '6': 'six', '7': 'sept', '8': 'huit', '9': 'neuf',
+  };
+
   static String _encodeWord(String word) {
-    var w = word;
+    // STT writes numbers as digits ("et 3D" for "étudier") — expand them
+    // to their spoken French so the sound comparison sees what was said.
+    var w = word.replaceAllMapped(
+        RegExp(r'[0-9]'), (m) => '${_digits[m.group(0)]!} ');
+    w = w.trim();
     for (final (re, repl) in _rules) {
       w = w.replaceAll(re, repl);
     }
