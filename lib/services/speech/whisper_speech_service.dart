@@ -173,6 +173,16 @@ class WhisperSpeechService {
         encoder: AudioEncoder.pcm16bits,
         sampleRate: _sampleRate,
         numChannels: 1,
+        // The phone's speech DSP chain was entirely OFF (package defaults).
+        // voiceRecognition source + hardware noise suppression / echo
+        // cancellation / auto-gain are tuned by the vendor for exactly this
+        // input; echoCancel also damps the app's own TTS reaching the mic.
+        autoGain: true,
+        echoCancel: true,
+        noiseSuppress: true,
+        androidConfig: AndroidRecordConfig(
+          audioSource: AndroidAudioSource.voiceRecognition,
+        ),
       ));
       var wasInSpeech = false;
       var lastLevelLog = DateTime.now();
