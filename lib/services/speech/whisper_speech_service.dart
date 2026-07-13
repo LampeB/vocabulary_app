@@ -164,7 +164,10 @@ class WhisperSpeechService {
         sttLog('[WSP] ❌ mic permission denied');
         return false;
       }
-      _segmenter = PcmSegmenter(sampleRate: _sampleRate);
+      // maxUtterance 3s: an answer is a word or two. Longer capture is
+      // ambient conversation — two people testing together produced 5-6s
+      // blobs whisper described as '*bruit de la chanson*' (2026-07-13).
+      _segmenter = PcmSegmenter(sampleRate: _sampleRate, maxUtteranceMs: 3000);
       final stream = await _recorder.startStream(const RecordConfig(
         encoder: AudioEncoder.pcm16bits,
         sampleRate: _sampleRate,

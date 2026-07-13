@@ -95,7 +95,8 @@ abstract final class AnswerValidator {
     String? bestMatch;
 
     for (final answer in acceptedAnswers) {
-      final score = _scoreAgainst(normalizedUser, _normalize(answer));
+      final score = _scoreAgainst(normalizedUser, _normalize(answer),
+          spoken: isDrivingMode);
       sttLog('[VAL]   vs "$answer" → score=${score.toStringAsFixed(3)}');
       if (score > bestScore) {
         bestScore = score;
@@ -108,7 +109,8 @@ abstract final class AnswerValidator {
       for (final word in normalizedUser.split(RegExp(r'\s+'))) {
         if (word.isEmpty) continue;
         for (final answer in acceptedAnswers) {
-          final score = _scoreAgainst(word, _normalize(answer));
+          final score =
+              _scoreAgainst(word, _normalize(answer), spoken: isDrivingMode);
           if (score > bestScore) {
             bestScore = score;
             bestMatch = answer;
@@ -140,7 +142,8 @@ abstract final class AnswerValidator {
             strip++) {
           final stripped =
               normalizedUser.substring(0, normalizedUser.length - strip);
-          final score = _scoreAgainst(stripped, normAnswer);
+          final score =
+              _scoreAgainst(stripped, normAnswer, spoken: isDrivingMode);
           sttLog('[VAL]   strip=$strip → "$stripped" vs "$normAnswer" = ${score.toStringAsFixed(3)}');
           if (score > bestScore) {
             bestScore = score;
@@ -180,7 +183,25 @@ abstract final class AnswerValidator {
     );
   }
 
-  static double _scoreAgainst(String a, String b) {
+  /// Korean initial lenis/aspirated/tense consonants are near-homophonous
+  /// word-initially (밥 is pronounced with a voiceless ㅂ ≈ 팝) — NATIVE
+  /// speakers produce these; STT picks either spelling (field 2026-07-13:
+  /// a native speaker's 밥 transcribed 팝, scored 0.50). Spoken mode
+  /// collapses the classes before jamo similarity; typed mode never does —
+  /// spelling distinctions are the point when typing.
+  static const _laxJamo = {
+    'ㅍ': 'ㅂ', 'ㅃ': 'ㅂ',
+    'ㅌ': 'ㄷ', 'ㄸ': 'ㄷ',
+    'ㅋ': 'ㄱ', 'ㄲ': 'ㄱ',
+    'ㅊ': 'ㅈ', 'ㅉ': 'ㅈ',
+    'ㅆ': 'ㅅ',
+  };
+
+  // Jamo are single BMP code units — split('') is safe here.
+  static String _laxKorean(String jamo) =>
+      jamo.split('').map((c) => _laxJamo[c] ?? c).join();
+
+  static double _scoreAgainst(String a, String b, {bool spoken = false}) {
     if (a == b) return 1.0;
 
     final isKorean = HangulDecomposer.containsHangul(a) ||
@@ -189,9 +210,19 @@ abstract final class AnswerValidator {
     final directScore = a.similarityTo(b);
 
     if (isKorean) {
-      final jamoScore = HangulDecomposer.decompose(a)
-          .similarityTo(HangulDecomposer.decompose(b));
-      return directScore > jamoScore ? directScore : jamoScore;
+      final jamoA = HangulDecomposer.decompose(a);
+      final jamoB = HangulDecomposer.decompose(b);
+      var best = directScore;
+      final jamoScore = jamoA.similarityTo(jamoB);
+      if (jamoScore > best) best = jamoScore;
+      if (spoken) {
+        // Capped below 1.0 so phonetic equivalence can't claim EXACT.
+        final laxScore = _laxKorean(jamoA)
+            .similarityTo(_laxKorean(jamoB))
+            .clamp(0.0, 0.95);
+        if (laxScore > best) best = laxScore;
+      }
+      return best;
     }
 
     // Latin text: also score in sound-space — STT errors are phonetic

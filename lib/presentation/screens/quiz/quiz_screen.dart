@@ -451,8 +451,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         final minAnswerLen = card.answerWords
             .map((a) => AnswerValidator.stripAnnotations(a).length)
             .fold<int>(99, (m, l) => l < m ? l : m);
-        if (text.length < (minAnswerLen <= 1 ? 1 : 2) ||
-            text.split(' ').length > 3) {
+        if (text.split(' ').length > 3) {
+          // Ambient conversation, not an answer — ignore WITHOUT burning a
+          // repeat prompt (two people talking spammed the mishear ladder,
+          // field 2026-07-13). The window stays open for the real answer.
+          sttLog('[HF][WSP] conversation-length transcript "$text" ignored');
+          return;
+        }
+        if (text.length < (minAnswerLen <= 1 ? 1 : 2)) {
           sttLog('[HF][WSP] junk-length transcript "$text" — asking to repeat');
           promptRepeat('junk length');
           return;
@@ -477,6 +483,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         // "먹다" heard as "목사" scored 0.00 and failed the card). First
         // strike asks to repeat; only a second consecutive low-score
         // transcript grades wrong.
+        if (segmentMs > 3200) {
+          // Too long to be an answer — ambient speech; never a strike.
+          sttLog('[HF][WSP] long-segment (${segmentMs}ms) low-score "$text" ignored as ambient');
+          return;
+        }
         _lowScoreStrikes++;
         if (_lowScoreStrikes < 2 || _sawBorderline) {
           sttLog('[HF][WSP] ⚠️ low-score "$text" (${v.score.toStringAsFixed(2)}) — strike $_lowScoreStrikes${_sawBorderline ? " (borderline shield)" : ""}, asking to repeat');

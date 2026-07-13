@@ -140,6 +140,29 @@ void main() {
     });
   });
 
+  group('Korean spoken phonetic leniency (field 2026-07-13)', () {
+    // A NATIVE speaker's 밥 was transcribed 팝 — word-initial lenis ㅂ is
+    // voiceless, near-homophonous with ㅍ. Spoken mode collapses
+    // lenis/aspirated/tense classes; typed mode never does.
+    test('팝 accepts for 밥 when SPOKEN', () {
+      final r = validate('팝', ['밥'], driving: true);
+      expect(r.isCorrect, isTrue);
+      expect(r.type, isNot(ValidationResultType.exact));
+    });
+
+    test('팝 stays wrong for 밥 when TYPED', () {
+      expect(validate('팝', ['밥']).isCorrect, isFalse);
+    });
+
+    test('other class pairs: 통 accepts for 동 spoken', () {
+      expect(validate('통', ['동'], driving: true).isCorrect, isTrue);
+    });
+
+    test('genuinely different Korean words stay rejected spoken', () {
+      expect(validate('물', ['밥'], driving: true).isCorrect, isFalse);
+    });
+  });
+
   group('annotated answers (field bug 2026-07-09)', () {
     // "café" spoken against stored answer "café (boisson)" was rejected
     // dozens of times in one hands-free session — the parenthetical is a
