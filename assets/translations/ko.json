@@ -340,5 +340,6 @@
   "start_session.rule_locked": "먼저 마스터: {lists}",
   "start_session.rule_mastered": "마스터함",
   "start_session.rule_not_enough_words": "연습하려면 단어를 더 마스터하세요",
-  "start_session.section_rule": "문법 규칙"
+  "start_session.section_rule": "문법 규칙",
+  "quiz.play_audio": "듣기"
 }

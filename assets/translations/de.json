@@ -340,5 +340,6 @@
   "start_session.rule_locked": "Meistere zuerst: {lists}",
   "start_session.rule_mastered": "Gemeistert",
   "start_session.rule_not_enough_words": "Meistere mehr Vokabeln zum Üben",
-  "start_session.section_rule": "Grammatikregel"
+  "start_session.section_rule": "Grammatikregel",
+  "quiz.play_audio": "Abspielen"
 }

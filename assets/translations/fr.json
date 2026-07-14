@@ -340,5 +340,6 @@
   "start_session.rule_locked": "Maîtrise d'abord : {lists}",
   "start_session.rule_mastered": "Maîtrisée",
   "start_session.rule_not_enough_words": "Maîtrise plus de vocabulaire pour t'entraîner",
-  "start_session.section_rule": "Règle de grammaire"
+  "start_session.section_rule": "Règle de grammaire",
+  "quiz.play_audio": "Écouter"
 }

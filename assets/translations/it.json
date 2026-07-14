@@ -340,5 +340,6 @@
   "start_session.rule_locked": "Padroneggia prima: {lists}",
   "start_session.rule_mastered": "Padroneggiata",
   "start_session.rule_not_enough_words": "Padroneggia più vocaboli per esercitarti",
-  "start_session.section_rule": "Regola grammaticale"
+  "start_session.section_rule": "Regola grammaticale",
+  "quiz.play_audio": "Ascolta"
 }

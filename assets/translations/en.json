@@ -340,5 +340,6 @@
   "start_session.rule_locked": "First master: {lists}",
   "start_session.rule_mastered": "Mastered",
   "start_session.rule_not_enough_words": "Master more vocabulary to practise",
-  "start_session.section_rule": "Grammar rule"
+  "start_session.section_rule": "Grammar rule",
+  "quiz.play_audio": "Play audio"
 }

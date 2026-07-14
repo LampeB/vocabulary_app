@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
 
 /// The answer auto-speak policy (shouldSpeakAnswer) is a spec'd behavioural rule:
-/// flashcard is silent, typing/voice always speak, hands-free speaks only on a
+/// flashcard + typing are silent (typing has an on-demand button), voice speaks, hands-free speaks only on a
 /// wrong answer. Pure function → host-side unit test (no device audio needed).
 void main() {
   group('shouldSpeakAnswer', () {
@@ -11,9 +11,9 @@ void main() {
       expect(shouldSpeakAnswer(QuizMode.flashcard, correct: false), isFalse);
     });
 
-    test('typing always speaks', () {
-      expect(shouldSpeakAnswer(QuizMode.typing, correct: true), isTrue);
-      expect(shouldSpeakAnswer(QuizMode.typing, correct: false), isTrue);
+    test('typing NEVER auto-speaks (on-demand speaker button instead, 2026-07-14)', () {
+      expect(shouldSpeakAnswer(QuizMode.typing, correct: true), isFalse);
+      expect(shouldSpeakAnswer(QuizMode.typing, correct: false), isFalse);
     });
 
     test('voice always speaks', () {

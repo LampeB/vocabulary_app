@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -24,6 +25,7 @@ class StudyFeedbackFlood extends StatelessWidget {
     this.detail,
     this.continueLabel,
     this.onContinue,
+    this.onPlayAudio,
   });
 
   /// Correct → teal flood + check; wrong → orange flood + ✕.
@@ -47,6 +49,10 @@ class StudyFeedbackFlood extends StatelessWidget {
   /// When non-null, show a Continuer button that calls this; otherwise the flood
   /// is transient (hands-free dismisses it itself).
   final VoidCallback? onContinue;
+
+  /// When non-null, a speaker button plays the answer audio on demand
+  /// (replaces auto-play so a fast Continuer can't overlap audio).
+  final VoidCallback? onPlayAudio;
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +99,17 @@ class StudyFeedbackFlood extends StatelessWidget {
                           : AppTextStyles.grotesk(40, FontWeight.w700))
                       .copyWith(color: Colors.white),
                 ),
+                if (onPlayAudio != null) ...[
+                  const SizedBox(height: 8),
+                  IconButton(
+                    key: const ValueKey(WidgetKeys.feedbackPlayAudio),
+                    onPressed: onPlayAudio,
+                    iconSize: 32,
+                    icon: const Icon(Icons.volume_up_rounded,
+                        color: Colors.white),
+                    tooltip: 'quiz.play_audio'.tr(),
+                  ),
+                ],
               ],
               if (detail != null && detail!.isNotEmpty) ...[
                 const SizedBox(height: 10),

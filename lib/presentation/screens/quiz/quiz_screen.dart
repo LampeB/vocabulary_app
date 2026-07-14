@@ -1354,6 +1354,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       final correct = s.answerState == QuizAnswerState.correct;
       return StudyFeedbackFlood(
         isCorrect: correct,
+        onPlayAudio: card.answerWords.isEmpty
+            ? null
+            : () => unawaited(ref
+                .read(audioPlayerServiceProvider)
+                .speak(card.answerWords.first,
+                    card.progress.direction.answerLang)),
         label: correct
             ? 'quiz.feedback_correct'.tr()
             : 'quiz.feedback_wrong'.tr(),

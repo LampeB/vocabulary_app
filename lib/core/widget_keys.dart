@@ -54,6 +54,7 @@ abstract final class WidgetKeys {
   // ── Full-screen feedback flood ─────────────────────────────────────────────
   static const feedbackCorrect = 'study.feedback.correct';
   static const feedbackWrong = 'study.feedback.wrong';
+  static const feedbackPlayAudio = 'feedback.play_audio';
   static const feedbackContinue = 'study.feedback.continue';
 
   // ── Hands-free controls ────────────────────────────────────────────────────

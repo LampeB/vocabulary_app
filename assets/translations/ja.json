@@ -340,5 +340,6 @@
   "start_session.rule_locked": "まず習得：{lists}",
   "start_session.rule_mastered": "習得済み",
   "start_session.rule_not_enough_words": "練習にはもっと単語を習得してください",
-  "start_session.section_rule": "文法ルール"
+  "start_session.section_rule": "文法ルール",
+  "quiz.play_audio": "再生"
 }
