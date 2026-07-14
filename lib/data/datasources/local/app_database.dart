@@ -11,6 +11,8 @@ import 'daos/concept_dao.dart';
 import 'daos/progress_dao.dart';
 import 'daos/grammar_progress_dao.dart';
 import 'daos/quiz_session_dao.dart';
+import 'tables/review_events_table.dart';
+import 'daos/review_event_dao.dart';
 
 part 'app_database.g.dart';
 
@@ -22,6 +24,7 @@ part 'app_database.g.dart';
     VariantProgressTable,
     QuizSessionsTable,
     GrammarProgressTable,
+    ReviewEventsTable,
   ],
   daos: [
     VocabularyListDao,
@@ -29,6 +32,7 @@ part 'app_database.g.dart';
     ProgressDao,
     QuizSessionDao,
     GrammarProgressDao,
+    ReviewEventDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -37,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -82,6 +86,16 @@ class AppDatabase extends _$AppDatabase {
             // Per-rule grammar mastery (the grammar feature's stage-2 gate).
             await m.createTable(grammarProgressTable);
           }
+          if (from < 8) {
+            // Per-answer review-event log (stats dashboard observability).
+            await m.createTable(reviewEventsTable);
+            await customStatement(
+                'CREATE INDEX IF NOT EXISTS idx_review_events_user '
+                'ON review_events(user_id, created_at)');
+            await customStatement(
+                'CREATE INDEX IF NOT EXISTS idx_review_events_unsynced '
+                'ON review_events(is_synced)');
+          }
         },
       );
 
@@ -97,6 +111,9 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
         'CREATE INDEX IF NOT EXISTS idx_sessions_user '
         'ON quiz_sessions(user_id, completed_at)');
+    await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_review_events_user '
+        'ON review_events(user_id, created_at)');
   }
 
   static QueryExecutor _openConnection() {

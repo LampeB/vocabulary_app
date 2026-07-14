@@ -1,6 +1,7 @@
 import '../../core/errors/failure.dart';
 import '../datasources/local/daos/concept_dao.dart';
 import '../datasources/local/daos/progress_dao.dart';
+import '../datasources/local/daos/review_event_dao.dart';
 import '../datasources/local/daos/vocabulary_list_dao.dart';
 import '../datasources/remote/vocabulary_remote_datasource.dart';
 import '../models/variant_progress_dto.dart';
@@ -18,11 +19,13 @@ import '../models/vocabulary_list_dto.dart';
 /// remote upserts, so overlapping with the fire-and-forget pushes in the
 /// repositories is harmless.
 class PushSync {
-  PushSync(this._listDao, this._conceptDao, this._progressDao, this._remote);
+  PushSync(this._listDao, this._conceptDao, this._progressDao,
+      this._reviewEventDao, this._remote);
 
   final VocabularyListDao _listDao;
   final ConceptDao _conceptDao;
   final ProgressDao _progressDao;
+  final ReviewEventDao _reviewEventDao;
   final VocabularyRemoteDataSource _remote;
 
   bool _running = false;
@@ -81,6 +84,24 @@ class PushSync {
         idOf: (r) => r.id,
         push: (r) => _remote.upsertProgress(r.toDomain().toRemoteMap()),
         markSynced: _progressDao.markProgressSynced,
+      );
+      pushed += await _drain(
+        rows: await _reviewEventDao.getUnsynced(),
+        idOf: (r) => r.id,
+        push: (r) => _remote.upsertReviewEvent({
+          'id': r.id,
+          'user_id': r.userId,
+          'variant_id': r.variantId,
+          'direction': r.direction,
+          'list_id': r.listId,
+          'mode': r.mode,
+          'correct': r.correct,
+          'rating': r.rating,
+          'response_time_ms': r.responseTimeMs,
+          'retry_count': r.retryCount,
+          'created_at': r.createdAt.toIso8601String(),
+        }),
+        markSynced: _reviewEventDao.markSynced,
       );
       return pushed;
     } finally {

@@ -50,6 +50,10 @@ class _FakeRemote implements VocabularyRemoteDataSource {
       Success(data);
 
   @override
+  Future<Result<void>> upsertReviewEvent(Map<String, dynamic> data) async =>
+      const Success(null);
+
+  @override
   Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(
           String token) async =>
       const Success(null);

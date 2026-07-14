@@ -113,6 +113,15 @@ class VocabularyRemoteDataSource {
     }
   }
 
+  Future<Result<void>> upsertReviewEvent(Map<String, dynamic> data) async {
+    try {
+      await _client.from('review_events').upsert(data);
+      return const Success(null);
+    } catch (e) {
+      return Failure(NetworkException(e.toString()));
+    }
+  }
+
   // Fetches a public list (with its concepts and variants) by share token.
   // Requires vocabulary_lists to have visibility='public' and a matching RLS policy.
   Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(

@@ -58,8 +58,8 @@ void main() {
     remote = _RecordingRemote();
     repo = VocabularyRepositoryImpl(
         db.vocabularyListDao, db.conceptDao, remote, 'u', db);
-    sync = PushSync(
-        db.vocabularyListDao, db.conceptDao, db.progressDao, remote);
+    sync = PushSync(db.vocabularyListDao, db.conceptDao, db.progressDao,
+        db.reviewEventDao, remote);
   });
   tearDown(() => db.close());
 

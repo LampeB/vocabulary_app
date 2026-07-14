@@ -249,6 +249,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   // "uninitialized" before firing onDispose, so reading state there throws.
   QuizState _preserved = const QuizState();
   QuizArgs? _lastArgs;
+  // When the current card was shown — for review-event responseTimeMs.
+  DateTime? _cardShownAt;
   DateTime? _sessionStartTime;
 
   @override
@@ -554,6 +556,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     // vocab today and to grammar when it lands. scheduledDays stays 0 so the
     // feedback screen doesn't show an interval that was never scheduled.
     final isCorrect = rating == FsrsRating.good || rating == FsrsRating.easy;
+    _recordReviewEvent(card, correct: isCorrect, rating: rating);
     state = state.copyWith(
       answerState:
           isCorrect ? QuizAnswerState.correct : QuizAnswerState.incorrect,
@@ -588,6 +591,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     } catch (e) {
       sttLog('[QUIZ] ⚠️ persistRating failed (sync): $e');
     }
+    _recordReviewEvent(card, correct: result.isCorrect, rating: rating);
     state = state.copyWith(
       userAnswer: answer,
       answerState: result.isCorrect
@@ -625,6 +629,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     } catch (e) {
       sttLog('[QUIZ] ⚠️ persistRating failed (sync): $e');
     }
+    _recordReviewEvent(card, correct: result.isCorrect, rating: rating);
     state = state.copyWith(
       userAnswer: transcript,
       answerState: result.isCorrect
@@ -643,6 +648,48 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       Future.delayed(delay, () => _advance(isCorrect: result.isCorrect));
     }
     // Otherwise: advance is triggered by "Continuer" on the feedback screen.
+  }
+
+  /// Records one review-event row (observability for the stats dashboard).
+  /// Strictly additive — best-effort, never blocks grading; the isSynced
+  /// flag carries it to Supabase on the next push drain.
+  void _recordReviewEvent(
+    QuizCard card, {
+    required bool correct,
+    required FsrsRating rating,
+    int? retryCount,
+  }) {
+    try {
+      final userId = ref.read(currentUserProvider)?.id ?? '';
+      if (userId.isEmpty) return;
+      final now = DateTime.now();
+      final rt = _cardShownAt == null
+          ? null
+          : now.difference(_cardShownAt!).inMilliseconds;
+      unawaited(ref
+          .read(appDatabaseProvider)
+          .reviewEventDao
+          .insertEvent(ReviewEventsTableCompanion.insert(
+            id: _uuid.v4(),
+            userId: userId,
+            variantId: card.progress.variantId,
+            direction: card.progress.direction.name,
+            listId: Value(_lastArgs?.listId),
+            mode: (_lastArgs?.mode ?? QuizMode.flashcard).name,
+            correct: correct,
+            rating: rating.name,
+            responseTimeMs: Value(rt),
+            retryCount: Value(retryCount),
+            createdAt: now,
+          ))
+          .then((_) => ref.read(pushSyncProvider).pushAll())
+          .catchError((Object e) {
+        sttLog('[QUIZ] ⚠️ review-event record failed: $e');
+        return 0;
+      }));
+    } catch (e) {
+      sttLog('[QUIZ] ⚠️ review-event record failed (sync): $e');
+    }
   }
 
   int _computeScheduledDays(VariantProgress progress, FsrsRating rating) {
@@ -822,6 +869,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         correctCount: newCorrect,
         scheduledDays: 0,
       );
+      _cardShownAt = DateTime.now();
       final nextCard = state.currentCard;
       if (nextCard != null &&
           !_kTestMode &&

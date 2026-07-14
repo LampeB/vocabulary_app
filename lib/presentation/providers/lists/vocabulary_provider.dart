@@ -145,6 +145,7 @@ final pushSyncProvider = Provider<PushSync>((ref) => PushSync(
       ref.watch(vocabularyListDaoProvider),
       ref.watch(conceptDaoProvider),
       ref.watch(progressDaoProvider),
+      ref.watch(appDatabaseProvider).reviewEventDao,
       ref.watch(vocabularyRemoteProvider),
     ));
 

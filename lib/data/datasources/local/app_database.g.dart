@@ -3850,6 +3850,600 @@ class GrammarProgressTableCompanion
   }
 }
 
+class $ReviewEventsTableTable extends ReviewEventsTable
+    with TableInfo<$ReviewEventsTableTable, ReviewEventsTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReviewEventsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+      'user_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _variantIdMeta =
+      const VerificationMeta('variantId');
+  @override
+  late final GeneratedColumn<String> variantId = GeneratedColumn<String>(
+      'variant_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _directionMeta =
+      const VerificationMeta('direction');
+  @override
+  late final GeneratedColumn<String> direction = GeneratedColumn<String>(
+      'direction', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _listIdMeta = const VerificationMeta('listId');
+  @override
+  late final GeneratedColumn<String> listId = GeneratedColumn<String>(
+      'list_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _modeMeta = const VerificationMeta('mode');
+  @override
+  late final GeneratedColumn<String> mode = GeneratedColumn<String>(
+      'mode', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _correctMeta =
+      const VerificationMeta('correct');
+  @override
+  late final GeneratedColumn<bool> correct = GeneratedColumn<bool>(
+      'correct', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("correct" IN (0, 1))'));
+  static const VerificationMeta _ratingMeta = const VerificationMeta('rating');
+  @override
+  late final GeneratedColumn<String> rating = GeneratedColumn<String>(
+      'rating', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _responseTimeMsMeta =
+      const VerificationMeta('responseTimeMs');
+  @override
+  late final GeneratedColumn<int> responseTimeMs = GeneratedColumn<int>(
+      'response_time_ms', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _retryCountMeta =
+      const VerificationMeta('retryCount');
+  @override
+  late final GeneratedColumn<int> retryCount = GeneratedColumn<int>(
+      'retry_count', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _isSyncedMeta =
+      const VerificationMeta('isSynced');
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+      'is_synced', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        userId,
+        variantId,
+        direction,
+        listId,
+        mode,
+        correct,
+        rating,
+        responseTimeMs,
+        retryCount,
+        createdAt,
+        isSynced
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'review_events';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<ReviewEventsTableData> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(_userIdMeta,
+          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('variant_id')) {
+      context.handle(_variantIdMeta,
+          variantId.isAcceptableOrUnknown(data['variant_id']!, _variantIdMeta));
+    } else if (isInserting) {
+      context.missing(_variantIdMeta);
+    }
+    if (data.containsKey('direction')) {
+      context.handle(_directionMeta,
+          direction.isAcceptableOrUnknown(data['direction']!, _directionMeta));
+    } else if (isInserting) {
+      context.missing(_directionMeta);
+    }
+    if (data.containsKey('list_id')) {
+      context.handle(_listIdMeta,
+          listId.isAcceptableOrUnknown(data['list_id']!, _listIdMeta));
+    }
+    if (data.containsKey('mode')) {
+      context.handle(
+          _modeMeta, mode.isAcceptableOrUnknown(data['mode']!, _modeMeta));
+    } else if (isInserting) {
+      context.missing(_modeMeta);
+    }
+    if (data.containsKey('correct')) {
+      context.handle(_correctMeta,
+          correct.isAcceptableOrUnknown(data['correct']!, _correctMeta));
+    } else if (isInserting) {
+      context.missing(_correctMeta);
+    }
+    if (data.containsKey('rating')) {
+      context.handle(_ratingMeta,
+          rating.isAcceptableOrUnknown(data['rating']!, _ratingMeta));
+    } else if (isInserting) {
+      context.missing(_ratingMeta);
+    }
+    if (data.containsKey('response_time_ms')) {
+      context.handle(
+          _responseTimeMsMeta,
+          responseTimeMs.isAcceptableOrUnknown(
+              data['response_time_ms']!, _responseTimeMsMeta));
+    }
+    if (data.containsKey('retry_count')) {
+      context.handle(
+          _retryCountMeta,
+          retryCount.isAcceptableOrUnknown(
+              data['retry_count']!, _retryCountMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(_isSyncedMeta,
+          isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ReviewEventsTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReviewEventsTableData(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      userId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
+      variantId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}variant_id'])!,
+      direction: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}direction'])!,
+      listId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}list_id']),
+      mode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}mode'])!,
+      correct: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}correct'])!,
+      rating: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}rating'])!,
+      responseTimeMs: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}response_time_ms']),
+      retryCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}retry_count']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      isSynced: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+    );
+  }
+
+  @override
+  $ReviewEventsTableTable createAlias(String alias) {
+    return $ReviewEventsTableTable(attachedDatabase, alias);
+  }
+}
+
+class ReviewEventsTableData extends DataClass
+    implements Insertable<ReviewEventsTableData> {
+  final String id;
+  final String userId;
+  final String variantId;
+  final String direction;
+  final String? listId;
+  final String mode;
+  final bool correct;
+  final String rating;
+  final int? responseTimeMs;
+  final int? retryCount;
+  final DateTime createdAt;
+  final bool isSynced;
+  const ReviewEventsTableData(
+      {required this.id,
+      required this.userId,
+      required this.variantId,
+      required this.direction,
+      this.listId,
+      required this.mode,
+      required this.correct,
+      required this.rating,
+      this.responseTimeMs,
+      this.retryCount,
+      required this.createdAt,
+      required this.isSynced});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['variant_id'] = Variable<String>(variantId);
+    map['direction'] = Variable<String>(direction);
+    if (!nullToAbsent || listId != null) {
+      map['list_id'] = Variable<String>(listId);
+    }
+    map['mode'] = Variable<String>(mode);
+    map['correct'] = Variable<bool>(correct);
+    map['rating'] = Variable<String>(rating);
+    if (!nullToAbsent || responseTimeMs != null) {
+      map['response_time_ms'] = Variable<int>(responseTimeMs);
+    }
+    if (!nullToAbsent || retryCount != null) {
+      map['retry_count'] = Variable<int>(retryCount);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['is_synced'] = Variable<bool>(isSynced);
+    return map;
+  }
+
+  ReviewEventsTableCompanion toCompanion(bool nullToAbsent) {
+    return ReviewEventsTableCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      variantId: Value(variantId),
+      direction: Value(direction),
+      listId:
+          listId == null && nullToAbsent ? const Value.absent() : Value(listId),
+      mode: Value(mode),
+      correct: Value(correct),
+      rating: Value(rating),
+      responseTimeMs: responseTimeMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(responseTimeMs),
+      retryCount: retryCount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(retryCount),
+      createdAt: Value(createdAt),
+      isSynced: Value(isSynced),
+    );
+  }
+
+  factory ReviewEventsTableData.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReviewEventsTableData(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      variantId: serializer.fromJson<String>(json['variantId']),
+      direction: serializer.fromJson<String>(json['direction']),
+      listId: serializer.fromJson<String?>(json['listId']),
+      mode: serializer.fromJson<String>(json['mode']),
+      correct: serializer.fromJson<bool>(json['correct']),
+      rating: serializer.fromJson<String>(json['rating']),
+      responseTimeMs: serializer.fromJson<int?>(json['responseTimeMs']),
+      retryCount: serializer.fromJson<int?>(json['retryCount']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'variantId': serializer.toJson<String>(variantId),
+      'direction': serializer.toJson<String>(direction),
+      'listId': serializer.toJson<String?>(listId),
+      'mode': serializer.toJson<String>(mode),
+      'correct': serializer.toJson<bool>(correct),
+      'rating': serializer.toJson<String>(rating),
+      'responseTimeMs': serializer.toJson<int?>(responseTimeMs),
+      'retryCount': serializer.toJson<int?>(retryCount),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'isSynced': serializer.toJson<bool>(isSynced),
+    };
+  }
+
+  ReviewEventsTableData copyWith(
+          {String? id,
+          String? userId,
+          String? variantId,
+          String? direction,
+          Value<String?> listId = const Value.absent(),
+          String? mode,
+          bool? correct,
+          String? rating,
+          Value<int?> responseTimeMs = const Value.absent(),
+          Value<int?> retryCount = const Value.absent(),
+          DateTime? createdAt,
+          bool? isSynced}) =>
+      ReviewEventsTableData(
+        id: id ?? this.id,
+        userId: userId ?? this.userId,
+        variantId: variantId ?? this.variantId,
+        direction: direction ?? this.direction,
+        listId: listId.present ? listId.value : this.listId,
+        mode: mode ?? this.mode,
+        correct: correct ?? this.correct,
+        rating: rating ?? this.rating,
+        responseTimeMs:
+            responseTimeMs.present ? responseTimeMs.value : this.responseTimeMs,
+        retryCount: retryCount.present ? retryCount.value : this.retryCount,
+        createdAt: createdAt ?? this.createdAt,
+        isSynced: isSynced ?? this.isSynced,
+      );
+  ReviewEventsTableData copyWithCompanion(ReviewEventsTableCompanion data) {
+    return ReviewEventsTableData(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      variantId: data.variantId.present ? data.variantId.value : this.variantId,
+      direction: data.direction.present ? data.direction.value : this.direction,
+      listId: data.listId.present ? data.listId.value : this.listId,
+      mode: data.mode.present ? data.mode.value : this.mode,
+      correct: data.correct.present ? data.correct.value : this.correct,
+      rating: data.rating.present ? data.rating.value : this.rating,
+      responseTimeMs: data.responseTimeMs.present
+          ? data.responseTimeMs.value
+          : this.responseTimeMs,
+      retryCount:
+          data.retryCount.present ? data.retryCount.value : this.retryCount,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewEventsTableData(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('variantId: $variantId, ')
+          ..write('direction: $direction, ')
+          ..write('listId: $listId, ')
+          ..write('mode: $mode, ')
+          ..write('correct: $correct, ')
+          ..write('rating: $rating, ')
+          ..write('responseTimeMs: $responseTimeMs, ')
+          ..write('retryCount: $retryCount, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('isSynced: $isSynced')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, userId, variantId, direction, listId,
+      mode, correct, rating, responseTimeMs, retryCount, createdAt, isSynced);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReviewEventsTableData &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.variantId == this.variantId &&
+          other.direction == this.direction &&
+          other.listId == this.listId &&
+          other.mode == this.mode &&
+          other.correct == this.correct &&
+          other.rating == this.rating &&
+          other.responseTimeMs == this.responseTimeMs &&
+          other.retryCount == this.retryCount &&
+          other.createdAt == this.createdAt &&
+          other.isSynced == this.isSynced);
+}
+
+class ReviewEventsTableCompanion
+    extends UpdateCompanion<ReviewEventsTableData> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> variantId;
+  final Value<String> direction;
+  final Value<String?> listId;
+  final Value<String> mode;
+  final Value<bool> correct;
+  final Value<String> rating;
+  final Value<int?> responseTimeMs;
+  final Value<int?> retryCount;
+  final Value<DateTime> createdAt;
+  final Value<bool> isSynced;
+  final Value<int> rowid;
+  const ReviewEventsTableCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.variantId = const Value.absent(),
+    this.direction = const Value.absent(),
+    this.listId = const Value.absent(),
+    this.mode = const Value.absent(),
+    this.correct = const Value.absent(),
+    this.rating = const Value.absent(),
+    this.responseTimeMs = const Value.absent(),
+    this.retryCount = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReviewEventsTableCompanion.insert({
+    required String id,
+    required String userId,
+    required String variantId,
+    required String direction,
+    this.listId = const Value.absent(),
+    required String mode,
+    required bool correct,
+    required String rating,
+    this.responseTimeMs = const Value.absent(),
+    this.retryCount = const Value.absent(),
+    required DateTime createdAt,
+    this.isSynced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        userId = Value(userId),
+        variantId = Value(variantId),
+        direction = Value(direction),
+        mode = Value(mode),
+        correct = Value(correct),
+        rating = Value(rating),
+        createdAt = Value(createdAt);
+  static Insertable<ReviewEventsTableData> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? variantId,
+    Expression<String>? direction,
+    Expression<String>? listId,
+    Expression<String>? mode,
+    Expression<bool>? correct,
+    Expression<String>? rating,
+    Expression<int>? responseTimeMs,
+    Expression<int>? retryCount,
+    Expression<DateTime>? createdAt,
+    Expression<bool>? isSynced,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (variantId != null) 'variant_id': variantId,
+      if (direction != null) 'direction': direction,
+      if (listId != null) 'list_id': listId,
+      if (mode != null) 'mode': mode,
+      if (correct != null) 'correct': correct,
+      if (rating != null) 'rating': rating,
+      if (responseTimeMs != null) 'response_time_ms': responseTimeMs,
+      if (retryCount != null) 'retry_count': retryCount,
+      if (createdAt != null) 'created_at': createdAt,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReviewEventsTableCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? userId,
+      Value<String>? variantId,
+      Value<String>? direction,
+      Value<String?>? listId,
+      Value<String>? mode,
+      Value<bool>? correct,
+      Value<String>? rating,
+      Value<int?>? responseTimeMs,
+      Value<int?>? retryCount,
+      Value<DateTime>? createdAt,
+      Value<bool>? isSynced,
+      Value<int>? rowid}) {
+    return ReviewEventsTableCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      variantId: variantId ?? this.variantId,
+      direction: direction ?? this.direction,
+      listId: listId ?? this.listId,
+      mode: mode ?? this.mode,
+      correct: correct ?? this.correct,
+      rating: rating ?? this.rating,
+      responseTimeMs: responseTimeMs ?? this.responseTimeMs,
+      retryCount: retryCount ?? this.retryCount,
+      createdAt: createdAt ?? this.createdAt,
+      isSynced: isSynced ?? this.isSynced,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (variantId.present) {
+      map['variant_id'] = Variable<String>(variantId.value);
+    }
+    if (direction.present) {
+      map['direction'] = Variable<String>(direction.value);
+    }
+    if (listId.present) {
+      map['list_id'] = Variable<String>(listId.value);
+    }
+    if (mode.present) {
+      map['mode'] = Variable<String>(mode.value);
+    }
+    if (correct.present) {
+      map['correct'] = Variable<bool>(correct.value);
+    }
+    if (rating.present) {
+      map['rating'] = Variable<String>(rating.value);
+    }
+    if (responseTimeMs.present) {
+      map['response_time_ms'] = Variable<int>(responseTimeMs.value);
+    }
+    if (retryCount.present) {
+      map['retry_count'] = Variable<int>(retryCount.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewEventsTableCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('variantId: $variantId, ')
+          ..write('direction: $direction, ')
+          ..write('listId: $listId, ')
+          ..write('mode: $mode, ')
+          ..write('correct: $correct, ')
+          ..write('rating: $rating, ')
+          ..write('responseTimeMs: $responseTimeMs, ')
+          ..write('retryCount: $retryCount, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3864,6 +4458,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $QuizSessionsTableTable(this);
   late final $GrammarProgressTableTable grammarProgressTable =
       $GrammarProgressTableTable(this);
+  late final $ReviewEventsTableTable reviewEventsTable =
+      $ReviewEventsTableTable(this);
   late final VocabularyListDao vocabularyListDao =
       VocabularyListDao(this as AppDatabase);
   late final ConceptDao conceptDao = ConceptDao(this as AppDatabase);
@@ -3872,6 +4468,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       QuizSessionDao(this as AppDatabase);
   late final GrammarProgressDao grammarProgressDao =
       GrammarProgressDao(this as AppDatabase);
+  late final ReviewEventDao reviewEventDao =
+      ReviewEventDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3882,7 +4480,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         wordVariantsTable,
         variantProgressTable,
         quizSessionsTable,
-        grammarProgressTable
+        grammarProgressTable,
+        reviewEventsTable
       ];
 }
 
@@ -6233,6 +6832,290 @@ typedef $$GrammarProgressTableTableProcessedTableManager
         ),
         GrammarProgressTableData,
         PrefetchHooks Function()>;
+typedef $$ReviewEventsTableTableCreateCompanionBuilder
+    = ReviewEventsTableCompanion Function({
+  required String id,
+  required String userId,
+  required String variantId,
+  required String direction,
+  Value<String?> listId,
+  required String mode,
+  required bool correct,
+  required String rating,
+  Value<int?> responseTimeMs,
+  Value<int?> retryCount,
+  required DateTime createdAt,
+  Value<bool> isSynced,
+  Value<int> rowid,
+});
+typedef $$ReviewEventsTableTableUpdateCompanionBuilder
+    = ReviewEventsTableCompanion Function({
+  Value<String> id,
+  Value<String> userId,
+  Value<String> variantId,
+  Value<String> direction,
+  Value<String?> listId,
+  Value<String> mode,
+  Value<bool> correct,
+  Value<String> rating,
+  Value<int?> responseTimeMs,
+  Value<int?> retryCount,
+  Value<DateTime> createdAt,
+  Value<bool> isSynced,
+  Value<int> rowid,
+});
+
+class $$ReviewEventsTableTableFilterComposer
+    extends Composer<_$AppDatabase, $ReviewEventsTableTable> {
+  $$ReviewEventsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get variantId => $composableBuilder(
+      column: $table.variantId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get direction => $composableBuilder(
+      column: $table.direction, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get listId => $composableBuilder(
+      column: $table.listId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mode => $composableBuilder(
+      column: $table.mode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get correct => $composableBuilder(
+      column: $table.correct, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get rating => $composableBuilder(
+      column: $table.rating, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get responseTimeMs => $composableBuilder(
+      column: $table.responseTimeMs,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get retryCount => $composableBuilder(
+      column: $table.retryCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+      column: $table.isSynced, builder: (column) => ColumnFilters(column));
+}
+
+class $$ReviewEventsTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReviewEventsTableTable> {
+  $$ReviewEventsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get variantId => $composableBuilder(
+      column: $table.variantId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get direction => $composableBuilder(
+      column: $table.direction, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get listId => $composableBuilder(
+      column: $table.listId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get mode => $composableBuilder(
+      column: $table.mode, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get correct => $composableBuilder(
+      column: $table.correct, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get rating => $composableBuilder(
+      column: $table.rating, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get responseTimeMs => $composableBuilder(
+      column: $table.responseTimeMs,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get retryCount => $composableBuilder(
+      column: $table.retryCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+      column: $table.isSynced, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ReviewEventsTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReviewEventsTableTable> {
+  $$ReviewEventsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get variantId =>
+      $composableBuilder(column: $table.variantId, builder: (column) => column);
+
+  GeneratedColumn<String> get direction =>
+      $composableBuilder(column: $table.direction, builder: (column) => column);
+
+  GeneratedColumn<String> get listId =>
+      $composableBuilder(column: $table.listId, builder: (column) => column);
+
+  GeneratedColumn<String> get mode =>
+      $composableBuilder(column: $table.mode, builder: (column) => column);
+
+  GeneratedColumn<bool> get correct =>
+      $composableBuilder(column: $table.correct, builder: (column) => column);
+
+  GeneratedColumn<String> get rating =>
+      $composableBuilder(column: $table.rating, builder: (column) => column);
+
+  GeneratedColumn<int> get responseTimeMs => $composableBuilder(
+      column: $table.responseTimeMs, builder: (column) => column);
+
+  GeneratedColumn<int> get retryCount => $composableBuilder(
+      column: $table.retryCount, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+}
+
+class $$ReviewEventsTableTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ReviewEventsTableTable,
+    ReviewEventsTableData,
+    $$ReviewEventsTableTableFilterComposer,
+    $$ReviewEventsTableTableOrderingComposer,
+    $$ReviewEventsTableTableAnnotationComposer,
+    $$ReviewEventsTableTableCreateCompanionBuilder,
+    $$ReviewEventsTableTableUpdateCompanionBuilder,
+    (
+      ReviewEventsTableData,
+      BaseReferences<_$AppDatabase, $ReviewEventsTableTable,
+          ReviewEventsTableData>
+    ),
+    ReviewEventsTableData,
+    PrefetchHooks Function()> {
+  $$ReviewEventsTableTableTableManager(
+      _$AppDatabase db, $ReviewEventsTableTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReviewEventsTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReviewEventsTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReviewEventsTableTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> userId = const Value.absent(),
+            Value<String> variantId = const Value.absent(),
+            Value<String> direction = const Value.absent(),
+            Value<String?> listId = const Value.absent(),
+            Value<String> mode = const Value.absent(),
+            Value<bool> correct = const Value.absent(),
+            Value<String> rating = const Value.absent(),
+            Value<int?> responseTimeMs = const Value.absent(),
+            Value<int?> retryCount = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<bool> isSynced = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ReviewEventsTableCompanion(
+            id: id,
+            userId: userId,
+            variantId: variantId,
+            direction: direction,
+            listId: listId,
+            mode: mode,
+            correct: correct,
+            rating: rating,
+            responseTimeMs: responseTimeMs,
+            retryCount: retryCount,
+            createdAt: createdAt,
+            isSynced: isSynced,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String userId,
+            required String variantId,
+            required String direction,
+            Value<String?> listId = const Value.absent(),
+            required String mode,
+            required bool correct,
+            required String rating,
+            Value<int?> responseTimeMs = const Value.absent(),
+            Value<int?> retryCount = const Value.absent(),
+            required DateTime createdAt,
+            Value<bool> isSynced = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ReviewEventsTableCompanion.insert(
+            id: id,
+            userId: userId,
+            variantId: variantId,
+            direction: direction,
+            listId: listId,
+            mode: mode,
+            correct: correct,
+            rating: rating,
+            responseTimeMs: responseTimeMs,
+            retryCount: retryCount,
+            createdAt: createdAt,
+            isSynced: isSynced,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ReviewEventsTableTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ReviewEventsTableTable,
+    ReviewEventsTableData,
+    $$ReviewEventsTableTableFilterComposer,
+    $$ReviewEventsTableTableOrderingComposer,
+    $$ReviewEventsTableTableAnnotationComposer,
+    $$ReviewEventsTableTableCreateCompanionBuilder,
+    $$ReviewEventsTableTableUpdateCompanionBuilder,
+    (
+      ReviewEventsTableData,
+      BaseReferences<_$AppDatabase, $ReviewEventsTableTable,
+          ReviewEventsTableData>
+    ),
+    ReviewEventsTableData,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6249,4 +7132,6 @@ class $AppDatabaseManager {
       $$QuizSessionsTableTableTableManager(_db, _db.quizSessionsTable);
   $$GrammarProgressTableTableTableManager get grammarProgressTable =>
       $$GrammarProgressTableTableTableManager(_db, _db.grammarProgressTable);
+  $$ReviewEventsTableTableTableManager get reviewEventsTable =>
+      $$ReviewEventsTableTableTableManager(_db, _db.reviewEventsTable);
 }
