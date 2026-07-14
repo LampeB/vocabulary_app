@@ -269,6 +269,15 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     return _preserved;
   }
 
+  /// Clears any prior session's state so a freshly-entered quiz screen never
+  /// flashes the OLD session's summary before loadCards runs (the provider
+  /// isn't autoDispose; field report 2026-07-14). Call before navigating.
+  void reset() {
+    _cardShownAt = null;
+    _requeuedOnce.clear();
+    state = const QuizState();
+  }
+
   Future<void> loadCards(QuizArgs args) async {
     _lastArgs = args;
     _sessionStartTime = DateTime.now();

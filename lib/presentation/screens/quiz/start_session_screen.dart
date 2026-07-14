@@ -418,6 +418,9 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   }
 
   void _start() {
+    // Wipe any prior session so the quiz screen doesn't flash the old
+    // summary before its cards load (field 2026-07-14).
+    ref.read(quizProvider.notifier).reset();
     context.go(
       '/quiz',
       extra: _grammar
