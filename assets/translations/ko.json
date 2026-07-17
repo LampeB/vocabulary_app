@@ -343,5 +343,8 @@
   "start_session.section_rule": "문법 규칙",
   "quiz.play_audio": "듣기",
   "lists.create_lang_source": "사용 언어",
-  "lists.create_lang_target": "학습 언어"
+  "lists.create_lang_target": "학습 언어",
+  "start_session.section_language": "언어",
+  "start_session.group_studying": "학습 중",
+  "start_session.group_not_studied": "아직 학습 안 함"
 }

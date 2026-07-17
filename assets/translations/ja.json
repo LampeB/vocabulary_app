@@ -343,5 +343,8 @@
   "start_session.section_rule": "文法ルール",
   "quiz.play_audio": "再生",
   "lists.create_lang_source": "話せる言語",
-  "lists.create_lang_target": "学習する言語"
+  "lists.create_lang_target": "学習する言語",
+  "start_session.section_language": "言語",
+  "start_session.group_studying": "学習中",
+  "start_session.group_not_studied": "未学習"
 }

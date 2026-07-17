@@ -343,5 +343,8 @@
   "start_session.section_rule": "Grammatikregel",
   "quiz.play_audio": "Abspielen",
   "lists.create_lang_source": "Ich spreche",
-  "lists.create_lang_target": "Ich lerne"
+  "lists.create_lang_target": "Ich lerne",
+  "start_session.section_language": "Sprache",
+  "start_session.group_studying": "Aktuell im Lernen",
+  "start_session.group_not_studied": "Noch nicht gelernt"
 }

@@ -51,6 +51,9 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   // sources span lists — all FR/KR today, so they use the defaults).
   String _langA = 'fr';
   String _langB = 'ko';
+  // Language-first flow (vocab only): the pair must be chosen before the list
+  // section reveals the lists for that language. Prefilled under test.
+  bool _langChosen = _kTestMode;
   QuizMode? _mode;
   QuizDirectionChoice? _dir = _kTestMode ? QuizDirectionChoice.frToKo : null;
   int? _count = _kTestMode
@@ -64,6 +67,13 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   @override
   Widget build(BuildContext context) {
     final listsAsync = ref.watch(myListsProvider);
+
+    // Section indices. Vocab gains a Language step at 0, shifting the rest;
+    // grammar keeps its Rule → Type → Count layout (no language/list/direction).
+    final iList = _grammar ? 0 : 1; // grammar: Rule; vocab: List
+    final iMode = _grammar ? 1 : 2;
+    const iDir = 3; // vocab only
+    final iCount = _grammar ? 3 : 4;
 
     return Scaffold(
       key: const ValueKey(WidgetKeys.screenStartSession),
@@ -83,41 +93,52 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
           ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
             children: [
-              // 0 — Liste (vocab) | Règle (grammar).
+              // 0 — Langue (vocab only). Pick the pair; the list section then
+              // shows only that language's lists.
+              if (!_grammar) ...[
+                _Section(
+                  index: 0,
+                  isOpen: _open == 0,
+                  label: 'start_session.section_language'.tr(),
+                  value: _langChosen
+                      ? '${Languages.flagFor(_langA)} → ${Languages.flagFor(_langB)}  '
+                          '${_cap(Languages.displayName(_langB))}'
+                      : '',
+                  onHeaderTap: () => _select(0),
+                  child: listsAsync.when(
+                    loading: () => _loadingBox(),
+                    error: (_, __) => _errorBox(),
+                    data: (lists) => _languageOptions(lists),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              // iList — Liste (vocab) | Règle (grammar).
               _Section(
-                index: 0,
-                isOpen: _open == 0,
+                index: iList,
+                isOpen: _open == iList,
                 label: (_grammar
                         ? 'start_session.section_rule'
                         : 'start_session.section_list')
                     .tr(),
                 value: _grammar ? _ruleTitle : _listName,
-                onHeaderTap: () => _select(0),
+                onHeaderTap: () => _select(iList),
                 child: _grammar
                     ? _ruleOptions()
                     : listsAsync.when(
-                        loading: () => const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                                color: AppColors.clay, strokeWidth: 2),
-                          ),
-                        ),
-                        error: (_, __) => Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text('common.error'.tr()),
-                        ),
+                        loading: () => _loadingBox(),
+                        error: (_, __) => _errorBox(),
                         data: (lists) => _listOptions(lists),
                       ),
               ),
               const SizedBox(height: 10),
-              // 1 — Type de quiz.
+              // iMode — Type de quiz.
               _Section(
-                index: 1,
-                isOpen: _open == 1,
+                index: iMode,
+                isOpen: _open == iMode,
                 label: 'quiz_setup.section_mode'.tr(),
                 value: _mode == null ? '' : _modeLabel(_mode!),
-                onHeaderTap: () => _select(1),
+                onHeaderTap: () => _select(iMode),
                 child: Column(
                   children: [
                     for (final m in QuizMode.values) ...[
@@ -128,7 +149,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                         selected: _mode == m,
                         onTap: () {
                           setState(() => _mode = m);
-                          _select(_grammar ? 3 : 2);
+                          _select(_grammar ? iCount : iDir);
                         },
                       ),
                     ],
@@ -136,14 +157,14 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              // 2 — Sens (vocab only: grammar drills are FR → KR by nature).
+              // iDir — Sens (vocab only: grammar drills are FR → KR by nature).
               if (!_grammar)
                 _Section(
-                index: 2,
-                isOpen: _open == 2,
+                index: iDir,
+                isOpen: _open == iDir,
                 label: 'quiz_setup.section_direction'.tr(),
                 value: _dir == null ? '' : _dirLabel(_dir!),
-                onHeaderTap: () => _select(2),
+                onHeaderTap: () => _select(iDir),
                 child: Column(
                   children: [
                     for (final d in QuizDirectionChoice.values) ...[
@@ -155,7 +176,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                         selected: _dir == d,
                         onTap: () {
                           setState(() => _dir = d);
-                          _select(3);
+                          _select(iCount);
                         },
                       ),
                     ],
@@ -163,13 +184,13 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              // 3 — Nombre de mots.
+              // iCount — Nombre de mots.
               _Section(
-                index: 3,
-                isOpen: _open == 3,
+                index: iCount,
+                isOpen: _open == iCount,
                 label: 'quiz_setup.section_card_count'.tr(),
                 value: _count == null ? '' : '$_count',
-                onHeaderTap: () => _select(3),
+                onHeaderTap: () => _select(iCount),
                 child: Wrap(
                   spacing: 8,
                   children: [
@@ -217,33 +238,39 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
     );
   }
 
-  Widget _listOptions(List<VocabularyList> unsorted) {
-    // STABLE alphabetical order. The provider streams by updatedAt, and a
-    // background sync re-sorting the tiles between the user's glance and
-    // tap selects the wrong list (field report 2026-07-07).
-    final lists = [...unsorted]
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    final dueCount = ref.watch(dueCountProvider).valueOrNull ?? 0;
-    // Smart lists first (cross-list FSRS sources), then the user's own lists.
-    final smartTiles = [
-      _OptionTile(
-        key: ValueKey(WidgetKeys.startSmart('due')),
-        label: 'start_session.smart_due'.tr(),
-        trailing: '$dueCount',
-        selected: _source == QuizSource.allDue,
-        onTap: () => _selectSmart(QuizSource.allDue,
-            'start_session.smart_due'.tr()),
-      ),
-      const SizedBox(height: 8),
-      _OptionTile(
-        key: ValueKey(WidgetKeys.startSmart('inprogress')),
-        label: 'start_session.smart_in_progress'.tr(),
-        selected: _source == QuizSource.inProgress,
-        onTap: () => _selectSmart(QuizSource.inProgress,
-            'start_session.smart_in_progress'.tr()),
-      ),
-    ];
-    if (lists.isEmpty && dueCount == 0) {
+  Widget _loadingBox() => const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(
+          child:
+              CircularProgressIndicator(color: AppColors.clay, strokeWidth: 2),
+        ),
+      );
+
+  Widget _errorBox() => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text('common.error'.tr()),
+      );
+
+  Widget _groupLabel(String text) => Align(
+        alignment: Alignment.centerLeft,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 2),
+          child: Text(text.toUpperCase(),
+              style: AppTextStyles.eyebrowSm.copyWith(color: AppColors.muted)),
+        ),
+      );
+
+  /// Step ①: the distinct language pairs the user actually has lists for.
+  /// Since langA is the user's own language, each row reads as the target
+  /// language; selecting one reveals its lists in step ②.
+  Widget _languageOptions(List<VocabularyList> lists) {
+    final pairs = <(String, String)>{
+      for (final l in lists) (l.langA, l.langB),
+    }.toList()
+      ..sort((a, b) =>
+          Languages.displayName(a.$2).compareTo(Languages.displayName(b.$2)));
+
+    if (pairs.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(16),
         child: Text('start_session.empty_lists'.tr(),
@@ -252,24 +279,103 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
     }
     return Column(
       children: [
-        ...smartTiles,
-        for (final l in lists) ...[
-          const SizedBox(height: 8),
+        for (final (i, p) in pairs.indexed) ...[
+          if (i != 0) const SizedBox(height: 8),
           _OptionTile(
-            label: l.name,
-            trailing: '${l.wordCount}',
-            selected: _source == QuizSource.list && _listId == l.id,
+            key: ValueKey(WidgetKeys.startLanguage(p.$2)),
+            label: '${Languages.flagFor(p.$1)} → ${Languages.flagFor(p.$2)}'
+                '   ${_cap(Languages.displayName(p.$2))}',
+            selected: _langChosen && _langA == p.$1 && _langB == p.$2,
             onTap: () {
               setState(() {
+                _langA = p.$1;
+                _langB = p.$2;
+                _langChosen = true;
+                // The previously-selected list may not belong to this pair.
+                _listId = null;
+                _listName = '';
                 _source = QuizSource.list;
-                _listId = l.id;
-                _listName = l.name;
-                _langA = l.langA;
-                _langB = l.langB;
               });
-              _select(1);
+              _select(1); // open the list step
             },
           ),
+        ],
+      ],
+    );
+  }
+
+  /// Step ②: lists for the chosen language, split into "currently studying"
+  /// (≥1 reviewed card) and "not yet studied", plus the two cross-list smart
+  /// sources — scoped to this language via the pair carried into QuizArgs.
+  Widget _listOptions(List<VocabularyList> all) {
+    final studied =
+        ref.watch(studiedListIdsProvider).valueOrNull ?? const <String>{};
+    // Only this language's lists, STABLE alphabetical (the provider streams by
+    // updatedAt; a background re-sort between glance and tap picks the wrong
+    // list — field report 2026-07-07).
+    final lists = all
+        .where((l) => l.langA == _langA && l.langB == _langB)
+        .toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    final studying = lists.where((l) => studied.contains(l.id)).toList();
+    final fresh = lists.where((l) => !studied.contains(l.id)).toList();
+
+    final dueCount = ref.watch(dueCountProvider).valueOrNull ?? 0;
+    final smartTiles = [
+      _OptionTile(
+        key: ValueKey(WidgetKeys.startSmart('due')),
+        label: 'start_session.smart_due'.tr(),
+        trailing: '$dueCount',
+        selected: _source == QuizSource.allDue,
+        onTap: () =>
+            _selectSmart(QuizSource.allDue, 'start_session.smart_due'.tr()),
+      ),
+      const SizedBox(height: 8),
+      _OptionTile(
+        key: ValueKey(WidgetKeys.startSmart('inprogress')),
+        label: 'start_session.smart_in_progress'.tr(),
+        selected: _source == QuizSource.inProgress,
+        onTap: () => _selectSmart(
+            QuizSource.inProgress, 'start_session.smart_in_progress'.tr()),
+      ),
+    ];
+
+    if (lists.isEmpty && dueCount == 0) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text('start_session.empty_lists'.tr(),
+            style: AppTextStyles.body.copyWith(color: AppColors.muted)),
+      );
+    }
+
+    Widget tile(VocabularyList l) => _OptionTile(
+          label: l.name,
+          trailing: '${l.wordCount}',
+          selected: _source == QuizSource.list && _listId == l.id,
+          onTap: () {
+            setState(() {
+              _source = QuizSource.list;
+              _listId = l.id;
+              _listName = l.name;
+              _langA = l.langA;
+              _langB = l.langB;
+            });
+            _select(2); // open the mode step
+          },
+        );
+
+    return Column(
+      children: [
+        ...smartTiles,
+        if (studying.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          _groupLabel('start_session.group_studying'.tr()),
+          for (final l in studying) ...[const SizedBox(height: 8), tile(l)],
+        ],
+        if (fresh.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          _groupLabel('start_session.group_not_studied'.tr()),
+          for (final l in fresh) ...[const SizedBox(height: 8), tile(l)],
         ],
       ],
     );
@@ -376,14 +482,14 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   }
 
   void _selectSmart(QuizSource source, String label) {
+    // Keep the chosen language pair — the smart source scopes to it (a due
+    // row's direction is 'a>b', so QuizArgs' pair filters to this language).
     setState(() {
       _source = source;
       _listId = null;
       _listName = label;
-      _langA = 'fr';
-      _langB = 'ko';
     });
-    _select(1);
+    _select(2); // open the mode step
   }
 
   String _modeLabel(QuizMode m) => switch (m) {
@@ -413,6 +519,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   bool get _canStart {
     if (_mode == null || _count == null) return false;
     if (_grammar) return _ruleId != null;
+    if (!_langChosen) return false; // vocab: language is the first choice
     if (_dir == null) return false;
     return _source != QuizSource.list || _listId != null;
   }

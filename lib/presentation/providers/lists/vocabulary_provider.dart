@@ -94,6 +94,14 @@ final dueCountProvider = StreamProvider<int>((ref) {
   return ref.watch(progressDaoProvider).watchDueCount(userId);
 });
 
+/// List IDs the user has started studying (≥1 reviewed card). Drives the
+/// "currently studying" vs "not yet studied" split in the quiz setup screen.
+final studiedListIdsProvider = FutureProvider<Set<String>>((ref) async {
+  final userId = ref.watch(currentUserProvider)?.id ?? '';
+  if (userId.isEmpty) return <String>{};
+  return ref.watch(progressDaoProvider).getStudiedListIds(userId);
+});
+
 const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
 // Pulls the user's lists from Supabase into the local DB on login.

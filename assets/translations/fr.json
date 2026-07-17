@@ -343,5 +343,8 @@
   "start_session.section_rule": "Règle de grammaire",
   "quiz.play_audio": "Écouter",
   "lists.create_lang_source": "Je parle",
-  "lists.create_lang_target": "J'apprends"
+  "lists.create_lang_target": "J'apprends",
+  "start_session.section_language": "Langue",
+  "start_session.group_studying": "En cours d'étude",
+  "start_session.group_not_studied": "Pas encore étudiées"
 }

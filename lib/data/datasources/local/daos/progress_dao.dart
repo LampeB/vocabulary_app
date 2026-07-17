@@ -21,6 +21,22 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
         .watchSingle();
   }
 
+  /// List IDs the user has STUDIED — i.e. has at least one progress row on any
+  /// variant of any concept in the list (a card reviewed at least once). Powers
+  /// the "currently studying" vs "not yet studied" split in quiz setup. One
+  /// query across all lists instead of per-list stats.
+  Future<Set<String>> getStudiedListIds(String userId) async {
+    final rows = await customSelect(
+      'SELECT DISTINCT c.list_id AS list_id '
+      'FROM variant_progress vp '
+      'JOIN word_variants wv ON wv.id = vp.variant_id '
+      'JOIN concepts c ON c.id = wv.concept_id '
+      'WHERE vp.user_id = ?',
+      variables: [Variable<String>(userId)],
+    ).get();
+    return rows.map((r) => r.read<String>('list_id')).toSet();
+  }
+
   Future<List<VariantProgressTableData>> getDue({
     required String userId,
     required String direction,

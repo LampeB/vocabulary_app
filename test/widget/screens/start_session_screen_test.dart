@@ -12,9 +12,9 @@ import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
 import 'package:vocab_kr/presentation/screens/quiz/start_session_screen.dart';
 import '../../helpers/pump_screen.dart';
 
-/// Start-session screen: the accordion renders every section, list selection
-/// enables the CTA and auto-advances, and the CTA fires /quiz with exactly the
-/// QuizArgs the user assembled.
+/// Start-session screen: a language-first accordion. Pick the language, then a
+/// list (split into currently-studying / not-yet-studied), then mode /
+/// direction / count. The CTA fires /quiz with exactly the QuizArgs assembled.
 
 final _now = DateTime(2026, 7, 3);
 
@@ -52,7 +52,9 @@ void main() {
   QuizArgs? capturedArgs;
 
   Future<void> pump(WidgetTester tester,
-      {List<VocabularyList>? lists, bool grammar = false}) {
+      {List<VocabularyList>? lists,
+      Set<String> studied = const {},
+      bool grammar = false}) {
     capturedArgs = null;
     return pumpScreen(
       tester,
@@ -61,6 +63,7 @@ void main() {
         myListsProvider.overrideWith(
             (ref) => Stream.value(lists ?? [_list('l1', 'Animaux')])),
         dueCountProvider.overrideWith((ref) => Stream.value(4)),
+        studiedListIdsProvider.overrideWith((ref) async => studied),
         ruleStatusesProvider.overrideWith((ref) async => [
               RuleStatus(
                 rule: _rule('regle-debloquee', 'La particule de thème'),
@@ -98,31 +101,39 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  // Everything starts collapsed — open the first section, then pick a list.
-  Future<void> pickList(WidgetTester tester, String name) async {
+  // Language step is first: open it, pick the pair, then the list step opens.
+  Future<void> pickLanguage(WidgetTester tester, {String langB = 'ko'}) async {
     await tapKey(tester, WidgetKeys.startSection(0));
+    await tester.tap(byKey(WidgetKeys.startLanguage(langB)));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pickList(WidgetTester tester, String name,
+      {String langB = 'ko'}) async {
+    await pickLanguage(tester, langB: langB);
     await tester.tap(find.text(name));
     await tester.pumpAndSettle();
   }
 
-  testWidgets('vocab flow renders its four sections — and NO grammar anywhere',
+  testWidgets('vocab flow renders its five sections — and NO grammar anywhere',
       (tester) async {
     await pump(tester);
 
     expect(byKey(WidgetKeys.screenStartSession), findsOneWidget);
-    for (var i = 0; i < 4; i++) {
+    // Language, List, Type, Direction, Count.
+    for (var i = 0; i < 5; i++) {
       expect(byKey(WidgetKeys.startSection(i)), findsOneWidget,
           reason: 'section $i header missing');
     }
     expect(byKey(WidgetKeys.startSessionStart), findsOneWidget);
-    // Vocabulary setup never mentions grammar (product decision 2026-07-05).
     expect(find.textContaining('rammaire'), findsNothing);
     expect(byKey(WidgetKeys.startRule('regle-debloquee')), findsNothing);
   });
 
   testWidgets(
-      'no defaults: every section starts collapsed and empty, and the CTA '
-      'stays disabled until EVERY field is chosen', (tester) async {
+      'no defaults: every section starts collapsed and the CTA stays disabled '
+      'until language + list + mode + direction + count are all chosen',
+      (tester) async {
     await pump(tester);
 
     bool ctaEnabled() =>
@@ -131,14 +142,16 @@ void main() {
             .onPressed !=
         null;
 
-    // All collapsed: no option from any section is in the tree.
     expect(find.text('Animaux'), findsNothing);
     expect(byKey(WidgetKeys.startQuizType('typing')), findsNothing);
     expect(byKey(WidgetKeys.startCount(20)), findsNothing);
     expect(ctaEnabled(), isFalse);
 
-    await pickList(tester, 'Animaux');
-    expect(ctaEnabled(), isFalse); // mode, direction, count still unset
+    await pickLanguage(tester);
+    expect(ctaEnabled(), isFalse); // language alone isn't enough
+    await tester.tap(find.text('Animaux'));
+    await tester.pumpAndSettle();
+    expect(ctaEnabled(), isFalse);
     await tapKey(tester, WidgetKeys.startQuizType('typing'));
     expect(ctaEnabled(), isFalse);
     await tapKey(tester, WidgetKeys.startDirection('frToKo'));
@@ -147,21 +160,40 @@ void main() {
     expect(ctaEnabled(), isTrue);
   });
 
-  testWidgets('selecting a list auto-advances to the quiz-type section',
-      (tester) async {
+  testWidgets('picking a language reveals its lists; selecting one advances '
+      'to the quiz-type section', (tester) async {
     await pump(tester);
-    // Quiz-type options not visible before the list is chosen.
-    expect(byKey(WidgetKeys.startQuizType('typing')), findsNothing);
+    expect(find.text('Animaux'), findsNothing);
 
-    await pickList(tester, 'Animaux');
+    await pickLanguage(tester);
+    expect(find.text('Animaux'), findsOneWidget); // list step now open
 
+    await tester.tap(find.text('Animaux'));
+    await tester.pumpAndSettle();
     expect(byKey(WidgetKeys.startQuizType('typing')), findsOneWidget);
   });
 
-  testWidgets('empty lists show the empty message and CTA stays disabled',
+  testWidgets('lists split into "currently studying" and "not yet studied"',
+      (tester) async {
+    await pump(
+      tester,
+      lists: [_list('l1', 'Voyage'), _list('l2', 'Cuisine')],
+      studied: {'l1'}, // Voyage has been studied, Cuisine has not
+    );
+
+    await pickLanguage(tester);
+
+    expect(find.text('EN COURS D\'ÉTUDE'), findsOneWidget);
+    expect(find.text('PAS ENCORE ÉTUDIÉES'), findsOneWidget);
+    expect(find.text('Voyage'), findsOneWidget);
+    expect(find.text('Cuisine'), findsOneWidget);
+  });
+
+  testWidgets('empty lists: no language to pick and the CTA stays disabled',
       (tester) async {
     await pump(tester, lists: []);
 
+    await tapKey(tester, WidgetKeys.startSection(0));
     expect(
         tester
             .widget<ElevatedButton>(byKey(WidgetKeys.startSessionStart))
@@ -170,8 +202,8 @@ void main() {
   });
 
   testWidgets(
-      'full journey: list → mode → direction → count → start fires /quiz '
-      'with the assembled QuizArgs', (tester) async {
+      'full journey: language → list → mode → direction → count → start fires '
+      '/quiz with the assembled QuizArgs', (tester) async {
     await pump(tester);
 
     await pickList(tester, 'Animaux');
@@ -188,12 +220,11 @@ void main() {
   });
 
   testWidgets(
-      'smart list: picking "À réviser maintenant" enables the CTA and starts '
-      'an all-due session (no listId)', (tester) async {
+      'smart list: picking "À réviser maintenant" (after a language) starts an '
+      'all-due session scoped to that pair (no listId)', (tester) async {
     await pump(tester);
 
-    // The due smart tile shows the live due count (open the section first).
-    await tapKey(tester, WidgetKeys.startSection(0));
+    await pickLanguage(tester);
     expect(byKey(WidgetKeys.startSmart('due')), findsOneWidget);
     await tester.tap(byKey(WidgetKeys.startSmart('due')));
     await tester.pumpAndSettle();
@@ -206,13 +237,16 @@ void main() {
     expect(capturedArgs, isNotNull);
     expect(capturedArgs!.source, QuizSource.allDue);
     expect(capturedArgs!.listId, isNull);
+    // Scoped to the chosen language, not reset to fr/ko defaults here.
+    expect(capturedArgs!.langA, 'fr');
+    expect(capturedArgs!.langB, 'ko');
   });
 
-  testWidgets('smart list: "En cours d\'apprentissage" starts an in-progress '
-      'session', (tester) async {
+  testWidgets('smart list: "En cours" starts an in-progress session',
+      (tester) async {
     await pump(tester);
 
-    await tapKey(tester, WidgetKeys.startSection(0));
+    await pickLanguage(tester);
     await tester.tap(byKey(WidgetKeys.startSmart('inprogress')));
     await tester.pumpAndSettle();
     await tapKey(tester, WidgetKeys.startQuizType('flashcard'));
@@ -224,17 +258,16 @@ void main() {
   });
 
   testWidgets(
-      'direction labels derive from the list language pair (EN↔ES list shows '
-      'anglais/espagnol, not FR/KR)', (tester) async {
+      'a non-FR/KO pair: direction labels derive from the list language pair '
+      '(FR↔ES shows français/espagnol, not FR/KR)', (tester) async {
     await pump(tester,
-        lists: [_list('l9', 'Inglés', langA: 'en', langB: 'es')]);
+        lists: [_list('l9', 'Voyage', langA: 'fr', langB: 'es')]);
 
-    await pickList(tester, 'Inglés');
+    await pickList(tester, 'Voyage', langB: 'es');
     await tapKey(tester, WidgetKeys.startQuizType('flashcard'));
 
-    // The direction section is now open with labels from lang.en / lang.es.
-    expect(find.text('Anglais → Espagnol'), findsOneWidget);
-    expect(find.text('Espagnol → Anglais'), findsOneWidget);
+    expect(find.text('Français → Espagnol'), findsOneWidget);
+    expect(find.text('Espagnol → Français'), findsOneWidget);
   });
 
   testWidgets(
@@ -242,13 +275,11 @@ void main() {
       '/quiz with a grammar source; locked rules are disabled', (tester) async {
     await pump(tester, grammar: true);
 
-    // Rule section starts collapsed too — open it.
+    // No language step for grammar — the rule section is first.
     await tapKey(tester, WidgetKeys.startSection(0));
 
-    // Locked rule: disabled, shows what to master first.
     expect(find.textContaining('La nourriture'), findsOneWidget);
 
-    // Unlocked rule → lesson sheet with the explanation.
     await tester.tap(byKey(WidgetKeys.startRule('regle-debloquee')));
     await tester.pumpAndSettle();
     expect(find.text('Une explication.'), findsOneWidget);
@@ -257,7 +288,6 @@ void main() {
     await tester.tap(byKey(WidgetKeys.grammarLessonStart));
     await tester.pumpAndSettle();
 
-    // Direction section is skipped for grammar; mode then count then start.
     await tapKey(tester, WidgetKeys.startQuizType('typing'));
     expect(byKey(WidgetKeys.startDirection('frToKo')), findsNothing);
     await tapKey(tester, WidgetKeys.startCount(10));

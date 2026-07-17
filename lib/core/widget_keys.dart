@@ -90,6 +90,7 @@ abstract final class WidgetKeys {
   // ── Start-session accordion sections ────────────────────────────────────────
   static String startSection(int index) => 'ss.section.$index'; // header
   static String startSmart(String name) => 'ss.smart.$name'; // 'due' | 'inprogress'
+  static String startLanguage(String langB) => 'ss.lang.$langB'; // target lang
   static String startRule(String ruleId) => 'ss.rule.$ruleId';
   static const grammarLessonStart = 'grammar.lesson.start';
   static const homeGrammar = 'home.grammar'; // Home card → grammar setup
