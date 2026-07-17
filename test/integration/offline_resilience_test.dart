@@ -64,7 +64,7 @@ void main() {
     final list = (await repo.createList(name: 'Offline List')).valueOrNull!;
 
     final added = await repo.addConceptWithVariants(
-        listId: list.id, frWord: 'bonjour', koWord: '안녕');
+        listId: list.id, wordA: 'bonjour', wordB: '안녕');
 
     expect(added.isSuccess, isTrue);
     final concepts = await db.conceptDao.getConceptsByList(list.id);
@@ -78,7 +78,7 @@ void main() {
       () async {
     final list = (await repo.createList(name: 'Offline List')).valueOrNull!;
     await repo.addConceptWithVariants(
-        listId: list.id, frWord: 'bonjour', koWord: '안녕');
+        listId: list.id, wordA: 'bonjour', wordB: '안녕');
     // Let the fire-and-forget (unawaited) remote calls run.
     await Future<void>.delayed(const Duration(milliseconds: 20));
 

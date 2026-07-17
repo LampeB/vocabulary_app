@@ -341,5 +341,7 @@
   "start_session.rule_mastered": "習得済み",
   "start_session.rule_not_enough_words": "練習にはもっと単語を習得してください",
   "start_session.section_rule": "文法ルール",
-  "quiz.play_audio": "再生"
+  "quiz.play_audio": "再生",
+  "lists.create_lang_source": "話せる言語",
+  "lists.create_lang_target": "学習する言語"
 }

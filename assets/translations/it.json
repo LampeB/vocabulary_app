@@ -341,5 +341,7 @@
   "start_session.rule_mastered": "Padroneggiata",
   "start_session.rule_not_enough_words": "Padroneggia più vocaboli per esercitarti",
   "start_session.section_rule": "Regola grammaticale",
-  "quiz.play_audio": "Ascolta"
+  "quiz.play_audio": "Ascolta",
+  "lists.create_lang_source": "Parlo",
+  "lists.create_lang_target": "Sto imparando"
 }

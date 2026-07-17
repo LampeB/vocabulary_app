@@ -341,5 +341,7 @@
   "start_session.rule_mastered": "Mastered",
   "start_session.rule_not_enough_words": "Master more vocabulary to practise",
   "start_session.section_rule": "Grammar rule",
-  "quiz.play_audio": "Play audio"
+  "quiz.play_audio": "Play audio",
+  "lists.create_lang_source": "I speak",
+  "lists.create_lang_target": "I'm learning"
 }

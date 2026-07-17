@@ -42,9 +42,9 @@ void main() {
       final list = (await repo.createList(name: 'Animaux')).valueOrNull!;
       listId = list.id;
       await repo.addConceptWithVariants(
-          listId: listId, frWord: 'chat', koWord: '고양이');
+          listId: listId, wordA: 'chat', wordB: '고양이');
       await repo.addConceptWithVariants(
-          listId: listId, frWord: 'chien', koWord: '개');
+          listId: listId, wordA: 'chien', wordB: '개');
       if (forceWordCount != null) {
         // Simulate a list at the free-plan word quota without 50 inserts.
         await db.vocabularyListDao.updateWordCount(listId, forceWordCount);

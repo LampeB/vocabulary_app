@@ -341,5 +341,7 @@
   "start_session.rule_mastered": "Dominada",
   "start_session.rule_not_enough_words": "Domina más vocabulario para practicar",
   "start_session.section_rule": "Regla gramatical",
-  "quiz.play_audio": "Escuchar"
+  "quiz.play_audio": "Escuchar",
+  "lists.create_lang_source": "Hablo",
+  "lists.create_lang_target": "Estoy aprendiendo"
 }

@@ -8,7 +8,20 @@ import '../../core/config/app_config.dart';
 
 class ElevenLabsService implements AudioService {
   ElevenLabsService({Map<String, String>? voiceIds})
-      : voiceIds = voiceIds ?? const {'fr': 'Charlotte', 'ko': 'Elli'};
+      : voiceIds = voiceIds ?? _defaultVoices;
+
+  /// Default premium voice per content langCode. All are ElevenLabs
+  /// multilingual-model voices, so each speaks its assigned language natively;
+  /// the mapping is an aesthetic default the user can re-curate. Unmapped
+  /// languages fall back to [_defaultVoiceId].
+  static const _defaultVoices = <String, String>{
+    'fr': 'Charlotte',
+    'en': 'Rachel',
+    'it': 'Bella',
+    'de': 'Antoni',
+    'es': 'Domi',
+    'ko': 'Elli',
+  };
 
   /// ElevenLabs voice per content langCode; unmapped languages use the
   /// service's default voice (generic-language-pairs epic).

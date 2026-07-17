@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/lists/vocabulary_provider.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
+import '../../../core/languages.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widget_keys.dart';
@@ -205,15 +206,18 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
 
   Future<void> _showAddWordDialog(BuildContext context) async {
     var quotaExceeded = false;
-    // Existing FR words give the assistant the list's theme context.
+    final list = ref.read(listInfoProvider(widget.listId)).valueOrNull;
+    final langA = list?.langA ?? 'fr';
+    final langB = list?.langB ?? 'ko';
+    // Existing source-language words give the assistant the list's theme context.
     final concepts = ref.read(listDetailProvider(widget.listId)).valueOrNull;
-    final existingFr = <String>[
+    final existingSource = <String>[
       if (concepts != null)
         for (final c in concepts)
           ...?ref
               .read(variantsProvider(c.id))
               .valueOrNull
-              ?.where((v) => v.langCode == 'fr' && !v.isDeleted)
+              ?.where((v) => v.langCode == langA && !v.isDeleted)
               .map((v) => v.word),
     ];
 
@@ -221,13 +225,15 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => _AddWordDialog(
-        existingFr: existingFr,
-        onSubmit: (frWord, koWord) async {
+        langA: langA,
+        langB: langB,
+        existingSource: existingSource,
+        onSubmit: (wordA, wordB) async {
           final result =
               await ref.read(listActionsProvider.notifier).addConcept(
                     listId: widget.listId,
-                    frWord: frWord,
-                    koWord: koWord,
+                    wordA: wordA,
+                    wordB: wordB,
                   );
           if (result.isFailure &&
               result.exceptionOrNull is QuotaExceededException) {
@@ -271,8 +277,8 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
           for (final p in selected) {
             await ref.read(listActionsProvider.notifier).addConcept(
                   listId: widget.listId,
-                  frWord: p.source,
-                  koWord: p.target,
+                  wordA: p.source,
+                  wordB: p.target,
                 );
           }
         },
@@ -285,11 +291,21 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
 /// suggestions (+ voice-friendly longer forms for short words) as tappable
 /// chips. The manual flow is unchanged — AI is one optional button.
 class _AddWordDialog extends ConsumerStatefulWidget {
-  const _AddWordDialog({required this.existingFr, required this.onSubmit});
-  final List<String> existingFr;
+  const _AddWordDialog({
+    required this.langA,
+    required this.langB,
+    required this.existingSource,
+    required this.onSubmit,
+  });
+
+  /// The list's language pair — drives field labels/flags and the assistant's
+  /// translation direction (generic-language-pairs epic; was fr/ko-hardcoded).
+  final String langA;
+  final String langB;
+  final List<String> existingSource;
 
   /// Returns true when the pair was added (dialog closes).
-  final Future<bool> Function(String frWord, String koWord) onSubmit;
+  final Future<bool> Function(String wordA, String wordB) onSubmit;
 
   @override
   ConsumerState<_AddWordDialog> createState() => _AddWordDialogState();
@@ -330,9 +346,9 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
     });
     final result = await ref.read(vocabAssistantProvider).translate(
           word: word,
-          sourceLang: fromFr ? 'fr' : 'ko',
-          targetLang: fromFr ? 'ko' : 'fr',
-          existingWords: widget.existingFr,
+          sourceLang: fromFr ? widget.langA : widget.langB,
+          targetLang: fromFr ? widget.langB : widget.langA,
+          existingWords: widget.existingSource,
         );
     if (!mounted) return;
     setState(() {
@@ -359,8 +375,8 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
                 controller: _frCtrl,
                 autofocus: true,
                 decoration: InputDecoration(
-                    labelText: 'list_detail.field_french'.tr(),
-                    prefixText: '🇫🇷  '),
+                    labelText: Languages.displayName(widget.langA),
+                    prefixText: '${Languages.flagFor(widget.langA)}  '),
                 textInputAction: TextInputAction.next,
                 validator: (v) => (v?.trim().isEmpty ?? true) ? 'Requis' : null,
               ),
@@ -369,8 +385,8 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
                 key: const ValueKey(WidgetKeys.addWordKo),
                 controller: _koCtrl,
                 decoration: InputDecoration(
-                    labelText: 'list_detail.field_korean'.tr(),
-                    prefixText: '🇰🇷  '),
+                    labelText: Languages.displayName(widget.langB),
+                    prefixText: '${Languages.flagFor(widget.langB)}  '),
                 validator: (v) => (v?.trim().isEmpty ?? true) ? 'Requis' : null,
               ),
               const SizedBox(height: 10),

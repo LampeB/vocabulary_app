@@ -341,5 +341,7 @@
   "start_session.rule_mastered": "Gemeistert",
   "start_session.rule_not_enough_words": "Meistere mehr Vokabeln zum Üben",
   "start_session.section_rule": "Grammatikregel",
-  "quiz.play_audio": "Abspielen"
+  "quiz.play_audio": "Abspielen",
+  "lists.create_lang_source": "Ich spreche",
+  "lists.create_lang_target": "Ich lerne"
 }

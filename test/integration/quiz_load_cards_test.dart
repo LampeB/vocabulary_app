@@ -88,7 +88,7 @@ void main() {
     koVariantId = {};
     for (final (fr, ko) in words) {
       final concept = (await repo.addConceptWithVariants(
-              listId: list.id, frWord: fr, koWord: ko))
+              listId: list.id, wordA: fr, wordB: ko))
           .valueOrNull!;
       final variants = await db.conceptDao.getVariantsByConcept(concept.id);
       frVariantId[fr] = variants.firstWhere((v) => v.langCode == 'fr').id;

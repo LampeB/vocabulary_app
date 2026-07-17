@@ -25,7 +25,7 @@ void main() {
   /// Seeds a word in [listName] and returns its FR variant id.
   Future<String> seedWord(String listId, String fr, String ko) async {
     final concept = (await vocabRepo.addConceptWithVariants(
-            listId: listId, frWord: fr, koWord: ko))
+            listId: listId, wordA: fr, wordB: ko))
         .valueOrNull!;
     final variants = await db.conceptDao.getVariantsByConcept(concept.id);
     return variants.firstWhere((v) => v.langCode == 'fr').id;

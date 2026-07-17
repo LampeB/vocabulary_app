@@ -68,7 +68,7 @@ void main() {
     remote.failAll = true; // backend down while the user works
     final list = (await repo.createList(name: 'Animaux')).valueOrNull!;
     await repo.addConceptWithVariants(
-        listId: list.id, frWord: 'chat', koWord: '고양이');
+        listId: list.id, wordA: 'chat', wordB: '고양이');
     remote.pushedLists.clear(); // drop the failed fire-and-forget attempts
 
     remote.failAll = false; // back online
@@ -100,7 +100,7 @@ void main() {
       'retries just them', () async {
     final list = (await repo.createList(name: 'A')).valueOrNull!;
     await repo.addConceptWithVariants(
-        listId: list.id, frWord: 'chat', koWord: '고양이');
+        listId: list.id, wordA: 'chat', wordB: '고양이');
     remote.failConcepts = true;
 
     await sync.pushAll();
@@ -120,7 +120,7 @@ void main() {
       () async {
     final list = (await repo.createList(name: 'A')).valueOrNull!;
     final concept = (await repo.addConceptWithVariants(
-            listId: list.id, frWord: 'chat', koWord: '고양이'))
+            listId: list.id, wordA: 'chat', wordB: '고양이'))
         .valueOrNull!;
     await sync.pushAll();
     remote.pushedConcepts.clear();

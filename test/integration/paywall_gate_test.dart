@@ -36,7 +36,10 @@ class _FakeRepo implements VocabularyRepository {
 
   @override
   Future<Result<VocabularyList>> createList(
-      {required String name, String? description}) async {
+      {required String name,
+      String? description,
+      String langA = 'fr',
+      String langB = 'ko'}) async {
     createListCalls++;
     return Success(_list(name: name));
   }
@@ -48,8 +51,10 @@ class _FakeRepo implements VocabularyRepository {
   @override
   Future<Result<Concept>> addConceptWithVariants({
     required String listId,
-    required String frWord,
-    required String koWord,
+    required String wordA,
+    required String wordB,
+    String langA = 'fr',
+    String langB = 'ko',
     String? notes,
     String? category,
   }) async {
@@ -153,7 +158,7 @@ void main() {
 
       final result = await container
           .read(listActionsProvider.notifier)
-          .addConcept(listId: 'l', frWord: 'bonjour', koWord: '안녕');
+          .addConcept(listId: 'l', wordA: 'bonjour', wordB: '안녕');
 
       expect(result.isFailure, isTrue);
       expect(result.exceptionOrNull, isA<QuotaExceededException>());
@@ -166,7 +171,7 @@ void main() {
 
       final result = await container
           .read(listActionsProvider.notifier)
-          .addConcept(listId: 'l', frWord: 'bonjour', koWord: '안녕');
+          .addConcept(listId: 'l', wordA: 'bonjour', wordB: '안녕');
 
       expect(result.isSuccess, isTrue);
       expect(repo.addConceptCalls, 1);
@@ -178,7 +183,7 @@ void main() {
 
       final result = await container
           .read(listActionsProvider.notifier)
-          .addConcept(listId: 'l', frWord: 'bonjour', koWord: '안녕');
+          .addConcept(listId: 'l', wordA: 'bonjour', wordB: '안녕');
 
       expect(result.isSuccess, isTrue);
       expect(repo.addConceptCalls, 1);

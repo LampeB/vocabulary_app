@@ -6,6 +6,7 @@ import 'package:shimmer/shimmer.dart';
 import '../../providers/lists/vocabulary_provider.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
+import '../../../core/languages.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widget_keys.dart';
@@ -157,15 +158,14 @@ class ListsScreen extends ConsumerWidget {
 
     await showDialog<void>(
       context: context,
-      builder: (ctx) => _ListNameDialog(
-        title: 'lists.create_dialog_title'.tr(),
+      builder: (ctx) => _CreateListDialog(
         controller: nameCtrl,
-        confirmLabel: 'lists.create_dialog_confirm'.tr(),
-        onConfirm: () async {
+        onConfirm: (langA, langB) async {
           if (nameCtrl.text.trim().isEmpty) return;
           final result = await ref
               .read(listActionsProvider.notifier)
-              .createList(nameCtrl.text.trim(), null);
+              .createList(nameCtrl.text.trim(), null,
+                  langA: langA, langB: langB);
           if (!ctx.mounted) return;
           if (result.isFailure) {
             if (result.exceptionOrNull is QuotaExceededException) {
@@ -462,6 +462,93 @@ class _ListNameDialog extends StatelessWidget {
             key: const ValueKey(WidgetKeys.listNameConfirm),
             onPressed: onConfirm,
             child: Text(confirmLabel)),
+      ],
+    );
+  }
+}
+
+/// Create-list dialog with a language-pair picker: a name plus "I speak"
+/// (langA) → "I'm learning" (langB). The chosen pair is stored on the list and
+/// drives quiz directions, voices and fonts (generic-language-pairs epic).
+class _CreateListDialog extends StatefulWidget {
+  const _CreateListDialog({required this.controller, required this.onConfirm});
+  final TextEditingController controller;
+  final Future<void> Function(String langA, String langB) onConfirm;
+
+  @override
+  State<_CreateListDialog> createState() => _CreateListDialogState();
+}
+
+class _CreateListDialogState extends State<_CreateListDialog> {
+  // TODO(i18n-pairs): seed from the global default learning-pair setting.
+  String _langA = 'fr';
+  String _langB = 'ko';
+
+  Widget _langColumn(
+      String label, String value, ValueChanged<String> onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTextStyles.eyebrowSm),
+        DropdownButton<String>(
+          value: value,
+          isExpanded: true,
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
+          items: [
+            for (final code in Languages.supported)
+              DropdownMenuItem(
+                  value: code, child: Text(Languages.displayName(code))),
+          ],
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('lists.create_dialog_title'.tr()),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            key: const ValueKey(WidgetKeys.listNameField),
+            controller: widget.controller,
+            autofocus: true,
+            decoration:
+                InputDecoration(labelText: 'lists.name_field_label'.tr()),
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: _langColumn('lists.create_lang_source'.tr(), _langA,
+                    (v) => setState(() => _langA = v)),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: Icon(Icons.arrow_forward, size: 18),
+              ),
+              Expanded(
+                child: _langColumn('lists.create_lang_target'.tr(), _langB,
+                    (v) => setState(() => _langB = v)),
+              ),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('common.cancel'.tr())),
+        FilledButton(
+            key: const ValueKey(WidgetKeys.listNameConfirm),
+            onPressed: () => widget.onConfirm(_langA, _langB),
+            child: Text('lists.create_dialog_confirm'.tr())),
       ],
     );
   }

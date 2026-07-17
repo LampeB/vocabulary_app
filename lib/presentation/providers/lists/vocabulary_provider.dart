@@ -159,7 +159,8 @@ class ListActionsNotifier extends Notifier<void> {
   VocabularyRepository get _repo => ref.read(vocabularyRepositoryProvider);
 
   Future<Result<VocabularyList>> createList(
-      String name, String? description) async {
+      String name, String? description,
+      {String langA = 'fr', String langB = 'ko'}) async {
     if (!ref.read(isPremiumProvider)) {
       // Only USER-created lists count against the free quota — seeded starter
       // lists and premium packs are exempt (product decision 2026-07-04).
@@ -175,7 +176,8 @@ class ListActionsNotifier extends Notifier<void> {
         ));
       }
     }
-    return _repo.createList(name: name, description: description);
+    return _repo.createList(
+        name: name, description: description, langA: langA, langB: langB);
   }
 
   Future<Result<VocabularyList>> renameList(
@@ -192,25 +194,32 @@ class ListActionsNotifier extends Notifier<void> {
 
   Future<Result<Concept>> addConcept({
     required String listId,
-    required String frWord,
-    required String koWord,
+    required String wordA,
+    required String wordB,
     String? notes,
     String? category,
   }) async {
-    if (!ref.read(isPremiumProvider)) {
-      final listResult = await _repo.getListById(listId);
-      if (listResult case Success(:final value)) {
-        if (value.wordCount >= AppConfig.maxFreeWordsPerList) {
-          return const Failure(QuotaExceededException(
-            'Free plan includes ${AppConfig.maxFreeWordsPerList} words per list. Upgrade for unlimited words.',
-          ));
-        }
-      }
+    // Fetch the list once: for the free-tier word quota AND to learn its
+    // language pair, so the two variants get the right lang codes instead of
+    // a hardcoded fr/ko (generic-language-pairs epic).
+    final listResult = await _repo.getListById(listId);
+    final list = switch (listResult) {
+      Success(:final value) => value,
+      _ => null,
+    };
+    if (!ref.read(isPremiumProvider) &&
+        list != null &&
+        list.wordCount >= AppConfig.maxFreeWordsPerList) {
+      return const Failure(QuotaExceededException(
+        'Free plan includes ${AppConfig.maxFreeWordsPerList} words per list. Upgrade for unlimited words.',
+      ));
     }
     return _repo.addConceptWithVariants(
       listId: listId,
-      frWord: frWord,
-      koWord: koWord,
+      wordA: wordA,
+      wordB: wordB,
+      langA: list?.langA ?? 'fr',
+      langB: list?.langB ?? 'ko',
       notes: notes,
       category: category,
     );

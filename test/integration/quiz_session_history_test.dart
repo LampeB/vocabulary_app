@@ -107,7 +107,7 @@ void main() {
         db.vocabularyListDao, db.conceptDao, FakeRemote(), 'u', db);
     final list = (await vocabRepo.createList(name: 'Animaux')).valueOrNull!;
     final concept = (await vocabRepo.addConceptWithVariants(
-            listId: list.id, frWord: 'chat', koWord: '고양이'))
+            listId: list.id, wordA: 'chat', wordB: '고양이'))
         .valueOrNull!;
     final variants = await db.conceptDao.getVariantsByConcept(concept.id);
     final due = VariantProgress(

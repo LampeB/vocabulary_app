@@ -6,7 +6,14 @@ import '../../core/errors/failure.dart';
 abstract interface class VocabularyRepository {
   // Lists
   Stream<List<VocabularyList>> watchMyLists();
-  Future<Result<VocabularyList>> createList({required String name, String? description});
+  /// [langA]/[langB] are the list's learning-language pair (generic-language-
+  /// pairs epic). Defaults keep pre-multi-language callers on FR↔KO.
+  Future<Result<VocabularyList>> createList({
+    required String name,
+    String? description,
+    String langA = 'fr',
+    String langB = 'ko',
+  });
   Future<Result<VocabularyList>> updateList(VocabularyList list);
   Future<Result<void>> deleteList(String listId);
   Future<Result<VocabularyList>> getListById(String listId);
@@ -21,10 +28,15 @@ abstract interface class VocabularyRepository {
     String? exampleFr,
     String? exampleKo,
   });
+  /// Creates a concept with one variant per side of the list's language pair.
+  /// [wordA] is stored in [langA], [wordB] in [langB] — the caller passes the
+  /// owning list's pair (generic-language-pairs epic; was fr/ko-hardcoded).
   Future<Result<Concept>> addConceptWithVariants({
     required String listId,
-    required String frWord,
-    required String koWord,
+    required String wordA,
+    required String wordB,
+    String langA = 'fr',
+    String langB = 'ko',
     String? notes,
     String? category,
   });

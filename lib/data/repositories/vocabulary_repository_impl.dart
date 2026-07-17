@@ -40,6 +40,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   Future<Result<VocabularyList>> createList({
     required String name,
     String? description,
+    String langA = 'fr',
+    String langB = 'ko',
   }) async {
     final now = DateTime.now();
     final list = VocabularyList(
@@ -47,6 +49,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       ownerId: _userId,
       name: name,
       description: description,
+      langA: langA,
+      langB: langB,
       createdAt: now,
       updatedAt: now,
     );
@@ -169,8 +173,10 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   @override
   Future<Result<Concept>> addConceptWithVariants({
     required String listId,
-    required String frWord,
-    required String koWord,
+    required String wordA,
+    required String wordB,
+    String langA = 'fr',
+    String langB = 'ko',
     String? notes,
     String? category,
   }) async {
@@ -186,8 +192,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     final frVariant = WordVariant(
       id: _uuid.v4(),
       conceptId: concept.id,
-      word: frWord,
-      langCode: 'fr',
+      word: wordA,
+      langCode: langA,
       isPrimary: true,
       createdAt: now,
       updatedAt: now,
@@ -195,8 +201,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     final koVariant = WordVariant(
       id: _uuid.v4(),
       conceptId: concept.id,
-      word: koWord,
-      langCode: 'ko',
+      word: wordB,
+      langCode: langB,
       isPrimary: true,
       createdAt: now,
       updatedAt: now,
