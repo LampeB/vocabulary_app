@@ -6,9 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/quiz/quiz_provider.dart';
 import '../../providers/audio/audio_provider.dart';
-import '../../../domain/entities/variant_progress.dart' show QuizDirection;
 import '../../../domain/usecases/quiz/get_due_cards_usecase.dart'
     show QuizSource;
+import '../../../core/languages.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/stt_simulator.dart';
@@ -1030,7 +1030,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// while listening), oversized Répéter/Passer, tap-centre to pause, and the
   /// transient full-screen flood for grading.
   Widget _buildHandsFreeStudy(BuildContext context, QuizState s, QuizCard card) {
-    final isFrToKo = card.progress.direction == QuizDirection.frToKo;
+    final questionIsHangul =
+        Languages.usesHangul(card.progress.direction.questionLang);
+    final answerIsHangul =
+        Languages.usesHangul(card.progress.direction.answerLang);
 
     if (s.answerState != QuizAnswerState.idle) {
       final correct = s.answerState == QuizAnswerState.correct;
@@ -1040,7 +1043,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             ? 'quiz.feedback_correct'.tr()
             : 'quiz.feedback_wrong'.tr(),
         answer: correct ? null : card.answerWords.join(' / '),
-        answerIsKorean: isFrToKo,
+        answerIsKorean: answerIsHangul,
         // No onContinue → transient; the provider auto-advances (driving mode).
       );
     }
@@ -1130,7 +1133,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                               : 1.0;
                           return WordInWave(
                             word: card.questionWord,
-                            isKorean: !isFrToKo,
+                            isKorean: questionIsHangul,
                             cue: cue,
                             cueColor:
                                 cueColor.withValues(alpha: fade),
@@ -1259,7 +1262,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   /// Cartes — flip card on the unified study canvas; self-grade shows the flood.
   Widget _buildCartesStudy(BuildContext context, QuizState s, QuizCard card) {
-    final isFrToKo = card.progress.direction == QuizDirection.frToKo;
+    final questionIsHangul =
+        Languages.usesHangul(card.progress.direction.questionLang);
+    final answerIsHangul =
+        Languages.usesHangul(card.progress.direction.answerLang);
 
     if (s.answerState != QuizAnswerState.idle) {
       final correct = s.answerState == QuizAnswerState.correct;
@@ -1269,7 +1275,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             ? 'quiz.feedback_correct'.tr()
             : 'quiz.feedback_wrong'.tr(),
         answer: card.answerWords.join(' / '),
-        answerIsKorean: isFrToKo,
+        answerIsKorean: answerIsHangul,
         detail: _nextReviewText(s.scheduledDays, correct),
         continueLabel: 'quiz.continue_button'.tr(),
         onContinue: () => ref.read(quizProvider.notifier).advance(),
@@ -1279,7 +1285,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final showBack = s.isFlipped;
     final word = showBack ? card.answerWords.join(' / ') : card.questionWord;
     // Front = question (Korean only when KO→FR); back = answer (Korean when FR→KO).
-    final wordIsKorean = showBack ? isFrToKo : !isFrToKo;
+    final wordIsKorean = showBack ? answerIsHangul : questionIsHangul;
 
     return StudyScaffold(
       current: s.position,
@@ -1348,7 +1354,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   /// Écrire — word-in-wave + native text input + Valider, with the flood.
   Widget _buildEcrireStudy(BuildContext context, QuizState s, QuizCard card) {
-    final isFrToKo = card.progress.direction == QuizDirection.frToKo;
+    final questionIsHangul =
+        Languages.usesHangul(card.progress.direction.questionLang);
+    final answerIsHangul =
+        Languages.usesHangul(card.progress.direction.answerLang);
 
     if (s.answerState != QuizAnswerState.idle) {
       final correct = s.answerState == QuizAnswerState.correct;
@@ -1364,7 +1373,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             ? 'quiz.feedback_correct'.tr()
             : 'quiz.feedback_wrong'.tr(),
         answer: card.answerWords.join(' / '),
-        answerIsKorean: isFrToKo,
+        answerIsKorean: answerIsHangul,
         detail: _nextReviewText(s.scheduledDays, correct),
         continueLabel: 'quiz.continue_button'.tr(),
         onContinue: () => ref.read(quizProvider.notifier).advance(),
@@ -1401,7 +1410,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               child: Center(
                 child: WordInWave(
                   word: card.questionWord,
-                  isKorean: !isFrToKo, // question is Korean when KO→FR
+                  isKorean: questionIsHangul, // question is Korean when KO→FR
                   cue: cue,
                   cueColor: cueColor,
                   waveActive: false,
@@ -1449,7 +1458,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// Voix — the unified dark study canvas: word-in-wave + mic + escape pills,
   /// with the full-screen flood once answered.
   Widget _buildVoiceStudy(BuildContext context, QuizState s, QuizCard card) {
-    final isFrToKo = card.progress.direction == QuizDirection.frToKo;
+    final questionIsHangul =
+        Languages.usesHangul(card.progress.direction.questionLang);
+    final answerIsHangul =
+        Languages.usesHangul(card.progress.direction.answerLang);
 
     if (s.answerState != QuizAnswerState.idle) {
       final correct = s.answerState == QuizAnswerState.correct;
@@ -1459,7 +1471,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             ? 'quiz.feedback_correct'.tr()
             : 'quiz.feedback_wrong'.tr(),
         answer: card.answerWords.join(' / '),
-        answerIsKorean: isFrToKo, // answer is Korean when FR→KO
+        answerIsKorean: answerIsHangul, // answer is Korean when FR→KO
         detail: _nextReviewText(s.scheduledDays, correct),
         continueLabel: 'quiz.continue_button'.tr(),
         onContinue: () => ref.read(quizProvider.notifier).advance(),
@@ -1492,7 +1504,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               child: Center(
                 child: WordInWave(
                   word: card.questionWord,
-                  isKorean: !isFrToKo, // question is Korean when KO→FR
+                  isKorean: questionIsHangul, // question is Korean when KO→FR
                   cue: kbOn ? null : cue,
                   cueColor: cueColor,
                   waveActive: s.isListening,
