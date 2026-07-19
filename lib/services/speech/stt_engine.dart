@@ -61,10 +61,17 @@ abstract interface class SttEngine {
   /// Begins recognizing [langCode]. Every partial/final guess is delivered to
   /// [onHypothesis]. [promptHints] biases decoders toward the expected answers.
   /// Returns false if it could not start (permission, not ready, mic busy).
+  ///
+  /// [onSessionEnd] fires when the engine ends its OWN listening session
+  /// before being stopped (platform recognizers close after one utterance —
+  /// a wrong answer would otherwise leave a dead mic for the rest of the
+  /// race window; field log 2026-07-19). Continuous engines that listen until
+  /// stopped never call it.
   Future<bool> start({
     required String langCode,
     required List<String> promptHints,
     required void Function(SttHypothesis) onHypothesis,
+    void Function()? onSessionEnd,
   });
 
   /// Feeds a PCM16 mono @16kHz frame to a [SttCapture.sharedPcm] engine. No-op

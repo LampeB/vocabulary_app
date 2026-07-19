@@ -25,8 +25,10 @@ class _FakeEngine implements SttEngine {
 
   bool started = false;
   bool stopped = false;
+  int startCalls = 0;
   int prepareCalls = 0;
   void Function(SttHypothesis)? _sink;
+  void Function()? _sessionEnd;
 
   @override
   bool supportsLanguage(String langCode) => languages.contains(langCode);
@@ -39,11 +41,18 @@ class _FakeEngine implements SttEngine {
     required String langCode,
     required List<String> promptHints,
     required void Function(SttHypothesis) onHypothesis,
+    void Function()? onSessionEnd,
   }) async {
     started = true;
+    startCalls++;
     _sink = onHypothesis;
+    _sessionEnd = onSessionEnd;
     return true;
   }
+
+  /// Simulates the platform recognizer closing its own session (one-utterance
+  /// engines do this after a final result).
+  void endSession() => _sessionEnd?.call();
 
   @override
   void feed(Uint8List pcm16) {}
@@ -151,6 +160,67 @@ void main() {
       expect(fr.started, isTrue);
       expect(koOnly.started, isFalse);
       fr.emit('thé');
+      await future;
+    });
+
+    test(
+        'session-end restarts the engine so a wrong-then-corrected answer is '
+        'heard (field bug 2026-07-19)', () async {
+      final a = _FakeEngine('a');
+      final future = SttRace([a]).run(
+        langCode: 'fr',
+        acceptedAnswers: ['manger'],
+        timeout: const Duration(seconds: 5),
+        minSessionForRestart: Duration.zero, // test: restart immediately
+        restartDelay: Duration.zero,
+      );
+      await _pump();
+
+      a.emit('cheval'); // wrong first try — race keeps going
+      a.endSession(); // platform recognizer closes after the utterance
+      await _pump();
+      await _pump();
+
+      expect(a.startCalls, 2, reason: 'engine must be restarted');
+      a.emit('manger'); // the self-correction, heard by the restarted session
+      final outcome = await future;
+      expect(outcome.matched, isTrue);
+      expect(outcome.matchedCandidate, 'manger');
+    });
+
+    test('restarts are capped (no infinite churn)', () async {
+      final a = _FakeEngine('a');
+      final future = SttRace([a]).run(
+        langCode: 'fr',
+        acceptedAnswers: ['manger'],
+        timeout: const Duration(milliseconds: 400),
+        minSessionForRestart: Duration.zero,
+        restartDelay: Duration.zero,
+      );
+      await _pump();
+      for (var i = 0; i < 6; i++) {
+        a.endSession();
+        await _pump();
+        await _pump();
+      }
+      expect(a.startCalls, lessThanOrEqualTo(3)); // initial + max 2 restarts
+      final outcome = await future;
+      expect(outcome.matched, isFalse);
+    });
+
+    test('a too-short session (throttle ghost) is NOT restarted', () async {
+      final a = _FakeEngine('a');
+      final future = SttRace([a]).run(
+        langCode: 'fr',
+        acceptedAnswers: ['manger'],
+        timeout: const Duration(milliseconds: 300),
+        // default minSessionForRestart (1200ms) — an instant end is a ghost
+      );
+      await _pump();
+      a.endSession(); // dies immediately (~0ms lived)
+      await _pump();
+      await _pump();
+      expect(a.startCalls, 1, reason: 'ghost sessions must not be hammered');
       await future;
     });
 

@@ -39,6 +39,9 @@ class WhisperSttEngine implements SttEngine {
     required String langCode,
     required List<String> promptHints,
     required void Function(SttHypothesis) onHypothesis,
+    // Ignored: Whisper listens continuously until stopped, so its session
+    // never self-ends.
+    void Function()? onSessionEnd,
   }) {
     return _service.startListening(
       langCode: langCode,

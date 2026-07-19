@@ -17,6 +17,13 @@ class SystemSttEngine implements SttEngine {
   final Set<String> _languages;
   bool _ready = false;
 
+  // The service exposes a single onListeningDone callback, owned by the quiz
+  // screen's legacy path. While racing we borrow it to surface session-end to
+  // the race (the platform recognizer closes after one utterance) and restore
+  // the original on stop() so the legacy path keeps working afterwards.
+  void Function()? _restoreDone;
+  bool _hooked = false;
+
   @override
   String get id => 'system';
 
@@ -39,7 +46,15 @@ class SystemSttEngine implements SttEngine {
     required String langCode,
     required List<String> promptHints,
     required void Function(SttHypothesis) onHypothesis,
+    void Function()? onSessionEnd,
   }) {
+    if (onSessionEnd != null) {
+      if (!_hooked) {
+        _restoreDone = _service.onListeningDone;
+        _hooked = true;
+      }
+      _service.onListeningDone = onSessionEnd;
+    }
     return _service.startListening(
       langCode: langCode,
       onResult: (primary, candidates) => onHypothesis(SttHypothesis(
@@ -63,7 +78,14 @@ class SystemSttEngine implements SttEngine {
   void feed(Uint8List pcm16) {} // owns its own mic — nothing to feed
 
   @override
-  Future<void> stop() => _service.stopListening();
+  Future<void> stop() {
+    if (_hooked) {
+      _service.onListeningDone = _restoreDone;
+      _hooked = false;
+      _restoreDone = null;
+    }
+    return _service.stopListening();
+  }
 
   @override
   void dispose() => _service.dispose();

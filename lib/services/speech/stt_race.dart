@@ -56,6 +56,9 @@ class SttRace {
     bool isDrivingMode = true,
     Duration timeout = const Duration(seconds: 8),
     void Function(SttHypothesis partial)? onPartial,
+    // Session-end restart tuning (see below); overridable for tests.
+    Duration minSessionForRestart = const Duration(milliseconds: 1200),
+    Duration restartDelay = const Duration(milliseconds: 350),
   }) async {
     final racers =
         engines.where((e) => e.isReady && e.supportsLanguage(langCode)).toList();
@@ -99,6 +102,7 @@ class SttRace {
       }
     }
 
+    final deadline = DateTime.now().add(timeout);
     timer = Timer(timeout, () {
       sttLog('[RACE] ⏱ timeout — no engine validated (${seen.length} hypotheses)');
       finish(SttRaceOutcome(
@@ -108,17 +112,50 @@ class SttRace {
       ));
     });
 
+    // Platform recognizers close their session after ONE utterance — a wrong
+    // first answer would leave a dead mic for the rest of the window, so a
+    // self-corrected right answer was never heard (field log 2026-07-19:
+    // "cheval" then "manger", timeout with the mic long closed). When a
+    // session self-ends without a win, restart the engine — guarded against
+    // OS-throttle storms: only real sessions (≥ [minSessionForRestart])
+    // restart, at most twice, after a [restartDelay] breather, and only while
+    // enough window remains for another attempt.
+    final startedAt = <String, DateTime>{};
+    final restarts = <String, int>{};
+    const maxRestarts = 2;
+
+    late Future<void> Function(SttEngine) startEngine;
+    startEngine = (SttEngine e) => Future(() async {
+          startedAt[e.id] = DateTime.now();
+          final ok = await e.start(
+            langCode: langCode,
+            promptHints: promptHints,
+            onHypothesis: (h) => onHyp(e, h),
+            onSessionEnd: () {
+              if (completer.isCompleted) return;
+              final lived = DateTime.now().difference(startedAt[e.id]!);
+              final used = restarts[e.id] ?? 0;
+              final remaining = deadline.difference(DateTime.now());
+              if (lived < minSessionForRestart ||
+                  used >= maxRestarts ||
+                  remaining < const Duration(seconds: 2)) {
+                sttLog('[RACE] "${e.id}" session ended (lived=${lived.inMilliseconds}ms, restarts=$used, remaining=${remaining.inMilliseconds}ms) — not restarting');
+                return;
+              }
+              restarts[e.id] = used + 1;
+              sttLog('[RACE] 🔄 "${e.id}" session ended without a win — restart #${used + 1} in ${restartDelay.inMilliseconds}ms');
+              Timer(restartDelay, () {
+                if (!completer.isCompleted) unawaited(startEngine(e));
+              });
+            },
+          );
+          if (!ok) sttLog('[RACE] "${e.id}" failed to start');
+        }).catchError((Object err) {
+          sttLog('[RACE] "${e.id}" start threw: $err');
+        });
+
     for (final e in racers) {
-      unawaited(Future(() async {
-        final ok = await e.start(
-          langCode: langCode,
-          promptHints: promptHints,
-          onHypothesis: (h) => onHyp(e, h),
-        );
-        if (!ok) sttLog('[RACE] "${e.id}" failed to start');
-      }).catchError((Object err) {
-        sttLog('[RACE] "${e.id}" start threw: $err');
-      }));
+      unawaited(startEngine(e));
     }
 
     return completer.future;
