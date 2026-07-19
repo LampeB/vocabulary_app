@@ -25,22 +25,28 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
   /// variant of any concept in the list (a card reviewed at least once). Powers
   /// the "currently studying" vs "not yet studied" split in quiz setup. One
   /// query across all lists instead of per-list stats.
-  Future<Set<String>> getStudiedListIds(String userId) async {
-    final rows = await customSelect(
+  ///
+  /// A WATCH, not a one-shot get: on a fresh device the login sync inserts the
+  /// progress rows AFTER the quiz-setup screen first computes, and a future
+  /// would stay empty until an app restart (field report 2026-07-19).
+  Stream<Set<String>> watchStudiedListIds(String userId) {
+    return customSelect(
       'SELECT DISTINCT c.list_id AS list_id '
       'FROM variant_progress vp '
       'JOIN word_variants wv ON wv.id = vp.variant_id '
       'JOIN concepts c ON c.id = wv.concept_id '
       'WHERE vp.user_id = ?',
       variables: [Variable<String>(userId)],
-    ).get();
-    return rows.map((r) => r.read<String>('list_id')).toSet();
+      readsFrom: {variantProgressTable, wordVariantsTable, db.conceptsTable},
+    ).watch().map(
+        (rows) => rows.map((r) => r.read<String>('list_id')).toSet());
   }
 
   /// Due-card count for a single language pair (both directions), so the quiz
   /// setup's "to study now" badge reflects the CHOSEN language instead of every
-  /// language's due cards (generic-language-pairs epic).
-  Future<int> dueCountForPair(String userId, String langA, String langB) {
+  /// language's due cards (generic-language-pairs epic). A watch so the badge
+  /// fills in live when the login sync lands on a fresh device.
+  Stream<int> watchDueCountForPair(String userId, String langA, String langB) {
     final now = DateTime.now();
     final dirs = ['$langA>$langB', '$langB>$langA'];
     final q = selectOnly(variantProgressTable)
@@ -51,7 +57,7 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
               variantProgressTable.nextReview.isSmallerOrEqualValue(now)));
     return q
         .map((row) => row.read(variantProgressTable.id.count()) ?? 0)
-        .getSingle();
+        .watchSingle();
   }
 
   Future<List<VariantProgressTableData>> getDue({

@@ -63,8 +63,8 @@ void main() {
         myListsProvider.overrideWith(
             (ref) => Stream.value(lists ?? [_list('l1', 'Animaux')])),
         dueCountProvider.overrideWith((ref) => Stream.value(4)),
-        dueCountForPairProvider.overrideWith((ref, pair) async => 4),
-        studiedListIdsProvider.overrideWith((ref) async => studied),
+        dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(4)),
+        studiedListIdsProvider.overrideWith((ref) => Stream.value(studied)),
         ruleStatusesProvider.overrideWith((ref) async => [
               RuleStatus(
                 rule: _rule('regle-debloquee', 'La particule de thème'),

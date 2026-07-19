@@ -705,16 +705,6 @@ class _OptionTile extends StatelessWidget {
                     style: AppTextStyles.fig(15, FontWeight.w600)
                         .copyWith(color: fg)),
               ),
-              if (onPreview != null)
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onPreview,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 6, right: 2),
-                    child: Icon(Icons.visibility_outlined,
-                        size: 18, color: selected ? Colors.white70 : muted),
-                  ),
-                ),
               if (trailing != null)
                 // Flexible: long trailings (e.g. a locked rule's prerequisite
                 // list names) must ellipsize, not overflow the tile.
@@ -729,6 +719,18 @@ class _OptionTile extends StatelessWidget {
                 const Padding(
                   padding: EdgeInsets.only(left: 8),
                   child: Icon(Icons.check_rounded, color: Colors.white, size: 18),
+                ),
+              // Peek icon LAST so it sits at the row's right edge
+              // (user feedback 2026-07-19).
+              if (onPreview != null)
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onPreview,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 10),
+                    child: Icon(Icons.visibility_outlined,
+                        size: 18, color: selected ? Colors.white70 : muted),
+                  ),
                 ),
             ],
           ),

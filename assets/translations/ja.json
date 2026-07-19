@@ -351,5 +351,6 @@
   "date.day_month": "{month}{day}日",
   "settings.stt_engine_label": "音声認識エンジン",
   "settings.stt_engine_system": "システム",
-  "settings.stt_engine_race": "レース（ベータ）"
+  "settings.stt_engine_race": "レース（ベータ）",
+  "home.syncing": "データを同期中…"
 }

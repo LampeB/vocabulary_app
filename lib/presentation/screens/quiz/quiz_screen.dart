@@ -719,8 +719,30 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
   }
 
+  // When the last mic session opened — drives the retry pacing guard.
+  DateTime? _lastMicOpen;
+
   Future<void> _startListeningInner(QuizCard card,
       {required bool isRetry}) async {
+    // Pacing guard: with the system recognizer being near-instant, failed
+    // sessions can recycle every ~2.3s — six earcons in 15s felt frantic
+    // ("trips over itself", field report 2026-07-19). Retries wait until at
+    // least 3.5s since the previous mic open; fresh cards are not delayed.
+    if (isRetry && _lastMicOpen != null && !_kTestMode) {
+      final sinceLast = DateTime.now().difference(_lastMicOpen!);
+      const minGap = Duration(milliseconds: 3500);
+      if (sinceLast < minGap) {
+        final wait = minGap - sinceLast;
+        sttLog('[HF] ⏳ pacing guard — delaying retry ${wait.inMilliseconds}ms');
+        await Future.delayed(wait);
+        if (!mounted ||
+            ref.read(quizProvider).answerState != QuizAnswerState.idle) {
+          return; // answered (or gone) while breathing
+        }
+      }
+    }
+    _lastMicOpen = DateTime.now();
+
     if (!isRetry) {
       _listenRetries = 0;
       _notHeardRetries = 0;

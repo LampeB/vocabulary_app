@@ -96,22 +96,24 @@ final dueCountProvider = StreamProvider<int>((ref) {
 
 /// List IDs the user has started studying (≥1 reviewed card). Drives the
 /// "currently studying" vs "not yet studied" split in the quiz setup screen.
-final studiedListIdsProvider = FutureProvider<Set<String>>((ref) async {
+/// A STREAM over the local DB so the split fills in live when the login sync
+/// delivers progress rows on a fresh device (field report 2026-07-19).
+final studiedListIdsProvider = StreamProvider<Set<String>>((ref) {
   final userId = ref.watch(currentUserProvider)?.id ?? '';
-  if (userId.isEmpty) return <String>{};
-  return ref.watch(progressDaoProvider).getStudiedListIds(userId);
+  if (userId.isEmpty) return Stream.value(<String>{});
+  return ref.watch(progressDaoProvider).watchStudiedListIds(userId);
 });
 
 /// Due-card count for one language pair (record: (langA, langB)) — feeds the
 /// quiz setup's "to study now" badge so it reflects the chosen language, not
-/// every language's due cards.
+/// every language's due cards. Streamed for the same fresh-device reason.
 final dueCountForPairProvider =
-    FutureProvider.family<int, (String, String)>((ref, pair) async {
+    StreamProvider.family<int, (String, String)>((ref, pair) {
   final userId = ref.watch(currentUserProvider)?.id ?? '';
-  if (userId.isEmpty) return 0;
+  if (userId.isEmpty) return Stream.value(0);
   return ref
       .watch(progressDaoProvider)
-      .dueCountForPair(userId, pair.$1, pair.$2);
+      .watchDueCountForPair(userId, pair.$1, pair.$2);
 });
 
 const _kTestMode = bool.fromEnvironment('TEST_MODE');

@@ -351,5 +351,6 @@
   "date.day_month": "{month} {day}일",
   "settings.stt_engine_label": "음성 인식 엔진",
   "settings.stt_engine_system": "시스템",
-  "settings.stt_engine_race": "레이스(베타)"
+  "settings.stt_engine_race": "레이스(베타)",
+  "home.syncing": "데이터 동기화 중…"
 }

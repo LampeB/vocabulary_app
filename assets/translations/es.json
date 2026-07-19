@@ -351,5 +351,6 @@
   "date.day_month": "{day} {month}",
   "settings.stt_engine_label": "Motor de voz",
   "settings.stt_engine_system": "Sistema",
-  "settings.stt_engine_race": "Carrera (beta)"
+  "settings.stt_engine_race": "Carrera (beta)",
+  "home.syncing": "Sincronizando tus datos…"
 }

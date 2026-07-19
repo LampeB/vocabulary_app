@@ -24,13 +24,35 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(syncOnLoginProvider); // pulls remote data on login
+    final syncAsync = ref.watch(syncOnLoginProvider); // pulls remote data on login
     ref.watch(seedStarterListsProvider); // first-ever login: starter content
 
     final user = ref.watch(currentUserProvider);
     final listsAsync = ref.watch(myListsProvider);
     final dueCount = ref.watch(dueCountProvider).valueOrNull ?? 0;
     final streak = user?.currentStreak ?? 0;
+
+    // First-sync gate: on a fresh device the local DB is empty and content
+    // would pop in piece by piece as the login sync streams rows (field
+    // report 2026-07-19). Hold a single loading screen until that first sync
+    // completes. Established devices have local lists, render instantly, and
+    // background syncs never gate.
+    final hasLocalData = (listsAsync.valueOrNull ?? const []).isNotEmpty;
+    if (syncAsync.isLoading && !hasLocalData) {
+      return const Scaffold(
+        key: ValueKey(WidgetKeys.screenHome),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: AppColors.clay, strokeWidth: 2),
+              SizedBox(height: 16),
+              _SyncingLabel(),
+            ],
+          ),
+        ),
+      );
+    }
 
     // Schedule streak warning once user data is available.
     if (streak > 0) {
@@ -565,6 +587,21 @@ class _SeeAllButton extends StatelessWidget {
           style: AppTextStyles.eyebrow.copyWith(color: AppColors.teal),
         ),
       ),
+    );
+  }
+}
+
+// ── First-sync loading label ──────────────────────────────────────────────────
+
+class _SyncingLabel extends StatelessWidget {
+  const _SyncingLabel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'home.syncing'.tr(),
+      style: AppTextStyles.caption.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant),
     );
   }
 }

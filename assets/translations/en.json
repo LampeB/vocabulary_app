@@ -351,5 +351,6 @@
   "date.day_month": "{day} {month}",
   "settings.stt_engine_label": "Speech engine",
   "settings.stt_engine_system": "System",
-  "settings.stt_engine_race": "Race (beta)"
+  "settings.stt_engine_race": "Race (beta)",
+  "home.syncing": "Syncing your data…"
 }

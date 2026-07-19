@@ -351,5 +351,6 @@
   "date.day_month": "{day}. {month}",
   "settings.stt_engine_label": "Spracherkennung",
   "settings.stt_engine_system": "System",
-  "settings.stt_engine_race": "Rennen (Beta)"
+  "settings.stt_engine_race": "Rennen (Beta)",
+  "home.syncing": "Deine Daten werden synchronisiert…"
 }
