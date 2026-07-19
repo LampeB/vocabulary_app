@@ -650,15 +650,32 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       scheduledDays: scheduledDays,
     );
     if (isDrivingMode) {
-      // Correct: short pause for the flash/sound then move on (no TTS plays).
-      // Wrong: longer pause so the answer TTS has time to finish speaking
-      // before the next card appears and the mic opens.
-      final delay = result.isCorrect
-          ? const Duration(milliseconds: 800)
-          : const Duration(milliseconds: 3000);
-      Future.delayed(delay, () => _advance(isCorrect: result.isCorrect));
+      unawaited(_advanceAfterAudio(isCorrect: result.isCorrect));
     }
     // Otherwise: advance is triggered by "Continuer" on the feedback screen.
+  }
+
+  /// Driving-mode advance, sequenced BEHIND the verdict audio instead of a
+  /// fixed timer. The old fixed 800ms/3000ms raced the audio chain (verdict
+  /// chirp → answer TTS → next question TTS), so when TTS ran long the next
+  /// card started while audio was still queued — late answer audio, delayed
+  /// questions and mistimed earcons (field report 2026-07-20). Waiting for
+  /// quiet gives every card a clean audio slate.
+  Future<void> _advanceAfterAudio({required bool isCorrect}) async {
+    final marker = state.currentIndex;
+    // Give the screen's grade reaction a beat to START its audio first.
+    await Future.delayed(const Duration(milliseconds: 250));
+    final deadline = DateTime.now().add(const Duration(seconds: 4));
+    while ((_audio?.isSpeaking ?? false) &&
+        DateTime.now().isBefore(deadline)) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+    // Short breath after the audio ends; slightly longer on a miss so the
+    // verdict registers. (Without audio — tests, muted — this totals ~800ms
+    // correct, matching the old pacing.)
+    await Future.delayed(Duration(milliseconds: isCorrect ? 550 : 900));
+    if (state.currentIndex != marker || state.isComplete) return; // moved on
+    _advance(isCorrect: isCorrect);
   }
 
   /// Records one review-event row (observability for the stats dashboard).

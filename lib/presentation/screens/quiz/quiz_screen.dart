@@ -1088,6 +1088,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             unawaited(_stt.stopListening());
             unawaited(_whisper.stopListening());
           }
+          // Clean slate at the card boundary (field report 2026-07-20): the
+          // countdown bar kept the PREVIOUS card's frozen value all through
+          // the new card's reading phase (it only reset when the next mic
+          // opened) — zero it now.
+          _listenBarCtrl
+            ..stop()
+            ..reset();
           // New card = back to the reading phase; don't let the previous
           // card's "analyse" banner linger over the new word.
           if (_hfAnalyzing || _hfNotHeard || _hfMisheard) {
