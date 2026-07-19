@@ -235,6 +235,15 @@ abstract final class AnswerValidator {
   }
 
   static String _normalize(String text) {
-    return text.trim().toLowerCase().removeAccents();
+    // French elisions collapse the article into the word — "l'eau", "d'eau",
+    // "j'aime". STT (and users) answer with the article glued on, which
+    // scored "l'eau" vs "eau" at 0.67 and failed the card over and over
+    // (field log 2026-07-19: the water card was unanswerable). Stripping the
+    // elided prefix makes the word-split pass see the bare word.
+    return text
+        .trim()
+        .toLowerCase()
+        .removeAccents()
+        .replaceAll(RegExp(r"\b(?:l|d|j|m|n|s|t|c|qu)['’]"), '');
   }
 }

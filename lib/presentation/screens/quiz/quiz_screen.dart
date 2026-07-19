@@ -1,4 +1,5 @@
 import 'dart:async' show unawaited;
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -654,7 +655,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     await _raceSystemEngine!.prepare(); // idempotent — already initialised
     // Whisper joins lane 2 once its model is ready; kick the download in the
     // background on first race use (it was skipped while system-primary).
-    if (!_whisper.isReady && !_kTestMode) unawaited(_whisper.ensureModel());
+    // Debug builds skip whisper entirely: unoptimized inference takes ~16s
+    // per clip — it produced 0 hypotheses in the 8s lane every time (field
+    // log 2026-07-19) while holding ~142MB of RAM in the Dev app.
+    final whisperEligible = !kDebugMode;
+    if (whisperEligible && !_whisper.isReady && !_kTestMode) {
+      unawaited(_whisper.ensureModel());
+    }
 
     // A race result is stale when the session, card, or verdict moved on.
     bool stale() =>
@@ -689,7 +696,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     );
     if (stale()) return;
 
-    if (!outcome.matched && _whisper.isReady) {
+    if (!outcome.matched && whisperEligible && _whisper.isReady) {
       sttLog('[RACE][HF] lane 2 (whisper)  token=$sessionToken');
       if (handsFree) _enterAnalyzing();
       runBar();

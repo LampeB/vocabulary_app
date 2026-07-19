@@ -211,4 +211,30 @@ void main() {
           'avoir qqch');
     });
   });
+
+  group('French elision (the water card, field bug 2026-07-19)', () {
+    test("l'eau matches eau exactly", () {
+      final r = validate("l'eau", ['eau'], driving: true);
+      expect(r.isCorrect, isTrue);
+      expect(r.type, ValidationResultType.exact);
+    });
+
+    test("a natural 'de l'eau' answer matches eau", () {
+      expect(validate("de l'eau", ['eau'], driving: true).isCorrect, isTrue);
+    });
+
+    test('typographic apostrophe (STT often emits ’) also matches', () {
+      expect(validate('l’eau', ['eau'], driving: true).isCorrect, isTrue);
+    });
+
+    test('elision on BOTH sides stays consistent (accepted answer has it)',
+        () {
+      expect(validate("j'aime", ["j'aime"], driving: true).isCorrect, isTrue);
+      expect(validate('aime', ["j'aime"], driving: true).isCorrect, isTrue);
+    });
+
+    test('unrelated words still fail (no false accepts from stripping)', () {
+      expect(validate("l'ours", ['eau'], driving: true).isCorrect, isFalse);
+    });
+  });
 }
