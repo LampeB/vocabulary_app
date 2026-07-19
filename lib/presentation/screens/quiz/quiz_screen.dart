@@ -32,6 +32,14 @@ import '../../widgets/study/study_feedback_flood.dart';
 // the settle timeout and intermittently trips mid-layout binding assertions).
 const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
+// Hands-free engine priority. Field evidence 2026-07-19 (device logs): the
+// platform recognizer nailed "un thé" @0.93 in ~2s while Whisper produced
+// garbage over 8-16s and only ran as rescue #2 (~17s in). So the system
+// recognizer is now PRIMARY in hands-free too (voice mode already was); Whisper
+// returns as a proper parallel racer via the SttRace framework (next step).
+// Flip back to true to restore the 2026-07-09 Whisper-primary behaviour.
+bool _handsFreeWhisperPrimary = false;
+
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({super.key, required this.args});
   final QuizArgs args;
@@ -116,7 +124,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       // the background; per-card routing checks isReady and falls back to
       // the system recognizer until then. First run downloads ~40-80MB per
       // language over the network.
-      if (widget.args.mode == QuizMode.handsFree &&
+      if (_handsFreeWhisperPrimary &&
+          widget.args.mode == QuizMode.handsFree &&
           widget.args.source != QuizSource.grammar &&
           !SttSimulator.isOn &&
           !_kTestMode) {
@@ -662,13 +671,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // once a new session (next card) has started.
     final sessionToken = _listenToken;
 
-    // Engine routing, v3 (user decision 2026-07-09): Whisper is PRIMARY for
-    // vocab hands-free — our capture, our endpointing, one multilingual
-    // model, identical behavior on every device. The system recognizer
-    // remains for grammar sessions (long sentences, streaming partials),
-    // as the rescue attempt when Whisper hears nothing twice, and as the
-    // fallback while the model downloads.
-    if (!_systemRescueAttempt &&
+    // Engine routing, v4 (2026-07-19): the system recognizer is PRIMARY in
+    // hands-free (see [_handsFreeWhisperPrimary]) — it's faster and more
+    // accurate for supported languages per device logs. The Whisper-primary
+    // path below is kept behind the flag and returns as a parallel racer via
+    // SttRace; grammar always uses the system recognizer (streaming partials).
+    if (_handsFreeWhisperPrimary &&
+        !_systemRescueAttempt &&
         widget.args.mode == QuizMode.handsFree &&
         widget.args.source != QuizSource.grammar &&
         _whisper.isReady) {
