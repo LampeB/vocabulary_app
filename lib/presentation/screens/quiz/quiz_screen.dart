@@ -209,6 +209,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             // for a meaningful amount of time it may have heard something — wait
             // up to 2.5 s for the late result before declaring it wrong.
             final hadRealListen = elapsed >= 1500;
+            if (hadRealListen) _hadRealWindowThisCard = true;
 
             // The engine's error verdict (error_client etc.) arrives ~1-5ms
             // AFTER the notListening status that got us here — deciding
@@ -227,11 +228,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             final wasThrottled = err == 'error_client' || err == 'error_busy';
             final wasPermanentError = err == 'error_audio';
 
-            if (!wasPermanentError && !hadRealListen && _listenRetries < 2) {
-              // STT stopped instantly — back off, longer if throttled.
+            // Throttle storms (error_client at ~15ms) can eat every retry
+            // before the mic was EVER live for this card — which then skipped
+            // the card unanswered (field logs 2026-07-19: half the quiz
+            // auto-skipped). A card may only give up after at least one real
+            // listen window happened, with a bigger budget while throttled.
+            final retryLimit = _hadRealWindowThisCard ? 2 : 4;
+            if (!wasPermanentError && !hadRealListen &&
+                _listenRetries < retryLimit) {
+              // STT stopped instantly — back off, much longer if throttled
+              // (Android's cooldown outlasts 2s; 4s clears it reliably).
               _listenRetries++;
-              final backoffMs = wasThrottled ? 2000 : 1200;
-              sttLog('[HF] 🔁 STT stopped too fast (${elapsed}ms, err=$err) — retry #$_listenRetries in ${backoffMs}ms');
+              final backoffMs = wasThrottled ? 4000 : 1200;
+              sttLog('[HF] 🔁 STT stopped too fast (${elapsed}ms, err=$err) — retry #$_listenRetries/$retryLimit in ${backoffMs}ms');
               Future.delayed(Duration(milliseconds: backoffMs), () {
                 if (!mounted || capturedToken != _listenToken) return;
                 final card = ref.read(quizProvider).currentCard;
@@ -243,9 +252,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               });
             } else {
               // STT ran for a real listen duration or retries exhausted.
-              // Wait up to 2.5 s for Samsung's late final-result callback;
-              // only submit wrong if no answer arrives in that window.
-              final waitMs = hadRealListen && !wasPermanentError ? 2500 : 0;
+              // Wait up to 2.5 s for Samsung's late final-result callback —
+              // but ONLY after a clean session end (err == null): an explicit
+              // error_speech_timeout / error_no_match means the engine gave up
+              // and no late result is coming, and showing the analyse phase
+              // then reads as "it thought I said something" (field report
+              // 2026-07-19).
+              final waitMs =
+                  hadRealListen && !wasPermanentError && err == null
+                      ? 2500
+                      : 0;
               sttLog('[HF] Waiting ${waitMs}ms for possible late Samsung onResult before submitting empty (elapsed=${elapsed}ms  permanentError=$wasPermanentError  retries=$_listenRetries)');
               // Mic is closed and a result may still land: that IS the
               // "analyse" phase from the user's perspective.
@@ -722,6 +738,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // When the last mic session opened — drives the retry pacing guard.
   DateTime? _lastMicOpen;
 
+  // Whether at least one REAL listen window (≥1.5s of live mic) opened for the
+  // current card. Throttle storms (error_client after ~15ms) must not exhaust
+  // a card's retries before the user ever had a mic (field logs 2026-07-19).
+  bool _hadRealWindowThisCard = false;
+
   Future<void> _startListeningInner(QuizCard card,
       {required bool isRetry}) async {
     // Pacing guard: with the system recognizer being near-instant, failed
@@ -747,6 +768,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _listenRetries = 0;
       _notHeardRetries = 0;
       _noiseRetries = 0;
+      _hadRealWindowThisCard = false;
     }
     if (!isRetry) {
       _systemRescueAttempt = false;

@@ -19,26 +19,43 @@ import '../../widgets/vk_waveform.dart';
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  // Fresh-device latch: decided ONCE from the first local-DB snapshot. On a
+  // fresh install the login sync AND the starter seeding stream lists in over
+  // several seconds; without the latch the gate dropped as soon as the first
+  // rows landed and the user watched lists pop in and re-order (field report
+  // 2026-07-19). null = undecided (local DB still opening).
+  bool? _freshDevice;
+
+  @override
+  Widget build(BuildContext context) {
     final syncAsync = ref.watch(syncOnLoginProvider); // pulls remote data on login
-    ref.watch(seedStarterListsProvider); // first-ever login: starter content
+    final seedAsync =
+        ref.watch(seedStarterListsProvider); // first-ever login: starter content
 
     final user = ref.watch(currentUserProvider);
     final listsAsync = ref.watch(myListsProvider);
     final dueCount = ref.watch(dueCountProvider).valueOrNull ?? 0;
     final streak = user?.currentStreak ?? 0;
 
-    // First-sync gate: on a fresh device the local DB is empty and content
-    // would pop in piece by piece as the login sync streams rows (field
-    // report 2026-07-19). Hold a single loading screen until that first sync
-    // completes. Established devices have local lists, render instantly, and
-    // background syncs never gate.
-    final hasLocalData = (listsAsync.valueOrNull ?? const []).isNotEmpty;
-    if (syncAsync.isLoading && !hasLocalData) {
+    // Latch on the FIRST snapshot only — later emissions (sync/seed inserts)
+    // must not flip an established device to "fresh" or vice versa.
+    if (_freshDevice == null && listsAsync.hasValue) {
+      _freshDevice = listsAsync.requireValue.isEmpty;
+    }
+
+    // First-sync gate: on a fresh device, hold one loading screen until BOTH
+    // the login sync and the starter seeding are done — only then is the list
+    // set complete and stably ordered. Established devices (local data on
+    // first snapshot) render instantly; background syncs never gate.
+    if (_freshDevice != false && (syncAsync.isLoading || seedAsync.isLoading)) {
       return const Scaffold(
         key: ValueKey(WidgetKeys.screenHome),
         body: Center(

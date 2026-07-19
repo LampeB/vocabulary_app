@@ -88,6 +88,9 @@ void main() {
       overrides: [
         currentUserProvider.overrideWithValue(user ?? _user()),
         syncOnLoginProvider.overrideWith((ref) async {}),
+        // The first-sync gate awaits seeding too — stub it or the gate
+        // never lifts under test (SharedPreferences channel is absent).
+        seedStarterListsProvider.overrideWith((ref) async {}),
         myListsProvider.overrideWith((ref) => Stream.value(lists)),
         dueCountProvider.overrideWith((ref) => Stream.value(dueCount)),
         notificationSettingsProvider.overrideWith(_FakeNotifSettings.new),
