@@ -348,5 +348,8 @@
   "start_session.group_studying": "En cours d'étude",
   "start_session.group_not_studied": "Pas encore étudiées",
   "date.months_short": "janv.,févr.,mars,avr.,mai,juin,juil.,août,sept.,oct.,nov.,déc.",
-  "date.day_month": "{day} {month}"
+  "date.day_month": "{day} {month}",
+  "settings.stt_engine_label": "Moteur vocal",
+  "settings.stt_engine_system": "Système",
+  "settings.stt_engine_race": "Course (bêta)"
 }

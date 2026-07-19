@@ -7,6 +7,7 @@ import '../../providers/auth/auth_provider.dart';
 import '../../providers/purchases/purchase_provider.dart';
 import '../../providers/settings/settings_provider.dart';
 import '../../providers/settings/audio_settings_provider.dart';
+import '../../providers/settings/stt_engine_mode_provider.dart';
 import '../../../domain/entities/subscription_type.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -182,6 +183,29 @@ class SettingsScreen extends ConsumerWidget {
                       onSelect: (v) => ref
                           .read(audioSettingsProvider.notifier)
                           .setVoiceStrictness(v),
+                    ),
+                    const SizedBox(height: 12),
+                    // Recognition pipeline A/B toggle (see SttEngineMode):
+                    // Système = platform recognizer only; Course = the
+                    // experimental SttRace pipeline. On-device comparison
+                    // without reinstalling.
+                    _AudioSettingRow(
+                      icon: Icons.mic_external_on_outlined,
+                      label: 'settings.stt_engine_label'.tr(),
+                      options: [
+                        'settings.stt_engine_system'.tr(),
+                        'settings.stt_engine_race'.tr(),
+                      ],
+                      values: const [0, 1],
+                      current: ref
+                          .watch(sttEngineModeProvider)
+                          .index
+                          .toDouble(),
+                      onSelect: (v) => ref
+                          .read(sttEngineModeProvider.notifier)
+                          .set(v == 0
+                              ? SttEngineMode.system
+                              : SttEngineMode.race),
                     ),
                   ],
                 ),

@@ -348,5 +348,8 @@
   "start_session.group_studying": "Aktuell im Lernen",
   "start_session.group_not_studied": "Noch nicht gelernt",
   "date.months_short": "Jan.,Feb.,März,Apr.,Mai,Juni,Juli,Aug.,Sep.,Okt.,Nov.,Dez.",
-  "date.day_month": "{day}. {month}"
+  "date.day_month": "{day}. {month}",
+  "settings.stt_engine_label": "Spracherkennung",
+  "settings.stt_engine_system": "System",
+  "settings.stt_engine_race": "Rennen (Beta)"
 }

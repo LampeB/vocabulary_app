@@ -1,5 +1,5 @@
 [general]
-app_id = "com.vocabkr.vocab_kr"
+app_id = "com.vocabkr.vocab_kr.debug"
 
 [android]
-package_name = "com.vocabkr.vocab_kr"
+package_name = "com.vocabkr.vocab_kr.debug"

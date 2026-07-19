@@ -348,5 +348,8 @@
   "start_session.group_studying": "Currently studying",
   "start_session.group_not_studied": "Not yet studied",
   "date.months_short": "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",
-  "date.day_month": "{day} {month}"
+  "date.day_month": "{day} {month}",
+  "settings.stt_engine_label": "Speech engine",
+  "settings.stt_engine_system": "System",
+  "settings.stt_engine_race": "Race (beta)"
 }

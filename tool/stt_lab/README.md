@@ -35,7 +35,7 @@ cp ~/Android/Sdk/emulator/lib/emulator_controller.proto .
 
 2. **App in a hands-free session**: install the release APK, sign in as the
    lab account (`stt.lab@vocabkr.com`, list "STT Lab": 물/커피/밥/학생/친구),
-   grant the mic (`adb shell pm grant com.vocabkr.vocab_kr
+   grant the mic (`adb shell pm grant com.vocabkr.vocab_kr.debug
    android.permission.RECORD_AUDIO`), start Hands-free / FR→KO / 10 cards.
 
 3. **Run scenarios**:
@@ -77,7 +77,7 @@ node inject_audio.js corpus/noise_babble.wav 0.5   # optional gain arg
   E2E; see docs/test-coverage-roadmap.md).
 - It tests Google's engine, not Samsung's (the S22 default). Pipeline
   logic generalizes; engine quirks may not. Field evidence comes from the
-  on-device STT log: `adb pull /sdcard/Android/data/com.vocabkr.vocab_kr/files/stt_logs`.
+  on-device STT log: `adb pull /sdcard/Android/data/com.vocabkr.vocab_kr.debug/files/stt_logs`.
 - Echo scenarios: inject a recording of the app's own TTS voice during a
   listening window; the mic-waits-for-TTS + noise-guard logic is what's
   under test.

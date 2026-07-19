@@ -35,7 +35,17 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Side-by-side install with the release build (field-testing
+            // workflow 2026-07-19): distinct id + label so a bug seen on the
+            // release app can be reproduced on the debug app for its logs,
+            // without uninstalling either. Note: separate app = separate
+            // local data (fresh login); patrol.toml carries the .debug id.
+            applicationIdSuffix = ".debug"
+            manifestPlaceholders["appLabel"] = "VocabKR Dev"
+        }
         release {
+            manifestPlaceholders["appLabel"] = "VocabKR"
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")

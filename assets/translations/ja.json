@@ -348,5 +348,8 @@
   "start_session.group_studying": "学習中",
   "start_session.group_not_studied": "未学習",
   "date.months_short": "1月,2月,3月,4月,5月,6月,7月,8月,9月,10月,11月,12月",
-  "date.day_month": "{month}{day}日"
+  "date.day_month": "{month}{day}日",
+  "settings.stt_engine_label": "音声認識エンジン",
+  "settings.stt_engine_system": "システム",
+  "settings.stt_engine_race": "レース（ベータ）"
 }

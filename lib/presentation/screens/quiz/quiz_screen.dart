@@ -18,6 +18,10 @@ import '../../../core/utils/fsrs_algorithm.dart';
 import '../../../core/widget_keys.dart';
 import '../../../services/speech/speech_recognition_service.dart';
 import '../../../services/speech/whisper_speech_service.dart';
+import '../../../services/speech/stt_race.dart';
+import '../../../services/speech/system_stt_engine.dart';
+import '../../../services/speech/whisper_stt_engine.dart';
+import '../../providers/settings/stt_engine_mode_provider.dart';
 import '../../providers/speech/whisper_speech_provider.dart';
 import '../../../services/audio/sound_effects_service.dart';
 import '../../widgets/dotted_ground.dart';
@@ -58,6 +62,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   late final WhisperSpeechService _whisper;
   final _answerCtrl = TextEditingController();
   // Guards against stale STT callbacks firing on a new card.
+  // True while the current listen session is managed by the SttRace pipeline
+  // (Settings → Moteur vocal → Course). The legacy _stt callbacks
+  // (onListeningDone / onError retry ladder) must stand down for race-managed
+  // sessions — the race owns timeout, fallback and grading.
+  bool _raceActive = false;
+
+  // Race adapters, created lazily on first race use. They WRAP this screen's
+  // existing service instances — never disposed here (the services' own
+  // lifecycles are unchanged; see dispose()).
+  SystemSttEngine? _raceSystemEngine;
+  WhisperSttEngine? _raceWhisperEngine;
+
   // Incremented every time _startListening is called; onListeningDone
   // only acts if the token still matches.
   int _listenToken = 0;
@@ -152,6 +168,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         'error_client',
       };
       _stt.onError = (msg) {
+        if (_raceActive) return; // race-managed session — race handles errors
         if (!mounted || transientSttErrors.contains(msg)) return;
         // Hands-free is eyes-off and self-recovering — never banner it.
         if (widget.args.mode == QuizMode.handsFree) return;
@@ -165,6 +182,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       // Called exactly once per listen session (debounced in SpeechRecognitionService).
       // answerState is still idle → no result was recognised this round.
       _stt.onListeningDone = () async {
+        if (_raceActive) {
+          // Race-managed session: the race owns timeout/fallback/grading —
+          // the legacy retry ladder must not fire on top of it.
+          sttLog('[HF][RACE] onListeningDone swallowed (race manages session)');
+          return;
+        }
         if (!mounted) return;
         final capturedToken = _listenToken;
         final elapsed = _stt.listenElapsedMs;
@@ -600,6 +623,102 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
   }
 
+  /// Experimental race pipeline (SttEngineMode.race): lane 1 races the system
+  /// recognizer; on a miss, lane 2 gives offline Whisper a shot. Every guess
+  /// is validated inside [SttRace] against the card's accepted answers, the
+  /// first match wins, and the card is graded EXACTLY once — the race returns
+  /// a single outcome (this also structurally prevents the triple-grade
+  /// >100% score bug of 2026-07-19). Becomes a true parallel race when a
+  /// sharedPcm engine (sherpa-onnx) is registered.
+  Future<void> _startRaceListening(
+      QuizCard card, String langCode, int sessionToken) async {
+    final handsFree = widget.args.mode == QuizMode.handsFree;
+    _raceSystemEngine ??= SystemSttEngine(_stt);
+    _raceWhisperEngine ??= WhisperSttEngine(_whisper);
+    await _raceSystemEngine!.prepare(); // idempotent — already initialised
+    // Whisper joins lane 2 once its model is ready; kick the download in the
+    // background on first race use (it was skipped while system-primary).
+    if (!_whisper.isReady && !_kTestMode) unawaited(_whisper.ensureModel());
+
+    // A race result is stale when the session, card, or verdict moved on.
+    bool stale() =>
+        !mounted ||
+        sessionToken != _listenToken ||
+        ref.read(quizProvider).currentCard?.progress.variantId !=
+            card.progress.variantId ||
+        ref.read(quizProvider).answerState != QuizAnswerState.idle;
+
+    // The countdown bar tracks each lane's window (it froze during legacy
+    // retries — field report 2026-07-19).
+    void runBar() {
+      if (!_kTestMode) {
+        _listenBarCtrl
+          ..reset()
+          ..forward();
+      }
+    }
+
+    sttLog('[RACE][HF] lane 1 (system)  token=$sessionToken  lang=$langCode');
+    runBar();
+    var outcome = await SttRace([_raceSystemEngine!]).run(
+      langCode: langCode,
+      acceptedAnswers: card.answerWords,
+      promptHints: card.answerWords,
+      timeout: const Duration(seconds: 10),
+      onPartial: (h) {
+        if (!stale()) {
+          ref.read(quizProvider.notifier).setPartialTranscript(h.transcript);
+        }
+      },
+    );
+    if (stale()) return;
+
+    if (!outcome.matched && _whisper.isReady) {
+      sttLog('[RACE][HF] lane 2 (whisper)  token=$sessionToken');
+      if (handsFree) _enterAnalyzing();
+      runBar();
+      outcome = await SttRace([_raceWhisperEngine!]).run(
+        langCode: langCode,
+        acceptedAnswers: card.answerWords,
+        promptHints: card.answerWords,
+        timeout: const Duration(seconds: 8),
+      );
+      if (stale()) return;
+    }
+
+    _listenBarCtrl.stop();
+    ref.read(quizProvider.notifier).setListening(false);
+
+    if (outcome.matched) {
+      sttLog('[RACE][HF] ✅ "${outcome.matchedCandidate}" won via ${outcome.winnerEngineId}');
+      _consecutiveSilentCards = 0; // real speech reached us
+      ref
+          .read(quizProvider.notifier)
+          .submitVoiceAnswer(outcome.matchedCandidate!, isDrivingMode: true);
+      return;
+    }
+    final heard = outcome.bestTranscript;
+    if (heard != null && heard.trim().isNotEmpty) {
+      // Heard something that never validated — grade it wrong, exactly once.
+      sttLog('[RACE][HF] ❌ no lane validated — grading "$heard" wrong');
+      _consecutiveSilentCards = 0;
+      ref
+          .read(quizProvider.notifier)
+          .submitVoiceAnswer(heard, isDrivingMode: true);
+      return;
+    }
+    sttLog('[RACE][HF] 🔇 nothing heard in any lane');
+    if (handsFree) {
+      _notHeardLadder(sessionToken, canRetry: true);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('quiz.stt_not_recognised'.tr()),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
   Future<void> _startListeningInner(QuizCard card,
       {required bool isRetry}) async {
     if (!isRetry) {
@@ -670,6 +789,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // Capture token so late-arriving onResult from this session is ignored
     // once a new session (next card) has started.
     final sessionToken = _listenToken;
+
+    // Experimental race pipeline (Settings → Moteur vocal → Course): the
+    // SttRace framework runs a system-recognizer lane, then an offline
+    // Whisper lane on a miss, grading exactly once. Kept fully separate from
+    // the battle-tested legacy path below — flip the setting to fall back.
+    _raceActive = ref.read(sttEngineModeProvider) == SttEngineMode.race &&
+        widget.args.source != QuizSource.grammar;
+    if (_raceActive) {
+      await _startRaceListening(card, langCode, sessionToken);
+      return;
+    }
 
     // Engine routing, v4 (2026-07-19): the system recognizer is PRIMARY in
     // hands-free (see [_handsFreeWhisperPrimary]) — it's faster and more
