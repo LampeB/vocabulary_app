@@ -295,12 +295,15 @@ class _SessionTile extends StatelessWidget {
         QuizDirectionChoice.both => 'stats.session_dir_both'.tr(),
       };
 
+  // Localized short date (no intl dependency): month names come from the
+  // active UI language and the {day}/{month} template lets each locale set its
+  // own order (e.g. Korean "1월 5일", Japanese "1月5日").
   String _formatDate(DateTime d) {
-    const months = [
-      'jan', 'fév', 'mar', 'avr', 'mai', 'juin',
-      'juil', 'août', 'sep', 'oct', 'nov', 'déc',
-    ];
-    return '${d.day} ${months[d.month - 1]}';
+    final months = 'date.months_short'.tr().split(',');
+    return 'date.day_month'.tr(namedArgs: {
+      'day': '${d.day}',
+      'month': months[d.month - 1],
+    });
   }
 
   @override

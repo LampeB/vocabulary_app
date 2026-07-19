@@ -43,6 +43,22 @@ abstract final class Languages {
   /// Flag emoji for [langCode]; a neutral white flag for unknown languages.
   static String flagFor(String langCode) => _flags[langCode] ?? '🏳️';
 
+  /// A language's name in ITS OWN language (autonym) — used by the app-language
+  /// picker so each option reads natively (日本語, Deutsch…), independent of the
+  /// currently-active locale. Falls back to the localized display name.
+  static const Map<String, String> _autonyms = {
+    'fr': 'Français',
+    'en': 'English',
+    'it': 'Italiano',
+    'de': 'Deutsch',
+    'es': 'Español',
+    'ko': '한국어',
+    'ja': '日本語',
+  };
+
+  static String autonym(String langCode) =>
+      _autonyms[langCode] ?? displayName(langCode);
+
   /// i18n key for a language's display name (content langs and UI locales
   /// share the same `lang.<code>` keys).
   static String displayNameKey(String langCode) => 'lang.$langCode';

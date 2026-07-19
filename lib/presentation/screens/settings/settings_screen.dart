@@ -309,42 +309,46 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-// Display names come from i18n (`lang.<code>`), shared with the content-
-// language axis — no hardcoded name switch (generic-language-pairs epic).
-String _languageName(String code) => Languages.displayName(code);
+// The current app language, shown in its own language (autonym).
+String _languageName(String code) => Languages.autonym(code);
 
 void _showLanguagePicker(BuildContext context) {
-  final locales = [
-    const Locale('fr'),
-    const Locale('en'),
-    const Locale('es'),
-    const Locale('de'),
-    const Locale('it'),
-    const Locale('ja'),
-    const Locale('ko'),
-  ];
   showDialog<void>(
     context: context,
-    builder: (_) => SimpleDialog(
-      title: Text('settings.language_label'.tr()),
-      children: locales.map((locale) {
-        final isSelected = Localizations.localeOf(context) == locale;
-        return SimpleDialogOption(
-          onPressed: () {
-            context.setLocale(locale);
-            Navigator.of(context).pop();
-          },
-          child: Row(
-            children: [
-              Expanded(child: Text(_languageName(locale.languageCode))),
-              if (isSelected)
-                const Icon(Icons.check_rounded, size: 18),
-            ],
-          ),
-        );
-      }).toList(),
-    ),
+    builder: (_) => const _LanguagePickerDialog(),
   );
+}
+
+/// App-language picker. Each option shows the language's autonym (日本語,
+/// Deutsch…). Tapping switches the app language live and KEEPS the dialog open
+/// — the checkmark follows the active locale — so you can try several without
+/// reopening; tap outside to dismiss.
+class _LanguagePickerDialog extends StatelessWidget {
+  const _LanguagePickerDialog();
+
+  static const _codes = ['fr', 'en', 'es', 'de', 'it', 'ja', 'ko'];
+
+  @override
+  Widget build(BuildContext context) {
+    // Reading context.locale makes this rebuild when setLocale fires, so the
+    // checkmark moves without closing the dialog.
+    final current = context.locale.languageCode;
+    return SimpleDialog(
+      title: Text('settings.language_label'.tr()),
+      children: [
+        for (final code in _codes)
+          SimpleDialogOption(
+            onPressed: () => context.setLocale(Locale(code)),
+            child: Row(
+              children: [
+                Expanded(child: Text(Languages.autonym(code))),
+                if (current == code) const Icon(Icons.check_rounded, size: 18),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 String _subscriptionLabel(WidgetRef ref) {

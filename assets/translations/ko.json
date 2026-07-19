@@ -346,5 +346,7 @@
   "lists.create_lang_target": "학습 언어",
   "start_session.section_language": "언어",
   "start_session.group_studying": "학습 중",
-  "start_session.group_not_studied": "아직 학습 안 함"
+  "start_session.group_not_studied": "아직 학습 안 함",
+  "date.months_short": "1월,2월,3월,4월,5월,6월,7월,8월,9월,10월,11월,12월",
+  "date.day_month": "{month} {day}일"
 }

@@ -37,6 +37,23 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
     return rows.map((r) => r.read<String>('list_id')).toSet();
   }
 
+  /// Due-card count for a single language pair (both directions), so the quiz
+  /// setup's "to study now" badge reflects the CHOSEN language instead of every
+  /// language's due cards (generic-language-pairs epic).
+  Future<int> dueCountForPair(String userId, String langA, String langB) {
+    final now = DateTime.now();
+    final dirs = ['$langA>$langB', '$langB>$langA'];
+    final q = selectOnly(variantProgressTable)
+      ..addColumns([variantProgressTable.id.count()])
+      ..where(variantProgressTable.userId.equals(userId) &
+          variantProgressTable.direction.isIn(dirs) &
+          (variantProgressTable.nextReview.isNull() |
+              variantProgressTable.nextReview.isSmallerOrEqualValue(now)));
+    return q
+        .map((row) => row.read(variantProgressTable.id.count()) ?? 0)
+        .getSingle();
+  }
+
   Future<List<VariantProgressTableData>> getDue({
     required String userId,
     required String direction,

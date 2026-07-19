@@ -346,5 +346,7 @@
   "lists.create_lang_target": "J'apprends",
   "start_session.section_language": "Langue",
   "start_session.group_studying": "En cours d'étude",
-  "start_session.group_not_studied": "Pas encore étudiées"
+  "start_session.group_not_studied": "Pas encore étudiées",
+  "date.months_short": "janv.,févr.,mars,avr.,mai,juin,juil.,août,sept.,oct.,nov.,déc.",
+  "date.day_month": "{day} {month}"
 }

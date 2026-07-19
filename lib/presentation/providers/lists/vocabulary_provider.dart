@@ -102,6 +102,18 @@ final studiedListIdsProvider = FutureProvider<Set<String>>((ref) async {
   return ref.watch(progressDaoProvider).getStudiedListIds(userId);
 });
 
+/// Due-card count for one language pair (record: (langA, langB)) — feeds the
+/// quiz setup's "to study now" badge so it reflects the chosen language, not
+/// every language's due cards.
+final dueCountForPairProvider =
+    FutureProvider.family<int, (String, String)>((ref, pair) async {
+  final userId = ref.watch(currentUserProvider)?.id ?? '';
+  if (userId.isEmpty) return 0;
+  return ref
+      .watch(progressDaoProvider)
+      .dueCountForPair(userId, pair.$1, pair.$2);
+});
+
 const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
 // Pulls the user's lists from Supabase into the local DB on login.

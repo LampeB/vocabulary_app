@@ -17,35 +17,6 @@ import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
 import '../../widgets/vk_waveform.dart';
 
-// ── French date helpers (no intl dependency) ──────────────────────────────────
-
-const _kFrDays = [
-  'LUNDI',
-  'MARDI',
-  'MERCREDI',
-  'JEUDI',
-  'VENDREDI',
-  'SAMEDI',
-  'DIMANCHE'
-];
-const _kFrMonths = [
-  'JAN',
-  'FÉV',
-  'MAR',
-  'AVR',
-  'MAI',
-  'JUIN',
-  'JUIL',
-  'AOÛT',
-  'SEP',
-  'OCT',
-  'NOV',
-  'DÉC',
-];
-
-String _frDate(DateTime d) =>
-    '${_kFrDays[d.weekday - 1]} ${d.day} ${_kFrMonths[d.month - 1]}';
-
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 class HomeScreen extends ConsumerWidget {
@@ -186,24 +157,18 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final today = DateTime.now();
     final firstName = name.split(' ').first;
     final cs = Theme.of(context).colorScheme;
     final isDark = cs.brightness == Brightness.dark;
-    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
     final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Date eyebrow + notification bell
+        // Notification bell
         Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Text(
-              _frDate(today),
-              style: AppTextStyles.eyebrow.copyWith(color: faint),
-            ),
-            const Spacer(),
             IconButton(
               key: const ValueKey(WidgetKeys.homeBell),
               icon: Icon(Icons.notifications_outlined, color: muted, size: 22),
