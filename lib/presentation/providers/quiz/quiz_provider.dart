@@ -674,13 +674,28 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   /// quiet gives every card a clean audio slate.
   Future<void> _advanceAfterAudio({required bool isCorrect}) async {
     final marker = state.currentIndex;
+    bool sameCard() =>
+        _alive && state.currentIndex == marker && !state.isComplete;
     // Give the screen's grade reaction a beat to START its audio first.
     await Future.delayed(const Duration(milliseconds: 250));
-    await _director?.quiet(timeout: const Duration(seconds: 4));
-    // Short breath after the audio ends; slightly longer on a miss so the
-    // verdict registers. (Without audio — tests, muted — this totals ~800ms
-    // correct, matching the old pacing.)
-    await Future.delayed(Duration(milliseconds: isCorrect ? 550 : 900));
+    if (isCorrect) {
+      // Correct plays only the chirp (no TTS) — a quick quiet check suffices.
+      await _director?.quiet(timeout: const Duration(seconds: 4));
+      await Future.delayed(const Duration(milliseconds: 550));
+    } else {
+      // Wrong answers speak the CORRECTION, and its start can lag (an
+      // uncached ElevenLabs render is a network fetch). A quiet check that
+      // ran before the audio began advanced the card mid-correction — the
+      // answer played after its feedback screen was gone (field report
+      // 2026-07-22). Wait for the chain: start (bounded) → end.
+      await _director?.chainQuiet(
+        cycles: 2,
+        firstStartWindow: const Duration(seconds: 2),
+        utteranceCap: const Duration(seconds: 6),
+        keepGoing: sameCard,
+      );
+      await Future.delayed(const Duration(milliseconds: 650));
+    }
     if (state.currentIndex != marker || state.isComplete) return; // moved on
     _advance(isCorrect: isCorrect);
   }
