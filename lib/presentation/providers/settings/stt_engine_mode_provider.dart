@@ -3,13 +3,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _keySttEngineMode = 'settings_stt_engine_mode';
 
-/// Which recognition pipeline the voice modes use.
+/// Which racer set the voice modes run (since refactor step 4b, EVERY vocab
+/// voice turn runs on the VoiceTurnMachine + SttRace pipeline).
 ///
-///  * [system] — the platform recognizer only (engine routing v4, the
-///    production default).
-///  * [race]   — experimental: the SttRace pipeline (system lane first, then
-///    an offline Whisper lane on a miss; grades exactly once). Becomes a true
-///    parallel race when a sharedPcm engine (e.g. sherpa-onnx) is registered.
+///  * [system] — system-recognizer lane only (the production default).
+///  * [race]   — Course (bêta): adds the offline Whisper lane on a miss.
+///    Becomes a true parallel race when a sharedPcm engine (e.g.
+///    sherpa-onnx) is registered.
 ///
 /// A user-visible toggle in Settings so A/B comparison can happen on-device
 /// without a reinstall; persisted across sessions.

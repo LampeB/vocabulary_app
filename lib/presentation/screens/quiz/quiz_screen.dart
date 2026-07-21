@@ -37,13 +37,6 @@ import '../../widgets/study/study_feedback_flood.dart';
 // the settle timeout and intermittently trips mid-layout binding assertions).
 const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
-// Hands-free engine priority. Field evidence 2026-07-19 (device logs): the
-// platform recognizer nailed "un thé" @0.93 in ~2s while Whisper produced
-// garbage over 8-16s and only ran as rescue #2 (~17s in). So the system
-// recognizer is now PRIMARY in hands-free too (voice mode already was); Whisper
-// returns as a proper parallel racer via the SttRace framework (next step).
-// Flip back to true to restore the 2026-07-09 Whisper-primary behaviour.
-bool _handsFreeWhisperPrimary = false;
 
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({super.key, required this.args});
@@ -98,16 +91,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // back as junk/borderline — the mic reopens and the user should repeat.
   // Distinct from not-heard (which means NO speech was captured at all).
   bool _hfMisheard = false;
-  int _misheardRetries = 0;
-  // Consecutive low-score (clearly-wrong) transcripts on the current card —
-  // grading wrong requires two (garbage-transcription protection).
-  int _lowScoreStrikes = 0;
-  // A borderline transcript was seen on this card: probably a garbled
-  // CORRECT answer — strikes may not grade the card wrong anymore.
-  bool _sawBorderline = false;
-  // Whisper window generation: repeat prompts re-arm a fresh 10s window
-  // (aligned with the restarted countdown bar); stale timers no-op.
-  int _whisperWindowGen = 0;
   // Armed by the not-heard ladder for the LAST retry of a vocab card:
   // that attempt runs on the SYSTEM recognizer as a rescue — a second
   // opinion with different failure modes than the Whisper primary.
@@ -136,17 +119,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _listenBarCtrl = AnimationController(
         vsync: this, duration: const Duration(seconds: 10));
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Constrained-engine models (vocab hands-free only): download/load in
-      // the background; per-card routing checks isReady and falls back to
-      // the system recognizer until then. First run downloads ~40-80MB per
-      // language over the network.
-      if (_handsFreeWhisperPrimary &&
-          widget.args.mode == QuizMode.handsFree &&
-          widget.args.source != QuizSource.grammar &&
-          !SttSimulator.isOn &&
-          !_kTestMode) {
-        unawaited(_whisper.ensureModel()); // one multilingual model
-      }
       if (!SttSimulator.isOn) {
         final ok = await _stt.initialize();
         if (!ok && mounted) {
@@ -356,187 +328,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// own recognizer chimes ("1 to 3 bips" per card, field log 2026-07-07).
   bool _listenStartInFlight = false;
 
-  /// Starts a Whisper listen for [card]: raw mic capture, our segmenter's
-  /// endpointing (pre-roll included), per-segment on-device transcription
-  /// in the card's answer language. Open vocabulary: correct answers grade
-  /// correct, real wrong words grade wrong, noise/hallucinations are
-  /// filtered in the service and never reach grading.
-  /// Returns false if the engine could not start (caller falls back).
-  Future<bool> _startWhisperListening(
-      QuizCard card, String langCode, int sessionToken) async {
-    sttLog('[HF][WSP] using whisper engine  langCode=$langCode  token=$sessionToken  answers=${card.answerWords}');
-
-    bool sameCard() =>
-        ref.read(quizProvider).currentCard?.progress.variantId ==
-        card.progress.variantId;
-
-    // The listening window and the countdown bar must move TOGETHER: the
-    // repeat prompt restarts the bar, so it must also re-arm a fresh window
-    // — the original timer kept running and expired mid-bar ("progress bar
-    // stuck", field logs 2026-07-09/10). Generation counter voids stale
-    // timers.
-    void armWindow() {
-      final gen = ++_whisperWindowGen;
-      Future.delayed(const Duration(seconds: 10), () async {
-        if (!mounted || sessionToken != _listenToken) return;
-        if (gen != _whisperWindowGen) return; // re-armed since — stale
-        if (!_whisper.isListening) return;
-        if (ref.read(quizProvider).answerState != QuizAnswerState.idle) {
-          return;
-        }
-        sttLog('[HF][WSP] window expired with no accepted answer');
-        await _whisper.stopListening(keepPendingTranscripts: true);
-        // A segment captured near the deadline may still be in inference —
-        // give it a beat before declaring "not heard".
-        await Future.delayed(const Duration(milliseconds: 1000));
-        if (!mounted || sessionToken != _listenToken) return;
-        if (gen != _whisperWindowGen) return;
-        if (ref.read(quizProvider).answerState != QuizAnswerState.idle) {
-          return;
-        }
-        ref.read(quizProvider.notifier).setListening(false);
-        _notHeardLadder(sessionToken, canRetry: true);
-      });
-    }
-
-    // Junk/borderline transcripts reopen the attempt with an explicit
-    // "répète" prompt — silently staying in listening was indistinguishable
-    // from "didn't hear you" (user report 2026-07-10). Capped so a noisy
-    // loop degrades into the regular not-heard ladder.
-    void promptRepeat(String why) {
-      if (!mounted || sessionToken != _listenToken) return;
-      if (_misheardRetries >= 3) {
-        sttLog('[HF][WSP] mishears exhausted — handing to not-heard ladder');
-        unawaited(_whisper.stopListening());
-        ref.read(quizProvider.notifier).setListening(false);
-        _notHeardLadder(sessionToken, canRetry: true);
-        return;
-      }
-      _misheardRetries++;
-      sttLog('[HF][WSP] 🔁 repeat prompt #$_misheardRetries ($why)');
-      setState(() {
-        _hfAnalyzing = false;
-        _hfMisheard = true;
-      });
-      if (!_kTestMode) {
-        unawaited(ref.read(audioDirectorProvider).playListenCue()); // mic is live again — your turn
-        HapticFeedback.selectionClick();
-      }
-      _listenBarCtrl
-        ..reset()
-        ..forward();
-      armWindow(); // fresh 10s window, aligned with the restarted bar
-    }
-
-    final ok = await _whisper.startListening(
-      langCode: langCode,
-      // Prompt hints RE-ENABLED with whisper.cpp v1.9.1: the old 2023-era
-      // engine mangled initial_prompt ("먹다"→"목사", counting
-      // hallucinations — 2026-07-10); the modern implementation is the
-      // main accuracy lever for a known-answer quiz.
-      promptHints: card.answerWords,
-      // The utterance is captured and inference is running: low tick +
-      // pulsing "Analyse…" — the moment the user can stop talking.
-      onSegment: _enterAnalyzing,
-      onFinal: (text, segmentMs) {
-        if (!mounted || !sameCard()) return;
-        if (ref.read(quizProvider).answerState != QuizAnswerState.idle) return;
-        // Show what was heard (there are no streaming partials — the
-        // transcript IS the display).
-        if (sessionToken == _listenToken) {
-          ref.read(quizProvider.notifier).setPartialTranscript(text);
-        }
-        final correct = _firstCorrectCandidate([text], card);
-        if (correct != null) {
-          sttLog('[HF][WSP] ✅ accepted "$text" (${segmentMs}ms segment)');
-          unawaited(_whisper.stopListening());
-          _enterAnalyzing();
-          _consecutiveSilentCards = 0; // real speech reached us
-          ref
-              .read(quizProvider.notifier)
-              .submitVoiceAnswer(correct, isDrivingMode: true);
-          return;
-        }
-        // Open vocabulary, but grading wrong is CONSERVATIVE (field log
-        // 2026-07-09: "délicieux" transcribed as "Désliez-le" was graded
-        // wrong and the surprise correction audio overlapped the next
-        // question). Three tiers by validation score:
-        //  - correct → accepted above;
-        //  - borderline (≥0.35): probably a mis-transcribed CORRECT answer
-        //    → keep the window open, let the user repeat;
-        //  - clearly different short answer → a real wrong answer, grade.
-        // Long transcripts are ambient speech/hallucination, never answers.
-        if (sessionToken != _listenToken) {
-          sttLog('[HF][WSP] wrong transcript from stale window — discarded');
-          return;
-        }
-        // Junk-length is ANSWER-RELATIVE: Korean single-syllable answers
-        // ("밥") are one character — a fixed <2 gate made those cards
-        // unanswerable (field log 2026-07-10 01:21).
-        final minAnswerLen = card.answerWords
-            .map((a) => AnswerValidator.stripAnnotations(a).length)
-            .fold<int>(99, (m, l) => l < m ? l : m);
-        if (text.split(' ').length > 3) {
-          // Ambient conversation, not an answer — ignore WITHOUT burning a
-          // repeat prompt (two people talking spammed the mishear ladder,
-          // field 2026-07-13). The window stays open for the real answer.
-          sttLog('[HF][WSP] conversation-length transcript "$text" ignored');
-          return;
-        }
-        if (text.length < (minAnswerLen <= 1 ? 1 : 2)) {
-          sttLog('[HF][WSP] junk-length transcript "$text" — asking to repeat');
-          promptRepeat('junk length');
-          return;
-        }
-        final v = AnswerValidator.validate(
-          userAnswer: text,
-          acceptedAnswers: card.answerWords,
-          isDrivingMode: true,
-        );
-        if (v.score >= 0.35) {
-          // Borderline = evidence the user is probably RIGHT but garbled by
-          // transcription. Shield the card: strikes can no longer grade it
-          // wrong (field log 2026-07-10: "mauvais" → Mauvi 0.60 borderline,
-          // then two garbles → strike-2 failed a correct answer).
-          _sawBorderline = true;
-          sttLog('[HF][WSP] borderline "$text" (score=${v.score.toStringAsFixed(2)}) — likely mis-heard correct answer, asking to repeat');
-          promptRepeat('borderline ${v.score.toStringAsFixed(2)}');
-          return;
-        }
-        // Two-strike wrong grading: a single low-score transcript can be a
-        // garbage transcription of a CORRECT answer (field log 2026-07-10:
-        // "먹다" heard as "목사" scored 0.00 and failed the card). First
-        // strike asks to repeat; only a second consecutive low-score
-        // transcript grades wrong.
-        if (segmentMs > 3200) {
-          // Too long to be an answer — ambient speech; never a strike.
-          sttLog('[HF][WSP] long-segment (${segmentMs}ms) low-score "$text" ignored as ambient');
-          return;
-        }
-        _lowScoreStrikes++;
-        if (_lowScoreStrikes < 2 || _sawBorderline) {
-          sttLog('[HF][WSP] ⚠️ low-score "$text" (${v.score.toStringAsFixed(2)}) — strike $_lowScoreStrikes${_sawBorderline ? " (borderline shield)" : ""}, asking to repeat');
-          promptRepeat('low-score strike $_lowScoreStrikes');
-          return;
-        }
-        sttLog('[HF][WSP] ❌ wrong answer "$text" (score=${v.score.toStringAsFixed(2)}, strike 2) — grading');
-        unawaited(_whisper.stopListening());
-        _enterAnalyzing();
-        _consecutiveSilentCards = 0;
-        ref
-            .read(quizProvider.notifier)
-            .submitVoiceAnswer(text, isDrivingMode: true);
-      },
-    );
-    if (!ok) return false;
-
-    // WE own the window (no OS endpointing): 10s, mirroring the countdown
-    // bar, then the shared not-heard ladder — re-armed by every repeat
-    // prompt so the bar and the window always agree.
-    armWindow();
-    return true;
-  }
-
   /// Shared "nothing captured this window" ladder for BOTH engines
   /// (system STT and constrained/Vosk): up to two cued re-listens with the
   /// "try x/3" prompt, then skip WITHOUT grading — silence is never a wrong
@@ -632,10 +423,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _raceSystemEngine ??= SystemSttEngine(_stt);
     _raceWhisperEngine ??= WhisperSttEngine(_whisper);
     await _raceSystemEngine!.prepare(); // idempotent — already initialised
-    // Whisper joins lane 2 once its model is ready; kick the download in the
-    // background on first race use. Debug builds skip whisper entirely
-    // (unoptimized inference ~16s/clip never fits the lane — 2026-07-19).
-    if (!kDebugMode && !_whisper.isReady && !_kTestMode) {
+    // Whisper joins lane 2 in COURSE mode once its model is ready; kick the
+    // download in the background on first use. Système stays system-only.
+    // Debug builds skip whisper entirely (unoptimized inference ~16s/clip
+    // never fits the lane — 2026-07-19).
+    final courseMode =
+        ref.read(sttEngineModeProvider) == SttEngineMode.race;
+    if (courseMode && !kDebugMode && !_whisper.isReady && !_kTestMode) {
       unawaited(_whisper.ensureModel());
     }
 
@@ -783,7 +577,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (_turnStale(turn, card)) return;
     var hadReal = outcome.hadRealSession;
 
-    if (!outcome.matched && !kDebugMode && _whisper.isReady) {
+    final courseMode =
+        ref.read(sttEngineModeProvider) == SttEngineMode.race;
+    if (!outcome.matched && courseMode && !kDebugMode && _whisper.isReady) {
       sttLog('[RACE][HF] lane 2 (whisper)  turn=$turn');
       await _runTurnCommands(
           m.micClosedPendingVerdict(turn), card, langCode);
@@ -849,9 +645,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
     if (!isRetry) {
       _systemRescueAttempt = false;
-      _misheardRetries = 0;
-      _lowScoreStrikes = 0;
-      _sawBorderline = false;
     }
     // Fresh listens reset the banner to "speak now"; retry listens KEEP the
     // "try x/3" / "répète" prompts visible — they already say what to do.
@@ -909,31 +702,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // once a new session (next card) has started.
     final sessionToken = _listenToken;
 
-    // Experimental race pipeline (Settings → Moteur vocal → Course): the
-    // SttRace framework runs a system-recognizer lane, then an offline
-    // Whisper lane on a miss, grading exactly once. Kept fully separate from
-    // the battle-tested legacy path below — flip the setting to fall back.
-    _raceActive = ref.read(sttEngineModeProvider) == SttEngineMode.race &&
-        widget.args.source != QuizSource.grammar;
+    // Step 4b of the voice-orchestration refactor: EVERY vocab voice turn
+    // runs on the VoiceTurnMachine — Système is a system-only lane, Course
+    // adds the offline Whisper lane. Grammar keeps the legacy streaming path
+    // (long sentences, partial-driven UX) until it gets its own migration.
+    _raceActive = widget.args.source != QuizSource.grammar;
     if (_raceActive) {
       await _startRaceListening(card, langCode, sessionToken);
       return;
-    }
-
-    // Engine routing, v4 (2026-07-19): the system recognizer is PRIMARY in
-    // hands-free (see [_handsFreeWhisperPrimary]) — it's faster and more
-    // accurate for supported languages per device logs. The Whisper-primary
-    // path below is kept behind the flag and returns as a parallel racer via
-    // SttRace; grammar always uses the system recognizer (streaming partials).
-    if (_handsFreeWhisperPrimary &&
-        !_systemRescueAttempt &&
-        widget.args.mode == QuizMode.handsFree &&
-        widget.args.source != QuizSource.grammar &&
-        _whisper.isReady) {
-      final started =
-          await _startWhisperListening(card, langCode, sessionToken);
-      if (started) return;
-      sttLog('[HF] whisper failed to start — falling back to system STT');
     }
 
     sttLog('[HF] Calling stt.startListening  langCode=$langCode  token=$sessionToken');
