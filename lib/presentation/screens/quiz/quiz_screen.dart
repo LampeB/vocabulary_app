@@ -22,6 +22,7 @@ import '../../../services/speech/whisper_speech_service.dart';
 import '../../../services/speech/stt_race.dart';
 import '../../../services/speech/system_stt_engine.dart';
 import '../../../services/speech/whisper_stt_engine.dart';
+import '../../../services/quiz_orchestration/voice_turn_machine.dart';
 import '../../providers/settings/stt_engine_mode_provider.dart';
 import '../../providers/speech/whisper_speech_provider.dart';
 import '../../widgets/dotted_ground.dart';
@@ -621,32 +622,143 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// a single outcome (this also structurally prevents the triple-grade
   /// >100% score bug of 2026-07-19). Becomes a true parallel race when a
   /// sharedPcm engine (sherpa-onnx) is registered.
+  // The per-session turn machine (race mode). Owns grade-once, the
+  // not-heard ladder, retry pacing and the consecutive-silence auto-pause —
+  // one instance per screen so the silence streak spans the whole session.
+  VoiceTurnMachine? _turnMachine;
+
   Future<void> _startRaceListening(
       QuizCard card, String langCode, int sessionToken) async {
-    final handsFree = widget.args.mode == QuizMode.handsFree;
     _raceSystemEngine ??= SystemSttEngine(_stt);
     _raceWhisperEngine ??= WhisperSttEngine(_whisper);
     await _raceSystemEngine!.prepare(); // idempotent — already initialised
     // Whisper joins lane 2 once its model is ready; kick the download in the
-    // background on first race use (it was skipped while system-primary).
-    // Debug builds skip whisper entirely: unoptimized inference takes ~16s
-    // per clip — it produced 0 hypotheses in the 8s lane every time (field
-    // log 2026-07-19) while holding ~142MB of RAM in the Dev app.
-    final whisperEligible = !kDebugMode;
-    if (whisperEligible && !_whisper.isReady && !_kTestMode) {
+    // background on first race use. Debug builds skip whisper entirely
+    // (unoptimized inference ~16s/clip never fits the lane — 2026-07-19).
+    if (!kDebugMode && !_whisper.isReady && !_kTestMode) {
       unawaited(_whisper.ensureModel());
     }
 
-    // A race result is stale when the session, card, or verdict moved on.
-    bool stale() =>
-        !mounted ||
-        sessionToken != _listenToken ||
-        ref.read(quizProvider).currentCard?.progress.variantId !=
-            card.progress.variantId ||
-        ref.read(quizProvider).answerState != QuizAnswerState.idle;
+    // The caller flow (card-change listener → chain wait → hand-off → cue)
+    // has already executed the transition/prompt/cue phases — feed them
+    // through so the machine is in sync, then execute what it commands.
+    // From here machine-internal retries replace the legacy ladder: the
+    // race path never re-enters _startListening for the same card.
+    final m = _turnMachine ??= VoiceTurnMachine();
+    m.on(TurnStarted(sessionToken));
+    m.on(SlateClean(sessionToken));
+    m.on(PromptFinished(sessionToken));
+    await _runTurnCommands(
+        m.on(CueFinished(sessionToken)), card, langCode);
+  }
 
-    // The countdown bar tracks each lane's window (it froze during legacy
-    // retries — field report 2026-07-19).
+  /// True when the machine's turn no longer matches reality — unmounted, a
+  /// newer listen session, another card, or a verdict already landed. The
+  /// machine's own turn/terminal guards back this up.
+  bool _turnStale(int turn, QuizCard card) =>
+      !mounted ||
+      turn != _listenToken ||
+      ref.read(quizProvider).currentCard?.progress.variantId !=
+          card.progress.variantId ||
+      ref.read(quizProvider).answerState != QuizAnswerState.idle;
+
+  /// Executes the machine's commands for race mode (step 4 of the
+  /// voice-orchestration refactor): policy lives in [VoiceTurnMachine], this
+  /// is pure mechanism.
+  Future<void> _runTurnCommands(
+      List<TurnCommand> cmds, QuizCard card, String langCode) async {
+    final m = _turnMachine!;
+    final turn = m.turn;
+    for (final cmd in cmds) {
+      switch (cmd) {
+        case CleanSlate():
+        case PlayPrompt():
+        case PlayCue():
+          // Performed by the caller flow before the machine was handed the
+          // turn; only seen on the initial hand-in.
+          break;
+        case OpenMic(:final useRescueEngine):
+          unawaited(_runRaceLanes(card, langCode, rescue: useRescueEngine));
+        case ShowAnalyzing():
+          _enterAnalyzing();
+        case ShowNotHeard(:final attempt, :final maxAttempts):
+          sttLog('[RACE][HF] 🔇 pas entendu — attempt $attempt/$maxAttempts');
+          ref.read(quizProvider.notifier).setListening(false);
+          if (widget.args.mode == QuizMode.handsFree) {
+            if (mounted) {
+              setState(() {
+                _hfNotHeard = true;
+                _hfAnalyzing = false; // retry prompt outranks "analyse"
+              });
+            }
+          } else if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('quiz.stt_not_recognised'.tr()),
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ));
+          }
+        case WaitThenRetry(:final duration):
+          // Voice mode has no auto-retry protocol — the user re-taps the mic
+          // (a fresh turn supersedes this one).
+          if (widget.args.mode != QuizMode.handsFree) break;
+          Future.delayed(duration, () {
+            if (_turnStale(turn, card)) return;
+            unawaited(
+                _runTurnCommands(m.on(WaitElapsed(turn)), card, langCode));
+          });
+        case GradeCorrect(:final candidate):
+          _listenBarCtrl.stop();
+          sttLog('[RACE][HF] ✅ "$candidate" validated — grading correct');
+          ref
+              .read(quizProvider.notifier)
+              .submitVoiceAnswer(candidate, isDrivingMode: true);
+        case GradeWrong(:final transcript):
+          _listenBarCtrl.stop();
+          sttLog('[RACE][HF] ❌ "$transcript" never validated — grading wrong');
+          ref
+              .read(quizProvider.notifier)
+              .submitVoiceAnswer(transcript, isDrivingMode: true);
+        case SkipCard():
+          _listenBarCtrl.stop();
+          sttLog('[RACE][HF] ⏭ silence — skipping WITHOUT grading');
+          ref.read(quizProvider.notifier).setListening(false);
+          ref.read(quizProvider.notifier).skipCurrentCard();
+        case PauseSession():
+          sttLog('[RACE][HF] 🔇🔇 consecutive silent cards — auto-pausing');
+          _stt.stopListening();
+          unawaited(_whisper.stopListening());
+          ref.read(quizProvider.notifier).setListening(false);
+          if (mounted) {
+            setState(() {
+              _hfAutoPausedSilence = true;
+              _hfPaused = true;
+            });
+          }
+      }
+    }
+  }
+
+  /// One listen attempt: lane 1 races the system recognizer; on a miss lane 2
+  /// gives offline Whisper a shot. Outcomes are REPORTED to the machine —
+  /// every decision (grade/retry/skip/pause) comes back as commands.
+  Future<void> _runRaceLanes(QuizCard card, String langCode,
+      {required bool rescue}) async {
+    final m = _turnMachine!;
+    final turn = m.turn;
+
+    // Retry attempts replay the "your turn" earcon (protocol 2026-07-08:
+    // retry message → start bip); the first attempt's cue came from the
+    // caller flow.
+    if (m.attempt > 1 &&
+        widget.args.mode == QuizMode.handsFree &&
+        !_kTestMode) {
+      await ref.read(audioDirectorProvider).listenCue();
+      if (_turnStale(turn, card)) return;
+    }
+
+    m.on(MicOpened(turn));
+    ref.read(quizProvider.notifier).setListening(true);
     void runBar() {
       if (!_kTestMode) {
         _listenBarCtrl
@@ -655,7 +767,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       }
     }
 
-    sttLog('[RACE][HF] lane 1 (system)  token=$sessionToken  lang=$langCode');
+    sttLog('[RACE][HF] lane 1 (system)  turn=$turn  attempt=${m.attempt}  rescue=$rescue  lang=$langCode');
     runBar();
     var outcome = await SttRace([_raceSystemEngine!]).run(
       langCode: langCode,
@@ -663,57 +775,41 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       promptHints: card.answerWords,
       timeout: const Duration(seconds: 10),
       onPartial: (h) {
-        if (!stale()) {
+        if (!_turnStale(turn, card)) {
           ref.read(quizProvider.notifier).setPartialTranscript(h.transcript);
         }
       },
     );
-    if (stale()) return;
+    if (_turnStale(turn, card)) return;
+    var hadReal = outcome.hadRealSession;
 
-    if (!outcome.matched && whisperEligible && _whisper.isReady) {
-      sttLog('[RACE][HF] lane 2 (whisper)  token=$sessionToken');
-      if (handsFree) _enterAnalyzing();
+    if (!outcome.matched && !kDebugMode && _whisper.isReady) {
+      sttLog('[RACE][HF] lane 2 (whisper)  turn=$turn');
+      await _runTurnCommands(
+          m.micClosedPendingVerdict(turn), card, langCode);
       runBar();
-      outcome = await SttRace([_raceWhisperEngine!]).run(
+      final second = await SttRace([_raceWhisperEngine!]).run(
         langCode: langCode,
         acceptedAnswers: card.answerWords,
         promptHints: card.answerWords,
         timeout: const Duration(seconds: 8),
       );
-      if (stale()) return;
+      if (_turnStale(turn, card)) return;
+      hadReal = hadReal || second.hadRealSession;
+      if (second.matched ||
+          (second.bestTranscript?.trim().isNotEmpty ?? false)) {
+        outcome = second;
+      }
     }
 
     _listenBarCtrl.stop();
-    ref.read(quizProvider.notifier).setListening(false);
-
-    if (outcome.matched) {
-      sttLog('[RACE][HF] ✅ "${outcome.matchedCandidate}" won via ${outcome.winnerEngineId}');
-      _consecutiveSilentCards = 0; // real speech reached us
-      ref
-          .read(quizProvider.notifier)
-          .submitVoiceAnswer(outcome.matchedCandidate!, isDrivingMode: true);
-      return;
-    }
     final heard = outcome.bestTranscript;
-    if (heard != null && heard.trim().isNotEmpty) {
-      // Heard something that never validated — grade it wrong, exactly once.
-      sttLog('[RACE][HF] ❌ no lane validated — grading "$heard" wrong');
-      _consecutiveSilentCards = 0;
-      ref
-          .read(quizProvider.notifier)
-          .submitVoiceAnswer(heard, isDrivingMode: true);
-      return;
-    }
-    sttLog('[RACE][HF] 🔇 nothing heard in any lane');
-    if (handsFree) {
-      _notHeardLadder(sessionToken, canRetry: true);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('quiz.stt_not_recognised'.tr()),
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-      ));
-    }
+    final TurnEvent verdictEvent = outcome.matched
+        ? MatchHeard(turn, outcome.matchedCandidate!)
+        : (heard != null && heard.trim().isNotEmpty)
+            ? WrongHeard(turn, heard)
+            : NothingHeard(turn, hadRealWindow: hadReal);
+    await _runTurnCommands(m.on(verdictEvent), card, langCode);
   }
 
   // When the last mic session opened — drives the retry pacing guard.

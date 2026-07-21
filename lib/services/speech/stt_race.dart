@@ -12,6 +12,7 @@ class SttRaceOutcome {
     this.matchedCandidate,
     this.bestTranscript,
     this.hypotheses = const [],
+    this.hadRealSession = false,
   });
 
   /// A guess validated against the accepted answers.
@@ -29,6 +30,12 @@ class SttRaceOutcome {
 
   /// Every hypothesis seen this turn (all engines), newest last.
   final List<SttHypothesis> hypotheses;
+
+  /// Whether the mic was GENUINELY live at least once this window — an engine
+  /// session survived past the throttle-kill threshold or produced any
+  /// hypothesis. Feeds the turn machine's `hadRealWindow`: a window of
+  /// instant engine deaths must not count against the card.
+  final bool hadRealSession;
 
   static const noEngines = SttRaceOutcome(matched: false);
 }
@@ -78,6 +85,14 @@ class SttRace {
     // completer only completes at the end).
     var finishing = false;
 
+    // Real-window evidence for the turn machine (see
+    // SttRaceOutcome.hadRealSession): any hypothesis, any self-end past the
+    // throttle threshold, or an engine that started ok and ran to the end of
+    // the window without ever self-ending (continuous engines).
+    var sawRealSession = false;
+    final startedOk = <String>{};
+    final selfEnded = <String>{};
+
     Future<void> finish(SttRaceOutcome outcome) async {
       if (finishing || completer.isCompleted) return;
       finishing = true;
@@ -99,6 +114,7 @@ class SttRace {
 
     void onHyp(SttEngine engine, SttHypothesis h) {
       if (finishing || completer.isCompleted) return;
+      sawRealSession = true;
       seen.add(h);
       if (!h.isFinal) onPartial?.call(h);
       final match = AnswerValidator.firstCorrect(
@@ -114,6 +130,7 @@ class SttRace {
           matchedCandidate: match,
           bestTranscript: h.transcript,
           hypotheses: List.of(seen),
+          hadRealSession: true,
         ));
       }
     }
@@ -121,10 +138,15 @@ class SttRace {
     final deadline = DateTime.now().add(timeout);
     timer = Timer(timeout, () {
       sttLog('[RACE] ⏱ timeout — no engine validated (${seen.length} hypotheses)');
+      // A continuous engine that started ok and never self-ended was live
+      // for the whole window.
+      final ranFullWindow =
+          startedOk.difference(selfEnded).isNotEmpty;
       finish(SttRaceOutcome(
         matched: false,
         bestTranscript: _bestTranscript(seen),
         hypotheses: List.of(seen),
+        hadRealSession: sawRealSession || ranFullWindow,
       ));
     });
 
@@ -157,7 +179,9 @@ class SttRace {
             onHypothesis: (h) => onHyp(e, h),
             onSessionEnd: () {
               if (completer.isCompleted) return;
+              selfEnded.add(e.id);
               final lived = DateTime.now().difference(startedAt[e.id]!);
+              if (lived >= minSessionForRestart) sawRealSession = true;
               final used = restarts[e.id] ?? 0;
               final remaining = deadline.difference(DateTime.now());
               if (lived < minSessionForRestart) {
@@ -187,7 +211,11 @@ class SttRace {
               });
             },
           );
-          if (!ok) sttLog('[RACE] "${e.id}" failed to start');
+          if (ok) {
+            startedOk.add(e.id);
+          } else {
+            sttLog('[RACE] "${e.id}" failed to start');
+          }
         }).catchError((Object err) {
           sttLog('[RACE] "${e.id}" start threw: $err');
         });
