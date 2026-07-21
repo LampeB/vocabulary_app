@@ -19,5 +19,7 @@ final audioPlayerServiceProvider = Provider.autoDispose<AudioPlayerService>((ref
 /// Wraps the shared [AudioPlayerService], so director waits and direct
 /// speak() calls observe the same channel.
 final audioDirectorProvider = Provider.autoDispose<AudioDirector>((ref) {
-  return AudioDirector(ref.watch(audioPlayerServiceProvider));
+  final director = AudioDirector(ref.watch(audioPlayerServiceProvider));
+  ref.onDispose(director.dispose); // frees the director-owned SFX player
+  return director;
 });

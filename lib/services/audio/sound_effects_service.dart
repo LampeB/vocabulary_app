@@ -5,29 +5,46 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../core/utils/stt_debug_log.dart';
 
 class SoundEffectsService {
-  SoundEffectsService() {
-    // Earcons must NEVER take Android audio focus: the default (GAIN)
-    // contests focus with SpeechRecognizer and kills young listen sessions
-    // within tens of ms — field log 2026-07-07: every hands-free retry
-    // beeped, instantly lost the mic, and the card was skipped ("it bips a
-    // few times then skips"). FOCUS_NONE plays the beep on top of whatever
-    // holds audio without contesting it. Usage stays MEDIA on purpose:
-    // assistanceSonification routes to Samsung's system-sounds stream,
-    // which is silent for most users ("all the bips disappeared").
-    _ready = _player.setAudioContext(AudioContext(
-      android: const AudioContextAndroid(
-        contentType: AndroidContentType.sonification,
-        usageType: AndroidUsageType.media,
-        audioFocus: AndroidAudioFocus.none,
-      ),
-      iOS: AudioContextIOS(
-        category: AVAudioSessionCategory.ambient,
-      ),
-    ));
+  SoundEffectsService();
+
+  // LAZY: creating an AudioPlayer touches platform channels, and since the
+  // AudioDirector refactor this service is built inside a plain provider —
+  // eager construction crashed every binding-less provider test
+  // ("Binding has not yet been initialized", 2026-07-22). The player spins
+  // up on first play instead.
+  AudioPlayer? _playerInstance;
+  Future<void>? _readyFuture;
+
+  AudioPlayer get _player {
+    if (_playerInstance == null) {
+      final p = AudioPlayer();
+      _playerInstance = p;
+      // Earcons must NEVER take Android audio focus: the default (GAIN)
+      // contests focus with SpeechRecognizer and kills young listen sessions
+      // within tens of ms — field log 2026-07-07: every hands-free retry
+      // beeped, instantly lost the mic, and the card was skipped ("it bips a
+      // few times then skips"). FOCUS_NONE plays the beep on top of whatever
+      // holds audio without contesting it. Usage stays MEDIA on purpose:
+      // assistanceSonification routes to Samsung's system-sounds stream,
+      // which is silent for most users ("all the bips disappeared").
+      _readyFuture = p.setAudioContext(AudioContext(
+        android: const AudioContextAndroid(
+          contentType: AndroidContentType.sonification,
+          usageType: AndroidUsageType.media,
+          audioFocus: AndroidAudioFocus.none,
+        ),
+        iOS: AudioContextIOS(
+          category: AVAudioSessionCategory.ambient,
+        ),
+      ));
+    }
+    return _playerInstance!;
   }
 
-  final _player = AudioPlayer();
-  late final Future<void> _ready;
+  Future<void> get _ready {
+    _player; // ensure created + configured
+    return _readyFuture!;
+  }
   Uint8List? _correctBytes;
   Uint8List? _incorrectBytes;
   Uint8List? _cueBytes;
@@ -135,5 +152,5 @@ class SoundEffectsService {
     } catch (_) {}
   }
 
-  void dispose() => _player.dispose();
+  void dispose() => _playerInstance?.dispose();
 }

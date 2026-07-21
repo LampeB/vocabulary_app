@@ -1,4 +1,7 @@
+import 'dart:async' show unawaited;
+
 import '../audio/audio_player_service.dart';
+import '../audio/sound_effects_service.dart';
 
 /// Step 1 of the voice-orchestration refactor
 /// (docs/refactor-voice-orchestration.md): the single owner of "when is the
@@ -10,10 +13,12 @@ import '../audio/audio_player_service.dart';
 /// Later steps move earcons/SFX and the mic hand-off here too, then the
 /// VoiceTurnMachine consumes this as its audio command surface.
 class AudioDirector {
-  AudioDirector(this._audio, {DateTime Function()? clock})
-      : _clock = clock ?? DateTime.now;
+  AudioDirector(this._audio, {SoundEffectsService? sfx, DateTime Function()? clock})
+      : _sfx = sfx ?? SoundEffectsService(),
+        _clock = clock ?? DateTime.now;
 
   final AudioPlayerService _audio;
+  final SoundEffectsService _sfx;
   final DateTime Function() _clock;
 
   /// Poll cadence for the quiet checks — 100ms mirrors the historical loops.
@@ -81,4 +86,35 @@ class AudioDirector {
       }
     }
   }
+
+  // ── Earcons / verdict sounds (step 2: SFX ownership) ───────────────────────
+
+  Future<void> playCorrect() => _sfx.playCorrect();
+  Future<void> playIncorrect() => _sfx.playIncorrect();
+  Future<void> playListenCue() => _sfx.playListenCue();
+  Future<void> playListenDone() => _sfx.playListenDone();
+
+  /// Releases the audio channel to the microphone: stops app audio and waits
+  /// the focus-handover beat (Samsung requires ~300ms between ExoPlayer
+  /// releasing focus and STT grabbing the mic). The stop itself is fired
+  /// without await — Android's focus system completes the release
+  /// concurrently; the beat IS the wait.
+  Future<void> handOffToMic(
+      {Duration focusBeat = const Duration(milliseconds: 300)}) async {
+    unawaited(_audio.stop());
+    await Future.delayed(focusBeat);
+  }
+
+  /// "Your turn" earcon followed by a clearance beat, so the recognizer never
+  /// transcribes the earcon itself as an answer (double-bip field log
+  /// 2026-07-07). Resolves when it is safe to open the mic.
+  Future<void> listenCue(
+      {Duration clearance = const Duration(milliseconds: 250)}) async {
+    unawaited(_sfx.playListenCue());
+    await Future.delayed(clearance);
+  }
+
+  /// Frees the director-owned SFX player. The [AudioPlayerService] belongs to
+  /// its own provider and is NOT disposed here.
+  void dispose() => _sfx.dispose();
 }

@@ -24,7 +24,6 @@ import '../../../services/speech/system_stt_engine.dart';
 import '../../../services/speech/whisper_stt_engine.dart';
 import '../../providers/settings/stt_engine_mode_provider.dart';
 import '../../providers/speech/whisper_speech_provider.dart';
-import '../../../services/audio/sound_effects_service.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/vk_waveform.dart';
 import '../../widgets/mic_button.dart';
@@ -56,7 +55,6 @@ class QuizScreen extends ConsumerStatefulWidget {
 class _QuizScreenState extends ConsumerState<QuizScreen>
     with TickerProviderStateMixin {
   final _stt = SpeechRecognitionService();
-  final _sfx = SoundEffectsService();
   // Whisper engine (own capture + own endpointing) — app-lifetime via
   // provider; the model is heavy. Initialized in initState: a lazy `late`
   // here would first resolve in dispose(), where ref is no longer usable.
@@ -308,7 +306,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _listenBarCtrl.dispose();
     _stt.dispose();
     unawaited(_whisper.stopListening());
-    _sfx.dispose();
     _answerCtrl.dispose();
     super.dispose();
   }
@@ -421,7 +418,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         _hfMisheard = true;
       });
       if (!_kTestMode) {
-        unawaited(_sfx.playListenCue()); // mic is live again — your turn
+        unawaited(ref.read(audioDirectorProvider).playListenCue()); // mic is live again — your turn
         HapticFeedback.selectionClick();
       }
       _listenBarCtrl
@@ -596,7 +593,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   void _enterAnalyzing() {
     if (_hfAnalyzing || widget.args.mode != QuizMode.handsFree) return;
     _listenBarCtrl.stop(); // mic closed — freeze the countdown
-    if (!_kTestMode) unawaited(_sfx.playListenDone());
+    if (!_kTestMode) unawaited(ref.read(audioDirectorProvider).playListenDone());
     if (mounted) setState(() => _hfAnalyzing = true);
   }
 
@@ -793,8 +790,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // handover concurrently.  We still wait 300 ms so ExoPlayer has time to
     // release the focus before STT grabs the mic (Samsung requirement).
     sttLog('[HF] Triggering audio stop + 300ms focus-handover wait');
-    unawaited(ref.read(audioPlayerServiceProvider).stop());
-    await Future.delayed(const Duration(milliseconds: 300));
+    await ref.read(audioDirectorProvider).handOffToMic();
     if (!mounted) return;
 
     // Hands-free is eyes-off: "your turn" earcon + haptic BEFORE the mic
@@ -806,9 +802,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // against focus-contest kills that no longer happen.
     if (widget.args.mode == QuizMode.handsFree && !_kTestMode) {
       sttLog('[HF] 🔔 playing listen earcon (mic opens in 250ms)');
-      unawaited(_sfx.playListenCue());
       HapticFeedback.selectionClick();
-      await Future.delayed(const Duration(milliseconds: 250));
+      await ref.read(audioDirectorProvider).listenCue();
       if (!mounted) return;
     }
 
@@ -1027,7 +1022,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         // destabilize the CI emulator (suspected cause of the silent app-spawn
         // deaths that only ever hit the quiz E2E suites).
         if (!_kTestMode) {
-          if (correct) { _sfx.playCorrect(); } else { _sfx.playIncorrect(); }
+          final director = ref.read(audioDirectorProvider);
+          if (correct) { director.playCorrect(); } else { director.playIncorrect(); }
         }
         // Hands-free is eyes-off: pair the earcon with a distinct haptic.
         if (widget.args.mode == QuizMode.handsFree) {
