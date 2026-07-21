@@ -36,6 +36,17 @@ class AudioPlayerService {
   /// device TTS warm-up is the only one that matters.)
   Future<void> warmUp(String langCode) => _tts.warmUp(langCode);
 
+  /// Premium path: generates and caches [text]'s audio WITHOUT playing it.
+  /// A word's first ElevenLabs render is a network round-trip (1-4s) — the
+  /// "some words take seconds to start" report of 2026-07-21. Prefetching the
+  /// next card's words during the current listening window makes every
+  /// speak() start from the local cache. No-op on the free/device-TTS path.
+  Future<void> prefetch(String text, String langCode) async {
+    if (!_usePremium) return;
+    await _elevenlabs.generateAndCache(
+        text, langCode, _elevenlabs.voiceIdFor(langCode));
+  }
+
   Future<void> stop() async {
     await _player.stop();
     await _tts.stop();

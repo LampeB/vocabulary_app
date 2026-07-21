@@ -1010,9 +1010,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // makes the next question start near-instantly. Produces no audio.
     final upcoming = ref.read(quizProvider).nextCard;
     if (upcoming != null) {
-      unawaited(ref
-          .read(audioPlayerServiceProvider)
-          .warmUp(upcoming.progress.direction.questionLang));
+      final audio = ref.read(audioPlayerServiceProvider);
+      unawaited(audio.warmUp(upcoming.progress.direction.questionLang));
+      // Premium voices: a word's FIRST ElevenLabs render is a 1-4s network
+      // round-trip ("some words take seconds to start", 2026-07-21).
+      // Prefetch the next card's question + answer into the cache now, so
+      // its audio starts instantly when the card arrives.
+      unawaited(audio.prefetch(upcoming.questionWord,
+          upcoming.progress.direction.questionLang));
+      if (upcoming.answerWords.isNotEmpty) {
+        unawaited(audio.prefetch(upcoming.answerWords.first,
+            upcoming.progress.direction.answerLang));
+      }
     }
 
     // Failsafe: if the STT callbacks never fire (device bug / audio focus
