@@ -65,8 +65,8 @@ class SttRace {
     void Function(SttHypothesis partial)? onPartial,
     // Session-end restart tuning (see below); overridable for tests.
     Duration minSessionForRestart = const Duration(milliseconds: 700),
-    Duration restartDelay = const Duration(milliseconds: 400),
-    Duration throttleCooldown = const Duration(milliseconds: 2500),
+    Duration restartDelay = const Duration(milliseconds: 1000),
+    Duration throttleCooldown = const Duration(milliseconds: 3500),
     Duration lateResultGrace = const Duration(milliseconds: 2500),
   }) async {
     final racers =

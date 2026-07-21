@@ -237,4 +237,17 @@ void main() {
       expect(validate("l'ours", ['eau'], driving: true).isCorrect, isFalse);
     });
   });
+
+  group('ligatures (the œuf card, field bug 2026-07-22)', () {
+    test('recognizer "œuf" matches stored "oeuf" exactly', () {
+      final r = validate('œuf', ['oeuf'], driving: true);
+      expect(r.isCorrect, isTrue);
+      expect(r.type, ValidationResultType.exact);
+    });
+
+    test('both directions and with an article', () {
+      expect(validate('oeuf', ['œuf'], driving: true).isCorrect, isTrue);
+      expect(validate('un œuf', ['oeuf'], driving: true).isCorrect, isTrue);
+    });
+  });
 }
