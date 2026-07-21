@@ -27,13 +27,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  // Fresh-device latch: decided ONCE from the first local-DB snapshot. On a
-  // fresh install the login sync AND the starter seeding stream lists in over
-  // several seconds; without the latch the gate dropped as soon as the first
-  // rows landed and the user watched lists pop in and re-order (field report
-  // 2026-07-19). null = undecided (local DB still opening).
-  bool? _freshDevice;
-
   @override
   Widget build(BuildContext context) {
     final syncAsync = ref.watch(syncOnLoginProvider); // pulls remote data on login
@@ -45,17 +38,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final dueCount = ref.watch(dueCountProvider).valueOrNull ?? 0;
     final streak = user?.currentStreak ?? 0;
 
-    // Latch on the FIRST snapshot only — later emissions (sync/seed inserts)
-    // must not flip an established device to "fresh" or vice versa.
-    if (_freshDevice == null && listsAsync.hasValue) {
-      _freshDevice = listsAsync.requireValue.isEmpty;
-    }
-
-    // First-sync gate: on a fresh device, hold one loading screen until BOTH
-    // the login sync and the starter seeding are done — only then is the list
-    // set complete and stably ordered. Established devices (local data on
-    // first snapshot) render instantly; background syncs never gate.
-    if (_freshDevice != false && (syncAsync.isLoading || seedAsync.isLoading)) {
+    // Preload gate (user decision 2026-07-21): the home page never renders
+    // partially. EVERY app open holds the loading screen until the local DB,
+    // the login sync and the starter seeding are all done — classic
+    // spinner-then-full-page. Sync errors (offline) end the loading state, so
+    // the gate lifts and cached local data shows.
+    if (syncAsync.isLoading || seedAsync.isLoading || listsAsync.isLoading) {
       return const Scaffold(
         key: ValueKey(WidgetKeys.screenHome),
         body: Center(
@@ -71,6 +59,72 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
 
+    return _buildHome(context, user, listsAsync, dueCount, streak);
+  }
+
+  /// Compact mode chooser for the quick-review card: Voix / Mains libres /
+  /// Écrit / Cartes, then straight into an all-due session in that mode.
+  void _showReviewModeSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('home.review_mode_title'.tr(),
+                    style: AppTextStyles.grotesk(18, FontWeight.w700)),
+              ),
+            ),
+            for (final (mode, icon, labelKey) in [
+              (QuizMode.voice, Icons.mic_rounded, 'quiz_setup.mode_voice_label'),
+              (
+                QuizMode.handsFree,
+                Icons.headset_mic_rounded,
+                'quiz_setup.mode_hands_free_label'
+              ),
+              (
+                QuizMode.typing,
+                Icons.keyboard_rounded,
+                'quiz_setup.mode_typing_label'
+              ),
+              (
+                QuizMode.flashcard,
+                Icons.style_rounded,
+                'quiz_setup.mode_flashcard_label'
+              ),
+            ])
+              ListTile(
+                key: ValueKey(WidgetKeys.homeReviewMode(mode.name)),
+                leading: Icon(icon, size: 22),
+                title: Text(labelKey.tr()),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.go(
+                    '/quiz',
+                    extra: QuizArgs(
+                      source: QuizSource.allDue,
+                      mode: mode,
+                      direction: QuizDirectionChoice.both,
+                      cardLimit: const int.fromEnvironment('TEST_CARD_LIMIT',
+                          defaultValue: 20),
+                    ),
+                  );
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHome(BuildContext context, dynamic user,
+      AsyncValue<List<VocabularyList>> listsAsync, int dueCount, int streak) {
     // Schedule streak warning once user data is available.
     if (streak > 0) {
       ref
@@ -110,24 +164,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 if (dueCount > 0) ...[
                   _ReviewCard(
                     dueCount: dueCount,
-                    // One-tap review: straight into an all-due session with
-                    // smart defaults, skipping the start-session accordion.
-                    onStart: () => context.go(
-                      '/quiz',
-                      extra: const QuizArgs(
-                        source: QuizSource.allDue,
-                        mode: QuizMode.voice,
-                        direction: QuizDirectionChoice.both,
-                        cardLimit:
-                            int.fromEnvironment('TEST_CARD_LIMIT', defaultValue: 20),
-                      ),
-                    ),
+                    // Quick review, but the MODE is the user's choice — a
+                    // compact chooser sheet instead of forced voice mode
+                    // (user decision 2026-07-21).
+                    onStart: () => _showReviewModeSheet(context),
                   ),
                   const SizedBox(height: 24),
                 ],
                 // ── Grammaire (its own flow — never mixed into vocab setup) ─
                 _GrammarCard(
-                    onOpen: () => context.push('/start-session-grammar')),
+                    onOpen: () => context.push('/grammar')),
                 const SizedBox(height: 24),
                 // ── Tes listes ──────────────────────────────────────────────
                 Builder(builder: (ctx) {

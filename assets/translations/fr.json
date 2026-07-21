@@ -352,5 +352,13 @@
   "settings.stt_engine_label": "Moteur vocal",
   "settings.stt_engine_system": "Système",
   "settings.stt_engine_race": "Course (bêta)",
-  "home.syncing": "Synchronisation de tes données…"
+  "home.syncing": "Synchronisation de tes données…",
+  "home.review_mode_title": "Comment veux-tu réviser ?",
+  "grammar.screen_title": "Grammaire",
+  "grammar.status_locked": "Verrouillée",
+  "grammar.status_unlocked": "Débloquée",
+  "grammar.status_mastered": "Maîtrisée",
+  "grammar.unlock_progress": "Progression du déblocage",
+  "grammar.mastery_progress": "Maîtrise : {correct}/{target}",
+  "grammar.start_cta": "S'entraîner"
 }

@@ -119,6 +119,7 @@ class RuleStatus {
     required this.missingLists,
     required this.enoughWords,
     required this.correct,
+    this.prereqProgress = const {},
   });
 
   final GrammarRule rule;
@@ -130,6 +131,25 @@ class RuleStatus {
   /// Whether enough vocabulary is mastered to generate a session.
   final bool enoughWords;
   final int correct;
+
+  /// Known-fraction per prerequisite list name (0–1, `known/total` on the
+  /// graduated bar), for the unlock progress bars. Lists the user doesn't
+  /// have yet report 0.
+  final Map<String, double> prereqProgress;
+
+  /// Overall unlock progress across all prerequisite lists (0–1); 1.0 when
+  /// there are no prerequisites.
+  double get unlockFraction {
+    if (rule.prerequisiteLists.isEmpty) return 1;
+    var sum = 0.0;
+    for (final name in rule.prerequisiteLists) {
+      // A list counts as fully contributing once it crosses the known
+      // threshold — the bar reads 100% exactly when the rule unlocks.
+      final f = (prereqProgress[name] ?? 0) / kListKnownThreshold;
+      sum += f > 1 ? 1 : f;
+    }
+    return sum / rule.prerequisiteLists.length;
+  }
 }
 
 /// Availability of every rule: prerequisite lists gate unlocking (≥90%
@@ -147,10 +167,14 @@ final ruleStatusesProvider = FutureProvider<List<RuleStatus>>((ref) async {
   // starter lists carry the canonical names the rules reference). Gated on
   // the 'known' bar (graduated from learning), not the 21-day mastery bar.
   final knownByName = <String, bool>{};
+  final fractionByName = <String, double>{};
   for (final list in lists) {
     final stats = (await progressRepo.getListStats(list.id)).valueOrNull;
     knownByName[list.name] = stats != null &&
         isListKnown(total: stats['total']!, mastered: stats['known']!);
+    final total = stats?['total'] ?? 0;
+    fractionByName[list.name] =
+        total == 0 ? 0 : (stats!['known']! / total).clamp(0.0, 1.0);
   }
 
   return [
@@ -172,6 +196,10 @@ final ruleStatusesProvider = FutureProvider<List<RuleStatus>>((ref) async {
           missingLists: missing,
           enoughWords: generator.canGenerate(rule, drillWords),
           correct: p?.correct ?? 0,
+          prereqProgress: {
+            for (final name in rule.prerequisiteLists)
+              name: fractionByName[name] ?? 0,
+          },
         );
       }(),
   ];

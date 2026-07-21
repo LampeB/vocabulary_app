@@ -352,5 +352,13 @@
   "settings.stt_engine_label": "음성 인식 엔진",
   "settings.stt_engine_system": "시스템",
   "settings.stt_engine_race": "레이스(베타)",
-  "home.syncing": "데이터 동기화 중…"
+  "home.syncing": "데이터 동기화 중…",
+  "home.review_mode_title": "어떻게 복습할까요?",
+  "grammar.screen_title": "문법",
+  "grammar.status_locked": "잠김",
+  "grammar.status_unlocked": "잠금 해제",
+  "grammar.status_mastered": "마스터",
+  "grammar.unlock_progress": "잠금 해제 진행도",
+  "grammar.mastery_progress": "숙련도: {correct}/{target}",
+  "grammar.start_cta": "연습하기"
 }

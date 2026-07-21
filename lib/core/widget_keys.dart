@@ -91,6 +91,10 @@ abstract final class WidgetKeys {
   static String startSection(int index) => 'ss.section.$index'; // header
   static String startSmart(String name) => 'ss.smart.$name'; // 'due' | 'inprogress'
   static String startLanguage(String langB) => 'ss.lang.$langB'; // target lang
+  static String homeReviewMode(String mode) => 'home.review.$mode';
+  static const screenGrammar = 'screen.grammar';
+  static String grammarRuleCard(String id) => 'grammar.rule.$id';
+  static String grammarRuleStart(String id) => 'grammar.rule.start.$id';
   static String startRule(String ruleId) => 'ss.rule.$ruleId';
   static const grammarLessonStart = 'grammar.lesson.start';
   static const homeGrammar = 'home.grammar'; // Home card → grammar setup

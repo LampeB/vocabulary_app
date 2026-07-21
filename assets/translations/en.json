@@ -352,5 +352,13 @@
   "settings.stt_engine_label": "Speech engine",
   "settings.stt_engine_system": "System",
   "settings.stt_engine_race": "Race (beta)",
-  "home.syncing": "Syncing your data…"
+  "home.syncing": "Syncing your data…",
+  "home.review_mode_title": "How do you want to review?",
+  "grammar.screen_title": "Grammar",
+  "grammar.status_locked": "Locked",
+  "grammar.status_unlocked": "Unlocked",
+  "grammar.status_mastered": "Mastered",
+  "grammar.unlock_progress": "Unlock progress",
+  "grammar.mastery_progress": "Mastery: {correct}/{target}",
+  "grammar.start_cta": "Practice"
 }

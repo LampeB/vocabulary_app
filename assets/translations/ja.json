@@ -352,5 +352,13 @@
   "settings.stt_engine_label": "音声認識エンジン",
   "settings.stt_engine_system": "システム",
   "settings.stt_engine_race": "レース（ベータ）",
-  "home.syncing": "データを同期中…"
+  "home.syncing": "データを同期中…",
+  "home.review_mode_title": "どうやって復習しますか？",
+  "grammar.screen_title": "文法",
+  "grammar.status_locked": "ロック中",
+  "grammar.status_unlocked": "解放済み",
+  "grammar.status_mastered": "マスター",
+  "grammar.unlock_progress": "解放の進捗",
+  "grammar.mastery_progress": "習熟度: {correct}/{target}",
+  "grammar.start_cta": "練習する"
 }

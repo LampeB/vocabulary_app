@@ -352,5 +352,13 @@
   "settings.stt_engine_label": "Motore vocale",
   "settings.stt_engine_system": "Sistema",
   "settings.stt_engine_race": "Gara (beta)",
-  "home.syncing": "Sincronizzazione dei tuoi dati…"
+  "home.syncing": "Sincronizzazione dei tuoi dati…",
+  "home.review_mode_title": "Come vuoi ripassare?",
+  "grammar.screen_title": "Grammatica",
+  "grammar.status_locked": "Bloccata",
+  "grammar.status_unlocked": "Sbloccata",
+  "grammar.status_mastered": "Padroneggiata",
+  "grammar.unlock_progress": "Avanzamento sblocco",
+  "grammar.mastery_progress": "Padronanza: {correct}/{target}",
+  "grammar.start_cta": "Esercitati"
 }

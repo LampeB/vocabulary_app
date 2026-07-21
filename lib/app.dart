@@ -14,6 +14,7 @@ import 'presentation/screens/lists/lists_screen.dart';
 import 'presentation/screens/lists/list_detail_screen.dart';
 import 'presentation/screens/quiz/quiz_screen.dart';
 import 'presentation/screens/quiz/start_session_screen.dart';
+import 'presentation/screens/grammar/grammar_screen.dart';
 import 'presentation/screens/social/social_screen.dart';
 import 'presentation/screens/profile/profile_screen.dart';
 import 'presentation/screens/paywall/paywall_screen.dart';
@@ -147,6 +148,11 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
               GoRoute(
                 path: '/start-session-grammar',
                 builder: (_, __) => const StartSessionScreen(grammar: true),
+              ),
+              // Grammar hub: every lesson with unlock/mastery progress.
+              GoRoute(
+                path: '/grammar',
+                builder: (_, __) => const GrammarScreen(),
               ),
               GoRoute(
                   path: '/social',

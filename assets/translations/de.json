@@ -352,5 +352,13 @@
   "settings.stt_engine_label": "Spracherkennung",
   "settings.stt_engine_system": "System",
   "settings.stt_engine_race": "Rennen (Beta)",
-  "home.syncing": "Deine Daten werden synchronisiert…"
+  "home.syncing": "Deine Daten werden synchronisiert…",
+  "home.review_mode_title": "Wie möchtest du wiederholen?",
+  "grammar.screen_title": "Grammatik",
+  "grammar.status_locked": "Gesperrt",
+  "grammar.status_unlocked": "Freigeschaltet",
+  "grammar.status_mastered": "Gemeistert",
+  "grammar.unlock_progress": "Freischalt-Fortschritt",
+  "grammar.mastery_progress": "Beherrschung: {correct}/{target}",
+  "grammar.start_cta": "Üben"
 }

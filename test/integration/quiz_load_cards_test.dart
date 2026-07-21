@@ -145,7 +145,10 @@ void main() {
     expect(chat.answerWords, contains('고양이'));
   });
 
-  test('both directions: FR and KO cards are interleaved', () async {
+  test(
+      'both directions: cards mix WITHOUT the same concept back-to-back '
+      '(the old strict alternation dealt "chat" then "고양이" — the same '
+      'word with the languages swapped; user report 2026-07-21)', () async {
     final (container, sub) = harness({
       QuizDirection.frToKo: Success([
         _due(frVariantId['chat']!, QuizDirection.frToKo),
@@ -161,14 +164,14 @@ void main() {
         .read(quizProvider.notifier)
         .loadCards(args(direction: QuizDirectionChoice.both, cardLimit: 4));
 
-    final directions =
-        sub.read().cards.map((c) => c.progress.direction).toList();
-    expect(directions, [
-      QuizDirection.frToKo,
-      QuizDirection.koToFr,
-      QuizDirection.frToKo,
-      QuizDirection.koToFr,
-    ]);
+    final cards = sub.read().cards;
+    // Both directions are present…
+    expect(cards.map((c) => c.progress.direction).toSet(),
+        {QuizDirection.frToKo, QuizDirection.koToFr});
+    // …and the two directions of one concept are spaced as far apart as a
+    // 2-concept deck allows (greedy: both FR fronts, then both KO fronts).
+    expect(cards.map((c) => c.questionWord).toList(),
+        ['chat', 'chien', '고양이', '개']);
   });
 
   test('both mode: one side failing still builds a session from the other',

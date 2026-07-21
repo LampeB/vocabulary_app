@@ -398,6 +398,14 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       ));
     }
 
+    // Same concept, languages swapped, back-to-back ("morning" → "matin")
+    // reads as an echo, not a test — keep ≥2 other cards between the two
+    // directions of one concept (user report 2026-07-21).
+    quizCards = spaceOutDuplicates(
+      quizCards,
+      (c) => conceptIdMap[c.progress.variantId],
+    );
+
     // Pad to the requested limit by repeating cards cyclically.
     quizCards = padCyclically(quizCards, args.cardLimit);
 

@@ -352,5 +352,13 @@
   "settings.stt_engine_label": "Motor de voz",
   "settings.stt_engine_system": "Sistema",
   "settings.stt_engine_race": "Carrera (beta)",
-  "home.syncing": "Sincronizando tus datos…"
+  "home.syncing": "Sincronizando tus datos…",
+  "home.review_mode_title": "¿Cómo quieres repasar?",
+  "grammar.screen_title": "Gramática",
+  "grammar.status_locked": "Bloqueada",
+  "grammar.status_unlocked": "Desbloqueada",
+  "grammar.status_mastered": "Dominada",
+  "grammar.unlock_progress": "Progreso de desbloqueo",
+  "grammar.mastery_progress": "Dominio: {correct}/{target}",
+  "grammar.start_cta": "Practicar"
 }

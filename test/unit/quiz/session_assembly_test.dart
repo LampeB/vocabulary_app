@@ -84,4 +84,44 @@ void main() {
       expect(input, ['a', 'b']);
     });
   });
+
+  group('spaceOutDuplicates (morning→matin echo, user report 2026-07-21)', () {
+    // Key = the letter; the digit distinguishes the two directions.
+    String keyOf(String s) => s[0];
+
+    int minDistance(List<String> out) {
+      var best = out.length;
+      for (var i = 0; i < out.length; i++) {
+        for (var j = i + 1; j < out.length; j++) {
+          if (keyOf(out[i]) == keyOf(out[j]) && j - i < best) best = j - i;
+        }
+      }
+      return best;
+    }
+
+    test('adjacent same-concept pair gets ≥2 cards between its directions',
+        () {
+      // Interleaved deal: a1, a2 are the same concept back-to-back.
+      final out = spaceOutDuplicates(
+          ['a1', 'a2', 'b1', 'b2', 'c1', 'c2'], keyOf);
+      expect(out.toSet(), {'a1', 'a2', 'b1', 'b2', 'c1', 'c2'});
+      expect(minDistance(out), greaterThanOrEqualTo(3));
+    });
+
+    test('keeps order stable when nothing conflicts', () {
+      expect(spaceOutDuplicates(['a1', 'b1', 'c1', 'a2'], keyOf),
+          ['a1', 'b1', 'c1', 'a2']);
+    });
+
+    test('degrades gracefully when spacing is impossible (tiny list)', () {
+      final out = spaceOutDuplicates(['a1', 'a2'], keyOf);
+      expect(out, ['a1', 'a2']); // dealt anyway, never stalls or drops
+    });
+
+    test('null keys never conflict', () {
+      final out =
+          spaceOutDuplicates(['a1', 'a2', 'x', 'y'], (s) => s == 'x' || s == 'y' ? null : 'a');
+      expect(out.length, 4);
+    });
+  });
 }

@@ -100,6 +100,7 @@ void main() {
         stub('/lists/:id'),
         stub('/notifications'),
         stub('/start-session-grammar'),
+        stub('/grammar'),
         GoRoute(
           path: '/quiz',
           pageBuilder: (_, state) {
@@ -146,7 +147,7 @@ void main() {
     expect(navigatedTo, '/notifications');
   });
 
-  testWidgets('the grammar card opens the separate grammar session setup',
+  testWidgets('the grammar card opens the grammar hub screen',
       (tester) async {
     await pump(tester);
 
@@ -156,7 +157,7 @@ void main() {
         warnIfMissed: false);
     await tester.pumpAndSettle();
 
-    expect(navigatedTo, '/start-session-grammar');
+    expect(navigatedTo, '/grammar');
   });
 
   testWidgets('a positive streak arms the streak warning once',
@@ -166,15 +167,25 @@ void main() {
   });
 
   testWidgets(
-      'the À réviser card one-taps into an all-due session (skips the '
-      'accordion)', (tester) async {
+      'the À réviser card opens the mode chooser; picking a mode starts an '
+      'all-due session in THAT mode (user decision 2026-07-21)',
+      (tester) async {
     await pump(tester, dueCount: 3);
 
     await tester.tap(find.text('home.review_start'.tr()));
     await tester.pumpAndSettle();
 
+    // Chooser sheet, not a direct start.
+    expect(navigatedTo, isNull);
+    expect(find.text('home.review_mode_title'.tr()), findsOneWidget);
+
+    await tester
+        .tap(find.byKey(ValueKey(WidgetKeys.homeReviewMode('typing'))));
+    await tester.pumpAndSettle();
+
     expect(navigatedTo, '/quiz');
     expect(capturedQuizArgs!.source, QuizSource.allDue);
+    expect(capturedQuizArgs!.mode, QuizMode.typing);
     expect(capturedQuizArgs!.listId, isNull);
     expect(capturedQuizArgs!.direction, QuizDirectionChoice.both);
   });
