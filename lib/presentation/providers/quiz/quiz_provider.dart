@@ -16,6 +16,7 @@ import '../../../core/utils/answer_validator.dart';
 import '../../../core/utils/fsrs_algorithm.dart';
 import '../../../core/utils/stt_debug_log.dart';
 import '../audio/audio_provider.dart';
+import '../../../services/quiz_orchestration/audio_director.dart';
 import '../lists/vocabulary_provider.dart';
 import '../auth/auth_provider.dart';
 import '../../../services/audio/audio_player_service.dart';
@@ -245,6 +246,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   // Not late final: Riverpod re-calls build() when audioPlayerServiceProvider
   // rebuilds (e.g. when audioSettingsProvider loads from SharedPreferences).
   AudioPlayerService? _audio;
+  AudioDirector? _director;
   var _alive = true;
   // Eagerly mirrored in the state setter so build() can restore it after a
   // dependency-triggered rebuild. Riverpod resets internal state to
@@ -265,6 +267,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   QuizState build() {
     _alive = true; // rebuild ≠ disposal; reset so _onSessionComplete can run
     _audio = ref.watch(audioPlayerServiceProvider);
+    _director = ref.watch(audioDirectorProvider);
     ref.onDispose(() => _alive = false);
     return _preserved;
   }
@@ -673,11 +676,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     final marker = state.currentIndex;
     // Give the screen's grade reaction a beat to START its audio first.
     await Future.delayed(const Duration(milliseconds: 250));
-    final deadline = DateTime.now().add(const Duration(seconds: 4));
-    while ((_audio?.isSpeaking ?? false) &&
-        DateTime.now().isBefore(deadline)) {
-      await Future.delayed(const Duration(milliseconds: 100));
-    }
+    await _director?.quiet(timeout: const Duration(seconds: 4));
     // Short breath after the audio ends; slightly longer on a miss so the
     // verdict registers. (Without audio — tests, muted — this totals ~800ms
     // correct, matching the old pacing.)
@@ -921,11 +920,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   /// question over it produced overlapping audio (field log 2026-07-09,
   /// TTS active=2 near the end of the session).
   Future<void> _speakWhenQuiet(String text, String langCode) async {
-    final deadline = DateTime.now().add(const Duration(seconds: 5));
-    while ((_audio?.isSpeaking ?? false) &&
-        DateTime.now().isBefore(deadline)) {
-      await Future.delayed(const Duration(milliseconds: 100));
-    }
-    await _audio?.speak(text, langCode);
+    // Wait/speak semantics owned by AudioDirector (refactor step 1).
+    await _director?.speakWhenQuiet(text, langCode);
   }
 }

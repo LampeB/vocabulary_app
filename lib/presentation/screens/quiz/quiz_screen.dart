@@ -326,37 +326,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// AND let the recognizer transcribe the app's own voice as the user's
   /// answer (user feedback 2026-07-05).
   Future<void> _waitForSpeechThenListen(QuizCard card) async {
-    final audio = ref.read(audioPlayerServiceProvider);
+    // Speech at a card boundary is a CHAIN, not one utterance — the wait
+    // semantics (and their field-log history) live in AudioDirector.
+    final director = ref.read(audioDirectorProvider);
     final waitStart = DateTime.now();
-    // Speech at a card boundary is a CHAIN, not one utterance: the previous
-    // card's correction replay may still be playing with the question queued
-    // behind it (_speakWhenQuiet). A single start→end wait latched onto the
-    // replay and the mic path's audio-stop CUT OFF the question (field log
-    // 2026-07-10: 'fruit' truncated mid-word). Up to 3 cycles of
-    // [wait-for-start → wait-for-end]; a cycle with no new speech ends it.
-    for (var cycle = 0; cycle < 3; cycle++) {
-      // First cycle waits generously for the question TTS to spin up; the
-      // follow-up checks are just "did another utterance queue behind it?"
-      // — a full 2.5s there added dead air to EVERY card (waited ~4s while
-      // speech ended ~1.5s in — field log 2026-07-10 01:20).
-      final startDeadline = DateTime.now()
-          .add(Duration(milliseconds: cycle == 0 ? 2500 : 400));
-      while (mounted &&
-          !audio.isSpeaking &&
-          DateTime.now().isBefore(startDeadline)) {
-        await Future.delayed(const Duration(milliseconds: 50));
-      }
-      if (!audio.isSpeaking) break; // chain over — nothing new started
-      final deadline = DateTime.now().add(const Duration(seconds: 8));
-      while (mounted &&
-          audio.isSpeaking &&
-          DateTime.now().isBefore(deadline)) {
-        await Future.delayed(const Duration(milliseconds: 100));
-      }
-    }
+    await director.chainQuiet(keepGoing: () => mounted);
     final speechWaitMs =
         DateTime.now().difference(waitStart).inMilliseconds;
-    sttLog('[HF] waited ${speechWaitMs}ms for TTS chain (isSpeaking=${audio.isSpeaking}) — starting 250ms echo tail');
+    sttLog('[HF] waited ${speechWaitMs}ms for TTS chain (isSpeaking=${director.isSpeaking}) — starting 250ms echo tail');
     // Echo tail: let the room go quiet before the mic opens.
     await Future.delayed(const Duration(milliseconds: 250));
     if (!mounted) return;
