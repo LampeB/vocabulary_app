@@ -247,6 +247,54 @@ void main() {
     });
   });
 
+  group('throttle-killed restart (dead-mic back half, 2026-07-21)', () {
+    test(
+        'a session that dies before minSessionForRestart gets ONE cooldown '
+        'retry instead of burning the budget and leaving a dead mic',
+        () async {
+      final e = _FakeEngine('sys');
+      final future = SttRace([e]).run(
+        langCode: 'fr',
+        acceptedAnswers: ['thé'],
+        timeout: const Duration(seconds: 3),
+        minSessionForRestart: const Duration(milliseconds: 100),
+        restartDelay: const Duration(milliseconds: 10),
+        throttleCooldown: const Duration(milliseconds: 30),
+      );
+      await _pump();
+      expect(e.startCalls, 1);
+
+      e.endSession(); // dies instantly → throttle-killed, not a real session
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(e.startCalls, 2,
+          reason: 'one cooldown retry must re-open the mic');
+
+      e.emit('thé'); // the retried session hears the answer
+      final outcome = await future;
+      expect(outcome.matched, isTrue);
+    });
+
+    test('the cooldown retry happens at most once per window', () async {
+      final e = _FakeEngine('sys');
+      final future = SttRace([e]).run(
+        langCode: 'fr',
+        acceptedAnswers: ['thé'],
+        timeout: const Duration(milliseconds: 2500),
+        minSessionForRestart: const Duration(milliseconds: 100),
+        throttleCooldown: const Duration(milliseconds: 20),
+      );
+      await _pump();
+      e.endSession(); // throttle kill #1 → retry
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      expect(e.startCalls, 2);
+      e.endSession(); // throttle kill #2 → give up this window
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      expect(e.startCalls, 2, reason: 'no second cooldown retry');
+      final outcome = await future; // resolves via timeout
+      expect(outcome.matched, isFalse);
+    });
+  });
+
   group('deterministic engine shutdown (dead-mic clobber, 2026-07-21)', () {
     test('engines are FULLY stopped before the run future completes', () async {
       // A stop that lingers (async work) must still finish before run()

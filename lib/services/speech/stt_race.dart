@@ -58,7 +58,8 @@ class SttRace {
     void Function(SttHypothesis partial)? onPartial,
     // Session-end restart tuning (see below); overridable for tests.
     Duration minSessionForRestart = const Duration(milliseconds: 1200),
-    Duration restartDelay = const Duration(milliseconds: 350),
+    Duration restartDelay = const Duration(milliseconds: 1000),
+    Duration throttleCooldown = const Duration(milliseconds: 2500),
   }) async {
     final racers =
         engines.where((e) => e.isReady && e.supportsLanguage(langCode)).toList();
@@ -135,8 +136,16 @@ class SttRace {
     // OS-throttle storms: only real sessions (≥ [minSessionForRestart])
     // restart, at most twice, after a [restartDelay] breather, and only while
     // enough window remains for another attempt.
+    //
+    // A restarted session that dies near-instantly was THROTTLE-KILLED by the
+    // OS, not genuinely finished. Burning the budget on it left the mic dead
+    // for the back half of every window (field log 2026-07-21: sessions dead
+    // at 15ms, users answering into silence until the quiz collapsed). Such a
+    // death gets ONE second chance after [throttleCooldown] — long enough for
+    // Android's cooldown — without consuming the restart budget.
     final startedAt = <String, DateTime>{};
     final restarts = <String, int>{};
+    final throttleRetries = <String, int>{};
     const maxRestarts = 2;
 
     late Future<void> Function(SttEngine) startEngine;
@@ -151,8 +160,22 @@ class SttRace {
               final lived = DateTime.now().difference(startedAt[e.id]!);
               final used = restarts[e.id] ?? 0;
               final remaining = deadline.difference(DateTime.now());
-              if (lived < minSessionForRestart ||
-                  used >= maxRestarts ||
+              if (lived < minSessionForRestart) {
+                // Throttle-killed, not a real session.
+                final throttled = throttleRetries[e.id] ?? 0;
+                if (throttled < 1 &&
+                    remaining > throttleCooldown + const Duration(seconds: 1)) {
+                  throttleRetries[e.id] = throttled + 1;
+                  sttLog('[RACE] 🧯 "${e.id}" throttle-killed after ${lived.inMilliseconds}ms — cooldown retry in ${throttleCooldown.inMilliseconds}ms');
+                  Timer(throttleCooldown, () {
+                    if (!completer.isCompleted) unawaited(startEngine(e));
+                  });
+                } else {
+                  sttLog('[RACE] "${e.id}" throttle-killed (lived=${lived.inMilliseconds}ms, cooldownRetries=$throttled, remaining=${remaining.inMilliseconds}ms) — giving up this window');
+                }
+                return;
+              }
+              if (used >= maxRestarts ||
                   remaining < const Duration(seconds: 2)) {
                 sttLog('[RACE] "${e.id}" session ended (lived=${lived.inMilliseconds}ms, restarts=$used, remaining=${remaining.inMilliseconds}ms) — not restarting');
                 return;
