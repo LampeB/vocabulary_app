@@ -76,6 +76,20 @@ class _FakeEngine implements SttEngine {
       ));
 }
 
+/// A fake whose stop() takes real async time — for asserting the race awaits
+/// shutdown before resolving.
+class _SlowStopEngine extends _FakeEngine {
+  _SlowStopEngine(super.id);
+  bool stopCompleted = false;
+
+  @override
+  Future<void> stop() async {
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    stopCompleted = true;
+    stopped = true;
+  }
+}
+
 /// Yields so the coordinator's start()/stop() microtasks run.
 Future<void> _pump() => Future<void>.delayed(Duration.zero);
 
@@ -230,6 +244,26 @@ void main() {
           .run(langCode: 'fr', acceptedAnswers: ['thé']);
       expect(outcome.matched, isFalse);
       expect(notReady.started, isFalse);
+    });
+  });
+
+  group('deterministic engine shutdown (dead-mic clobber, 2026-07-21)', () {
+    test('engines are FULLY stopped before the run future completes', () async {
+      // A stop that lingers (async work) must still finish before run()
+      // resolves — an unawaited stop used to execute after the caller had
+      // already started the next race, stripping its session-end handler.
+      final slow = _SlowStopEngine('slow');
+      final future = SttRace([slow]).run(
+        langCode: 'fr',
+        acceptedAnswers: ['thé'],
+        timeout: const Duration(milliseconds: 50),
+      );
+      await _pump();
+      final outcome = await future;
+      // No pump: the guarantee is stop() completed BEFORE run() resolved.
+      expect(outcome.matched, isFalse);
+      expect(slow.stopCompleted, isTrue,
+          reason: 'run() must not resolve while a stop is still in flight');
     });
   });
 

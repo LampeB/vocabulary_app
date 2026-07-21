@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../core/languages.dart';
+import '../../core/utils/stt_debug_log.dart';
 import 'speech_recognition_service.dart';
 import 'stt_engine.dart';
 
@@ -21,7 +22,11 @@ class SystemSttEngine implements SttEngine {
   // screen's legacy path. While racing we borrow it to surface session-end to
   // the race (the platform recognizer closes after one utterance) and restore
   // the original on stop() so the legacy path keeps working afterwards.
+  // [_installedDone] remembers the exact closure WE installed: a stale stop()
+  // arriving after a newer session already re-hooked must not clobber the live
+  // session's handler (that left a dead mic — field log 2026-07-21).
   void Function()? _restoreDone;
+  void Function()? _installedDone;
   bool _hooked = false;
 
   @override
@@ -54,6 +59,7 @@ class SystemSttEngine implements SttEngine {
         _hooked = true;
       }
       _service.onListeningDone = onSessionEnd;
+      _installedDone = onSessionEnd;
     }
     return _service.startListening(
       langCode: langCode,
@@ -80,9 +86,19 @@ class SystemSttEngine implements SttEngine {
   @override
   Future<void> stop() {
     if (_hooked) {
-      _service.onListeningDone = _restoreDone;
-      _hooked = false;
-      _restoreDone = null;
+      // Restore ONLY if the live handler is still the one this session
+      // installed — a newer session may have re-hooked already, and blindly
+      // restoring would strip ITS session-end handler (dead-mic bug,
+      // field log 2026-07-21).
+      if (identical(_service.onListeningDone, _installedDone)) {
+        _service.onListeningDone = _restoreDone;
+        _hooked = false;
+        _restoreDone = null;
+      } else {
+        sttLog('[RACE] "system" stale stop — newer session owns the handler, '
+            'not restoring');
+      }
+      _installedDone = null;
     }
     return _service.stopListening();
   }

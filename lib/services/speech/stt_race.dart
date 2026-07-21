@@ -72,17 +72,32 @@ class SttRace {
     final seen = <SttHypothesis>[];
     Timer? timer;
 
+    // Set SYNCHRONOUSLY at finish entry: stops are awaited below, so a second
+    // hypothesis arriving mid-shutdown must not start a second finish (the
+    // completer only completes at the end).
+    var finishing = false;
+
     Future<void> finish(SttRaceOutcome outcome) async {
-      if (completer.isCompleted) return;
+      if (finishing || completer.isCompleted) return;
+      finishing = true;
       timer?.cancel();
+      // Stop the racers BEFORE completing: an unawaited stop could execute
+      // after the caller had already started the NEXT race, clobbering its
+      // freshly installed session-end handler — which left the mic dead for
+      // the rest of that window (field log 2026-07-21: 12 "nothing heard"
+      // cards in one session).
       for (final e in racers) {
-        unawaited(Future(() => e.stop()).catchError((_) {}));
+        try {
+          await e.stop().timeout(const Duration(milliseconds: 800));
+        } catch (err) {
+          sttLog('[RACE] stop "${e.id}" failed/timed out: $err');
+        }
       }
       completer.complete(outcome);
     }
 
     void onHyp(SttEngine engine, SttHypothesis h) {
-      if (completer.isCompleted) return;
+      if (finishing || completer.isCompleted) return;
       seen.add(h);
       if (!h.isFinal) onPartial?.call(h);
       final match = AnswerValidator.firstCorrect(
