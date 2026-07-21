@@ -64,9 +64,10 @@ class SttRace {
     Duration timeout = const Duration(seconds: 8),
     void Function(SttHypothesis partial)? onPartial,
     // Session-end restart tuning (see below); overridable for tests.
-    Duration minSessionForRestart = const Duration(milliseconds: 1200),
-    Duration restartDelay = const Duration(milliseconds: 1000),
+    Duration minSessionForRestart = const Duration(milliseconds: 700),
+    Duration restartDelay = const Duration(milliseconds: 400),
     Duration throttleCooldown = const Duration(milliseconds: 2500),
+    Duration lateResultGrace = const Duration(milliseconds: 2500),
   }) async {
     final racers =
         engines.where((e) => e.isReady && e.supportsLanguage(langCode)).toList();
@@ -136,7 +137,8 @@ class SttRace {
     }
 
     final deadline = DateTime.now().add(timeout);
-    timer = Timer(timeout, () {
+    var graceUsed = false;
+    void finishTimedOut() {
       sttLog('[RACE] ⏱ timeout — no engine validated (${seen.length} hypotheses)');
       // A continuous engine that started ok and never self-ended was live
       // for the whole window.
@@ -148,6 +150,23 @@ class SttRace {
         hypotheses: List.of(seen),
         hadRealSession: sawRealSession || ranFullWindow,
       ));
+    }
+
+    timer = Timer(timeout, () {
+      // Late-result grace: when something WAS heard but nothing validated,
+      // the user is often mid-correction at the guillotine — and platform
+      // recognizers deliver their final transcript seconds after the fact
+      // (field log 2026-07-22: the correct "étudier" arrived 4.8s after the
+      // window graded "étudiant" wrong). Hold the verdict briefly; a
+      // validating hypothesis during the grace still wins. Pure silence gets
+      // no grace — there is no correction pending.
+      if (!graceUsed && lateResultGrace > Duration.zero && seen.isNotEmpty) {
+        graceUsed = true;
+        sttLog('[RACE] ⏳ unmatched at timeout — ${lateResultGrace.inMilliseconds}ms late-result grace');
+        timer = Timer(lateResultGrace, finishTimedOut);
+        return;
+      }
+      finishTimedOut();
     });
 
     // Platform recognizers close their session after ONE utterance — a wrong
@@ -187,8 +206,7 @@ class SttRace {
               if (lived < minSessionForRestart) {
                 // Throttle-killed, not a real session.
                 final throttled = throttleRetries[e.id] ?? 0;
-                if (throttled < 1 &&
-                    remaining > throttleCooldown + const Duration(seconds: 1)) {
+                if (throttled < 1 && remaining > throttleCooldown) {
                   throttleRetries[e.id] = throttled + 1;
                   sttLog('[RACE] 🧯 "${e.id}" throttle-killed after ${lived.inMilliseconds}ms — cooldown retry in ${throttleCooldown.inMilliseconds}ms');
                   Timer(throttleCooldown, () {

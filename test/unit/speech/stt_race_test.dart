@@ -123,13 +123,47 @@ void main() {
         langCode: 'fr',
         acceptedAnswers: ['thé'],
         timeout: const Duration(milliseconds: 60),
+        lateResultGrace: const Duration(milliseconds: 40),
       );
       await _pump();
       a.emit('bonjour'); // wrong — must not win
 
-      final outcome = await future; // resolves via timeout
+      final outcome = await future; // resolves via timeout (+grace)
       expect(outcome.matched, isFalse);
       expect(outcome.bestTranscript, 'bonjour'); // shown as "we heard…"
+    });
+
+    test('late-result grace: a correction arriving after the window still '
+        'wins (field 2026-07-22: "étudiant" → "étudier")', () async {
+      final a = _FakeEngine('a');
+      final future = SttRace([a]).run(
+        langCode: 'fr',
+        acceptedAnswers: ['étudier'],
+        timeout: const Duration(milliseconds: 80),
+        lateResultGrace: const Duration(milliseconds: 300),
+      );
+      await _pump();
+      a.emit('étudiant'); // wrong → verdict held at timeout
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      a.emit('étudier'); // the late correction — inside the grace
+      final outcome = await future;
+      expect(outcome.matched, isTrue);
+      expect(outcome.matchedCandidate, 'étudier');
+    });
+
+    test('pure silence gets NO grace — the window resolves promptly',
+        () async {
+      final a = _FakeEngine('a');
+      final sw = Stopwatch()..start();
+      final outcome = await SttRace([a]).run(
+        langCode: 'fr',
+        acceptedAnswers: ['thé'],
+        timeout: const Duration(milliseconds: 80),
+        lateResultGrace: const Duration(seconds: 5),
+      );
+      expect(outcome.matched, isFalse);
+      expect(sw.elapsedMilliseconds, lessThan(1500),
+          reason: 'no hypotheses → no correction pending → no grace');
     });
 
     test('a validating PARTIAL wins immediately', () async {
