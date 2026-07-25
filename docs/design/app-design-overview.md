@@ -77,6 +77,33 @@ Not captured: hands-free/voice quiz states (mic-dependent), quiz summary,
 welcome/auth/onboarding (would need sign-out), dark theme variants, VocabKR
 Dev-only DEV settings section.
 
+## Part 2 — screens to design for v2
+
+The briefs below summarize each screen to ADD or REDESIGN; full functional
+specs live in the linked plan docs. Everything must use the design system
+above (paper/ink/clay/teal, the four type families, FrostedBox/dark-hero
+patterns) and spec its empty/loading/error states.
+
+### New screens
+
+| Screen | Milestone | What it must do | Spec |
+|---|---|---|---|
+| **Daily path (new home)** | M3 | The "today" sequence: streak header + ordered steps (Réviser/Découvrir/Grammaire per pair, flags, states upcoming→current→done, completion celebration). One dominant "continue" action. Lists/stats/grammar stay reachable. | `two-flow-daily-plan.md` |
+| **Vocab intro (Découvrir)** | M4 | One screen per new word: word + translation + audio (tap-replay) + example; swipeable batch of 5-10; then ungraded echo practice (MC both directions). Encouraging, no pressure. | `two-flow-daily-plan.md` |
+| **Lesson viewer (grammar)** | M5 | Paged lesson: one idea/screen, explain↔example alternation, free two-way navigation + dots, `[[clay]]`/`((teal))` inline highlights, per-page narration controls (voice roles), tap-per-line audio on examples, mid-lesson quick-check pages, dialogue pages (2 speakers). | `grammar-lessons-redesign.md` |
+| **Weekly recap** | M2 | Celebratory summary: words learned, reviews, retention %, streak; shareable feel; home card entry. | `feature-roadmap.md` #6 |
+| **Word-family browser** | M8 | Family chips on answer reveal/list rows + a family page (root, label, member words). Works for hanja AND Latin/Germanic roots. | `feature-roadmap.md` #7 |
+| **Challenge flow** | M9 | Async duel: pick friend → list/mode/count → play → results compare. Scope after audit. | `feature-roadmap.md` #8 |
+
+### Redesigns of existing screens
+
+| Screen | Milestone | Change | Spec |
+|---|---|---|---|
+| **Stats → Dashboard** | M7 | Multi-scale charts (day/week/month/all), per-pair filter, CEFR level card ("🇰🇷 A2 · 62 % vers B1") with breakdown. | `feature-roadmap.md` #9 |
+| **Grammar hub cards** | M5 | One mastery bar → five stage indicators (Apprendre/Reconnaître/Construire/Écrire/Parler) + unlock bars. | `grammar-lessons-redesign.md` |
+| **Quiz setup entry** | M3 | The center-FAB accordion coexists with the path; its role may shrink (open question — designer input welcome). | `two-flow-daily-plan.md` |
+| **Preload gate** | M3 | Could become a path-skeleton loading state instead of a spinner. | — |
+
 ## Known design debts / notes for the designer
 
 - Home information hierarchy: streak + review + grammar + lists compete;
