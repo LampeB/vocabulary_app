@@ -19,11 +19,32 @@ Each rule becomes a five-stage progression; a stage unlocks when the
 previous one is done. The hub card shows per-stage progress instead of one
 mastery bar.
 
-1. **Apprendre (teach)** — a real multi-page lesson: the concept in plain
-   language, several worked examples WITH audio (tap to hear), contrast
-   cases (은 vs 는 side by side), common mistakes. Swipeable pages; no
-   grading. Content source: extend `grammar_rules.json` with `lesson_pages`;
-   author Korean's by hand first (only ~6 rules exist).
+1. **Apprendre (teach)** — a real multi-page lesson. Design spec (user
+   direction 2026-07-22):
+
+   - **One idea per screen** — never a wall of text. Pages ALTERNATE:
+     a short explanation page, then one or more example pages for that
+     exact point, then the next explanation, and so on.
+   - **Short lessons** — target 6-10 pages per rule, each page ≤2-3 short
+     sentences (or 1-2 examples). A rule that needs more splits into two
+     lessons.
+   - **Free manual navigation** — horizontal pager, swipe or tap-zones in
+     BOTH directions, page dots + progress; the user can go back and
+     re-read anything. No timers, no grading.
+   - **Inline highlights** — a tiny markup in the page text so key
+     elements pop in color: `[[…]]` renders in the accent (clay) color —
+     the particle/ending being taught; `((…))` renders in the secondary
+     (teal) — contrasted/secondary elements. Hangul runs get the Korean
+     font automatically (same usesHangul resolver as the quiz). Parser is
+     pure Dart → host-tested.
+   - Example pages carry tap-to-play audio (both languages) via
+     AudioDirector/ElevenLabs.
+
+   Content schema: `lesson_pages` array in `grammar_rules.json`, e.g.
+   `{"type": "explain", "text": "Après une consonne on attache [[은]]…"}` /
+   `{"type": "example", "ko": "[[책은]] 재미있어요", "fr": "Le livre est
+   intéressant", "note": "책 finit par une consonne → [[은]]"}`.
+   Author the ~6 Korean rules by hand (fr copy first, translations after).
 2. **Reconnaître (recognize)** — multiple choice: "which form is correct?"
    3-4 options generated from the rule mechanics (the wrong particles/forms
    are the natural distractors). Low effort, high scaffold.
