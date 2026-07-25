@@ -1,8 +1,12 @@
 # Refactor: explicit voice-session orchestration
 
-**Status:** planned (user request 2026-07-21 — "whenever you touch something,
-something else breaks; the code needs cleanup/refactor to be more robust and
-easier to modify"). Owner: next focused session(s).
+**Status:** COMPLETE (2026-07-22) for the voice loop. Steps 1–4c shipped:
+AudioDirector owns all sound; VoiceTurnMachine owns all turn policy (18
+tests); every voice turn — vocab AND grammar, Système and Course — runs on
+the machine; the legacy ladder/handlers and whisper-primary path are deleted
+(~600 lines). The golden-log incidents are pinned as machine/race unit tests.
+Remaining ideas (sherpa-onnx sharedPcm racer, further screen slimming) are
+enhancements, not part of this epic.
 
 ## Why
 

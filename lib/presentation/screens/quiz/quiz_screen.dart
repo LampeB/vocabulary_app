@@ -7,13 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/quiz/quiz_provider.dart';
 import '../../providers/audio/audio_provider.dart';
-import '../../../domain/usecases/quiz/get_due_cards_usecase.dart'
-    show QuizSource;
 import '../../../core/languages.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/stt_simulator.dart';
-import '../../../core/utils/answer_validator.dart';
 import '../../../core/utils/stt_debug_log.dart';
 import '../../../core/utils/fsrs_algorithm.dart';
 import '../../../core/widget_keys.dart';
@@ -57,10 +54,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // Guards against stale STT callbacks firing on a new card.
   // True while the current listen session is managed by the SttRace pipeline
   // (Settings → Moteur vocal → Course). The legacy _stt callbacks
-  // (onListeningDone / onError retry ladder) must stand down for race-managed
-  // sessions — the race owns timeout, fallback and grading.
-  bool _raceActive = false;
-
   // Race adapters, created lazily on first race use. They WRAP this screen's
   // existing service instances — never disposed here (the services' own
   // lifecycles are unchanged; see dispose()).
@@ -70,35 +63,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // Incremented every time _startListening is called; onListeningDone
   // only acts if the token still matches.
   int _listenToken = 0;
-  // Tracks successive early-termination retries to avoid infinite loops.
-  int _listenRetries = 0;
   // Voice "Clavier" escape: when equal to the current card index, that card
   // shows a text-input fallback instead of the mic.
   int? _voiceKbIndex;
   // Hands-free pause state.
   bool _hfPaused = false;
-  // Hands-free "pas entendu" recovery: re-listen up to twice before requeuing.
+  // Display-only: attempts consumed on the current card, fed by the
+  // machine's ShowNotHeard command (the "essai x/3" banner).
   int _notHeardRetries = 0;
   bool _hfNotHeard = false;
   // Hands-free "analyse" phase: mic closed, answer captured, verdict pending.
   // Marked by a low closing tick + pulsing status text so the user knows to
   // stop talking (protocol spec, user request 2026-07-08).
   bool _hfAnalyzing = false;
-  // Hands-free app-audio pickup guard: wrong results arriving implausibly
-  // fast are discarded and the mic re-listens (max twice per card).
-  int _noiseRetries = 0;
-  // Hands-free "je n'ai pas compris" prompt: a captured utterance came
-  // back as junk/borderline — the mic reopens and the user should repeat.
-  // Distinct from not-heard (which means NO speech was captured at all).
-  bool _hfMisheard = false;
-  // Armed by the not-heard ladder for the LAST retry of a vocab card:
-  // that attempt runs on the SYSTEM recognizer as a rescue — a second
-  // opinion with different failure modes than the Whisper primary.
-  bool _systemRescueAttempt = false;
-  // Cards in a row that ended with zero usable speech. At 2 the session
-  // auto-pauses (the room is too loud / mic broken) instead of skipping
-  // through every card. Reset by any real recognition or manual resume.
-  int _consecutiveSilentCards = 0;
   bool _hfAutoPausedSilence = false;
   // Whole-screen warm breathing pulse used during the hands-free reading state.
   late final AnimationController _pulseCtrl;
@@ -128,146 +105,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           ));
         }
       }
-      // Real hardware/network errors (not error_no_match, which is normal
-      // "no speech recognised" and is handled by onListeningDone instead).
-      // Transient engine hiccups — timeouts, audio-focus races, busy engine —
-      // recover on their own via the retry paths; surfacing them just spams
-      // "mic error" banners while the mic works fine (user report 2026-07-05).
-      const transientSttErrors = {
-        'error_speech_timeout',
-        'error_busy',
-        'error_audio',
-        'error_client',
-      };
-      _stt.onError = (msg) {
-        if (_raceActive) return; // race-managed session — race handles errors
-        if (!mounted || transientSttErrors.contains(msg)) return;
-        // Hands-free is eyes-off and self-recovering — never banner it.
-        if (widget.args.mode == QuizMode.handsFree) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('quiz.stt_error'.tr(namedArgs: {'msg': msg})),
-          duration: const Duration(seconds: 4),
-          behavior: SnackBarBehavior.floating,
-        ));
-      };
+      // All voice sessions are machine/race-managed (refactor 4c): engine
+      // errors surface as failed windows and go through the machine's
+      // ladder. Log-only here.
+      _stt.onError = (msg) => sttLog('[STT] engine error (race-managed): $msg');
 
-      // Called exactly once per listen session (debounced in SpeechRecognitionService).
-      // answerState is still idle → no result was recognised this round.
-      _stt.onListeningDone = () async {
-        if (_raceActive) {
-          // Race-managed session: the race owns timeout/fallback/grading —
-          // the legacy retry ladder must not fire on top of it.
-          sttLog('[HF][RACE] onListeningDone swallowed (race manages session)');
-          return;
-        }
-        if (!mounted) return;
-        final capturedToken = _listenToken;
-        final elapsed = _stt.listenElapsedMs;
-        final state = ref.read(quizProvider);
-        sttLog('[HF] onListeningDone  capturedToken=$capturedToken  currentToken=$_listenToken  elapsed=${elapsed}ms  answerState=${state.answerState}  retries=$_listenRetries');
-        ref.read(quizProvider.notifier).setListening(false);
-
-        if (state.answerState == QuizAnswerState.idle) {
-          if (widget.args.mode == QuizMode.handsFree) {
-            // If the token changed, this callback is stale (a new listen
-            // session already started) — ignore it to avoid double-penalising.
-            if (capturedToken != _listenToken) {
-              sttLog('[HF] ⚠️ Stale callback (token mismatch) — ignoring');
-              return;
-            }
-
-            // Samsung STT fires notListening/done BEFORE delivering the final
-            // onResult (observed 1-2s delay on Galaxy S22 Ultra).  If STT ran
-            // for a meaningful amount of time it may have heard something — wait
-            // up to 2.5 s for the late result before declaring it wrong.
-            final hadRealListen = elapsed >= 1500;
-            if (hadRealListen) _hadRealWindowThisCard = true;
-
-            // The engine's error verdict (error_client etc.) arrives ~1-5ms
-            // AFTER the notListening status that got us here — deciding
-            // immediately always saw lastError=null and retried blind
-            // (field log 2026-07-07: an error_client retry storm at 700ms
-            // cadence, each restart re-throttled by Android). Sense first.
-            await Future.delayed(const Duration(milliseconds: 250));
-            if (!mounted || capturedToken != _listenToken) return;
-            if (ref.read(quizProvider).answerState != QuizAnswerState.idle) {
-              return; // a late result graded the card while we sensed
-            }
-
-            // error_client/error_busy = Android throttling rapid restarts;
-            // it needs a real cooldown, not a faster hammer.
-            final err = _stt.lastError;
-            final wasThrottled = err == 'error_client' || err == 'error_busy';
-            final wasPermanentError = err == 'error_audio';
-
-            // Throttle storms (error_client at ~15ms) can eat every retry
-            // before the mic was EVER live for this card — which then skipped
-            // the card unanswered (field logs 2026-07-19: half the quiz
-            // auto-skipped). A card may only give up after at least one real
-            // listen window happened, with a bigger budget while throttled.
-            final retryLimit = _hadRealWindowThisCard ? 2 : 4;
-            if (!wasPermanentError && !hadRealListen &&
-                _listenRetries < retryLimit) {
-              // STT stopped instantly — back off, much longer if throttled
-              // (Android's cooldown outlasts 2s; 4s clears it reliably).
-              _listenRetries++;
-              final backoffMs = wasThrottled ? 4000 : 1200;
-              sttLog('[HF] 🔁 STT stopped too fast (${elapsed}ms, err=$err) — retry #$_listenRetries/$retryLimit in ${backoffMs}ms');
-              Future.delayed(Duration(milliseconds: backoffMs), () {
-                if (!mounted || capturedToken != _listenToken) return;
-                final card = ref.read(quizProvider).currentCard;
-                if (card != null &&
-                    ref.read(quizProvider).answerState ==
-                        QuizAnswerState.idle) {
-                  unawaited(_startListening(card, isRetry: true));
-                }
-              });
-            } else {
-              // STT ran for a real listen duration or retries exhausted.
-              // Wait up to 2.5 s for Samsung's late final-result callback —
-              // but ONLY after a clean session end (err == null): an explicit
-              // error_speech_timeout / error_no_match means the engine gave up
-              // and no late result is coming, and showing the analyse phase
-              // then reads as "it thought I said something" (field report
-              // 2026-07-19).
-              final waitMs =
-                  hadRealListen && !wasPermanentError && err == null
-                      ? 2500
-                      : 0;
-              sttLog('[HF] Waiting ${waitMs}ms for possible late Samsung onResult before submitting empty (elapsed=${elapsed}ms  permanentError=$wasPermanentError  retries=$_listenRetries)');
-              // Mic is closed and a result may still land: that IS the
-              // "analyse" phase from the user's perspective.
-              if (waitMs > 0) _enterAnalyzing();
-              _listenRetries = 0;
-              Future.delayed(Duration(milliseconds: waitMs), () {
-                if (!mounted) return;
-                // answerState alone isn't enough: if the card was answered
-                // AND advanced during the wait, the NEW card is idle again
-                // and would be declared "pas entendu" (field log 2026-07-07:
-                // card 1's timer re-listened over card 2's TTS).
-                if (capturedToken != _listenToken) {
-                  sttLog('[HF] Empty-wait timer stale (token moved on) — dropping');
-                  return;
-                }
-                if (ref.read(quizProvider).answerState !=
-                    QuizAnswerState.idle) {
-                  sttLog('[HF] ✅ Late onResult arrived before timeout');
-                  return;
-                }
-                _notHeardLadder(capturedToken,
-                    canRetry: hadRealListen && !wasPermanentError);
-              });
-            }
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('quiz.stt_not_recognised'.tr()),
-              duration: const Duration(seconds: 3),
-              behavior: SnackBarBehavior.floating,
-            ));
-          }
-        } else {
-          sttLog('[HF] onListeningDone: answerState already ${state.answerState} — no action needed');
-        }
+      // Between race-managed sessions any session-end event is stale — the
+      // SystemSttEngine adapter borrows this hook DURING sessions and
+      // restores it after (refactor 4c deleted the legacy retry ladder that
+      // used to live here).
+      _stt.onListeningDone = () {
+        sttLog('[STT] stale onListeningDone outside a race-managed session — ignored');
       };
       if (mounted) ref.read(quizProvider.notifier).loadCards(widget.args);
     });
@@ -282,13 +130,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _answerCtrl.dispose();
     super.dispose();
   }
-
-  String? _firstCorrectCandidate(List<String> candidates, QuizCard card) =>
-      AnswerValidator.firstCorrect(
-        candidates: candidates,
-        acceptedAnswers: card.answerWords,
-        isDrivingMode: true,
-      );
 
   /// Opens the mic only AFTER the app has finished talking (question TTS,
   /// and on a new card after a mistake, the KO correction still in flight).
@@ -327,56 +168,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// first, spawning death events, another retry, and another of Samsung's
   /// own recognizer chimes ("1 to 3 bips" per card, field log 2026-07-07).
   bool _listenStartInFlight = false;
-
-  /// Shared "nothing captured this window" ladder for BOTH engines
-  /// (system STT and constrained/Vosk): up to two cued re-listens with the
-  /// "try x/3" prompt, then skip WITHOUT grading — silence is never a wrong
-  /// answer (user rule 2026-07-06) — auto-pausing after two silent cards in
-  /// a row.
-  void _notHeardLadder(int capturedToken, {required bool canRetry}) {
-    if (canRetry && _notHeardRetries < 2) {
-      _notHeardRetries++;
-      // Last chance (attempt 3/3): hand the mic to the system recognizer —
-      // Whisper heard nothing twice, so a different engine's ears beat
-      // skipping the card outright.
-      _systemRescueAttempt = _notHeardRetries >= 2;
-      sttLog('[HF] 🔇 Pas entendu — re-listen #$_notHeardRetries${_systemRescueAttempt ? " (system rescue)" : ""}');
-      setState(() {
-        _hfNotHeard = true;
-        _hfAnalyzing = false; // retry prompt outranks "analyse"
-      });
-      Future.delayed(const Duration(milliseconds: 900), () {
-        if (!mounted || capturedToken != _listenToken) return;
-        final card = ref.read(quizProvider).currentCard;
-        if (card != null &&
-            ref.read(quizProvider).answerState == QuizAnswerState.idle) {
-          unawaited(_startListening(card, isRetry: true));
-        }
-      });
-      return;
-    }
-    _notHeardRetries = 0;
-    // Nothing heard after all retries. NEVER a wrong answer —
-    // the user didn't speak (user feedback 2026-07-06). Skip
-    // without grading; the card comes back later in the session.
-    _consecutiveSilentCards++;
-    if (_consecutiveSilentCards >= 2) {
-      // Two cards in a row with zero usable speech: the
-      // environment can't support hands-free right now. Pause
-      // instead of burning through the whole session.
-      sttLog('[HF] 🔇🔇 $_consecutiveSilentCards consecutive silent cards — auto-pausing session');
-      _stt.stopListening();
-      unawaited(_whisper.stopListening());
-      ref.read(quizProvider.notifier).setListening(false);
-      setState(() {
-        _hfAutoPausedSilence = true;
-        _hfPaused = true;
-      });
-      return;
-    }
-    sttLog('[HF] ❌ No result after retries — skipping WITHOUT grading (silent card #$_consecutiveSilentCards)');
-    ref.read(quizProvider.notifier).skipCurrentCard();
-  }
 
   /// Enters the hands-free "analyse" phase: the mic captured speech (or
   /// closed after a real listen) and the verdict is pending. Plays the low
@@ -481,6 +272,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           if (widget.args.mode == QuizMode.handsFree) {
             if (mounted) {
               setState(() {
+                _notHeardRetries = attempt; // "essai ${attempt+1}/max" banner
                 _hfNotHeard = true;
                 _hfAnalyzing = false; // retry prompt outranks "analyse"
               });
@@ -553,6 +345,22 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
     m.on(MicOpened(turn));
     ref.read(quizProvider.notifier).setListening(true);
+
+    // While the user answers, prepare the NEXT card: pre-warm its TTS voice
+    // (fr↔ko engine switch costs 1-3.7s) and prefetch its ElevenLabs audio
+    // (first render is a 1-4s network fetch). Lived in the legacy block and
+    // was silently skipped by race mode since 4a — restored here (4c).
+    final upcoming = ref.read(quizProvider).nextCard;
+    if (upcoming != null && m.attempt == 0) {
+      final audio = ref.read(audioPlayerServiceProvider);
+      unawaited(audio.warmUp(upcoming.progress.direction.questionLang));
+      unawaited(audio.prefetch(
+          upcoming.questionWord, upcoming.progress.direction.questionLang));
+      if (upcoming.answerWords.isNotEmpty) {
+        unawaited(audio.prefetch(upcoming.answerWords.first,
+            upcoming.progress.direction.answerLang));
+      }
+    }
     void runBar() {
       if (!_kTestMode) {
         _listenBarCtrl
@@ -608,50 +416,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     await _runTurnCommands(m.on(verdictEvent), card, langCode);
   }
 
-  // When the last mic session opened — drives the retry pacing guard.
-  DateTime? _lastMicOpen;
-
-  // Whether at least one REAL listen window (≥1.5s of live mic) opened for the
-  // current card. Throttle storms (error_client after ~15ms) must not exhaust
-  // a card's retries before the user ever had a mic (field logs 2026-07-19).
-  bool _hadRealWindowThisCard = false;
-
   Future<void> _startListeningInner(QuizCard card,
       {required bool isRetry}) async {
-    // Pacing guard: with the system recognizer being near-instant, failed
-    // sessions can recycle every ~2.3s — six earcons in 15s felt frantic
-    // ("trips over itself", field report 2026-07-19). Retries wait until at
-    // least 3.5s since the previous mic open; fresh cards are not delayed.
-    if (isRetry && _lastMicOpen != null && !_kTestMode) {
-      final sinceLast = DateTime.now().difference(_lastMicOpen!);
-      const minGap = Duration(milliseconds: 3500);
-      if (sinceLast < minGap) {
-        final wait = minGap - sinceLast;
-        sttLog('[HF] ⏳ pacing guard — delaying retry ${wait.inMilliseconds}ms');
-        await Future.delayed(wait);
-        if (!mounted ||
-            ref.read(quizProvider).answerState != QuizAnswerState.idle) {
-          return; // answered (or gone) while breathing
-        }
-      }
-    }
-    _lastMicOpen = DateTime.now();
-
-    if (!isRetry) {
-      _listenRetries = 0;
-      _notHeardRetries = 0;
-      _noiseRetries = 0;
-      _hadRealWindowThisCard = false;
-    }
-    if (!isRetry) {
-      _systemRescueAttempt = false;
-    }
     // Fresh listens reset the banner to "speak now"; retry listens KEEP the
     // "try x/3" / "répète" prompts visible — they already say what to do.
-    if ((_hfNotHeard && !isRetry) || (_hfMisheard && !isRetry) || _hfAnalyzing) {
+    if ((_hfNotHeard && !isRetry) || _hfAnalyzing) {
       setState(() {
         _hfNotHeard = _hfNotHeard && isRetry;
-        _hfMisheard = _hfMisheard && isRetry;
         _hfAnalyzing = false;
       });
     }
@@ -702,184 +473,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // once a new session (next card) has started.
     final sessionToken = _listenToken;
 
-    // Step 4b of the voice-orchestration refactor: EVERY vocab voice turn
-    // runs on the VoiceTurnMachine — Système is a system-only lane, Course
-    // adds the offline Whisper lane. Grammar keeps the legacy streaming path
-    // (long sentences, partial-driven UX) until it gets its own migration.
-    _raceActive = widget.args.source != QuizSource.grammar;
-    if (_raceActive) {
-      await _startRaceListening(card, langCode, sessionToken);
-      return;
-    }
-
-    sttLog('[HF] Calling stt.startListening  langCode=$langCode  token=$sessionToken');
-    final ok = await _stt.startListening(
-      langCode: langCode,
-      onResult: (text, candidates) {
-        // Samsung STT can fire the final onResult 1-2s AFTER notListening,
-        // and retries rotate sessions fast. Gate by CARD identity, not
-        // session: a correct answer for the card on screen is accepted no
-        // matter which listen session delivered it (field log 2026-07-06:
-        // "poussin" heard at 0.93 was discarded twice for a stale token).
-        // WRONG results are held to the stricter same-session gate so a
-        // stale session can't fail the current card.
-        final sameCard = ref.read(quizProvider).currentCard?.progress
-                .variantId ==
-            card.progress.variantId;
-        sttLog('[HF] onResult: "$text"  candidates=$candidates  sessionToken=$sessionToken  currentToken=$_listenToken  sameSession=${sessionToken == _listenToken}  sameCard=$sameCard');
-        if (!mounted || !sameCard) {
-          if (!sameCard) sttLog('[HF] Late onResult discarded (card changed)');
-          return;
-        }
-        if (widget.args.mode == QuizMode.handsFree && candidates.isNotEmpty) {
-          if (ref.read(quizProvider).answerState != QuizAnswerState.idle) {
-            return; // already graded (e.g. by a partial)
-          }
-          // ANY candidate transcript counts — the engine's top pick is
-          // often wrong while an alternate is the user's actual word.
-          final correct = _firstCorrectCandidate(candidates, card);
-          if (correct != null) {
-            _stt.stopListening();
-            _enterAnalyzing();
-            _consecutiveSilentCards = 0; // real speech reached us
-            ref
-                .read(quizProvider.notifier)
-                .submitVoiceAnswer(correct, isDrivingMode: true);
-            return;
-          }
-          // Wrong results: only the CURRENT session may fail the card, and
-          // implausibly fast ones are treated as app-audio pickup.
-          if (sessionToken != _listenToken) {
-            sttLog('[HF] wrong result from a stale session — discarded');
-            return;
-          }
-          final elapsed = _stt.listenElapsedMs;
-          if (elapsed < 800 && _noiseRetries < 2) {
-            _noiseRetries++;
-            sttLog('[HF] 🔇 wrong result after only ${elapsed}ms — treating as app-audio pickup, re-listen #$_noiseRetries');
-            _stt.stopListening();
-            Future.delayed(const Duration(milliseconds: 300), () {
-              if (mounted &&
-                  ref.read(quizProvider).answerState ==
-                      QuizAnswerState.idle) {
-                unawaited(_startListening(card, isRetry: true));
-              }
-            });
-            return;
-          }
-          _stt.stopListening();
-          _enterAnalyzing();
-          _consecutiveSilentCards = 0; // real speech reached us
-          ref
-              .read(quizProvider.notifier)
-              .submitVoiceAnswer(text, isDrivingMode: true);
-        } else if (widget.args.mode == QuizMode.handsFree) {
-          // Empty final result: the engine heard something but recognized
-          // no words (parasitic speech, noise). NOT an answer — the
-          // not-heard recovery owns this case. Submitting it graded the
-          // card wrong through no fault of the user (found by the acoustic
-          // harness, 2026-07-06: French speech near the phone failed the
-          // card before the user spoke).
-          sttLog('[HF] empty final result ignored — not-heard recovery owns it');
-        } else if (sessionToken == _listenToken) {
-          ref.read(quizProvider.notifier).submitVoiceAnswer(
-                text,
-                isDrivingMode: widget.args.mode == QuizMode.voice,
-              );
-        }
-      },
-      onPartial: (text, candidates) {
-        // Same card-identity gate as onResult: a correct partial for the
-        // card on screen counts even if delivered by a retry's session.
-        final sameCard = ref.read(quizProvider).currentCard?.progress
-                .variantId ==
-            card.progress.variantId;
-        sttLog('[HF] partial: "$text"  candidates=$candidates  sameCard=$sameCard');
-        if (mounted && sameCard) {
-          if (sessionToken == _listenToken) {
-            ref.read(quizProvider.notifier).setPartialTranscript(text);
-          }
-          // Hands-free: an exact partial match IS the answer — grade it now
-          // instead of sitting through STT's end-of-speech silence timer.
-          // Only exact matches short-circuit (fuzzy ones wait for the final
-          // result), and only correctness can fire early — a partial is
-          // never graded wrong, since the user may still be speaking.
-          // Checked across ALL candidates, not just the engine's top pick.
-          if (widget.args.mode == QuizMode.handsFree &&
-              ref.read(quizProvider).answerState == QuizAnswerState.idle) {
-            for (final candidate in candidates) {
-              final early = AnswerValidator.validate(
-                userAnswer: candidate,
-                acceptedAnswers: card.answerWords,
-                isDrivingMode: true,
-              );
-              if (early.isCorrect &&
-                  early.type == ValidationResultType.exact) {
-                sttLog('[HF] ⚡ exact partial match ("$candidate") — grading immediately');
-                _stt.stopListening();
-                _enterAnalyzing();
-                _consecutiveSilentCards = 0; // real speech reached us
-                ref
-                    .read(quizProvider.notifier)
-                    .submitVoiceAnswer(candidate, isDrivingMode: true);
-                break;
-              }
-            }
-          }
-        }
-      },
-    );
-    sttLog('[HF] stt.startListening returned ok=$ok  token=$_listenToken');
-    if (!ok && mounted) {
-      sttLog('[HF] ❌ STT failed to start — clearing listening state');
-      ref.read(quizProvider.notifier).setListening(false);
-      return;
-    }
-
-    // No earcon here: the "your turn" cue already played BEFORE the mic
-    // opened (see above). A second cue after startListening plays into the
-    // live recognizer — the "double bip" field report of 2026-07-07.
-
-    // Restart the listening-window countdown bar for this attempt.
-    if (!_kTestMode) {
-      _listenBarCtrl
-        ..reset()
-        ..forward();
-    }
-
-    // Pre-warm the NEXT card's voice while the user answers: switching
-    // fr↔ko on the shared native TTS engine costs 1–3.7s (field log
-    // 2026-07-07 22:30 — "singe" took 3.7s to become audible after a
-    // Korean utterance). Loading it now, during the listening window,
-    // makes the next question start near-instantly. Produces no audio.
-    final upcoming = ref.read(quizProvider).nextCard;
-    if (upcoming != null) {
-      final audio = ref.read(audioPlayerServiceProvider);
-      unawaited(audio.warmUp(upcoming.progress.direction.questionLang));
-      // Premium voices: a word's FIRST ElevenLabs render is a 1-4s network
-      // round-trip ("some words take seconds to start", 2026-07-21).
-      // Prefetch the next card's question + answer into the cache now, so
-      // its audio starts instantly when the card arrives.
-      unawaited(audio.prefetch(upcoming.questionWord,
-          upcoming.progress.direction.questionLang));
-      if (upcoming.answerWords.isNotEmpty) {
-        unawaited(audio.prefetch(upcoming.answerWords.first,
-            upcoming.progress.direction.answerLang));
-      }
-    }
-
-    // Failsafe: if the STT callbacks never fire (device bug / audio focus
-    // held by another app), reset listening state after listenFor + buffer.
-    // IMPORTANT: capture sessionToken so this timer only affects THIS session.
-    // Without the token check, a stale timer from card N fires 12 s later and
-    // stops card N+1's session — the primary cause of premature termination.
-    Future.delayed(const Duration(seconds: 12), () {
-      if (mounted && _stt.isListening && sessionToken == _listenToken) {
-        sttLog('[HF] ⏰ Failsafe timeout for token=$sessionToken — stopping STT');
-        _stt.stopListening();
-        ref.read(quizProvider.notifier).setListening(false);
-      }
-    });
+    // Refactor 4c: EVERY voice turn — vocab AND grammar — runs on the
+    // VoiceTurnMachine. Système is a system-only lane, Course adds the
+    // offline Whisper lane. The legacy streaming path is gone; grammar's
+    // short generated answers grade exactly like vocab through the race.
+    await _startRaceListening(card, langCode, sessionToken);
   }
 
   @override
@@ -951,11 +549,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             ..reset();
           // New card = back to the reading phase; don't let the previous
           // card's "analyse" banner linger over the new word.
-          if (_hfAnalyzing || _hfNotHeard || _hfMisheard) {
+          if (_hfAnalyzing || _hfNotHeard) {
             setState(() {
               _hfAnalyzing = false;
               _hfNotHeard = false;
-              _hfMisheard = false;
             });
           }
           unawaited(_waitForSpeechThenListen(card));
@@ -1051,7 +648,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       unawaited(ref.read(audioPlayerServiceProvider).stop());
     } else {
       // Manual resume = the user says the environment is OK again.
-      _consecutiveSilentCards = 0;
+      _turnMachine?.resetSilenceStreak();
       final card = ref.read(quizProvider).currentCard;
       if (card != null) unawaited(_startListening(card));
     }
@@ -1111,9 +708,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         ? null
         : (_hfAnalyzing
             ? 'quiz.hf_analyzing'.tr()
-            : (_hfMisheard
-                ? 'quiz.hf_misheard'.tr()
-                : (_hfNotHeard
+            : ((_hfNotHeard
                 ? 'quiz.hf_not_heard_retry'.tr(namedArgs: {
                     'attempt': '${_notHeardRetries + 1}',
                     'total': '3',

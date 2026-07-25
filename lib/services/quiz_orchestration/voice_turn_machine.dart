@@ -336,6 +336,10 @@ class VoiceTurnMachine {
     return const [SkipCard()];
   }
 
+  /// Manual session resume: the user says the environment is OK again, so
+  /// the consecutive-silence streak starts over (mirrors the legacy unpause).
+  void resetSilenceStreak() => _consecutiveSilentCards = 0;
+
   /// The host reports the mic closed while a verdict is still possible
   /// (late platform results, a second race lane). Only meaningful from
   /// listening — silence handling owns the other paths.

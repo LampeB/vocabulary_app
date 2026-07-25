@@ -239,6 +239,27 @@ void main() {
     });
   });
 
+  group('manual resume', () {
+    test('resetSilenceStreak restarts the pause countdown', () {
+      final m = machine();
+      List<TurnCommand> exhaust(int turn) {
+        toListening(m, turn);
+        for (var i = 0; i < 2; i++) {
+          m.on(NothingHeard(turn, hadRealWindow: true));
+          tick(const Duration(seconds: 4));
+          m.on(WaitElapsed(turn));
+          m.on(MicOpened(turn));
+        }
+        return m.on(NothingHeard(turn, hadRealWindow: true));
+      }
+
+      expect(exhaust(1), [isA<SkipCard>()]); // silent #1
+      m.resetSilenceStreak(); // user unpaused / resumed manually
+      expect(exhaust(2), [isA<SkipCard>()],
+          reason: 'streak reset — silent #1 again, not a pause');
+    });
+  });
+
   group('phase discipline', () {
     test('out-of-order events are no-ops', () {
       final m = machine();
