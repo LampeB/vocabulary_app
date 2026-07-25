@@ -96,19 +96,36 @@ class WhisperSpeechService {
   /// artifacts: subtitle credits, "thanks for watching", …). Any transcript
   /// containing one of these is discarded, never graded.
   static const _hallucinationMarkers = [
+    // fr
     'sous-titr', // sous-titre(s), sous-titrage
     'sous titrage',
     'amara.org',
     'merci d\'avoir regardé',
     "merci d'avoir regardé",
     'abonnez-vous',
+    // en
     'thank you for watching',
     'thanks for watching',
     'subscribe',
     'subtitles',
+    'see you in the next video',
+    // ko
     '자막',
     '시청해',
     '구독',
+    // de/it/es — generic-language-pairs epic: every studyable language gets
+    // its whisper training-data boilerplate filtered (2026-07-22).
+    'untertitel', // Untertitel(ung) im/des ZDF…
+    'danke fürs zuschauen',
+    'vielen dank für',
+    'abonniert',
+    'sottotitoli',
+    'grazie per la visione',
+    'iscrivetevi',
+    'subtítulos',
+    'gracias por ver',
+    'suscríbete',
+    'subtitulado por',
   ];
 
   /// Cleans a raw Whisper transcript for validation: trims, strips

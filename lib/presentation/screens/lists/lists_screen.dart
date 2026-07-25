@@ -1,9 +1,12 @@
+import 'dart:async' show unawaited;
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../providers/lists/vocabulary_provider.dart';
+import '../../providers/settings/default_pair_provider.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/languages.dart';
@@ -156,16 +159,26 @@ class ListsScreen extends ConsumerWidget {
     final nameCtrl = TextEditingController();
     var quotaExceeded = false;
 
+    final defaultPair = ref.read(defaultPairProvider);
     await showDialog<void>(
       context: context,
       builder: (ctx) => _CreateListDialog(
         controller: nameCtrl,
+        initialLangA: defaultPair.$1,
+        initialLangB: defaultPair.$2,
         onConfirm: (langA, langB) async {
           if (nameCtrl.text.trim().isEmpty) return;
           final result = await ref
               .read(listActionsProvider.notifier)
               .createList(nameCtrl.text.trim(), null,
                   langA: langA, langB: langB);
+          // Remember the chosen pair as the global default — the next
+          // create-list dialog prefills it (user decision 2026-07-21:
+          // per-list pair + a global default).
+          if (result.isSuccess) {
+            unawaited(
+                ref.read(defaultPairProvider.notifier).set(langA, langB));
+          }
           if (!ctx.mounted) return;
           if (result.isFailure) {
             if (result.exceptionOrNull is QuotaExceededException) {
@@ -471,18 +484,26 @@ class _ListNameDialog extends StatelessWidget {
 /// (langA) → "I'm learning" (langB). The chosen pair is stored on the list and
 /// drives quiz directions, voices and fonts (generic-language-pairs epic).
 class _CreateListDialog extends StatefulWidget {
-  const _CreateListDialog({required this.controller, required this.onConfirm});
+  const _CreateListDialog({
+    required this.controller,
+    required this.onConfirm,
+    required this.initialLangA,
+    required this.initialLangB,
+  });
   final TextEditingController controller;
   final Future<void> Function(String langA, String langB) onConfirm;
+
+  /// Seeded from the global default pair (last pair the user created with).
+  final String initialLangA;
+  final String initialLangB;
 
   @override
   State<_CreateListDialog> createState() => _CreateListDialogState();
 }
 
 class _CreateListDialogState extends State<_CreateListDialog> {
-  // TODO(i18n-pairs): seed from the global default learning-pair setting.
-  String _langA = 'fr';
-  String _langB = 'ko';
+  late String _langA = widget.initialLangA;
+  late String _langB = widget.initialLangB;
 
   Widget _langColumn(
       String label, String value, ValueChanged<String> onChanged) {
