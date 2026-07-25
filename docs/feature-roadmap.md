@@ -69,11 +69,56 @@ dormant.
 - Depends on: social tab state, push notifications; plan the audit before
   committing scope.
 
+### 9. Dashboard: deep progression + CEFR levels
+A real progress home for the stats tab (user direction 2026-07-22).
+
+- **Multi-scale progression**: charts at day / week / month / all-time
+  (review_events has every timestamped answer; fl_chart is already in) —
+  reviews done, accuracy, words known over time, per language pair.
+- **CEFR level estimation** per TARGET language: an honest ESTIMATE (never
+  a certification claim) from:
+  - vocabulary size known (rough public thresholds: A1 ≈ 500, A2 ≈ 1 200,
+    B1 ≈ 2 500, B2 ≈ 5 000, C1 ≈ 8 000+),
+  - grammar rules mastered (weight grows as grammar content grows),
+  - later: dialogue/listening completion.
+  Shown as a level card per pair: "🇰🇷 A2 · 62 % vers B1" with a breakdown
+  of what moves the needle.
+- **Word-level CEFR tags** (v2, better estimates): tag each concept with a
+  level per language — AI-batch + cache, same pipeline shape as hanja
+  roots. Then the estimate becomes "% of A1/A2/B1 vocab known", much more
+  meaningful than raw counts.
+- Slots AFTER the quick wins (#4/#6 share the same aggregate queries —
+  build those first, the dashboard reuses them).
+
+## Multi-language by design (cross-cutting requirement)
+
+Every feature above must state its story for ALL studyable pairs — nothing
+ships Korean-only by accident (user direction 2026-07-22):
+
+- **Lessons/grammar ramp**: the page schema, viewer, highlights and
+  narration are language-agnostic; CONTENT is per-language (rules + module
+  in the existing registry — Korean first, structure ready for others).
+  Fonts/scripts flow through the existing Script resolver (extend it as
+  non-Latin/Hangul languages arrive).
+- **Dialogues**: generation works for any pair (prompt carries the pair);
+  voice roles map per language in the ElevenLabs registry.
+- **Cloze**: language-agnostic by construction (uses content sentences).
+- **Leeches / weekly recap / dashboard**: pair-agnostic data (direction on
+  every progress row/event) — always grouped and filterable by pair.
+- **Hanja families → generalized "word families"**: hanja is the KOREAN
+  instance of a general concept_roots design (family id + label + members).
+  European targets fill it with Latin/Germanic roots and cognates
+  (es/it/fr/en/de); the table, UI chips and browser are shared.
+- **CEFR**: thresholds and word-level tags are per-language data, same
+  shared estimation engine.
+- **Challenges / daily path**: already pair-tagged.
+
 ## Sequencing
 
 1. NOW, parallel to epic phase 1: **#4 leeches**, then **#6 weekly recap**
    (both quick, independent, immediately felt).
 2. Epic phase 3 carries **#1 quick checks** + **#2 dialogues** natively.
 3. After phase 3: **#3 cloze** (feeds on the new sentence content).
-4. Then **#7 hanja families** (own data pipeline), and **#8 challenges**
-   (after its audit).
+4. Then **#9 dashboard + CEFR** (reuses #4/#6 queries; word-level tags v2).
+5. Then **#7 word families** (hanja first, roots/cognates for European
+   targets on the same tables), and **#8 challenges** (after its audit).
