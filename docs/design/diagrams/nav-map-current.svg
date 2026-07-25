@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="620" viewBox="0 0 1060 620" font-family="'Segoe UI',system-ui,sans-serif">
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M1,1 L8,4.5 L1,8" fill="none" stroke="#756C62" stroke-width="1.6"/>
+    </marker>
+  </defs>
+  <rect width="1060" height="620" fill="#F6F1EA"/>
+  <text x="30" y="42" font-size="21" font-weight="700" fill="#2B2622">Navigation actuelle (v1.2.0)</text>
+  <text x="30" y="64" font-size="13" fill="#756C62">Barre à 5 emplacements — chaque colonne empile ses écrans poussés</text>
+
+  <!-- bottom nav bar -->
+  <rect x="30" y="90" width="1000" height="52" rx="16" fill="#2B2622"/>
+  <text x="105" y="122" font-size="14" fill="#F6F1EA" text-anchor="middle" font-weight="600">ACCUEIL</text>
+  <text x="315" y="122" font-size="14" fill="#F6F1EA" text-anchor="middle" font-weight="600">LISTES</text>
+  <circle cx="530" cy="116" r="22" fill="#D08358"/>
+  <text x="530" y="121" font-size="12" fill="#FFFFFF" text-anchor="middle" font-weight="700">FAB</text>
+  <text x="745" y="122" font-size="14" fill="#F6F1EA" text-anchor="middle" font-weight="600">AMIS</text>
+  <text x="955" y="122" font-size="14" fill="#F6F1EA" text-anchor="middle" font-weight="600">PROFIL</text>
+
+  <!-- column: ACCUEIL -->
+  <line x1="105" y1="142" x2="105" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="35" y="178" width="140" height="46" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="105" y="206" font-size="13.5" fill="#2B2622" text-anchor="middle" font-weight="600">Home</text>
+
+  <line x1="70" y1="224" x2="70" y2="256" stroke="#756C62" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="12" y="258" width="118" height="58" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="71" y="282" font-size="12.5" fill="#2B2622" text-anchor="middle">Feuille mode</text>
+  <text x="71" y="299" font-size="12.5" fill="#2B2622" text-anchor="middle">(À réviser)</text>
+  <line x1="71" y1="316" x2="71" y2="348" stroke="#756C62" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="24" y="350" width="94" height="42" rx="12" fill="#D08358"/>
+  <text x="71" y="376" font-size="13" fill="#FFFFFF" text-anchor="middle" font-weight="600">Quiz</text>
+
+  <line x1="150" y1="224" x2="150" y2="256" stroke="#756C62" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="138" y="258" width="118" height="46" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="197" y="286" font-size="12.5" fill="#2B2622" text-anchor="middle">Hub grammaire</text>
+  <line x1="197" y1="304" x2="197" y2="336" stroke="#756C62" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="138" y="338" width="118" height="46" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="197" y="366" font-size="12.5" fill="#2B2622" text-anchor="middle">Session gram.</text>
+
+  <line x1="134" y1="224" x2="134" y2="410" stroke="#756C62" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#a)"/>
+  <rect x="64" y="412" width="140" height="42" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="134" y="438" font-size="12.5" fill="#2B2622" text-anchor="middle">Notifications 🔔</text>
+
+  <!-- column: LISTES -->
+  <line x1="315" y1="142" x2="315" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="245" y="178" width="140" height="46" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="315" y="206" font-size="13.5" fill="#2B2622" text-anchor="middle" font-weight="600">Mes listes</text>
+  <line x1="315" y1="224" x2="315" y2="256" stroke="#756C62" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="245" y="258" width="140" height="46" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="315" y="286" font-size="13" fill="#2B2622" text-anchor="middle">Détail de liste</text>
+  <line x1="315" y1="304" x2="315" y2="336" stroke="#756C62" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="245" y="338" width="140" height="46" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="315" y="360" font-size="12.5" fill="#2B2622" text-anchor="middle">Ajouter un mot</text>
+  <text x="315" y="376" font-size="11.5" fill="#756C62" text-anchor="middle">(+ assistant IA)</text>
+
+  <!-- column: FAB -->
+  <line x1="530" y1="142" x2="530" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="455" y="178" width="150" height="58" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.6"/>
+  <text x="530" y="202" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Nouvelle session</text>
+  <text x="530" y="220" font-size="11.5" fill="#756C62" text-anchor="middle">accordéon 5 étapes</text>
+  <text x="530" y="262" font-size="11.5" fill="#6F695F" text-anchor="middle">Langue → Liste → Mode → Sens → Nombre</text>
+  <line x1="530" y1="272" x2="530" y2="300" stroke="#756C62" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="470" y="302" width="120" height="42" rx="12" fill="#D08358"/>
+  <text x="530" y="328" font-size="13" fill="#FFFFFF" text-anchor="middle" font-weight="600">Quiz</text>
+  <line x1="530" y1="344" x2="530" y2="372" stroke="#756C62" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="460" y="374" width="140" height="42" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="530" y="400" font-size="12.5" fill="#2B2622" text-anchor="middle">Résumé de session</text>
+
+  <!-- column: AMIS -->
+  <line x1="745" y1="142" x2="745" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="675" y="178" width="140" height="58" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="745" y="202" font-size="13.5" fill="#2B2622" text-anchor="middle" font-weight="600">Amis</text>
+  <text x="745" y="220" font-size="11.5" fill="#756C62" text-anchor="middle">classement · demandes</text>
+
+  <!-- column: PROFIL -->
+  <line x1="955" y1="142" x2="955" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="885" y="178" width="140" height="46" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="955" y="206" font-size="13.5" fill="#2B2622" text-anchor="middle" font-weight="600">Profil</text>
+  <line x1="915" y1="224" x2="915" y2="256" stroke="#756C62" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="855" y="258" width="118" height="42" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="914" y="284" font-size="12.5" fill="#2B2622" text-anchor="middle">Statistiques</text>
+  <line x1="990" y1="224" x2="990" y2="316" stroke="#756C62" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="931" y="318" width="118" height="42" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="990" y="344" font-size="12.5" fill="#2B2622" text-anchor="middle">Paramètres</text>
+  <line x1="915" y1="300" x2="915" y2="376" stroke="#756C62" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#a)"/>
+  <rect x="855" y="378" width="118" height="42" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.4"/>
+  <text x="914" y="404" font-size="12.5" fill="#C4703F" text-anchor="middle">Paywall 👑</text>
+
+  <!-- legend -->
+  <rect x="30" y="530" width="1000" height="60" rx="14" fill="#EFE7DB"/>
+  <rect x="52" y="548" width="22" height="22" rx="6" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="84" y="564" font-size="12.5" fill="#2B2622">écran</text>
+  <rect x="140" y="548" width="22" height="22" rx="6" fill="#D08358"/>
+  <text x="172" y="564" font-size="12.5" fill="#2B2622">session active</text>
+  <line x1="270" y1="559" x2="308" y2="559" stroke="#756C62" stroke-width="1.6" marker-end="url(#a)"/>
+  <text x="318" y="564" font-size="12.5" fill="#2B2622">navigation</text>
+  <line x1="420" y1="559" x2="458" y2="559" stroke="#756C62" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#a)"/>
+  <text x="468" y="564" font-size="12.5" fill="#2B2622">entrée secondaire</text>
+  <text x="640" y="564" font-size="12.5" fill="#756C62">Retour système : bug connu — quitte l'app depuis les écrans poussés</text>
+</svg>

@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="640" viewBox="0 0 1060 640" font-family="'Segoe UI',system-ui,sans-serif">
+  <defs>
+    <marker id="b" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M1,1 L8,4.5 L1,8" fill="none" stroke="#756C62" stroke-width="1.6"/>
+    </marker>
+  </defs>
+  <rect width="1060" height="640" fill="#F6F1EA"/>
+  <text x="30" y="42" font-size="21" font-weight="700" fill="#2B2622">v2 — Deux flux, un chemin quotidien</text>
+  <text x="30" y="64" font-size="13" fill="#756C62">Les sources composent le chemin du jour ; chaque étape ouvre l'écran correspondant</text>
+
+  <!-- APPRENDRE sources -->
+  <rect x="30" y="100" width="300" height="216" rx="18" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="180" y="130" font-size="15" fill="#C4703F" text-anchor="middle" font-weight="700" letter-spacing="2">APPRENDRE</text>
+  <text x="180" y="149" font-size="12" fill="#756C62" text-anchor="middle">nouveau — jamais noté au premier contact</text>
+  <rect x="52" y="166" width="256" height="56" rx="12" fill="#F6F1EA" stroke="#ECE3D7"/>
+  <text x="180" y="189" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Budget de nouveaux mots</text>
+  <text x="180" y="208" font-size="12" fill="#756C62" text-anchor="middle">~8/jour → « Découvrir » (intro + écho)</text>
+  <rect x="52" y="236" width="256" height="56" rx="12" fill="#F6F1EA" stroke="#ECE3D7"/>
+  <text x="180" y="259" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Prochaine étape de grammaire</text>
+  <text x="180" y="278" font-size="12" fill="#756C62" text-anchor="middle">leçon / reconnaître / construire</text>
+
+  <!-- RÉVISER sources -->
+  <rect x="30" y="350" width="300" height="216" rx="18" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
+  <text x="180" y="380" font-size="15" fill="#3E726D" text-anchor="middle" font-weight="700" letter-spacing="2">RÉVISER</text>
+  <text x="180" y="399" font-size="12" fill="#756C62" text-anchor="middle">connu — FSRS, quiz, exercices</text>
+  <rect x="52" y="416" width="256" height="56" rx="12" fill="#F6F1EA" stroke="#ECE3D7"/>
+  <text x="180" y="439" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Mots dus (FSRS)</text>
+  <text x="180" y="458" font-size="12" fill="#756C62" text-anchor="middle">par paire de langues · mode au choix</text>
+  <rect x="52" y="486" width="256" height="56" rx="12" fill="#F6F1EA" stroke="#ECE3D7"/>
+  <text x="180" y="509" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Mots difficiles (leeches)</text>
+  <text x="180" y="528" font-size="12" fill="#756C62" text-anchor="middle">+ étapes grammaire Écrire / Parler</text>
+
+  <!-- arrows to path -->
+  <line x1="330" y1="208" x2="428" y2="238" stroke="#756C62" stroke-width="1.8" marker-end="url(#b)"/>
+  <line x1="330" y1="264" x2="428" y2="318" stroke="#756C62" stroke-width="1.8" marker-end="url(#b)"/>
+  <line x1="330" y1="444" x2="428" y2="398" stroke="#756C62" stroke-width="1.8" marker-end="url(#b)"/>
+  <line x1="330" y1="514" x2="428" y2="462" stroke="#756C62" stroke-width="1.8" marker-end="url(#b)"/>
+
+  <!-- daily path -->
+  <rect x="432" y="100" width="330" height="470" rx="22" fill="#2B2622"/>
+  <text x="597" y="134" font-size="15" fill="#F6F1EA" text-anchor="middle" font-weight="700" letter-spacing="2">AUJOURD'HUI</text>
+  <text x="597" y="154" font-size="12" fill="#CFC6BA" text-anchor="middle">🔥 série · généré chaque jour, par paire</text>
+
+  <rect x="456" y="172" width="282" height="52" rx="12" fill="#4C8C86"/>
+  <text x="597" y="194" font-size="13" fill="#FFFFFF" text-anchor="middle" font-weight="600">✓  Réviser · 12 mots · 🇫🇷→🇰🇷</text>
+  <text x="597" y="212" font-size="11.5" fill="#DCEBE9" text-anchor="middle">fait</text>
+
+  <rect x="452" y="236" width="290" height="58" rx="12" fill="#D08358" stroke="#F6F1EA" stroke-width="2"/>
+  <text x="597" y="260" font-size="13.5" fill="#FFFFFF" text-anchor="middle" font-weight="700">▶  Découvrir · 8 nouveaux mots</text>
+  <text x="597" y="280" font-size="11.5" fill="#FBEADF" text-anchor="middle">étape courante — action dominante</text>
+
+  <rect x="456" y="306" width="282" height="52" rx="12" fill="#3A3430"/>
+  <text x="597" y="328" font-size="13" fill="#CFC6BA" text-anchor="middle">○  Grammaire · Le présent poli · Reconnaître</text>
+  <text x="597" y="346" font-size="11.5" fill="#9A9086" text-anchor="middle">à venir</text>
+
+  <rect x="456" y="370" width="282" height="52" rx="12" fill="#3A3430"/>
+  <text x="597" y="392" font-size="13" fill="#CFC6BA" text-anchor="middle">○  Réviser · 5 mots · 🇫🇷→🇪🇸</text>
+  <text x="597" y="410" font-size="11.5" fill="#9A9086" text-anchor="middle">à venir</text>
+
+  <rect x="456" y="434" width="282" height="52" rx="12" fill="#3A3430"/>
+  <text x="597" y="456" font-size="13" fill="#CFC6BA" text-anchor="middle">○  Renforcer · 6 mots difficiles</text>
+  <text x="597" y="474" font-size="11.5" fill="#9A9086" text-anchor="middle">à venir</text>
+
+  <rect x="456" y="498" width="282" height="52" rx="12" fill="#241F1B" stroke="#D08358" stroke-width="1.4"/>
+  <text x="597" y="520" font-size="13" fill="#E0A079" text-anchor="middle" font-weight="600">🏁 Journée complétée → série + célébration</text>
+  <text x="597" y="538" font-size="11.5" fill="#9A9086" text-anchor="middle">notification alignée</text>
+
+  <!-- destinations -->
+  <line x1="762" y1="265" x2="838" y2="265" stroke="#756C62" stroke-width="1.8" marker-end="url(#b)"/>
+  <rect x="842" y="238" width="188" height="54" rx="14" fill="#FFFFFF" stroke="#D08358" stroke-width="1.6"/>
+  <text x="936" y="261" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Écran d'intro vocab</text>
+  <text x="936" y="279" font-size="11.5" fill="#756C62" text-anchor="middle">M4 — nouveau design</text>
+
+  <line x1="762" y1="332" x2="838" y2="332" stroke="#756C62" stroke-width="1.8" marker-end="url(#b)"/>
+  <rect x="842" y="305" width="188" height="54" rx="14" fill="#FFFFFF" stroke="#D08358" stroke-width="1.6"/>
+  <text x="936" y="328" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Visionneuse de leçon</text>
+  <text x="936" y="346" font-size="11.5" fill="#756C62" text-anchor="middle">M5 — nouveau design</text>
+
+  <line x1="762" y1="396" x2="838" y2="396" stroke="#756C62" stroke-width="1.8" marker-end="url(#b)"/>
+  <rect x="842" y="372" width="188" height="48" rx="14" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="936" y="392" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Quiz existant</text>
+  <text x="936" y="409" font-size="11.5" fill="#756C62" text-anchor="middle">modes machine/course ✓</text>
+
+  <text x="30" y="612" font-size="12.5" fill="#756C62">La porte (« gate ») : un mot n'entre en révision qu'après introduction — les quiz ne servent plus jamais de mots inconnus.</text>
+</svg>

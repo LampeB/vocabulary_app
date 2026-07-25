@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="460" viewBox="0 0 1060 460" font-family="'Segoe UI',system-ui,sans-serif">
+  <defs>
+    <marker id="c" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M1,1 L8,4.5 L1,8" fill="none" stroke="#756C62" stroke-width="1.6"/>
+    </marker>
+  </defs>
+  <rect width="1060" height="460" fill="#F6F1EA"/>
+  <text x="30" y="42" font-size="21" font-weight="700" fill="#2B2622">Grammaire — rampe en 5 étapes (par règle)</text>
+  <text x="30" y="64" font-size="13" fill="#756C62">Chaque étape se débloque en réussissant la précédente ; le hub affiche 5 indicateurs au lieu d'une barre unique</text>
+
+  <!-- flow bands -->
+  <rect x="30" y="96" width="404" height="40" rx="12" fill="#D08358" opacity="0.16"/>
+  <text x="232" y="121" font-size="12.5" fill="#C4703F" text-anchor="middle" font-weight="700" letter-spacing="2">FLUX APPRENDRE</text>
+  <rect x="446" y="96" width="584" height="40" rx="12" fill="#4C8C86" opacity="0.16"/>
+  <text x="738" y="121" font-size="12.5" fill="#3E726D" text-anchor="middle" font-weight="700" letter-spacing="2">FLUX RÉVISER</text>
+
+  <!-- stage 1 -->
+  <rect x="30" y="152" width="180" height="150" rx="16" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="120" y="180" font-size="12" fill="#C4703F" text-anchor="middle" font-weight="700" letter-spacing="1.5">1 · APPRENDRE</text>
+  <text x="120" y="204" font-size="14" fill="#2B2622" text-anchor="middle" font-weight="600">Leçon paginée</text>
+  <text x="120" y="228" font-size="11.5" fill="#756C62" text-anchor="middle">explication ↔ exemples</text>
+  <text x="120" y="245" font-size="11.5" fill="#756C62" text-anchor="middle">surlignage [[clay]] ((teal))</text>
+  <text x="120" y="262" font-size="11.5" fill="#756C62" text-anchor="middle">narration multi-voix</text>
+  <text x="120" y="279" font-size="11.5" fill="#756C62" text-anchor="middle">quick checks non notés</text>
+
+  <line x1="210" y1="227" x2="252" y2="227" stroke="#756C62" stroke-width="1.8" marker-end="url(#c)"/>
+
+  <!-- stage 2 -->
+  <rect x="254" y="152" width="180" height="150" rx="16" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="344" y="180" font-size="12" fill="#C4703F" text-anchor="middle" font-weight="700" letter-spacing="1.5">2 · RECONNAÎTRE</text>
+  <text x="344" y="204" font-size="14" fill="#2B2622" text-anchor="middle" font-weight="600">QCM guidés</text>
+  <text x="344" y="228" font-size="11.5" fill="#756C62" text-anchor="middle">choisir la bonne forme</text>
+  <text x="344" y="245" font-size="11.5" fill="#756C62" text-anchor="middle">feedback immédiat</text>
+  <text x="344" y="262" font-size="11.5" fill="#756C62" text-anchor="middle">faible pression</text>
+
+  <line x1="434" y1="227" x2="476" y2="227" stroke="#756C62" stroke-width="1.8" marker-end="url(#c)"/>
+
+  <!-- stage 3 -->
+  <rect x="478" y="152" width="180" height="150" rx="16" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
+  <text x="568" y="180" font-size="12" fill="#3E726D" text-anchor="middle" font-weight="700" letter-spacing="1.5">3 · CONSTRUIRE</text>
+  <text x="568" y="204" font-size="14" fill="#2B2622" text-anchor="middle" font-weight="600">Assembler la phrase</text>
+  <text x="568" y="228" font-size="11.5" fill="#756C62" text-anchor="middle">chips à ordonner</text>
+  <text x="568" y="245" font-size="11.5" fill="#756C62" text-anchor="middle">mots connus uniquement</text>
+
+  <line x1="658" y1="227" x2="700" y2="227" stroke="#756C62" stroke-width="1.8" marker-end="url(#c)"/>
+
+  <!-- stage 4 -->
+  <rect x="702" y="152" width="152" height="150" rx="16" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
+  <text x="778" y="180" font-size="12" fill="#3E726D" text-anchor="middle" font-weight="700" letter-spacing="1.5">4 · ÉCRIRE</text>
+  <text x="778" y="204" font-size="14" fill="#2B2622" text-anchor="middle" font-weight="600">Production écrite</text>
+  <text x="778" y="228" font-size="11.5" fill="#756C62" text-anchor="middle">drills existants</text>
+  <text x="778" y="245" font-size="11.5" fill="#756C62" text-anchor="middle">correction IA</text>
+
+  <line x1="854" y1="227" x2="896" y2="227" stroke="#756C62" stroke-width="1.8" marker-end="url(#c)"/>
+
+  <!-- stage 5 -->
+  <rect x="898" y="152" width="132" height="150" rx="16" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
+  <text x="964" y="180" font-size="12" fill="#3E726D" text-anchor="middle" font-weight="700" letter-spacing="1.5">5 · PARLER</text>
+  <text x="964" y="204" font-size="14" fill="#2B2622" text-anchor="middle" font-weight="600">À l'oral</text>
+  <text x="964" y="228" font-size="11.5" fill="#756C62" text-anchor="middle">mode voix</text>
+  <text x="964" y="245" font-size="11.5" fill="#756C62" text-anchor="middle">course STT</text>
+
+  <!-- prerequisite + hub notes -->
+  <rect x="30" y="330" width="490" height="94" rx="16" fill="#EFE7DB"/>
+  <text x="52" y="358" font-size="13" fill="#2B2622" font-weight="700">Avant l'étape 1 — déverrouillage de la règle</text>
+  <text x="52" y="380" font-size="12" fill="#756C62">Vocabulaire prérequis maîtrisé (barres par liste, comme aujourd'hui)</text>
+  <text x="52" y="398" font-size="12" fill="#756C62">+ règles précédentes du module terminées</text>
+
+  <rect x="540" y="330" width="490" height="94" rx="16" fill="#EFE7DB"/>
+  <text x="562" y="358" font-size="13" fill="#2B2622" font-weight="700">Sur le hub grammaire (redesign M5)</text>
+  <text x="562" y="380" font-size="12" fill="#756C62">Carte par règle : 5 pastilles d'étape  ● ● ● ○ ○  au lieu d'une barre</text>
+  <text x="562" y="398" font-size="12" fill="#756C62">L'étape suivante alimente le chemin quotidien (« Grammaire · … »)</text>
+</svg>

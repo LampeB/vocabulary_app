@@ -77,12 +77,34 @@ Not captured: hands-free/voice quiz states (mic-dependent), quiz summary,
 welcome/auth/onboarding (would need sign-out), dark theme variants, VocabKR
 Dev-only DEV settings section.
 
+### Flow — current navigation
+
+How the 21 screens above connect (bottom-nav columns + pushed routes):
+
+![Current navigation map](diagrams/nav-map-current.svg)
+
 ## Part 2 — screens to design for v2
 
 The briefs below summarize each screen to ADD or REDESIGN; full functional
 specs live in the linked plan docs. Everything must use the design system
 above (paper/ink/clay/teal, the four type families, FrostedBox/dark-hero
 patterns) and spec its empty/loading/error states.
+
+### Flow — the v2 architecture at a glance
+
+The two flows (Apprendre/Réviser) compose the daily path, which deep-links
+into the new and existing screens:
+
+![Two flows, one daily path](diagrams/two-flow-daily-path.svg)
+
+A word's journey through the new introduction gate — why quizzes never
+serve unseen words in v2:
+
+![Word lifecycle with intro gate](diagrams/word-lifecycle-gate.svg)
+
+The grammar ramp that replaces the single mastery bar per rule:
+
+![Grammar 5-stage ramp](diagrams/grammar-stage-ramp.svg)
 
 ### New screens
 
