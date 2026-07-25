@@ -1,8 +1,10 @@
 # Grammar lessons: from quiz to progressive lesson
 
-**Status:** planned (user feedback 2026-07-22 after the first real grammar
-session: "DAMN that was hard… it should be more of a lesson and less of just
-a quiz, it should be progressive").
+**Status:** planned — now a SUB-PLAN of `docs/two-flow-daily-plan.md`
+(the app-wide Apprendre/Réviser split with a daily path). Original trigger:
+user feedback 2026-07-22 after the first real grammar session ("DAMN that
+was hard… it should be more of a lesson and less of just a quiz, it should
+be progressive"). Builds in that epic's phase 3.
 
 ## The problem
 
