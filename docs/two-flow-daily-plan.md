@@ -73,6 +73,12 @@ a sub-plan of this epic; its hub/progress design is unchanged.
 4. **Polish:** plan tuning (budget, pair balance), path completion
    celebration, notification alignment ("your path is ready"), stats tie-in.
 
+## Related
+
+`docs/feature-roadmap.md` — seven selected features slotted around these
+phases (quick checks + dialogues ride phase 3; cloze follows it; leeches +
+weekly recap are parallel quick wins; hanja families and challenges follow).
+
 ## Open questions (decide when their phase starts)
 
 - Daily budget default + premium interaction (unlimited new words premium?)
