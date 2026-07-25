@@ -14,6 +14,8 @@ import '../../../domain/entities/grammar_rule.dart';
 import '../auth/auth_provider.dart';
 import '../lists/vocabulary_provider.dart';
 import '../quiz/quiz_provider.dart' show progressRepositoryProvider;
+import 'package:flutter/foundation.dart' show kDebugMode;
+import '../settings/dev_grammar_unlock_provider.dart';
 
 /// The bundled grammar rules (per-language content; Korean today).
 final grammarRulesProvider = FutureProvider<List<GrammarRule>>((ref) async {
@@ -186,15 +188,20 @@ final ruleStatusesProvider = FutureProvider<List<RuleStatus>>((ref) async {
         ];
         final p = progress[rule.id];
         final mastered = p?.mastered ?? false;
+        // DEBUG-ONLY override: unlock everything so the grammar voice path
+        // can be exercised without mastering the prerequisite lists first.
+        final devUnlock =
+            kDebugMode && ref.watch(devGrammarUnlockProvider);
         return RuleStatus(
           rule: rule,
           availability: mastered
               ? RuleAvailability.mastered
-              : missing.isEmpty
+              : (devUnlock || missing.isEmpty)
                   ? RuleAvailability.unlocked
                   : RuleAvailability.locked,
-          missingLists: missing,
-          enoughWords: generator.canGenerate(rule, drillWords),
+          missingLists: devUnlock ? const [] : missing,
+          enoughWords:
+              devUnlock || generator.canGenerate(rule, drillWords),
           correct: p?.correct ?? 0,
           prereqProgress: {
             for (final name in rule.prerequisiteLists)

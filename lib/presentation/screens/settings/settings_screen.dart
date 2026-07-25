@@ -8,6 +8,8 @@ import '../../providers/purchases/purchase_provider.dart';
 import '../../providers/settings/settings_provider.dart';
 import '../../providers/settings/audio_settings_provider.dart';
 import '../../providers/settings/stt_engine_mode_provider.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
+import '../../providers/settings/dev_grammar_unlock_provider.dart';
 import '../../../domain/entities/subscription_type.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -289,6 +291,39 @@ class SettingsScreen extends ConsumerWidget {
                     Localizations.localeOf(context).languageCode),
                 onTap: () => _showLanguagePicker(context),
               ),
+              // ── Dev (debug builds only) ──────────────────────────────────
+              if (kDebugMode) ...[
+                const SizedBox(height: 24),
+                _EyebrowSection('DEV'),
+                FrostedBox(
+                  borderRadius: BorderRadius.circular(18),
+                  padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Debug-only tooling — deliberately not localized.
+                            Text('Grammaire : tout débloquer',
+                                style: AppTextStyles.fig(15, FontWeight.w500)
+                                    .copyWith(color: cs.onSurface)),
+                            Text('Ignore les prérequis (test uniquement)',
+                                style: AppTextStyles.caption
+                                    .copyWith(color: muted)),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: ref.watch(devGrammarUnlockProvider),
+                        onChanged: (v) => ref
+                            .read(devGrammarUnlockProvider.notifier)
+                            .set(v),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               // ── Compte — actions ─────────────────────────────────────────────
               _EyebrowSection('settings.section_actions'.tr()),
