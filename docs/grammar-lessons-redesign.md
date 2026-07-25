@@ -37,8 +37,26 @@ mastery bar.
      (teal) — contrasted/secondary elements. Hangul runs get the Korean
      font automatically (same usesHangul resolver as the quiz). Parser is
      pure Dart → host-tested.
-   - Example pages carry tap-to-play audio (both languages) via
-     AudioDirector/ElevenLabs.
+   - **Narrated lessons, multiple voices** (user direction 2026-07-22):
+     every page can be read aloud by TTS, with DISTINCT voices per role —
+     the explanation/rule in the narrator voice (UI language), examples in
+     a different voice (target language), and multi-speaker examples
+     (dialogues) can assign a voice per line.
+
+     - Content: pages/lines carry an optional `voice` role, e.g.
+       `{"type": "example", "lines": [{"voice": "speakerA", "ko": "…"},
+       {"voice": "speakerB", "ko": "…"}]}`. Roles, not raw ids.
+     - A **voice-role registry** maps roles → ElevenLabs voice ids per
+       language (premium). Free tier falls back to device TTS — usually a
+       single voice; role distinction is a premium nicety, never a gate on
+       the content itself.
+     - Plumbing: AudioPlayerService.speak grows an optional voiceId
+       (ElevenLabsService already supports per-call voices + caching);
+       AudioDirector gains a narration queue (page → ordered utterances
+       with roles, tap-to-play or play-all per page, stop on page change —
+       manual navigation stays in charge).
+     - Example pages keep per-line tap-to-play; narration prefetches the
+       page's audio like quiz prefetch does.
 
    Content schema: `lesson_pages` array in `grammar_rules.json`, e.g.
    `{"type": "explain", "text": "Après une consonne on attache [[은]]…"}` /
