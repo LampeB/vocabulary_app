@@ -34,6 +34,25 @@ Two flows feed that path (see `diagrams/two-flow-daily-path.svg`):
 A word's life: `diagrams/word-lifecycle-gate.svg`. A rule's life:
 `diagrams/grammar-stage-ramp.svg`. Both still accurate.
 
+### Two progression tracks — vocabulary ≠ grammar
+
+The daily path interleaves steps from BOTH tracks, but the tracks
+progress on different models and must never look interchangeable:
+
+| | **Vocabulaire** | **Grammaire** |
+|---|---|---|
+| Content comes from | **the user**: lists they create (+ bundled starter lists) | **the app**: curated curriculum per language module — users cannot create grammar |
+| Ordering | none — FSRS decides what's due, the daily budget decides what's introduced | strict — rules ordered by prerequisites, each rule climbs the 5-stage ramp |
+| Unit of progress | per word, per direction (FR→X / X→FR) | per rule, per stage (1-5) |
+| Learn moment | Découvrir batch (intro + écho) | Leçon paginée (stage 1) |
+| Review moment | quiz / cloze / renforcer (leeches) | stages 2-5 drills |
+| User control | full: create lists, add words, pick sources in Pratiquer | none over content; only pace (the path serves the next step) |
+
+Design consequence: vocab steps and grammar steps need clearly distinct
+step-card identities on the path (icon + label family), and Bibliothèque
+must feel editable in its Listes section but read-only (a "course book")
+in its Grammaire section.
+
 ## 2. Design principles
 
 1. **One dominant action per screen.** The path's current step is THE
@@ -85,7 +104,7 @@ Status: **NEW** = design from scratch · **REDESIGN** = exists, restructure
 | # | Screen | Status | Milestone | Brief |
 |---|---|---|---|---|
 | S1 | Aujourd'hui (daily path home) | **REDESIGN** (replaces Home) | M3 | §6.1 |
-| S2 | Préchargement (path skeleton) | **REDESIGN** | M3 | §6.2 |
+| S2 | Préchargement (gate avant l'accueil) | **REDESIGN** | M3 | §6.2 |
 | S3 | Intro vocab « Découvrir » + écho | **NEW** | M4 | §6.3 |
 | S4 | Visionneuse de leçon (grammaire) | **NEW** | M5 | §6.4 |
 | S5 | Quiz canvas (toutes modalités) | *keep* + additions | M6 | §6.5 |
@@ -107,12 +126,13 @@ Status: **NEW** = design from scratch · **REDESIGN** = exists, restructure
 
 ![Daily loop](diagrams/v2-daily-loop.svg)
 
-Open app → path skeleton while syncing → **Aujourd'hui** with the current
-step highlighted → tap it → the right session type opens directly (no
+Open app → preload gate (S2) until everything is ready → **Aujourd'hui**
+with the current step highlighted → tap it → the right session type opens directly (no
 setup) → finish → return to the path: step animates to ✓, next step
 becomes current → repeat → all steps done → completion celebration
 (streak +1) → if a weekly recap is available, its card sits on top of the
-completed path. Leaving mid-session never loses the path's state.
+completed path. Leaving mid-session never loses the path's state. (Warm
+resumes skip the gate; it returns only when data must be rebuilt.)
 
 ### F1 — First run
 
@@ -210,11 +230,15 @@ is gone, no guilt. Lists/grammar/stats reachable only via tabs — no
 duplicate cards here. States: skeleton (S2), error (offline → cached
 path + banner), empty (new user → seeded path, F1).
 
-### 6.2 S2 Préchargement — path skeleton
-The spinner gate becomes the Aujourd'hui layout with shimmer
-placeholders (header, 3 step-card ghosts) + one status line
-("Synchronisation…"). Must visually BE the home so load feels shorter;
-no full-screen modal. Timeout >8s → retry affordance.
+### 6.2 S2 Préchargement — the gate before home
+A dedicated full-screen gate shown BEFORE Aujourd'hui on cold open, and
+dismissed **only when loading is fully done** (sync, path generation,
+lists) — the home must always arrive complete, never half-populated or
+reordering under the user's eyes (established v1 direction). Content:
+brand/waveform motif + one status line that progresses
+("Synchronisation…" → "Préparation de ton chemin…"); calm, no raw
+spinner. >8s → retry affordance; offline → dismiss with cached data and
+show an offline banner on home.
 
 ### 6.3 S3 Découvrir — intro deck + écho
 Two sub-surfaces, Apprendre-themed (clay): (a) intro deck — one word per
@@ -251,8 +275,10 @@ the path feel continuous.
 ### 6.7 S7 Bibliothèque
 New hub with three segmented sections, pair-filter chips persistent at
 top: **Listes** (v1 Mes listes content: cards, colored dots, FAB
-Nouvelle liste; detail + add-word dialog kept as-is), **Grammaire** (v1
-hub content restructured — see S9), **Familles** (S10 index; hidden or
+Nouvelle liste; detail + add-word dialog kept as-is — this is the USER's
+editable space), **Grammaire** (v1 hub content restructured — see S9;
+read-only curriculum, no create/add affordances anywhere: it must read
+as a course book, not a notebook), **Familles** (S10 index; hidden or
 teaser state until M8). Empty states per section per pair.
 
 ### 6.8 S9 Fiche règle (grammar hub card → detail)
@@ -264,10 +290,14 @@ CTA (Relire la leçon / next drill), prerequisite detail, "next step
 appears in your path" hint.
 
 ### 6.9 S10 Famille de mots
-Root hero (glyph/root large, label, meaning), member word rows (word,
-translation, progress dot, audio), cross-links between families.
-Generic design: hanja glyph for Korean, root/cognate text for European
-languages — the hero must work for both ("學 · étude" / "spect · voir").
+What it is (roadmap #7): words sharing a root shown as a family, so
+memorization becomes a network — Korean 학교/학생/학년 all contain
+학 (hanja 學, "étude"); French/European targets use Latin/Germanic
+roots the same way (*spect* "voir" → spectacle, inspecter, spectateur).
+The screen: root hero (glyph/root large, label, meaning), member word
+rows (word, translation, progress dot, audio), cross-links between
+families. Generic design: the hero must work for both a hanja glyph
+("學 · étude") and a text root ("spect · voir").
 
 ### 6.10 S11 Pratiquer
 Bottom-sheet or full screen (designer's call) with the 3 memory-holding
