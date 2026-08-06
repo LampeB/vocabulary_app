@@ -53,6 +53,40 @@ step-card identities on the path (icon + label family), and Bibliothèque
 must feel editable in its Listes section but read-only (a "course book")
 in its Grammaire section.
 
+### The third layer: the Parcours (A1→C2 curriculum spine)
+
+![Home: overview + parcours](diagrams/v2-home-parcours.svg)
+
+Above both tracks sits a visible long-term map, per target language: six
+CEFR levels **A1 → C2**, each a fixed, ordered set of lessons (~20 per
+level). A "leçon" is the curriculum unit: either a grammar rule's
+Apprendre moment or a themed, level-tagged vocab unit's Découvrir
+moment. Reviews are NOT lessons — FSRS generates them daily; the
+parcours only counts learn-moments.
+
+How the layers relate:
+
+- **Parcours** = where I'm going (levels, lessons, x/20) — the map.
+- **Chemin du jour** = what I do now (2-5 steps: next parcours lessons
+  interleaved with FSRS reviews) — today's slice of the map.
+- The **carte aperçu** on home is the bridge: CEFR position + today's
+  step progress + the single Continuer.
+
+**Level gates:** finishing a level's lessons is not enough — a **Test de
+niveau** (graded, mixed vocab + grammar) must be passed to open the next
+level. Mastery, not completion. Locked levels offer the same test as a
+skip-ahead/placement ("Je connais déjà ce niveau ?").
+
+**Scope notes (honest):** user-created lists live OUTSIDE the parcours
+(they flow through Bibliothèque/Pratiquer and Découvrir steps; they
+never count toward x/20). The parcours is the project's biggest CONTENT
+lift — levels ship progressively (Korean first), and a level may be
+partially filled ("13 leçons disponibles — la suite arrive") without
+breaking the design. This layer is NEW relative to
+`implementation-plan-v2.md` (it extends M3's path generator, M5's
+curriculum content, and M7's CEFR estimation) — the plan needs a
+revision pass once designs land.
+
 ## 2. Design principles
 
 1. **One dominant action per screen.** The path's current step is THE
@@ -79,11 +113,11 @@ in its Grammaire section.
 
 | Slot | v1 | v2 | Why |
 |---|---|---|---|
-| 1 | Accueil (cards) | **Aujourd'hui** — the daily path | The path IS the product; home = today's plan. |
+| 1 | Accueil (cards) | **Parcours** — the current language's page: carte aperçu (today) + niveaux A1→C2 | The map IS the product; home = one language, last studied, switcher in the header. |
 | 2 | Listes | **Bibliothèque** — Listes · Grammaire · Familles | All content browsing in one place; grammar stops being a home card, word families get a home. |
 | center FAB | New-session accordion | **Pratiquer** — free practice, 3-step quick setup | Kept for self-directed drilling, but simplified; the path absorbs guided session-starting. |
 | 3 | Amis | **Amis** — classement · défis | Unchanged position; challenges (M9) revive this tab. |
-| 4 | Profil | **Progrès** — dashboard + CEFR | Progress is a retention feature; it earns the tab. Profile & settings move to an avatar button (top-right of Aujourd'hui and Progrès) opening the Profil screen. |
+| 4 | Profil | **Progrès** — dashboard + CEFR | Progress is a retention feature; it earns the tab. Profile & settings move to an avatar button (top-right of Parcours and Progrès) opening the Profil screen. |
 
 What moved where:
 
@@ -103,7 +137,7 @@ Status: **NEW** = design from scratch · **REDESIGN** = exists, restructure
 
 | # | Screen | Status | Milestone | Brief |
 |---|---|---|---|---|
-| S1 | Aujourd'hui (daily path home) | **REDESIGN** (replaces Home) | M3 | §6.1 |
+| S1 | Page langue : aperçu + parcours A1→C2 (home) | **REDESIGN** (replaces Home) | M3+ | §6.1 |
 | S2 | Préchargement (gate avant l'accueil) | **REDESIGN** | M3 | §6.2 |
 | S3 | Intro vocab « Découvrir » + écho | **NEW** | M4 | §6.3 |
 | S4 | Visionneuse de leçon (grammaire) | **NEW** | M5 | §6.4 |
@@ -119,6 +153,7 @@ Status: **NEW** = design from scratch · **REDESIGN** = exists, restructure
 | S14 | Amis + Défis | **REDESIGN** (adds challenges) | M9 | §6.13 |
 | S15 | Profil (via avatar) / Paramètres / Paywall | *keep* | — | — |
 | S16 | Onboarding (première ouverture) | **NEW** (light) | M3 | §6.14 |
+| S17 | Test de niveau (+ résultats) | **NEW** | TBD (post-M5) | §6.15 |
 
 ## 5. Flows
 
@@ -139,9 +174,11 @@ resumes skip the gate; it returns only when data must be rebuilt.)
 Welcome/auth (keep) → choose UI language (autonyms, keep) → **choose
 first learning pair** (target language picker, flags + autonyms) →
 choose daily pace (new-word budget: relaxed ~4 / normal ~8 / intense
-~12, changeable later in Paramètres) → land on Aujourd'hui where the
-path is seeded: `Découvrir (first batch) → first grammar lesson (if the
-pair has a module) → done`. No placement test in v2 (future note).
+~12, changeable later in Paramètres) → starting point: "Je débute →
+commencer en A1" or "J'ai déjà des bases → test de placement" (reuses
+S17; passing places the user at the right level) → land on the home
+where the parcours shows A1 (or the placed level) and the day's chain is
+seeded with its first lessons.
 
 ### F2 — Découvrir (vocab introduction, M4)
 
@@ -204,6 +241,24 @@ count → both play the same card set async → results screen:
 side-by-side scores, per-word comparison → rematch CTA. Notification on
 completion. (Scope confirmed after the M9 audit.)
 
+### F10 — Parcours & tests de niveau
+
+Home shows the CURRENT language's page (last studied; header chip
+switches among studied pairs). Scroll the parcours: level cards A1→C2 —
+**done** (✓ x/x, collapsed), **current** (expanded by default),
+**locked** (🔒). Expanding a card never navigates; it reveals a
+**windowed lesson list**: 5 rows centered on the current lesson (2 done
+✓ above, current highlighted with Commencer, 2 upcoming below), plus
+"Voir les 20 leçons" for the full scrollable list. Tapping the current
+lesson starts it directly (F2 for vocab units, F3 for grammar). The
+level's final row is its **Test de niveau** node (locked until x/x) →
+S17 → pass unlocks the next level (celebration); fail gives a calm
+per-area breakdown and schedules Renforcer/lesson-revisit steps in the
+daily chain — retake anytime. On a LOCKED level, the same test is
+offered as skip-ahead: "Je connais déjà ce niveau ? Passer le test"
+(placement; data semantics of "levels marked acquired" to be settled in
+the functional spec).
+
 ### F9 — Bilan hebdo (M2)
 
 Sunday/first open after week end: card atop the path → full-screen
@@ -217,18 +272,33 @@ Every screen must spec: empty, loading, error, and (where relevant)
 celebration states; light AND dark theme; all text length-robust
 (French/German run long) and script-robust (Hangul via Noto Sans KR).
 
-### 6.1 S1 Aujourd'hui — the daily path
-Replaces Home entirely. Content, top to bottom: compact header (greeting
-+ avatar button + streak flame with count — the dark streak hero card
-dies, streak moves into the header); optional Bilan hebdo card; the
-**path**: 2-5 step cards in today's order, each showing type icon
-(Découvrir/Grammaire/Réviser/Renforcer), title, count, pair flags, mode
-chip (Réviser steps), state (done ✓ teal / current clay + "Continuer" /
-upcoming muted); completion state replaces the list with a celebration
-block + "encore envie ?" link to Pratiquer. Path is per-day; yesterday
-is gone, no guilt. Lists/grammar/stats reachable only via tabs — no
-duplicate cards here. States: skeleton (S2), error (offline → cached
-path + banner), empty (new user → seeded path, F1).
+### 6.1 S1 Page langue — aperçu + parcours (home)
+Replaces Home entirely; shows ONE language at a time (see the wireframe
+`diagrams/v2-home-parcours.svg`). Top to bottom:
+
+1. **Header**: language chip (flag + autonym, tap → switcher sheet over
+   studied pairs + "Ajouter une langue"), streak flame + count, avatar
+   button. The dark streak hero card dies; streak lives here.
+2. **Carte aperçu** (the dark hero survives as this): CEFR position
+   ("A2 · 62 % vers B1", mini progress bar), today's slice ("Aujourd'hui
+   : 1/3 étapes" as dots + due count), and THE dominant CTA
+   **Continuer** → next step of the day's chain (F0 order: reviews +
+   next parcours lessons). Mode chip for review steps lives here. When
+   the day is done: celebration state + "encore envie ?" → Pratiquer.
+   The Bilan hebdo card slots above it when available.
+3. **Le parcours**: six level cards A1→C2 per §F10 — collapsed done
+   (badge, name, ✓ 20/20), current expanded (x/20 + bar, windowed
+   5-lesson list — rows: number, type icon grammaire/vocab, title,
+   state ✓/current/🔒 — and "Voir les 20 leçons"), locked (🔒 +
+   "Je connais déjà ? Passer le test"), each level ending on its Test
+   de niveau node. Partial levels show "13 leçons disponibles — la
+   suite arrive".
+
+Daily steps are not a separate list anymore: "today" is compressed into
+the aperçu card, the map below gives it meaning. States: behind S2 gate
+on cold open; offline → cached page + banner; new pair with no
+curriculum yet → parcours placeholder ("le programme <langue> arrive") +
+CTA to Bibliothèque/Pratiquer (lists still work for any pair).
 
 ### 6.2 S2 Préchargement — the gate before home
 A dedicated full-screen gate shown BEFORE Aujourd'hui on cold open, and
@@ -324,10 +394,24 @@ Two segments: Classement (kept) · Défis (new): active challenges
 screen with side-by-side bars. Empty: "défie un ami" teaser.
 
 ### 6.14 S16 Onboarding
-Reuse existing welcome/auth visuals; add two light steps (pair picker,
-pace picker) as full-screen cards in the same style. Must support adding
-MORE pairs later (from Bibliothèque pair filter "+ Ajouter une langue" —
-same pair-picker component).
+Reuse existing welcome/auth visuals; add three light steps (pair picker,
+pace picker, starting point "Je débute / J'ai des bases → placement") as
+full-screen cards in the same style. Must support adding MORE pairs
+later (home language chip + Bibliothèque "+ Ajouter une langue" — same
+pair-picker component).
+
+### 6.15 S17 Test de niveau
+The level gate (F10) and placement test. A graded mixed session over the
+level's curriculum: vocab both directions + grammar
+recognition/construction, ~20-30 items, progress bar, **no per-item
+feedback** (unlike quizzes — answers reveal only at the end). Pass
+threshold ~85 %. Results screen: **pass** → unlock celebration, next
+level opens; **fail** → calm per-area breakdown ("les particules te
+résistent encore"), CTA "Réviser ça" (schedules Renforcer + lesson
+revisits in the daily chain), retake anytime, never shaming. Visual
+identity: neutral ink — neither clay (learn) nor teal (review); it's an
+assessment and must feel sober but not scary. Entry variants: end-of-
+level node, locked-level skip-ahead, onboarding placement.
 
 ## 7. Cross-cutting rules
 
@@ -351,12 +435,14 @@ same pair-picker component).
 
 ## 8. Open questions for Claude Design
 
-1. Path visual language: vertical step cards (assumed here) vs a
-   Duolingo-like winding trail — cards fit the paper/ink system better,
-   but the trail is more playful. Recommendation: cards.
-2. Celebration style (path completion, recap): illustration, confetti,
-   or waveform-motif animation? Must stay "calm" (principle 2).
-3. Where the mode chip lives on a Réviser step without cluttering the
-   one-dominant-action rule.
+1. Parcours visual language: expandable level cards (assumed here, fits
+   paper/ink) vs a Duolingo-like winding trail of lesson nodes.
+   Recommendation: cards.
+2. Celebration style (day done, level unlocked, recap): illustration,
+   confetti, or waveform-motif animation? Must stay "calm" (principle 2).
+3. Where the review-mode chip lives on the aperçu card without
+   cluttering the one-dominant-action rule.
 4. Bibliothèque: segmented control vs top-tabs for the three sections.
-5. Streak-in-header treatment now that the dark hero card is gone.
+5. "Voir les 20 leçons": expand inline vs bottom sheet.
+6. Locked-level treatment: how inviting should the skip-ahead test be
+   (prominent chip vs discreet text link)?

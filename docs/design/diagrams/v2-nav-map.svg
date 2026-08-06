@@ -5,15 +5,15 @@
     </marker>
   </defs>
   <rect width="1060" height="640" fill="#F6F1EA"/>
-  <text x="30" y="42" font-size="21" font-weight="700" fill="#2B2622">Navigation v2 — le chemin au centre</text>
+  <text x="30" y="42" font-size="21" font-weight="700" fill="#2B2622">Navigation v2 — le parcours au centre</text>
   <text x="30" y="64" font-size="13" fill="#756C62">5 emplacements repensés · Profil &amp; Paramètres passent derrière l'avatar</text>
   <rect x="700" y="26" width="330" height="46" rx="14" fill="#EFE7DB"/>
-  <text x="865" y="46" font-size="12" fill="#2B2622" text-anchor="middle">👤 avatar (Aujourd'hui &amp; Progrès) →</text>
+  <text x="865" y="46" font-size="12" fill="#2B2622" text-anchor="middle">👤 avatar (Parcours &amp; Progrès) →</text>
   <text x="865" y="63" font-size="12" fill="#756C62" text-anchor="middle">Profil · Paramètres · Paywall (conservés)</text>
 
   <!-- nav bar -->
   <rect x="30" y="96" width="1000" height="52" rx="16" fill="#2B2622"/>
-  <text x="115" y="128" font-size="13.5" fill="#F6F1EA" text-anchor="middle" font-weight="600">AUJOURD'HUI</text>
+  <text x="115" y="128" font-size="13.5" fill="#F6F1EA" text-anchor="middle" font-weight="600">PARCOURS</text>
   <text x="322" y="128" font-size="13.5" fill="#F6F1EA" text-anchor="middle" font-weight="600">BIBLIOTHÈQUE</text>
   <circle cx="530" cy="122" r="24" fill="#D08358"/>
   <text x="530" y="118" font-size="9.5" fill="#FFFFFF" text-anchor="middle" font-weight="700">PRATI-</text>
@@ -24,22 +24,25 @@
   <!-- AUJOURD'HUI column -->
   <line x1="115" y1="148" x2="115" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
   <rect x="25" y="178" width="180" height="58" rx="14" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
-  <text x="115" y="202" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Chemin du jour</text>
-  <text x="115" y="220" font-size="11" fill="#756C62" text-anchor="middle">S1 · remplace Home · M3</text>
+  <text x="115" y="202" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Page langue</text>
+  <text x="115" y="220" font-size="11" fill="#756C62" text-anchor="middle">S1 · aperçu + niveaux A1→C2</text>
 
   <line x1="115" y1="236" x2="115" y2="260" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
-  <rect x="25" y="262" width="180" height="52" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
-  <text x="115" y="284" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Découvrir : intro + écho</text>
-  <text x="115" y="301" font-size="11" fill="#756C62" text-anchor="middle">S3 · M4</text>
-  <rect x="25" y="324" width="180" height="52" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
-  <text x="115" y="346" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Leçon de grammaire</text>
-  <text x="115" y="363" font-size="11" fill="#756C62" text-anchor="middle">S4 · M5</text>
-  <rect x="25" y="386" width="180" height="52" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
-  <text x="115" y="408" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Quiz (+ cloze M6)</text>
-  <text x="115" y="425" font-size="11" fill="#756C62" text-anchor="middle">S5 · canvas conservé</text>
-  <rect x="25" y="448" width="180" height="52" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
-  <text x="115" y="470" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Bilan hebdo</text>
-  <text x="115" y="487" font-size="11" fill="#756C62" text-anchor="middle">S13 · M2 · carte dominicale</text>
+  <rect x="25" y="262" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="115" y="281" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Découvrir : intro + écho</text>
+  <text x="115" y="297" font-size="11" fill="#756C62" text-anchor="middle">S3 · M4</text>
+  <rect x="25" y="318" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="115" y="337" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Leçon de grammaire</text>
+  <text x="115" y="353" font-size="11" fill="#756C62" text-anchor="middle">S4 · M5</text>
+  <rect x="25" y="374" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="115" y="393" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Quiz (+ cloze M6)</text>
+  <text x="115" y="409" font-size="11" fill="#756C62" text-anchor="middle">S5 · canvas conservé</text>
+  <rect x="25" y="430" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="115" y="449" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Test de niveau</text>
+  <text x="115" y="465" font-size="11" fill="#756C62" text-anchor="middle">S17 · portes A1→C2</text>
+  <rect x="25" y="486" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="115" y="505" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Bilan hebdo</text>
+  <text x="115" y="521" font-size="11" fill="#756C62" text-anchor="middle">S13 · M2</text>
 
   <!-- BIBLIOTHÈQUE column -->
   <line x1="322" y1="148" x2="322" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
