@@ -4,6 +4,11 @@
 information architecture and every flow around the v2 feature set, instead
 of patching new screens onto the v1 layout.
 
+> **Decision tracking:** `map/app-map.md` (an Obsidian-style vault) tracks
+> per-area what the user has decided, what this doc proposes that is NOT
+> yet vetted, and what is still open. Keep it in sync with every change
+> here.
+
 Companion references:
 - `app-design-overview.md` — the CURRENT app: design system (palette,
   type, components) + live screenshots of every v1 screen. Use it for
