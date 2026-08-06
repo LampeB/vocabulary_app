@@ -6,6 +6,16 @@ user feedback 2026-07-22 after the first real grammar session ("DAMN that
 was hard… it should be more of a lesson and less of just a quiz, it should
 be progressive"). Builds in that epic's phase 3.
 
+> **Addendum 2026-08 (parcours era):** sequencing and scheduling are
+> superseded by `design/v2-ux-architecture.md` §F3 — rules are ordered by
+> the A1→C2 curriculum (vocab units placed before the lessons that use
+> them; the prerequisite-list unlock mechanic and its hub bars are
+> dropped), stage 1 is a parcours lesson node, stages 2-5 arrive as
+> spaced daily-chain drills (J+1/J+3/J+7/J+14, ≥80 % to advance, retry
+> next day), with flow control (1-2 grammar steps/day, ~3 rules in ramp)
+> and a no-mic completion path at stage 4. The lesson CONTENT spec below
+> (page types, markup, narration, voice roles) remains authoritative.
+
 ## The problem
 
 Today a grammar "session" is: a short lesson sheet (title + explanation +

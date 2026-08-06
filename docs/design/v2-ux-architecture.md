@@ -42,7 +42,7 @@ progress on different models and must never look interchangeable:
 | | **Vocabulaire** | **Grammaire** |
 |---|---|---|
 | Content comes from | **the user**: lists they create (+ bundled starter lists) | **the app**: curated curriculum per language module — users cannot create grammar |
-| Ordering | none — FSRS decides what's due, the daily budget decides what's introduced | strict — rules ordered by prerequisites, each rule climbs the 5-stage ramp |
+| Ordering | none — FSRS decides what's due, the daily budget decides what's introduced | strict — curriculum order inside the CEFR levels (replaces the v1 prerequisite-list unlocks), each rule climbs the 5-stage ramp |
 | Unit of progress | per word, per direction (FR→X / X→FR) | per rule, per stage (1-5) |
 | Learn moment | Découvrir batch (intro + écho) | Leçon paginée (stage 1) |
 | Review moment | quiz / cloze / renforcer (leeches) | stages 2-5 drills |
@@ -190,14 +190,52 @@ over the just-seen batch, instant feedback, no score kept → "C'est vu !"
 close screen → back to path, step ✓. Words become review-eligible
 (`introducedAt` set) — see the lifecycle diagram.
 
-### F3 — Grammar lesson (M5)
+### F3 — Grammar flow (M5): a rule's journey
 
-Path step "Grammaire · <règle> · Apprendre" (or from S9) → paged lesson
-viewer (§6.4): explain page ↔ example pages, quick-check pages every 3-4
-pages, dialogue pages near the end → last page "Terminé" → stage 1 ✓ on
-the rule → path step ✓. Stages 2-5 arrive as later path steps
-(Reconnaître/Construire drills, Écrire, Parler) using existing exercise
-and quiz canvases themed to their flow.
+![A rule's journey](diagrams/v2-grammar-flow.svg)
+
+**Sequencing (replaces v1 unlocks):** rules are no longer unlocked by
+mastering prerequisite vocab lists — the curriculum IS the ordering.
+Vocab units are placed before the grammar lessons that use their words,
+so every lesson example and drill sentence only contains introduced
+words, by construction. The prerequisite progress bars on the v1
+grammar hub die.
+
+**J0 — the lesson (stage 1, Apprendre, clay).** The rule appears as the
+current parcours lesson node → lesson viewer (S4): explain ↔ example
+pages, quick-checks every 3-4 pages, dialogue near the end → "Terminé"
+→ stage 1 ✓, parcours node ✓ (counts toward x/20). Quitting mid-lesson
+resumes at the same page.
+
+**J+1 / J+3 / J+7 / J+14 — the drills (stages 2-5, Réviser, teal).**
+Each next stage arrives as a daily-chain step, spaced after the
+previous stage was passed: **Reconnaître** (MCQ pick-the-form, ~8
+items), **Construire** (word-chip sentence assembly, ~6), **Écrire**
+(typed production, AI-checked, ~5), **Parler** (voice pipeline, ~5).
+One stage session ≈ 2-3 min on the existing exercise/quiz canvases,
+themed teal. Pass (≥~80 %) → stage ✓, next stage scheduled; below →
+calm "on y revient demain", same stage rescheduled with an easier mix.
+Never a red fail screen.
+
+**After stage 5 — entretien.** Mastered rules stop generating dedicated
+steps; they live on inside regular reviews via cloze cards and
+dialogues that exercise them. The fiche règle keeps showing ⭐.
+
+**Flow-control rules for the designer to make visible:**
+- At most **1-2 grammar steps per day** in the chain, and at most **~3
+  rules "in ramp"** (past stage 1, below stage 5) at once — the path
+  generator holds the next lesson node until a slot frees, so drills
+  never flood the day.
+- The **level test does not wait for mastery**: it unlocks at x/x
+  lessons (stage 1) done and samples the level's rules at
+  Reconnaître/Construire depth. Stages keep ramping across level
+  boundaries.
+- **No-mic accommodation:** users who never use voice can complete a
+  rule at stage 4, shown as "maîtrisée (écrit)" — Parler stays offered,
+  never blocking.
+
+Entry points: parcours node (lesson) · daily chain (drills) · fiche
+règle S9 ("Relire la leçon", next-drill CTA) · Bibliothèque › Grammaire.
 
 ### F4 — Réviser / Renforcer (existing quiz, extended)
 
@@ -351,13 +389,18 @@ read-only curriculum, no create/add affordances anywhere: it must read
 as a course book, not a notebook), **Familles** (S10 index; hidden or
 teaser state until M8). Empty states per section per pair.
 
-### 6.8 S9 Fiche règle (grammar hub card → detail)
-Hub list: one compact card per rule — name, 5 stage dots
-(●●●○○: done clay-filled? use teal-filled done / clay current / hollow
-locked), lock state with unlock progress (prerequisite bars kept but
-collapsed behind a tap). Tap → rule detail: stage list with per-stage
-CTA (Relire la leçon / next drill), prerequisite detail, "next step
-appears in your path" hint.
+### 6.8 S9 Fiche règle (Bibliothèque › Grammaire)
+The "course book" view, organized like the parcours: rules **grouped by
+CEFR level** (A1 section, A2 section…), each rule a compact row — name,
+5 stage dots (teal-filled done · clay current · hollow upcoming), ⭐
+when mastered, 🔒 greyed for rules in locked levels. NO prerequisite
+bars anymore (curriculum ordering replaced them — see F3). Tap → rule
+detail: the rule's one-line summary, 5-stage list with state + CTA per
+stage ("Relire la leçon" always available for done stage 1; "S'entraîner
+maintenant" on the current stage — runs the drill immediately, same
+session as the chain would serve; upcoming stages show their unlock
+logic "après Reconnaître"), a "ses mots" chip-row (the vocab its
+examples use), and the hint "la prochaine étape arrive dans ton chemin".
 
 ### 6.9 S10 Famille de mots
 What it is (roadmap #7): words sharing a root shown as a family, so
