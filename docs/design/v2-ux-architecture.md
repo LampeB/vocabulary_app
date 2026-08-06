@@ -42,7 +42,7 @@ progress on different models and must never look interchangeable:
 | | **Vocabulaire** | **Grammaire** |
 |---|---|---|
 | Content comes from | **the user**: lists they create (+ bundled starter lists) | **the app**: curated curriculum per language module — users cannot create grammar |
-| Ordering | none — FSRS decides what's due, the daily budget decides what's introduced | strict — curriculum order inside the CEFR levels (replaces the v1 prerequisite-list unlocks), each rule climbs the 5-stage ramp |
+| Ordering | none — FSRS decides what's due, the daily budget decides what's introduced | strict — CEFR levels → groups of ~5 small rules, each group gated by MASTERY of its prerequisite vocab lists; rules one by one, then Mélange, then next group |
 | Unit of progress | per word, per direction (FR→X / X→FR) | per rule, per stage (1-5) |
 | Learn moment | Découvrir batch (intro + écho) | Leçon paginée (stage 1) |
 | Review moment | quiz / cloze / renforcer (leeches) | stages 2-5 drills |
@@ -190,52 +190,58 @@ over the just-seen batch, instant feedback, no score kept → "C'est vu !"
 close screen → back to path, step ✓. Words become review-eligible
 (`introducedAt` set) — see the lifecycle diagram.
 
-### F3 — Grammar flow (M5): a rule's journey
+### F3 — Grammar flow (M5): groups of small rules
 
-![A rule's journey](diagrams/v2-grammar-flow.svg)
+![Grammar groups flow](diagrams/v2-grammar-flow.svg)
 
-**Sequencing (replaces v1 unlocks):** rules are no longer unlocked by
-mastering prerequisite vocab lists — the curriculum IS the ordering.
-Vocab units are placed before the grammar lessons that use their words,
-so every lesson example and drill sentence only contains introduced
-words, by construction. The prerequisite progress bars on the v1
-grammar hub die.
+**Structure: level → groupes → petites règles.** A CEFR level contains
+a few **groupes** of ~5 **small** rules (one focused idea per rule: one
+particle, one tense form, one connector — a rule that needs more splits).
+The user learns the group's rules **one by one**, then the group's
+**Mélange** phase teaches combining them, then the next group unlocks.
+The level ends on its Test de niveau (S17) — the tier mastery exam.
 
-**J0 — the lesson (stage 1, Apprendre, clay).** The rule appears as the
-current parcours lesson node → lesson viewer (S4): explain ↔ example
-pages, quick-checks every 3-4 pages, dialogue near the end → "Terminé"
-→ stage 1 ✓, parcours node ✓ (counts toward x/20). Quitting mid-lesson
-resumes at the same page.
+**Vocab prerequisites — kept from v1, now per group.** Each group
+declares prerequisite vocab lists (different lists per group and per
+level) that must be **MASTERED, not just introduced**, before the group
+opens. A reachable-but-locked group shows per-list mastery bars
+("La maison · 82 %") — the v1 mechanic, promoted to group scope — and
+the daily chain fills with those reviews until the gate opens. Lesson
+examples and drill sentences only ever use prerequisite + earlier vocab.
 
-**J+1 / J+3 / J+7 / J+14 — the drills (stages 2-5, Réviser, teal).**
-Each next stage arrives as a daily-chain step, spaced after the
-previous stage was passed: **Reconnaître** (MCQ pick-the-form, ~8
-items), **Construire** (word-chip sentence assembly, ~6), **Écrire**
-(typed production, AI-checked, ~5), **Parler** (voice pipeline, ~5).
-One stage session ≈ 2-3 min on the existing exercise/quiz canvases,
-themed teal. Pass (≥~80 %) → stage ✓, next stage scheduled; below →
-calm "on y revient demain", same stage rescheduled with an easier mix.
-Never a red fail screen.
+**One rule ≈ 2-3 days:** leçon courte (3-6 pages, viewer S4; resumes
+where quit) → J+1 **Reconnaître** (MCQ, ~8 items) → J+2 **Construire**
+(chip assembly, ~6). Small rules, small ramps — per-rule progress is
+three dots ●●●. Production is no longer trained rule-by-rule.
 
-**After stage 5 — entretien.** Mastered rules stop generating dedicated
-steps; they live on inside regular reviews via cloze cards and
-dialogues that exercise them. The fiche règle keeps showing ⭐.
+**The Mélange phase (group-level):** after the 5 rules — a short
+combining lesson (how the rules interact, common confusions) + mixed
+drills carrying the old stages 4-5: **Écrire** and **Parler** sessions
+whose sentences combine several of the group's rules, plus combined
+cloze. Passing the Mélange completes the group and unlocks the next.
+*Evolution of the 5-stage ramp: stages 1-3 live per rule; stages 4-5
+are carried by the group's Mélange.*
 
-**Flow-control rules for the designer to make visible:**
-- At most **1-2 grammar steps per day** in the chain, and at most **~3
-  rules "in ramp"** (past stage 1, below stage 5) at once — the path
-  generator holds the next lesson node until a slot frees, so drills
-  never flood the day.
-- The **level test does not wait for mastery**: it unlocks at x/x
-  lessons (stage 1) done and samples the level's rules at
-  Reconnaître/Construire depth. Stages keep ramping across level
-  boundaries.
-- **No-mic accommodation:** users who never use voice can complete a
-  rule at stage 4, shown as "maîtrisée (écrit)" — Parler stays offered,
-  never blocking.
+**After the group — entretien.** Completed groups stop generating
+steps; their rules live on inside reviews via cloze and dialogues.
 
-Entry points: parcours node (lesson) · daily chain (drills) · fiche
-règle S9 ("Relire la leçon", next-drill CTA) · Bibliothèque › Grammaire.
+**Flow control:**
+- **One group in flight** per language; max **1-2 grammar steps/day**
+  in the chain.
+- Drills pass at ≥~80 %; below → calm "on y revient demain" with an
+  easier mix. Never a red fail screen.
+- **No-mic:** the Mélange can complete at Écrire as "maîtrisé (écrit)";
+  Parler stays offered, never blocking.
+
+**Parcours mapping:** node types become **Vocabulaire · Grammaire
+(règle) · Mélange** — a group of 5 rules = 6 nodes. Prerequisite vocab
+units are placed before their group in the level's order, but the
+mastery gate still applies if the user rushed ahead. The level test
+unlocks once all the level's groups (Mélanges included) are done, and
+samples across them.
+
+Entry points: parcours nodes · daily-chain drills · fiche de groupe S9
+("Relire", "S'entraîner maintenant") · Bibliothèque › Grammaire.
 
 ### F4 — Réviser / Renforcer (existing quiz, extended)
 
@@ -326,8 +332,8 @@ Replaces Home entirely; shows ONE language at a time (see the wireframe
    The Bilan hebdo card slots above it when available.
 3. **Le parcours**: six level cards A1→C2 per §F10 — collapsed done
    (badge, name, ✓ 20/20), current expanded (x/20 + bar, windowed
-   5-lesson list — rows: number, type icon grammaire/vocab, title,
-   state ✓/current/🔒 — and "Voir les 20 leçons"), locked (🔒 +
+   5-lesson list — rows: number, type icon vocab/grammaire/mélange,
+   title, state ✓/current/🔒 — and "Voir les 20 leçons"), locked (🔒 +
    "Je connais déjà ? Passer le test"), each level ending on its Test
    de niveau node. Partial levels show "13 leçons disponibles — la
    suite arrive".
@@ -389,18 +395,18 @@ read-only curriculum, no create/add affordances anywhere: it must read
 as a course book, not a notebook), **Familles** (S10 index; hidden or
 teaser state until M8). Empty states per section per pair.
 
-### 6.8 S9 Fiche règle (Bibliothèque › Grammaire)
-The "course book" view, organized like the parcours: rules **grouped by
-CEFR level** (A1 section, A2 section…), each rule a compact row — name,
-5 stage dots (teal-filled done · clay current · hollow upcoming), ⭐
-when mastered, 🔒 greyed for rules in locked levels. NO prerequisite
-bars anymore (curriculum ordering replaced them — see F3). Tap → rule
-detail: the rule's one-line summary, 5-stage list with state + CTA per
-stage ("Relire la leçon" always available for done stage 1; "S'entraîner
-maintenant" on the current stage — runs the drill immediately, same
-session as the chain would serve; upcoming stages show their unlock
-logic "après Reconnaître"), a "ses mots" chip-row (the vocab its
-examples use), and the hint "la prochaine étape arrive dans ton chemin".
+### 6.8 S9 Bibliothèque › Grammaire (groupes + fiches)
+The "course book", organized level → **group cards**: group name ("Les
+particules de base"), x/5 règles done + Mélange state, ✓ when complete
+— and when a group is reachable but locked, its **prerequisite mastery
+bars, one per vocab list** ("La maison ▰▰▰▱ 82 %"): the v1 unlock
+mechanic, kept at group scope. Groups in locked levels: greyed 🔒.
+Tap a group → group detail: rule rows (name, one-line summary, ●●● dots
+leçon/reconnaître/construire), the Mélange row (its own state), the
+prerequisite lists with bars + link to review them, "Relire la leçon"
+on any done rule, "S'entraîner maintenant" on the current drill (runs
+it immediately — same session the chain would serve), and the hint "la
+prochaine étape arrive dans ton chemin".
 
 ### 6.9 S10 Famille de mots
 What it is (roadmap #7): words sharing a root shown as a family, so
@@ -489,3 +495,5 @@ level node, locked-level skip-ahead, onboarding placement.
 5. "Voir les 20 leçons": expand inline vs bottom sheet.
 6. Locked-level treatment: how inviting should the skip-ahead test be
    (prominent chip vs discreet text link)?
+7. Groups on the parcours: 6 flat nodes with a subtle group label
+   (recommended) vs a nested group sub-card inside the level card.

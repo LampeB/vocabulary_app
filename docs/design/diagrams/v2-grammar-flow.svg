@@ -1,85 +1,93 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="510" viewBox="0 0 1060 510" font-family="'Segoe UI',system-ui,sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="560" viewBox="0 0 1060 560" font-family="'Segoe UI',system-ui,sans-serif">
   <defs>
     <marker id="g" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
       <path d="M1,1 L8,4.5 L1,8" fill="none" stroke="#756C62" stroke-width="1.6"/>
     </marker>
-    <marker id="gm" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
-      <path d="M1,1 L8,4.5 L1,8" fill="none" stroke="#8A8073" stroke-width="1.4"/>
-    </marker>
   </defs>
-  <rect width="1060" height="510" fill="#F6F1EA"/>
-  <text x="30" y="42" font-size="21" font-weight="700" fill="#2B2622">Flux grammaire v2 — le voyage d'une règle</text>
-  <text x="30" y="64" font-size="13" fill="#756C62">La leçon vient du parcours ; les étapes 2-5 arrivent espacées dans le chemin du jour</text>
+  <rect width="1060" height="560" fill="#F6F1EA"/>
+  <text x="30" y="42" font-size="21" font-weight="700" fill="#2B2622">Flux grammaire v2 — groupes de petites règles</text>
+  <text x="30" y="64" font-size="13" fill="#756C62">vocabulaire prérequis maîtrisé → règles une à une → Mélange → groupe suivant → examen de palier</text>
 
-  <rect x="30" y="92" width="170" height="32" rx="10" fill="#D08358" opacity="0.16"/>
-  <text x="115" y="113" font-size="11.5" fill="#C4703F" text-anchor="middle" font-weight="700" letter-spacing="1.5">APPRENDRE</text>
-  <rect x="230" y="92" width="635" height="32" rx="10" fill="#4C8C86" opacity="0.16"/>
-  <text x="547" y="113" font-size="11.5" fill="#3E726D" text-anchor="middle" font-weight="700" letter-spacing="1.5">RÉVISER — DANS LE CHEMIN DU JOUR</text>
+  <!-- prerequisite gate -->
+  <rect x="30" y="110" width="210" height="170" rx="16" fill="#EFE7DB"/>
+  <text x="52" y="140" font-size="13" fill="#2B2622" font-weight="700">🔒 Prérequis du groupe</text>
+  <text x="52" y="160" font-size="11.5" fill="#756C62">listes de vocab à MAÎTRISER</text>
+  <text x="52" y="188" font-size="11.5" fill="#2B2622">La maison</text>
+  <rect x="52" y="196" width="120" height="5" rx="2.5" fill="#ECE3D7"/>
+  <rect x="52" y="196" width="120" height="5" rx="2.5" fill="#4C8C86"/>
+  <text x="182" y="201" font-size="10.5" fill="#3E726D">100 %</text>
+  <text x="52" y="222" font-size="11.5" fill="#2B2622">Les courses</text>
+  <rect x="52" y="230" width="120" height="5" rx="2.5" fill="#ECE3D7"/>
+  <rect x="52" y="230" width="98" height="5" rx="2.5" fill="#D08358"/>
+  <text x="182" y="235" font-size="10.5" fill="#C4703F">82 %</text>
+  <text x="52" y="262" font-size="10.5" fill="#8A8073">des listes différentes par</text>
+  <text x="52" y="276" font-size="10.5" fill="#8A8073">groupe et par niveau</text>
+  <line x1="240" y1="195" x2="268" y2="195" stroke="#756C62" stroke-width="1.8" marker-end="url(#g)"/>
 
-  <text x="115" y="146" font-size="11.5" fill="#8A8073" text-anchor="middle" font-weight="700">J0</text>
-  <text x="300" y="146" font-size="11.5" fill="#8A8073" text-anchor="middle" font-weight="700">J+1</text>
-  <text x="465" y="146" font-size="11.5" fill="#8A8073" text-anchor="middle" font-weight="700">J+3</text>
-  <text x="630" y="146" font-size="11.5" fill="#8A8073" text-anchor="middle" font-weight="700">J+7</text>
-  <text x="795" y="146" font-size="11.5" fill="#8A8073" text-anchor="middle" font-weight="700">J+14</text>
-  <text x="960" y="146" font-size="11.5" fill="#8A8073" text-anchor="middle" font-weight="700">ensuite</text>
+  <!-- group container -->
+  <rect x="270" y="96" width="530" height="300" rx="18" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="288" y="124" font-size="13.5" fill="#2B2622" font-weight="700">GROUPE 2 · Les particules de base</text>
+  <text x="782" y="124" font-size="12" fill="#C4703F" text-anchor="end" font-weight="700">2/5 règles · Mélange ○</text>
 
-  <rect x="30" y="156" width="170" height="104" rx="14" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
-  <text x="115" y="180" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="700">1 · Leçon</text>
-  <text x="115" y="199" font-size="11.5" fill="#756C62" text-anchor="middle">« 13 · Le passé poli »</text>
-  <text x="115" y="216" font-size="11.5" fill="#756C62" text-anchor="middle">viewer S4 · reprend où on quitte</text>
-  <text x="115" y="238" font-size="11.5" fill="#C4703F" text-anchor="middle" font-weight="600">→ nœud du parcours ✓</text>
-  <line x1="200" y1="208" x2="228" y2="208" stroke="#756C62" stroke-width="1.8" marker-end="url(#g)"/>
+  <rect x="288" y="140" width="90" height="64" rx="12" fill="#F6F1EA" stroke="#ECE3D7"/>
+  <text x="333" y="164" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="700">은/는 ✓</text>
+  <text x="333" y="186" font-size="11" fill="#3E726D" text-anchor="middle">● ● ●</text>
+  <line x1="378" y1="172" x2="386" y2="172" stroke="#756C62" stroke-width="1.4"/>
+  <rect x="388" y="140" width="90" height="64" rx="12" fill="#F6F1EA" stroke="#ECE3D7"/>
+  <text x="433" y="164" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="700">이/가 ✓</text>
+  <text x="433" y="186" font-size="11" fill="#3E726D" text-anchor="middle">● ● ●</text>
+  <line x1="478" y1="172" x2="486" y2="172" stroke="#756C62" stroke-width="1.4"/>
+  <rect x="488" y="140" width="90" height="64" rx="12" fill="#D08358"/>
+  <text x="533" y="164" font-size="12.5" fill="#FFFFFF" text-anchor="middle" font-weight="700">을/를 ▸</text>
+  <text x="533" y="186" font-size="11" fill="#FBEADF" text-anchor="middle">● ● ○</text>
+  <line x1="578" y1="172" x2="586" y2="172" stroke="#756C62" stroke-width="1.4"/>
+  <rect x="588" y="140" width="90" height="64" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="633" y="164" font-size="12.5" fill="#8A8073" text-anchor="middle" font-weight="700">에 🔒</text>
+  <text x="633" y="186" font-size="11" fill="#8A8073" text-anchor="middle">○ ○ ○</text>
+  <line x1="678" y1="172" x2="686" y2="172" stroke="#756C62" stroke-width="1.4"/>
+  <rect x="688" y="140" width="90" height="64" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="733" y="164" font-size="12.5" fill="#8A8073" text-anchor="middle" font-weight="700">에서 🔒</text>
+  <text x="733" y="186" font-size="11" fill="#8A8073" text-anchor="middle">○ ○ ○</text>
 
-  <rect x="230" y="156" width="140" height="104" rx="14" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
-  <text x="300" y="180" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="700">2 · Reconnaître</text>
-  <text x="300" y="199" font-size="11.5" fill="#756C62" text-anchor="middle">QCM · ~8 items</text>
-  <text x="300" y="216" font-size="11.5" fill="#756C62" text-anchor="middle">2-3 min</text>
-  <text x="300" y="238" font-size="11.5" fill="#3E726D" text-anchor="middle" font-weight="600">≥ 80 % → ✓</text>
-  <line x1="370" y1="208" x2="393" y2="208" stroke="#756C62" stroke-width="1.8" marker-end="url(#g)"/>
+  <text x="535" y="230" font-size="11.5" fill="#756C62" text-anchor="middle">une petite règle = leçon courte (3-6 pages) → J+1 Reconnaître (QCM) → J+2 Construire  ⇒  ● ● ●</text>
 
-  <rect x="395" y="156" width="140" height="104" rx="14" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
-  <text x="465" y="180" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="700">3 · Construire</text>
-  <text x="465" y="199" font-size="11.5" fill="#756C62" text-anchor="middle">phrases à assembler</text>
-  <text x="465" y="216" font-size="11.5" fill="#756C62" text-anchor="middle">~6 items · chips</text>
-  <line x1="535" y1="208" x2="558" y2="208" stroke="#756C62" stroke-width="1.8" marker-end="url(#g)"/>
+  <line x1="535" y1="240" x2="535" y2="252" stroke="#756C62" stroke-width="1.6" marker-end="url(#g)"/>
+  <rect x="288" y="256" width="490" height="112" rx="14" fill="#D08358" opacity="0.13"/>
+  <rect x="288" y="256" width="490" height="112" rx="14" fill="none" stroke="#D08358" stroke-width="1.6"/>
+  <text x="533" y="284" font-size="13.5" fill="#C4703F" text-anchor="middle" font-weight="700">Mélange — apprendre à combiner les 5</text>
+  <text x="533" y="308" font-size="11.5" fill="#2B2622" text-anchor="middle">leçon de combinaison (interactions, confusions fréquentes)</text>
+  <text x="533" y="326" font-size="11.5" fill="#2B2622" text-anchor="middle">+ exercices mixtes : Écrire · Parler · cloze combinés (anciennes étapes 4-5)</text>
+  <text x="533" y="350" font-size="11.5" fill="#3E726D" text-anchor="middle" font-weight="600">réussi → groupe ✓ · les règles passent en entretien (cloze/dialogues)</text>
 
-  <rect x="560" y="156" width="140" height="104" rx="14" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
-  <text x="630" y="180" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="700">4 · Écrire</text>
-  <text x="630" y="199" font-size="11.5" fill="#756C62" text-anchor="middle">production tapée</text>
-  <text x="630" y="216" font-size="11.5" fill="#756C62" text-anchor="middle">~5 items · correction IA</text>
-  <line x1="700" y1="208" x2="723" y2="208" stroke="#756C62" stroke-width="1.8" marker-end="url(#g)"/>
+  <!-- next group + exam -->
+  <line x1="800" y1="177" x2="828" y2="177" stroke="#756C62" stroke-width="1.8" marker-end="url(#g)"/>
+  <rect x="830" y="150" width="200" height="54" rx="14" fill="#FFFFFF" stroke="#ECE3D7" stroke-dasharray="6 4"/>
+  <text x="930" y="173" font-size="12.5" fill="#8A8073" text-anchor="middle" font-weight="700">Groupe 3 🔒 · …</text>
+  <text x="930" y="191" font-size="10.5" fill="#8A8073" text-anchor="middle">ses propres prérequis vocab</text>
+  <line x1="930" y1="204" x2="930" y2="256" stroke="#756C62" stroke-width="1.6" marker-end="url(#g)"/>
+  <text x="944" y="234" font-size="10.5" fill="#756C62">tous les groupes ✓</text>
+  <rect x="830" y="260" width="200" height="100" rx="16" fill="#2B2622"/>
+  <text x="930" y="290" font-size="13" fill="#F6F1EA" text-anchor="middle" font-weight="700">Examen de palier</text>
+  <text x="930" y="310" font-size="11" fill="#CFC6BA" text-anchor="middle">Test de niveau (S17)</text>
+  <text x="930" y="332" font-size="11" fill="#CFC6BA" text-anchor="middle">échantillonne tous les groupes</text>
+  <text x="930" y="348" font-size="11" fill="#E0A079" text-anchor="middle">réussi → niveau suivant</text>
 
-  <rect x="725" y="156" width="140" height="104" rx="14" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
-  <text x="795" y="180" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="700">5 · Parler</text>
-  <text x="795" y="199" font-size="11.5" fill="#756C62" text-anchor="middle">à l'oral · ~5 items</text>
-  <text x="795" y="216" font-size="11.5" fill="#756C62" text-anchor="middle">pipeline voix</text>
-  <line x1="865" y1="208" x2="888" y2="208" stroke="#756C62" stroke-width="1.8" marker-end="url(#g)"/>
+  <!-- notes -->
+  <rect x="30" y="420" width="323" height="112" rx="14" fill="#EFE7DB"/>
+  <text x="48" y="446" font-size="12.5" fill="#2B2622" font-weight="700">Cadence — jamais de flood</text>
+  <text x="48" y="467" font-size="11.5" fill="#756C62">un seul groupe actif par langue ;</text>
+  <text x="48" y="484" font-size="11.5" fill="#756C62">1-2 étapes grammaire par jour ; &lt; 80 % à un</text>
+  <text x="48" y="501" font-size="11.5" fill="#756C62">exercice → retenté demain, jamais d'écran rouge.</text>
 
-  <rect x="890" y="156" width="140" height="104" rx="14" fill="#2B2622"/>
-  <text x="960" y="192" font-size="13.5" fill="#F6F1EA" text-anchor="middle" font-weight="700">Maîtrisée ⭐</text>
-  <text x="960" y="214" font-size="11" fill="#CFC6BA" text-anchor="middle">entretien : cloze +</text>
-  <text x="960" y="230" font-size="11" fill="#CFC6BA" text-anchor="middle">dialogues en révision</text>
+  <rect x="368" y="420" width="323" height="112" rx="14" fill="#EFE7DB"/>
+  <text x="386" y="446" font-size="12.5" fill="#2B2622" font-weight="700">La porte est une vraie porte</text>
+  <text x="386" y="467" font-size="11.5" fill="#756C62">groupe atteint mais vocab pas maîtrisé →</text>
+  <text x="386" y="484" font-size="11.5" fill="#756C62">le chemin du jour sert ces révisions jusqu'à</text>
+  <text x="386" y="501" font-size="11.5" fill="#756C62">l'ouverture ; barres visibles (S9 + parcours).</text>
 
-  <path d="M 270 260 Q 250 292 300 292 Q 350 292 330 262" fill="none" stroke="#8A8073" stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#gm)"/>
-  <text x="620" y="292" font-size="11.5" fill="#756C62" text-anchor="middle">&lt; 80 % → même étape reprogrammée demain, mix plus facile — jamais d'écran rouge (vaut pour les étapes 2 à 5)</text>
-
-  <text x="530" y="330" font-size="12" fill="#756C62" text-anchor="middle">Fiche règle (S9) pendant ce temps :  ○○○○○ → ●○○○○ → ●●○○○ → ●●●○○ → ●●●●○ → ⭐</text>
-
-  <rect x="30" y="356" width="323" height="112" rx="14" fill="#EFE7DB"/>
-  <text x="48" y="382" font-size="12.5" fill="#2B2622" font-weight="700">Cadence — jamais de flood</text>
-  <text x="48" y="403" font-size="11.5" fill="#756C62">max 1-2 étapes grammaire par jour et ~3 règles</text>
-  <text x="48" y="420" font-size="11.5" fill="#756C62">« en rampe » à la fois ; le parcours retient la</text>
-  <text x="48" y="437" font-size="11.5" fill="#756C62">leçon suivante tant qu'un créneau n'est pas libre.</text>
-
-  <rect x="368" y="356" width="323" height="112" rx="14" fill="#EFE7DB"/>
-  <text x="386" y="382" font-size="12.5" fill="#2B2622" font-weight="700">Test de niveau — sans attendre ⭐</text>
-  <text x="386" y="403" font-size="11.5" fill="#756C62">débloqué à x/x leçons (étape 1) ; il échantillonne</text>
-  <text x="386" y="420" font-size="11.5" fill="#756C62">les règles au niveau Reconnaître / Construire.</text>
-  <text x="386" y="437" font-size="11.5" fill="#756C62">Les rampes continuent au-delà du niveau.</text>
-
-  <rect x="706" y="356" width="324" height="112" rx="14" fill="#EFE7DB"/>
-  <text x="724" y="382" font-size="12.5" fill="#2B2622" font-weight="700">Sans micro — jamais bloquant</text>
-  <text x="724" y="403" font-size="11.5" fill="#756C62">une règle peut se terminer à l'étape 4 :</text>
-  <text x="724" y="420" font-size="11.5" fill="#756C62">« maîtrisée (écrit) » ; Parler reste proposé</text>
-  <text x="724" y="437" font-size="11.5" fill="#756C62">mais ne bloque ni la rampe ni le test.</text>
+  <rect x="706" y="420" width="324" height="112" rx="14" fill="#EFE7DB"/>
+  <text x="724" y="446" font-size="12.5" fill="#2B2622" font-weight="700">Sans micro — jamais bloquant</text>
+  <text x="724" y="467" font-size="11.5" fill="#756C62">le Mélange peut se conclure à l'Écrire :</text>
+  <text x="724" y="484" font-size="11.5" fill="#756C62">« maîtrisé (écrit) » ; Parler reste proposé</text>
+  <text x="724" y="501" font-size="11.5" fill="#756C62">mais ne bloque ni le groupe ni l'examen.</text>
 </svg>
