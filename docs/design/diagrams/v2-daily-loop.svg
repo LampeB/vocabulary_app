@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="420" viewBox="0 0 1060 420" font-family="'Segoe UI',system-ui,sans-serif">
+  <defs>
+    <marker id="l" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M1,1 L8,4.5 L1,8" fill="none" stroke="#756C62" stroke-width="1.6"/>
+    </marker>
+    <marker id="lc" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M1,1 L8,4.5 L1,8" fill="none" stroke="#C4703F" stroke-width="1.6"/>
+    </marker>
+  </defs>
+  <rect width="1060" height="420" fill="#F6F1EA"/>
+  <text x="30" y="42" font-size="21" font-weight="700" fill="#2B2622">La boucle quotidienne (F0)</text>
+  <text x="30" y="64" font-size="13" fill="#756C62">Une habitude : ouvrir → suivre le chemin → 2-5 étapes courtes → série gardée</text>
+
+  <rect x="30" y="110" width="130" height="76" rx="14" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="95" y="142" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Ouverture</text>
+  <text x="95" y="162" font-size="11" fill="#756C62" text-anchor="middle">notification ou envie</text>
+  <line x1="160" y1="148" x2="188" y2="148" stroke="#756C62" stroke-width="1.8" marker-end="url(#l)"/>
+
+  <rect x="190" y="110" width="160" height="76" rx="14" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
+  <text x="270" y="136" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Squelette du chemin</text>
+  <text x="270" y="156" font-size="11" fill="#756C62" text-anchor="middle">sync en fond, shimmer</text>
+  <text x="270" y="172" font-size="11" fill="#756C62" text-anchor="middle">S2 — plus de spinner</text>
+  <line x1="350" y1="148" x2="378" y2="148" stroke="#756C62" stroke-width="1.8" marker-end="url(#l)"/>
+
+  <rect x="380" y="102" width="180" height="92" rx="14" fill="#2B2622"/>
+  <text x="470" y="130" font-size="13" fill="#F6F1EA" text-anchor="middle" font-weight="600">Aujourd'hui</text>
+  <text x="470" y="150" font-size="11.5" fill="#CFC6BA" text-anchor="middle">étape courante en clay</text>
+  <text x="470" y="167" font-size="11.5" fill="#CFC6BA" text-anchor="middle">un seul « Continuer »</text>
+  <line x1="560" y1="148" x2="588" y2="148" stroke="#756C62" stroke-width="1.8" marker-end="url(#l)"/>
+
+  <rect x="590" y="102" width="180" height="92" rx="14" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="680" y="128" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Session (2-5 min)</text>
+  <text x="680" y="148" font-size="11" fill="#756C62" text-anchor="middle">Découvrir · Leçon · Quiz</text>
+  <text x="680" y="164" font-size="11" fill="#756C62" text-anchor="middle">selon le type d'étape,</text>
+  <text x="680" y="180" font-size="11" fill="#756C62" text-anchor="middle">sans écran de réglage</text>
+  <line x1="770" y1="148" x2="798" y2="148" stroke="#756C62" stroke-width="1.8" marker-end="url(#l)"/>
+
+  <rect x="800" y="110" width="180" height="76" rx="14" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
+  <text x="890" y="136" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Retour : étape ✓</text>
+  <text x="890" y="156" font-size="11" fill="#756C62" text-anchor="middle">résumé « et ensuite » (S6),</text>
+  <text x="890" y="172" font-size="11" fill="#756C62" text-anchor="middle">la suivante devient courante</text>
+
+  <!-- loop back -->
+  <path d="M 890 186 Q 890 240 680 240 Q 470 240 470 198" fill="none" stroke="#C4703F" stroke-width="1.8" marker-end="url(#lc)"/>
+  <text x="680" y="230" font-size="11.5" fill="#C4703F" text-anchor="middle" font-weight="600">tant qu'il reste des étapes</text>
+
+  <!-- completion -->
+  <line x1="890" y1="186" x2="890" y2="280" stroke="#756C62" stroke-width="1.8" marker-end="url(#l)"/>
+  <text x="905" y="238" font-size="11" fill="#756C62">chemin terminé</text>
+  <rect x="760" y="282" width="260" height="70" rx="16" fill="#D08358"/>
+  <text x="890" y="310" font-size="13.5" fill="#FFFFFF" text-anchor="middle" font-weight="700">🎉 Célébration · série +1</text>
+  <text x="890" y="332" font-size="11" fill="#FBEADF" text-anchor="middle">calme · « encore envie ? » → Pratique libre</text>
+
+  <path d="M 758 317 L 620 317" fill="none" stroke="#756C62" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#l)"/>
+  <text x="690" y="305" font-size="11" fill="#756C62" text-anchor="middle">dimanche</text>
+  <rect x="440" y="282" width="180" height="70" rx="16" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="530" y="310" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Bilan hebdo</text>
+  <text x="530" y="330" font-size="11" fill="#756C62" text-anchor="middle">S13 · partageable</text>
+
+  <text x="30" y="396" font-size="12.5" fill="#756C62">Quitter en cours de session ne perd rien : le chemin garde son état ; hier disparaît sans culpabilisation — chaque jour repart propre.</text>
+</svg>

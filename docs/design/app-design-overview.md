@@ -85,6 +85,12 @@ How the 21 screens above connect (bottom-nav columns + pushed routes):
 
 ## Part 2 — screens to design for v2
 
+> **Superseded for handoff:** the full v2 rethink (new navigation model,
+> end-to-end flows, per-screen briefs) now lives in
+> **`v2-ux-architecture.md`** — give Claude Design THAT document, with
+> this one as the current-state visual reference. The tables below are
+> kept as a quick index.
+
 The briefs below summarize each screen to ADD or REDESIGN; full functional
 specs live in the linked plan docs. Everything must use the design system
 above (paper/ink/clay/teal, the four type families, FrostedBox/dark-hero
