@@ -5,95 +5,87 @@
     </marker>
   </defs>
   <rect width="1060" height="640" fill="#F6F1EA"/>
-  <text x="30" y="42" font-size="21" font-weight="700" fill="#2B2622">Navigation v2 — le parcours au centre</text>
-  <text x="30" y="64" font-size="13" fill="#756C62">5 emplacements repensés · Profil &amp; Paramètres passent derrière l'avatar</text>
-  <rect x="700" y="26" width="330" height="46" rx="14" fill="#EFE7DB"/>
-  <text x="865" y="46" font-size="12" fill="#2B2622" text-anchor="middle">👤 avatar (Parcours &amp; Progrès) →</text>
-  <text x="865" y="63" font-size="12" fill="#756C62" text-anchor="middle">Profil · Paramètres · Paywall (conservés)</text>
+  <text x="30" y="42" font-size="21" font-weight="700" fill="#2B2622">Navigation v2 — 5 onglets égaux (décidé 2026-08-07)</text>
+  <text x="30" y="64" font-size="13" fill="#756C62">Pas de bouton central · header : langue · série · avatar → menu général</text>
+  <rect x="640" y="26" width="390" height="46" rx="14" fill="#EFE7DB"/>
+  <text x="835" y="46" font-size="12" fill="#2B2622" text-anchor="middle">👤 avatar → menu général :</text>
+  <text x="835" y="63" font-size="12" fill="#756C62" text-anchor="middle">Paramètres · abonnement · choix d'avatar · déconnexion</text>
 
   <!-- nav bar -->
   <rect x="30" y="96" width="1000" height="52" rx="16" fill="#2B2622"/>
-  <text x="115" y="128" font-size="13.5" fill="#F6F1EA" text-anchor="middle" font-weight="600">PARCOURS</text>
-  <text x="322" y="128" font-size="13.5" fill="#F6F1EA" text-anchor="middle" font-weight="600">BIBLIOTHÈQUE</text>
-  <circle cx="530" cy="122" r="24" fill="#D08358"/>
-  <text x="530" y="118" font-size="9.5" fill="#FFFFFF" text-anchor="middle" font-weight="700">PRATI-</text>
-  <text x="530" y="130" font-size="9.5" fill="#FFFFFF" text-anchor="middle" font-weight="700">QUER</text>
-  <text x="740" y="128" font-size="13.5" fill="#F6F1EA" text-anchor="middle" font-weight="600">PROGRÈS</text>
-  <text x="950" y="128" font-size="13.5" fill="#F6F1EA" text-anchor="middle" font-weight="600">AMIS</text>
+  <text x="130" y="128" font-size="13" fill="#F6F1EA" text-anchor="middle" font-weight="600">VOCABULAIRE</text>
+  <text x="330" y="128" font-size="13" fill="#F6F1EA" text-anchor="middle" font-weight="600">GRAMMAIRE</text>
+  <text x="530" y="128" font-size="13" fill="#E0A079" text-anchor="middle" font-weight="700">ÉTUDIER</text>
+  <text x="730" y="128" font-size="13" fill="#F6F1EA" text-anchor="middle" font-weight="600">PROGRÈS</text>
+  <text x="930" y="128" font-size="13" fill="#F6F1EA" text-anchor="middle" font-weight="600">AMIS</text>
 
-  <!-- AUJOURD'HUI column -->
-  <line x1="115" y1="148" x2="115" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
-  <rect x="25" y="178" width="180" height="58" rx="14" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
-  <text x="115" y="202" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Page langue</text>
-  <text x="115" y="220" font-size="11" fill="#756C62" text-anchor="middle">S1 · aperçu + niveaux A1→C2</text>
+  <!-- VOCABULAIRE -->
+  <line x1="130" y1="148" x2="130" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
+  <rect x="40" y="178" width="180" height="58" rx="14" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="130" y="202" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Mes listes (CRUD)</text>
+  <text x="130" y="220" font-size="11" fill="#756C62" text-anchor="middle">S7 · v1 conservé</text>
+  <line x1="130" y1="236" x2="130" y2="258" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
+  <rect x="40" y="260" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="130" y="279" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Détail · ajout de mot</text>
+  <text x="130" y="295" font-size="11" fill="#756C62" text-anchor="middle">S8 · conservés</text>
+  <rect x="40" y="316" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="130" y="335" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Familles de mots</text>
+  <text x="130" y="351" font-size="11" fill="#756C62" text-anchor="middle">S10 · M8 · placement 🟠</text>
 
-  <line x1="115" y1="236" x2="115" y2="260" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
-  <rect x="25" y="262" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
-  <text x="115" y="281" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Découvrir : intro + écho</text>
-  <text x="115" y="297" font-size="11" fill="#756C62" text-anchor="middle">S3 · M4</text>
-  <rect x="25" y="318" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
-  <text x="115" y="337" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Leçon de grammaire</text>
-  <text x="115" y="353" font-size="11" fill="#756C62" text-anchor="middle">S4 · M5</text>
-  <rect x="25" y="374" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
-  <text x="115" y="393" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Quiz (+ cloze M6)</text>
-  <text x="115" y="409" font-size="11" fill="#756C62" text-anchor="middle">S5 · canvas conservé</text>
-  <rect x="25" y="430" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
-  <text x="115" y="449" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Test de niveau</text>
-  <text x="115" y="465" font-size="11" fill="#756C62" text-anchor="middle">S17 · portes A1→C2</text>
-  <rect x="25" y="486" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
-  <text x="115" y="505" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Bilan hebdo</text>
-  <text x="115" y="521" font-size="11" fill="#756C62" text-anchor="middle">S13 · M2</text>
+  <!-- GRAMMAIRE -->
+  <line x1="330" y1="148" x2="330" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
+  <rect x="240" y="178" width="180" height="58" rx="14" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
+  <text x="330" y="202" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Livre de cours</text>
+  <text x="330" y="220" font-size="11" fill="#756C62" text-anchor="middle">S9 · groupes par niveau · lecture</text>
+  <line x1="330" y1="236" x2="330" y2="258" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
+  <rect x="240" y="260" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
+  <text x="330" y="279" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Fiche de groupe</text>
+  <text x="330" y="295" font-size="11" fill="#756C62" text-anchor="middle">●●● · Mélange · prérequis</text>
+  <rect x="240" y="316" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="330" y="335" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">(Re)lire une leçon</text>
+  <text x="330" y="351" font-size="11" fill="#756C62" text-anchor="middle">S4 · visionneuse</text>
 
-  <!-- BIBLIOTHÈQUE column -->
-  <line x1="322" y1="148" x2="322" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
-  <rect x="232" y="178" width="180" height="58" rx="14" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
-  <text x="322" y="202" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Bibliothèque</text>
-  <text x="322" y="220" font-size="11" fill="#756C62" text-anchor="middle">S7 · Listes · Grammaire · Familles</text>
-
-  <line x1="322" y1="236" x2="322" y2="260" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
-  <rect x="232" y="262" width="180" height="52" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
-  <text x="322" y="284" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Détail liste · ajout mot</text>
-  <text x="322" y="301" font-size="11" fill="#756C62" text-anchor="middle">S8 · conservés</text>
-  <rect x="232" y="324" width="180" height="52" rx="12" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
-  <text x="322" y="346" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Fiche règle · 5 pastilles</text>
-  <text x="322" y="363" font-size="11" fill="#756C62" text-anchor="middle">S9 · M5</text>
-  <rect x="232" y="386" width="180" height="52" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
-  <text x="322" y="408" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Famille de mots</text>
-  <text x="322" y="425" font-size="11" fill="#756C62" text-anchor="middle">S10 · M8</text>
-
-  <!-- PRATIQUER column -->
+  <!-- ÉTUDIER -->
   <line x1="530" y1="148" x2="530" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
   <rect x="440" y="178" width="180" height="58" rx="14" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
-  <text x="530" y="202" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Pratique libre</text>
-  <text x="530" y="220" font-size="11" fill="#756C62" text-anchor="middle">S11 · 3 choix · M3</text>
-  <text x="530" y="256" font-size="11" fill="#6F695F" text-anchor="middle">Langue → Source → Mode</text>
-  <line x1="530" y1="264" x2="530" y2="288" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
-  <rect x="440" y="290" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
-  <text x="530" y="318" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Quiz (canvas conservé)</text>
-  <line x1="530" y1="336" x2="530" y2="360" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
-  <rect x="440" y="362" width="180" height="52" rx="12" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
-  <text x="530" y="384" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Résumé + « et ensuite »</text>
-  <text x="530" y="401" font-size="11" fill="#756C62" text-anchor="middle">S6 · retour au chemin</text>
+  <text x="530" y="202" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Étudier — accueil 🟠</text>
+  <text x="530" y="220" font-size="11" fill="#756C62" text-anchor="middle">S1 · nouvel écran (setup v1 mort)</text>
+  <line x1="530" y1="236" x2="530" y2="258" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
+  <rect x="440" y="260" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="530" y="279" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Chemin du jour → S18</text>
+  <text x="530" y="295" font-size="11" fill="#756C62" text-anchor="middle">carte + écran d'étapes</text>
+  <rect x="440" y="316" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="530" y="335" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Parcours A1→C2</text>
+  <text x="530" y="351" font-size="11" fill="#756C62" text-anchor="middle">leçons · tests de niveau</text>
+  <rect x="440" y="372" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
+  <text x="530" y="391" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Pratique libre</text>
+  <text x="530" y="407" font-size="11" fill="#756C62" text-anchor="middle">S11 · 3 choix</text>
+  <text x="530" y="442" font-size="11.5" fill="#6F695F" text-anchor="middle">→ lance quiz · leçons · drills · tests</text>
+  <text x="530" y="459" font-size="11" fill="#8A8073" text-anchor="middle">(sessions plein écran, shell masqué)</text>
 
-  <!-- PROGRÈS column -->
-  <line x1="740" y1="148" x2="740" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
-  <rect x="650" y="178" width="180" height="58" rx="14" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
-  <text x="740" y="202" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Dashboard + CEFR</text>
-  <text x="740" y="220" font-size="11" fill="#756C62" text-anchor="middle">S12 · M7 · remplace Stats</text>
-  <line x1="740" y1="236" x2="740" y2="260" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
-  <rect x="650" y="262" width="180" height="52" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
-  <text x="740" y="284" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Bilans passés · sessions</text>
-  <text x="740" y="301" font-size="11" fill="#756C62" text-anchor="middle">historique</text>
+  <!-- PROGRÈS -->
+  <line x1="730" y1="148" x2="730" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
+  <rect x="640" y="178" width="180" height="58" rx="14" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
+  <text x="730" y="202" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Toutes les progressions</text>
+  <text x="730" y="220" font-size="11" fill="#756C62" text-anchor="middle">S12 · M7</text>
+  <line x1="730" y1="236" x2="730" y2="258" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
+  <rect x="640" y="260" width="180" height="62" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="730" y="280" font-size="11.5" fill="#756C62" text-anchor="middle">CEFR · vocab connu · grammaire</text>
+  <text x="730" y="296" font-size="11.5" fill="#756C62" text-anchor="middle">+ débloquages · bilans hebdo</text>
+  <text x="730" y="312" font-size="11.5" fill="#756C62" text-anchor="middle">· position parcours</text>
 
-  <!-- AMIS column -->
-  <line x1="950" y1="148" x2="950" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
-  <rect x="860" y="178" width="180" height="58" rx="14" fill="#FFFFFF" stroke="#ECE3D7"/>
-  <text x="950" y="202" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Classement · amis</text>
-  <text x="950" y="220" font-size="11" fill="#756C62" text-anchor="middle">conservé</text>
-  <line x1="950" y1="236" x2="950" y2="260" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
-  <rect x="860" y="262" width="180" height="52" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
-  <text x="950" y="284" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Défis (duel async)</text>
-  <text x="950" y="301" font-size="11" fill="#756C62" text-anchor="middle">S14 · M9 · + résultats</text>
+  <!-- AMIS -->
+  <line x1="930" y1="148" x2="930" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
+  <rect x="840" y="178" width="180" height="58" rx="14" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
+  <text x="930" y="202" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Amis</text>
+  <text x="930" y="220" font-size="11" fill="#756C62" text-anchor="middle">inviter/retirer · liste · progression</text>
+  <line x1="930" y1="236" x2="930" y2="258" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
+  <rect x="840" y="260" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="930" y="279" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Classement</text>
+  <text x="930" y="295" font-size="11" fill="#756C62" text-anchor="middle">conservé</text>
+  <rect x="840" y="316" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="930" y="335" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Défis (duel async)</text>
+  <text x="930" y="351" font-size="11" fill="#756C62" text-anchor="middle">S14 · M9</text>
 
   <!-- legend -->
   <rect x="30" y="546" width="1000" height="60" rx="14" fill="#EFE7DB"/>
@@ -103,5 +95,5 @@
   <text x="232" y="580" font-size="12.5" fill="#2B2622">à repenser (REDESIGN)</text>
   <rect x="410" y="564" width="22" height="22" rx="6" fill="#FFFFFF" stroke="#ECE3D7"/>
   <text x="442" y="580" font-size="12.5" fill="#2B2622">conservé</text>
-  <text x="560" y="580" font-size="12.5" fill="#756C62">Sx / Mx = fiche écran (§6) / jalon du plan d'implémentation</text>
+  <text x="560" y="580" font-size="12.5" fill="#756C62">Sx / Mx = fiche écran (§6) / jalon · 🟠 = proposition à vetter</text>
 </svg>

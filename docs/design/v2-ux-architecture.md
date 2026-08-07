@@ -54,9 +54,9 @@ progress on different models and must never look interchangeable:
 | User control | full: create lists, add words, pick sources in Pratiquer | none over content; only pace (the path serves the next step) |
 
 Design consequence: vocab steps and grammar steps need clearly distinct
-step-card identities on the path (icon + label family), and Bibliothèque
-must feel editable in its Listes section but read-only (a "course book")
-in its Grammaire section.
+step-card identities on the path (icon + label family), and the
+Vocabulaire tab must feel editable while the Grammaire tab reads as a
+course book (read-only).
 
 ### The third layer: the Parcours (A1→C2 curriculum spine)
 
@@ -82,7 +82,7 @@ level. Mastery, not completion. Locked levels offer the same test as a
 skip-ahead/placement ("Je connais déjà ce niveau ?").
 
 **Scope notes (honest):** user-created lists live OUTSIDE the parcours
-(they flow through Bibliothèque/Pratiquer and Découvrir steps; they
+(they flow through the Vocabulaire tab/Pratique libre and Découvrir steps; they
 never count toward x/20). The parcours is the project's biggest CONTENT
 lift — levels ship progressively (Korean first), and a level may be
 partially filled ("13 leçons disponibles — la suite arrive") without
@@ -113,26 +113,30 @@ revision pass once designs land.
 
 ![v2 navigation map](diagrams/v2-nav-map.svg)
 
-**5-slot bottom nav, re-purposed:**
+**5 equal slots — no raised center FAB (decided 2026-08-07):**
 
-| Slot | v1 | v2 | Why |
-|---|---|---|---|
-| 1 | Accueil (cards) | **Parcours** — the current language's page: carte aperçu (today) + niveaux A1→C2 | The map IS the product; home = one language, last studied, switcher in the header. |
-| 2 | Listes | **Bibliothèque** — Listes · Grammaire · Familles | All content browsing in one place; grammar stops being a home card, word families get a home. |
-| center FAB | New-session accordion | **Pratiquer** — free practice, 3-step quick setup | Kept for self-directed drilling, but simplified; the path absorbs guided session-starting. |
-| 3 | Amis | **Amis** — classement · défis | Unchanged position; challenges (M9) revive this tab. |
-| 4 | Profil | **Progrès** — dashboard + CEFR | Progress is a retention feature; it earns the tab. Profile & settings move to an avatar button (top-right of Parcours and Progrès) opening the Profil screen. |
+| Slot | Tab | Content |
+|---|---|---|
+| 1 | **Vocabulaire** | Browse the lists + full CRUD on vocabulary lists (the user's editable space; v1 Mes listes + détail + ajout de mot). Word-families index lives here 🟠. |
+| 2 | **Grammaire** | Read lessons: the course book — groups by level, fiches (●●● + Mélange + prerequisite bars), re-open any done lesson in the viewer. Read-only. |
+| 3 | **Étudier** | The doing tab, and the landing tab 🟠 — a NEW screen (the old session-setup accordion is too cluttered to serve this): chemin du jour card (→ S18), carte progression, the A1→C2 parcours, and the Pratique libre entry. Plugs into the quiz screen and the lesson viewer. |
+| 4 | **Progrès** | Every progression in one place: dashboard, vocabulary known, grammar progression + unlocks, CEFR level progression, bilans. |
+| 5 | **Amis** | Friend management (invite/remove, friend list), friend progression, classement, défis (M9). |
 
-What moved where:
+**Header (decided 2026-08-07):** language selector · streak · avatar —
+the avatar opens the **menu général**: Paramètres, subscription/payment
+options, avatar choice, logout, etc.
 
-- Grammar hub: home card → **Bibliothèque › Grammaire**.
-- Stats: Profil › Statistiques → **Progrès tab** (full dashboard).
-- Profile, subscription, settings: Profil tab → **avatar button** →
-  Profil screen (kept mostly as-is) → Paramètres (kept).
-- Review-mode sheet (Voix/Mains libres/Écrit/Cartes): kept, now opened
-  from a path step's mode affordance and from Pratiquer.
-- Notifications settings: stays under Paramètres; the bell disappears
-  from home (the path + streak communicate "what's due" now).
+What moved where (vs v1):
+
+- Home cards → **Étudier** (chain card + progression + parcours).
+- Mes listes → **Vocabulaire** tab, unchanged CRUD.
+- Grammar hub → **Grammaire** tab (course book).
+- New-session accordion (FAB) → dies; **Pratique libre** is an entry
+  inside Étudier; the review-mode sheet survives on S18 steps and there.
+- Profil › Statistiques → **Progrès**.
+- Profil/Paramètres/Paywall → the avatar's **menu général**.
+- Notifications settings: under Paramètres; no bell on Étudier.
 
 ## 4. Screen inventory
 
@@ -141,21 +145,21 @@ Status: **NEW** = design from scratch · **REDESIGN** = exists, restructure
 
 | # | Screen | Status | Milestone | Brief |
 |---|---|---|---|---|
-| S1 | Page langue : aperçu + parcours A1→C2 (home) | **REDESIGN** (replaces Home) | M3+ | §6.1 |
+| S1 | Étudier (landing) : chemin + progression + parcours | **NEW** (replaces Home + setup accordion) | M3+ | §6.1 |
 | S2 | Préchargement (gate avant l'accueil) | **REDESIGN** | M3 | §6.2 |
 | S3 | Intro vocab « Découvrir » + écho | **NEW** | M4 | §6.3 |
 | S4 | Visionneuse de leçon (grammaire) | **NEW** | M5 | §6.4 |
 | S5 | Quiz canvas (toutes modalités) | *keep* + additions | M6 | §6.5 |
 | S6 | Résumé de session | **REDESIGN** (light) | M3 | §6.6 |
-| S7 | Bibliothèque (hub 3 sections) | **NEW** (absorbs Listes) | M5/M8 | §6.7 |
+| S7 | Vocabulaire (onglet listes, CRUD) | *keep* (v1 Mes listes) | — | §6.7 |
 | S8 | Détail de liste / ajout de mot | *keep* | — | §6.7 |
-| S9 | Fiche règle de grammaire | **REDESIGN** (5 pastilles) | M5 | §6.8 |
+| S9 | Grammaire (onglet : groupes + fiches) | **REDESIGN** | M5 | §6.8 |
 | S10 | Famille de mots (browser) | **NEW** | M8 | §6.9 |
-| S11 | Pratiquer (quick setup) | **REDESIGN** (accordion → 3 steps) | M3 | §6.10 |
+| S11 | Pratique libre (entrée dans Étudier) | **REDESIGN** (accordion → 3 steps) | M3 | §6.10 |
 | S12 | Progrès (dashboard + CEFR) | **REDESIGN** (replaces Stats) | M7 | §6.11 |
 | S13 | Bilan hebdo | **NEW** | M2 | §6.12 |
 | S14 | Amis + Défis | **REDESIGN** (adds challenges) | M9 | §6.13 |
-| S15 | Profil (via avatar) / Paramètres / Paywall | *keep* | — | — |
+| S15 | Menu général (avatar) : Paramètres · abonnement · avatar · déconnexion | **NEW** (light, wraps kept screens) | — | — |
 | S16 | Onboarding (première ouverture) | **NEW** (light) | M3 | §6.14 |
 | S17 | Test de niveau (+ résultats) | **NEW** | TBD (post-M5) | §6.15 |
 | S18 | Chemin du jour (étapes du jour) | **NEW** (base validée) | M3 | §6.16 |
@@ -251,7 +255,7 @@ unlocks once all the level's groups (Mélanges included) are done, and
 samples across them.
 
 Entry points: parcours nodes · daily-chain drills · fiche de groupe S9
-("Relire", "S'entraîner maintenant") · Bibliothèque › Grammaire.
+("Relire", "S'entraîner maintenant") · onglet Grammaire.
 
 ### F4 — Réviser / Renforcer (existing quiz, extended)
 
@@ -264,7 +268,8 @@ steps are the same flow scoped to leech words (M1).
 
 ### F5 — Pratique libre
 
-Center FAB → 3 quick choices, all remembering last use: **Langue**
+Étudier › entrée "Pratique libre" → 3 quick choices, all remembering
+last use: **Langue**
 (pairs with content) → **Source** (À réviser · Mots difficiles · a
 list, split "en cours d'étude" / "pas encore étudiées" with preview-eye,
 kept from v1) → **Mode** → Commencer. Card count moves to Paramètres as
@@ -285,7 +290,7 @@ entry to past Bilans hebdo.
 Entry points: chip on quiz answer reveal ("Famille : 學 étude") and on
 list-detail rows → Family page: root card (hanja or Latin/Germanic root,
 label, meaning), member words with per-word progress dots, tap-audio →
-tap a member → its family page. Bibliothèque › Familles lists all
+tap a member → its family page. Vocabulaire › Familles lists all
 families discovered so far (locked/greyed until first member met).
 
 ### F8 — Défis (M9)
@@ -330,23 +335,23 @@ celebration states; light AND dark theme; all text length-robust
 Decided 2026-08-07: one shared header + one shared footer, designed
 once, composed onto screens; hidden during active sessions and
 celebrations (session chrome replaces them). See
-`diagrams/v2-shell.svg`. Proposed contents 🟠:
-- **Footer** (identical wherever shown): 5 slots icon + label —
-  Parcours · Bibliothèque · **[● Pratiquer]** (center clay FAB) ·
-  Progrès · Amis. Active slot clay-tinted. No red badges ever; at most
-  a discreet muted dot on Amis for a pending défi.
-- **Header `root`** (tab screens): language chip (flag + autonym ▾ →
-  pair switcher) on language-scoped tabs (Parcours, Bibliothèque,
-  Progrès; Amis shows a title instead) · right: 🔥 streak + avatar
-  (→ Profil/Paramètres).
-- **Header `sub`** (detail screens + S18): back arrow · title · ONE
+`diagrams/v2-shell.svg`.
+- **Footer (decided):** 5 EQUAL slots, icon + label, no raised center
+  FAB — Vocabulaire · Grammaire · Étudier · Progrès · Amis. Active slot
+  clay-tinted 🟠. No red badges ever; at most a discreet muted dot on
+  Amis for a pending défi 🟠.
+- **Header (decided):** language selector · 🔥 streak · avatar. The
+  avatar opens the **menu général**: Paramètres, abonnement/paiement,
+  choix d'avatar, déconnexion, etc.
+- **Header `sub` 🟠** (detail screens + S18): back arrow · title · ONE
   optional contextual action (export on a liste, "Relire" on a fiche,
   nothing on S18).
-- **Session chrome** (not the shell): exit ✕ · progress bar + counter ·
-  pause on voice modes.
+- **Session chrome 🟠** (not the shell): exit ✕ · progress bar +
+  counter · pause on voice modes.
 
-### 6.1 S1 Page langue — aperçu + parcours (home)
-Replaces Home entirely; shows ONE language at a time (see the wireframe
+### 6.1 S1 Étudier — chemin du jour + progression + parcours (landing 🟠)
+The doing tab, replacing both the v1 Home and the session-setup
+accordion; shows ONE language at a time (see the wireframe
 `diagrams/v2-home-parcours.svg`). Top to bottom:
 
 1. **Header**: language chip (flag + autonym, tap → switcher sheet over
@@ -371,7 +376,7 @@ Replaces Home entirely; shows ONE language at a time (see the wireframe
 States: behind S2 gate
 on cold open; offline → cached page + banner; new pair with no
 curriculum yet → parcours placeholder ("le programme <langue> arrive") +
-CTA to Bibliothèque/Pratiquer (lists still work for any pair).
+CTA to Vocabulaire/Pratique libre (lists still work for any pair).
 
 ### 6.2 S2 Préchargement — the gate before home
 A dedicated full-screen gate shown BEFORE Aujourd'hui on cold open, and
@@ -415,16 +420,13 @@ next path step CTA when the session came from the path ("Continuer le
 chemin") or "Retour" when from Pratiquer. This is the glue that makes
 the path feel continuous.
 
-### 6.7 S7 Bibliothèque
-New hub with three segmented sections, pair-filter chips persistent at
-top: **Listes** (v1 Mes listes content: cards, colored dots, FAB
-Nouvelle liste; detail + add-word dialog kept as-is — this is the USER's
-editable space), **Grammaire** (v1 hub content restructured — see S9;
-read-only curriculum, no create/add affordances anywhere: it must read
-as a course book, not a notebook), **Familles** (S10 index; hidden or
-teaser state until M8). Empty states per section per pair.
+### 6.7 S7 Vocabulaire (onglet)
+The user's editable space — v1 Mes listes kept: list cards with colored
+dots, "Nouvelle liste" CTA, full CRUD, detail + add-word dialog (S8)
+as-is; pair-filter chips at top. Also hosts the **Familles** index 🟠
+(S10, teaser state until M8). No grammar here. Empty states per pair.
 
-### 6.8 S9 Bibliothèque › Grammaire (groupes + fiches)
+### 6.8 S9 Grammaire (onglet) — groupes + fiches
 The "course book", organized level → **group cards**: group name ("Les
 particules de base"), x/5 règles done + Mélange state, ✓ when complete
 — and when a group is reachable but locked, its **prerequisite mastery
@@ -454,7 +456,9 @@ repeat of last session. Keeps v1's studying/not-studied split + preview
 eye in the list picker.
 
 ### 6.11 S12 Progrès
-Dashboard: pair chips → CEFR level card (per target language, honest
+Every progression in one place (decided 2026-08-07): vocabulary known,
+grammar progression AND unlocks (groups, gates), CEFR level
+progression, parcours position. Proposed layout 🟠 — pair chips → CEFR level card (per target language, honest
 "estimation" wording, progress to next level, tappable breakdown) →
 scale switcher (Jour/Semaine/Mois/Tout) → charts (reviews, accuracy,
 words known — fl_chart) → recent sessions → past recaps. Empty state
@@ -467,7 +471,10 @@ mardi"), warm illustration/waveform motif. One CTA: Continuer. Design
 both "great week" and "quiet week" (2 reviews) variants — never shaming.
 
 ### 6.13 S14 Amis + Défis
-Two segments: Classement (kept) · Défis (new): active challenges
+Scope (decided 2026-08-07): invite/remove friends, friend list, friend
+progression, plus classement and défis. Proposed layout 🟠 — segments:
+Amis (list + gestion + leur progression) · Classement (kept) · Défis
+(new): active challenges
 (vs-cards with avatars + state), history, "Défier" flow (F8), results
 screen with side-by-side bars. Empty: "défie un ami" teaser.
 
@@ -475,7 +482,7 @@ screen with side-by-side bars. Empty: "défie un ami" teaser.
 Reuse existing welcome/auth visuals; add three light steps (pair picker,
 pace picker, starting point "Je débute / J'ai des bases → placement") as
 full-screen cards in the same style. Must support adding MORE pairs
-later (home language chip + Bibliothèque "+ Ajouter une langue" — same
+later (header language chip "+ Ajouter une langue" — same
 pair-picker component).
 
 ### 6.15 S17 Test de niveau
@@ -507,7 +514,7 @@ banner.
 ## 7. Cross-cutting rules
 
 - **Flow theming:** Apprendre surfaces = clay accent family; Réviser
-  surfaces = teal accent family; neutral surfaces (Bibliothèque,
+  surfaces = teal accent family; neutral surfaces (Vocabulaire, Grammaire,
   Progrès) = ink/paper. Applied to headers, progress elements, CTAs.
 - **Pair tagging:** any card/step/chart representing pair-scoped data
   shows the pair (flag pair or "🇫🇷→🇰🇷" compact form). Language names
@@ -542,7 +549,8 @@ banner.
    confetti, or waveform-motif animation? Must stay "calm" (principle 2).
 3. Mode-chip treatment on S18's review-step rows (chip per row,
    assumed) without cluttering the one-dominant-action rule.
-4. Bibliothèque: segmented control vs top-tabs for the three sections.
+4. Where the Familles index lives (assumed Vocabulaire tab) and its
+   entry treatment.
 5. "Voir les 20 leçons": expand inline vs bottom sheet.
 6. Locked-level treatment: how inviting should the skip-ahead test be
    (prominent chip vs discreet text link)?

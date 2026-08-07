@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1060" height="830" viewBox="0 0 1060 830" font-family="'Segoe UI',system-ui,sans-serif">
   <rect width="1060" height="830" fill="#F6F1EA"/>
-  <text x="30" y="42" font-size="21" font-weight="700" fill="#2B2622">Home v2 — page langue : chemin du jour + progression + parcours</text>
-  <text x="30" y="64" font-size="13" fill="#756C62">Wireframe de structure (S1) — pas une maquette ; une seule langue affichée à la fois</text>
+  <text x="30" y="42" font-size="21" font-weight="700" fill="#2B2622">Onglet Étudier (accueil) — chemin du jour + progression + parcours</text>
+  <text x="30" y="64" font-size="13" fill="#756C62">Wireframe de structure (S1) — pas une maquette ; une seule langue à la fois · footer 5 slots sous l'écran</text>
 
   <!-- header row -->
   <rect x="58" y="98" width="150" height="34" rx="999" fill="#FFFFFF" stroke="#ECE3D7"/>

@@ -1,7 +1,9 @@
-# Pratique libre (FAB central)
+# Pratique libre (entrée dans Étudier)
 
 **Statut : 🟠 proposé — à vetter** · écran S11 · flux F5 ·
-spec : `../v2-ux-architecture.md §6.10`
+spec : `../v2-ux-architecture.md §6.10` ·
+note : le FAB central est mort (footer 5 slots égaux, décidé 2026-08-07)
+— l'entrée vit dans l'onglet Étudier (🟠)
 
 ## Décidé (utilisateur)
 - v1 : la langue d'abord, puis listes scindées « en cours d'étude » /
@@ -17,7 +19,7 @@ spec : `../v2-ux-architecture.md §6.10`
 - Deux taps pour relancer la dernière session
 
 ## À trancher 🔴
-- Bottom sheet vs plein écran ; le FAB garde-t-il sa place avec le
-  parcours qui absorbe le démarrage guidé ?
+- Bottom sheet vs plein écran ; visibilité de l'entrée dans Étudier
+  (carte ? bouton sous le parcours ?)
 
 Liens : [[navigation]] · [[quiz-canvas]] · [[vocab-flow]]

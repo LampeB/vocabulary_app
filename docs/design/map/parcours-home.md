@@ -13,6 +13,10 @@ spec : `../v2-ux-architecture.md §6.1` · wireframe : `../diagrams/v2-home-parc
   maîtrise des niveaux précédents
 - (2026-08-07) L'accueil porte une carte « Chemin du jour » qui OUVRE
   l'écran dédié S18 — le jour ne vit plus dans une carte aperçu
+- (2026-08-07) L'onglet « Étudier » est branché sur les quiz et les
+  leçons de grammaire — nouvel écran requis (l'actuel setup est trop
+  encombré) ; 🟠 supposé : cet onglet EST l'accueil et porte chemin +
+  progression + parcours
 
 ## Proposé — pas encore vetté (Claude)
 - Carte Chemin du jour : pastilles ● ○ ○ ○, prochaine étape, chip
