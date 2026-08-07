@@ -39,7 +39,7 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 | Zone | Note | Statut | Reste à trancher |
 |---|---|---|---|
 | Quiz canvas, voix, cloze, leeches | [[quiz-canvas]] | ⚪🟠 | layout cloze, thème teal |
-| Pratique libre (FAB) | [[pratique-libre]] | 🟠 | tout le remaniement |
+| Pratique libre (entrée dans Étudier) | [[pratique-libre]] | 🟠 | setup 3 choix, visibilité de l'entrée |
 
 ## Contenu & suivi
 
@@ -55,7 +55,7 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 | Zone | Note | Statut | Reste à trancher |
 |---|---|---|---|
 | Multi-langue (règles transverses) | [[multi-language]] | 🟢 | — |
-| Profil · Paramètres · Paywall | — | ⚪ | rien (conservés v1) |
+| Menu général (avatar) → Paramètres · abonnement · avatar · déconnexion | — | 🟢⚪ | design du menu (S15 léger ; écrans v1 conservés dessous) |
 
 Docs sources : `../v2-ux-architecture.md` (structure + flux) ·
 `../app-design-overview.md` (état actuel) · `../../two-flow-daily-plan.md` ·
