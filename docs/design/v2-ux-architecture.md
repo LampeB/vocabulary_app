@@ -493,6 +493,12 @@ banner.
 - **Pair tagging:** any card/step/chart representing pair-scoped data
   shows the pair (flag pair or "🇫🇷→🇰🇷" compact form). Language names
   always in autonyms in pickers.
+- **Bottom-nav visibility:** the nav shows ONLY on the four tab-level
+  screens (S1 home, S7 Bibliothèque, S12 Progrès, S14 Amis). Everything
+  else is full-screen without it: all sessions (quiz, Découvrir, lesson
+  viewer, drills, test), S18 Chemin du jour (immersive "do mode",
+  back arrow to home), summaries/recaps/celebrations, and pushed
+  details (liste, groupe, famille, Profil/Paramètres/Paywall).
 - **Back:** in-app back arrow on every pushed screen; system back must
   pop, not exit (bug fix planned alongside M3).
 - **Notifications:** one daily reminder aligned to path completion
