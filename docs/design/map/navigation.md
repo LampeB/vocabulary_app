@@ -5,6 +5,9 @@
 ## Décidé (utilisateur)
 - (2026-08-07) Un header GÉNÉRAL et un menu footer GÉNÉRAL, composants
   partagés qu'on ajoute aux écrans — pas de chrome sur mesure par écran
+- (2026-08-07) Header + footer MASQUÉS pendant les sessions actives
+  (quiz/leçon/drill/test) et célébrations — les sessions gardent leur
+  propre chrome minimal (progression + quitter)
 - (le remaniement des 5 slots attend toujours un veto)
 
 ## Proposé — pas encore vetté (Claude, 2026-08)
@@ -13,12 +16,10 @@
 - La cloche notifications disparaît de l'accueil
 - Feuille de mode (Voix/Mains libres/Écrit/Cartes) conservée, ouverte depuis
   les étapes de S18 et Pratiquer
-- Variantes du header : `root` (chip langue + série + avatar), `sub`
-  (retour + titre — écrans de détail, S18 inclus), `session`
-  (progression + quitter)
+- Variantes du header : `root` (chip langue + série + avatar) · `sub`
+  (retour + titre — écrans de détail, S18 inclus)
 - Footer présent sur tous les écrans de navigation (onglets + détails +
-  S18) ; masqué UNIQUEMENT en session active (quiz/leçon/drill/test) et
-  célébrations — exception à vetter
+  S18)
 
 ## À trancher 🔴
 - Rien de plus une fois le modèle vetté ou amendé

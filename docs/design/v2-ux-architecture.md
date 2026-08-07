@@ -497,11 +497,11 @@ banner.
   and ONE general footer menu (the 5-slot nav), designed once and added
   to screens — no bespoke per-screen chrome. Proposed variants 🟠:
   header `root` (language chip + streak + avatar, on tab screens),
-  `sub` (back arrow + title, on detail screens incl. S18), `session`
-  (progress + exit, inside sessions); footer present on all navigation
-  screens (tabs + details + S18), hidden only inside active sessions
-  (quiz/lesson/drill/test) and celebrations where it would break focus
-  — that exception awaits veto.
+  `sub` (back arrow + title, on detail screens incl. S18). Decided
+  2026-08-07: the shell (header AND footer) is hidden inside active
+  sessions (quiz/lesson/drill/test) and celebrations — sessions carry
+  only their own minimal chrome (progress + exit). Footer shows on all
+  navigation screens (tabs + details + S18).
 - **Back:** in-app back arrow on every pushed screen; system back must
   pop, not exit (bug fix planned alongside M3).
 - **Notifications:** one daily reminder aligned to path completion
