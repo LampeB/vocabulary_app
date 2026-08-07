@@ -11,10 +11,13 @@ spec : `../v2-ux-architecture.md §6.1` · wireframe : `../diagrams/v2-home-parc
   courante (ex. à la 7ᵉ : 5-6-7-8-9, 5 et 6 cochées)
 - Démarrer un niveau supérieur exige de réussir un test prouvant la
   maîtrise des niveaux précédents
+- (2026-08-07) L'accueil porte une carte « Chemin du jour » qui OUVRE
+  l'écran dédié S18 — le jour ne vit plus dans une carte aperçu
 
 ## Proposé — pas encore vetté (Claude)
-- Contenu de la carte aperçu : position CEFR + étapes du jour + LE bouton
-  Continuer ; bilan hebdo se glisse au-dessus le dimanche
+- Carte Chemin du jour : pastilles ● ○ ○ ○, prochaine étape, chip
+  Continuer, chevron ; carte progression séparée (position CEFR + barre) ;
+  bilan hebdo se glisse au-dessus le dimanche
 - Série (flamme) dans l'en-tête — la carte héro sombre v1 meurt
 - Sélecteur de langue = chip drapeau + autonyme dans l'en-tête
 - Nœuds de 3 types : Vocabulaire · Grammaire (règle) · Mélange

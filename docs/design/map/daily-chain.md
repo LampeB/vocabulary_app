@@ -9,9 +9,13 @@ schéma : `../diagrams/v2-daily-chain.svg` (sources → générateur → étapes
   (connu, FSRS) — composés en un plan quotidien
 - Navigation « chemin/plan du jour » retenue parmi les options
 
+## Décidé (utilisateur, 2026-08-07)
+- Le chemin du jour a son ÉCRAN DÉDIÉ (S18), ouvert par une carte
+  « Chemin du jour » sur l'accueil
+- Base de design validée « pour l'instant » : le panneau sombre à étapes
+  des diagrammes (`../diagrams/v2-daily-chain.svg`, panneau de droite)
+
 ## Proposé — pas encore vetté (Claude)
-- Le « jour » vit dans la carte aperçu (plus de liste d'étapes dédiée
-  depuis l'arrivée du parcours)
 - Ordre type : révisions dues → leçon(s) du parcours → renforcer
 - Quotas : 1-2 étapes grammaire/jour ; étapes de 2-5 min
 - Hier disparaît sans culpabilisation ; célébration à la fin + « encore

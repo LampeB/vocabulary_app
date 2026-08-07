@@ -73,9 +73,8 @@ How the layers relate:
 
 - **Parcours** = where I'm going (levels, lessons, x/20) — the map.
 - **Chemin du jour** = what I do now (2-5 steps: next parcours lessons
-  interleaved with FSRS reviews) — today's slice of the map.
-- The **carte aperçu** on home is the bridge: CEFR position + today's
-  step progress + the single Continuer.
+  interleaved with FSRS reviews) — today's slice of the map. It has its
+  own screen (S18), opened from a compact card at the top of home.
 
 **Level gates:** finishing a level's lessons is not enough — a **Test de
 niveau** (graded, mixed vocab + grammar) must be passed to open the next
@@ -159,6 +158,7 @@ Status: **NEW** = design from scratch · **REDESIGN** = exists, restructure
 | S15 | Profil (via avatar) / Paramètres / Paywall | *keep* | — | — |
 | S16 | Onboarding (première ouverture) | **NEW** (light) | M3 | §6.14 |
 | S17 | Test de niveau (+ résultats) | **NEW** | TBD (post-M5) | §6.15 |
+| S18 | Chemin du jour (étapes du jour) | **NEW** (base validée) | M3 | §6.16 |
 
 ## 5. Flows
 
@@ -333,14 +333,15 @@ Replaces Home entirely; shows ONE language at a time (see the wireframe
 1. **Header**: language chip (flag + autonym, tap → switcher sheet over
    studied pairs + "Ajouter une langue"), streak flame + count, avatar
    button. The dark streak hero card dies; streak lives here.
-2. **Carte aperçu** (the dark hero survives as this): CEFR position
-   ("A2 · 62 % vers B1", mini progress bar), today's slice ("Aujourd'hui
-   : 1/3 étapes" as dots + due count), and THE dominant CTA
-   **Continuer** → next step of the day's chain (F0 order: reviews +
-   next parcours lessons). Mode chip for review steps lives here. When
-   the day is done: celebration state + "encore envie ?" → Pratiquer.
-   The Bilan hebdo card slots above it when available.
-3. **Le parcours**: six level cards A1→C2 per §F10 — collapsed done
+2. **Carte Chemin du jour** (the dark hero survives as this; tappable →
+   S18, decided 2026-08-07): step dots ("● ○ ○ ○ 1/4"), the next step's
+   label ("Prochaine : Grammaire · Reconnaître 을/를"), a Continuer chip,
+   chevron. Done state: "journée complétée ✓". The Bilan hebdo card
+   slots above it when available.
+3. **Carte progression**: CEFR position ("A2 · 62 % vers B1", mini bar
+   + a couple of key counts) — the at-a-glance overview the parcours
+   details below.
+4. **Le parcours**: six level cards A1→C2 per §F10 — collapsed done
    (badge, name, ✓ 20/20), current expanded (x/20 + bar, windowed
    5-lesson list — rows: number, type icon vocab/grammaire/mélange,
    title, state ✓/current/🔒 — and "Voir les 20 leçons"), locked (🔒 +
@@ -348,8 +349,7 @@ Replaces Home entirely; shows ONE language at a time (see the wireframe
    de niveau node. Partial levels show "13 leçons disponibles — la
    suite arrive".
 
-Daily steps are not a separate list anymore: "today" is compressed into
-the aperçu card, the map below gives it meaning. States: behind S2 gate
+States: behind S2 gate
 on cold open; offline → cached page + banner; new pair with no
 curriculum yet → parcours placeholder ("le programme <langue> arrive") +
 CTA to Bibliothèque/Pratiquer (lists still work for any pair).
@@ -472,6 +472,19 @@ identity: neutral ink — neither clay (learn) nor teal (review); it's an
 assessment and must feel sober but not scary. Entry variants: end-of-
 level node, locked-level skip-ahead, onboarding placement.
 
+### 6.16 S18 Chemin du jour
+Decided 2026-08-07: a dedicated screen opened by tapping the home's
+Chemin du jour card. **Design base (user-validated "for now"): the dark
+step-panel from the flow diagrams** (`v2-daily-chain.svg` right panel):
+dark full-screen list of today's steps ① ② ③ ④ — done (teal ✓), current
+(clay, the one Continuer), upcoming (muted) — ending on the célébration
+block (série +1, "encore envie ?" → Pratique libre). Step rows: type
+icon (Réviser/Découvrir/Grammaire/Renforcer), title, count, pair flags,
+mode chip on review steps. Back arrow to home; finishing a session
+returns HERE (step animates ✓, next becomes current), and the home card
+updates its dots. Empty/done state: célébration; error: cached chain +
+banner.
+
 ## 7. Cross-cutting rules
 
 - **Flow theming:** Apprendre surfaces = clay accent family; Réviser
@@ -499,8 +512,8 @@ level node, locked-level skip-ahead, onboarding placement.
    Recommendation: cards.
 2. Celebration style (day done, level unlocked, recap): illustration,
    confetti, or waveform-motif animation? Must stay "calm" (principle 2).
-3. Where the review-mode chip lives on the aperçu card without
-   cluttering the one-dominant-action rule.
+3. Mode-chip treatment on S18's review-step rows (chip per row,
+   assumed) without cluttering the one-dominant-action rule.
 4. Bibliothèque: segmented control vs top-tabs for the three sections.
 5. "Voir les 20 leçons": expand inline vs bottom sheet.
 6. Locked-level treatment: how inviting should the skip-ahead test be

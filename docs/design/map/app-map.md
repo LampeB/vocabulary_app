@@ -18,7 +18,8 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 | Zone | Note | Statut | Reste à trancher |
 |---|---|---|---|
 | Navigation & onglets | [[navigation]] | 🟠 | veto global sur le remaniement 5 slots |
-| Accueil : page langue + parcours | [[parcours-home]] | 🟢🟠 | carte aperçu, visuel des niveaux |
+| Accueil : page langue + parcours | [[parcours-home]] | 🟢🟠 | carte progression, visuel des niveaux |
+| Écran Chemin du jour (S18) | [[daily-chain]] | 🟢 | détails visuels (base = panneau sombre validée) |
 | Porte de préchargement | [[preload-gate]] | 🟢 | visuel seulement |
 | Chemin du jour | [[daily-chain]] | 🟢🟠 | quotas & ordre des étapes |
 | Onboarding | [[onboarding]] | 🟠 | rythme, placement |

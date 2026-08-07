@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="770" viewBox="0 0 1060 770" font-family="'Segoe UI',system-ui,sans-serif">
-  <rect width="1060" height="770" fill="#F6F1EA"/>
-  <text x="30" y="42" font-size="21" font-weight="700" fill="#2B2622">Home v2 — page langue : aperçu + parcours A1→C2</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="830" viewBox="0 0 1060 830" font-family="'Segoe UI',system-ui,sans-serif">
+  <rect width="1060" height="830" fill="#F6F1EA"/>
+  <text x="30" y="42" font-size="21" font-weight="700" fill="#2B2622">Home v2 — page langue : chemin du jour + progression + parcours</text>
   <text x="30" y="64" font-size="13" fill="#756C62">Wireframe de structure (S1) — pas une maquette ; une seule langue affichée à la fois</text>
 
   <!-- header row -->
@@ -10,79 +10,92 @@
   <circle cx="408" cy="115" r="16" fill="#EFE7DB" stroke="#ECE3D7"/>
   <text x="408" y="120" font-size="12" text-anchor="middle">👤</text>
 
-  <!-- overview card -->
-  <rect x="50" y="146" width="380" height="130" rx="18" fill="#2B2622"/>
-  <text x="70" y="176" font-size="14" fill="#F6F1EA" font-weight="700">A2 · 62 % vers B1</text>
-  <rect x="70" y="186" width="200" height="6" rx="3" fill="#3A3430"/>
-  <rect x="70" y="186" width="124" height="6" rx="3" fill="#D08358"/>
-  <text x="70" y="216" font-size="12.5" fill="#CFC6BA">Aujourd'hui : ● ○ ○  1/3 étapes · 12 mots à réviser</text>
-  <rect x="70" y="230" width="240" height="34" rx="999" fill="#A85A30"/>
-  <text x="190" y="252" font-size="13" fill="#FFFFFF" text-anchor="middle" font-weight="700">Continuer · Réviser (12)  ▸</text>
+  <!-- daily chain card (tappable) -->
+  <rect x="50" y="146" width="380" height="110" rx="18" fill="#2B2622"/>
+  <text x="70" y="178" font-size="14" fill="#F6F1EA" font-weight="700">Chemin du jour</text>
+  <text x="410" y="180" font-size="18" fill="#CFC6BA" text-anchor="end">›</text>
+  <text x="70" y="202" font-size="12" fill="#CFC6BA">Prochaine : Grammaire · Reconnaître 을/를</text>
+  <rect x="70" y="216" width="140" height="28" rx="999" fill="#A85A30"/>
+  <text x="140" y="235" font-size="12.5" fill="#FFFFFF" text-anchor="middle" font-weight="700">Continuer ▸</text>
+  <text x="410" y="236" font-size="12.5" fill="#CFC6BA" text-anchor="end">● ○ ○ ○  1/4 étapes</text>
+
+  <!-- progression card -->
+  <rect x="50" y="270" width="380" height="64" rx="14" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="70" y="296" font-size="13" fill="#2B2622" font-weight="700">A2 · 62 % vers B1</text>
+  <rect x="70" y="306" width="180" height="6" rx="3" fill="#ECE3D7"/>
+  <rect x="70" y="306" width="112" height="6" rx="3" fill="#D08358"/>
+  <text x="410" y="300" font-size="11.5" fill="#756C62" text-anchor="end">1 240 mots · 34 règles ⭐</text>
 
   <!-- A1 done -->
-  <rect x="50" y="292" width="380" height="52" rx="14" fill="#FFFFFF" stroke="#ECE3D7"/>
-  <text x="70" y="323" font-size="13.5" fill="#2B2622" font-weight="700">A1 · Découverte</text>
-  <text x="410" y="323" font-size="13" fill="#3E726D" text-anchor="end" font-weight="700">✓ 20/20</text>
+  <rect x="50" y="348" width="380" height="52" rx="14" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="70" y="379" font-size="13.5" fill="#2B2622" font-weight="700">A1 · Découverte</text>
+  <text x="410" y="379" font-size="13" fill="#3E726D" text-anchor="end" font-weight="700">✓ 20/20</text>
 
   <!-- A2 current expanded -->
-  <rect x="50" y="356" width="380" height="296" rx="16" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
-  <text x="70" y="384" font-size="13.5" fill="#2B2622" font-weight="700">A2 · Consolidation</text>
-  <text x="410" y="384" font-size="13" fill="#C4703F" text-anchor="end" font-weight="700">13/20</text>
-  <rect x="70" y="396" width="340" height="6" rx="3" fill="#ECE3D7"/>
-  <rect x="70" y="396" width="221" height="6" rx="3" fill="#D08358"/>
+  <rect x="50" y="414" width="380" height="296" rx="16" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="70" y="442" font-size="13.5" fill="#2B2622" font-weight="700">A2 · Consolidation</text>
+  <text x="410" y="442" font-size="13" fill="#C4703F" text-anchor="end" font-weight="700">13/20</text>
+  <rect x="70" y="454" width="340" height="6" rx="3" fill="#ECE3D7"/>
+  <rect x="70" y="454" width="221" height="6" rx="3" fill="#D08358"/>
 
-  <rect x="66" y="414" width="348" height="36" rx="10" fill="#F6F1EA"/>
-  <text x="84" y="437" font-size="12.5" fill="#3E726D" font-weight="700">11 ✓</text>
-  <text x="126" y="437" font-size="12.5" fill="#756C62">Grammaire · Particules de lieu</text>
-  <rect x="66" y="454" width="348" height="36" rx="10" fill="#F6F1EA"/>
-  <text x="84" y="477" font-size="12.5" fill="#3E726D" font-weight="700">12 ✓</text>
-  <text x="126" y="477" font-size="12.5" fill="#756C62">Vocabulaire · La maison</text>
-  <rect x="66" y="494" width="348" height="36" rx="10" fill="#D08358"/>
-  <text x="84" y="517" font-size="12.5" fill="#FFFFFF" font-weight="700">13 ▸</text>
-  <text x="126" y="517" font-size="12.5" fill="#FFFFFF" font-weight="600">Grammaire · Le passé poli</text>
-  <text x="402" y="517" font-size="11.5" fill="#FBEADF" text-anchor="end" font-weight="700">Commencer</text>
-  <rect x="66" y="534" width="348" height="36" rx="10" fill="#FFFFFF" stroke="#ECE3D7"/>
-  <text x="84" y="557" font-size="12.5" fill="#8A8073">14 🔒</text>
-  <text x="132" y="557" font-size="12.5" fill="#8A8073">Vocabulaire · Les courses</text>
-  <rect x="66" y="574" width="348" height="36" rx="10" fill="#FFFFFF" stroke="#ECE3D7"/>
-  <text x="84" y="597" font-size="12.5" fill="#8A8073">15 🔒</text>
-  <text x="132" y="597" font-size="12.5" fill="#8A8073">Grammaire · Connecteurs simples</text>
+  <rect x="66" y="472" width="348" height="36" rx="10" fill="#F6F1EA"/>
+  <text x="84" y="495" font-size="12.5" fill="#3E726D" font-weight="700">11 ✓</text>
+  <text x="126" y="495" font-size="12.5" fill="#756C62">Grammaire · Particules de lieu</text>
+  <rect x="66" y="512" width="348" height="36" rx="10" fill="#F6F1EA"/>
+  <text x="84" y="535" font-size="12.5" fill="#3E726D" font-weight="700">12 ✓</text>
+  <text x="126" y="535" font-size="12.5" fill="#756C62">Vocabulaire · La maison</text>
+  <rect x="66" y="552" width="348" height="36" rx="10" fill="#D08358"/>
+  <text x="84" y="575" font-size="12.5" fill="#FFFFFF" font-weight="700">13 ▸</text>
+  <text x="126" y="575" font-size="12.5" fill="#FFFFFF" font-weight="600">Grammaire · Le passé poli</text>
+  <text x="402" y="575" font-size="11.5" fill="#FBEADF" text-anchor="end" font-weight="700">Commencer</text>
+  <rect x="66" y="592" width="348" height="36" rx="10" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="84" y="615" font-size="12.5" fill="#8A8073">14 🔒</text>
+  <text x="132" y="615" font-size="12.5" fill="#8A8073">Vocabulaire · Les courses</text>
+  <rect x="66" y="632" width="348" height="36" rx="10" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="84" y="655" font-size="12.5" fill="#8A8073">15 🔒</text>
+  <text x="132" y="655" font-size="12.5" fill="#8A8073">Grammaire · Connecteurs simples</text>
 
-  <text x="70" y="634" font-size="12.5" fill="#C4703F" font-weight="600">Voir les 20 leçons ⌄</text>
-  <text x="410" y="634" font-size="12" fill="#8A8073" text-anchor="end">🔒 Test de niveau A2 · à 20/20</text>
+  <text x="70" y="692" font-size="12.5" fill="#C4703F" font-weight="600">Voir les 20 leçons ⌄</text>
+  <text x="410" y="692" font-size="12" fill="#8A8073" text-anchor="end">🔒 Test de niveau A2 · à 20/20</text>
 
   <!-- B1 locked -->
-  <rect x="50" y="664" width="380" height="52" rx="14" fill="#FFFFFF" stroke="#ECE3D7"/>
-  <text x="70" y="695" font-size="13.5" fill="#8A8073" font-weight="700">B1 🔒 · Approfondissement</text>
-  <text x="410" y="695" font-size="12" fill="#C4703F" text-anchor="end" font-weight="600">Je connais déjà ? →</text>
+  <rect x="50" y="724" width="380" height="52" rx="14" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="70" y="755" font-size="13.5" fill="#8A8073" font-weight="700">B1 🔒 · Approfondissement</text>
+  <text x="410" y="755" font-size="12" fill="#C4703F" text-anchor="end" font-weight="600">Je connais déjà ? →</text>
 
-  <text x="240" y="744" font-size="13" fill="#8A8073" text-anchor="middle">B2 · C1 · C2 …</text>
+  <text x="240" y="806" font-size="13" fill="#8A8073" text-anchor="middle">B2 · C1 · C2 …</text>
 
   <!-- annotations -->
   <line x1="432" y1="115" x2="512" y2="112" stroke="#756C62" stroke-width="1"/>
   <text x="520" y="108" font-size="12.5" fill="#2B2622">Sélecteur de langue — dernière étudiée par défaut ;</text>
   <text x="520" y="126" font-size="12.5" fill="#2B2622">série + avatar (→ Profil &amp; Paramètres) dans l'en-tête.</text>
 
-  <line x1="432" y1="210" x2="512" y2="196" stroke="#756C62" stroke-width="1"/>
-  <text x="520" y="192" font-size="12.5" fill="#2B2622" font-weight="700">Carte aperçu = « aujourd'hui »</text>
-  <text x="520" y="210" font-size="12.5" fill="#2B2622">Position CEFR + étapes du jour + LE bouton Continuer</text>
-  <text x="520" y="228" font-size="12.5" fill="#2B2622">(boucle F0). Le bilan hebdo se glisse au-dessus le dimanche.</text>
+  <line x1="432" y1="200" x2="512" y2="192" stroke="#756C62" stroke-width="1"/>
+  <text x="520" y="186" font-size="12.5" fill="#2B2622" font-weight="700">Carte Chemin du jour — tappable 🟢</text>
+  <text x="520" y="204" font-size="12.5" fill="#2B2622">Toute la carte ouvre l'écran S18 (panneau d'étapes, base</text>
+  <text x="520" y="222" font-size="12.5" fill="#2B2622">validée) ; « Continuer » saute direct à l'étape courante.</text>
+  <text x="520" y="240" font-size="12.5" fill="#756C62">Le bilan hebdo se glisse au-dessus le dimanche.</text>
 
-  <line x1="432" y1="318" x2="512" y2="314" stroke="#756C62" stroke-width="1"/>
-  <text x="520" y="318" font-size="12.5" fill="#2B2622">Niveau terminé — replié, ✓ x/x ; s'ouvre au tap.</text>
+  <line x1="432" y1="300" x2="512" y2="296" stroke="#756C62" stroke-width="1"/>
+  <text x="520" y="292" font-size="12.5" fill="#2B2622" font-weight="700">Carte progression</text>
+  <text x="520" y="310" font-size="12.5" fill="#2B2622">position CEFR en un clin d'œil — le détail, c'est le</text>
+  <text x="520" y="328" font-size="12.5" fill="#2B2622">parcours dessous ; le grand tableau vit dans Progrès.</text>
 
-  <line x1="432" y1="505" x2="512" y2="474" stroke="#756C62" stroke-width="1"/>
-  <text x="520" y="460" font-size="12.5" fill="#2B2622" font-weight="700">Fenêtre de 5 leçons centrée sur la courante</text>
-  <text x="520" y="478" font-size="12.5" fill="#2B2622">2 faites ✓ · courante (clay, seule tappable pour avancer)</text>
-  <text x="520" y="496" font-size="12.5" fill="#2B2622">· 2 à venir 🔒. Un tap lance directement F2 (vocab)</text>
-  <text x="520" y="514" font-size="12.5" fill="#2B2622">ou F3 (grammaire) — aucun écran de réglage.</text>
-  <text x="520" y="532" font-size="12.5" fill="#756C62">« Voir les 20 leçons » : liste complète (inline ou sheet — Q5).</text>
+  <line x1="432" y1="374" x2="512" y2="370" stroke="#756C62" stroke-width="1"/>
+  <text x="520" y="374" font-size="12.5" fill="#2B2622">Niveau terminé — replié, ✓ x/x ; s'ouvre au tap.</text>
 
-  <line x1="432" y1="630" x2="512" y2="622" stroke="#756C62" stroke-width="1"/>
-  <text x="520" y="618" font-size="12.5" fill="#2B2622" font-weight="700">Dernier nœud : test de passage (S17)</text>
-  <text x="520" y="636" font-size="12.5" fill="#2B2622">verrouillé jusqu'à 20/20 — le réussir (maîtrise) ouvre B1.</text>
+  <line x1="432" y1="563" x2="512" y2="532" stroke="#756C62" stroke-width="1"/>
+  <text x="520" y="518" font-size="12.5" fill="#2B2622" font-weight="700">Fenêtre de 5 leçons centrée sur la courante</text>
+  <text x="520" y="536" font-size="12.5" fill="#2B2622">2 faites ✓ · courante (clay, seule tappable pour avancer)</text>
+  <text x="520" y="554" font-size="12.5" fill="#2B2622">· 2 à venir 🔒. Un tap lance directement F2 (vocab)</text>
+  <text x="520" y="572" font-size="12.5" fill="#2B2622">ou F3 (grammaire) — aucun écran de réglage.</text>
+  <text x="520" y="590" font-size="12.5" fill="#756C62">« Voir les 20 leçons » : liste complète (inline ou sheet — Q5).</text>
 
-  <line x1="432" y1="690" x2="512" y2="684" stroke="#756C62" stroke-width="1"/>
-  <text x="520" y="680" font-size="12.5" fill="#2B2622">Niveau verrouillé — le même test sert de placement :</text>
-  <text x="520" y="698" font-size="12.5" fill="#2B2622">« Je connais déjà ce niveau ? » permet de sauter.</text>
+  <line x1="432" y1="688" x2="512" y2="680" stroke="#756C62" stroke-width="1"/>
+  <text x="520" y="676" font-size="12.5" fill="#2B2622" font-weight="700">Dernier nœud : test de passage (S17)</text>
+  <text x="520" y="694" font-size="12.5" fill="#2B2622">verrouillé jusqu'à 20/20 — le réussir (maîtrise) ouvre B1.</text>
+
+  <line x1="432" y1="750" x2="512" y2="744" stroke="#756C62" stroke-width="1"/>
+  <text x="520" y="740" font-size="12.5" fill="#2B2622">Niveau verrouillé — le même test sert de placement :</text>
+  <text x="520" y="758" font-size="12.5" fill="#2B2622">« Je connais déjà ce niveau ? » permet de sauter.</text>
 </svg>
