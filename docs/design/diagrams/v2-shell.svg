@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="440" viewBox="0 0 1060 440" font-family="'Segoe UI',system-ui,sans-serif">
+  <rect width="1060" height="440" fill="#F6F1EA"/>
+  <text x="30" y="42" font-size="21" font-weight="700" fill="#2B2622">Le shell — header général + footer général</text>
+  <text x="30" y="64" font-size="13" fill="#756C62">Deux composants dessinés une fois, composés sur les écrans · masqués en session (décidé 2026-08-07)</text>
+
+  <!-- root header -->
+  <rect x="50" y="100" width="560" height="48" rx="14" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <rect x="64" y="108" width="132" height="32" rx="999" fill="#F6F1EA" stroke="#ECE3D7"/>
+  <text x="130" y="129" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">🇰🇷 한국어 ▾</text>
+  <text x="520" y="130" font-size="13" fill="#2B2622" text-anchor="end" font-weight="700">🔥 12</text>
+  <circle cx="576" cy="124" r="14" fill="#EFE7DB" stroke="#ECE3D7"/>
+  <text x="576" y="129" font-size="11" text-anchor="middle">👤</text>
+  <line x1="614" y1="124" x2="648" y2="124" stroke="#756C62" stroke-width="1"/>
+  <text x="656" y="118" font-size="12.5" fill="#2B2622" font-weight="700">Header `root` — onglets</text>
+  <text x="656" y="136" font-size="12" fill="#756C62">chip langue (si l'onglet est scoped langue) · série · avatar</text>
+
+  <!-- sub header -->
+  <rect x="50" y="170" width="560" height="48" rx="14" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="74" y="200" font-size="16" fill="#2B2622" font-weight="700">←</text>
+  <text x="104" y="199" font-size="13" fill="#2B2622" font-weight="600">Groupe 2 · Les particules de base</text>
+  <text x="586" y="200" font-size="15" fill="#756C62" text-anchor="end">⋯</text>
+  <line x1="614" y1="194" x2="648" y2="194" stroke="#756C62" stroke-width="1"/>
+  <text x="656" y="188" font-size="12.5" fill="#2B2622" font-weight="700">Header `sub` — détails &amp; S18</text>
+  <text x="656" y="206" font-size="12" fill="#756C62">retour · titre · une action contextuelle optionnelle</text>
+
+  <!-- session chrome -->
+  <rect x="50" y="240" width="560" height="48" rx="14" fill="#2B2622"/>
+  <text x="74" y="270" font-size="14" fill="#CFC6BA">✕</text>
+  <rect x="104" y="260" width="420" height="8" rx="4" fill="#3A3430"/>
+  <rect x="104" y="260" width="168" height="8" rx="4" fill="#D08358"/>
+  <text x="586" y="270" font-size="12" fill="#CFC6BA" text-anchor="end" font-family="monospace">04/10</text>
+  <line x1="614" y1="264" x2="648" y2="264" stroke="#756C62" stroke-width="1"/>
+  <text x="656" y="258" font-size="12.5" fill="#2B2622" font-weight="700">Chrome de session (PAS le shell)</text>
+  <text x="656" y="276" font-size="12" fill="#756C62">quitter · progression · compteur (+ pause en mode voix)</text>
+
+  <!-- footer -->
+  <rect x="50" y="322" width="560" height="60" rx="16" fill="#2B2622"/>
+  <text x="110" y="348" font-size="15" fill="#E0A079" text-anchor="middle">🏠</text>
+  <text x="110" y="368" font-size="9.5" fill="#E0A079" text-anchor="middle" font-weight="700">PARCOURS</text>
+  <text x="212" y="348" font-size="15" fill="#CFC6BA" text-anchor="middle">📚</text>
+  <text x="212" y="368" font-size="9.5" fill="#CFC6BA" text-anchor="middle">BIBLIOTHÈQUE</text>
+  <circle cx="330" cy="350" r="21" fill="#D08358"/>
+  <text x="330" y="356" font-size="15" fill="#FFFFFF" text-anchor="middle">▶</text>
+  <text x="448" y="348" font-size="15" fill="#CFC6BA" text-anchor="middle">📈</text>
+  <text x="448" y="368" font-size="9.5" fill="#CFC6BA" text-anchor="middle">PROGRÈS</text>
+  <text x="550" y="348" font-size="15" fill="#CFC6BA" text-anchor="middle">👥</text>
+  <circle cx="566" cy="340" r="3" fill="#8A8073"/>
+  <text x="550" y="368" font-size="9.5" fill="#CFC6BA" text-anchor="middle">AMIS</text>
+  <line x1="614" y1="350" x2="648" y2="350" stroke="#756C62" stroke-width="1"/>
+  <text x="656" y="336" font-size="12.5" fill="#2B2622" font-weight="700">Footer — 5 slots, identique partout où il s'affiche</text>
+  <text x="656" y="354" font-size="12" fill="#756C62">actif en clay · FAB Pratiquer central · jamais de badge rouge</text>
+  <text x="656" y="372" font-size="12" fill="#756C62">(point discret sur Amis si défi en attente)</text>
+
+  <text x="30" y="420" font-size="12" fill="#756C62">Visible : onglets + écrans de détail + S18 · Masqué : sessions (quiz/leçon/drill/test) et célébrations — chrome de session à la place.</text>
+</svg>

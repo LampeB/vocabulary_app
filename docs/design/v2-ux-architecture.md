@@ -326,6 +326,25 @@ Every screen must spec: empty, loading, error, and (where relevant)
 celebration states; light AND dark theme; all text length-robust
 (French/German run long) and script-robust (Hangul via Noto Sans KR).
 
+### 6.0 S0 Le shell — header & footer généraux
+Decided 2026-08-07: one shared header + one shared footer, designed
+once, composed onto screens; hidden during active sessions and
+celebrations (session chrome replaces them). See
+`diagrams/v2-shell.svg`. Proposed contents 🟠:
+- **Footer** (identical wherever shown): 5 slots icon + label —
+  Parcours · Bibliothèque · **[● Pratiquer]** (center clay FAB) ·
+  Progrès · Amis. Active slot clay-tinted. No red badges ever; at most
+  a discreet muted dot on Amis for a pending défi.
+- **Header `root`** (tab screens): language chip (flag + autonym ▾ →
+  pair switcher) on language-scoped tabs (Parcours, Bibliothèque,
+  Progrès; Amis shows a title instead) · right: 🔥 streak + avatar
+  (→ Profil/Paramètres).
+- **Header `sub`** (detail screens + S18): back arrow · title · ONE
+  optional contextual action (export on a liste, "Relire" on a fiche,
+  nothing on S18).
+- **Session chrome** (not the shell): exit ✕ · progress bar + counter ·
+  pause on voice modes.
+
 ### 6.1 S1 Page langue — aperçu + parcours (home)
 Replaces Home entirely; shows ONE language at a time (see the wireframe
 `diagrams/v2-home-parcours.svg`). Top to bottom:

@@ -16,8 +16,12 @@
 - La cloche notifications disparaît de l'accueil
 - Feuille de mode (Voix/Mains libres/Écrit/Cartes) conservée, ouverte depuis
   les étapes de S18 et Pratiquer
-- Variantes du header : `root` (chip langue + série + avatar) · `sub`
-  (retour + titre — écrans de détail, S18 inclus)
+- Contenus du shell (spec §6.0 + `../diagrams/v2-shell.svg`) :
+  - header `root` : chip langue (onglets scoped langue) · série 🔥 ·
+    avatar ; `sub` : retour · titre · une action contextuelle
+  - footer : 5 slots icône+label, actif en clay, FAB Pratiquer central,
+    jamais de badge rouge (point discret sur Amis max)
+  - chrome de session : ✕ · progression · compteur · pause (voix)
 - Footer présent sur tous les écrans de navigation (onglets + détails +
   S18)
 
