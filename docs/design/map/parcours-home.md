@@ -18,10 +18,14 @@ spec : `../v2-ux-architecture.md §6.1` · wireframe : `../diagrams/v2-home-parc
   encombré) ; 🟠 supposé : cet onglet EST l'accueil et porte chemin +
   progression + parcours
 
+## Validé (utilisateur, 2026-08-08 — wireframe accepté comme base)
+- Structure de l'écran Étudier : en-tête (chip langue · série · avatar)
+  → carte Chemin du jour (pastilles, prochaine étape, chip Continuer,
+  chevron) → carte progression (position CEFR + barre) → parcours en
+  cartes de niveau (pas de sentier Duolingo — Q1 tranchée : cartes)
+- Bilan hebdo se glisse au-dessus le dimanche
+
 ## Proposé — pas encore vetté (Claude)
-- Carte Chemin du jour : pastilles ● ○ ○ ○, prochaine étape, chip
-  Continuer, chevron ; carte progression séparée (position CEFR + barre) ;
-  bilan hebdo se glisse au-dessus le dimanche
 - Série (flamme) dans l'en-tête — la carte héro sombre v1 meurt
 - Sélecteur de langue = chip drapeau + autonyme dans l'en-tête
 - Nœuds de 3 types : Vocabulaire · Grammaire (règle) · Mélange
@@ -30,7 +34,6 @@ spec : `../v2-ux-architecture.md §6.1` · wireframe : `../diagrams/v2-home-parc
   révisions FSRS)
 
 ## À trancher 🔴
-- Cartes de niveau vs sentier sinueux façon Duolingo (Q1 — reco : cartes)
 - « Voir les 20 leçons » : inline vs bottom sheet (Q5)
 - Visibilité du test de saut sur niveau verrouillé (Q6)
 - Groupes de grammaire : 6 nœuds plats vs sous-carte de groupe (Q7)

@@ -351,7 +351,8 @@ celebrations (session chrome replaces them). See
 
 ### 6.1 S1 Étudier — chemin du jour + progression + parcours (landing)
 The doing tab, replacing both the v1 Home and the session-setup
-accordion; shows ONE language at a time (see the wireframe
+accordion. Structure VALIDATED 2026-08-08 — the wireframe is the design
+base; shows ONE language at a time (see the wireframe
 `diagrams/v2-home-parcours.svg`). Top to bottom:
 
 1. **Header**: language chip (flag + autonym, tap → switcher sheet over
@@ -543,9 +544,8 @@ banner.
 
 ## 8. Open questions for Claude Design
 
-1. Parcours visual language: expandable level cards (assumed here, fits
-   paper/ink) vs a Duolingo-like winding trail of lesson nodes.
-   Recommendation: cards.
+1. ~~Parcours visual language~~ — RESOLVED 2026-08-08: expandable level
+   cards (the wireframe is the validated base), not a winding trail.
 2. Celebration style (day done, level unlocked, recap): illustration,
    confetti, or waveform-motif animation? Must stay "calm" (principle 2).
 3. Mode-chip treatment on S18's review-step rows (chip per row,

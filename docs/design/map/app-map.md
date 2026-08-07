@@ -18,7 +18,7 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 | Zone | Note | Statut | Reste à trancher |
 |---|---|---|---|
 | Navigation & onglets | [[navigation]] | 🟢 | modèle complet décidé/validé 2026-08-07 |
-| Accueil : page langue + parcours | [[parcours-home]] | 🟢🟠 | carte progression, visuel des niveaux |
+| Accueil (Étudier) : structure validée | [[parcours-home]] | 🟢 | détails designer (Q5-Q7) |
 | Écran Chemin du jour (S18) | [[daily-chain]] | 🟢 | détails visuels (base = panneau sombre validée) |
 | Porte de préchargement | [[preload-gate]] | 🟢 | visuel seulement |
 | Chemin du jour | [[daily-chain]] | 🟢🟠 | quotas & ordre des étapes |
