@@ -166,6 +166,11 @@ Status: **NEW** = design from scratch · **REDESIGN** = exists, restructure
 
 ![Daily loop](diagrams/v2-daily-loop.svg)
 
+How a day's steps are generated (sources → generator rules → served
+chain): see `diagrams/v2-daily-chain.svg`.
+
+![Daily chain generation](diagrams/v2-daily-chain.svg)
+
 Open app → preload gate (S2) until everything is ready → **Aujourd'hui**
 with the current step highlighted → tap it → the right session type opens directly (no
 setup) → finish → return to the path: step animates to ✓, next step

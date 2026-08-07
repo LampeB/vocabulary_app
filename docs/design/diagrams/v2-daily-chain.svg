@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="640" viewBox="0 0 1060 640" font-family="'Segoe UI',system-ui,sans-serif">
+  <defs>
+    <marker id="dc" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M1,1 L8,4.5 L1,8" fill="none" stroke="#756C62" stroke-width="1.6"/>
+    </marker>
+  </defs>
+  <rect width="1060" height="640" fill="#F6F1EA"/>
+  <text x="30" y="42" font-size="21" font-weight="700" fill="#2B2622">Chemin du jour — génération et service des étapes</text>
+  <text x="30" y="64" font-size="13" fill="#756C62">Généré par langue, derrière la porte de préchargement · servi par la carte aperçu (un seul Continuer)</text>
+
+  <text x="30" y="100" font-size="11.5" fill="#8A8073" font-weight="700" letter-spacing="1.5">SOURCES</text>
+
+  <rect x="30" y="112" width="260" height="72" rx="14" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
+  <text x="48" y="138" font-size="13" fill="#2B2622" font-weight="700">Révisions dues (FSRS)</text>
+  <text x="48" y="158" font-size="11.5" fill="#756C62">par direction FR→X / X→FR</text>
+  <text x="48" y="174" font-size="11.5" fill="#756C62">mode mémorisé (chip sur l'aperçu)</text>
+
+  <rect x="30" y="196" width="260" height="72" rx="14" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
+  <text x="48" y="222" font-size="13" fill="#2B2622" font-weight="700">Drills grammaire programmés</text>
+  <text x="48" y="242" font-size="11.5" fill="#756C62">Reconnaître J+1 · Construire J+2</text>
+  <text x="48" y="258" font-size="11.5" fill="#756C62">· exercices du Mélange en cours</text>
+
+  <rect x="30" y="280" width="260" height="72" rx="14" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="48" y="306" font-size="13" fill="#2B2622" font-weight="700">Parcours : prochaine leçon</text>
+  <text x="48" y="326" font-size="11.5" fill="#756C62">unité vocab (Découvrir) · petite règle</text>
+  <text x="48" y="342" font-size="11.5" fill="#756C62">· leçon de Mélange</text>
+
+  <rect x="30" y="364" width="260" height="72" rx="14" fill="#FFFFFF" stroke="#B0556B" stroke-width="1.6"/>
+  <text x="48" y="390" font-size="13" fill="#2B2622" font-weight="700">Mots difficiles (leeches)</text>
+  <text x="48" y="410" font-size="11.5" fill="#756C62">lapses ≥ 3 ou précision &lt; 50 %</text>
+  <text x="48" y="426" font-size="11.5" fill="#756C62">→ étape Renforcer si non vide</text>
+
+  <line x1="290" y1="148" x2="326" y2="190" stroke="#756C62" stroke-width="1.6" marker-end="url(#dc)"/>
+  <line x1="290" y1="232" x2="326" y2="248" stroke="#756C62" stroke-width="1.6" marker-end="url(#dc)"/>
+  <line x1="290" y1="316" x2="326" y2="306" stroke="#756C62" stroke-width="1.6" marker-end="url(#dc)"/>
+  <line x1="290" y1="400" x2="326" y2="364" stroke="#756C62" stroke-width="1.6" marker-end="url(#dc)"/>
+
+  <!-- generator -->
+  <rect x="330" y="130" width="330" height="330" rx="18" fill="#FFFFFF" stroke="#ECE3D7"/>
+  <text x="495" y="160" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="700" letter-spacing="1.5">GÉNÉRATEUR DU CHEMIN</text>
+  <text x="495" y="178" font-size="11" fill="#8A8073" text-anchor="middle">à chaque ouverture du jour, par langue</text>
+
+  <text x="356" y="210" font-size="12.5" fill="#2B2622" font-weight="600">Ordre 🟠</text>
+  <text x="368" y="232" font-size="12" fill="#756C62">1 · Réviser d'abord (les dues)</text>
+  <text x="368" y="251" font-size="12" fill="#756C62">2 · Apprendre ensuite (leçon du parcours)</text>
+  <text x="368" y="270" font-size="12" fill="#756C62">3 · Drills grammaire du jour</text>
+  <text x="368" y="289" font-size="12" fill="#756C62">4 · Renforcer en dernier</text>
+
+  <line x1="356" y1="306" x2="634" y2="306" stroke="#ECE3D7" stroke-width="1.5"/>
+
+  <text x="356" y="330" font-size="12.5" fill="#2B2622" font-weight="600">Quotas 🟠</text>
+  <text x="368" y="352" font-size="12" fill="#756C62">2-5 étapes · 1-2 grammaire max</text>
+  <text x="368" y="371" font-size="12" fill="#756C62">budget nouveaux mots (~8, réglable)</text>
+
+  <line x1="356" y1="388" x2="634" y2="388" stroke="#ECE3D7" stroke-width="1.5"/>
+
+  <text x="356" y="412" font-size="12.5" fill="#2B2622" font-weight="600">Porte fermée ?</text>
+  <text x="368" y="434" font-size="12" fill="#756C62">groupe suivant verrouillé (vocab pas maîtrisé)</text>
+  <text x="368" y="452" font-size="12" fill="#756C62">→ la leçon est remplacée par ces révisions</text>
+
+  <line x1="660" y1="295" x2="696" y2="295" stroke="#756C62" stroke-width="1.8" marker-end="url(#dc)"/>
+
+  <!-- today card -->
+  <rect x="700" y="96" width="330" height="420" rx="20" fill="#2B2622"/>
+  <text x="865" y="126" font-size="13" fill="#F6F1EA" text-anchor="middle" font-weight="700" letter-spacing="1.5">AUJOURD'HUI</text>
+  <text x="865" y="146" font-size="11.5" fill="#CFC6BA" text-anchor="middle">carte aperçu : ● ○ ○ ○ 1/4 · [ Continuer ]</text>
+
+  <rect x="722" y="162" width="286" height="56" rx="12" fill="#4C8C86"/>
+  <text x="865" y="185" font-size="12.5" fill="#FFFFFF" text-anchor="middle" font-weight="600">① Réviser · 12 mots · 🇫🇷↔🇰🇷</text>
+  <text x="865" y="204" font-size="11" fill="#DCEBE9" text-anchor="middle">fait ✓</text>
+
+  <rect x="718" y="228" width="294" height="60" rx="12" fill="#D08358" stroke="#F6F1EA" stroke-width="2"/>
+  <text x="865" y="252" font-size="12.5" fill="#FFFFFF" text-anchor="middle" font-weight="700">② Grammaire · Reconnaître « 을/를 »</text>
+  <text x="865" y="272" font-size="11" fill="#FBEADF" text-anchor="middle">courante — drill J+1, 2-3 min</text>
+
+  <rect x="722" y="298" width="286" height="56" rx="12" fill="#3A3430"/>
+  <text x="865" y="321" font-size="12.5" fill="#CFC6BA" text-anchor="middle">③ Découvrir · leçon 14 · 8 mots</text>
+  <text x="865" y="340" font-size="11" fill="#9A9086" text-anchor="middle">à venir — nœud du parcours</text>
+
+  <rect x="722" y="364" width="286" height="56" rx="12" fill="#3A3430"/>
+  <text x="865" y="387" font-size="12.5" fill="#CFC6BA" text-anchor="middle">④ Renforcer · 5 mots difficiles</text>
+  <text x="865" y="406" font-size="11" fill="#9A9086" text-anchor="middle">à venir</text>
+
+  <rect x="722" y="432" width="286" height="60" rx="12" fill="#241F1B" stroke="#D08358" stroke-width="1.4"/>
+  <text x="865" y="456" font-size="12.5" fill="#E0A079" text-anchor="middle" font-weight="600">🏁 tout ✓ → célébration · série +1</text>
+  <text x="865" y="476" font-size="11" fill="#9A9086" text-anchor="middle">« encore envie ? » → Pratique libre</text>
+
+  <!-- bottom notes -->
+  <rect x="30" y="540" width="323" height="76" rx="14" fill="#EFE7DB"/>
+  <text x="48" y="564" font-size="12" fill="#2B2622" font-weight="700">Figé à la génération 🟠</text>
+  <text x="48" y="583" font-size="11" fill="#756C62">pas de recalcul en journée — les nouvelles</text>
+  <text x="48" y="599" font-size="11" fill="#756C62">échéances FSRS attendent demain</text>
+
+  <rect x="368" y="540" width="323" height="76" rx="14" fill="#EFE7DB"/>
+  <text x="386" y="564" font-size="12" fill="#2B2622" font-weight="700">Par langue 🟠</text>
+  <text x="386" y="583" font-size="11" fill="#756C62">le chemin appartient à la page langue ;</text>
+  <text x="386" y="599" font-size="11" fill="#756C62">chaque langue étudiée a le sien</text>
+
+  <rect x="706" y="540" width="324" height="76" rx="14" fill="#EFE7DB"/>
+  <text x="724" y="564" font-size="12" fill="#2B2622" font-weight="700">Interruptible</text>
+  <text x="724" y="583" font-size="11" fill="#756C62">quitter ne perd rien ; une étape sautée reste</text>
+  <text x="724" y="599" font-size="11" fill="#756C62">disponible — hier disparaît sans culpabiliser</text>
+</svg>
