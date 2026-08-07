@@ -17,10 +17,12 @@
   MENU GÉNÉRAL (Paramètres, options de paiement, choix d'avatar,
   déconnexion, etc.)
 
+- (validé 2026-08-07) Étudier = onglet d'atterrissage, contient carte
+  Chemin du jour + carte progression + parcours + entrée Pratique libre
+- (validé 2026-08-07) Familles de mots hébergées sous Vocabulaire ;
+  l'onglet Grammaire peut LANCER un drill depuis une fiche
+
 ## Proposé — pas encore vetté (Claude)
-- Étudier = onglet d'atterrissage, contient carte Chemin du jour +
-  carte progression + parcours + entrée Pratique libre
-- Familles de mots hébergées sous Vocabulaire
 - Header `sub` (détails + S18) : retour · titre · une action
   contextuelle ; chrome de session : ✕ · progression · compteur · pause
 - Actif du footer teinté clay ; jamais de badge rouge (point discret
@@ -29,6 +31,6 @@
   libre
 
 ## À trancher 🔴
-- Onglet par défaut à l'ouverture (supposé Étudier)
+- (rien — modèle complet validé)
 
 Liens : [[parcours-home]] · [[pratique-libre]] · [[bibliotheque]] · [[progres-suivi]]

@@ -30,7 +30,7 @@
   <text x="130" y="295" font-size="11" fill="#756C62" text-anchor="middle">S8 · conservés</text>
   <rect x="40" y="316" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
   <text x="130" y="335" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Familles de mots</text>
-  <text x="130" y="351" font-size="11" fill="#756C62" text-anchor="middle">S10 · M8 · placement 🟠</text>
+  <text x="130" y="351" font-size="11" fill="#756C62" text-anchor="middle">S10 · M8</text>
 
   <!-- GRAMMAIRE -->
   <line x1="330" y1="148" x2="330" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
@@ -48,7 +48,7 @@
   <!-- ÉTUDIER -->
   <line x1="530" y1="148" x2="530" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
   <rect x="440" y="178" width="180" height="58" rx="14" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
-  <text x="530" y="202" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Étudier — accueil 🟠</text>
+  <text x="530" y="202" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="600">Étudier — accueil ✓</text>
   <text x="530" y="220" font-size="11" fill="#756C62" text-anchor="middle">S1 · nouvel écran (setup v1 mort)</text>
   <line x1="530" y1="236" x2="530" y2="258" stroke="#756C62" stroke-width="1.6" marker-end="url(#n)"/>
   <rect x="440" y="260" width="180" height="46" rx="12" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>

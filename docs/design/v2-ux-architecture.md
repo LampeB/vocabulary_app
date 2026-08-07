@@ -117,9 +117,9 @@ revision pass once designs land.
 
 | Slot | Tab | Content |
 |---|---|---|
-| 1 | **Vocabulaire** | Browse the lists + full CRUD on vocabulary lists (the user's editable space; v1 Mes listes + détail + ajout de mot). Word-families index lives here 🟠. |
+| 1 | **Vocabulaire** | Browse the lists + full CRUD on vocabulary lists (the user's editable space; v1 Mes listes + détail + ajout de mot). Word-families index lives here (decided). |
 | 2 | **Grammaire** | Read lessons: the course book — groups by level, fiches (●●● + Mélange + prerequisite bars), re-open any done lesson in the viewer. Read-only. |
-| 3 | **Étudier** | The doing tab, and the landing tab 🟠 — a NEW screen (the old session-setup accordion is too cluttered to serve this): chemin du jour card (→ S18), carte progression, the A1→C2 parcours, and the Pratique libre entry. Plugs into the quiz screen and the lesson viewer. |
+| 3 | **Étudier** | The doing tab, and the landing tab (decided) — a NEW screen (the old session-setup accordion is too cluttered to serve this): chemin du jour card (→ S18), carte progression, the A1→C2 parcours, and the Pratique libre entry. Plugs into the quiz screen and the lesson viewer. |
 | 4 | **Progrès** | Every progression in one place: dashboard, vocabulary known, grammar progression + unlocks, CEFR level progression, bilans. |
 | 5 | **Amis** | Friend management (invite/remove, friend list), friend progression, classement, défis (M9). |
 
@@ -349,7 +349,7 @@ celebrations (session chrome replaces them). See
 - **Session chrome 🟠** (not the shell): exit ✕ · progress bar +
   counter · pause on voice modes.
 
-### 6.1 S1 Étudier — chemin du jour + progression + parcours (landing 🟠)
+### 6.1 S1 Étudier — chemin du jour + progression + parcours (landing)
 The doing tab, replacing both the v1 Home and the session-setup
 accordion; shows ONE language at a time (see the wireframe
 `diagrams/v2-home-parcours.svg`). Top to bottom:
@@ -423,8 +423,9 @@ the path feel continuous.
 ### 6.7 S7 Vocabulaire (onglet)
 The user's editable space — v1 Mes listes kept: list cards with colored
 dots, "Nouvelle liste" CTA, full CRUD, detail + add-word dialog (S8)
-as-is; pair-filter chips at top. Also hosts the **Familles** index 🟠
-(S10, teaser state until M8). No grammar here. Empty states per pair.
+as-is; pair-filter chips at top. Also hosts the **Familles** index
+(decided; S10, teaser state until M8). No grammar here. Empty states
+per pair.
 
 ### 6.8 S9 Grammaire (onglet) — groupes + fiches
 The "course book", organized level → **group cards**: group name ("Les
@@ -549,8 +550,8 @@ banner.
    confetti, or waveform-motif animation? Must stay "calm" (principle 2).
 3. Mode-chip treatment on S18's review-step rows (chip per row,
    assumed) without cluttering the one-dominant-action rule.
-4. Where the Familles index lives (assumed Vocabulaire tab) and its
-   entry treatment.
+4. Entry treatment of the Familles index inside Vocabulaire (placement
+   itself is decided).
 5. "Voir les 20 leçons": expand inline vs bottom sheet.
 6. Locked-level treatment: how inviting should the skip-ahead test be
    (prominent chip vs discreet text link)?

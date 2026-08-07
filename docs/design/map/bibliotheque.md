@@ -18,8 +18,11 @@
   règles ●●●, « Relire la leçon », « S'entraîner maintenant »
 - Chips de filtre par paire persistants en haut des deux onglets
 
+## Décidé aussi (validé 2026-08-07)
+- Familles sous Vocabulaire ; l'onglet Grammaire peut lancer un drill
+  depuis une fiche (« S'entraîner maintenant »)
+
 ## À trancher 🔴
-- Placement des Familles (Vocabulaire supposé) ; l'onglet Grammaire
-  permet-il de lancer des drills ou seulement lire ?
+- Traitement visuel de l'entrée Familles dans Vocabulaire
 
 Liens : [[navigation]] · [[grammar-flow]] · [[familles]] · [[vocab-flow]]

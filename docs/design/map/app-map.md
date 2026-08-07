@@ -17,7 +17,7 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 
 | Zone | Note | Statut | Reste à trancher |
 |---|---|---|---|
-| Navigation & onglets | [[navigation]] | 🟢🟠 | onglet par défaut ; footer/header décidés 2026-08-07 |
+| Navigation & onglets | [[navigation]] | 🟢 | modèle complet décidé/validé 2026-08-07 |
 | Accueil : page langue + parcours | [[parcours-home]] | 🟢🟠 | carte progression, visuel des niveaux |
 | Écran Chemin du jour (S18) | [[daily-chain]] | 🟢 | détails visuels (base = panneau sombre validée) |
 | Porte de préchargement | [[preload-gate]] | 🟢 | visuel seulement |
@@ -45,7 +45,7 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 
 | Zone | Note | Statut | Reste à trancher |
 |---|---|---|---|
-| Onglets Vocabulaire & Grammaire | [[bibliotheque]] | 🟢🟠 | placement des Familles |
+| Onglets Vocabulaire & Grammaire | [[bibliotheque]] | 🟢🟠 | entrée Familles (visuel) |
 | Familles de mots | [[familles]] | 🟢🟠 | design écran, gratuit vs premium |
 | Progrès, CEFR & bilan hebdo | [[progres-suivi]] | 🟢🟠 | layouts, seuils CEFR |
 | Défis | [[defis]] | 🟢🟠 | scope après audit M9 |
