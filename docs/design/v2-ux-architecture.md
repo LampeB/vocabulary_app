@@ -175,6 +175,14 @@ chain): see `diagrams/v2-daily-chain.svg`.
 
 ![Daily chain generation](diagrams/v2-daily-chain.svg)
 
+Chain rules (decided 2026-08-08): **Réviser first** (warm-up on known
+material, then parcours lessons, drills, Renforcer last) · **frozen at
+generation** (built at the day's first open; later dues wait until
+tomorrow) · **a successful day = ALL steps done** (celebration on the
+last one) · **chain AND streak are PER LANGUAGE** — every language has
+its own chemin and its own 🔥 flame; the header shows the current
+language's.
+
 Open app → preload gate (S2) until everything is ready → **Aujourd'hui**
 with the current step highlighted → tap it → the right session type opens directly (no
 setup) → finish → return to the path: step animates to ✓, next step
@@ -340,7 +348,8 @@ celebrations (session chrome replaces them). See
   FAB — Vocabulaire · Grammaire · Étudier · Progrès · Amis. Active slot
   clay-tinted 🟠. No red badges ever; at most a discreet muted dot on
   Amis for a pending défi 🟠.
-- **Header (decided):** language selector · 🔥 streak · avatar. The
+- **Header (decided):** language selector · 🔥 streak (per-language —
+  the displayed language's flame, decided 2026-08-08) · avatar. The
   avatar opens the **menu général**: Paramètres, abonnement/paiement,
   choix d'avatar, déconnexion, etc.
 - **Header `sub` 🟠** (detail screens + S18): back arrow · title · ONE

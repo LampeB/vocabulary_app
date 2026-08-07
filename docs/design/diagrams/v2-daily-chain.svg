@@ -40,7 +40,7 @@
   <text x="495" y="160" font-size="13" fill="#2B2622" text-anchor="middle" font-weight="700" letter-spacing="1.5">GÉNÉRATEUR DU CHEMIN</text>
   <text x="495" y="178" font-size="11" fill="#8A8073" text-anchor="middle">à chaque ouverture du jour, par langue</text>
 
-  <text x="356" y="210" font-size="12.5" fill="#2B2622" font-weight="600">Ordre 🟠</text>
+  <text x="356" y="210" font-size="12.5" fill="#2B2622" font-weight="600">Ordre ✓ (décidé)</text>
   <text x="368" y="232" font-size="12" fill="#756C62">1 · Réviser d'abord (les dues)</text>
   <text x="368" y="251" font-size="12" fill="#756C62">2 · Apprendre ensuite (leçon du parcours)</text>
   <text x="368" y="270" font-size="12" fill="#756C62">3 · Drills grammaire du jour</text>
@@ -48,7 +48,7 @@
 
   <line x1="356" y1="306" x2="634" y2="306" stroke="#ECE3D7" stroke-width="1.5"/>
 
-  <text x="356" y="330" font-size="12.5" fill="#2B2622" font-weight="600">Quotas 🟠</text>
+  <text x="356" y="330" font-size="12.5" fill="#2B2622" font-weight="600">Quotas 🟠 (réglages de build)</text>
   <text x="368" y="352" font-size="12" fill="#756C62">2-5 étapes · 1-2 grammaire max</text>
   <text x="368" y="371" font-size="12" fill="#756C62">budget nouveaux mots (~8, réglable)</text>
 
@@ -87,14 +87,14 @@
 
   <!-- bottom notes -->
   <rect x="30" y="540" width="323" height="76" rx="14" fill="#EFE7DB"/>
-  <text x="48" y="564" font-size="12" fill="#2B2622" font-weight="700">Figé à la génération 🟠</text>
+  <text x="48" y="564" font-size="12" fill="#2B2622" font-weight="700">Figé à la génération ✓ (décidé)</text>
   <text x="48" y="583" font-size="11" fill="#756C62">pas de recalcul en journée — les nouvelles</text>
   <text x="48" y="599" font-size="11" fill="#756C62">échéances FSRS attendent demain</text>
 
   <rect x="368" y="540" width="323" height="76" rx="14" fill="#EFE7DB"/>
-  <text x="386" y="564" font-size="12" fill="#2B2622" font-weight="700">Par langue 🟠</text>
-  <text x="386" y="583" font-size="11" fill="#756C62">le chemin appartient à la page langue ;</text>
-  <text x="386" y="599" font-size="11" fill="#756C62">chaque langue étudiée a le sien</text>
+  <text x="386" y="564" font-size="12" fill="#2B2622" font-weight="700">Par langue ✓ (décidé)</text>
+  <text x="386" y="583" font-size="11" fill="#756C62">chemin ET série 🔥 par langue ; journée réussie</text>
+  <text x="386" y="599" font-size="11" fill="#756C62">= toutes les étapes de ce chemin</text>
 
   <rect x="706" y="540" width="324" height="76" rx="14" fill="#EFE7DB"/>
   <text x="724" y="564" font-size="12" fill="#2B2622" font-weight="700">Interruptible</text>

@@ -15,16 +15,24 @@ schéma : `../diagrams/v2-daily-chain.svg` (sources → générateur → étapes
 - Base de design validée « pour l'instant » : le panneau sombre à étapes
   des diagrammes (`../diagrams/v2-daily-chain.svg`, panneau de droite)
 
-## Proposé — pas encore vetté (Claude)
-- Ordre type : révisions dues → leçon(s) du parcours → renforcer
-- Quotas : 1-2 étapes grammaire/jour ; étapes de 2-5 min
-- Hier disparaît sans culpabilisation ; célébration à la fin + « encore
-  envie ? » → Pratique libre
+## Décidé (utilisateur, 2026-08-08 — mécanique tranchée)
+- **Ordre : Réviser d'abord** (échauffement sur du connu) → leçons du
+  parcours → drills grammaire → Renforcer en dernier
+- **Figé à la génération** : généré au premier lancement du jour ; les
+  échéances qui tombent ensuite attendent demain
+- **Journée réussie = TOUTES les étapes** du chemin (célébration à la
+  dernière)
+- **Chemin ET série PAR LANGUE** : chaque langue a son chemin et sa
+  propre flamme 🔥 (le header affiche celle de la langue courante)
+
+## Proposé — pas encore vetté (Claude, réglages de build)
+- Quotas : 2-5 étapes/jour, 1-2 grammaire, budget ~8 mots ; étapes de
+  2-5 min ; grosse journée d'échéances → max ~20 mots par étape Réviser,
+  le surplus en 2ᵉ étape ou vers Pratique libre
+- Hier disparaît sans culpabilisation ; étape sautée reste disponible
 - Résumé de session avec bloc « et ensuite » (Continuer le chemin)
 
 ## À trancher 🔴
-- Nombre max d'étapes par jour ; équilibre entre paires quand on étudie
-  plusieurs langues (le chemin est-il par langue ou global ? — depuis le
-  parcours, supposé PAR LANGUE : à confirmer)
+- (rien de structurel — les nombres ci-dessus se règlent au build)
 
 Liens : [[parcours-home]] · [[vocab-flow]] · [[grammar-flow]]

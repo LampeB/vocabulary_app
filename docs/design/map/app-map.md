@@ -21,7 +21,7 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 | Accueil (Étudier) : structure validée | [[parcours-home]] | 🟢 | détails designer (Q5-Q7) |
 | Écran Chemin du jour (S18) | [[daily-chain]] | 🟢 | détails visuels (base = panneau sombre validée) |
 | Porte de préchargement | [[preload-gate]] | 🟢 | visuel seulement |
-| Chemin du jour | [[daily-chain]] | 🟢🟠 | quotas & ordre des étapes |
+| Chemin du jour (mécanique) | [[daily-chain]] | 🟢 | nombres à régler au build (quotas, surplus) |
 | Onboarding | [[onboarding]] | 🟠 | rythme, placement |
 
 ## Apprendre
