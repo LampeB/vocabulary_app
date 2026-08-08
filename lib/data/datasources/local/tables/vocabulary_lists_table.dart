@@ -19,6 +19,10 @@ class VocabularyListsTable extends Table {
   // quota), 'starter' (seeded defaults, quota-exempt), 'premium' (tier-gated
   // content packs, quota-exempt).
   TextColumn get origin => text().withDefault(const Constant('user'))();
+  // Stable identity of seeded content: '<curriculumListId>:<langA>><langB>'
+  // (e.g. 'starter-greetings:fr>ko'). Null for user-created lists. Seeding
+  // dedups and tops up by this id, never by the (localized, editable) name.
+  TextColumn get seedId => text().named('seed_id').nullable()();
   BoolColumn get isSynced => boolean().named('is_synced').withDefault(const Constant(false))();
   BoolColumn get isDeleted => boolean().named('is_deleted').withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().named('created_at')();

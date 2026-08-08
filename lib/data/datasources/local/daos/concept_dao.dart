@@ -67,6 +67,17 @@ class ConceptDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(DateTime.now()),
       ));
 
+  /// Retro-tags a pre-catalog concept with its registry seed id
+  /// (legacy adoption — see StarterSeeder).
+  Future<int> stampSeedId(String conceptId, String seedId) =>
+      (update(conceptsTable)..where((t) => t.id.equals(conceptId))).write(
+        ConceptsTableCompanion(
+          seedId: Value(seedId),
+          isSynced: const Value(false),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+
   Future<int> countByList(String listId) async {
     final count = countAll();
     final query = selectOnly(conceptsTable)

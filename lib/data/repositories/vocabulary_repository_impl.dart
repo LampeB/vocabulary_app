@@ -1,4 +1,5 @@
 import 'dart:async' show unawaited;
+import 'dart:convert' show jsonEncode;
 import 'package:uuid/uuid.dart';
 import '../../domain/entities/concept.dart';
 import '../../domain/entities/vocabulary_list.dart';
@@ -383,6 +384,12 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     }
   }
 
+  /// Reads [camel] from [map], falling back to its snake_case alias.
+  /// Import payloads come in two shapes: app exports (camelCase) and
+  /// seed/remote rows (snake_case).
+  static T? _field<T>(Map<String, dynamic> map, String camel, String snake) =>
+      (map[camel] ?? map[snake]) as T?;
+
   @override
   Future<Result<VocabularyList>> importFromJson(Map<String, dynamic> json,
       {String origin = 'user'}) async {
@@ -396,6 +403,9 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       final listId = _uuid.v4();
       final name = listData['name'] as String? ?? 'Imported List';
       final description = listData['description'] as String?;
+      final langA = _field<String>(listData, 'langA', 'lang_a') ?? 'fr';
+      final langB = _field<String>(listData, 'langB', 'lang_b') ?? 'ko';
+      final listSeedId = _field<String>(listData, 'seedId', 'seed_id');
       final concepts =
           (listData['concepts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
@@ -407,7 +417,10 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
           name: Value(name),
           description: Value(description),
           wordCount: Value(concepts.length),
+          langA: Value(langA),
+          langB: Value(langB),
           origin: Value(origin),
+          seedId: Value(listSeedId),
           isSynced: const Value(false),
           isDeleted: const Value(false),
           createdAt: Value(now),
@@ -421,24 +434,35 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
             listId: Value(listId),
             category: Value(cData['category'] as String?),
             notes: Value(cData['notes'] as String?),
-            exampleFr: Value(cData['exampleFr'] as String?),
-            exampleKo: Value(cData['exampleKo'] as String?),
+            exampleFr: Value(_field<String>(cData, 'exampleFr', 'example_fr')),
+            exampleKo: Value(_field<String>(cData, 'exampleKo', 'example_ko')),
+            seedId: Value(_field<String>(cData, 'seedId', 'seed_id')),
             isDeleted: const Value(false),
             createdAt: Value(now),
             updatedAt: Value(now),
           ));
 
           final variants =
-              (cData['variants'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+              (_field<List>(cData, 'variants', 'word_variants'))
+                      ?.cast<Map<String, dynamic>>() ??
+                  [];
           for (final vData in variants) {
             await _conceptDao.upsertVariant(WordVariantsTableCompanion(
               id: Value(_uuid.v4()),
               conceptId: Value(conceptId),
               word: Value(vData['word'] as String? ?? ''),
-              langCode: Value(vData['langCode'] as String? ?? 'fr'),
-              registerTag: Value(vData['registerTag'] as String? ?? 'neutral'),
-              isPrimary: Value(vData['isPrimary'] as bool? ?? false),
+              langCode:
+                  Value(_field<String>(vData, 'langCode', 'lang_code') ?? langA),
+              registerTag: Value(
+                  _field<String>(vData, 'registerTag', 'register_tag') ??
+                      'neutral'),
+              contextTags: Value(jsonEncode(
+                  _field<List>(vData, 'contextTags', 'context_tags') ??
+                      const [])),
+              isPrimary:
+                  Value(_field<bool>(vData, 'isPrimary', 'is_primary') ?? false),
               position: Value(vData['position'] as int? ?? 0),
+              example: Value(vData['example'] as String?),
               isDeleted: const Value(false),
               createdAt: Value(now),
               updatedAt: Value(now),
@@ -453,6 +477,10 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         name: name,
         description: description,
         wordCount: concepts.length,
+        langA: langA,
+        langB: langB,
+        origin: origin,
+        seedId: listSeedId,
         createdAt: now,
         updatedAt: now,
       );
@@ -548,6 +576,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
               imageUrl: Value(c['image_url'] as String?),
               exampleFr: Value(c['example_fr'] as String?),
               exampleKo: Value(c['example_ko'] as String?),
+              seedId: Value(c['seed_id'] as String?),
               isDeleted: Value(c['is_deleted'] as bool? ?? false),
               isSynced: const Value(true),
               createdAt: Value(DateTime.parse(c['created_at'] as String)),
@@ -564,8 +593,11 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
                 langCode: Value(v['lang_code'] as String? ?? 'fr'),
                 registerTag:
                     Value(v['register_tag'] as String? ?? 'neutral'),
+                contextTags:
+                    Value(jsonEncode(v['context_tags'] as List? ?? const [])),
                 isPrimary: Value(v['is_primary'] as bool? ?? false),
                 position: Value(v['position'] as int? ?? 0),
+                example: Value(v['example'] as String?),
                 isDeleted: Value(v['is_deleted'] as bool? ?? false),
                 isSynced: const Value(true),
                 createdAt:
@@ -621,6 +653,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         'image_url': c.imageUrl,
         'example_fr': c.exampleFr,
         'example_ko': c.exampleKo,
+        'seed_id': c.seedId,
         'is_deleted': c.isDeleted,
         'created_at': c.createdAt.toIso8601String(),
         'updated_at': c.updatedAt.toIso8601String(),
@@ -632,8 +665,10 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         'word': v.word,
         'lang_code': v.langCode,
         'register_tag': v.registerTag,
+        'context_tags': v.contextTags,
         'is_primary': v.isPrimary,
         'position': v.position,
+        'example': v.example,
         'is_deleted': v.isDeleted,
         'created_at': v.createdAt.toIso8601String(),
         'updated_at': v.updatedAt.toIso8601String(),

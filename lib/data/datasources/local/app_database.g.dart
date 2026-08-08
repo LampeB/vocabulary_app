@@ -74,6 +74,11 @@ class $VocabularyListsTableTable extends VocabularyListsTable
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('user'));
+  static const VerificationMeta _seedIdMeta = const VerificationMeta('seedId');
+  @override
+  late final GeneratedColumn<String> seedId = GeneratedColumn<String>(
+      'seed_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _isSyncedMeta =
       const VerificationMeta('isSynced');
   @override
@@ -118,6 +123,7 @@ class $VocabularyListsTableTable extends VocabularyListsTable
         langA,
         langB,
         origin,
+        seedId,
         isSynced,
         isDeleted,
         createdAt,
@@ -185,6 +191,10 @@ class $VocabularyListsTableTable extends VocabularyListsTable
       context.handle(_originMeta,
           origin.isAcceptableOrUnknown(data['origin']!, _originMeta));
     }
+    if (data.containsKey('seed_id')) {
+      context.handle(_seedIdMeta,
+          seedId.isAcceptableOrUnknown(data['seed_id']!, _seedIdMeta));
+    }
     if (data.containsKey('is_synced')) {
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
@@ -235,6 +245,8 @@ class $VocabularyListsTableTable extends VocabularyListsTable
           .read(DriftSqlType.string, data['${effectivePrefix}lang_b'])!,
       origin: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}origin'])!,
+      seedId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}seed_id']),
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
       isDeleted: attachedDatabase.typeMapping
@@ -264,6 +276,7 @@ class VocabularyListsTableData extends DataClass
   final String langA;
   final String langB;
   final String origin;
+  final String? seedId;
   final bool isSynced;
   final bool isDeleted;
   final DateTime createdAt;
@@ -279,6 +292,7 @@ class VocabularyListsTableData extends DataClass
       required this.langA,
       required this.langB,
       required this.origin,
+      this.seedId,
       required this.isSynced,
       required this.isDeleted,
       required this.createdAt,
@@ -300,6 +314,9 @@ class VocabularyListsTableData extends DataClass
     map['lang_a'] = Variable<String>(langA);
     map['lang_b'] = Variable<String>(langB);
     map['origin'] = Variable<String>(origin);
+    if (!nullToAbsent || seedId != null) {
+      map['seed_id'] = Variable<String>(seedId);
+    }
     map['is_synced'] = Variable<bool>(isSynced);
     map['is_deleted'] = Variable<bool>(isDeleted);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -323,6 +340,8 @@ class VocabularyListsTableData extends DataClass
       langA: Value(langA),
       langB: Value(langB),
       origin: Value(origin),
+      seedId:
+          seedId == null && nullToAbsent ? const Value.absent() : Value(seedId),
       isSynced: Value(isSynced),
       isDeleted: Value(isDeleted),
       createdAt: Value(createdAt),
@@ -344,6 +363,7 @@ class VocabularyListsTableData extends DataClass
       langA: serializer.fromJson<String>(json['langA']),
       langB: serializer.fromJson<String>(json['langB']),
       origin: serializer.fromJson<String>(json['origin']),
+      seedId: serializer.fromJson<String?>(json['seedId']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -364,6 +384,7 @@ class VocabularyListsTableData extends DataClass
       'langA': serializer.toJson<String>(langA),
       'langB': serializer.toJson<String>(langB),
       'origin': serializer.toJson<String>(origin),
+      'seedId': serializer.toJson<String?>(seedId),
       'isSynced': serializer.toJson<bool>(isSynced),
       'isDeleted': serializer.toJson<bool>(isDeleted),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -382,6 +403,7 @@ class VocabularyListsTableData extends DataClass
           String? langA,
           String? langB,
           String? origin,
+          Value<String?> seedId = const Value.absent(),
           bool? isSynced,
           bool? isDeleted,
           DateTime? createdAt,
@@ -397,6 +419,7 @@ class VocabularyListsTableData extends DataClass
         langA: langA ?? this.langA,
         langB: langB ?? this.langB,
         origin: origin ?? this.origin,
+        seedId: seedId.present ? seedId.value : this.seedId,
         isSynced: isSynced ?? this.isSynced,
         isDeleted: isDeleted ?? this.isDeleted,
         createdAt: createdAt ?? this.createdAt,
@@ -418,6 +441,7 @@ class VocabularyListsTableData extends DataClass
       langA: data.langA.present ? data.langA.value : this.langA,
       langB: data.langB.present ? data.langB.value : this.langB,
       origin: data.origin.present ? data.origin.value : this.origin,
+      seedId: data.seedId.present ? data.seedId.value : this.seedId,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -438,6 +462,7 @@ class VocabularyListsTableData extends DataClass
           ..write('langA: $langA, ')
           ..write('langB: $langB, ')
           ..write('origin: $origin, ')
+          ..write('seedId: $seedId, ')
           ..write('isSynced: $isSynced, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('createdAt: $createdAt, ')
@@ -458,6 +483,7 @@ class VocabularyListsTableData extends DataClass
       langA,
       langB,
       origin,
+      seedId,
       isSynced,
       isDeleted,
       createdAt,
@@ -476,6 +502,7 @@ class VocabularyListsTableData extends DataClass
           other.langA == this.langA &&
           other.langB == this.langB &&
           other.origin == this.origin &&
+          other.seedId == this.seedId &&
           other.isSynced == this.isSynced &&
           other.isDeleted == this.isDeleted &&
           other.createdAt == this.createdAt &&
@@ -494,6 +521,7 @@ class VocabularyListsTableCompanion
   final Value<String> langA;
   final Value<String> langB;
   final Value<String> origin;
+  final Value<String?> seedId;
   final Value<bool> isSynced;
   final Value<bool> isDeleted;
   final Value<DateTime> createdAt;
@@ -510,6 +538,7 @@ class VocabularyListsTableCompanion
     this.langA = const Value.absent(),
     this.langB = const Value.absent(),
     this.origin = const Value.absent(),
+    this.seedId = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -527,6 +556,7 @@ class VocabularyListsTableCompanion
     this.langA = const Value.absent(),
     this.langB = const Value.absent(),
     this.origin = const Value.absent(),
+    this.seedId = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.isDeleted = const Value.absent(),
     required DateTime createdAt,
@@ -548,6 +578,7 @@ class VocabularyListsTableCompanion
     Expression<String>? langA,
     Expression<String>? langB,
     Expression<String>? origin,
+    Expression<String>? seedId,
     Expression<bool>? isSynced,
     Expression<bool>? isDeleted,
     Expression<DateTime>? createdAt,
@@ -565,6 +596,7 @@ class VocabularyListsTableCompanion
       if (langA != null) 'lang_a': langA,
       if (langB != null) 'lang_b': langB,
       if (origin != null) 'origin': origin,
+      if (seedId != null) 'seed_id': seedId,
       if (isSynced != null) 'is_synced': isSynced,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (createdAt != null) 'created_at': createdAt,
@@ -584,6 +616,7 @@ class VocabularyListsTableCompanion
       Value<String>? langA,
       Value<String>? langB,
       Value<String>? origin,
+      Value<String?>? seedId,
       Value<bool>? isSynced,
       Value<bool>? isDeleted,
       Value<DateTime>? createdAt,
@@ -600,6 +633,7 @@ class VocabularyListsTableCompanion
       langA: langA ?? this.langA,
       langB: langB ?? this.langB,
       origin: origin ?? this.origin,
+      seedId: seedId ?? this.seedId,
       isSynced: isSynced ?? this.isSynced,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt ?? this.createdAt,
@@ -641,6 +675,9 @@ class VocabularyListsTableCompanion
     if (origin.present) {
       map['origin'] = Variable<String>(origin.value);
     }
+    if (seedId.present) {
+      map['seed_id'] = Variable<String>(seedId.value);
+    }
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
@@ -672,6 +709,7 @@ class VocabularyListsTableCompanion
           ..write('langA: $langA, ')
           ..write('langB: $langB, ')
           ..write('origin: $origin, ')
+          ..write('seedId: $seedId, ')
           ..write('isSynced: $isSynced, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('createdAt: $createdAt, ')
@@ -730,6 +768,11 @@ class $ConceptsTableTable extends ConceptsTable
   late final GeneratedColumn<String> exampleKo = GeneratedColumn<String>(
       'example_ko', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _seedIdMeta = const VerificationMeta('seedId');
+  @override
+  late final GeneratedColumn<String> seedId = GeneratedColumn<String>(
+      'seed_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _isSyncedMeta =
       const VerificationMeta('isSynced');
   @override
@@ -771,6 +814,7 @@ class $ConceptsTableTable extends ConceptsTable
         imageUrl,
         exampleFr,
         exampleKo,
+        seedId,
         isSynced,
         isDeleted,
         createdAt,
@@ -817,6 +861,10 @@ class $ConceptsTableTable extends ConceptsTable
       context.handle(_exampleKoMeta,
           exampleKo.isAcceptableOrUnknown(data['example_ko']!, _exampleKoMeta));
     }
+    if (data.containsKey('seed_id')) {
+      context.handle(_seedIdMeta,
+          seedId.isAcceptableOrUnknown(data['seed_id']!, _seedIdMeta));
+    }
     if (data.containsKey('is_synced')) {
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
@@ -860,6 +908,8 @@ class $ConceptsTableTable extends ConceptsTable
           .read(DriftSqlType.string, data['${effectivePrefix}example_fr']),
       exampleKo: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}example_ko']),
+      seedId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}seed_id']),
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
       isDeleted: attachedDatabase.typeMapping
@@ -886,6 +936,7 @@ class ConceptsTableData extends DataClass
   final String? imageUrl;
   final String? exampleFr;
   final String? exampleKo;
+  final String? seedId;
   final bool isSynced;
   final bool isDeleted;
   final DateTime createdAt;
@@ -898,6 +949,7 @@ class ConceptsTableData extends DataClass
       this.imageUrl,
       this.exampleFr,
       this.exampleKo,
+      this.seedId,
       required this.isSynced,
       required this.isDeleted,
       required this.createdAt,
@@ -921,6 +973,9 @@ class ConceptsTableData extends DataClass
     }
     if (!nullToAbsent || exampleKo != null) {
       map['example_ko'] = Variable<String>(exampleKo);
+    }
+    if (!nullToAbsent || seedId != null) {
+      map['seed_id'] = Variable<String>(seedId);
     }
     map['is_synced'] = Variable<bool>(isSynced);
     map['is_deleted'] = Variable<bool>(isDeleted);
@@ -947,6 +1002,8 @@ class ConceptsTableData extends DataClass
       exampleKo: exampleKo == null && nullToAbsent
           ? const Value.absent()
           : Value(exampleKo),
+      seedId:
+          seedId == null && nullToAbsent ? const Value.absent() : Value(seedId),
       isSynced: Value(isSynced),
       isDeleted: Value(isDeleted),
       createdAt: Value(createdAt),
@@ -965,6 +1022,7 @@ class ConceptsTableData extends DataClass
       imageUrl: serializer.fromJson<String?>(json['imageUrl']),
       exampleFr: serializer.fromJson<String?>(json['exampleFr']),
       exampleKo: serializer.fromJson<String?>(json['exampleKo']),
+      seedId: serializer.fromJson<String?>(json['seedId']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -982,6 +1040,7 @@ class ConceptsTableData extends DataClass
       'imageUrl': serializer.toJson<String?>(imageUrl),
       'exampleFr': serializer.toJson<String?>(exampleFr),
       'exampleKo': serializer.toJson<String?>(exampleKo),
+      'seedId': serializer.toJson<String?>(seedId),
       'isSynced': serializer.toJson<bool>(isSynced),
       'isDeleted': serializer.toJson<bool>(isDeleted),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -997,6 +1056,7 @@ class ConceptsTableData extends DataClass
           Value<String?> imageUrl = const Value.absent(),
           Value<String?> exampleFr = const Value.absent(),
           Value<String?> exampleKo = const Value.absent(),
+          Value<String?> seedId = const Value.absent(),
           bool? isSynced,
           bool? isDeleted,
           DateTime? createdAt,
@@ -1009,6 +1069,7 @@ class ConceptsTableData extends DataClass
         imageUrl: imageUrl.present ? imageUrl.value : this.imageUrl,
         exampleFr: exampleFr.present ? exampleFr.value : this.exampleFr,
         exampleKo: exampleKo.present ? exampleKo.value : this.exampleKo,
+        seedId: seedId.present ? seedId.value : this.seedId,
         isSynced: isSynced ?? this.isSynced,
         isDeleted: isDeleted ?? this.isDeleted,
         createdAt: createdAt ?? this.createdAt,
@@ -1023,6 +1084,7 @@ class ConceptsTableData extends DataClass
       imageUrl: data.imageUrl.present ? data.imageUrl.value : this.imageUrl,
       exampleFr: data.exampleFr.present ? data.exampleFr.value : this.exampleFr,
       exampleKo: data.exampleKo.present ? data.exampleKo.value : this.exampleKo,
+      seedId: data.seedId.present ? data.seedId.value : this.seedId,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -1040,6 +1102,7 @@ class ConceptsTableData extends DataClass
           ..write('imageUrl: $imageUrl, ')
           ..write('exampleFr: $exampleFr, ')
           ..write('exampleKo: $exampleKo, ')
+          ..write('seedId: $seedId, ')
           ..write('isSynced: $isSynced, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('createdAt: $createdAt, ')
@@ -1050,7 +1113,7 @@ class ConceptsTableData extends DataClass
 
   @override
   int get hashCode => Object.hash(id, listId, category, notes, imageUrl,
-      exampleFr, exampleKo, isSynced, isDeleted, createdAt, updatedAt);
+      exampleFr, exampleKo, seedId, isSynced, isDeleted, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1062,6 +1125,7 @@ class ConceptsTableData extends DataClass
           other.imageUrl == this.imageUrl &&
           other.exampleFr == this.exampleFr &&
           other.exampleKo == this.exampleKo &&
+          other.seedId == this.seedId &&
           other.isSynced == this.isSynced &&
           other.isDeleted == this.isDeleted &&
           other.createdAt == this.createdAt &&
@@ -1076,6 +1140,7 @@ class ConceptsTableCompanion extends UpdateCompanion<ConceptsTableData> {
   final Value<String?> imageUrl;
   final Value<String?> exampleFr;
   final Value<String?> exampleKo;
+  final Value<String?> seedId;
   final Value<bool> isSynced;
   final Value<bool> isDeleted;
   final Value<DateTime> createdAt;
@@ -1089,6 +1154,7 @@ class ConceptsTableCompanion extends UpdateCompanion<ConceptsTableData> {
     this.imageUrl = const Value.absent(),
     this.exampleFr = const Value.absent(),
     this.exampleKo = const Value.absent(),
+    this.seedId = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1103,6 +1169,7 @@ class ConceptsTableCompanion extends UpdateCompanion<ConceptsTableData> {
     this.imageUrl = const Value.absent(),
     this.exampleFr = const Value.absent(),
     this.exampleKo = const Value.absent(),
+    this.seedId = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.isDeleted = const Value.absent(),
     required DateTime createdAt,
@@ -1120,6 +1187,7 @@ class ConceptsTableCompanion extends UpdateCompanion<ConceptsTableData> {
     Expression<String>? imageUrl,
     Expression<String>? exampleFr,
     Expression<String>? exampleKo,
+    Expression<String>? seedId,
     Expression<bool>? isSynced,
     Expression<bool>? isDeleted,
     Expression<DateTime>? createdAt,
@@ -1134,6 +1202,7 @@ class ConceptsTableCompanion extends UpdateCompanion<ConceptsTableData> {
       if (imageUrl != null) 'image_url': imageUrl,
       if (exampleFr != null) 'example_fr': exampleFr,
       if (exampleKo != null) 'example_ko': exampleKo,
+      if (seedId != null) 'seed_id': seedId,
       if (isSynced != null) 'is_synced': isSynced,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (createdAt != null) 'created_at': createdAt,
@@ -1150,6 +1219,7 @@ class ConceptsTableCompanion extends UpdateCompanion<ConceptsTableData> {
       Value<String?>? imageUrl,
       Value<String?>? exampleFr,
       Value<String?>? exampleKo,
+      Value<String?>? seedId,
       Value<bool>? isSynced,
       Value<bool>? isDeleted,
       Value<DateTime>? createdAt,
@@ -1163,6 +1233,7 @@ class ConceptsTableCompanion extends UpdateCompanion<ConceptsTableData> {
       imageUrl: imageUrl ?? this.imageUrl,
       exampleFr: exampleFr ?? this.exampleFr,
       exampleKo: exampleKo ?? this.exampleKo,
+      seedId: seedId ?? this.seedId,
       isSynced: isSynced ?? this.isSynced,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt ?? this.createdAt,
@@ -1195,6 +1266,9 @@ class ConceptsTableCompanion extends UpdateCompanion<ConceptsTableData> {
     if (exampleKo.present) {
       map['example_ko'] = Variable<String>(exampleKo.value);
     }
+    if (seedId.present) {
+      map['seed_id'] = Variable<String>(seedId.value);
+    }
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
@@ -1223,6 +1297,7 @@ class ConceptsTableCompanion extends UpdateCompanion<ConceptsTableData> {
           ..write('imageUrl: $imageUrl, ')
           ..write('exampleFr: $exampleFr, ')
           ..write('exampleKo: $exampleKo, ')
+          ..write('seedId: $seedId, ')
           ..write('isSynced: $isSynced, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('createdAt: $createdAt, ')
@@ -1310,6 +1385,12 @@ class $WordVariantsTableTable extends WordVariantsTable
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _exampleMeta =
+      const VerificationMeta('example');
+  @override
+  late final GeneratedColumn<String> example = GeneratedColumn<String>(
+      'example', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _isSyncedMeta =
       const VerificationMeta('isSynced');
   @override
@@ -1354,6 +1435,7 @@ class $WordVariantsTableTable extends WordVariantsTable
         audioHash,
         audioVoiceId,
         position,
+        example,
         isSynced,
         isDeleted,
         createdAt,
@@ -1423,6 +1505,10 @@ class $WordVariantsTableTable extends WordVariantsTable
       context.handle(_positionMeta,
           position.isAcceptableOrUnknown(data['position']!, _positionMeta));
     }
+    if (data.containsKey('example')) {
+      context.handle(_exampleMeta,
+          example.isAcceptableOrUnknown(data['example']!, _exampleMeta));
+    }
     if (data.containsKey('is_synced')) {
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
@@ -1472,6 +1558,8 @@ class $WordVariantsTableTable extends WordVariantsTable
           .read(DriftSqlType.string, data['${effectivePrefix}audio_voice_id']),
       position: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}position'])!,
+      example: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}example']),
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
       isDeleted: attachedDatabase.typeMapping
@@ -1501,6 +1589,7 @@ class WordVariantsTableData extends DataClass
   final String? audioHash;
   final String? audioVoiceId;
   final int position;
+  final String? example;
   final bool isSynced;
   final bool isDeleted;
   final DateTime createdAt;
@@ -1516,6 +1605,7 @@ class WordVariantsTableData extends DataClass
       this.audioHash,
       this.audioVoiceId,
       required this.position,
+      this.example,
       required this.isSynced,
       required this.isDeleted,
       required this.createdAt,
@@ -1537,6 +1627,9 @@ class WordVariantsTableData extends DataClass
       map['audio_voice_id'] = Variable<String>(audioVoiceId);
     }
     map['position'] = Variable<int>(position);
+    if (!nullToAbsent || example != null) {
+      map['example'] = Variable<String>(example);
+    }
     map['is_synced'] = Variable<bool>(isSynced);
     map['is_deleted'] = Variable<bool>(isDeleted);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -1560,6 +1653,9 @@ class WordVariantsTableData extends DataClass
           ? const Value.absent()
           : Value(audioVoiceId),
       position: Value(position),
+      example: example == null && nullToAbsent
+          ? const Value.absent()
+          : Value(example),
       isSynced: Value(isSynced),
       isDeleted: Value(isDeleted),
       createdAt: Value(createdAt),
@@ -1581,6 +1677,7 @@ class WordVariantsTableData extends DataClass
       audioHash: serializer.fromJson<String?>(json['audioHash']),
       audioVoiceId: serializer.fromJson<String?>(json['audioVoiceId']),
       position: serializer.fromJson<int>(json['position']),
+      example: serializer.fromJson<String?>(json['example']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -1601,6 +1698,7 @@ class WordVariantsTableData extends DataClass
       'audioHash': serializer.toJson<String?>(audioHash),
       'audioVoiceId': serializer.toJson<String?>(audioVoiceId),
       'position': serializer.toJson<int>(position),
+      'example': serializer.toJson<String?>(example),
       'isSynced': serializer.toJson<bool>(isSynced),
       'isDeleted': serializer.toJson<bool>(isDeleted),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -1619,6 +1717,7 @@ class WordVariantsTableData extends DataClass
           Value<String?> audioHash = const Value.absent(),
           Value<String?> audioVoiceId = const Value.absent(),
           int? position,
+          Value<String?> example = const Value.absent(),
           bool? isSynced,
           bool? isDeleted,
           DateTime? createdAt,
@@ -1635,6 +1734,7 @@ class WordVariantsTableData extends DataClass
         audioVoiceId:
             audioVoiceId.present ? audioVoiceId.value : this.audioVoiceId,
         position: position ?? this.position,
+        example: example.present ? example.value : this.example,
         isSynced: isSynced ?? this.isSynced,
         isDeleted: isDeleted ?? this.isDeleted,
         createdAt: createdAt ?? this.createdAt,
@@ -1656,6 +1756,7 @@ class WordVariantsTableData extends DataClass
           ? data.audioVoiceId.value
           : this.audioVoiceId,
       position: data.position.present ? data.position.value : this.position,
+      example: data.example.present ? data.example.value : this.example,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -1676,6 +1777,7 @@ class WordVariantsTableData extends DataClass
           ..write('audioHash: $audioHash, ')
           ..write('audioVoiceId: $audioVoiceId, ')
           ..write('position: $position, ')
+          ..write('example: $example, ')
           ..write('isSynced: $isSynced, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('createdAt: $createdAt, ')
@@ -1696,6 +1798,7 @@ class WordVariantsTableData extends DataClass
       audioHash,
       audioVoiceId,
       position,
+      example,
       isSynced,
       isDeleted,
       createdAt,
@@ -1714,6 +1817,7 @@ class WordVariantsTableData extends DataClass
           other.audioHash == this.audioHash &&
           other.audioVoiceId == this.audioVoiceId &&
           other.position == this.position &&
+          other.example == this.example &&
           other.isSynced == this.isSynced &&
           other.isDeleted == this.isDeleted &&
           other.createdAt == this.createdAt &&
@@ -1732,6 +1836,7 @@ class WordVariantsTableCompanion
   final Value<String?> audioHash;
   final Value<String?> audioVoiceId;
   final Value<int> position;
+  final Value<String?> example;
   final Value<bool> isSynced;
   final Value<bool> isDeleted;
   final Value<DateTime> createdAt;
@@ -1748,6 +1853,7 @@ class WordVariantsTableCompanion
     this.audioHash = const Value.absent(),
     this.audioVoiceId = const Value.absent(),
     this.position = const Value.absent(),
+    this.example = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1765,6 +1871,7 @@ class WordVariantsTableCompanion
     this.audioHash = const Value.absent(),
     this.audioVoiceId = const Value.absent(),
     this.position = const Value.absent(),
+    this.example = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.isDeleted = const Value.absent(),
     required DateTime createdAt,
@@ -1787,6 +1894,7 @@ class WordVariantsTableCompanion
     Expression<String>? audioHash,
     Expression<String>? audioVoiceId,
     Expression<int>? position,
+    Expression<String>? example,
     Expression<bool>? isSynced,
     Expression<bool>? isDeleted,
     Expression<DateTime>? createdAt,
@@ -1804,6 +1912,7 @@ class WordVariantsTableCompanion
       if (audioHash != null) 'audio_hash': audioHash,
       if (audioVoiceId != null) 'audio_voice_id': audioVoiceId,
       if (position != null) 'position': position,
+      if (example != null) 'example': example,
       if (isSynced != null) 'is_synced': isSynced,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (createdAt != null) 'created_at': createdAt,
@@ -1823,6 +1932,7 @@ class WordVariantsTableCompanion
       Value<String?>? audioHash,
       Value<String?>? audioVoiceId,
       Value<int>? position,
+      Value<String?>? example,
       Value<bool>? isSynced,
       Value<bool>? isDeleted,
       Value<DateTime>? createdAt,
@@ -1839,6 +1949,7 @@ class WordVariantsTableCompanion
       audioHash: audioHash ?? this.audioHash,
       audioVoiceId: audioVoiceId ?? this.audioVoiceId,
       position: position ?? this.position,
+      example: example ?? this.example,
       isSynced: isSynced ?? this.isSynced,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt ?? this.createdAt,
@@ -1880,6 +1991,9 @@ class WordVariantsTableCompanion
     if (position.present) {
       map['position'] = Variable<int>(position.value);
     }
+    if (example.present) {
+      map['example'] = Variable<String>(example.value);
+    }
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
@@ -1911,6 +2025,7 @@ class WordVariantsTableCompanion
           ..write('audioHash: $audioHash, ')
           ..write('audioVoiceId: $audioVoiceId, ')
           ..write('position: $position, ')
+          ..write('example: $example, ')
           ..write('isSynced: $isSynced, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('createdAt: $createdAt, ')
@@ -4497,6 +4612,7 @@ typedef $$VocabularyListsTableTableCreateCompanionBuilder
   Value<String> langA,
   Value<String> langB,
   Value<String> origin,
+  Value<String?> seedId,
   Value<bool> isSynced,
   Value<bool> isDeleted,
   required DateTime createdAt,
@@ -4515,6 +4631,7 @@ typedef $$VocabularyListsTableTableUpdateCompanionBuilder
   Value<String> langA,
   Value<String> langB,
   Value<String> origin,
+  Value<String?> seedId,
   Value<bool> isSynced,
   Value<bool> isDeleted,
   Value<DateTime> createdAt,
@@ -4581,6 +4698,9 @@ class $$VocabularyListsTableTableFilterComposer
 
   ColumnFilters<String> get origin => $composableBuilder(
       column: $table.origin, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get seedId => $composableBuilder(
+      column: $table.seedId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
@@ -4655,6 +4775,9 @@ class $$VocabularyListsTableTableOrderingComposer
   ColumnOrderings<String> get origin => $composableBuilder(
       column: $table.origin, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get seedId => $composableBuilder(
+      column: $table.seedId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
@@ -4706,6 +4829,9 @@ class $$VocabularyListsTableTableAnnotationComposer
 
   GeneratedColumn<String> get origin =>
       $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<String> get seedId =>
+      $composableBuilder(column: $table.seedId, builder: (column) => column);
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
@@ -4777,6 +4903,7 @@ class $$VocabularyListsTableTableTableManager extends RootTableManager<
             Value<String> langA = const Value.absent(),
             Value<String> langB = const Value.absent(),
             Value<String> origin = const Value.absent(),
+            Value<String?> seedId = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<bool> isDeleted = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
@@ -4794,6 +4921,7 @@ class $$VocabularyListsTableTableTableManager extends RootTableManager<
             langA: langA,
             langB: langB,
             origin: origin,
+            seedId: seedId,
             isSynced: isSynced,
             isDeleted: isDeleted,
             createdAt: createdAt,
@@ -4811,6 +4939,7 @@ class $$VocabularyListsTableTableTableManager extends RootTableManager<
             Value<String> langA = const Value.absent(),
             Value<String> langB = const Value.absent(),
             Value<String> origin = const Value.absent(),
+            Value<String?> seedId = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<bool> isDeleted = const Value.absent(),
             required DateTime createdAt,
@@ -4828,6 +4957,7 @@ class $$VocabularyListsTableTableTableManager extends RootTableManager<
             langA: langA,
             langB: langB,
             origin: origin,
+            seedId: seedId,
             isSynced: isSynced,
             isDeleted: isDeleted,
             createdAt: createdAt,
@@ -4891,6 +5021,7 @@ typedef $$ConceptsTableTableCreateCompanionBuilder = ConceptsTableCompanion
   Value<String?> imageUrl,
   Value<String?> exampleFr,
   Value<String?> exampleKo,
+  Value<String?> seedId,
   Value<bool> isSynced,
   Value<bool> isDeleted,
   required DateTime createdAt,
@@ -4906,6 +5037,7 @@ typedef $$ConceptsTableTableUpdateCompanionBuilder = ConceptsTableCompanion
   Value<String?> imageUrl,
   Value<String?> exampleFr,
   Value<String?> exampleKo,
+  Value<String?> seedId,
   Value<bool> isSynced,
   Value<bool> isDeleted,
   Value<DateTime> createdAt,
@@ -4979,6 +5111,9 @@ class $$ConceptsTableTableFilterComposer
 
   ColumnFilters<String> get exampleKo => $composableBuilder(
       column: $table.exampleKo, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get seedId => $composableBuilder(
+      column: $table.seedId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
@@ -5061,6 +5196,9 @@ class $$ConceptsTableTableOrderingComposer
   ColumnOrderings<String> get exampleKo => $composableBuilder(
       column: $table.exampleKo, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get seedId => $composableBuilder(
+      column: $table.seedId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
@@ -5121,6 +5259,9 @@ class $$ConceptsTableTableAnnotationComposer
 
   GeneratedColumn<String> get exampleKo =>
       $composableBuilder(column: $table.exampleKo, builder: (column) => column);
+
+  GeneratedColumn<String> get seedId =>
+      $composableBuilder(column: $table.seedId, builder: (column) => column);
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
@@ -5208,6 +5349,7 @@ class $$ConceptsTableTableTableManager extends RootTableManager<
             Value<String?> imageUrl = const Value.absent(),
             Value<String?> exampleFr = const Value.absent(),
             Value<String?> exampleKo = const Value.absent(),
+            Value<String?> seedId = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<bool> isDeleted = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
@@ -5222,6 +5364,7 @@ class $$ConceptsTableTableTableManager extends RootTableManager<
             imageUrl: imageUrl,
             exampleFr: exampleFr,
             exampleKo: exampleKo,
+            seedId: seedId,
             isSynced: isSynced,
             isDeleted: isDeleted,
             createdAt: createdAt,
@@ -5236,6 +5379,7 @@ class $$ConceptsTableTableTableManager extends RootTableManager<
             Value<String?> imageUrl = const Value.absent(),
             Value<String?> exampleFr = const Value.absent(),
             Value<String?> exampleKo = const Value.absent(),
+            Value<String?> seedId = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<bool> isDeleted = const Value.absent(),
             required DateTime createdAt,
@@ -5250,6 +5394,7 @@ class $$ConceptsTableTableTableManager extends RootTableManager<
             imageUrl: imageUrl,
             exampleFr: exampleFr,
             exampleKo: exampleKo,
+            seedId: seedId,
             isSynced: isSynced,
             isDeleted: isDeleted,
             createdAt: createdAt,
@@ -5341,6 +5486,7 @@ typedef $$WordVariantsTableTableCreateCompanionBuilder
   Value<String?> audioHash,
   Value<String?> audioVoiceId,
   Value<int> position,
+  Value<String?> example,
   Value<bool> isSynced,
   Value<bool> isDeleted,
   required DateTime createdAt,
@@ -5359,6 +5505,7 @@ typedef $$WordVariantsTableTableUpdateCompanionBuilder
   Value<String?> audioHash,
   Value<String?> audioVoiceId,
   Value<int> position,
+  Value<String?> example,
   Value<bool> isSynced,
   Value<bool> isDeleted,
   Value<DateTime> createdAt,
@@ -5441,6 +5588,9 @@ class $$WordVariantsTableTableFilterComposer
 
   ColumnFilters<int> get position => $composableBuilder(
       column: $table.position, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get example => $composableBuilder(
+      column: $table.example, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
@@ -5534,6 +5684,9 @@ class $$WordVariantsTableTableOrderingComposer
   ColumnOrderings<int> get position => $composableBuilder(
       column: $table.position, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get example => $composableBuilder(
+      column: $table.example, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
@@ -5602,6 +5755,9 @@ class $$WordVariantsTableTableAnnotationComposer
 
   GeneratedColumn<int> get position =>
       $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<String> get example =>
+      $composableBuilder(column: $table.example, builder: (column) => column);
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
@@ -5694,6 +5850,7 @@ class $$WordVariantsTableTableTableManager extends RootTableManager<
             Value<String?> audioHash = const Value.absent(),
             Value<String?> audioVoiceId = const Value.absent(),
             Value<int> position = const Value.absent(),
+            Value<String?> example = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<bool> isDeleted = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
@@ -5711,6 +5868,7 @@ class $$WordVariantsTableTableTableManager extends RootTableManager<
             audioHash: audioHash,
             audioVoiceId: audioVoiceId,
             position: position,
+            example: example,
             isSynced: isSynced,
             isDeleted: isDeleted,
             createdAt: createdAt,
@@ -5728,6 +5886,7 @@ class $$WordVariantsTableTableTableManager extends RootTableManager<
             Value<String?> audioHash = const Value.absent(),
             Value<String?> audioVoiceId = const Value.absent(),
             Value<int> position = const Value.absent(),
+            Value<String?> example = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<bool> isDeleted = const Value.absent(),
             required DateTime createdAt,
@@ -5745,6 +5904,7 @@ class $$WordVariantsTableTableTableManager extends RootTableManager<
             audioHash: audioHash,
             audioVoiceId: audioVoiceId,
             position: position,
+            example: example,
             isSynced: isSynced,
             isDeleted: isDeleted,
             createdAt: createdAt,

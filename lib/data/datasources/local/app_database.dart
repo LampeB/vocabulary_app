@@ -41,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -95,6 +95,29 @@ class AppDatabase extends _$AppDatabase {
             await customStatement(
                 'CREATE INDEX IF NOT EXISTS idx_review_events_unsynced '
                 'ON review_events(is_synced)');
+          }
+          if (from < 9) {
+            // Multi-language seed epic: per-variant example sentences (in the
+            // variant's own language) replace the fr/ko-specific columns on
+            // concepts; seed ids give seeded lists/concepts a stable identity
+            // for dedup and top-up.
+            await m.addColumn(wordVariantsTable, wordVariantsTable.example);
+            await m.addColumn(vocabularyListsTable, vocabularyListsTable.seedId);
+            await m.addColumn(conceptsTable, conceptsTable.seedId);
+            // Backfill: copy the legacy per-concept examples onto the primary
+            // fr/ko variants they belong to.
+            await customStatement('''
+              UPDATE word_variants SET example = (
+                SELECT CASE word_variants.lang_code
+                  WHEN 'fr' THEN c.example_fr
+                  WHEN 'ko' THEN c.example_ko
+                END
+                FROM concepts c WHERE c.id = word_variants.concept_id
+              )
+              WHERE example IS NULL
+                AND is_primary = 1
+                AND lang_code IN ('fr', 'ko')
+            ''');
           }
         },
       );

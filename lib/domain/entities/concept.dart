@@ -13,6 +13,9 @@ class Concept with _$Concept {
     String? imageUrl,
     String? exampleFr,
     String? exampleKo,
+
+    /// Registry concept id when seeded from the catalog (e.g. 'hello').
+    String? seedId,
     @Default(false) bool isSynced,
     @Default(false) bool isDeleted,
     required DateTime createdAt,

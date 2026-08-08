@@ -18,6 +18,9 @@ class VocabularyList with _$VocabularyList {
     @Default('fr') String langA,
     @Default('ko') String langB,
     @Default('user') String origin,
+
+    /// `<curriculumListId>:<langA>><langB>` when seeded from the catalog.
+    String? seedId,
     @Default(false) bool isSynced,
     @Default(false) bool isDeleted,
     required DateTime createdAt,

@@ -1,3 +1,4 @@
+import 'dart:convert' show jsonDecode;
 import '../../core/errors/failure.dart';
 import '../datasources/local/daos/concept_dao.dart';
 import '../datasources/local/daos/progress_dao.dart';
@@ -56,6 +57,7 @@ class PushSync {
           'image_url': r.imageUrl,
           'example_fr': r.exampleFr,
           'example_ko': r.exampleKo,
+          'seed_id': r.seedId,
           'is_deleted': r.isDeleted,
           'created_at': r.createdAt.toIso8601String(),
           'updated_at': r.updatedAt.toIso8601String(),
@@ -71,8 +73,10 @@ class PushSync {
           'word': r.word,
           'lang_code': r.langCode,
           'register_tag': r.registerTag,
+          'context_tags': jsonDecode(r.contextTags),
           'is_primary': r.isPrimary,
           'position': r.position,
+          'example': r.example,
           'is_deleted': r.isDeleted,
           'created_at': r.createdAt.toIso8601String(),
           'updated_at': r.updatedAt.toIso8601String(),

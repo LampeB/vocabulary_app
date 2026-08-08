@@ -15,6 +15,10 @@ class WordVariantsTable extends Table {
   TextColumn get audioHash => text().named('audio_hash').nullable()();
   TextColumn get audioVoiceId => text().named('audio_voice_id').nullable()();
   IntColumn get position => integer().withDefault(const Constant(0))();
+  // Example sentence in THIS variant's language (multi-language seed epic).
+  // Replaces the fr/ko-specific concepts.example_fr/example_ko pair, which
+  // remain as read-only legacy until dropped.
+  TextColumn get example => text().nullable()();
   BoolColumn get isSynced => boolean().named('is_synced').withDefault(const Constant(false))();
   BoolColumn get isDeleted => boolean().named('is_deleted').withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().named('created_at')();

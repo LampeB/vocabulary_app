@@ -16,6 +16,9 @@ class WordVariant with _$WordVariant {
     String? audioHash,
     String? audioVoiceId,
     @Default(0) int position,
+
+    /// Example sentence in this variant's own language.
+    String? example,
     @Default(false) bool isSynced,
     @Default(false) bool isDeleted,
     required DateTime createdAt,

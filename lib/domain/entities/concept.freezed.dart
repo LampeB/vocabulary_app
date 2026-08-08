@@ -27,6 +27,9 @@ mixin _$Concept {
   String? get imageUrl => throw _privateConstructorUsedError;
   String? get exampleFr => throw _privateConstructorUsedError;
   String? get exampleKo => throw _privateConstructorUsedError;
+
+  /// Registry concept id when seeded from the catalog (e.g. 'hello').
+  String? get seedId => throw _privateConstructorUsedError;
   bool get isSynced => throw _privateConstructorUsedError;
   bool get isDeleted => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
@@ -54,6 +57,7 @@ abstract class $ConceptCopyWith<$Res> {
       String? imageUrl,
       String? exampleFr,
       String? exampleKo,
+      String? seedId,
       bool isSynced,
       bool isDeleted,
       DateTime createdAt,
@@ -82,6 +86,7 @@ class _$ConceptCopyWithImpl<$Res, $Val extends Concept>
     Object? imageUrl = freezed,
     Object? exampleFr = freezed,
     Object? exampleKo = freezed,
+    Object? seedId = freezed,
     Object? isSynced = null,
     Object? isDeleted = null,
     Object? createdAt = null,
@@ -115,6 +120,10 @@ class _$ConceptCopyWithImpl<$Res, $Val extends Concept>
       exampleKo: freezed == exampleKo
           ? _value.exampleKo
           : exampleKo // ignore: cast_nullable_to_non_nullable
+              as String?,
+      seedId: freezed == seedId
+          ? _value.seedId
+          : seedId // ignore: cast_nullable_to_non_nullable
               as String?,
       isSynced: null == isSynced
           ? _value.isSynced
@@ -151,6 +160,7 @@ abstract class _$$ConceptImplCopyWith<$Res> implements $ConceptCopyWith<$Res> {
       String? imageUrl,
       String? exampleFr,
       String? exampleKo,
+      String? seedId,
       bool isSynced,
       bool isDeleted,
       DateTime createdAt,
@@ -177,6 +187,7 @@ class __$$ConceptImplCopyWithImpl<$Res>
     Object? imageUrl = freezed,
     Object? exampleFr = freezed,
     Object? exampleKo = freezed,
+    Object? seedId = freezed,
     Object? isSynced = null,
     Object? isDeleted = null,
     Object? createdAt = null,
@@ -211,6 +222,10 @@ class __$$ConceptImplCopyWithImpl<$Res>
           ? _value.exampleKo
           : exampleKo // ignore: cast_nullable_to_non_nullable
               as String?,
+      seedId: freezed == seedId
+          ? _value.seedId
+          : seedId // ignore: cast_nullable_to_non_nullable
+              as String?,
       isSynced: null == isSynced
           ? _value.isSynced
           : isSynced // ignore: cast_nullable_to_non_nullable
@@ -242,6 +257,7 @@ class _$ConceptImpl implements _Concept {
       this.imageUrl,
       this.exampleFr,
       this.exampleKo,
+      this.seedId,
       this.isSynced = false,
       this.isDeleted = false,
       required this.createdAt,
@@ -264,6 +280,10 @@ class _$ConceptImpl implements _Concept {
   final String? exampleFr;
   @override
   final String? exampleKo;
+
+  /// Registry concept id when seeded from the catalog (e.g. 'hello').
+  @override
+  final String? seedId;
   @override
   @JsonKey()
   final bool isSynced;
@@ -277,7 +297,7 @@ class _$ConceptImpl implements _Concept {
 
   @override
   String toString() {
-    return 'Concept(id: $id, listId: $listId, category: $category, notes: $notes, imageUrl: $imageUrl, exampleFr: $exampleFr, exampleKo: $exampleKo, isSynced: $isSynced, isDeleted: $isDeleted, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Concept(id: $id, listId: $listId, category: $category, notes: $notes, imageUrl: $imageUrl, exampleFr: $exampleFr, exampleKo: $exampleKo, seedId: $seedId, isSynced: $isSynced, isDeleted: $isDeleted, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -296,6 +316,7 @@ class _$ConceptImpl implements _Concept {
                 other.exampleFr == exampleFr) &&
             (identical(other.exampleKo, exampleKo) ||
                 other.exampleKo == exampleKo) &&
+            (identical(other.seedId, seedId) || other.seedId == seedId) &&
             (identical(other.isSynced, isSynced) ||
                 other.isSynced == isSynced) &&
             (identical(other.isDeleted, isDeleted) ||
@@ -317,6 +338,7 @@ class _$ConceptImpl implements _Concept {
       imageUrl,
       exampleFr,
       exampleKo,
+      seedId,
       isSynced,
       isDeleted,
       createdAt,
@@ -347,6 +369,7 @@ abstract class _Concept implements Concept {
       final String? imageUrl,
       final String? exampleFr,
       final String? exampleKo,
+      final String? seedId,
       final bool isSynced,
       final bool isDeleted,
       required final DateTime createdAt,
@@ -368,6 +391,10 @@ abstract class _Concept implements Concept {
   String? get exampleFr;
   @override
   String? get exampleKo;
+
+  /// Registry concept id when seeded from the catalog (e.g. 'hello').
+  @override
+  String? get seedId;
   @override
   bool get isSynced;
   @override
