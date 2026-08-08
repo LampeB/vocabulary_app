@@ -7,6 +7,7 @@ import '../../providers/grammar/grammar_provider.dart';
 import '../../providers/lists/vocabulary_provider.dart';
 import '../../providers/notifications/notification_provider.dart';
 import '../../providers/quiz/quiz_provider.dart';
+import '../../providers/settings/default_pair_provider.dart';
 import '../../../domain/usecases/quiz/get_due_cards_usecase.dart'
     show QuizSource;
 import '../../../core/theme/app_colors.dart';
@@ -421,7 +422,9 @@ class _GrammarCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     final isDark = cs.brightness == Brightness.dark;
-    final statuses = ref.watch(ruleStatusesProvider).valueOrNull;
+    final statuses = ref
+        .watch(ruleStatusesProvider(ref.watch(defaultPairProvider).$2))
+        .valueOrNull;
     final unlocked = statuses
             ?.where((s) => s.availability != RuleAvailability.locked)
             .length ??

@@ -33,10 +33,10 @@ VocabularyList _list(String id, String name,
 
 GrammarRule _rule(String id, String title) => GrammarRule(
       id: id,
-      titleFr: title,
-      descriptionFr: '',
-      explanationFr: 'Une explication.',
-      workedExamples: const [WorkedExample(ko: '저는 학생이에요', fr: 'Je suis étudiant')],
+      titles: {'fr': title},
+      descriptions: const {'fr': ''},
+      explanations: const {'fr': 'Une explication.'},
+      workedExamples: const [WorkedExample(target: '저는 학생이에요', translations: {'fr': 'Je suis étudiant'})],
       prerequisiteLists: const ['Salutations & politesse'],
       appliesToCategories: const ['nom'],
       minKnownWords: const {'nom': 5},
@@ -65,7 +65,7 @@ void main() {
         dueCountProvider.overrideWith((ref) => Stream.value(4)),
         dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(4)),
         studiedListIdsProvider.overrideWith((ref) => Stream.value(studied)),
-        ruleStatusesProvider.overrideWith((ref) async => [
+        ruleStatusesProvider.overrideWith((ref, lang) async => [
               RuleStatus(
                 rule: _rule('regle-debloquee', 'La particule de thème'),
                 availability: RuleAvailability.unlocked,

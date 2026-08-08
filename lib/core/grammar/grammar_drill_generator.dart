@@ -4,11 +4,15 @@ import '../../domain/entities/grammar_rule.dart';
 import 'grammar_language_module.dart';
 
 /// A word available for exercise generation (mastered vocabulary, resolved
-/// to the target-language word + its concept category).
+/// to the target-language word + its concept category and grammar tags).
 class DrillWord {
-  const DrillWord({required this.word, required this.category});
+  const DrillWord(
+      {required this.word, required this.category, this.tags = const []});
   final String word;
   final String category;
+
+  /// Grammatical metadata from word_variants.context_tags ('m'/'f'/'n'…).
+  final List<String> tags;
 }
 
 /// One generated exercise. The prompt is an i18n key + params so the prompt
@@ -41,11 +45,25 @@ class GrammarDrillGenerator {
 
   final GrammarLanguageModule _module;
 
-  /// Words usable for [rule] (its categories, deduplicated).
-  List<DrillWord> eligibleWords(GrammarRule rule, List<DrillWord> mastered) =>
-      mastered
-          .where((w) => rule.appliesToCategories.contains(w.category))
-          .toList();
+  /// Words usable for [rule]: its categories, and — for gendered mechanics
+  /// (articles, gender-driven plurals) — only words carrying one of the
+  /// gender tags the rule's forms need. Untagged words (proper nouns) are
+  /// deliberately excluded from gendered drills.
+  List<DrillWord> eligibleWords(GrammarRule rule, List<DrillWord> mastered) {
+    final requiredTags = switch (rule.mechanics) {
+      ArticleMechanics(:final forms, gendered: true) => forms.keys.toSet(),
+      _ => const <String>{},
+    };
+    return mastered
+        .where((w) => rule.appliesToCategories.contains(w.category))
+        // Compound display words ('riz / repas', 'mañana (parte del día)')
+        // don't inflect as one token — keep them out of morphology drills.
+        .where((w) => !w.word.contains('/') && !w.word.contains('('))
+        .where((w) =>
+            requiredTags.isEmpty ||
+            w.tags.any((t) => requiredTags.contains(t)))
+        .toList();
+  }
 
   /// Whether enough vocabulary is mastered to run a session at all.
   bool canGenerate(GrammarRule rule, List<DrillWord> mastered) {
@@ -57,38 +75,52 @@ class GrammarDrillGenerator {
         .every((e) => (byCategory[e.key] ?? 0) >= e.value);
   }
 
+  /// The drill variants of [rule]: particle variants and conjugation persons
+  /// both cycle the same way (variantKey per exercise).
+  List<String> _variantKeys(GrammarRule rule) => switch (rule.mechanics) {
+        ParticleMechanics(:final variants) when variants.length > 1 => [
+            for (final v in variants) v.key,
+          ],
+        ConjugationMechanics(:final persons) when persons.isNotEmpty =>
+          persons,
+        _ => const [],
+      };
+
   /// Generates [count] exercises, cycling through eligible words (shuffled)
-  /// and, for multi-variant particle rules, through the variants.
+  /// and through the rule's variants (particle forms, persons).
   List<GrammarExercise> generate(
     GrammarRule rule,
     List<DrillWord> mastered, {
     required int count,
     Random? random,
+    String promptLocale = 'en',
   }) {
+    if (rule.mechanics is UnsupportedMechanics) return const [];
     final words = eligibleWords(rule, mastered)..shuffle(random ?? Random());
     if (words.isEmpty) return const [];
 
-    final variants = switch (rule.mechanics) {
-      ParticleMechanics(:final variants) => variants,
-      _ => const <ParticleVariant>[],
-    };
+    final variantKeys = _variantKeys(rule);
 
     final exercises = <GrammarExercise>[];
     for (var i = 0; i < count; i++) {
       final word = words[i % words.length];
-      final variant =
-          variants.isEmpty ? null : variants[i % variants.length];
+      final variantKey =
+          variantKeys.isEmpty ? null : variantKeys[i % variantKeys.length];
       final answer = _module.apply(rule, word.word,
-          variantKey: variants.length > 1 ? variant!.key : null);
+          variantKey: variantKey, tags: word.tags);
 
       final (promptKey, params) = switch (rule.mechanics) {
-        ParticleMechanics() when variants.length > 1 => (
+        ParticleMechanics() when variantKey != null => (
             'grammar.drill.particle_variant',
-            {'word': word.word, 'hint': 'grammar.hint.${variant!.key}'},
+            {'word': word.word, 'hint': 'grammar.hint.$variantKey'},
           ),
         ParticleMechanics() => (
             'grammar.drill.particle',
-            {'word': word.word, 'rule': rule.titleFr},
+            {'word': word.word, 'rule': rule.title(promptLocale)},
+          ),
+        ConjugationMechanics() when variantKey != null => (
+            'grammar.drill.conjugate_person',
+            {'word': word.word, 'hint': 'grammar.hint.$variantKey'},
           ),
         ConjugationMechanics() => (
             'grammar.drill.conjugate',
@@ -98,6 +130,15 @@ class GrammarDrillGenerator {
             'grammar.drill.negate',
             {'word': word.word},
           ),
+        ArticleMechanics() => (
+            'grammar.drill.article',
+            {'word': word.word, 'rule': rule.title(promptLocale)},
+          ),
+        PluralMechanics() => (
+            'grammar.drill.plural',
+            {'word': word.word},
+          ),
+        UnsupportedMechanics() => throw StateError('unreachable'),
       };
 
       exercises.add(GrammarExercise(
@@ -106,7 +147,7 @@ class GrammarDrillGenerator {
         promptParams: params,
         expected: answer.expected,
         accepted: answer.accepted,
-        variantKey: variants.length > 1 ? variant!.key : null,
+        variantKey: variantKey,
       ));
     }
     return exercises;

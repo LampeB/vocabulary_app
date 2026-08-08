@@ -1,0 +1,212 @@
+{
+  "lang": "it",
+  "rules": [
+    {
+      "rule": {
+        "id": "it-articles-il-la",
+        "title": {
+          "en": "The definite articles il / la / lo / l'",
+          "fr": "Les articles définis il / la / lo / l'"
+        },
+        "description": {
+          "en": "Choose the article from the noun's gender and its first sounds.",
+          "fr": "Choisir l'article selon le genre du nom et ses premiers sons."
+        },
+        "explanation": {
+          "en": "Masculine nouns take il (il libro, il treno); feminine nouns take la (la casa, la mela). Before a vowel, both il and la become l': l'amico, l'acqua. Masculine nouns starting with s + consonant, z, gn or ps take lo instead of il: lo studente, lo sport. Learn each noun with its article — the gender is not always guessable.",
+          "fr": "Les noms masculins prennent il (il libro, il treno) ; les noms féminins prennent la (la casa, la mela). Devant une voyelle, il et la deviennent l' : l'amico, l'acqua. Les noms masculins commençant par s + consonne, z, gn ou ps prennent lo au lieu de il : lo studente, lo sport. Apprends chaque nom avec son article — le genre ne se devine pas toujours."
+        },
+        "prerequisite_lists": ["starter-food"],
+        "min_known_words": { "nom": 5 },
+        "applies_to_categories": ["nom", "lieu"],
+        "mechanics": {
+          "type": "article",
+          "article": {
+            "forms": { "m": "il", "f": "la" }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "il caffè",
+            "translations": { "en": "the coffee", "fr": "le café" }
+          },
+          {
+            "target": "l'acqua",
+            "translations": { "en": "the water", "fr": "l'eau" }
+          },
+          {
+            "target": "lo studente",
+            "translations": { "en": "the student", "fr": "l'étudiant" }
+          }
+        ],
+        "test_vectors": [
+          { "input": "caffè", "context": "m", "expected": "il caffè" },
+          { "input": "treno", "context": "m", "expected": "il treno" },
+          { "input": "pane", "context": "m", "expected": "il pane" },
+          { "input": "casa", "context": "f", "expected": "la casa" },
+          { "input": "mela", "context": "f", "expected": "la mela" },
+          { "input": "amico", "context": "m vowel", "expected": "l'amico" },
+          { "input": "acqua", "context": "f vowel", "expected": "l'acqua" },
+          { "input": "aeroporto", "context": "m vowel", "expected": "l'aeroporto" },
+          { "input": "studente", "context": "m s+consonant", "expected": "lo studente" },
+          { "input": "stazione", "context": "f", "expected": "la stazione" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "it-present-indicative",
+        "title": {
+          "en": "The present tense (-are / -ere / -ire)",
+          "fr": "Le présent de l'indicatif (-are / -ere / -ire)"
+        },
+        "description": {
+          "en": "Conjugate regular verbs: drop the infinitive ending, add -o / -i / -a (-are) or -o / -i / -e (-ere, -ire).",
+          "fr": "Conjuguer les verbes réguliers : retirer la terminaison de l'infinitif, ajouter -o / -i / -a (-are) ou -o / -i / -e (-ere, -ire)."
+        },
+        "explanation": {
+          "en": "Drop -are / -ere / -ire to get the stem, then add the personal ending: -are verbs take -o, -i, -a (lavoro, lavori, lavora); -ere and -ire verbs take -o, -i, -e (prendo, prendi, prende; dormo, dormi, dorme). Frequent irregulars to memorize: andare → vado/vai/va, fare → faccio/fai/fa, venire → vengo/vieni/viene, bere → bevo/bevi/beve. Reflexive verbs add the pronoun: alzarsi → mi alzo.",
+          "fr": "Retire -are / -ere / -ire pour obtenir le radical, puis ajoute la terminaison personnelle : les verbes en -are prennent -o, -i, -a (lavoro, lavori, lavora) ; les verbes en -ere et -ire prennent -o, -i, -e (prendo, prendi, prende ; dormo, dormi, dorme). Irréguliers fréquents à mémoriser : andare → vado/vai/va, fare → faccio/fai/fa, venire → vengo/vieni/viene, bere → bevo/bevi/beve. Les verbes pronominaux ajoutent le pronom : alzarsi → mi alzo."
+        },
+        "prerequisite_lists": ["starter-daily-life"],
+        "min_known_words": { "verbe": 5 },
+        "applies_to_categories": ["verbe"],
+        "mechanics": {
+          "type": "conjugation",
+          "conjugation": {
+            "persons": ["p1sg", "p2sg", "p3sg"],
+            "irregulars": {
+              "andare|p1sg": "vado", "andare|p2sg": "vai", "andare|p3sg": "va",
+              "fare|p1sg": "faccio", "fare|p2sg": "fai", "fare|p3sg": "fa",
+              "venire|p1sg": "vengo", "venire|p2sg": "vieni", "venire|p3sg": "viene",
+              "bere|p1sg": "bevo", "bere|p2sg": "bevi", "bere|p3sg": "beve",
+              "alzarsi|p1sg": "mi alzo", "alzarsi|p2sg": "ti alzi", "alzarsi|p3sg": "si alza"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "Lavoro la mattina.",
+            "translations": { "en": "I work in the morning.", "fr": "Je travaille le matin." }
+          },
+          {
+            "target": "Il mio amico legge un libro.",
+            "translations": { "en": "My friend reads a book.", "fr": "Mon ami lit un livre." }
+          },
+          {
+            "target": "Vado a scuola.",
+            "translations": { "en": "I go to school.", "fr": "Je vais à l'école." }
+          }
+        ],
+        "test_vectors": [
+          { "input": "lavorare", "context": "p1sg", "expected": "lavoro" },
+          { "input": "lavorare", "context": "p2sg", "expected": "lavori" },
+          { "input": "lavorare", "context": "p3sg", "expected": "lavora" },
+          { "input": "leggere", "context": "p1sg", "expected": "leggo" },
+          { "input": "leggere", "context": "p3sg", "expected": "legge" },
+          { "input": "dormire", "context": "p1sg", "expected": "dormo" },
+          { "input": "dormire", "context": "p2sg", "expected": "dormi" },
+          { "input": "dormire", "context": "p3sg", "expected": "dorme" },
+          { "input": "andare", "context": "p1sg", "expected": "vado" },
+          { "input": "fare", "context": "p1sg", "expected": "faccio" },
+          { "input": "venire", "context": "p3sg", "expected": "viene" },
+          { "input": "bere", "context": "p1sg", "expected": "bevo" },
+          { "input": "alzarsi", "context": "p1sg", "expected": "mi alzo" },
+          { "input": "studiare", "context": "p3sg", "expected": "studia" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "it-negation-non",
+        "title": {
+          "en": "Negation with non",
+          "fr": "La négation avec non"
+        },
+        "description": {
+          "en": "Negate a verb by placing non right before it.",
+          "fr": "Nier un verbe en plaçant non juste devant lui."
+        },
+        "explanation": {
+          "en": "Put non immediately before the conjugated verb: lavoro → non lavoro, dormo → non dormo. With reflexive verbs, non comes before the pronoun: mi alzo → non mi alzo. Nothing else in the sentence changes.",
+          "fr": "Place non immédiatement devant le verbe conjugué : lavoro → non lavoro, dormo → non dormo. Avec les verbes pronominaux, non se place avant le pronom : mi alzo → non mi alzo. Rien d'autre ne change dans la phrase."
+        },
+        "prerequisite_lists": ["starter-daily-life"],
+        "min_known_words": { "verbe": 5 },
+        "applies_to_categories": ["verbe"],
+        "mechanics": {
+          "type": "negation",
+          "negation": {
+            "pattern_template": "non {verb}"
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "Oggi non lavoro.",
+            "translations": { "en": "Today I'm not working.", "fr": "Aujourd'hui je ne travaille pas." }
+          },
+          {
+            "target": "Non bevo caffè.",
+            "translations": { "en": "I don't drink coffee.", "fr": "Je ne bois pas de café." }
+          }
+        ],
+        "test_vectors": [
+          { "input": "lavorare", "context": "p1sg", "expected": "non lavoro" },
+          { "input": "dormire", "context": "p1sg", "expected": "non dormo" },
+          { "input": "bere", "context": "p1sg irregular", "expected": "non bevo" },
+          { "input": "andare", "context": "p1sg irregular", "expected": "non vado" },
+          { "input": "alzarsi", "context": "reflexive", "expected": "non mi alzo" },
+          { "input": "studiare", "context": "p1sg", "expected": "non studio" },
+          { "input": "camminare", "context": "p1sg", "expected": "non cammino" },
+          { "input": "mangiare", "context": "p1sg", "expected": "non mangio" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "it-plural-i-e",
+        "title": {
+          "en": "The plural in -i / -e",
+          "fr": "Le pluriel en -i / -e"
+        },
+        "description": {
+          "en": "-o and -e become -i; -a becomes -e; accented finals don't change.",
+          "fr": "-o et -e deviennent -i ; -a devient -e ; les finales accentuées ne changent pas."
+        },
+        "explanation": {
+          "en": "Nouns in -o and -e form their plural in -i: libro → libri, stazione → stazioni. Nouns in -a form it in -e: casa → case, mela → mele. Nouns ending in an accented vowel or a consonant (mostly loanwords) are invariable: il caffè → i caffè, l'autobus → gli autobus.",
+          "fr": "Les noms en -o et -e font leur pluriel en -i : libro → libri, stazione → stazioni. Les noms en -a le font en -e : casa → case, mela → mele. Les noms terminés par une voyelle accentuée ou une consonne (souvent des emprunts) sont invariables : il caffè → i caffè, l'autobus → gli autobus."
+        },
+        "prerequisite_lists": ["starter-food"],
+        "min_known_words": { "nom": 5 },
+        "applies_to_categories": ["nom"],
+        "mechanics": {
+          "type": "plural",
+          "plural": {
+            "irregulars": {}
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "due mele",
+            "translations": { "en": "two apples", "fr": "deux pommes" }
+          },
+          {
+            "target": "tre libri",
+            "translations": { "en": "three books", "fr": "trois livres" }
+          }
+        ],
+        "test_vectors": [
+          { "input": "libro", "context": "-o", "expected": "libri" },
+          { "input": "treno", "context": "-o", "expected": "treni" },
+          { "input": "casa", "context": "-a", "expected": "case" },
+          { "input": "mela", "context": "-a", "expected": "mele" },
+          { "input": "stazione", "context": "-e", "expected": "stazioni" },
+          { "input": "carne", "context": "-e", "expected": "carni" },
+          { "input": "caffè", "context": "accented invariable", "expected": "caffè" },
+          { "input": "autobus", "context": "consonant invariable", "expected": "autobus" }
+        ]
+      }
+    }
+  ]
+}

@@ -57,10 +57,10 @@ Rules for every exercise:
 1. FULL-SENTENCE PRODUCTION: the prompt is a complete natural sentence in prompt_language; the learner must produce the ENTIRE sentence in the target language. Never fill-in-the-blank, never "complete with the right word".
 2. Every exercise MUST exercise target_rule. Mix in mastered_rules progressively so sentences feel like useful day-to-day language.
 3. Use ONLY the provided words (plus particles/conjugations/function morphemes required by the rules, plus pronouns). Never introduce vocabulary the learner doesn't know.
-4. expected is the most natural answer. accepted lists every reasonable variant: pro-drop (subject omitted), particle-omission where colloquially fine, and word-order variants. expected must also appear in accepted.
+4. expected is the most natural answer. accepted lists every reasonable variant that is grammatical in the TARGET language: optional elements colloquially omitted (subjects in pro-drop languages, optional particles), contractions, and word-order variants. expected must also appear in accepted.
 5. Grade difficulty across the batch: start with short sentences (one rule), end with sentences composing 2-3 mastered rules with the target rule.
 6. Prompts must sound natural in prompt_language — not word-for-word glosses.
-7. Apply the grammar mechanics EXACTLY as specified (particle variants by final sound, conjugation contractions, irregulars listed in the rule data).`;
+7. Apply the grammar mechanics EXACTLY as specified in the rule data (form selection by phonological context, conjugation patterns and contractions, article/gender agreement, and every listed irregular).`;
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
@@ -95,6 +95,14 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json" },
     });
   }
+  // Multi-language: the studied language must be explicit — a silent fr/ko
+  // default would generate wrong-language content for every other pair.
+  if (!body.target_language) {
+    return new Response(JSON.stringify({ error: "missing_target_language" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   const client = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY") });
 
@@ -110,8 +118,8 @@ Deno.serve(async (req) => {
           target_rule: body.target_rule,
           mastered_rules: body.mastered_rules ?? [],
           words,
-          prompt_language: body.prompt_language ?? "fr",
-          target_language: body.target_language ?? "ko",
+          prompt_language: body.prompt_language ?? "en",
+          target_language: body.target_language,
           count,
         }),
       },

@@ -110,7 +110,7 @@ void main() {
       appDatabaseProvider.overrideWithValue(db),
       vocabularyRemoteProvider.overrideWithValue(FakeRemote()),
       grammarExerciseRemoteProvider.overrideWithValue(remote),
-      drillWordsProvider.overrideWith((ref) async => words),
+      drillWordsProvider.overrideWith((ref, lang) async => words),
       currentUserProvider.overrideWithValue(AppUser(
         id: 'u',
         email: 't@t.fr',

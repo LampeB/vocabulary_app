@@ -433,10 +433,15 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   /// the answer is validated against the module's accepted forms; answers
   /// record grammar progress instead of FSRS.
   Future<void> _loadGrammarCards(QuizArgs args) async {
-    final rules = await ref.read(grammarRulesProvider.future);
+    final rules = await ref.read(grammarRulesProvider(args.langB).future);
     final rule = rules.firstWhere((r) => r.id == args.ruleId);
-    final module = await ref.read(grammarModuleProvider.future);
-    final words = await ref.read(drillWordsProvider.future);
+    final module = await ref.read(grammarModuleProvider(args.langB).future);
+    if (module == null) {
+      // No deterministic engine for this language — nothing to drill.
+      state = state.copyWith(isLoading: false, isComplete: true);
+      return;
+    }
+    final words = await ref.read(drillWordsProvider(args.langB).future);
 
     // AI-composed full-sentence exercises first (stage 3); the deterministic
     // word-level drill generator is the offline/error/TEST_MODE fallback.
@@ -445,8 +450,14 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         : await _loadCompositionCards(args, rule, module, words);
 
     if (cards.isEmpty) {
-      final exercises = GrammarDrillGenerator(module)
-          .generate(rule, words, count: args.cardLimit);
+      final exercises = GrammarDrillGenerator(module).generate(
+        rule,
+        words,
+        count: args.cardLimit,
+        // The drill prompt itself is localized to the UI locale (.tr), so the
+        // interpolated rule title must match it.
+        promptLocale: Intl.defaultLocale?.split(RegExp('[_-]')).first ?? 'en',
+      );
       if (exercises.isEmpty) {
         state = state.copyWith(isLoading: false, isComplete: true);
         return;
@@ -493,7 +504,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     List<DrillWord> words,
   ) async {
     try {
-      final rawRules = await ref.read(grammarRulesRawProvider.future);
+      final rawRules =
+          await ref.read(grammarRulesRawProvider(args.langB).future);
       final targetRaw = rawRules[rule.id];
       if (targetRaw == null) return const [];
       final progress = await ref.read(grammarProgressProvider.future);
@@ -502,8 +514,9 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
           if (e.value.mastered && e.key != rule.id && rawRules[e.key] != null)
             rawRules[e.key]!,
       ];
-      final promptLang =
-          Intl.defaultLocale?.split(RegExp('[_-]')).first ?? 'fr';
+      // Prompts read in the learner's SOURCE language (the pair's langA), not
+      // the UI locale — a French-UI user studying es>ko still prompts in es.
+      final promptLang = args.langA;
 
       final validator = CompositionValidator(module);
       final result = await ref.read(grammarExerciseRemoteProvider).generate(

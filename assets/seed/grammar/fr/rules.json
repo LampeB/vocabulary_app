@@ -1,0 +1,217 @@
+{
+  "lang": "fr",
+  "rules": [
+    {
+      "rule": {
+        "id": "fr-articles-le-la",
+        "title": {
+          "en": "The definite articles le / la / l'",
+          "fr": "Les articles définis le / la / l'"
+        },
+        "description": {
+          "en": "Put le before masculine nouns, la before feminine nouns, l' before a vowel.",
+          "fr": "Mettre le devant les noms masculins, la devant les noms féminins, l' devant une voyelle."
+        },
+        "explanation": {
+          "en": "Every French noun has a grammatical gender. The definite article agrees with it: le café, le livre (masculine) but la maison, la pomme (feminine). Before a vowel (and most silent h), both le and la contract to l': l'ami, l'eau, l'école. The gender is rarely guessable from the meaning — always learn a noun together with its article.",
+          "fr": "Chaque nom français a un genre grammatical. L'article défini s'accorde avec lui : le café, le livre (masculin) mais la maison, la pomme (féminin). Devant une voyelle (et la plupart des h muets), le et la s'élident en l' : l'ami, l'eau, l'école. Le genre se devine rarement au sens — apprends toujours un nom avec son article."
+        },
+        "prerequisite_lists": ["starter-food"],
+        "min_known_words": { "nom": 5 },
+        "applies_to_categories": ["nom", "lieu"],
+        "mechanics": {
+          "type": "article",
+          "article": {
+            "forms": { "m": "le", "f": "la" }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "le café",
+            "translations": { "en": "the coffee", "fr": "le café" }
+          },
+          {
+            "target": "la maison",
+            "translations": { "en": "the house", "fr": "la maison" }
+          },
+          {
+            "target": "l'eau",
+            "translations": { "en": "the water", "fr": "l'eau" }
+          }
+        ],
+        "test_vectors": [
+          { "input": "café", "context": "m", "expected": "le café" },
+          { "input": "livre", "context": "m", "expected": "le livre" },
+          { "input": "train", "context": "m", "expected": "le train" },
+          { "input": "maison", "context": "f", "expected": "la maison" },
+          { "input": "pomme", "context": "f", "expected": "la pomme" },
+          { "input": "eau", "context": "f vowel", "expected": "l'eau" },
+          { "input": "ami", "context": "m vowel", "expected": "l'ami" },
+          { "input": "école", "context": "f vowel", "expected": "l'école" },
+          { "input": "aéroport", "context": "m vowel", "expected": "l'aéroport" },
+          { "input": "étudiant", "context": "m vowel", "expected": "l'étudiant" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "fr-present-er",
+        "title": {
+          "en": "The present tense of -er verbs",
+          "fr": "Le présent des verbes en -er"
+        },
+        "description": {
+          "en": "Drop -er, add -e / -es / -e for je / tu / il-elle.",
+          "fr": "Retirer -er, ajouter -e / -es / -e pour je / tu / il-elle."
+        },
+        "explanation": {
+          "en": "Most French verbs end in -er and follow one pattern: drop -er to get the stem, then add -e (je), -es (tu), -e (il/elle): je travaille, tu travailles, il travaille — the three forms sound identical. Some verbs change their stem vowel: acheter → j'achète; se lever → je me lève. Very frequent verbs are irregular and memorized separately: aller → vais/vas/va, faire → fais/fais/fait, venir → viens/viens/vient, lire → lis/lis/lit, dormir → dors/dors/dort, partir → pars/pars/part.",
+          "fr": "La plupart des verbes français se terminent en -er et suivent un seul modèle : retire -er pour obtenir le radical, puis ajoute -e (je), -es (tu), -e (il/elle) : je travaille, tu travailles, il travaille — les trois formes se prononcent pareil. Certains verbes changent la voyelle du radical : acheter → j'achète ; se lever → je me lève. Les verbes très fréquents sont irréguliers et s'apprennent à part : aller → vais/vas/va, faire → fais/fais/fait, venir → viens/viens/vient, lire → lis/lis/lit, dormir → dors/dors/dort, partir → pars/pars/part."
+        },
+        "prerequisite_lists": ["starter-daily-life"],
+        "min_known_words": { "verbe": 5 },
+        "applies_to_categories": ["verbe"],
+        "mechanics": {
+          "type": "conjugation",
+          "conjugation": {
+            "persons": ["p1sg", "p2sg", "p3sg"],
+            "irregulars": {
+              "aller|p1sg": "vais", "aller|p2sg": "vas", "aller|p3sg": "va",
+              "faire|p1sg": "fais", "faire|p2sg": "fais", "faire|p3sg": "fait",
+              "venir|p1sg": "viens", "venir|p2sg": "viens", "venir|p3sg": "vient",
+              "lire|p1sg": "lis", "lire|p2sg": "lis", "lire|p3sg": "lit",
+              "dormir|p1sg": "dors", "dormir|p2sg": "dors", "dormir|p3sg": "dort",
+              "partir|p1sg": "pars", "partir|p2sg": "pars", "partir|p3sg": "part",
+              "acheter|p1sg": "achète", "acheter|p2sg": "achètes", "acheter|p3sg": "achète",
+              "se lever|p1sg": "me lève", "se lever|p2sg": "te lèves", "se lever|p3sg": "se lève"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "Je travaille le matin.",
+            "translations": { "en": "I work in the morning.", "fr": "Je travaille le matin." }
+          },
+          {
+            "target": "Tu écoutes.",
+            "translations": { "en": "You listen.", "fr": "Tu écoutes." }
+          },
+          {
+            "target": "Il achète du pain.",
+            "translations": { "en": "He buys bread.", "fr": "Il achète du pain." }
+          }
+        ],
+        "test_vectors": [
+          { "input": "travailler", "context": "p1sg", "expected": "travaille" },
+          { "input": "travailler", "context": "p2sg", "expected": "travailles" },
+          { "input": "travailler", "context": "p3sg", "expected": "travaille" },
+          { "input": "manger", "context": "p1sg", "expected": "mange" },
+          { "input": "écouter", "context": "p2sg", "expected": "écoutes" },
+          { "input": "marcher", "context": "p3sg", "expected": "marche" },
+          { "input": "étudier", "context": "p1sg", "expected": "étudie" },
+          { "input": "acheter", "context": "p1sg stem change", "expected": "achète" },
+          { "input": "se lever", "context": "p1sg reflexive", "expected": "me lève" },
+          { "input": "aller", "context": "p1sg", "expected": "vais" },
+          { "input": "faire", "context": "p3sg", "expected": "fait" },
+          { "input": "dormir", "context": "p1sg", "expected": "dors" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "fr-negation-ne-pas",
+        "title": {
+          "en": "Negation with ne … pas",
+          "fr": "La négation avec ne … pas"
+        },
+        "description": {
+          "en": "Wrap the conjugated verb between ne and pas; ne becomes n' before a vowel.",
+          "fr": "Encadrer le verbe conjugué entre ne et pas ; ne devient n' devant une voyelle."
+        },
+        "explanation": {
+          "en": "French negation wraps the conjugated verb in two words: ne … pas. je travaille → je ne travaille pas. Before a vowel, ne elides to n': j'achète → je n'achète pas. With reflexive verbs, ne comes before the pronoun: je me lève → je ne me lève pas. In casual speech the ne often disappears, but keep it in writing.",
+          "fr": "La négation française encadre le verbe conjugué de deux mots : ne … pas. je travaille → je ne travaille pas. Devant une voyelle, ne s'élide en n' : j'achète → je n'achète pas. Avec les verbes pronominaux, ne se place avant le pronom : je me lève → je ne me lève pas. À l'oral familier, le ne disparaît souvent, mais garde-le à l'écrit."
+        },
+        "prerequisite_lists": ["starter-daily-life"],
+        "min_known_words": { "verbe": 5 },
+        "applies_to_categories": ["verbe"],
+        "mechanics": {
+          "type": "negation",
+          "negation": {
+            "pattern_template": "ne {verb} pas",
+            "irregulars": {
+              "se lever": "ne me lève pas"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "Je ne travaille pas aujourd'hui.",
+            "translations": { "en": "I'm not working today.", "fr": "Je ne travaille pas aujourd'hui." }
+          },
+          {
+            "target": "Je n'achète pas de pain.",
+            "translations": { "en": "I'm not buying bread.", "fr": "Je n'achète pas de pain." }
+          }
+        ],
+        "test_vectors": [
+          { "input": "travailler", "context": "p1sg", "expected": "ne travaille pas" },
+          { "input": "manger", "context": "p1sg", "expected": "ne mange pas" },
+          { "input": "marcher", "context": "p1sg", "expected": "ne marche pas" },
+          { "input": "acheter", "context": "elision", "expected": "n'achète pas" },
+          { "input": "écouter", "context": "elision", "expected": "n'écoute pas" },
+          { "input": "étudier", "context": "elision", "expected": "n'étudie pas" },
+          { "input": "aller", "context": "irregular", "expected": "ne vais pas" },
+          { "input": "dormir", "context": "irregular", "expected": "ne dors pas" },
+          { "input": "se lever", "context": "reflexive", "expected": "ne me lève pas" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "fr-plural-s",
+        "title": {
+          "en": "The plural in -s",
+          "fr": "Le pluriel en -s"
+        },
+        "description": {
+          "en": "Add a (usually silent) -s; nouns in -s, -x, -z don't change.",
+          "fr": "Ajouter un -s (souvent muet) ; les noms en -s, -x, -z ne changent pas."
+        },
+        "explanation": {
+          "en": "Most French nouns take -s in the plural — silent in speech, essential in writing: la pomme → les pommes. Nouns already ending in -s, -x or -z don't change: le bus → les bus. Nouns in -eau take -x (les gâteaux) and most in -al become -aux (les journaux).",
+          "fr": "La plupart des noms français prennent -s au pluriel — muet à l'oral, indispensable à l'écrit : la pomme → les pommes. Les noms déjà terminés par -s, -x ou -z ne changent pas : le bus → les bus. Les noms en -eau prennent -x (les gâteaux) et la plupart des noms en -al deviennent -aux (les journaux)."
+        },
+        "prerequisite_lists": ["starter-food"],
+        "min_known_words": { "nom": 5 },
+        "applies_to_categories": ["nom"],
+        "mechanics": {
+          "type": "plural",
+          "plural": {
+            "irregulars": {}
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "deux pommes",
+            "translations": { "en": "two apples", "fr": "deux pommes" }
+          },
+          {
+            "target": "les bus",
+            "translations": { "en": "the buses", "fr": "les bus" }
+          }
+        ],
+        "test_vectors": [
+          { "input": "pomme", "context": "-s", "expected": "pommes" },
+          { "input": "livre", "context": "-s", "expected": "livres" },
+          { "input": "train", "context": "-s", "expected": "trains" },
+          { "input": "maison", "context": "-s", "expected": "maisons" },
+          { "input": "bus", "context": "invariable -s", "expected": "bus" },
+          { "input": "métro", "context": "-s", "expected": "métros" },
+          { "input": "journée", "context": "-s", "expected": "journées" },
+          { "input": "ami", "context": "-s", "expected": "amis" }
+        ]
+      }
+    }
+  ]
+}

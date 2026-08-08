@@ -387,7 +387,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   }
 
   Widget _ruleOptions() {
-    final statusesAsync = ref.watch(ruleStatusesProvider);
+    final statusesAsync = ref.watch(ruleStatusesProvider(_langB));
     return statusesAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.all(16),
@@ -406,7 +406,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
             if (st != statuses.first) const SizedBox(height: 8),
             _OptionTile(
               key: ValueKey(WidgetKeys.startRule(st.rule.id)),
-              label: st.rule.titleFr,
+              label: st.rule.title(uiLocaleCode(context)),
               selected: _ruleId == st.rule.id,
               disabled: st.availability == RuleAvailability.locked ||
                   !st.enoughWords,
@@ -442,11 +442,11 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(rule.titleFr,
+                Text(rule.title(uiLocaleCode(ctx)),
                     style: AppTextStyles.grotesk(22, FontWeight.w700)
                         .copyWith(color: cs.onSurface)),
                 const SizedBox(height: 12),
-                Text(rule.explanationFr,
+                Text(rule.explanation(uiLocaleCode(ctx)),
                     style: AppTextStyles.body.copyWith(color: cs.onSurface)),
                 const SizedBox(height: 16),
                 Text('grammar.lesson.examples'.tr(),
@@ -454,10 +454,12 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                         .copyWith(color: AppColors.muted)),
                 const SizedBox(height: 8),
                 for (final e in rule.workedExamples) ...[
-                  Text(e.ko,
-                      style: AppTextStyles.kr(16, FontWeight.w600)
+                  Text(e.target,
+                      style: (Languages.usesHangul(_langB)
+                              ? AppTextStyles.kr(16, FontWeight.w600)
+                              : AppTextStyles.fig(16, FontWeight.w600))
                           .copyWith(color: cs.onSurface)),
-                  Text(e.fr,
+                  Text(e.translation(uiLocaleCode(ctx)),
                       style:
                           AppTextStyles.caption.copyWith(color: AppColors.muted)),
                   const SizedBox(height: 8),
@@ -480,7 +482,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
     if (start == true && mounted) {
       setState(() {
         _ruleId = rule.id;
-        _ruleTitle = rule.titleFr;
+        _ruleTitle = rule.title(uiLocaleCode(context));
       });
       _select(1);
     }

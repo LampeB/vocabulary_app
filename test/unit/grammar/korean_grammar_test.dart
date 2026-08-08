@@ -7,7 +7,7 @@ import 'package:vocab_kr/core/grammar/korean/korean_morphology.dart';
 import 'package:vocab_kr/domain/entities/grammar_rule.dart';
 
 /// The Korean grammar engine, proven against the REAL rule content: every
-/// test vector in assets/seed/grammar_rules.json (author-reviewed, ~70 of
+/// test vector in assets/seed/grammar/ko/rules.json (author-reviewed, ~70 of
 /// them) must come out of the module exactly right. Plus direct morphology
 /// cases for the algorithmic paths (no irregular map).
 
@@ -31,9 +31,11 @@ void main() {
   late KoreanGrammarModule module;
 
   setUpAll(() async {
-    final raw = await rootBundle.loadString('assets/seed/grammar_rules.json');
+    final raw =
+        await rootBundle.loadString('assets/seed/grammar/ko/rules.json');
     rules = [
-      for (final j in jsonDecode(raw) as List)
+      for (final j in (jsonDecode(raw) as Map<String, dynamic>)['rules']
+          as List)
         GrammarRule.fromJson(j as Map<String, dynamic>),
     ];
     final conjugation = rules
@@ -48,7 +50,7 @@ void main() {
     for (final r in rules) {
       expect(r.testVectors.length, greaterThanOrEqualTo(12),
           reason: '${r.id} is under-specified');
-      expect(r.explanationFr, isNotEmpty);
+      expect(r.explanation('fr'), isNotEmpty);
       expect(r.prerequisiteLists, isNotEmpty);
     }
   });

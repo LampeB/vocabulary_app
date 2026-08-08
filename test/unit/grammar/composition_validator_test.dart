@@ -26,9 +26,11 @@ void main() {
   ];
 
   setUpAll(() async {
-    final raw = await rootBundle.loadString('assets/seed/grammar_rules.json');
+    final raw =
+        await rootBundle.loadString('assets/seed/grammar/ko/rules.json');
     rules = [
-      for (final j in jsonDecode(raw) as List)
+      for (final j in (jsonDecode(raw) as Map<String, dynamic>)['rules']
+          as List)
         GrammarRule.fromJson(j as Map<String, dynamic>),
     ];
     final conjugation = rules

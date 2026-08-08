@@ -14,11 +14,11 @@ import '../../helpers/pump_screen.dart';
 GrammarRule _rule(String id, String title, {List<String> prereqs = const []}) =>
     GrammarRule(
       id: id,
-      titleFr: title,
-      descriptionFr: '',
-      explanationFr: 'Une explication.',
+      titles: {'fr': title},
+      descriptions: const {'fr': ''},
+      explanations: const {'fr': 'Une explication.'},
       workedExamples: const [
-        WorkedExample(ko: '저는 학생이에요', fr: 'Je suis étudiant')
+        WorkedExample(target: '저는 학생이에요', translations: {'fr': 'Je suis étudiant'})
       ],
       prerequisiteLists: prereqs,
       appliesToCategories: const ['nom'],
@@ -40,7 +40,7 @@ void main() {
       tester,
       screen: const GrammarScreen(),
       overrides: [
-        ruleStatusesProvider.overrideWith((ref) async => statuses),
+        ruleStatusesProvider.overrideWith((ref, lang) async => statuses),
       ],
       routes: [
         GoRoute(

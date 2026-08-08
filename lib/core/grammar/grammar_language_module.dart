@@ -16,9 +16,12 @@ abstract class GrammarLanguageModule {
   String get langCode;
 
   /// Applies [rule] to a single [word] and returns the expected answer plus
-  /// accepted alternatives. [variantKey] selects among a particle rule's
-  /// variants (e.g. 'subject' vs 'object').
-  GrammarAnswer apply(GrammarRule rule, String word, {String? variantKey});
+  /// accepted alternatives. [variantKey] selects among a rule's variants
+  /// (particle 'subject'/'object', conjugation persons 'p1sg'…); [tags]
+  /// carries the word's grammatical metadata (gender) for mechanics that
+  /// need it (articles).
+  GrammarAnswer apply(GrammarRule rule, String word,
+      {String? variantKey, List<String> tags = const []});
 }
 
 class GrammarAnswer {
@@ -42,7 +45,8 @@ class KoreanGrammarModule implements GrammarLanguageModule {
   String get langCode => 'ko';
 
   @override
-  GrammarAnswer apply(GrammarRule rule, String word, {String? variantKey}) {
+  GrammarAnswer apply(GrammarRule rule, String word,
+      {String? variantKey, List<String> tags = const []}) {
     switch (rule.mechanics) {
       case ParticleMechanics(:final variants):
         final v = variantKey == null && variants.length == 1
@@ -75,6 +79,14 @@ class KoreanGrammarModule implements GrammarLanguageModule {
           expected: answer,
           accepted: answer == mechanical ? [answer] : [answer, mechanical],
         );
+
+      case UnsupportedMechanics():
+      case ArticleMechanics():
+      case PluralMechanics():
+        // Not part of Korean's curriculum; loaders filter unsupported rules
+        // out before drills are generated.
+        throw StateError(
+            'rule ${rule.id}: mechanics not supported by the ko module');
     }
   }
 }

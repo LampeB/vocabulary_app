@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/languages.dart' show uiLocaleCode;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/list_mastery.dart' show kListKnownThreshold;
 import '../../../core/widget_keys.dart';
 import '../../providers/grammar/grammar_provider.dart';
+import '../../providers/settings/default_pair_provider.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
 
@@ -20,7 +22,10 @@ class GrammarScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final statusesAsync = ref.watch(ruleStatusesProvider);
+    // The grammar hub shows the curriculum of the default pair's studied
+    // language (seam for the future header language chip).
+    final targetLang = ref.watch(defaultPairProvider).$2;
+    final statusesAsync = ref.watch(ruleStatusesProvider(targetLang));
     return Scaffold(
       key: const ValueKey(WidgetKeys.screenGrammar),
       appBar: AppBar(
@@ -39,15 +44,29 @@ class GrammarScreen extends ConsumerWidget {
                   CircularProgressIndicator(color: AppColors.clay, strokeWidth: 2),
             ),
             error: (_, __) => Center(child: Text('common.error'.tr())),
-            data: (statuses) => ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              children: [
-                for (final s in statuses) ...[
-                  _RuleCard(status: s),
-                  const SizedBox(height: 12),
-                ],
-              ],
-            ),
+            data: (statuses) => statuses.isEmpty
+                // Studyable language without a curriculum yet — lists and
+                // quizzes work, grammar arrives later (progressive delivery).
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Text(
+                        'grammar.no_curriculum'.tr(),
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.body
+                            .copyWith(color: AppColors.muted),
+                      ),
+                    ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                    children: [
+                      for (final s in statuses) ...[
+                        _RuleCard(status: s),
+                        const SizedBox(height: 12),
+                      ],
+                    ],
+                  ),
           ),
         ],
       ),
@@ -90,7 +109,8 @@ class _RuleCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(status.rule.titleFr,
+                child: Text(
+                    status.rule.title(uiLocaleCode(context)),
                     style: AppTextStyles.fig(16, FontWeight.w700)),
               ),
               Text(
@@ -116,7 +136,7 @@ class _RuleCard extends StatelessWidget {
             const SizedBox(height: 10),
             for (final name in status.rule.prerequisiteLists) ...[
               _Bar(
-                label: name,
+                label: status.prereqNames[name] ?? name,
                 fraction: ((status.prereqProgress[name] ?? 0) /
                         kListKnownThreshold)
                     .clamp(0.0, 1.0),

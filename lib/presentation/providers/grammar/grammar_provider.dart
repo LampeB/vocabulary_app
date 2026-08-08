@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/grammar/grammar_drill_generator.dart';
 import '../../../core/grammar/grammar_language_module.dart';
+import '../../../core/grammar/latin/latin_grammar_modules.dart';
 import '../../../core/grammar/rule_mastery.dart';
 import '../../../core/utils/list_mastery.dart';
 import '../../../data/datasources/remote/grammar_exercise_remote_datasource.dart';
@@ -17,29 +18,45 @@ import '../quiz/quiz_provider.dart' show progressRepositoryProvider;
 import 'package:flutter/foundation.dart' show kDebugMode;
 import '../settings/dev_grammar_unlock_provider.dart';
 
-/// The bundled grammar rules (per-language content; Korean today).
-final grammarRulesProvider = FutureProvider<List<GrammarRule>>((ref) async {
-  final raw = await rootBundle.loadString('assets/seed/grammar_rules.json');
+/// The target languages that ship a grammar curriculum
+/// (`assets/seed/grammar/<lang>/rules.json`). A studyable language absent here
+/// shows the "no curriculum yet" placeholder while its vocabulary lists work
+/// normally — curricula are delivered progressively (design decision, see
+/// docs/design/map/multi-language.md).
+const kGrammarCurricula = {'ko', 'es', 'it', 'fr', 'en', 'de'};
+
+/// The bundled grammar rules for one target language; empty when the
+/// language has no curriculum yet. Rules whose mechanics this app version
+/// cannot parse are skipped (forward compatibility with newer content).
+final grammarRulesProvider =
+    FutureProvider.family<List<GrammarRule>, String>((ref, lang) async {
+  if (!kGrammarCurricula.contains(lang)) return const [];
+  final raw =
+      await rootBundle.loadString('assets/seed/grammar/$lang/rules.json');
+  final data = jsonDecode(raw) as Map<String, dynamic>;
   return [
-    for (final j in jsonDecode(raw) as List)
+    for (final j in data['rules'] as List)
       GrammarRule.fromJson(j as Map<String, dynamic>),
-  ];
+  ].where((r) => r.mechanics is! UnsupportedMechanics).toList();
 });
 
 /// The same rules as raw JSON, keyed by id — the payload sent to the AI
-/// exercise generator (test vectors and legacy templates stripped: they're
-/// engine/authoring artifacts, not generation context).
+/// exercise generator (test vectors stripped: they're engine/authoring
+/// artifacts, not generation context).
 final grammarRulesRawProvider =
-    FutureProvider<Map<String, Map<String, dynamic>>>((ref) async {
-  final raw = await rootBundle.loadString('assets/seed/grammar_rules.json');
+    FutureProvider.family<Map<String, Map<String, dynamic>>, String>(
+        (ref, lang) async {
+  if (!kGrammarCurricula.contains(lang)) return const {};
+  final raw =
+      await rootBundle.loadString('assets/seed/grammar/$lang/rules.json');
+  final data = jsonDecode(raw) as Map<String, dynamic>;
   return {
     // Entries are wrapped as {"rule": {...}} — same shape GrammarRule.fromJson
     // unwraps.
-    for (final j in jsonDecode(raw) as List)
-      ((j as Map<String, dynamic>)['rule'] as Map<String, dynamic>)['id']
-          as String: {
+    for (final j in (data['rules'] as List).cast<Map<String, dynamic>>())
+      (j['rule'] as Map<String, dynamic>)['id'] as String: {
         for (final e in (j['rule'] as Map<String, dynamic>).entries)
-          if (e.key != 'test_vectors' && e.key != 'templates') e.key: e.value,
+          if (e.key != 'test_vectors') e.key: e.value,
       },
   };
 });
@@ -53,24 +70,36 @@ final grammarExerciseRemoteProvider = Provider<GrammarExerciseRemoteDataSource>(
 final compositionCacheProvider =
     Provider<CompositionExerciseCache>((ref) => CompositionExerciseCache());
 
-/// The language module registry — one entry per studyable grammar language.
-/// Adding a language = adding its module here + its rule content (the
-/// language-pluggable boundary; see the session-architecture epic).
+/// The language-module registry — one entry per language whose grammar can be
+/// applied deterministically. Null for languages without a module: callers
+/// must treat that as "no grammar drills for this language".
 final grammarModuleProvider =
-    FutureProvider<GrammarLanguageModule>((ref) async {
-  final rules = await ref.watch(grammarRulesProvider.future);
-  final conjugation = rules
-      .map((r) => r.mechanics)
-      .whereType<ConjugationMechanics>()
-      .firstOrNull;
-  return KoreanGrammarModule(
-      conjugationIrregulars: conjugation?.irregulars ?? const {});
+    FutureProvider.family<GrammarLanguageModule?, String>((ref, lang) async {
+  final rules = await ref.watch(grammarRulesProvider(lang).future);
+  if (rules.isEmpty) return null;
+  // Merge every conjugation rule's lexical irregulars — negation composes on
+  // top of conjugation, so the module needs the full map.
+  final irregulars = {
+    for (final m
+        in rules.map((r) => r.mechanics).whereType<ConjugationMechanics>())
+      ...m.irregulars,
+  };
+  return switch (lang) {
+    'ko' => KoreanGrammarModule(conjugationIrregulars: irregulars),
+    'es' => SpanishGrammarModule(conjugationIrregulars: irregulars),
+    'it' => ItalianGrammarModule(conjugationIrregulars: irregulars),
+    'fr' => FrenchGrammarModule(conjugationIrregulars: irregulars),
+    'en' => EnglishGrammarModule(conjugationIrregulars: irregulars),
+    'de' => GermanGrammarModule(conjugationIrregulars: irregulars),
+    _ => null,
+  };
 });
 
-/// Known vocabulary resolved for drills: the target-language (KO) word of
-/// every concept the user knows (graduated from FSRS learning — the same
-/// bar that unlocks the rules), with its category.
-final drillWordsProvider = FutureProvider<List<DrillWord>>((ref) async {
+/// Known vocabulary resolved for drills: the target-language word of every
+/// concept the user knows (graduated from FSRS learning — the same bar that
+/// unlocks the rules), with its category.
+final drillWordsProvider =
+    FutureProvider.family<List<DrillWord>, String>((ref, targetLang) async {
   final userId = ref.watch(currentUserProvider)?.id ?? '';
   if (userId.isEmpty) return const [];
   final progressRepo = ref.watch(progressRepositoryProvider);
@@ -86,15 +115,19 @@ final drillWordsProvider = FutureProvider<List<DrillWord>>((ref) async {
     final concept = await conceptDao.getById(variant.conceptId);
     if (concept == null || concept.category == null) continue;
     final all = await conceptDao.getVariantsByConcept(variant.conceptId);
-    final ko = all.where((v) => v.langCode == 'ko').firstOrNull;
-    if (ko == null) continue;
-    words[variant.conceptId] =
-        DrillWord(word: ko.word, category: concept.category!);
+    final target = all.where((v) => v.langCode == targetLang).firstOrNull;
+    if (target == null) continue;
+    words[variant.conceptId] = DrillWord(
+      word: target.word,
+      category: concept.category!,
+      tags: List<String>.from(jsonDecode(target.contextTags) as List),
+    );
   }
   return words.values.toList();
 });
 
-/// Per-rule grammar progress, keyed by rule id.
+/// Per-rule grammar progress, keyed by rule id. (Rule ids are globally unique
+/// across languages, so this needs no language dimension.)
 final grammarProgressProvider =
     StreamProvider<Map<String, ({int shown, int correct, bool mastered})>>(
         (ref) {
@@ -122,22 +155,27 @@ class RuleStatus {
     required this.enoughWords,
     required this.correct,
     this.prereqProgress = const {},
+    this.prereqNames = const {},
   });
 
   final GrammarRule rule;
   final RuleAvailability availability;
 
-  /// Prerequisite list names not yet known (isListKnown < 90%).
+  /// Display names of prerequisite lists not yet known (isListKnown < 90%).
   final List<String> missingLists;
 
   /// Whether enough vocabulary is mastered to generate a session.
   final bool enoughWords;
   final int correct;
 
-  /// Known-fraction per prerequisite list name (0–1, `known/total` on the
+  /// Known-fraction per prerequisite token (0–1, `known/total` on the
   /// graduated bar), for the unlock progress bars. Lists the user doesn't
-  /// have yet report 0.
+  /// have yet report 0. Keys are the rule's prerequisite tokens (seed list
+  /// ids, or display names for legacy content).
   final Map<String, double> prereqProgress;
+
+  /// Prerequisite token → display name of the matched list, for the bars.
+  final Map<String, String> prereqNames;
 
   /// Overall unlock progress across all prerequisite lists (0–1); 1.0 when
   /// there are no prerequisites.
@@ -154,44 +192,69 @@ class RuleStatus {
   }
 }
 
-/// Availability of every rule: prerequisite lists gate unlocking (≥90%
-/// mastered per list — kListKnownThreshold), rule progress gates "mastered".
-final ruleStatusesProvider = FutureProvider<List<RuleStatus>>((ref) async {
-  final rules = await ref.watch(grammarRulesProvider.future);
+/// Availability of every rule of one target language: prerequisite lists gate
+/// unlocking (≥90% mastered per list — kListKnownThreshold), rule progress
+/// gates "mastered". Prerequisites are matched by seed list id
+/// (`<id>:<any-source>><targetLang>`), falling back to display name for
+/// not-yet-adopted legacy lists.
+final ruleStatusesProvider = FutureProvider.family<List<RuleStatus>, String>(
+    (ref, targetLang) async {
+  final rules = await ref.watch(grammarRulesProvider(targetLang).future);
+  if (rules.isEmpty) return const [];
   final lists = await ref.watch(myListsProvider.future);
   final progressRepo = ref.watch(progressRepositoryProvider);
   final progress = await ref.watch(grammarProgressProvider.future);
-  final drillWords = await ref.watch(drillWordsProvider.future);
-  final module = await ref.watch(grammarModuleProvider.future);
-  final generator = GrammarDrillGenerator(module);
+  final drillWords = await ref.watch(drillWordsProvider(targetLang).future);
+  final module = await ref.watch(grammarModuleProvider(targetLang).future);
+  final generator = module == null ? null : GrammarDrillGenerator(module);
 
-  // Known-ness per prerequisite list name (lists are matched by name — the
-  // starter lists carry the canonical names the rules reference). Gated on
-  // the 'known' bar (graduated from learning), not the 21-day mastery bar.
-  final knownByName = <String, bool>{};
-  final fractionByName = <String, double>{};
-  for (final list in lists) {
-    final stats = (await progressRepo.getListStats(list.id)).valueOrNull;
-    knownByName[list.name] = stats != null &&
-        isListKnown(total: stats['total']!, mastered: stats['known']!);
-    final total = stats?['total'] ?? 0;
-    fractionByName[list.name] =
-        total == 0 ? 0 : (stats!['known']! / total).clamp(0.0, 1.0);
+  // Resolve each prerequisite token to the user's matching list: by seed id
+  // for catalog lists (any source language, this target), by name for legacy.
+  final tokens = {for (final r in rules) ...r.prerequisiteLists};
+  final known = <String, bool>{};
+  final fraction = <String, double>{};
+  final displayName = <String, String>{};
+  for (final token in tokens) {
+    final matches = [
+      for (final l in lists)
+        if ((l.seedId != null &&
+                l.seedId!.startsWith('$token:') &&
+                l.langB == targetLang) ||
+            l.name == token)
+          l,
+    ];
+    var tokenKnown = false;
+    var tokenFraction = 0.0;
+    for (final list in matches) {
+      final stats = (await progressRepo.getListStats(list.id)).valueOrNull;
+      if (stats == null) continue;
+      final total = stats['total'] ?? 0;
+      final f = total == 0 ? 0.0 : (stats['known']! / total).clamp(0.0, 1.0);
+      // A user may study the same curriculum list from several source
+      // languages; the furthest one counts.
+      if (f >= tokenFraction) {
+        tokenFraction = f;
+        displayName[token] = list.name;
+      }
+      tokenKnown = tokenKnown ||
+          isListKnown(total: total, mastered: stats['known']!);
+    }
+    known[token] = tokenKnown;
+    fraction[token] = tokenFraction;
   }
 
   return [
     for (final rule in rules)
       () {
         final missing = [
-          for (final name in rule.prerequisiteLists)
-            if (!(knownByName[name] ?? false)) name,
+          for (final token in rule.prerequisiteLists)
+            if (!(known[token] ?? false)) displayName[token] ?? token,
         ];
         final p = progress[rule.id];
         final mastered = p?.mastered ?? false;
         // DEBUG-ONLY override: unlock everything so the grammar voice path
         // can be exercised without mastering the prerequisite lists first.
-        final devUnlock =
-            kDebugMode && ref.watch(devGrammarUnlockProvider);
+        final devUnlock = kDebugMode && ref.watch(devGrammarUnlockProvider);
         return RuleStatus(
           rule: rule,
           availability: mastered
@@ -200,13 +263,14 @@ final ruleStatusesProvider = FutureProvider<List<RuleStatus>>((ref) async {
                   ? RuleAvailability.unlocked
                   : RuleAvailability.locked,
           missingLists: devUnlock ? const [] : missing,
-          enoughWords:
-              devUnlock || generator.canGenerate(rule, drillWords),
+          enoughWords: devUnlock ||
+              (generator?.canGenerate(rule, drillWords) ?? false),
           correct: p?.correct ?? 0,
           prereqProgress: {
-            for (final name in rule.prerequisiteLists)
-              name: fractionByName[name] ?? 0,
+            for (final token in rule.prerequisiteLists)
+              token: fraction[token] ?? 0,
           },
+          prereqNames: displayName,
         );
       }(),
   ];
