@@ -120,6 +120,14 @@ flutter:
   uses-material-design: true
   assets:
     - assets/seed/
+    - assets/seed/vocab/
+    - assets/seed/vocab/lang/
+    - assets/seed/grammar/ko/
+    - assets/seed/grammar/es/
+    - assets/seed/grammar/it/
+    - assets/seed/grammar/fr/
+    - assets/seed/grammar/en/
+    - assets/seed/grammar/de/
     - assets/sounds/
     - assets/images/
     - assets/animations/

@@ -1,8 +1,11 @@
+import 'dart:async' show unawaited;
 import 'dart:convert' show jsonDecode, jsonEncode;
 import 'dart:io' show File;
 import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
 
+import 'package:easy_localization/easy_localization.dart' show Intl;
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,6 +17,7 @@ import '../../../data/datasources/local/daos/concept_dao.dart';
 import '../../../data/datasources/local/daos/progress_dao.dart';
 import '../../../data/datasources/remote/vocabulary_remote_datasource.dart';
 import '../../../data/repositories/vocabulary_repository_impl.dart';
+import '../../../data/seed/starter_seeder.dart';
 import '../../../data/sync/push_sync.dart';
 import '../../../domain/entities/vocabulary_list.dart';
 import '../../../domain/entities/concept.dart';
@@ -23,6 +27,7 @@ import '../../../core/config/app_config.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/errors/app_exception.dart';
 import '../auth/auth_provider.dart';
+import '../settings/default_pair_provider.dart';
 import '../purchases/purchase_provider.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
@@ -129,37 +134,41 @@ final syncOnLoginProvider = FutureProvider<void>((ref) async {
   await ref.watch(vocabularyRepositoryProvider).syncFromRemote();
 });
 
-/// Seeds the bundled starter lists (assets/seed/starter_lists.json — 6 themed
-/// FR/KR lists that are also the grammar lessons' prerequisites). Runs AFTER
-/// the pull sync so an existing account's lists arrive first, then seeds any
-/// starter list the account is MISSING (matched by name — the canonical names
-/// the grammar rules reference). Accounts created before the starter lists
-/// shipped must still receive them, or grammar is permanently locked for
-/// them; starter lists are quota-exempt, so topping up is always safe.
-/// A per-user flag (v2: the v1 flag was set without seeding on pre-existing
-/// accounts) makes it once-ever — deleting a starter list later does NOT
-/// bring it back. Skipped in TEST_MODE — E2E owns its own data.
+/// The pair-aware starter seeder (assets/seed/vocab/ catalog). Composed here
+/// so both the login path and the create-list path share one instance.
+final starterSeederProvider = Provider<StarterSeeder>((ref) => StarterSeeder(
+      bundle: rootBundle,
+      repo: ref.watch(vocabularyRepositoryProvider),
+      listDao: ref.watch(vocabularyListDaoProvider),
+      conceptDao: ref.watch(conceptDaoProvider),
+      userId: ref.watch(currentUserProvider)?.id ?? '',
+      uiLocale: Intl.defaultLocale,
+    ));
+
+/// Seeds the starter curriculum for the user's current default pair. The
+/// starter lists are also the grammar lessons' prerequisites, so every
+/// studied pair must have them. Runs AFTER the pull sync so an existing
+/// account's lists arrive first; StarterSeeder itself is idempotent (per-pair
+/// flag, dedup by seed_id, per-concept top-up — see its doc comment) and
+/// adopts/heals lists seeded by the old name-keyed fr→ko pipeline.
+/// Re-runs whenever the default pair changes (ref.watch), and
+/// ListActionsNotifier.createList seeds any new pair a list is created with.
+/// Skipped in TEST_MODE — E2E owns its own data.
 final seedStarterListsProvider = FutureProvider<void>((ref) async {
   if (_kTestMode) return;
   final user = ref.watch(currentUserProvider);
   if (user == null) return;
   await ref.watch(syncOnLoginProvider.future);
 
+  // Re-read the persisted pair rather than trusting the notifier's state:
+  // its initial ('fr','ko') stands in until the async prefs load lands, and
+  // seeding the wrong pair on a non-French account would be user-visible.
+  ref.watch(defaultPairProvider);
   final prefs = await SharedPreferences.getInstance();
-  final flagKey = 'seeded_starter_lists_v2_${user.id}';
-  if (prefs.getBool(flagKey) ?? false) return;
+  final langA = prefs.getString('settings_default_lang_a') ?? 'fr';
+  final langB = prefs.getString('settings_default_lang_b') ?? 'ko';
 
-  final repo = ref.read(vocabularyRepositoryProvider);
-  final existingNames =
-      (await repo.watchMyLists().first).map((l) => l.name).toSet();
-  final raw = await rootBundle.loadString('assets/seed/starter_lists.json');
-  for (final entry in jsonDecode(raw) as List<dynamic>) {
-    final map = entry as Map<String, dynamic>;
-    final name = (map['list'] as Map<String, dynamic>)['name'] as String?;
-    if (name != null && existingNames.contains(name)) continue;
-    await repo.importFromJson(map, origin: 'starter');
-  }
-  await prefs.setBool(flagKey, true);
+  await ref.read(starterSeederProvider).ensureSeededForPair(langA, langB);
 });
 
 /// Outbound sync (the isSynced flags are the queue — see data/sync/push_sync).
@@ -198,8 +207,18 @@ class ListActionsNotifier extends Notifier<void> {
         ));
       }
     }
-    return _repo.createList(
+    final result = await _repo.createList(
         name: name, description: description, langA: langA, langB: langB);
+    if (result is Success<VocabularyList>) {
+      // First list in a new pair → that pair's starter curriculum appears
+      // alongside it (idempotent; no-op for already-seeded pairs). Fire and
+      // forget: a failure here must not break list creation — the login-path
+      // seeder retries on next app open (per-pair flag still unset).
+      unawaited(Future(() =>
+              ref.read(starterSeederProvider).ensureSeededForPair(langA, langB))
+          .catchError((Object e) => debugPrint('pair seeding failed: $e')));
+    }
+    return result;
   }
 
   Future<Result<VocabularyList>> renameList(

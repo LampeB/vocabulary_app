@@ -1,0 +1,1044 @@
+{
+  "lang": "en",
+  "entries": {
+    "acheter": {
+      "words": [
+        {
+          "word": "to buy",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I buy bread."
+    },
+    "aeroport": {
+      "words": [
+        {
+          "word": "airport",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "aider": {
+      "words": [
+        {
+          "word": "to help",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "aimer-apprecier": {
+      "words": [
+        {
+          "word": "to like",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I like coffee."
+    },
+    "aller": {
+      "words": [
+        {
+          "word": "to go",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I go to school."
+    },
+    "ami": {
+      "words": [
+        {
+          "word": "friend",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "arriver": {
+      "words": [
+        {
+          "word": "to arrive",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "au-revoir-a-celui-qui-part": {
+      "words": [
+        {
+          "word": "goodbye (to someone leaving)",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "au-revoir-a-celui-qui-reste": {
+      "words": [
+        {
+          "word": "goodbye (to someone staying)",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "aujourd-hui": {
+      "words": [
+        {
+          "word": "today",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "avoir-faim": {
+      "words": [
+        {
+          "word": "to be hungry",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I'm hungry!"
+    },
+    "boire": {
+      "words": [
+        {
+          "word": "to drink",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I am drinking coffee now."
+    },
+    "bonjour": {
+      "words": [
+        {
+          "word": "hello",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Hello, teacher!"
+    },
+    "bonne-nuit": {
+      "words": [
+        {
+          "word": "good night",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "bus": {
+      "words": [
+        {
+          "word": "bus",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "cafe-boisson": {
+      "words": [
+        {
+          "word": "coffee",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "A coffee, please."
+    },
+    "cinq": {
+      "words": [
+        {
+          "word": "five",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "comment-allez-vous": {
+      "words": [
+        {
+          "word": "how are you?",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "coree": {
+      "words": [
+        {
+          "word": "Korea",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "d-accord-compris": {
+      "words": [
+        {
+          "word": "okay / got it",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "de-rien": {
+      "words": [
+        {
+          "word": "you're welcome",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "delicieux": {
+      "words": [
+        {
+          "word": "delicious",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "It's delicious!"
+    },
+    "demain": {
+      "words": [
+        {
+          "word": "tomorrow",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "descendre-d-un-transport": {
+      "words": [
+        {
+          "word": "to get off",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "deux": {
+      "words": [
+        {
+          "word": "two",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "dix": {
+      "words": [
+        {
+          "word": "ten",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "donnez-moi-s-il-vous-plait": {
+      "words": [
+        {
+          "word": "please give me…",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "dormir": {
+      "words": [
+        {
+          "word": "to sleep",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I am sleeping now."
+    },
+    "eau": {
+      "words": [
+        {
+          "word": "water",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Water, please."
+    },
+    "ecole": {
+      "words": [
+        {
+          "word": "school",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "ecouter": {
+      "words": [
+        {
+          "word": "to listen",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "enchante-e": {
+      "words": [
+        {
+          "word": "nice to meet you",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "entreprise-bureau": {
+      "words": [
+        {
+          "word": "company / office",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "etre-occupe": {
+      "words": [
+        {
+          "word": "to be busy",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I am busy today."
+    },
+    "etudiant": {
+      "words": [
+        {
+          "word": "student",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "etudier": {
+      "words": [
+        {
+          "word": "to study",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I study in the morning."
+    },
+    "faire": {
+      "words": [
+        {
+          "word": "to do",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "france": {
+      "words": [
+        {
+          "word": "France",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "fruit": {
+      "words": [
+        {
+          "word": "fruit",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "gare-station": {
+      "words": [
+        {
+          "word": "station",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "hier": {
+      "words": [
+        {
+          "word": "yesterday",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "huit": {
+      "words": [
+        {
+          "word": "eight",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "ici": {
+      "words": [
+        {
+          "word": "here",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I get off here."
+    },
+    "je-moi-forme-humble": {
+      "words": [
+        {
+          "word": "I / me (humble)",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "journee": {
+      "words": [
+        {
+          "word": "day",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "kimchi": {
+      "words": [
+        {
+          "word": "kimchi",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Kimchi is delicious!"
+    },
+    "ko-a-dans-lieu-d-action": {
+      "words": [
+        {
+          "word": "at / in (place of action)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I eat at the restaurant."
+    },
+    "ko-a-partir-de-depuis": {
+      "words": [
+        {
+          "word": "from / since",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I work from morning to evening."
+    },
+    "ko-a-vers-destination-temps": {
+      "words": [
+        {
+          "word": "to / toward (destination, time)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "In the morning I go to school."
+    },
+    "ko-aussi": {
+      "words": [
+        {
+          "word": "also / too",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I'm going too."
+    },
+    "ko-de-possession": {
+      "words": [
+        {
+          "word": "of (possession)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "my friend's book"
+    },
+    "ko-et-avec-apres-consonne": {
+      "words": [
+        {
+          "word": "and / with (after consonant)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I buy bread and milk."
+    },
+    "ko-et-avec-apres-voyelle": {
+      "words": [
+        {
+          "word": "and / with (after vowel)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I buy milk and bread."
+    },
+    "ko-et-avec-oral": {
+      "words": [
+        {
+          "word": "and / with (spoken)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I drink coffee with a friend."
+    },
+    "ko-jusqu-a": {
+      "words": [
+        {
+          "word": "until / up to",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I walk to the station."
+    },
+    "ko-ne-pas-negation": {
+      "words": [
+        {
+          "word": "not (negation)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Today I'm not going to school."
+    },
+    "ko-particule-d-objet-apres-consonne": {
+      "words": [
+        {
+          "word": "object particle (after consonant)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I eat rice."
+    },
+    "ko-particule-d-objet-apres-voyelle": {
+      "words": [
+        {
+          "word": "object particle (after vowel)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I drink milk."
+    },
+    "ko-particule-de-sujet-apres-consonne": {
+      "words": [
+        {
+          "word": "subject particle (after consonant)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "The water is not good."
+    },
+    "ko-particule-de-sujet-apres-voyelle": {
+      "words": [
+        {
+          "word": "subject particle (after vowel)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "My friend is coming."
+    },
+    "ko-particule-de-theme-apres-consonne": {
+      "words": [
+        {
+          "word": "topic particle (after consonant)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Today, I am busy."
+    },
+    "ko-particule-de-theme-apres-voyelle": {
+      "words": [
+        {
+          "word": "topic particle (after vowel)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Me, I drink coffee."
+    },
+    "ko-seulement": {
+      "words": [
+        {
+          "word": "only",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Only water, please."
+    },
+    "la-bas": {
+      "words": [
+        {
+          "word": "over there",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "lait": {
+      "words": [
+        {
+          "word": "milk",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "legume": {
+      "words": [
+        {
+          "word": "vegetable",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "lire": {
+      "words": [
+        {
+          "word": "to read",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I read a book."
+    },
+    "livre": {
+      "words": [
+        {
+          "word": "book",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "maintenant": {
+      "words": [
+        {
+          "word": "now",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "maison": {
+      "words": [
+        {
+          "word": "house / home",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I am going home now."
+    },
+    "manger": {
+      "words": [
+        {
+          "word": "to eat",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I eat bread in the morning."
+    },
+    "marcher": {
+      "words": [
+        {
+          "word": "to walk",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "matin": {
+      "words": [
+        {
+          "word": "morning",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "mauvais-au-gout": {
+      "words": [
+        {
+          "word": "bad-tasting",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "merci": {
+      "words": [
+        {
+          "word": "thank you",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Thank you, teacher."
+    },
+    "metro": {
+      "words": [
+        {
+          "word": "subway",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I take the subway."
+    },
+    "neuf": {
+      "words": [
+        {
+          "word": "nine",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "nom": {
+      "words": [
+        {
+          "word": "name",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "non": {
+      "words": [
+        {
+          "word": "no",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "ou": {
+      "words": [
+        {
+          "word": "where",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "oui": {
+      "words": [
+        {
+          "word": "yes",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "pain": {
+      "words": [
+        {
+          "word": "bread",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "pardon-excusez-moi": {
+      "words": [
+        {
+          "word": "excuse me / sorry",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "paris": {
+      "words": [
+        {
+          "word": "Paris",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "partir": {
+      "words": [
+        {
+          "word": "to leave",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "personne": {
+      "words": [
+        {
+          "word": "person",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "poisson-aliment": {
+      "words": [
+        {
+          "word": "fish (food)",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "pomme": {
+      "words": [
+        {
+          "word": "apple",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "prendre-un-transport": {
+      "words": [
+        {
+          "word": "to take (transport)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I take the bus."
+    },
+    "professeur": {
+      "words": [
+        {
+          "word": "teacher",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Hello, teacher!"
+    },
+    "quatre": {
+      "words": [
+        {
+          "word": "four",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "restaurant": {
+      "words": [
+        {
+          "word": "restaurant",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "riz-repas": {
+      "words": [
+        {
+          "word": "rice / meal",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "I eat rice."
+    },
+    "rue-chemin": {
+      "words": [
+        {
+          "word": "street / way",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "se-lever": {
+      "words": [
+        {
+          "word": "to get up",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "seoul": {
+      "words": [
+        {
+          "word": "Seoul",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "sept": {
+      "words": [
+        {
+          "word": "seven",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "six": {
+      "words": [
+        {
+          "word": "six",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "soir": {
+      "words": [
+        {
+          "word": "evening",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "taxi": {
+      "words": [
+        {
+          "word": "taxi",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "telephone-portable": {
+      "words": [
+        {
+          "word": "cell phone",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "temps-heure-duree": {
+      "words": [
+        {
+          "word": "time",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "the": {
+      "words": [
+        {
+          "word": "tea",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "train": {
+      "words": [
+        {
+          "word": "train",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "travailler": {
+      "words": [
+        {
+          "word": "to work",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "trois": {
+      "words": [
+        {
+          "word": "three",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "un": {
+      "words": [
+        {
+          "word": "one",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "venir": {
+      "words": [
+        {
+          "word": "to come",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "My friend comes tomorrow."
+    },
+    "viande": {
+      "words": [
+        {
+          "word": "meat",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "vivre-habiter": {
+      "words": [
+        {
+          "word": "to live",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "voir-regarder": {
+      "words": [
+        {
+          "word": "to see / watch",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,1488 @@
+{
+  "lang": "ko",
+  "entries": {
+    "bonjour": {
+      "words": [
+        {
+          "word": "안녕하세요",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "안녕하세요, 선생님!",
+      "notes": {
+        "fr": "annyeonghaseyo — salutation polie standard, utilisable à toute heure de la journée",
+        "en": "annyeonghaseyo — the standard polite greeting, usable at any time of day"
+      }
+    },
+    "au-revoir-a-celui-qui-part": {
+      "words": [
+        {
+          "word": "안녕히 가세요",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "annyeonghi gaseyo — se dit à la personne qui s'en va",
+        "en": "annyeonghi gaseyo — said to the person who is leaving"
+      }
+    },
+    "au-revoir-a-celui-qui-reste": {
+      "words": [
+        {
+          "word": "안녕히 계세요",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "annyeonghi gyeseyo — se dit à la personne qui reste",
+        "en": "annyeonghi gyeseyo — said to the person who is staying"
+      }
+    },
+    "merci": {
+      "words": [
+        {
+          "word": "감사합니다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "감사합니다, 선생님.",
+      "notes": {
+        "fr": "gamsahamnida — remerciement formel, le plus sûr en toute situation",
+        "en": "gamsahamnida — formal thanks, the safest choice in any situation"
+      }
+    },
+    "de-rien": {
+      "words": [
+        {
+          "word": "천만에요",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "cheonmaneyo — réponse polie à un remerciement, assez formelle",
+        "en": "cheonmaneyo — polite, fairly formal reply to thanks"
+      }
+    },
+    "pardon-excusez-moi": {
+      "words": [
+        {
+          "word": "죄송합니다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "joesonghamnida — excuse formelle, pour s'excuser ou attirer l'attention",
+        "en": "joesonghamnida — formal apology, for apologizing or getting attention"
+      }
+    },
+    "donnez-moi-s-il-vous-plait": {
+      "words": [
+        {
+          "word": "주세요",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "juseyo — se place après la chose demandée : « X juseyo » = « X, s'il vous plaît »",
+        "en": "juseyo — placed after the thing requested: \"X juseyo\" = \"X, please\""
+      }
+    },
+    "oui": {
+      "words": [
+        {
+          "word": "네",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "ne — oui poli ; sert aussi à montrer qu'on écoute",
+        "en": "ne — polite yes; also used to show you are listening"
+      }
+    },
+    "non": {
+      "words": [
+        {
+          "word": "아니요",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "aniyo — non poli",
+        "en": "aniyo — polite no"
+      }
+    },
+    "enchante-e": {
+      "words": [
+        {
+          "word": "반갑습니다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "bangapseumnida — se dit lors d'une première rencontre",
+        "en": "bangapseumnida — said when meeting someone for the first time"
+      }
+    },
+    "bonne-nuit": {
+      "words": [
+        {
+          "word": "안녕히 주무세요",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "annyeonghi jumuseyo — littéralement « dormez paisiblement », forme honorifique",
+        "en": "annyeonghi jumuseyo — literally \"sleep peacefully\", honorific form"
+      }
+    },
+    "d-accord-compris": {
+      "words": [
+        {
+          "word": "알겠습니다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "algesseumnida — « j'ai compris », réponse polie à une instruction",
+        "en": "algesseumnida — \"got it\", polite reply to an instruction"
+      }
+    },
+    "comment-allez-vous": {
+      "words": [
+        {
+          "word": "잘 지내요?",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "jal jinaeyo? — « vous allez bien ? », entre personnes qui se connaissent",
+        "en": "jal jinaeyo? — \"how are you?\", between people who know each other"
+      }
+    },
+    "je-moi-forme-humble": {
+      "words": [
+        {
+          "word": "저",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "jeo — pronom « je/moi » humble, à préférer avec des inconnus ou supérieurs",
+        "en": "jeo — humble \"I / me\", preferred with strangers and superiors"
+      }
+    },
+    "nom": {
+      "words": [
+        {
+          "word": "이름",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "ireum — nom, prénom",
+        "en": "ireum — name, given name"
+      }
+    },
+    "ami": {
+      "words": [
+        {
+          "word": "친구",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "chingu — ami du même âge ; ne s'emploie pas pour un aîné",
+        "en": "chingu — friend of the same age; not used for someone older"
+      }
+    },
+    "professeur": {
+      "words": [
+        {
+          "word": "선생님",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "안녕하세요, 선생님!",
+      "notes": {
+        "fr": "seonsaengnim — professeur ; sert aussi de titre respectueux",
+        "en": "seonsaengnim — teacher; also serves as a respectful title"
+      }
+    },
+    "personne": {
+      "words": [
+        {
+          "word": "사람",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "saram — personne, être humain ; « 한국 사람 » = un Coréen",
+        "en": "saram — person, human being; \"한국 사람\" = a Korean"
+      }
+    },
+    "un": {
+      "words": [
+        {
+          "word": "하나",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "hana — numéral coréen natif, pour compter des objets et des heures",
+        "en": "hana — native Korean numeral, for counting objects and hours"
+      }
+    },
+    "deux": {
+      "words": [
+        {
+          "word": "둘",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "dul — numéral coréen natif",
+        "en": "dul — native Korean numeral"
+      }
+    },
+    "trois": {
+      "words": [
+        {
+          "word": "셋",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "set — numéral coréen natif",
+        "en": "set — native Korean numeral"
+      }
+    },
+    "quatre": {
+      "words": [
+        {
+          "word": "넷",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "net — numéral coréen natif",
+        "en": "net — native Korean numeral"
+      }
+    },
+    "cinq": {
+      "words": [
+        {
+          "word": "다섯",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "daseot — numéral coréen natif",
+        "en": "daseot — native Korean numeral"
+      }
+    },
+    "six": {
+      "words": [
+        {
+          "word": "여섯",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "yeoseot — numéral coréen natif",
+        "en": "yeoseot — native Korean numeral"
+      }
+    },
+    "sept": {
+      "words": [
+        {
+          "word": "일곱",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "ilgop — numéral coréen natif",
+        "en": "ilgop — native Korean numeral"
+      }
+    },
+    "huit": {
+      "words": [
+        {
+          "word": "여덟",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "yeodeol — numéral coréen natif",
+        "en": "yeodeol — native Korean numeral"
+      }
+    },
+    "neuf": {
+      "words": [
+        {
+          "word": "아홉",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "ahop — numéral coréen natif",
+        "en": "ahop — native Korean numeral"
+      }
+    },
+    "dix": {
+      "words": [
+        {
+          "word": "열",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "yeol — numéral coréen natif",
+        "en": "yeol — native Korean numeral"
+      }
+    },
+    "aujourd-hui": {
+      "words": [
+        {
+          "word": "오늘",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "oneul — aujourd'hui ; s'emploie sans particule en début de phrase",
+        "en": "oneul — today; used without a particle at the start of a sentence"
+      }
+    },
+    "demain": {
+      "words": [
+        {
+          "word": "내일",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "naeil — demain",
+        "en": "naeil — tomorrow"
+      }
+    },
+    "hier": {
+      "words": [
+        {
+          "word": "어제",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "eoje — hier",
+        "en": "eoje — yesterday"
+      }
+    },
+    "maintenant": {
+      "words": [
+        {
+          "word": "지금",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "jigeum — maintenant",
+        "en": "jigeum — now"
+      }
+    },
+    "temps-heure-duree": {
+      "words": [
+        {
+          "word": "시간",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "sigan — temps, durée ; aussi « heure » au sens de durée",
+        "en": "sigan — time, duration; also \"hour\" in the duration sense"
+      }
+    },
+    "matin": {
+      "words": [
+        {
+          "word": "아침",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "achim — matin ; désigne aussi le petit-déjeuner",
+        "en": "achim — morning; also means breakfast"
+      }
+    },
+    "soir": {
+      "words": [
+        {
+          "word": "저녁",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "jeonyeok — soir ; désigne aussi le dîner",
+        "en": "jeonyeok — evening; also means dinner"
+      }
+    },
+    "journee": {
+      "words": [
+        {
+          "word": "하루",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "haru — une journée entière",
+        "en": "haru — a whole day"
+      }
+    },
+    "riz-repas": {
+      "words": [
+        {
+          "word": "밥",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "밥 먹어요.",
+      "notes": {
+        "fr": "bap — riz cuit ; désigne aussi le repas en général",
+        "en": "bap — cooked rice; also means a meal in general"
+      }
+    },
+    "eau": {
+      "words": [
+        {
+          "word": "물",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "물 주세요.",
+      "notes": {
+        "fr": "mul — eau",
+        "en": "mul — water"
+      }
+    },
+    "kimchi": {
+      "words": [
+        {
+          "word": "김치",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "김치 맛있어요!",
+      "notes": {
+        "fr": "kimchi — chou fermenté pimenté, accompagnement de chaque repas",
+        "en": "kimchi — spicy fermented cabbage, served with every meal"
+      }
+    },
+    "viande": {
+      "words": [
+        {
+          "word": "고기",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "gogi — viande en général",
+        "en": "gogi — meat in general"
+      }
+    },
+    "fruit": {
+      "words": [
+        {
+          "word": "과일",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "gwail — fruit",
+        "en": "gwail — fruit"
+      }
+    },
+    "pomme": {
+      "words": [
+        {
+          "word": "사과",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "sagwa — pomme ; signifie aussi « excuses » dans un autre contexte",
+        "en": "sagwa — apple; also means \"apology\" in another context"
+      }
+    },
+    "the": {
+      "words": [
+        {
+          "word": "차",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "cha — thé, infusion",
+        "en": "cha — tea, infusion"
+      }
+    },
+    "cafe-boisson": {
+      "words": [
+        {
+          "word": "커피",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "커피 주세요.",
+      "notes": {
+        "fr": "keopi — café (emprunt à l'anglais coffee)",
+        "en": "keopi — coffee (loanword from English \"coffee\")"
+      }
+    },
+    "lait": {
+      "words": [
+        {
+          "word": "우유",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "uyu — lait",
+        "en": "uyu — milk"
+      }
+    },
+    "pain": {
+      "words": [
+        {
+          "word": "빵",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "ppang — pain (emprunt ancien au portugais via le japonais)",
+        "en": "ppang — bread (old loanword from Portuguese via Japanese)"
+      }
+    },
+    "poisson-aliment": {
+      "words": [
+        {
+          "word": "생선",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "saengseon — poisson (comme aliment)",
+        "en": "saengseon — fish (as food)"
+      }
+    },
+    "legume": {
+      "words": [
+        {
+          "word": "야채",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "yachae — légume",
+        "en": "yachae — vegetable"
+      }
+    },
+    "manger": {
+      "words": [
+        {
+          "word": "먹다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "아침 빵 먹어요.",
+      "notes": {
+        "fr": "meokda — manger ; radical 먹- (consonne finale)",
+        "en": "meokda — to eat; stem 먹- (ends in a consonant)"
+      }
+    },
+    "boire": {
+      "words": [
+        {
+          "word": "마시다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "지금 커피 마셔요.",
+      "notes": {
+        "fr": "masida — boire ; radical 마시- (finit en voyelle 이)",
+        "en": "masida — to drink; stem 마시- (ends in the vowel 이)"
+      }
+    },
+    "delicieux": {
+      "words": [
+        {
+          "word": "맛있다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "맛있어요!",
+      "notes": {
+        "fr": "masitda — délicieux, bon au goût ; littéralement « avoir du goût »",
+        "en": "masitda — delicious, tasty; literally \"to have taste\""
+      }
+    },
+    "mauvais-au-gout": {
+      "words": [
+        {
+          "word": "맛없다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "maseopda — mauvais au goût ; littéralement « ne pas avoir de goût »",
+        "en": "maseopda — bad-tasting; literally \"to have no taste\""
+      }
+    },
+    "avoir-faim": {
+      "words": [
+        {
+          "word": "배고프다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "배고파요!",
+      "notes": {
+        "fr": "baegopeuda — avoir faim ; adjectif en coréen, se conjugue comme un verbe d'état",
+        "en": "baegopeuda — to be hungry; an adjective in Korean, conjugated like a stative verb"
+      }
+    },
+    "restaurant": {
+      "words": [
+        {
+          "word": "식당",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "sikdang — restaurant, cantine ; plutôt cuisine coréenne simple",
+        "en": "sikdang — restaurant, canteen; usually simple Korean food"
+      }
+    },
+    "maison": {
+      "words": [
+        {
+          "word": "집",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "지금 집 가요.",
+      "notes": {
+        "fr": "jip — maison, chez soi",
+        "en": "jip — house, home"
+      }
+    },
+    "ecole": {
+      "words": [
+        {
+          "word": "학교",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "hakgyo — école",
+        "en": "hakgyo — school"
+      }
+    },
+    "entreprise-bureau": {
+      "words": [
+        {
+          "word": "회사",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "hoesa — entreprise, bureau (lieu de travail)",
+        "en": "hoesa — company, office (place of work)"
+      }
+    },
+    "dormir": {
+      "words": [
+        {
+          "word": "자다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "지금 자요.",
+      "notes": {
+        "fr": "jada — dormir ; radical 자- (voyelle 아)",
+        "en": "jada — to sleep; stem 자- (vowel 아)"
+      }
+    },
+    "se-lever": {
+      "words": [
+        {
+          "word": "일어나다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "ireonada — se lever, se réveiller",
+        "en": "ireonada — to get up, to wake up"
+      }
+    },
+    "aller": {
+      "words": [
+        {
+          "word": "가다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "학교 가요.",
+      "notes": {
+        "fr": "gada — aller ; radical 가- (voyelle 아), contraction 가 + 아요 → 가요",
+        "en": "gada — to go; stem 가- (vowel 아), contraction 가 + 아요 → 가요"
+      }
+    },
+    "venir": {
+      "words": [
+        {
+          "word": "오다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "내일 친구 와요.",
+      "notes": {
+        "fr": "oda — venir ; radical 오- (voyelle 오), contraction 오 + 아요 → 와요",
+        "en": "oda — to come; stem 오- (vowel 오), contraction 오 + 아요 → 와요"
+      }
+    },
+    "voir-regarder": {
+      "words": [
+        {
+          "word": "보다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "boda — voir, regarder ; contraction 보 + 아요 → 봐요",
+        "en": "boda — to see, to watch; contraction 보 + 아요 → 봐요"
+      }
+    },
+    "faire": {
+      "words": [
+        {
+          "word": "하다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "hada — faire ; verbe irrégulier le plus fréquent : 하다 → 해요",
+        "en": "hada — to do; the most frequent irregular verb: 하다 → 해요"
+      }
+    },
+    "etudier": {
+      "words": [
+        {
+          "word": "공부하다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "아침 공부해요.",
+      "notes": {
+        "fr": "gongbuhada — étudier ; verbe en 하다, donc 공부해요 au présent",
+        "en": "gongbuhada — to study; a 하다 verb, so 공부해요 in the present"
+      }
+    },
+    "travailler": {
+      "words": [
+        {
+          "word": "일하다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "ilhada — travailler ; verbe en 하다, donc 일해요 au présent",
+        "en": "ilhada — to work; a 하다 verb, so 일해요 in the present"
+      }
+    },
+    "lire": {
+      "words": [
+        {
+          "word": "읽다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "책 읽어요.",
+      "notes": {
+        "fr": "ikda — lire ; radical 읽- (consonne finale)",
+        "en": "ikda — to read; stem 읽- (ends in a consonant)"
+      }
+    },
+    "acheter": {
+      "words": [
+        {
+          "word": "사다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "빵 사요.",
+      "notes": {
+        "fr": "sada — acheter ; radical 사- (voyelle 아), donc 사요",
+        "en": "sada — to buy; stem 사- (vowel 아), so 사요"
+      }
+    },
+    "ecouter": {
+      "words": [
+        {
+          "word": "듣다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "deutda — écouter, entendre ; irrégulier en ㄷ : 듣다 → 들어요",
+        "en": "deutda — to listen, to hear; ㄷ-irregular: 듣다 → 들어요"
+      }
+    },
+    "aimer-apprecier": {
+      "words": [
+        {
+          "word": "좋아하다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "커피 좋아해요.",
+      "notes": {
+        "fr": "joahada — aimer, apprécier ; verbe en 하다, donc 좋아해요",
+        "en": "joahada — to like, to enjoy; a 하다 verb, so 좋아해요"
+      }
+    },
+    "vivre-habiter": {
+      "words": [
+        {
+          "word": "살다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "salda — vivre, habiter ; irrégulier en ㄹ pour certaines formes, mais 살아요 au présent",
+        "en": "salda — to live; ㄹ-irregular in some forms, but 살아요 in the present"
+      }
+    },
+    "livre": {
+      "words": [
+        {
+          "word": "책",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "chaek — livre",
+        "en": "chaek — book"
+      }
+    },
+    "telephone-portable": {
+      "words": [
+        {
+          "word": "핸드폰",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "haendeupon — téléphone portable (de l'anglais hand + phone)",
+        "en": "haendeupon — cell phone (from English \"hand\" + \"phone\")"
+      }
+    },
+    "etudiant": {
+      "words": [
+        {
+          "word": "학생",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "haksaeng — étudiant, élève",
+        "en": "haksaeng — student, pupil"
+      }
+    },
+    "etre-occupe": {
+      "words": [
+        {
+          "word": "바쁘다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "오늘 바빠요.",
+      "notes": {
+        "fr": "bappeuda — être occupé ; irrégulier en ㅡ : 바쁘다 → 바빠요",
+        "en": "bappeuda — to be busy; ㅡ-irregular: 바쁘다 → 바빠요"
+      }
+    },
+    "metro": {
+      "words": [
+        {
+          "word": "지하철",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "지하철 타요.",
+      "notes": {
+        "fr": "jihacheol — métro",
+        "en": "jihacheol — subway"
+      }
+    },
+    "bus": {
+      "words": [
+        {
+          "word": "버스",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "beoseu — bus (emprunt à l'anglais)",
+        "en": "beoseu — bus (loanword from English)"
+      }
+    },
+    "taxi": {
+      "words": [
+        {
+          "word": "택시",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "taeksi — taxi (emprunt à l'anglais)",
+        "en": "taeksi — taxi (loanword from English)"
+      }
+    },
+    "train": {
+      "words": [
+        {
+          "word": "기차",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "gicha — train",
+        "en": "gicha — train"
+      }
+    },
+    "rue-chemin": {
+      "words": [
+        {
+          "word": "길",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "gil — rue, chemin",
+        "en": "gil — street, way"
+      }
+    },
+    "gare-station": {
+      "words": [
+        {
+          "word": "역",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "yeok — gare, station de métro",
+        "en": "yeok — train or subway station"
+      }
+    },
+    "aeroport": {
+      "words": [
+        {
+          "word": "공항",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "gonghang — aéroport",
+        "en": "gonghang — airport"
+      }
+    },
+    "coree": {
+      "words": [
+        {
+          "word": "한국",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "hanguk — Corée (du Sud)",
+        "en": "hanguk — (South) Korea"
+      }
+    },
+    "france": {
+      "words": [
+        {
+          "word": "프랑스",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "peurangseu — France",
+        "en": "peurangseu — France"
+      }
+    },
+    "seoul": {
+      "words": [
+        {
+          "word": "서울",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "seoul — Séoul, capitale de la Corée du Sud",
+        "en": "seoul — Seoul, capital of South Korea"
+      }
+    },
+    "paris": {
+      "words": [
+        {
+          "word": "파리",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "pari — Paris",
+        "en": "pari — Paris"
+      }
+    },
+    "ici": {
+      "words": [
+        {
+          "word": "여기",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "여기 내려요.",
+      "notes": {
+        "fr": "yeogi — ici",
+        "en": "yeogi — here"
+      }
+    },
+    "la-bas": {
+      "words": [
+        {
+          "word": "저기",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "jeogi — là-bas (loin du locuteur et de l'interlocuteur)",
+        "en": "jeogi — over there (far from both speaker and listener)"
+      }
+    },
+    "ou": {
+      "words": [
+        {
+          "word": "어디",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "eodi — où ; s'utilise comme un nom interrogatif",
+        "en": "eodi — where; used like an interrogative noun"
+      }
+    },
+    "marcher": {
+      "words": [
+        {
+          "word": "걷다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "geotda — marcher ; irrégulier en ㄷ : 걷다 → 걸어요",
+        "en": "geotda — to walk; ㄷ-irregular: 걷다 → 걸어요"
+      }
+    },
+    "prendre-un-transport": {
+      "words": [
+        {
+          "word": "타다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "버스 타요.",
+      "notes": {
+        "fr": "tada — prendre (un transport), monter dans ; radical 타- (voyelle 아)",
+        "en": "tada — to take (transport), to get on; stem 타- (vowel 아)"
+      }
+    },
+    "descendre-d-un-transport": {
+      "words": [
+        {
+          "word": "내리다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "naerida — descendre (d'un transport)",
+        "en": "naerida — to get off (transport)"
+      }
+    },
+    "arriver": {
+      "words": [
+        {
+          "word": "도착하다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "dochakhada — arriver ; verbe en 하다, donc 도착해요",
+        "en": "dochakhada — to arrive; a 하다 verb, so 도착해요"
+      }
+    },
+    "partir": {
+      "words": [
+        {
+          "word": "출발하다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "chulbalhada — partir, démarrer ; verbe en 하다, donc 출발해요",
+        "en": "chulbalhada — to leave, to depart; a 하다 verb, so 출발해요"
+      }
+    },
+    "aider": {
+      "words": [
+        {
+          "word": "돕다",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "notes": {
+        "fr": "dopda — aider ; irrégulier en ㅂ : 돕다 → 도와요",
+        "en": "dopda — to help; ㅂ-irregular: 돕다 → 도와요"
+      }
+    },
+    "ko-particule-de-theme-apres-consonne": {
+      "words": [
+        {
+          "word": "은",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "오늘은 바빠요.",
+      "notes": {
+        "fr": "eun — particule de thème après une consonne finale (batchim)",
+        "en": "eun — topic particle after a final consonant (batchim)"
+      }
+    },
+    "ko-particule-de-theme-apres-voyelle": {
+      "words": [
+        {
+          "word": "는",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "저는 커피를 마셔요.",
+      "notes": {
+        "fr": "neun — particule de thème après une voyelle",
+        "en": "neun — topic particle after a vowel"
+      }
+    },
+    "ko-particule-de-sujet-apres-consonne": {
+      "words": [
+        {
+          "word": "이",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "물이 맛없어요.",
+      "notes": {
+        "fr": "i — particule de sujet après une consonne finale (batchim)",
+        "en": "i — subject particle after a final consonant (batchim)"
+      }
+    },
+    "ko-particule-de-sujet-apres-voyelle": {
+      "words": [
+        {
+          "word": "가",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "친구가 와요.",
+      "notes": {
+        "fr": "ga — particule de sujet après une voyelle",
+        "en": "ga — subject particle after a vowel"
+      }
+    },
+    "ko-particule-d-objet-apres-consonne": {
+      "words": [
+        {
+          "word": "을",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "밥을 먹어요.",
+      "notes": {
+        "fr": "eul — particule d'objet direct après une consonne finale (batchim)",
+        "en": "eul — direct-object particle after a final consonant (batchim)"
+      }
+    },
+    "ko-particule-d-objet-apres-voyelle": {
+      "words": [
+        {
+          "word": "를",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "우유를 마셔요.",
+      "notes": {
+        "fr": "reul — particule d'objet direct après une voyelle",
+        "en": "reul — direct-object particle after a vowel"
+      }
+    },
+    "ko-a-vers-destination-temps": {
+      "words": [
+        {
+          "word": "에",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "아침에 학교에 가요.",
+      "notes": {
+        "fr": "e — particule de destination (« à, vers ») et de temps (« à, le »)",
+        "en": "e — particle for destination (\"to, toward\") and time (\"at, on\")"
+      }
+    },
+    "ko-a-dans-lieu-d-action": {
+      "words": [
+        {
+          "word": "에서",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "식당에서 밥을 먹어요.",
+      "notes": {
+        "fr": "eseo — particule du lieu où se déroule une action (« à, dans ») ou de provenance (« de »)",
+        "en": "eseo — particle for where an action happens (\"at, in\") or origin (\"from\")"
+      }
+    },
+    "ko-aussi": {
+      "words": [
+        {
+          "word": "도",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "저도 가요.",
+      "notes": {
+        "fr": "do — « aussi » ; remplace 은/는 et 이/가",
+        "en": "do — \"also, too\"; replaces 은/는 and 이/가"
+      }
+    },
+    "ko-et-avec-apres-voyelle": {
+      "words": [
+        {
+          "word": "와",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "우유와 빵을 사요.",
+      "notes": {
+        "fr": "wa — « et / avec » après une voyelle (registre écrit ou soigné)",
+        "en": "wa — \"and / with\" after a vowel (written or careful register)"
+      }
+    },
+    "ko-et-avec-apres-consonne": {
+      "words": [
+        {
+          "word": "과",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "빵과 우유를 사요.",
+      "notes": {
+        "fr": "gwa — « et / avec » après une consonne finale (registre écrit ou soigné)",
+        "en": "gwa — \"and / with\" after a final consonant (written or careful register)"
+      }
+    },
+    "ko-et-avec-oral": {
+      "words": [
+        {
+          "word": "하고",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "친구하고 커피를 마셔요.",
+      "notes": {
+        "fr": "hago — « et / avec » à l'oral, forme unique quelle que soit la finale",
+        "en": "hago — \"and / with\" in speech, one form regardless of the ending"
+      }
+    },
+    "ko-de-possession": {
+      "words": [
+        {
+          "word": "의",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "친구의 책",
+      "notes": {
+        "fr": "ui — particule de possession (« de ») ; se prononce souvent « e »",
+        "en": "ui — possession particle (\"of\"); often pronounced \"e\""
+      }
+    },
+    "ko-a-partir-de-depuis": {
+      "words": [
+        {
+          "word": "부터",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "아침부터 저녁까지 일해요.",
+      "notes": {
+        "fr": "buteo — « à partir de, depuis » (temps ou lieu de départ)",
+        "en": "buteo — \"from, since\" (starting time or place)"
+      }
+    },
+    "ko-jusqu-a": {
+      "words": [
+        {
+          "word": "까지",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "역까지 걸어요.",
+      "notes": {
+        "fr": "kkaji — « jusqu'à » (temps ou lieu d'arrivée)",
+        "en": "kkaji — \"until, up to\" (ending time or place)"
+      }
+    },
+    "ko-seulement": {
+      "words": [
+        {
+          "word": "만",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "물만 주세요.",
+      "notes": {
+        "fr": "man — « seulement, ne… que »",
+        "en": "man — \"only, nothing but\""
+      }
+    },
+    "ko-ne-pas-negation": {
+      "words": [
+        {
+          "word": "안",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "오늘은 학교에 안 가요.",
+      "notes": {
+        "fr": "an — adverbe de négation, se place juste avant le verbe ou l'adjectif",
+        "en": "an — negation adverb, placed right before the verb or adjective"
+      }
+    }
+  }
+}

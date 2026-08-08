@@ -1,0 +1,1146 @@
+{
+  "lang": "de",
+  "entries": {
+    "acheter": {
+      "words": [
+        {
+          "word": "kaufen",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich kaufe Brot."
+    },
+    "aeroport": {
+      "words": [
+        {
+          "word": "Flughafen",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "m"
+          ]
+        }
+      ]
+    },
+    "aider": {
+      "words": [
+        {
+          "word": "helfen",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "aimer-apprecier": {
+      "words": [
+        {
+          "word": "mögen",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich mag Kaffee."
+    },
+    "aller": {
+      "words": [
+        {
+          "word": "gehen",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich gehe zur Schule."
+    },
+    "ami": {
+      "words": [
+        {
+          "word": "Freund",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "m"
+          ]
+        }
+      ]
+    },
+    "arriver": {
+      "words": [
+        {
+          "word": "ankommen",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "au-revoir-a-celui-qui-part": {
+      "words": [
+        {
+          "word": "auf Wiedersehen (zum Gehenden)",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "au-revoir-a-celui-qui-reste": {
+      "words": [
+        {
+          "word": "auf Wiedersehen (zum Bleibenden)",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "aujourd-hui": {
+      "words": [
+        {
+          "word": "heute",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "avoir-faim": {
+      "words": [
+        {
+          "word": "Hunger haben",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich habe Hunger!"
+    },
+    "boire": {
+      "words": [
+        {
+          "word": "trinken",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich trinke jetzt einen Kaffee."
+    },
+    "bonjour": {
+      "words": [
+        {
+          "word": "hallo / guten Tag",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Guten Tag, Herr Lehrer!"
+    },
+    "bonne-nuit": {
+      "words": [
+        {
+          "word": "gute Nacht",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "bus": {
+      "words": [
+        {
+          "word": "Bus",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "m"
+          ]
+        }
+      ]
+    },
+    "cafe-boisson": {
+      "words": [
+        {
+          "word": "Kaffee",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "m"
+          ]
+        }
+      ],
+      "example": "Einen Kaffee, bitte."
+    },
+    "cinq": {
+      "words": [
+        {
+          "word": "fünf",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "comment-allez-vous": {
+      "words": [
+        {
+          "word": "wie geht es Ihnen?",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "coree": {
+      "words": [
+        {
+          "word": "Korea",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "d-accord-compris": {
+      "words": [
+        {
+          "word": "in Ordnung / verstanden",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "de-rien": {
+      "words": [
+        {
+          "word": "gern geschehen",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "delicieux": {
+      "words": [
+        {
+          "word": "lecker",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Das ist lecker!"
+    },
+    "demain": {
+      "words": [
+        {
+          "word": "morgen",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "descendre-d-un-transport": {
+      "words": [
+        {
+          "word": "aussteigen",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "deux": {
+      "words": [
+        {
+          "word": "zwei",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "dix": {
+      "words": [
+        {
+          "word": "zehn",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "donnez-moi-s-il-vous-plait": {
+      "words": [
+        {
+          "word": "geben Sie mir bitte…",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "dormir": {
+      "words": [
+        {
+          "word": "schlafen",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich schlafe jetzt."
+    },
+    "eau": {
+      "words": [
+        {
+          "word": "Wasser",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "n"
+          ]
+        }
+      ],
+      "example": "Wasser, bitte."
+    },
+    "ecole": {
+      "words": [
+        {
+          "word": "Schule",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "f"
+          ]
+        }
+      ]
+    },
+    "ecouter": {
+      "words": [
+        {
+          "word": "hören",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "enchante-e": {
+      "words": [
+        {
+          "word": "freut mich",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "entreprise-bureau": {
+      "words": [
+        {
+          "word": "Firma / Büro",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "f"
+          ]
+        }
+      ]
+    },
+    "etre-occupe": {
+      "words": [
+        {
+          "word": "beschäftigt sein",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich bin heute beschäftigt."
+    },
+    "etudiant": {
+      "words": [
+        {
+          "word": "Student",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "m"
+          ]
+        }
+      ]
+    },
+    "etudier": {
+      "words": [
+        {
+          "word": "lernen",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich lerne morgens."
+    },
+    "faire": {
+      "words": [
+        {
+          "word": "machen",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "france": {
+      "words": [
+        {
+          "word": "Frankreich",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "fruit": {
+      "words": [
+        {
+          "word": "Obst",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "n"
+          ]
+        }
+      ]
+    },
+    "gare-station": {
+      "words": [
+        {
+          "word": "Bahnhof",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "m"
+          ]
+        }
+      ]
+    },
+    "hier": {
+      "words": [
+        {
+          "word": "gestern",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "huit": {
+      "words": [
+        {
+          "word": "acht",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "ici": {
+      "words": [
+        {
+          "word": "hier",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich steige hier aus."
+    },
+    "je-moi-forme-humble": {
+      "words": [
+        {
+          "word": "ich (bescheiden)",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "journee": {
+      "words": [
+        {
+          "word": "Tag",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "m"
+          ]
+        }
+      ]
+    },
+    "kimchi": {
+      "words": [
+        {
+          "word": "Kimchi",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "n"
+          ]
+        }
+      ],
+      "example": "Kimchi ist lecker!"
+    },
+    "ko-a-dans-lieu-d-action": {
+      "words": [
+        {
+          "word": "in / an (Ort der Handlung)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich esse im Restaurant."
+    },
+    "ko-a-partir-de-depuis": {
+      "words": [
+        {
+          "word": "von / ab (seit)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich arbeite von morgens bis abends."
+    },
+    "ko-a-vers-destination-temps": {
+      "words": [
+        {
+          "word": "nach / zu (Ziel, Zeit)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Morgens gehe ich zur Schule."
+    },
+    "ko-aussi": {
+      "words": [
+        {
+          "word": "auch",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich gehe auch."
+    },
+    "ko-de-possession": {
+      "words": [
+        {
+          "word": "von (Besitz)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "das Buch meines Freundes"
+    },
+    "ko-et-avec-apres-consonne": {
+      "words": [
+        {
+          "word": "und / mit (nach Konsonant)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich kaufe Brot und Milch."
+    },
+    "ko-et-avec-apres-voyelle": {
+      "words": [
+        {
+          "word": "und / mit (nach Vokal)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich kaufe Milch und Brot."
+    },
+    "ko-et-avec-oral": {
+      "words": [
+        {
+          "word": "und / mit (gesprochen)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich trinke Kaffee mit einem Freund."
+    },
+    "ko-jusqu-a": {
+      "words": [
+        {
+          "word": "bis",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich gehe zu Fuß bis zum Bahnhof."
+    },
+    "ko-ne-pas-negation": {
+      "words": [
+        {
+          "word": "nicht (Verneinung)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Heute gehe ich nicht zur Schule."
+    },
+    "ko-particule-d-objet-apres-consonne": {
+      "words": [
+        {
+          "word": "Objektpartikel (nach Konsonant)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich esse Reis."
+    },
+    "ko-particule-d-objet-apres-voyelle": {
+      "words": [
+        {
+          "word": "Objektpartikel (nach Vokal)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich trinke Milch."
+    },
+    "ko-particule-de-sujet-apres-consonne": {
+      "words": [
+        {
+          "word": "Subjektpartikel (nach Konsonant)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Das Wasser ist nicht gut."
+    },
+    "ko-particule-de-sujet-apres-voyelle": {
+      "words": [
+        {
+          "word": "Subjektpartikel (nach Vokal)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Mein Freund kommt."
+    },
+    "ko-particule-de-theme-apres-consonne": {
+      "words": [
+        {
+          "word": "Themapartikel (nach Konsonant)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Heute bin ich beschäftigt."
+    },
+    "ko-particule-de-theme-apres-voyelle": {
+      "words": [
+        {
+          "word": "Themapartikel (nach Vokal)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich trinke Kaffee."
+    },
+    "ko-seulement": {
+      "words": [
+        {
+          "word": "nur",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Nur Wasser, bitte."
+    },
+    "la-bas": {
+      "words": [
+        {
+          "word": "dort drüben",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "lait": {
+      "words": [
+        {
+          "word": "Milch",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "f"
+          ]
+        }
+      ]
+    },
+    "legume": {
+      "words": [
+        {
+          "word": "Gemüse",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "n"
+          ]
+        }
+      ]
+    },
+    "lire": {
+      "words": [
+        {
+          "word": "lesen",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich lese ein Buch."
+    },
+    "livre": {
+      "words": [
+        {
+          "word": "Buch",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "n"
+          ]
+        }
+      ]
+    },
+    "maintenant": {
+      "words": [
+        {
+          "word": "jetzt",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "maison": {
+      "words": [
+        {
+          "word": "Haus / Zuhause",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "n"
+          ]
+        }
+      ],
+      "example": "Ich gehe jetzt nach Hause."
+    },
+    "manger": {
+      "words": [
+        {
+          "word": "essen",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Morgens esse ich Brot."
+    },
+    "marcher": {
+      "words": [
+        {
+          "word": "zu Fuß gehen",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "matin": {
+      "words": [
+        {
+          "word": "Morgen",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "m"
+          ]
+        }
+      ]
+    },
+    "mauvais-au-gout": {
+      "words": [
+        {
+          "word": "nicht lecker",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "merci": {
+      "words": [
+        {
+          "word": "danke",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Danke, Herr Lehrer."
+    },
+    "metro": {
+      "words": [
+        {
+          "word": "U-Bahn",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "f"
+          ]
+        }
+      ],
+      "example": "Ich nehme die U-Bahn."
+    },
+    "neuf": {
+      "words": [
+        {
+          "word": "neun",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "nom": {
+      "words": [
+        {
+          "word": "Name",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "m"
+          ]
+        }
+      ]
+    },
+    "non": {
+      "words": [
+        {
+          "word": "nein",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "ou": {
+      "words": [
+        {
+          "word": "wo",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "oui": {
+      "words": [
+        {
+          "word": "ja",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "pain": {
+      "words": [
+        {
+          "word": "Brot",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "n"
+          ]
+        }
+      ]
+    },
+    "pardon-excusez-moi": {
+      "words": [
+        {
+          "word": "Entschuldigung",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "paris": {
+      "words": [
+        {
+          "word": "Paris",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "partir": {
+      "words": [
+        {
+          "word": "abfahren / losgehen",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "personne": {
+      "words": [
+        {
+          "word": "Person",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "f"
+          ]
+        }
+      ]
+    },
+    "poisson-aliment": {
+      "words": [
+        {
+          "word": "Fisch",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "m"
+          ]
+        }
+      ]
+    },
+    "pomme": {
+      "words": [
+        {
+          "word": "Apfel",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "m"
+          ]
+        }
+      ]
+    },
+    "prendre-un-transport": {
+      "words": [
+        {
+          "word": "nehmen (Verkehrsmittel)",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Ich nehme den Bus."
+    },
+    "professeur": {
+      "words": [
+        {
+          "word": "Lehrer",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "m"
+          ]
+        }
+      ],
+      "example": "Guten Tag, Herr Lehrer!"
+    },
+    "quatre": {
+      "words": [
+        {
+          "word": "vier",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "restaurant": {
+      "words": [
+        {
+          "word": "Restaurant",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "n"
+          ]
+        }
+      ]
+    },
+    "riz-repas": {
+      "words": [
+        {
+          "word": "Reis / Mahlzeit",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "m"
+          ]
+        }
+      ],
+      "example": "Ich esse Reis."
+    },
+    "rue-chemin": {
+      "words": [
+        {
+          "word": "Straße / Weg",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "f"
+          ]
+        }
+      ]
+    },
+    "se-lever": {
+      "words": [
+        {
+          "word": "aufstehen",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "seoul": {
+      "words": [
+        {
+          "word": "Seoul",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "sept": {
+      "words": [
+        {
+          "word": "sieben",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "six": {
+      "words": [
+        {
+          "word": "sechs",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "soir": {
+      "words": [
+        {
+          "word": "Abend",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "m"
+          ]
+        }
+      ]
+    },
+    "taxi": {
+      "words": [
+        {
+          "word": "Taxi",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "n"
+          ]
+        }
+      ]
+    },
+    "telephone-portable": {
+      "words": [
+        {
+          "word": "Handy",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "n"
+          ]
+        }
+      ]
+    },
+    "temps-heure-duree": {
+      "words": [
+        {
+          "word": "Zeit",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "f"
+          ]
+        }
+      ]
+    },
+    "the": {
+      "words": [
+        {
+          "word": "Tee",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "m"
+          ]
+        }
+      ]
+    },
+    "train": {
+      "words": [
+        {
+          "word": "Zug",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "m"
+          ]
+        }
+      ]
+    },
+    "travailler": {
+      "words": [
+        {
+          "word": "arbeiten",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "trois": {
+      "words": [
+        {
+          "word": "drei",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "un": {
+      "words": [
+        {
+          "word": "eins",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "venir": {
+      "words": [
+        {
+          "word": "kommen",
+          "is_primary": true,
+          "position": 0
+        }
+      ],
+      "example": "Mein Freund kommt morgen."
+    },
+    "viande": {
+      "words": [
+        {
+          "word": "Fleisch",
+          "is_primary": true,
+          "position": 0,
+          "tags": [
+            "n"
+          ]
+        }
+      ]
+    },
+    "vivre-habiter": {
+      "words": [
+        {
+          "word": "leben / wohnen",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    },
+    "voir-regarder": {
+      "words": [
+        {
+          "word": "sehen / schauen",
+          "is_primary": true,
+          "position": 0
+        }
+      ]
+    }
+  }
+}

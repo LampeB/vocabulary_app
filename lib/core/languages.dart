@@ -1,4 +1,13 @@
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/widgets.dart' show BuildContext;
+
+/// The active UI-locale language code, safe outside an EasyLocalization
+/// subtree (widget tests, early boot): falls back to Intl's default locale,
+/// then English.
+String uiLocaleCode(BuildContext context) =>
+    EasyLocalization.of(context)?.locale.languageCode ??
+    Intl.defaultLocale?.split(RegExp('[_-]')).first ??
+    'en';
 
 /// Single source of truth for CONTENT languages — the languages being
 /// *studied*, a separate axis from the 7 UI locales. Part of the
