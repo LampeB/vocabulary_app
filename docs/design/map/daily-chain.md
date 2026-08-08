@@ -25,6 +25,11 @@ schéma : `../diagrams/v2-daily-chain.svg` (sources → générateur → étapes
 - **Chemin ET série PAR LANGUE** : chaque langue a son chemin et sa
   propre flamme 🔥 (le header affiche celle de la langue courante)
 
+## Proposé (utilisateur, 2026-08-08)
+- Renommer « Chemin du jour » en « **Tâches du jour** » (daily tasks) —
+  libellé plus clair pour répondre à « qu'est-ce que je fais
+  aujourd'hui ? »
+
 ## Proposé — pas encore vetté (Claude, réglages de build)
 - Quotas : 2-5 étapes/jour, 1-2 grammaire, budget ~8 mots ; étapes de
   2-5 min ; grosse journée d'échéances → max ~20 mots par étape Réviser,

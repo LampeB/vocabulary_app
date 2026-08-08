@@ -49,6 +49,7 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 | Familles de mots | [[familles]] | 🟢🟠 | design écran, gratuit vs premium |
 | Progrès, CEFR & bilan hebdo | [[progres-suivi]] | 🟢🟠 | layouts, seuils CEFR |
 | Défis | [[defis]] | 🟢🟠 | scope après audit M9 |
+| Pipeline de contenu (génération) | [[content-pipeline]] | 🟢🟠 | slot des leçons (P3), revue native |
 
 ## Système
 

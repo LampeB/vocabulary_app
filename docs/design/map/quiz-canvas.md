@@ -9,6 +9,9 @@ ces seams)
 - Le canvas v1 (barre de progression, gros mot, waveform, modes
   Voix/Mains libres/Écrit/Cartes) fonctionne — conservé
 - Features retenues (2026-07-22) : cloze (#3) et leeches (#4)
+- (2026-08-08) Mode Cartes : après le flip, **swipe droite/gauche** =
+  « je savais / je ne savais pas », persisté en FSRS (good/again) —
+  les cartes ne sont plus une impasse SRS (avant : rien n'était noté)
 
 ## Proposé — pas encore vetté (Claude)
 - Layout carte cloze : phrase à trou (chip ou saisie) sur le même canvas
