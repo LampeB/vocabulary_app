@@ -29,9 +29,10 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 | Zone | Note | Statut | Reste à trancher |
 |---|---|---|---|
 | Flux vocabulaire (intro + porte) | [[vocab-flow]] | 🟢🟠 | écho, taille de lot, budget |
-| Flux grammaire (groupes) | [[grammar-flow]] | 🟢🟠 | exam par groupe ?, seuils, cadence |
-| Visionneuse de leçon | [[lesson-viewer]] | 🟢🟠 | **contenu des leçons 🔴** |
-| Exercices de grammaire (drills) | [[grammar-drills]] | 🔴 | formats de chaque étape |
+| Flux leçons (clusters) — ex-grammaire | [[grammar-flow]] | 🟢 | (complet — recette Mélange validée 2026-08-13 : ≥ 4 leçons, quiz ≥ 20 q, sans vocab pur) |
+| Niveau 0 (écriture — hangul) | [[niveau-0]] | 🟢 | (structure jamo validée 2026-08-13) |
+| Visionneuse de leçon | [[lesson-viewer]] | 🟢🟠 | **gabarits/ton 🔴** — modèle tranché 2026-08-09 : leçons auteurées figées, exemples sur vocab connu |
+| Exercices (drills) — ex-grammaire | [[grammar-drills]] | 🟢 | (complet — recette Mélange validée, défauts fins posés 2026-08-13) |
 | Test de niveau / placement | [[level-test]] | 🟢🟠 | sémantique du placement, seuil |
 
 ## Réviser
@@ -45,7 +46,7 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 
 | Zone | Note | Statut | Reste à trancher |
 |---|---|---|---|
-| Onglets Vocabulaire & Grammaire | [[bibliotheque]] | 🟢🟠 | entrée Familles (visuel) |
+| Onglets Vocabulaire & Leçons (ex-Grammaire) | [[bibliotheque]] | 🟢🟠 | entrée Familles (visuel) |
 | Familles de mots | [[familles]] | 🟢🟠 | design écran, gratuit vs premium |
 | Progrès, CEFR & bilan hebdo | [[progres-suivi]] | 🟢🟠 | layouts, seuils CEFR |
 | Défis | [[defis]] | 🟢🟠 | scope après audit M9 |

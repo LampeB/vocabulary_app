@@ -29,6 +29,23 @@
 - Page grammaire d'une langue sans curriculum → placeholder
   `grammar.no_curriculum` (les listes marchent quand même)
 
+## Décidé (utilisateur, 2026-08-13) — complexité par langue
+- **Niveau 0** optionnel par langue : cours d'écriture avant le vocab
+  (coréen : hangul) — absent pour les langues latines
+- L'équilibre des TYPES de leçons varie par langue (grammaire ·
+  conjugaison · écriture · prononciation) : le coréen aura beaucoup de
+  prononciation (sons qui mutent selon la phrase), l'espagnol beaucoup
+  de conjugaison — le curriculum de chaque langue choisit son mix,
+  l'UI dit juste « leçons »
+- RÈGLE DES STANDARDS (2026-08-13) : quand un choix de standard
+  s'impose (romanisation, translittération, format…), on prend
+  toujours **le plus récent ou le plus largement répandu** — pour le
+  coréen : la romanisation révisée (RR)
+- Les SYSTÈMES propres à une langue sont des leçons comme les autres :
+  compteurs et double système de nombres coréens (base 10 000),
+  genres allemands… — portés par des mécaniques pluggables du moteur
+  (voir [[grammar-flow]])
+
 ## Proposé — pas encore vetté (Claude)
 - Tagging systématique par paire (drapeaux) sur toute donnée scopée
 - Scripts via le resolver existant (Hangul → Noto Sans KR, à étendre)

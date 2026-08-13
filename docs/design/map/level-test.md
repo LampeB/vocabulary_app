@@ -3,6 +3,10 @@
 **Statut : 🟢 existence décidée · 🟠 contenu proposé** · écran S17 ·
 spec : `../v2-ux-architecture.md §6.15, F10`
 
+## Décidé (utilisateur, 2026-08-13)
+- Libellés à l'écran : « Test du niveau N » (Niveau 1-6, jamais A1-C2
+  — voir [[parcours-home]])
+
 ## Décidé (utilisateur, 2026-08-06/07)
 - Pour démarrer un niveau au-delà du courant, il faut RÉUSSIR un test
   prouvant la maîtrise des niveaux précédents
@@ -18,10 +22,16 @@ spec : `../v2-ux-architecture.md §6.15, F10`
 - Identité visuelle neutre (ni clay ni teal) — sobre, pas effrayant
 - Débloqué quand tous les groupes du niveau sont ✓
 
+## Réglages par défaut (délégué à Claude, 2026-08-13 — révisables)
+- Seuil 85 % · ~24 items (moitié vocab deux sens, moitié leçons),
+  une seule assise
+- Repassable à volonté, sans cooldown
+- Placement réussi : niveaux sautés marqués ACQUIS, vocab NON injecté
+  en FSRS — les mots entrent au fil des rencontres (révisions,
+  pratique libre) ; le plus simple, révisable si les données montrent
+  des trous
+
 ## À trancher 🔴
-- Sémantique data d'un placement réussi : les niveaux sautés sont marqués
-  acquis — mais leur vocab entre-t-il en FSRS ? en bloc ? pas du tout ?
-- Seuil (85 % ?), nombre d'items, une seule assise ou par domaine
-- Politique de repassage (cooldown ? illimité ?)
+- (rien — défauts posés, à ajuster aux données)
 
 Liens : [[parcours-home]] · [[grammar-flow]] · [[onboarding]]

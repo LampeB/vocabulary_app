@@ -18,11 +18,40 @@ spec : `../v2-ux-architecture.md §6.1` · wireframe : `../diagrams/v2-home-parc
   encombré) ; 🟠 supposé : cet onglet EST l'accueil et porte chemin +
   progression + parcours
 
+## Décidé (utilisateur, 2026-08-13) — niveaux « Niveau 1-6 », plus de CEFR à l'écran
+- Les niveaux s'affichent « Niveau 1 … Niveau 6 » — JAMAIS A1-C2 :
+  les libellés CEFR sonnent comme un engagement de certification
+  (risque légal/marketing, retour enseignante ko-fr)
+- Le CEFR reste la CIBLE INTERNE (tags de contenu, objectifs
+  pédagogiques, tests) — mapping Niveau N ↔ A1…C2 dans les données,
+  invisible pour l'utilisateur
+- **Niveau 0** optionnel par langue : apprendre l'écriture avant le
+  vocabulaire (coréen : hangul ; plus tard japonais, etc.) — absent
+  pour les langues à alphabet latin
+
+## Décidé (utilisateur, 2026-08-13) — le parcours est une ROUTE à nœuds
+- Le parcours se voit comme un vrai CHEMIN : une route dont chaque
+  nœud est un cluster — révise la décision « cartes » du 2026-08-08
+  (environnement visuel « cosy », on voit où on en est d'un coup d'œil)
+- États d'un nœud : **?** dans un cercle (pas encore connu) · **livre
+  ouvert** (en cours d'étude) · **✓** (validé)
+- Clic sur un nœud → il s'EXPANSE (ou ouvre un bottom sheet) et
+  montre son contenu — les leçons du cluster
+- Absorbe Q7 (résolu : nœud = cluster) ; Q5 devient « expansion en
+  place vs bottom sheet » (à trancher)
+
+## Décidé (utilisateur, 2026-08-09) — le chemin est une suite de CLUSTERS
+- Chaque étape du parcours = un cluster MIXTE de ~5 leçons liées
+  (listes de vocab + règles qui s'appuient dessus), ordre libre à
+  l'intérieur, validé par le Mélange → cluster suivant
+- Voir [[grammar-flow]] pour la mécanique complète
+
 ## Validé (utilisateur, 2026-08-08 — wireframe accepté comme base)
 - Structure de l'écran Étudier : en-tête (chip langue · série · avatar)
   → carte Chemin du jour (pastilles, prochaine étape, chip Continuer,
   chevron) → carte progression (position CEFR + barre) → parcours en
   cartes de niveau (pas de sentier Duolingo — Q1 tranchée : cartes)
+  *(révisé 2026-08-13 : le parcours redevient une ROUTE à nœuds)*
 - Bilan hebdo se glisse au-dessus le dimanche
 
 ## Proposé — pas encore vetté (Claude)
@@ -34,8 +63,8 @@ spec : `../v2-ux-architecture.md §6.1` · wireframe : `../diagrams/v2-home-parc
   révisions FSRS)
 
 ## À trancher 🔴
-- « Voir les 20 leçons » : inline vs bottom sheet (Q5)
+- Ouverture d'un nœud : expansion en place vs bottom sheet (ex-Q5,
+  reformulée par la route à nœuds)
 - Visibilité du test de saut sur niveau verrouillé (Q6)
-- Groupes de grammaire : 6 nœuds plats vs sous-carte de groupe (Q7)
 
 Liens : [[daily-chain]] · [[level-test]] · [[grammar-flow]] · [[vocab-flow]]

@@ -83,6 +83,12 @@ Each unit = one agent run, one reviewable diff, gate green
   run.
 
 ### U6 — Restage latin A1 prerequisites (quick win, pure JSON)
+
+> **Obsolète dans sa forme d'origine (2026-08-09)** : le déverrouillage
+> par CLUSTERS (ordre libre dans le groupe, voir
+> `design/map/grammar-flow.md`) supprime l'échelonnement un-par-un.
+> U6 devient : vérifier que les prérequis du cluster A1 latin pointent
+> sur les bonnes listes — diff minime, plus de staging par règle.
 - Today all 4 rules per latin language gate on the same 2 lists
   (`starter-food`, `starter-daily-life`) — flat, and learners doing lists
   in order see no grammar for weeks. Restage like Korean: first rule on
@@ -98,6 +104,21 @@ Each unit = one agent run, one reviewable diff, gate green
 ### U8 — Grammar texts in more UI locales
 - Rule titles/descriptions/explanations exist in fr+en only; de/es/it/ja/ko
   UI locales read the en fallback. One run per added locale.
+
+### U10 — Cours d'écriture Niveau 0 (nouveau, 2026-08-13)
+- Les niveaux s'affichent « Niveau 1-6 » (les tags internes restent
+  CEFR `a1…c2` — P1/P2 inchangés, mapping d'affichage seul). Les
+  « règles de grammaire » deviennent des **leçons typées** (grammaire ·
+  conjugaison · écriture · prononciation — liste OUVERTE : compteurs,
+  systèmes de nombres, honorifiques…) — champ `type` à ajouter au
+  schéma des rules avec P1/P2. Un système nouveau = une mécanique
+  moteur nouvelle (code ticket) + données, pas un changement de schéma.
+- **U10** : le cours d'écriture d'une langue à script (Niveau 0) —
+  premier cas : le hangul coréen. Flux décidé (2026-08-13, voir
+  `design/map/niveau-0.md`) : reconnaissance romanisation↔hangeul et
+  audio↔hangeul, jamo → syllabes → mots, chrono plus tard. Contenu =
+  clusters de jamo + syllabes/mots d'entraînement (données pures une
+  fois les mécaniques `script` posées — code ticket d'abord).
 
 ### U9 — Native review pass
 - en/it/de/es layers are LLM-drafted (`tool/seed/generate_layers.py`,

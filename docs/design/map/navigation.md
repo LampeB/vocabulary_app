@@ -8,7 +8,8 @@
 - Header + footer MASQUÉS pendant les sessions actives et célébrations
   — les sessions gardent leur propre chrome minimal
 - **Footer : 5 slots égaux, PAS de gros bouton central** :
-  Vocabulaire (listes + CRUD) · Grammaire (lire les leçons) · Étudier
+  Vocabulaire (listes + CRUD) · Grammaire *(renommé « Leçons »
+  2026-08-13 — « grammaire » trompeur selon la langue)* · Étudier
   (branché sur quiz + leçons — nouvel écran, l'actuel est trop
   encombré) · Progrès (toutes les progressions : débloquages grammaire,
   vocab, progression grammaire, CEFR…) · Amis (inviter/retirer, liste,
