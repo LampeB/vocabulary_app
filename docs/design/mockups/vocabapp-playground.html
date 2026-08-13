@@ -1,0 +1,1169 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VocabApp — playground navigable (v2)</title>
+<style>
+  /* ═══ chrome de page (thème-aware) ═══ */
+  :root {
+    --bg:#F6F1EA; --card:#FFFFFF; --ink:#2B2622; --muted:#756C62;
+    --line:#ECE3D7; --line-strong:#DDD2C2; --clay:#D08358; --clay-deep:#C4703F;
+    --teal:#4C8C86; --teal-deep:#3E736E; --rose:#B0556B;
+    --shadow:0 2px 6px rgba(43,38,34,.08), 0 14px 40px rgba(43,38,34,.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#241F1B; --card:#322C27; --ink:#EFE7DB; --muted:#B3A99C;
+      --line:#3D362F; --line-strong:#4A4239; --clay-deep:#E0A079; --teal-deep:#6BA39D;
+      --shadow:0 2px 6px rgba(0,0,0,.3), 0 14px 40px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#241F1B; --card:#322C27; --ink:#EFE7DB; --muted:#B3A99C;
+    --line:#3D362F; --line-strong:#4A4239; --clay-deep:#E0A079; --teal-deep:#6BA39D;
+    --shadow:0 2px 6px rgba(0,0,0,.3), 0 14px 40px rgba(0,0,0,.4);
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.5 "Segoe UI", system-ui, sans-serif;
+    display:flex; flex-direction:column; align-items:center; min-height:100vh; padding:16px 12px 40px; }
+  h1 { font-size:17px; font-weight:750; margin:0 0 2px; }
+  .pnote { font-size:12.5px; color:var(--muted); margin:0 0 10px; text-align:center; max-width:66ch; }
+  .jumps { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:12px; max-width:720px; }
+  .jump { font-size:11.5px; font-weight:650; padding:4px 10px; border-radius:999px;
+    border:1px solid var(--line-strong); background:var(--card); color:var(--ink); cursor:pointer; }
+  .jump:hover { border-color:var(--clay-deep); }
+  .jump:focus-visible { outline:2px solid var(--clay-deep); outline-offset:2px; }
+  .jump.reset { color:var(--rose); }
+  footer { margin-top:14px; font-size:11.5px; color:var(--muted); text-align:center; max-width:70ch; }
+  footer .mono { font-family:Consolas, ui-monospace, monospace; font-size:10.5px; }
+
+  /* ═══ téléphone : 330×734 ≈ 360×800dp 20:9 — thème clair app ═══ */
+  .phone { width:330px; height:734px; border-radius:30px; overflow:hidden; position:relative;
+    background:#F6F1EA; border:1px solid #C9BCA9; box-shadow:var(--shadow);
+    color:#2B2622; font-size:14px; line-height:1.5; flex-shrink:0; }
+  .scr { position:absolute; inset:0; display:none; flex-direction:column; background:#F6F1EA; }
+  .scr.on { display:flex; }
+
+  /* shell */
+  .sh-head { display:flex; align-items:center; gap:8px; padding:14px 14px 8px; }
+  .langchip { display:flex; align-items:center; gap:6px; background:#FFF; border:1px solid #ECE3D7;
+    border-radius:999px; padding:4px 11px; font-weight:700; font-size:13px; cursor:pointer; }
+  .flame { margin-left:auto; font-weight:800; font-size:13.5px; color:#C4703F; }
+  .avatar { width:32px; height:32px; border-radius:50%; background:#4C8C86; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; cursor:pointer; }
+  .sh-body { flex:1; overflow-y:auto; padding:6px 14px 12px; display:flex; flex-direction:column; gap:11px; }
+  .tabs { display:flex; border-top:1px solid #ECE3D7; background:#FBF8F3; }
+  .tab { flex:1; text-align:center; padding:9px 0 11px; font-size:9.5px; font-weight:700; color:#8A8073; cursor:pointer; }
+  .tab .ic { display:block; font-size:17px; margin-bottom:1px; filter:grayscale(1); opacity:.55; }
+  .tab.on { color:#C4703F; }
+  .tab.on .ic { filter:none; opacity:1; }
+  .tabpage { display:none; flex-direction:column; gap:11px; }
+  .tabpage.on { display:flex; }
+
+  /* composants app */
+  .card { background:#FFF; border:1px solid #ECE3D7; border-radius:16px; padding:13px 15px; }
+  .card.tap { cursor:pointer; }
+  .eyebrow { font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:#6F695F; font-weight:700; }
+  .small { font-size:12px; color:#756C62; }
+  .hl-clay { background:#F6DFCE; color:#A85B28; border-radius:4px; padding:0 3px; font-weight:700; }
+  .hl-teal { background:#DCE9E6; color:#33635E; border-radius:4px; padding:0 3px; font-weight:700; }
+  .mbar { height:6px; border-radius:3px; background:#ECE3D7; overflow:hidden; }
+  .mbar i { display:block; height:100%; background:#4C8C86; }
+  .btn { border-radius:13px; padding:11px 0; text-align:center; font-weight:700; font-size:14px;
+    background:#3E736E; color:#FFF; cursor:pointer; user-select:none; }
+  .btn.clay { background:#C4703F; }
+  .btn.ghost { background:transparent; color:#756C62; border:1.5px solid #DDD2C2; }
+  .btn.off { opacity:.4; pointer-events:none; }
+  .btn:focus-visible, .tab:focus-visible, .card.tap:focus-visible, .row:focus-visible,
+  .opt:focus-visible, .chip:focus-visible, .step:focus-visible { outline:2px solid #C4703F; outline-offset:2px; }
+  .row { display:flex; align-items:center; gap:8px; padding:10px 2px; border-bottom:1px solid #ECE3D7; cursor:pointer; }
+  .row:last-child { border-bottom:0; }
+  .row .nm { flex:1; font-weight:650; font-size:13.5px; }
+  .tag-v { font-size:9px; background:#DCE9E6; color:#33635E; border-radius:5px; padding:1px 5px; font-weight:700; }
+  .st { font-size:11.5px; font-weight:700; }
+  .st.you { color:#C4703F; } .st.free { color:#33635E; } .st.gate { color:#8A8073; font-weight:600; }
+  .check { color:#3E736E; font-weight:800; }
+  .d3 { display:flex; gap:3px; }
+  .d3 i { width:8px; height:8px; border-radius:50%; background:#ECE3D7; }
+  .d3 i.on { background:#D08358; }
+
+  /* route à nœuds (parcours) */
+  #path { display:flex; flex-direction:column; }
+  .pnode { position:relative; display:flex; align-items:center; gap:12px; padding:8px 4px; cursor:pointer; border-radius:12px; }
+  .pnode:hover { background:rgba(208,131,88,.07); }
+  .pline { position:absolute; left:24px; top:-12px; height:22px; width:3px; background:#E3D9CB; border-radius:2px; }
+  .pcircle { width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:16px; font-weight:800; background:#FFF; border:2.5px solid #DDD2C2; color:#8A8073;
+    flex-shrink:0; position:relative; z-index:1; }
+  .pcircle.done { background:#EDF4F2; border-color:#4C8C86; color:#3E736E; }
+  .pcircle.cur { background:#F6DFCE; border-color:#D08358; font-size:18px; }
+  .pcircle.ptest { border-style:dashed; }
+  .plabel { font-weight:650; font-size:13.5px; line-height:1.3; }
+
+  /* niveau / parcours */
+  .lvl { border:1px solid #ECE3D7; border-radius:16px; background:#FFF; overflow:hidden; }
+  .lvl-head { display:flex; align-items:center; gap:10px; padding:12px 15px; cursor:pointer; }
+  .lvl-badge { width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    font-weight:800; background:#F6DFCE; color:#A85B28; }
+  .lvl-badge.lock { background:#EFE7DB; color:#8A8073; }
+  .lvl-body { border-top:1px solid #ECE3D7; padding:6px 15px 12px; display:none; }
+  .lvl.open .lvl-body { display:block; }
+  .cluster { display:flex; align-items:center; gap:10px; padding:9px 2px; border-bottom:1px solid #F3ECE1; cursor:pointer; }
+  .cluster:last-child { border-bottom:0; }
+  .cl-dot { width:12px; height:12px; border-radius:50%; background:#ECE3D7; flex-shrink:0; }
+  .cl-dot.done { background:#4C8C86; } .cl-dot.cur { background:#D08358; }
+
+  /* sessions */
+  .sess-bar { display:flex; align-items:center; gap:10px; padding:16px 16px 8px; color:#756C62; font-size:13px; }
+  .sess-bar .x { font-size:17px; cursor:pointer; padding:0 4px; }
+  .sess-bar .t { font-weight:700; color:#2B2622; }
+  .dots { display:flex; gap:5px; margin-left:auto; }
+  .dots i { width:6px; height:6px; border-radius:50%; background:#DDD2C2; }
+  .dots i.on { background:#D08358; }
+  .prog { height:5px; background:#ECE3D7; border-radius:3px; margin:4px 16px 0; overflow:hidden; }
+  .prog i { display:block; height:100%; width:0; background:#4C8C86; border-radius:3px; transition:width .25s; }
+  @media (prefers-reduced-motion: reduce) { .prog i, .sheet, .toast { transition:none !important; } }
+  .body { flex:1; padding:14px 18px; display:flex; flex-direction:column; gap:12px; overflow-y:auto; }
+  .cta { margin:auto 16px 18px; border-radius:14px; padding:13px 0; text-align:center;
+    font-weight:700; font-size:15px; background:#3E736E; color:#FFF; cursor:pointer; user-select:none; }
+  .cta.clay { background:#C4703F; }
+  .cta.ghost { background:transparent; color:#756C62; border:1.5px solid #DDD2C2; }
+  .cta.off { opacity:.4; pointer-events:none; }
+  .cta:focus-visible { outline:2px solid #C4703F; outline-offset:2px; }
+  .opt { background:#FFF; border:2px solid #ECE3D7; border-radius:12px; padding:11px 14px; font-weight:650; cursor:pointer; position:relative; z-index:2; }
+  .opt.good { border-color:#4C8C86; background:#EDF4F2; }
+  .opt.bad { border-color:#B0556B; background:#F7EBEE; }
+  .fb { border-radius:12px; padding:10px 12px; font-size:13px; font-weight:600; display:none; position:relative; z-index:2; }
+  .fb.ok { display:block; background:#EDF4F2; color:#33635E; }
+  .fb.ko { display:block; background:#F7EBEE; color:#8E4257; }
+  .chip { background:#FFF; border:1.5px solid #DDD2C2; border-radius:12px; padding:9px 13px; font-weight:650;
+    cursor:pointer; box-shadow:0 1px 0 rgba(43,38,34,.05); user-select:none; position:relative; z-index:2; }
+  .chip.used { opacity:0; pointer-events:none; }
+  .slot { min-height:46px; border-bottom:2px solid #DDD2C2; display:flex; flex-wrap:wrap; gap:7px; align-items:center; padding-bottom:8px; position:relative; z-index:2; }
+  .pool { display:flex; flex-wrap:wrap; gap:8px; position:relative; z-index:2; }
+  .p-input { border:2px solid #D08358; border-radius:12px; background:#FFF; padding:12px 14px; font:inherit; width:100%; color:#2B2622; position:relative; z-index:2; }
+  .p-input:focus { outline:none; border-color:#C4703F; }
+  .center { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; text-align:center; padding:18px; }
+  .big { font-size:42px; }
+  .voice { font-size:11px; color:#4C8C86; font-weight:650; }
+  .voice::before { content:"▶ "; font-size:9px; }
+  .pagezone { flex:1; position:relative; display:flex; }
+  .page { display:none; flex:1; padding:14px 18px; flex-direction:column; gap:12px; overflow-y:auto; }
+  .page.on { display:flex; }
+  .tapzones { position:absolute; inset:0; display:flex; z-index:1; }
+  .tapzones div { flex:1; cursor:pointer; }
+  .page .card, .page .opt, .page .fb { position:relative; z-index:2; }
+  .bubble { border-radius:14px; padding:9px 12px; max-width:88%; }
+  .bubble.a { background:#F6DFCE; align-self:flex-start; }
+  .bubble.b { background:#DCE9E6; align-self:flex-end; }
+  .bubble .who { font-size:10px; font-weight:700; color:#756C62; }
+
+  /* S18 sombre */
+  .dark { background:#241F1B; color:#EFE7DB; }
+  .dark .sess-bar .t { color:#EFE7DB; }
+  .step { display:flex; align-items:center; gap:12px; background:#2E2823; border:1px solid #3D362F;
+    border-radius:14px; padding:13px 14px; cursor:pointer; }
+  .step .ic { width:34px; height:34px; border-radius:11px; background:#3A332C; display:flex;
+    align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  .step .lb { flex:1; font-weight:650; font-size:13.5px; }
+  .step .lb .small { color:#8A8073; }
+  .step.done { opacity:.68; }
+  .step.done .ic { background:#2E4038; }
+  .step .stt { font-size:12px; font-weight:700; color:#8A8073; }
+  .step.done .stt { color:#6BA39D; }
+  .step.next .stt { color:#E0A079; }
+
+  /* overlays */
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:#FFF; border-radius:22px 22px 0 0;
+    box-shadow:0 -8px 30px rgba(43,38,34,.25); padding:16px 18px 20px; transform:translateY(105%);
+    transition:transform .25s; z-index:8; max-height:78%; overflow-y:auto; color:#2B2622; }
+  .sheet.show { transform:translateY(0); }
+  .scrim { position:absolute; inset:0; background:rgba(36,31,27,.45); opacity:0; pointer-events:none; transition:opacity .2s; z-index:7; }
+  .scrim.show { opacity:1; pointer-events:auto; }
+  .seg { display:flex; gap:6px; flex-wrap:wrap; }
+  .seg .sgi { border:1.5px solid #DDD2C2; border-radius:999px; padding:6px 13px; font-size:12.5px; font-weight:650; cursor:pointer; }
+  .seg .sgi.on { border-color:#4C8C86; background:#EDF4F2; color:#33635E; }
+  .toast { position:absolute; left:50%; bottom:88px; transform:translateX(-50%); background:#2B2622; color:#F6F1EA;
+    font-size:12px; padding:8px 14px; border-radius:10px; opacity:0; pointer-events:none; transition:opacity .25s;
+    white-space:nowrap; z-index:12; max-width:300px; }
+  .toast.show { opacity:.95; }
+  .celebrate { position:absolute; inset:0; background:rgba(36,31,27,.92); z-index:10; display:none;
+    flex-direction:column; align-items:center; justify-content:center; gap:14px; color:#EFE7DB; text-align:center; padding:24px; }
+  .celebrate.show { display:flex; }
+
+  .tiles { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  .tile { background:#FFF; border:1px solid #ECE3D7; border-radius:14px; padding:11px 13px; }
+  .tile .v { font-size:21px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .bars7 { display:flex; align-items:flex-end; gap:5px; height:56px; padding-top:4px; }
+  .bars7 i { flex:1; background:#DCE9E6; border-radius:4px 4px 0 0; }
+  .bars7 i.hi { background:#4C8C86; }
+</style>
+
+<h1>VocabApp — playground navigable</h1>
+<p class="pnote">L'app v2 entière, dataset minimal : <b>1 langue (espagnol)</b>, 1 cluster actif, 2 listes.
+  Tout se navigue ; l'état vit en mémoire (↺ pour repartir). Les nombres se règlent dans le bloc
+  <b>CONFIG</b> en tête de fichier.</p>
+<div class="jumps">
+  <button class="jump" data-j="etudier">Étudier</button>
+  <button class="jump" data-j="chain">Chemin du jour</button>
+  <button class="jump" data-j="fiche">Cluster</button>
+  <button class="jump" data-j="lesson">Leçon</button>
+  <button class="jump" data-j="vocab">Vocabulaire</button>
+  <button class="jump" data-j="grammaire">Grammaire</button>
+  <button class="jump" data-j="progres">Progrès</button>
+  <button class="jump" data-j="amis">Amis</button>
+  <button class="jump" data-j="test">Test de niveau</button>
+  <button class="jump reset" data-j="reset">↺ Réinitialiser</button>
+</div>
+
+<div class="phone" id="phone">
+
+  <!-- ═══ SHELL (5 onglets) ═══ -->
+  <div class="scr on" id="s-shell">
+    <div class="sh-head">
+      <span class="langchip" data-toast="Démo : une seule langue (chaque langue a son chemin et sa flamme)">🇪🇸 Espagnol</span>
+      <span class="flame" id="flame">🔥 4</span>
+      <span class="avatar" id="btn-menu">T</span>
+    </div>
+    <div class="sh-body">
+
+      <!-- Étudier (S1, atterrissage) -->
+      <div class="tabpage on" id="tp-etudier">
+        <div class="card tap" id="card-chain" tabindex="0">
+          <div class="eyebrow">Chemin du jour</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+            <span id="chain-mini" style="display:flex;gap:5px"></span>
+            <span class="small" id="chain-hint" style="flex:1"></span>
+            <span style="color:#C4703F;font-weight:800">›</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="eyebrow">Progression</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+            <b style="font-size:16px">Niveau 1</b>
+            <div class="mbar" style="flex:1"><i id="cefr-bar" style="width:38%"></i></div>
+            <span class="small" id="cefr-pct">38 %</span>
+          </div>
+          <div class="small" style="margin-top:3px" id="cefr-line">2 leçons sur 12 · cluster « Au quotidien » en cours</div>
+        </div>
+        <div class="card tap" id="card-hebdo" tabindex="0">
+          <div class="eyebrow">Bilan hebdo</div>
+          <div class="small" style="margin-top:3px">C'est dimanche — vois ta semaine ›</div>
+        </div>
+        <div class="eyebrow" style="margin-top:2px">Parcours — ta route</div>
+        <div class="card" style="padding:8px 10px"><div id="path"></div></div>
+        <div class="btn ghost" id="btn-libre" tabindex="0">Pratique libre</div>
+      </div>
+
+      <!-- Vocabulaire (S7) -->
+      <div class="tabpage" id="tp-vocab">
+        <div class="eyebrow">Mes listes · FR → ES</div>
+        <div class="card">
+          <div class="row" data-list="vie"><span style="width:10px;height:10px;border-radius:50%;background:#4C8C86"></span>
+            <span class="nm">La vie quotidienne</span><span class="small">18 mots · 85 %</span></div>
+          <div class="row" data-list="cafe"><span style="width:10px;height:10px;border-radius:50%;background:#D08358"></span>
+            <span class="nm">Au café</span><span class="small">18 mots · 64 %</span></div>
+        </div>
+        <div class="card tap" id="btn-familles" tabindex="0">
+          <div class="eyebrow">Familles de mots</div>
+          <div class="small" style="margin-top:3px">trabajo · trabajar · trabajador… — vois les racines ›</div>
+        </div>
+        <div class="btn ghost" data-toast="Démo : CRUD de liste hors scope">+ Nouvelle liste</div>
+      </div>
+
+      <!-- Grammaire (S9) -->
+      <div class="tabpage" id="tp-gram">
+        <div class="eyebrow">Leçons · Niveau 1 · Espagnol</div>
+        <div class="card tap" id="g-cl1" tabindex="0">
+          <div style="display:flex;align-items:center;gap:8px">
+            <b style="flex:1">Les premiers pas <span class="small">· cluster 1·1</span></b><span class="check">✓</span>
+          </div>
+        </div>
+        <div class="card tap" id="g-cl2" tabindex="0">
+          <div style="display:flex;align-items:center;gap:8px">
+            <b style="flex:1">Au quotidien <span class="small">· cluster 1·2</span></b><span class="small" id="g-cl2-st">3/5 · Mélange à venir</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+            <span class="small" style="flex:1">Au café (porte)</span>
+            <div class="mbar" style="width:70px"><i style="width:64%"></i></div><span class="st gate">64 %</span>
+          </div>
+        </div>
+        <div class="card" style="opacity:.55">
+          <b>En ville <span class="small">· cluster 1·3 · 🔒 après « Au quotidien »</span></b>
+        </div>
+      </div>
+
+      <!-- Progrès (S12) -->
+      <div class="tabpage" id="tp-prog">
+        <div class="card">
+          <div class="eyebrow">Position estimée</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+            <b style="font-size:17px">Niveau 1</b>
+            <div class="mbar" style="flex:1"><i style="width:38%"></i></div><span class="small">→ Niveau 2</span>
+          </div>
+          <div class="small" style="margin-top:3px">estimation (données) + position parcours (curriculum)</div>
+        </div>
+        <div class="tiles">
+          <div class="tile"><div class="eyebrow">Mots connus</div><div class="v" id="t-mots">87</div></div>
+          <div class="tile"><div class="eyebrow">Leçons ✓</div><div class="v" id="t-regles">2/5</div></div>
+          <div class="tile"><div class="eyebrow">Série</div><div class="v" id="t-serie">🔥 4</div></div>
+          <div class="tile"><div class="eyebrow">Précision 7 j</div><div class="v">86 %</div></div>
+        </div>
+        <div class="card">
+          <div class="eyebrow">Cette semaine</div>
+          <div class="bars7"><i style="height:40%"></i><i style="height:65%"></i><i style="height:30%"></i><i style="height:80%"></i><i style="height:55%"></i><i style="height:20%"></i><i class="hi" style="height:70%"></i></div>
+          <div class="small" style="display:flex;justify-content:space-between"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+        </div>
+      </div>
+
+      <!-- Amis (S14) -->
+      <div class="tabpage" id="tp-amis">
+        <div class="eyebrow">Amis</div>
+        <div class="card">
+          <div class="row" data-toast="Démo : profil ami hors scope"><span class="avatar" style="width:28px;height:28px;font-size:12px;background:#D08358">M</span>
+            <span class="nm">Marie</span><span class="small">🔥 12 · Niv. 2</span></div>
+          <div class="row" data-toast="Démo : profil ami hors scope"><span class="avatar" style="width:28px;height:28px;font-size:12px;background:#B0556B">J</span>
+            <span class="nm">Jules</span><span class="small">🔥 2 · Niv. 1</span></div>
+        </div>
+        <div class="card tap" data-toast="Défis : scope réel à l'audit M9">
+          <div class="eyebrow">Défis</div>
+          <div class="small" style="margin-top:3px">Défie un ami sur une liste ›</div>
+        </div>
+        <div class="btn ghost" data-toast="Démo : invitation hors scope">+ Inviter un ami</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab" data-tab="vocab" tabindex="0"><span class="ic">📚</span>Vocabulaire</div>
+      <div class="tab" data-tab="gram" tabindex="0"><span class="ic">📖</span>Leçons</div>
+      <div class="tab on" data-tab="etudier" tabindex="0"><span class="ic">🎯</span>Étudier</div>
+      <div class="tab" data-tab="prog" tabindex="0"><span class="ic">📈</span>Progrès</div>
+      <div class="tab" data-tab="amis" tabindex="0"><span class="ic">👥</span>Amis</div>
+    </div>
+  </div>
+
+  <!-- ═══ S18 CHEMIN DU JOUR (sombre) ═══ -->
+  <div class="scr dark" id="s-chain">
+    <div class="sess-bar"><span class="x" data-go="shell">‹</span><span class="t">Chemin du jour</span>
+      <span class="small" style="margin-left:auto;color:#8A8073" id="chain-count"></span></div>
+    <div class="body" id="chain-steps"></div>
+    <div class="cta ghost" data-go="shell" style="border-color:#4A4239;color:#B3A99C">Revenir à l'accueil</div>
+  </div>
+
+  <!-- ═══ FICHE CLUSTER ═══ -->
+  <div class="scr" id="s-fiche">
+    <div class="sess-bar"><span class="x" data-go="gram-tab">‹</span><span class="t">Au quotidien — cluster 1·2</span></div>
+    <div class="body">
+      <div class="eyebrow">5 leçons · ordre libre</div>
+      <div class="card" id="fiche-rows"></div>
+      <div class="card">
+        <div class="eyebrow">Portes de vocabulaire</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <span class="small" style="flex:1">La vie quotidienne</span>
+          <div class="mbar" style="width:70px"><i style="width:85%"></i></div><span class="st free">85 %</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <span class="small" style="flex:1">Au café</span>
+          <div class="mbar" style="width:70px"><i style="width:64%"></i></div><span class="st gate">64 %</span>
+        </div>
+      </div>
+    </div>
+    <div class="cta clay" id="fiche-cta">S'entraîner maintenant</div>
+  </div>
+
+  <!-- ═══ S4 LEÇON ═══ -->
+  <div class="scr" id="s-lesson">
+    <div class="sess-bar"><span class="x" id="lesson-back">‹</span><span class="t">Le présent (-ar)</span>
+      <span class="dots" id="l-dots"><i class="on"></i><i></i><i></i><i></i><i></i></span></div>
+    <div class="pagezone">
+      <div class="page on">
+        <div class="eyebrow">Explication · 1/5</div>
+        <p>Pour parler au présent : on retire <span class="hl-teal">-ar</span>, on ajoute
+          <span class="hl-clay">-o</span> pour « je ».</p>
+        <div class="card">trabaj<span class="hl-teal">ar</span> → trabaj + <span class="hl-clay">o</span> → <b>trabajo</b></div>
+        <span class="voice">voix narrateur · FR</span>
+        <div class="small" style="margin-top:auto">tape à droite pour avancer, à gauche pour revenir</div>
+      </div>
+      <div class="page">
+        <div class="eyebrow">Exemples · 2/5</div>
+        <div class="card"><b>Trabaj<span class="hl-clay">o</span> por la mañana.</b><div class="small">Je travaille le matin. <span class="voice"></span></div></div>
+        <div class="card"><b>Mi amigo com<span class="hl-clay">e</span> pan.</b><div class="small">Mon ami mange du pain. <span class="voice"></span></div></div>
+        <div class="small">phrases composées avec ton vocab connu</div>
+      </div>
+      <div class="page">
+        <div class="eyebrow">Vérif rapide · non notée · 3/5</div>
+        <p><b>Tu ___ en un restaurante.</b> <span class="small">(trabajar)</span></p>
+        <div class="opt" data-qc="good">trabajas</div>
+        <div class="opt" data-qc="bad">trabajo</div>
+        <div class="fb" id="qc-fb"></div>
+      </div>
+      <div class="page">
+        <div class="eyebrow">Dialogue · 4/5</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="bubble a"><div class="who">A</div>¿Dónde trabaj<span class="hl-clay">as</span>?</div>
+          <div class="bubble b"><div class="who">B</div>Trabaj<span class="hl-clay">o</span> en un café.</div>
+        </div>
+        <span class="voice">tout lire · une voix par personnage</span>
+      </div>
+      <div class="page"><div class="center"><div class="big" style="color:#3E736E">✓</div>
+        <div style="font-weight:750;font-size:18px">Leçon terminée</div>
+        <p class="small">Prochaine étape : <b>Reconnaître</b> (réel : J+1 — ici tout de suite).</p></div></div>
+      <div class="tapzones"><div id="l-prev"></div><div id="l-next"></div></div>
+    </div>
+    <div class="cta" id="l-done" style="display:none">Terminé</div>
+  </div>
+
+  <!-- ═══ RECONNAÎTRE ═══ -->
+  <div class="scr" id="s-reco">
+    <div class="prog"><i id="r-prog"></i></div>
+    <div class="sess-bar"><span class="x" data-go="fiche">✕</span><span class="t" id="r-count"></span></div>
+    <div class="body" id="r-body"></div>
+    <div class="cta off" id="r-next">Continuer</div>
+  </div>
+
+  <!-- ═══ CONSTRUIRE ═══ -->
+  <div class="scr" id="s-build">
+    <div class="prog"><i id="b-prog"></i></div>
+    <div class="sess-bar"><span class="x" data-go="fiche">✕</span><span class="t">Construire</span>
+      <span class="st free" id="b-palier" style="margin-left:auto"></span></div>
+    <div class="body" id="b-body"></div>
+    <div class="cta" id="b-verify">Vérifier</div>
+  </div>
+
+  <!-- ═══ MÉLANGE ═══ -->
+  <div class="scr" id="s-melange">
+    <div class="sess-bar"><span class="x" data-go="fiche">‹</span><span class="t">Mélange — Au quotidien</span>
+      <span class="dots" id="m-dots"><i class="on"></i><i></i><i></i></span></div>
+    <div class="pagezone">
+      <div class="page on">
+        <div class="eyebrow">Leçon de combinaison · 1/3</div>
+        <p>Tout se joue ensemble : l'article s'accorde, le verbe se conjugue, <span class="hl-teal">no</span> devant.</p>
+        <div class="card"><b><span class="hl-teal">No</span> com<span class="hl-clay">o</span> en <span class="hl-clay">la</span> escuela.</b>
+          <div class="small">Je ne mange pas à l'école.</div></div>
+      </div>
+      <div class="page">
+        <div class="eyebrow">Session mixte · 2/3</div>
+        <p><b>___ amiga no trabaj___ el domingo.</b><br><span class="small">Mon amie ne travaille pas le dimanche.</span></p>
+        <div class="slot" id="m-slot"></div>
+        <div class="pool" id="m-pool"></div>
+        <div class="fb" id="m-fb"></div>
+      </div>
+      <div class="page"><div class="center"><div class="big" style="color:#3E736E">✓</div>
+        <div style="font-weight:750;font-size:18px">Cluster validé — 86 %</div>
+        <p class="small"><b>Cluster suivant débloqué :</b> En ville.</p></div></div>
+      <div class="tapzones"><div id="m-prev"></div><div id="m-next"></div></div>
+    </div>
+    <div class="cta" id="m-cta">Continuer</div>
+  </div>
+
+  <!-- ═══ S5 SESSION VOCAB (Réviser) ═══ -->
+  <div class="scr" id="s-vquiz">
+    <div class="prog"><i id="v-prog"></i></div>
+    <div class="sess-bar"><span class="x" data-go="shell">✕</span><span class="t" id="v-count"></span></div>
+    <div class="body" id="v-body"></div>
+    <div class="cta" id="v-cta">Voir la réponse</div>
+  </div>
+
+  <!-- ═══ S6 RÉSUMÉ ═══ -->
+  <div class="scr" id="s-resume">
+    <div class="body"><div class="center">
+      <div class="big">🎉</div>
+      <div style="font-weight:750;font-size:19px" id="res-score"></div>
+      <div class="card" style="width:100%;text-align:left">
+        <div class="row" style="cursor:default"><span class="nm">la mañana</span><span class="check" id="res-w1">✓</span></div>
+        <div class="row" style="cursor:default"><span class="nm">el café</span><span class="check" id="res-w2">✓</span></div>
+      </div>
+      <div class="small" id="res-next"></div>
+    </div></div>
+    <div class="cta clay" id="res-cta">Continuer le chemin</div>
+  </div>
+
+  <!-- ═══ S3 DÉCOUVRIR ═══ -->
+  <div class="scr" id="s-decouvrir">
+    <div class="sess-bar"><span class="x" data-go="chain">✕</span><span class="t" id="d-count">Découvrir · 1/3</span></div>
+    <div class="body" id="d-body"></div>
+    <div class="cta" id="d-cta">Suivant</div>
+  </div>
+
+  <!-- ═══ S17 TEST DE NIVEAU ═══ -->
+  <div class="scr" id="s-test">
+    <div class="sess-bar"><span class="x" data-go="shell">✕</span><span class="t">Test — Niveau 1</span></div>
+    <div class="body" id="test-body"></div>
+    <div class="cta" id="test-cta">Commencer</div>
+  </div>
+
+  <!-- ═══ S10 FAMILLES ═══ -->
+  <div class="scr" id="s-familles">
+    <div class="sess-bar"><span class="x" data-go="vocab-tab">‹</span><span class="t">Famille — trabaj-</span></div>
+    <div class="body">
+      <div class="card" style="text-align:center"><b style="font-size:18px">trabaj-</b><div class="small">la racine « travail »</div></div>
+      <div class="card">
+        <div class="row" style="cursor:default"><span class="nm">el trabajo</span><span class="small">le travail</span><span class="check">✓</span></div>
+        <div class="row" style="cursor:default"><span class="nm">trabajar</span><span class="small">travailler</span><span class="check">✓</span></div>
+        <div class="row" style="cursor:default"><span class="nm">el trabajador</span><span class="small">le travailleur</span><span class="st gate">nouveau</span></div>
+      </div>
+      <div class="small">mémoriser en réseau : les mots d'une racine se renforcent entre eux</div>
+    </div>
+    <div class="cta ghost" data-toast="Démo : quiz de famille hors scope">Pratiquer cette famille</div>
+  </div>
+
+  <!-- ═══ S8 DÉTAIL DE LISTE ═══ -->
+  <div class="scr" id="s-liste">
+    <div class="sess-bar"><span class="x" data-go="vocab-tab">‹</span><span class="t" id="ld-title"></span></div>
+    <div class="body">
+      <div class="card" id="ld-words"></div>
+      <div class="small">détail v1 conservé : CRUD, tri, ajout de mot (hors scope démo)</div>
+    </div>
+    <div class="cta" id="ld-practice">Pratiquer cette liste</div>
+  </div>
+
+  <!-- overlays -->
+  <div class="scrim" id="scrim"></div>
+  <div class="sheet" id="sheet-menu">
+    <div class="eyebrow" style="margin-bottom:8px">Menu général</div>
+    <div class="row" data-toast="Démo : Paramètres hors scope"><span class="nm">⚙️ Paramètres</span></div>
+    <div class="row" data-toast="Démo : gestion d'abonnement hors scope"><span class="nm">⭐ Abonnement premium</span></div>
+    <div class="row" data-toast="Démo : choix d'avatar hors scope"><span class="nm">🙂 Avatar</span></div>
+    <div class="row" data-toast="Démo : déconnexion hors scope"><span class="nm">↩︎ Se déconnecter</span></div>
+  </div>
+  <div class="sheet" id="sheet-libre">
+    <div class="eyebrow">Pratique libre</div>
+    <div style="margin:10px 0 4px;font-weight:700;font-size:13px">Quoi ?</div>
+    <div class="seg" id="pl-quoi"><span class="sgi on">Tout ce qui est dû</span><span class="sgi">La vie quotidienne</span><span class="sgi">Au café</span></div>
+    <div style="margin:12px 0 4px;font-weight:700;font-size:13px">Sens</div>
+    <div class="seg" id="pl-sens"><span class="sgi on">Mixte</span><span class="sgi">ES → FR</span><span class="sgi">FR → ES</span></div>
+    <div style="margin:12px 0 4px;font-weight:700;font-size:13px">Mode</div>
+    <div class="seg" id="pl-mode"><span class="sgi on">Cartes</span><span class="sgi">Écrire</span><span class="sgi">Voix</span><span class="sgi">Mains libres</span></div>
+    <div class="btn" id="pl-go" style="margin-top:16px">Lancer</div>
+  </div>
+  <div class="sheet" id="sheet-hebdo">
+    <div class="eyebrow" style="margin-bottom:8px">Bilan hebdo</div>
+    <div class="tiles">
+      <div class="tile"><div class="eyebrow">Jours actifs</div><div class="v">5/7</div></div>
+      <div class="tile"><div class="eyebrow">Mots appris</div><div class="v">23</div></div>
+      <div class="tile"><div class="eyebrow">Révisions</div><div class="v">148</div></div>
+      <div class="tile"><div class="eyebrow">Précision</div><div class="v">86 %</div></div>
+    </div>
+    <div class="small" style="margin-top:10px">Belle semaine — la régularité bat l'intensité.</div>
+  </div>
+  <div class="celebrate" id="celebrate">
+    <div class="big">🎉</div>
+    <div style="font-weight:800;font-size:20px">Journée complète !</div>
+    <div>Toutes les étapes du chemin sont faites.<br>Série : <b id="cel-flame">🔥 5</b></div>
+    <div class="btn clay" id="cel-close" style="padding:11px 26px">Continuer</div>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<footer>Maquette de référence, pas du code de production. Non couverts : S2 préchargement, S16 onboarding.<br>
+  Réglages : bloc <span class="mono">CONFIG</span> en tête du fichier · specs
+  <span class="mono">docs/design/map/*.md · v2-ux-architecture.md</span></footer>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ═══════════ CONFIG — tout se règle ici ═══════════ */
+  var CONFIG = {
+    gatePct: 80,          // porte vocab d'une règle (% global de ses listes)
+    examPct: 80,          // barre du Mélange (examen de cluster)
+    testPass: 2,          // items justes requis au test de niveau (sur 2 en démo)
+    streak: 4,            // série de départ
+    chainSteps: [         // le chemin du jour (réviser d'abord — décidé)
+      { id: "rev", ic: "🔁", lb: "Réviser", sub: "12 mots dus · ~4 min" },
+      { id: "dec", ic: "✨", lb: "Découvrir", sub: "3 nouveaux mots · Au café" },
+      { id: "les", ic: "📖", lb: "Leçon", sub: "Le présent (-ar) · ~3 min" },
+      { id: "dri", ic: "🎯", lb: "Drill", sub: "Reconnaître · 3 items" }
+    ],
+    clusterLessons: [     // la fiche cluster (mixte vocab + grammaire — décidé)
+      { id: "vie",   nm: "La vie quotidienne", vocab: true,  done: true },
+      { id: "cafe",  nm: "Au café",            vocab: true,  free: true },
+      { id: "artic", nm: "Les articles el / la", done: true },
+      { id: "pres",  nm: "Le présent (-ar/-er/-ir)", main: true },
+      { id: "neg",   nm: "La négation avec no", gate: "vocab 64 %" }
+    ]
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var state, toastTimer, vOrigin = "chain";
+
+  function fresh() {
+    return { stage: 0, palier: 0, melange: false, a2: false, streak: CONFIG.streak,
+      chain: { rev: false, dec: false, les: false, dri: false } };
+  }
+  function toast(m) {
+    var t = $("toast"); t.textContent = m; t.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove("show"); }, 1900);
+  }
+  function show(id) {
+    document.querySelectorAll(".scr").forEach(function (s) { s.classList.remove("on"); });
+    $("s-" + id).classList.add("on");
+    closeSheets();
+  }
+  function showTab(name) {
+    show("shell");
+    document.querySelectorAll(".tab").forEach(function (t) { t.classList.toggle("on", t.dataset.tab === name); });
+    document.querySelectorAll(".tabpage").forEach(function (p) { p.classList.remove("on"); });
+    $("tp-" + name).classList.add("on");
+  }
+  function closeSheets() {
+    document.querySelectorAll(".sheet").forEach(function (s) { s.classList.remove("show"); });
+    $("scrim").classList.remove("show");
+  }
+  function openSheet(id) { $(id).classList.add("show"); $("scrim").classList.add("show"); }
+  $("scrim").onclick = closeSheets;
+
+  /* ═══ rendus dépendant de l'état ═══ */
+  function chainDoneCount() {
+    var c = state.chain, n = 0; ["rev","dec","les","dri"].forEach(function (k) { if (c[k]) n++; });
+    return n;
+  }
+  function renderShell() {
+    $("flame").textContent = "🔥 " + state.streak;
+    $("t-serie").textContent = "🔥 " + state.streak;
+    var mini = $("chain-mini"); mini.innerHTML = "";
+    CONFIG.chainSteps.forEach(function (s) {
+      var d = document.createElement("i");
+      d.style.cssText = "width:9px;height:9px;border-radius:50%;background:" +
+        (state.chain[s.id] ? "#4C8C86" : "#DDD2C2");
+      mini.appendChild(d);
+    });
+    var n = chainDoneCount();
+    $("chain-hint").textContent = n === 4 ? "journée complète 🎉"
+      : "prochaine étape : " + CONFIG.chainSteps.filter(function (s) { return !state.chain[s.id]; })[0].lb;
+    var lessons = 2 + state.stage + (state.melange ? 1 : 0);
+    var pct = Math.round(lessons / 12 * 100);
+    $("cefr-bar").style.width = pct + "%"; $("cefr-pct").textContent = pct + " %";
+    $("cefr-line").textContent = state.melange ? "cluster « Au quotidien » validé — « En ville » ouvert"
+      : "cluster « Au quotidien » en cours";
+    $("t-regles").textContent = (state.stage >= 3 ? "2/5" : "1/5");
+    $("g-cl2-st").textContent = state.melange ? "✓ validé"
+      : state.stage >= 3 ? "5/5 · Mélange prêt" : "3/5 · Mélange à venir";
+    renderPath();
+  }
+  function renderPath() {
+    var host = $("path"); host.innerHTML = "";
+    var nodes = [
+      { nm: "Niveau 0 · L'écriture", sub: "pas requis pour l'espagnol", st: "done",
+        act: function () { toast("Pour le coréen : le hangul — jamo → syllabes → mots"); } },
+      { nm: "Les premiers pas", sub: "cluster 1·1", st: "done",
+        act: function () { toast("Cluster validé — relis ses leçons depuis l'onglet Leçons"); } },
+      { nm: "Au quotidien", sub: "cluster 1·2", st: state.melange ? "done" : "cur", act: openFiche },
+      { nm: "En ville", sub: "cluster 1·3", st: state.melange ? "cur" : "todo",
+        act: state.melange ? function () { toast("Démo : contenu du cluster « En ville » à venir"); }
+          : function () { toast("Termine « Au quotidien » d'abord"); } },
+      { nm: "Test du niveau 1", sub: state.a2 ? "réussi ✓" : "ouvre tout le niveau 2", st: state.a2 ? "done" : "todo",
+        test: true, act: openTest },
+      { nm: "Niveau 2 · Élémentaire", sub: state.a2 ? "débloqué — à toi" : "après le test", st: state.a2 ? "cur" : "todo",
+        act: function () { toast(state.a2 ? "Démo : clusters du niveau 2 à venir" : "Réussis le test du niveau 1"); } }
+    ];
+    nodes.forEach(function (n, i) {
+      var d = document.createElement("div"); d.className = "pnode"; d.tabIndex = 0;
+      var ic = n.st === "done" ? "✓" : n.st === "cur" ? "📖" : "?";
+      d.innerHTML = (i > 0 ? '<span class="pline"></span>' : "") +
+        '<span class="pcircle ' + n.st + (n.test ? " ptest" : "") + '">' + ic + "</span>" +
+        '<span class="plabel">' + n.nm + '<br><span class="small">' + n.sub + "</span></span>" +
+        (n.st === "cur" ? '<span style="margin-left:auto;color:#C4703F;font-weight:800">›</span>' : "");
+      d.onclick = n.act;
+      host.appendChild(d);
+    });
+  }
+  function renderFiche() {
+    var host = $("fiche-rows"); host.innerHTML = "";
+    CONFIG.clusterLessons.forEach(function (l) {
+      var r = document.createElement("div"); r.className = "row"; r.tabIndex = 0;
+      var right;
+      if (l.id === "pres") {
+        var dots = '<span class="d3">' + [0,1,2].map(function (i) {
+          return "<i" + (i < state.stage ? ' class="on"' : "") + "></i>"; }).join("") + "</span>";
+        var st = state.stage === 0 ? '<span class="st you">à toi</span>'
+          : state.stage === 1 ? '<span class="st you">Reconnaître</span>'
+          : state.stage === 2 ? '<span class="st you">Construire</span>' : '<span class="check">✓</span>';
+        right = dots + st;
+        r.onclick = nextForPres;
+      } else if (l.done) {
+        right = (l.vocab ? "" : '<span class="d3"><i class="on"></i><i class="on"></i><i class="on"></i></span>') + '<span class="check">✓</span>';
+        r.onclick = l.vocab ? function () { toast("Liste maîtrisée — révisions via FSRS"); }
+          : function () { lPage = 0; lRender(); lessonReview = true; show("lesson"); toast("Relecture — rien n'est compté"); };
+      } else if (l.free) {
+        right = '<span class="st free">libre</span>';
+        r.onclick = function () { toast("Démo : leçon de vocab jouable via le chemin (Découvrir)"); };
+      } else if (l.gate) {
+        right = '<span class="d3"><i></i><i></i><i></i></span><span class="st gate">' + l.gate + "</span>";
+        r.onclick = function () { toast("Porte fermée : « Au café » à 64 % — " + CONFIG.gatePct + " % requis"); };
+      }
+      r.innerHTML = '<span class="nm">' + l.nm + (l.vocab ? ' <span class="tag-v">VOCAB</span>' : "") + "</span>" + right;
+      host.appendChild(r);
+    });
+    var mel = document.createElement("div"); mel.className = "row"; mel.tabIndex = 0;
+    mel.innerHTML = '<span class="nm">Mélange du cluster</span>' +
+      (state.melange ? '<span class="check">✓ validé</span>'
+        : state.stage >= 3 ? '<span class="st you">prêt — à toi</span>' : '<span class="st gate">après les 5 leçons</span>');
+    mel.onclick = openMelange;
+    host.appendChild(mel);
+  }
+  function openFiche() { renderFiche(); show("fiche"); }
+  function nextForPres() {
+    if (state.stage === 0) { lessonReview = false; lPage = 0; lRender(); show("lesson"); }
+    else if (state.stage === 1) openReco();
+    else if (state.stage === 2) openBuild();
+    else toast("Règle maîtrisée — place au Mélange");
+  }
+  $("fiche-cta").onclick = nextForPres;
+
+  /* ═══ S18 chemin ═══ */
+  function renderChain() {
+    $("chain-count").textContent = chainDoneCount() + "/" + CONFIG.chainSteps.length;
+    var host = $("chain-steps"); host.innerHTML = "";
+    var nextFound = false;
+    CONFIG.chainSteps.forEach(function (s) {
+      var done = state.chain[s.id];
+      var d = document.createElement("div"); d.tabIndex = 0;
+      d.className = "step" + (done ? " done" : !nextFound ? " next" : "");
+      var isNext = !done && !nextFound; if (isNext) nextFound = true;
+      d.innerHTML = '<span class="ic">' + (done ? "✓" : s.ic) + '</span>' +
+        '<span class="lb">' + s.lb + '<br><span class="small">' + s.sub + "</span></span>" +
+        '<span class="stt">' + (done ? "fait" : isNext ? "à toi" : "ensuite") + "</span>";
+      d.onclick = function () { launchStep(s.id); };
+      host.appendChild(d);
+    });
+  }
+  function launchStep(id) {
+    if (state.chain[id]) { toast("Déjà fait aujourd'hui ✓"); return; }
+    if (id === "rev") { vOrigin = "chain"; openVquiz(); }
+    else if (id === "dec") openDecouvrir();
+    else if (id === "les") {
+      if (state.stage > 0) { state.chain.les = true; completeStep(); return; }
+      lessonReview = false; lPage = 0; lRender(); show("lesson");
+    }
+    else if (id === "dri") {
+      if (state.stage < 1) { toast("D'abord la leçon !"); return; }
+      openReco();
+    }
+  }
+  function completeStep() {
+    renderShell();
+    if (chainDoneCount() === CONFIG.chainSteps.length) {
+      state.streak = CONFIG.streak + 1;
+      $("cel-flame").textContent = "🔥 " + state.streak;
+      renderShell(); $("celebrate").classList.add("show");
+    } else { renderChain(); show("chain"); }
+  }
+  $("cel-close").onclick = function () { $("celebrate").classList.remove("show"); renderChain(); show("chain"); };
+
+  /* ═══ S4 leçon ═══ */
+  var lPage = 0, L_N = 5, lessonReview = false;
+  function lRender() {
+    document.querySelectorAll("#s-lesson .page").forEach(function (p, i) { p.classList.toggle("on", i === lPage); });
+    var dots = $("l-dots").children;
+    for (var i = 0; i < L_N; i++) dots[i].className = i === lPage ? "on" : "";
+    $("l-done").style.display = lPage === L_N - 1 ? "block" : "none";
+  }
+  $("l-prev").onclick = function () { if (lPage > 0) { lPage--; lRender(); } };
+  $("l-next").onclick = function () { if (lPage < L_N - 1) { lPage++; lRender(); } };
+  $("lesson-back").onclick = function () { show("fiche"); renderFiche(); };
+  $("l-done").onclick = function () {
+    if (lessonReview) { show("fiche"); renderFiche(); return; }
+    if (state.stage < 1) state.stage = 1;
+    state.chain.les = true;
+    toast("Leçon ✓"); completeStep();
+  };
+  document.querySelectorAll("[data-qc]").forEach(function (o) {
+    o.onclick = function () {
+      var ok = o.dataset.qc === "good", fb = $("qc-fb");
+      o.classList.add(ok ? "good" : "bad");
+      fb.className = "fb " + (ok ? "ok" : "ko");
+      fb.textContent = ok ? "Oui — « tu » → -as." : "« tu » prend -as : trabajas. (non noté)";
+    };
+  });
+
+  /* ═══ Reconnaître ═══ */
+  var RECO = [
+    { q: "Mi amigo ___ pan.", tr: "Mon ami mange du pain.", opts: ["come","como","comes","comer"], good: 0, why: "« mi amigo » = il → -e." },
+    { q: "Tú ___ en un café.", tr: "Tu travailles dans un café.", opts: ["trabajo","trabajas","trabaja","trabajar"], good: 1, why: "« tú » → -as." },
+    { q: "Yo ___ a la escuela.", tr: "Je vais à l'école.", opts: ["vas","va","voy","ir"], good: 2, why: "ir : yo → voy." }
+  ];
+  var rIdx = 0, rDone = false;
+  function openReco() { rIdx = 0; rItem(); show("reco"); }
+  function rItem() {
+    rDone = false;
+    $("r-count").textContent = "Reconnaître · " + (rIdx + 1) + "/" + RECO.length;
+    $("r-prog").style.width = (rIdx / RECO.length * 100) + "%";
+    $("r-next").classList.add("off");
+    var it = RECO[rIdx], b = $("r-body"); b.innerHTML = "";
+    var h = document.createElement("div");
+    h.innerHTML = '<div class="eyebrow">Choisis la bonne forme</div><p style="margin:8px 0 2px"><b>' + it.q +
+      '</b><br><span class="small">' + it.tr + "</span></p>";
+    b.appendChild(h);
+    it.opts.forEach(function (txt, i) {
+      var o = document.createElement("div"); o.className = "opt"; o.textContent = txt; o.tabIndex = 0;
+      o.onclick = function () {
+        if (rDone) return; rDone = true;
+        o.classList.add(i === it.good ? "good" : "bad");
+        if (i !== it.good) b.children[1 + it.good].classList.add("good");
+        var fb = document.createElement("div");
+        fb.className = "fb " + (i === it.good ? "ok" : "ko");
+        fb.textContent = (i === it.good ? "Exact ! " : "La bonne forme : " + it.opts[it.good] + ". ") + it.why;
+        b.appendChild(fb);
+        $("r-next").classList.remove("off");
+      };
+      b.appendChild(o);
+    });
+  }
+  $("r-next").onclick = function () {
+    rIdx++;
+    if (rIdx < RECO.length) { rItem(); return; }
+    if (state.stage < 2) state.stage = 2;
+    state.chain.dri = true;
+    toast("Reconnaître ✓ — Construire est disponible");
+    completeStep();
+  };
+
+  /* ═══ Construire (rampe) ═══ */
+  var TARGET = ["Voy","a","la","escuela"];
+  var POOLS = [
+    ["Voy","a","la","escuela"],
+    ["a","vas","Voy","escuela","va","la"],
+    ["vas","la","comes","Voy","el","a","tren","escuela","va"]
+  ];
+  var placed = [];
+  function openBuild() { placed = []; bRender(); show("build"); }
+  function bRender() {
+    var p = state.palier;
+    $("b-palier").textContent = p < 3 ? "Palier P" + p : "P3 — tapé";
+    $("b-prog").style.width = (p / 4 * 100) + "%";
+    var b = $("b-body"); b.innerHTML = "";
+    var head = document.createElement("div");
+    head.innerHTML = '<div class="eyebrow">' + (p < 3 ? "Assemble la phrase" : "Écris la phrase en espagnol") +
+      '</div><p style="margin:6px 0 2px"><b>« Je vais à l’école. »</b></p><div class="small">' + [
+        "P0 — chips exacts : on applique, on analyse.",
+        "P1 — + vas · va : le même verbe, autres personnes.",
+        "P2 — + el (genre) · comes, tren (leurres).",
+        "P3 — plus de chips : production libre."][p] + "</div>";
+    b.appendChild(head);
+    if (p < 3) {
+      var slot = document.createElement("div"); slot.className = "slot"; b.appendChild(slot);
+      var pool = document.createElement("div"); pool.className = "pool";
+      POOLS[p].forEach(function (w) {
+        var c = document.createElement("div"); c.className = "chip"; c.textContent = w; c.tabIndex = 0;
+        c.onclick = function () {
+          if (c.classList.contains("used")) return;
+          c.classList.add("used"); placed.push({ w: w, el: c });
+          var s = document.createElement("div"); s.className = "chip"; s.textContent = w;
+          s.onclick = function () {
+            slot.removeChild(s); c.classList.remove("used");
+            placed = placed.filter(function (x) { return x.el !== c; });
+          };
+          slot.appendChild(s);
+        };
+        pool.appendChild(c);
+      });
+      b.appendChild(pool);
+    } else {
+      var inp = document.createElement("input");
+      inp.className = "p-input"; inp.id = "b-input"; inp.placeholder = "Voy…"; inp.autocomplete = "off";
+      b.appendChild(inp);
+    }
+    var fb = document.createElement("div"); fb.id = "b-fb"; fb.className = "fb"; b.appendChild(fb);
+  }
+  $("b-verify").onclick = function () {
+    var p = state.palier, ok, fb = $("b-fb");
+    if (p < 3) ok = placed.length === TARGET.length && placed.every(function (x, i) { return x.w === TARGET[i]; });
+    else { var v = ($("b-input").value || "").trim().toLowerCase().replace(/\.$/, ""); ok = v === "voy a la escuela"; }
+    if (!ok) {
+      fb.className = "fb ko";
+      fb.textContent = p < 3 ? "Pas tout à fait — « je » → voy (ir est irrégulier)." : "Presque — attendu : « Voy a la escuela. »";
+      return;
+    }
+    if (p < 3) {
+      state.palier = p + 1; placed = [];
+      fb.className = "fb ok";
+      fb.textContent = "Correct ! " + ["P1 — des distracteurs arrivent.","P2 — les 3 familles.","P3 — à toi d'écrire."][p];
+      setTimeout(bRender, 1000);
+    } else {
+      state.stage = 3; toast("Construire ✓ — la règle est à toi");
+      renderShell(); openFiche();
+    }
+  };
+
+  /* ═══ Mélange ═══ */
+  var M_N = 3, mPage = 0, mPicks = [];
+  var M_CHIPS = ["Mi","a","-o","-a","-as"], M_GOOD = ["Mi","-a"];
+  function openMelange() {
+    if (state.melange) { toast("Cluster déjà validé ✓"); return; }
+    if (state.stage < 3) { toast("Démo : en réel, après les 5 leçons — on te laisse essayer"); }
+    mPage = 0; mPicks = []; mCloze(); mRender(); show("melange");
+  }
+  function mRender() {
+    document.querySelectorAll("#s-melange .page").forEach(function (p, i) { p.classList.toggle("on", i === mPage); });
+    var dots = $("m-dots").children;
+    for (var i = 0; i < M_N; i++) dots[i].className = i === mPage ? "on" : "";
+    var cta = $("m-cta");
+    if (mPage === 0) { cta.textContent = "Continuer"; cta.className = "cta ghost"; }
+    else if (mPage === 1) { cta.textContent = "Vérifier"; cta.className = "cta"; }
+    else { cta.textContent = "Continuer le parcours"; cta.className = "cta clay"; }
+  }
+  function mCloze() {
+    var slot = $("m-slot"), pool = $("m-pool");
+    slot.innerHTML = ""; pool.innerHTML = ""; $("m-fb").className = "fb";
+    M_CHIPS.forEach(function (w) {
+      var c = document.createElement("div"); c.className = "chip"; c.textContent = w; c.tabIndex = 0;
+      c.onclick = function () {
+        if (c.classList.contains("used") || mPicks.length >= 2) return;
+        c.classList.add("used"); mPicks.push({ w: w, el: c });
+        var s = document.createElement("div"); s.className = "chip";
+        s.textContent = (mPicks.length === 1 ? "1·" : "2·") + w;
+        s.onclick = function () {
+          slot.removeChild(s); c.classList.remove("used");
+          mPicks = mPicks.filter(function (x) { return x.el !== c; });
+        };
+        slot.appendChild(s);
+      };
+      pool.appendChild(c);
+    });
+  }
+  $("m-prev").onclick = function () { if (mPage > 0) { mPage--; mRender(); } };
+  $("m-next").onclick = function () { if (mPage === 0) { mPage = 1; mRender(); } };
+  $("m-cta").onclick = function () {
+    if (mPage === 0) { mPage = 1; mRender(); return; }
+    if (mPage === 1) {
+      var ok = mPicks.length === 2 && mPicks[0].w === M_GOOD[0] && mPicks[1].w === M_GOOD[1];
+      var fb = $("m-fb");
+      if (ok) {
+        fb.className = "fb ok"; fb.textContent = "Exact — Mi (possessif) · trabaja (elle → -a).";
+        setTimeout(function () { mPage = 2; state.melange = true; renderShell(); mRender(); }, 900);
+      } else {
+        fb.className = "fb ko"; fb.textContent = "Regarde : « mon amie » → Mi ; « elle » → -a.";
+        mPicks.forEach(function (x) { x.el.classList.remove("used"); });
+        mPicks = []; $("m-slot").innerHTML = "";
+      }
+      return;
+    }
+    renderShell(); showTab("etudier");
+    toast("Cluster « Au quotidien » validé — « En ville » débloqué");
+  };
+
+  /* ═══ S5 session vocab (2 cartes) ═══ */
+  var vIdx = 0, vPhase = 0, vScore = 0;
+  function openVquiz() { vIdx = 0; vPhase = 0; vScore = 0; vItem(); show("vquiz"); }
+  function vItem() {
+    $("v-count").textContent = "Réviser · " + (vIdx + 1) + "/2";
+    $("v-prog").style.width = (vIdx / 2 * 100) + "%";
+    var b = $("v-body"); b.innerHTML = "";
+    if (vIdx === 0) {
+      b.innerHTML = '<div class="center"><div class="eyebrow">Carte · ES → FR</div>' +
+        '<div style="font-size:27px;font-weight:800">la mañana <span class="voice"></span></div>' +
+        (vPhase === 1 ? '<div style="font-size:19px;color:#3E736E;font-weight:700">le matin</div>' : "") + "</div>";
+      $("v-cta").textContent = vPhase === 0 ? "Voir la réponse" : "Je savais ✓";
+      if (vPhase === 1) {
+        var no = document.createElement("div");
+        no.className = "btn ghost"; no.style.margin = "0 0 6px"; no.textContent = "Pas su ✗";
+        no.onclick = function () { vNext(false); };
+        b.appendChild(no);
+      }
+    } else {
+      b.innerHTML = '<div class="eyebrow">Écrire · FR → ES</div>' +
+        '<p style="margin:8px 0 2px"><b>le café</b></p>' +
+        '<input class="p-input" id="v-input" placeholder="el…" autocomplete="off">' +
+        '<div class="fb" id="v-fb"></div>';
+      $("v-cta").textContent = "Vérifier";
+    }
+  }
+  function vNext(good) {
+    if (good) vScore++;
+    vIdx++; vPhase = 0;
+    if (vIdx < 2) { vItem(); return; }
+    $("res-score").textContent = vScore + "/2 — " + (vScore === 2 ? "parfait !" : "bien joué");
+    $("res-w1").textContent = "✓";
+    $("res-w2").textContent = vScore === 2 ? "✓" : "revu bientôt";
+    $("res-next").textContent = vOrigin === "chain" ? "Et ensuite : la suite du chemin t'attend."
+      : "Session libre terminée — rien n'était planifié.";
+    $("res-cta").textContent = vOrigin === "chain" ? "Continuer le chemin" : "Retour";
+    show("resume");
+  }
+  $("v-cta").onclick = function () {
+    if (vIdx === 0) {
+      if (vPhase === 0) { vPhase = 1; vItem(); return; }
+      vNext(true); return;
+    }
+    var v = ($("v-input").value || "").trim().toLowerCase();
+    var ok = v === "el café" || v === "el cafe";
+    var fb = $("v-fb");
+    if (ok) { fb.className = "fb ok"; fb.textContent = "Exact !"; setTimeout(function () { vNext(true); }, 700); }
+    else { fb.className = "fb ko"; fb.textContent = "La bonne réponse était : el café."; setTimeout(function () { vNext(false); }, 1400); }
+  };
+  $("res-cta").onclick = function () {
+    if (vOrigin === "chain") { state.chain.rev = true; completeStep(); }
+    else showTab("etudier");
+  };
+
+  /* ═══ S3 Découvrir ═══ */
+  var D_WORDS = [
+    { es: "la estación", fr: "la gare" },
+    { es: "el tren", fr: "le train" }
+  ];
+  var dIdx = 0, dEcho = false;
+  function openDecouvrir() { dIdx = 0; dEcho = false; dItem(); show("decouvrir"); }
+  function dItem() {
+    var b = $("d-body");
+    if (!dEcho) {
+      $("d-count").textContent = "Découvrir · " + (dIdx + 1) + "/" + (D_WORDS.length + 1);
+      $("d-cta").textContent = "Suivant"; $("d-cta").classList.remove("off");
+      var w = D_WORDS[dIdx];
+      b.innerHTML = '<div class="center"><div class="eyebrow">Nouveau mot · jamais noté</div>' +
+        '<div style="font-size:27px;font-weight:800">' + w.es + ' <span class="voice"></span></div>' +
+        '<div style="font-size:18px;color:#756C62">' + w.fr + "</div>" +
+        '<div class="small">premier contact : on regarde, on écoute — rien à prouver</div></div>';
+    } else {
+      $("d-count").textContent = "Écho · dernier pas";
+      $("d-cta").textContent = "Terminer"; $("d-cta").classList.add("off");
+      b.innerHTML = '<div class="eyebrow">Écho — retrouve « le train »</div>';
+      ["la estación", "el tren", "el café"].forEach(function (t) {
+        var o = document.createElement("div"); o.className = "opt"; o.textContent = t; o.tabIndex = 0;
+        o.onclick = function () {
+          var ok = t === "el tren";
+          o.classList.add(ok ? "good" : "bad");
+          if (ok) $("d-cta").classList.remove("off");
+        };
+        b.appendChild(o);
+      });
+    }
+  }
+  $("d-cta").onclick = function () {
+    if (!dEcho) {
+      dIdx++;
+      if (dIdx < D_WORDS.length) { dItem(); return; }
+      dEcho = true; dItem(); return;
+    }
+    state.chain.dec = true; toast("3 mots découverts — ils entrent dans l'échafaudage");
+    completeStep();
+  };
+
+  /* ═══ S17 test de niveau ═══ */
+  var T_ITEMS = [
+    { q: "« l'école » ?", opts: ["la escuela","el escuela","la casa","el agua"], good: 0 },
+    { q: "Ella ___ pan. (comer)", opts: ["como","come","comes"], good: 1 }
+  ];
+  var tIdx = -1, tScore = 0, tDone = false;
+  function openTest() { tIdx = -1; tScore = 0; tDone = false; tRender(); show("test"); }
+  function tRender() {
+    var b = $("test-body"), cta = $("test-cta");
+    if (tIdx === -1) {
+      b.innerHTML = '<div class="center"><div class="big">🎓</div>' +
+        '<div style="font-weight:750;font-size:18px">Test du niveau 1</div>' +
+        '<p class="small">Session mixte notée : vocab + grammaire, sans feedback par item.<br>' +
+        'Réel : 20-30 items, seuil ~85 %. Démo : 2 items, ' + CONFIG.testPass + '/2 requis.<br>' +
+        'Réussi → tout le niveau 2 se débloque.</p></div>';
+      cta.textContent = "Commencer"; cta.className = "cta clay"; return;
+    }
+    if (tIdx < T_ITEMS.length) {
+      var it = T_ITEMS[tIdx];
+      b.innerHTML = '<div class="eyebrow">Item ' + (tIdx + 1) + "/2 · pas de feedback</div>" +
+        '<p style="margin:8px 0 2px"><b>' + it.q + "</b></p>";
+      it.opts.forEach(function (t, i) {
+        var o = document.createElement("div"); o.className = "opt"; o.textContent = t; o.tabIndex = 0;
+        o.onclick = function () {
+          if (tDone) return; tDone = true;
+          o.style.borderColor = "#4C8C86";
+          if (i === it.good) tScore++;
+          setTimeout(function () { tDone = false; tIdx++; tRender(); }, 450);
+        };
+        b.appendChild(o);
+      });
+      cta.textContent = "…réponds pour avancer"; cta.className = "cta off"; return;
+    }
+    var pass = tScore >= CONFIG.testPass;
+    if (pass) {
+      state.a2 = true; renderShell();
+      b.innerHTML = '<div class="center"><div class="big">🎉</div>' +
+        '<div style="font-weight:750;font-size:18px">Réussi — ' + tScore + "/2</div>" +
+        '<p class="small">Le <b>niveau 2</b> est débloqué : toutes ses leçons sont visibles,<br>chacune derrière sa porte de vocabulaire.</p></div>';
+      cta.textContent = "Voir le parcours"; cta.className = "cta clay";
+    } else {
+      b.innerHTML = '<div class="center"><div class="big" style="color:#B0556B">✗</div>' +
+        '<div style="font-weight:750;font-size:18px">Pas encore — ' + tScore + "/2</div>" +
+        '<p class="small">Bilan calme par domaine + étapes <b>Renforcer</b>.<br>Repassable à volonté.</p></div>';
+      cta.textContent = "Retour au parcours"; cta.className = "cta";
+    }
+  }
+  $("test-cta").onclick = function () {
+    if (tIdx === -1) { tIdx = 0; tRender(); return; }
+    if (tIdx >= T_ITEMS.length) { showTab("etudier"); return; }
+  };
+
+  /* ═══ S8 liste ═══ */
+  var LISTS = {
+    vie: { nm: "La vie quotidienne", words: [["la mañana","le matin","✓"],["trabajar","travailler","✓"],["la escuela","l'école","✓"],["dormir","dormir","·"]] },
+    cafe: { nm: "Au café", words: [["el café","le café","✓"],["el pan","le pain","✓"],["la leche","le lait","·"],["el agua","l'eau","·"]] }
+  };
+  function openList(id) {
+    var l = LISTS[id];
+    $("ld-title").textContent = l.nm;
+    var host = $("ld-words"); host.innerHTML = "";
+    l.words.forEach(function (w) {
+      var r = document.createElement("div"); r.className = "row"; r.style.cursor = "default";
+      r.innerHTML = '<span class="nm">' + w[0] + '</span><span class="small">' + w[1] + "</span>" +
+        (w[2] === "✓" ? '<span class="check">✓</span>' : '<span class="st gate">en cours</span>');
+      host.appendChild(r);
+    });
+    show("liste");
+  }
+  $("ld-practice").onclick = function () { vOrigin = "libre"; openVquiz(); };
+
+  /* ═══ navigation globale ═══ */
+  document.querySelectorAll(".tab").forEach(function (t) {
+    t.onclick = function () { showTab(t.dataset.tab); };
+  });
+  document.querySelectorAll("[data-toast]").forEach(function (e) {
+    if (!e.onclick) e.onclick = function () { toast(e.dataset.toast); };
+  });
+  document.querySelectorAll("[data-go]").forEach(function (e) {
+    var prev = e.onclick;
+    e.onclick = function () {
+      var g = e.dataset.go;
+      if (g === "shell") { renderShell(); showTab("etudier"); }
+      else if (g === "gram-tab") showTab("gram");
+      else if (g === "vocab-tab") showTab("vocab");
+      else if (g === "chain") { renderChain(); show("chain"); }
+      else if (g === "fiche") openFiche();
+      else if (prev) prev();
+    };
+  });
+  $("card-chain").onclick = function () { renderChain(); show("chain"); };
+  $("card-hebdo").onclick = function () { openSheet("sheet-hebdo"); };
+  $("btn-menu").onclick = function () { openSheet("sheet-menu"); };
+  $("btn-libre").onclick = function () { openSheet("sheet-libre"); };
+  $("btn-familles").onclick = function () { show("familles"); };
+  $("g-cl1").onclick = function () { toast("Cluster validé — fiche en lecture (démo : hors scope)"); };
+  $("g-cl2").onclick = openFiche;
+  document.querySelectorAll("#tp-vocab .row[data-list]").forEach(function (r) {
+    r.onclick = function () { openList(r.dataset.list); };
+  });
+  document.querySelectorAll(".seg").forEach(function (s) {
+    s.querySelectorAll(".sgi").forEach(function (i) {
+      i.onclick = function () {
+        s.querySelectorAll(".sgi").forEach(function (x) { x.classList.remove("on"); });
+        i.classList.add("on");
+      };
+    });
+  });
+  $("pl-go").onclick = function () { closeSheets(); vOrigin = "libre"; openVquiz(); };
+
+  document.querySelectorAll(".jump").forEach(function (j) {
+    j.onclick = function () {
+      var g = j.dataset.j;
+      if (g === "reset") { state = fresh(); renderShell(); showTab("etudier"); toast("Démo réinitialisée"); return; }
+      if (g === "etudier") { renderShell(); showTab("etudier"); }
+      else if (g === "chain") { renderChain(); show("chain"); }
+      else if (g === "fiche") openFiche();
+      else if (g === "lesson") { lessonReview = false; lPage = 0; lRender(); show("lesson"); }
+      else if (g === "vocab") showTab("vocab");
+      else if (g === "grammaire") showTab("gram");
+      else if (g === "progres") showTab("prog");
+      else if (g === "amis") showTab("amis");
+      else if (g === "test") openTest();
+    };
+  });
+
+  state = fresh(); renderShell(); showTab("etudier");
+})();
+</script>

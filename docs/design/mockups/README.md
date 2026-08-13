@@ -9,6 +9,9 @@ Self-contained HTML maquettes of the redesigned screens. Open any file in a brow
 | `handsfree-light.html` | Hands-free — all states | Light |
 | `quiz-modes-dark.html` | Voix / Cartes / Écrire | Dark |
 | `quiz-modes-light.html` | Voix / Cartes / Écrire | Light |
+| `grammar-lesson-flow.html` | Flux complet d'une leçon de grammaire (S9 → S4 → drills → Mélange), annoté décidé/proposé | Both (page) · Light (écrans) |
+| `grammar-lesson-flow-interactive.html` | Le même flux, NAVIGABLE : un téléphone tappable — fiche cluster → leçon paginée → drills (rampe P0-P3 jouable) → Mélange | Both (page) · Light (écran) |
+| `vocabapp-playground.html` | L'APP ENTIÈRE navigable (v2) : shell 5 onglets, chemin du jour S18, sessions, clusters, test de niveau, menus — dataset minimal 1 langue, bloc CONFIG réglable | Both (page) · Light (écran) |
 
 Notes:
 - Icons load from the Tabler webfont CDN; fonts from Google Fonts — both need an internet connection.

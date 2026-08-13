@@ -1,0 +1,572 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette navigable — leçon de grammaire (VocabApp)</title>
+<style>
+  :root {
+    --bg: #F6F1EA; --card: #FFFFFF; --ink: #2B2622; --muted: #756C62;
+    --line: #ECE3D7; --line-strong: #DDD2C2;
+    --clay: #D08358; --clay-deep: #C4703F; --teal: #4C8C86; --teal-deep: #3E736E;
+    --rose: #B0556B;
+    --shadow: 0 2px 6px rgba(43,38,34,.08), 0 14px 40px rgba(43,38,34,.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #241F1B; --card: #322C27; --ink: #EFE7DB; --muted: #B3A99C;
+      --line: #3D362F; --line-strong: #4A4239;
+      --clay-deep: #E0A079; --teal-deep: #6BA39D;
+      --shadow: 0 2px 6px rgba(0,0,0,.3), 0 14px 40px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #241F1B; --card: #322C27; --ink: #EFE7DB; --muted: #B3A99C;
+    --line: #3D362F; --line-strong: #4A4239;
+    --clay-deep: #E0A079; --teal-deep: #6BA39D;
+    --shadow: 0 2px 6px rgba(0,0,0,.3), 0 14px 40px rgba(0,0,0,.4);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 "Segoe UI", system-ui, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 18px 12px 40px;
+  }
+  h1 { font-size: 17px; font-weight: 750; margin: 0 0 2px; }
+  .note { font-size: 12.5px; color: var(--muted); margin: 0 0 12px; text-align: center; max-width: 60ch; }
+  .jumps { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 14px; }
+  .jump {
+    font-size: 12px; font-weight: 650; padding: 5px 11px; border-radius: 999px;
+    border: 1px solid var(--line-strong); background: var(--card); color: var(--ink); cursor: pointer;
+  }
+  .jump:hover { border-color: var(--clay-deep); }
+  .jump:focus-visible { outline: 2px solid var(--clay-deep); outline-offset: 2px; }
+  .jump.reset { color: var(--rose); }
+
+  /* ---------- téléphone (330×734 ≈ 360×800 dp, 20:9) — toujours thème clair app ---------- */
+  .phone {
+    width: 330px; height: 734px; border-radius: 30px; overflow: hidden; position: relative;
+    background: #F6F1EA; border: 1px solid #C9BCA9; box-shadow: var(--shadow);
+    color: #2B2622; font-size: 14px; line-height: 1.5; flex-shrink: 0;
+  }
+  .scr { position: absolute; inset: 0; display: none; flex-direction: column; }
+  .scr.on { display: flex; }
+  .bar { display: flex; align-items: center; gap: 10px; padding: 16px 16px 8px; color: #756C62; font-size: 13px; }
+  .bar .back { font-size: 20px; line-height: 1; cursor: pointer; padding: 0 4px; }
+  .bar .t { font-weight: 700; color: #2B2622; }
+  .dots { display: flex; gap: 5px; margin-left: auto; }
+  .dots i { width: 6px; height: 6px; border-radius: 50%; background: #DDD2C2; }
+  .dots i.on { background: #D08358; }
+  .body { flex: 1; padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+  .eyebrow { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: #6F695F; font-weight: 700; }
+  .card { background: #FFF; border: 1px solid #ECE3D7; border-radius: 14px; padding: 12px 14px; }
+  .hl-clay { background: #F6DFCE; color: #A85B28; border-radius: 4px; padding: 0 3px; font-weight: 700; }
+  .hl-teal { background: #DCE9E6; color: #33635E; border-radius: 4px; padding: 0 3px; font-weight: 700; }
+  .small { font-size: 12px; color: #756C62; }
+  .voice { font-size: 11px; color: #4C8C86; font-weight: 650; }
+  .voice::before { content: "▶ "; font-size: 9px; }
+  .cta {
+    margin: auto 16px 18px; border-radius: 14px; padding: 13px 0; text-align: center;
+    font-weight: 700; font-size: 15px; background: #3E736E; color: #FFF; cursor: pointer; user-select: none;
+  }
+  .cta.clay { background: #C4703F; }
+  .cta.ghost { background: transparent; color: #756C62; border: 1.5px solid #DDD2C2; }
+  .cta.off { opacity: .4; pointer-events: none; }
+  .cta:focus-visible, .row:focus-visible, .opt:focus-visible, .chip:focus-visible { outline: 2px solid #C4703F; outline-offset: 2px; }
+
+  /* fiche */
+  .row { display: flex; align-items: center; gap: 8px; padding: 11px 2px; border-bottom: 1px solid #ECE3D7; cursor: pointer; }
+  .row:last-child { border-bottom: 0; }
+  .row .nm { flex: 1; font-weight: 650; font-size: 13.5px; }
+  .tag-v { font-size: 9px; background: #DCE9E6; color: #33635E; border-radius: 5px; padding: 1px 5px; font-weight: 700; }
+  .st { font-size: 11.5px; font-weight: 700; }
+  .st.you { color: #C4703F; } .st.free { color: #33635E; } .st.gate { color: #8A8073; font-weight: 600; }
+  .d3 { display: flex; gap: 3px; }
+  .d3 i { width: 8px; height: 8px; border-radius: 50%; background: #ECE3D7; }
+  .d3 i.on { background: #D08358; }
+  .check { color: #3E736E; font-weight: 800; }
+  .mbar { height: 6px; border-radius: 3px; background: #ECE3D7; overflow: hidden; }
+  .mbar i { display: block; height: 100%; background: #4C8C86; }
+
+  /* pager */
+  .pagezone { flex: 1; position: relative; display: flex; }
+  .page { display: none; flex: 1; padding: 14px 18px; flex-direction: column; gap: 12px; overflow-y: auto; }
+  .page.on { display: flex; }
+  .tapzones { position: absolute; inset: 0; display: flex; pointer-events: none; z-index: 1; }
+  .tapzones div { flex: 1; pointer-events: auto; cursor: pointer; }
+  /* le contenu interactif des pages passe AU-DESSUS des zones de tap */
+  .page .opt, .page .chip, .page .slot, .page .pool, .page .p-input, .page .fb, .page .card { position: relative; z-index: 2; }
+  .bubble { border-radius: 14px; padding: 9px 12px; max-width: 88%; }
+  .bubble.a { background: #F6DFCE; align-self: flex-start; }
+  .bubble.b { background: #DCE9E6; align-self: flex-end; }
+  .bubble .who { font-size: 10px; font-weight: 700; color: #756C62; }
+
+  /* quiz */
+  .prog { height: 5px; background: #ECE3D7; border-radius: 3px; margin: 4px 16px 0; overflow: hidden; }
+  .prog i { display: block; height: 100%; width: 0; background: #4C8C86; border-radius: 3px; transition: width .25s; }
+  @media (prefers-reduced-motion: reduce) { .prog i { transition: none; } }
+  .opt { background: #FFF; border: 2px solid #ECE3D7; border-radius: 12px; padding: 12px 14px; font-weight: 650; cursor: pointer; }
+  .opt.good { border-color: #4C8C86; background: #EDF4F2; }
+  .opt.bad { border-color: #B0556B; background: #F7EBEE; }
+  .fb { border-radius: 12px; padding: 10px 12px; font-size: 13px; font-weight: 600; display: none; }
+  .fb.ok { display: block; background: #EDF4F2; color: #33635E; }
+  .fb.ko { display: block; background: #F7EBEE; color: #8E4257; }
+
+  /* construire */
+  .slot { min-height: 46px; border-bottom: 2px solid #DDD2C2; display: flex; flex-wrap: wrap; gap: 7px; align-items: center; padding-bottom: 8px; }
+  .pool { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { background: #FFF; border: 1.5px solid #DDD2C2; border-radius: 12px; padding: 9px 13px; font-weight: 650; cursor: pointer; box-shadow: 0 1px 0 rgba(43,38,34,.05); user-select: none; }
+  .chip.used { opacity: 0; pointer-events: none; }
+  .palier-tag { font-size: 10.5px; font-weight: 800; color: #33635E; background: #DCE9E6; border-radius: 6px; padding: 2px 8px; align-self: flex-start; }
+  .p-input { border: 2px solid #D08358; border-radius: 12px; background: #FFF; padding: 12px 14px; font: inherit; width: 100%; color: #2B2622; }
+  .p-input:focus { outline: none; border-color: #C4703F; }
+
+  .center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 18px; }
+  .big { font-size: 40px; }
+  .toast {
+    position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%);
+    background: #2B2622; color: #F6F1EA; font-size: 12px; padding: 8px 14px; border-radius: 10px;
+    opacity: 0; pointer-events: none; transition: opacity .25s; white-space: nowrap; z-index: 5;
+  }
+  .toast.show { opacity: .95; }
+  footer { margin-top: 14px; font-size: 11.5px; color: var(--muted); text-align: center; }
+  footer .mono { font-family: Consolas, ui-monospace, monospace; font-size: 10.5px; }
+</style>
+
+<h1>Maquette navigable — cluster « Au quotidien » (A1 · espagnol)</h1>
+<p class="note">Tout est tappable : fiche → leçon (glisse par zones gauche/droite) → drills → Mélange.
+  Démo : les délais J+1/J+2 sont ignorés ; la rampe P0→P3 avance à chaque réussite.</p>
+<div class="jumps">
+  <button class="jump" data-go="fiche">Fiche cluster</button>
+  <button class="jump" data-go="lesson">Leçon</button>
+  <button class="jump" data-go="reco">Reconnaître</button>
+  <button class="jump" data-go="build">Construire</button>
+  <button class="jump" data-go="melange">Mélange</button>
+  <button class="jump reset" data-go="reset">↺ Réinitialiser</button>
+</div>
+
+<div class="phone" id="phone">
+
+  <!-- ═══ FICHE CLUSTER ═══ -->
+  <div class="scr" id="s-fiche">
+    <div class="bar"><span class="back" data-toast="Démo : on reste dans le cluster">‹</span><span class="t">Au quotidien — cluster A1·2</span></div>
+    <div class="body">
+      <div class="eyebrow">5 leçons · ordre libre</div>
+      <div class="card" id="fiche-rows">
+        <div class="row" data-toast="Démo : leçon de vocabulaire hors scope">
+          <span class="nm">La vie quotidienne <span class="tag-v">VOCAB</span></span><span class="check">✓</span>
+        </div>
+        <div class="row" data-toast="Démo : leçon de vocabulaire hors scope">
+          <span class="nm">Au café <span class="tag-v">VOCAB</span></span><span class="st free" id="cafe-st">libre</span>
+        </div>
+        <div class="row" data-act="articles" data-toast="Déjà maîtrisée — « Relire la leçon » possible">
+          <span class="nm">Les articles el / la</span>
+          <span class="d3"><i class="on"></i><i class="on"></i><i class="on"></i></span><span class="check">✓</span>
+        </div>
+        <div class="row" data-act="presente">
+          <span class="nm">Le présent (-ar/-er/-ir)</span>
+          <span class="d3" id="pres-dots"><i></i><i></i><i></i></span><span class="st you" id="pres-st">à toi</span>
+        </div>
+        <div class="row" data-toast="Porte fermée : « Au café » à 64 % — 80 % requis">
+          <span class="nm">La négation avec no</span>
+          <span class="d3"><i></i><i></i><i></i></span><span class="st gate">vocab 64 %</span>
+        </div>
+        <div class="row" data-act="melange">
+          <span class="nm">Mélange du cluster</span><span class="st gate" id="mel-st">après les 5 leçons</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="eyebrow">Portes de vocabulaire</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <span style="flex:1;font-size:12.5px">La vie quotidienne</span>
+          <div class="mbar" style="width:70px"><i style="width:85%"></i></div>
+          <span class="st free">85 %</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <span style="flex:1;font-size:12.5px">Au café</span>
+          <div class="mbar" style="width:70px"><i style="width:64%"></i></div>
+          <span class="st gate">64 %</span>
+        </div>
+        <div class="small" style="margin-top:4px">une règle s'ouvre à 80 % global de ses listes</div>
+      </div>
+    </div>
+    <div class="cta clay" id="cta-continue">S'entraîner maintenant</div>
+  </div>
+
+  <!-- ═══ LEÇON (pager 5 pages) ═══ -->
+  <div class="scr" id="s-lesson">
+    <div class="bar"><span class="back" data-go="fiche">‹</span><span class="t">Le présent (-ar)</span>
+      <span class="dots" id="l-dots"><i class="on"></i><i></i><i></i><i></i><i></i></span></div>
+    <div class="pagezone">
+      <div class="page on">
+        <div class="eyebrow">Explication · 1/5</div>
+        <p>Pour parler au présent, on prend le verbe, on retire <span class="hl-teal">-ar</span>,
+          et on ajoute la terminaison de la personne : <span class="hl-clay">-o</span> pour « je ».</p>
+        <div class="card">trabaj<span class="hl-teal">ar</span> → trabaj + <span class="hl-clay">o</span> → <b>trabajo</b></div>
+        <span class="voice">voix narrateur · FR</span>
+        <div class="small" style="margin-top:auto">tape à droite pour avancer, à gauche pour revenir</div>
+      </div>
+      <div class="page">
+        <div class="eyebrow">Exemples · 2/5</div>
+        <div class="card"><b>Trabaj<span class="hl-clay">o</span> por la mañana.</b>
+          <div class="small">Je travaille le matin. <span class="voice"></span></div></div>
+        <div class="card"><b>Mi amigo com<span class="hl-clay">e</span> pan.</b>
+          <div class="small">Mon ami mange du pain. <span class="voice"></span></div></div>
+        <div class="small">tap sur une ligne = audio de la ligne · phrases composées avec ton vocab connu</div>
+      </div>
+      <div class="page">
+        <div class="eyebrow">Vérif rapide · non notée · 3/5</div>
+        <p><b>Tu ___ en un restaurante.</b> <span class="small">(trabajar, « tu »)</span></p>
+        <div class="opt" data-qc="good">trabajas</div>
+        <div class="opt" data-qc="bad">trabajo</div>
+        <div class="fb" id="qc-fb"></div>
+      </div>
+      <div class="page">
+        <div class="eyebrow">Dialogue · 4/5</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="bubble a"><div class="who">A</div>¿Dónde trabaj<span class="hl-clay">as</span>?</div>
+          <div class="bubble b"><div class="who">B</div>Trabaj<span class="hl-clay">o</span> en un café.</div>
+          <div class="bubble a"><div class="who">A</div>¿Y tu amigo?</div>
+          <div class="bubble b"><div class="who">B</div>Trabaj<span class="hl-clay">a</span> en la escuela.</div>
+        </div>
+        <span class="voice">tout lire · une voix par personnage</span>
+      </div>
+      <div class="page">
+        <div class="center">
+          <div class="big" style="color:#3E736E">✓</div>
+          <div style="font-weight:750;font-size:18px">Leçon terminée</div>
+          <p class="small">Prochaine étape : <b>Reconnaître</b>.<br>En réel : demain dans ton chemin — ici, tout de suite.</p>
+        </div>
+      </div>
+      <div class="tapzones"><div id="l-prev"></div><div id="l-next"></div></div>
+    </div>
+    <div class="cta" id="l-done" style="display:none">Terminé</div>
+  </div>
+
+  <!-- ═══ RECONNAÎTRE ═══ -->
+  <div class="scr" id="s-reco">
+    <div class="prog"><i id="r-prog"></i></div>
+    <div class="bar"><span class="back" data-go="fiche">‹</span><span class="t" id="r-count">Reconnaître · 1/3</span></div>
+    <div class="body" id="r-body"></div>
+    <div class="cta off" id="r-next">Continuer</div>
+  </div>
+
+  <!-- ═══ CONSTRUIRE ═══ -->
+  <div class="scr" id="s-build">
+    <div class="prog"><i id="b-prog"></i></div>
+    <div class="bar"><span class="back" data-go="fiche">‹</span><span class="t">Construire</span>
+      <span class="palier-tag" id="b-palier" style="margin-left:auto">Palier P0</span></div>
+    <div class="body" id="b-body"></div>
+    <div class="cta" id="b-verify">Vérifier</div>
+  </div>
+
+  <!-- ═══ MÉLANGE ═══ -->
+  <div class="scr" id="s-melange">
+    <div class="bar"><span class="back" data-go="fiche">‹</span><span class="t">Mélange — Au quotidien</span>
+      <span class="dots" id="m-dots"><i class="on"></i><i></i><i></i></span></div>
+    <div class="pagezone">
+      <div class="page on">
+        <div class="eyebrow">Leçon de combinaison · 1/3</div>
+        <p>Tout se joue ensemble : l'article s'accorde, le verbe se conjugue,
+          <span class="hl-teal">no</span> se place devant.</p>
+        <div class="card"><b><span class="hl-teal">No</span> com<span class="hl-clay">o</span> en <span class="hl-clay">la</span> escuela.</b>
+          <div class="small">Je ne mange pas à l'école.</div></div>
+        <span class="voice">3 règles dans une phrase</span>
+      </div>
+      <div class="page">
+        <div class="eyebrow">Session mixte · 2/3</div>
+        <p><b>___ amiga no trabaj___ el domingo.</b><br>
+          <span class="small">Mon amie ne travaille pas le dimanche.</span></p>
+        <div class="slot" id="m-slot"></div>
+        <div class="pool" id="m-pool"></div>
+        <div class="fb" id="m-fb"></div>
+      </div>
+      <div class="page">
+        <div class="center">
+          <div class="big" style="color:#3E736E">✓</div>
+          <div style="font-weight:750;font-size:18px">Cluster validé — 86 %</div>
+          <p class="small">Au quotidien · cluster A1·2<br><b>Cluster suivant débloqué :</b> En ville.</p>
+          <div class="mbar" style="width:130px"><i style="width:86%"></i></div>
+        </div>
+      </div>
+      <div class="tapzones"><div id="m-prev"></div><div id="m-next"></div></div>
+    </div>
+    <div class="cta" id="m-cta">Vérifier</div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<footer>Maquette de référence, pas du code de production · specs :
+  <span class="mono">docs/design/map/grammar-flow.md · lesson-viewer.md · grammar-drills.md</span></footer>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var state, toastTimer;
+
+  function toast(msg) {
+    var t = $("toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove("show"); }, 1800);
+  }
+  function show(id) {
+    document.querySelectorAll(".scr").forEach(function (s) { s.classList.remove("on"); });
+    $("s-" + id).classList.add("on");
+  }
+
+  /* ---------- état + fiche ---------- */
+  function fresh() { return { stage: 0, palier: 0, melangeDone: false }; }
+  function renderFiche() {
+    var dots = $("pres-dots").children, st = $("pres-st");
+    for (var i = 0; i < 3; i++) dots[i].className = i < state.stage ? "on" : "";
+    if (state.stage === 0)      { st.textContent = "à toi";        st.className = "st you"; }
+    else if (state.stage === 1) { st.textContent = "Reconnaître";  st.className = "st you"; }
+    else if (state.stage === 2) { st.textContent = "Construire";   st.className = "st you"; }
+    else                        { st.textContent = "✓";            st.className = "check"; }
+    $("mel-st").textContent = state.melangeDone ? "✓ cluster validé"
+      : (state.stage >= 3 ? "prêt — à toi" : "après les 5 leçons");
+    $("mel-st").className = state.melangeDone ? "check" : (state.stage >= 3 ? "st you" : "st gate");
+  }
+  function nextForPresente() {
+    if (state.stage === 0) { openLesson(); }
+    else if (state.stage === 1) { openReco(); }
+    else if (state.stage === 2) { openBuild(); }
+    else { toast("Règle maîtrisée — place au Mélange"); }
+  }
+
+  /* ---------- leçon (pager) ---------- */
+  var lPage = 0, L_N = 5;
+  function lRender() {
+    var pages = document.querySelectorAll("#s-lesson .page");
+    pages.forEach(function (p, i) { p.classList.toggle("on", i === lPage); });
+    var dots = $("l-dots").children;
+    for (var i = 0; i < L_N; i++) dots[i].className = i === lPage ? "on" : "";
+    $("l-done").style.display = lPage === L_N - 1 ? "block" : "none";
+  }
+  function openLesson() { lPage = 0; lRender(); show("lesson"); }
+  $("l-prev").onclick = function () { if (lPage > 0) { lPage--; lRender(); } };
+  $("l-next").onclick = function () { if (lPage < L_N - 1) { lPage++; lRender(); } };
+  $("l-done").onclick = function () {
+    if (state.stage < 1) state.stage = 1;
+    renderFiche(); show("fiche"); toast("Leçon ✓ — Reconnaître est disponible");
+  };
+  document.querySelectorAll("[data-qc]").forEach(function (o) {
+    o.onclick = function () {
+      var ok = o.dataset.qc === "good", fb = $("qc-fb");
+      o.classList.add(ok ? "good" : "bad");
+      fb.className = "fb " + (ok ? "ok" : "ko");
+      fb.textContent = ok ? "Oui — « tu » → -as." : "« tu » prend -as : trabajas. (non noté)";
+    };
+  });
+
+  /* ---------- Reconnaître ---------- */
+  var RECO = [
+    { q: "Mi amigo ___ pan.", tr: "Mon ami mange du pain.", opts: ["come", "como", "comes", "comer"], good: 0,
+      why: "« mi amigo » = il → -e." },
+    { q: "Tú ___ en un café.", tr: "Tu travailles dans un café.", opts: ["trabajo", "trabajas", "trabaja", "trabajar"], good: 1,
+      why: "« tú » → -as." },
+    { q: "Yo ___ a la escuela.", tr: "Je vais à l'école.", opts: ["vas", "va", "voy", "ir"], good: 2,
+      why: "ir est irrégulier : yo → voy." }
+  ];
+  var rIdx = 0, rAnswered = false;
+  function openReco() { rIdx = 0; rItem(); show("reco"); }
+  function rItem() {
+    rAnswered = false;
+    $("r-count").textContent = "Reconnaître · " + (rIdx + 1) + "/" + RECO.length;
+    $("r-prog").style.width = (rIdx / RECO.length * 100) + "%";
+    $("r-next").classList.add("off");
+    var it = RECO[rIdx], b = $("r-body");
+    b.innerHTML = "";
+    var e = document.createElement("div");
+    e.innerHTML = '<div class="eyebrow">Choisis la bonne forme</div><p style="margin:8px 0 2px"><b>' +
+      it.q + '</b><br><span class="small">' + it.tr + "</span></p>";
+    b.appendChild(e);
+    it.opts.forEach(function (txt, i) {
+      var o = document.createElement("div");
+      o.className = "opt"; o.textContent = txt; o.tabIndex = 0;
+      o.onclick = function () {
+        if (rAnswered) return; rAnswered = true;
+        o.classList.add(i === it.good ? "good" : "bad");
+        if (i !== it.good) b.children[1 + it.good].classList.add("good");
+        var fb = document.createElement("div");
+        fb.className = "fb " + (i === it.good ? "ok" : "ko");
+        fb.textContent = (i === it.good ? "Exact ! " : "La bonne forme : " + it.opts[it.good] + ". ") + it.why;
+        b.appendChild(fb);
+        $("r-next").classList.remove("off");
+      };
+      b.appendChild(o);
+    });
+  }
+  $("r-next").onclick = function () {
+    rIdx++;
+    if (rIdx < RECO.length) { rItem(); }
+    else {
+      if (state.stage < 2) state.stage = 2;
+      renderFiche(); show("fiche"); toast("Reconnaître ✓ — Construire est disponible");
+    }
+  };
+
+  /* ---------- Construire (rampe P0→P3) ---------- */
+  var TARGET = ["Voy", "a", "la", "escuela"];
+  var POOLS = [
+    ["Voy", "a", "la", "escuela"],
+    ["a", "vas", "Voy", "escuela", "va", "la"],
+    ["vas", "la", "comes", "Voy", "el", "a", "tren", "escuela", "va"]
+  ];
+  var placed = [];
+  function openBuild() { placed = []; bRender(); show("build"); }
+  function bRender() {
+    var p = state.palier;
+    $("b-palier").textContent = p < 3 ? "Palier P" + p : "Palier P3 — tapé";
+    $("b-prog").style.width = (p / 4 * 100) + "%";
+    var b = $("b-body"); b.innerHTML = "";
+    var head = document.createElement("div");
+    head.innerHTML = '<div class="eyebrow">' + (p < 3 ? "Assemble la phrase" : "Écris la phrase en espagnol") +
+      '</div><p style="margin:6px 0 2px"><b>« Je vais à l’école. »</b></p>' +
+      '<div class="small">' + [
+        "P0 — chips exacts : on applique, on analyse.",
+        "P1 — + vas · va : le même verbe, autres personnes.",
+        "P2 — + el (genre) · comes, tren (leurres) : les 3 familles.",
+        "P3 — plus de chips : production libre."][p] + "</div>";
+    b.appendChild(head);
+    if (p < 3) {
+      var slot = document.createElement("div"); slot.className = "slot"; slot.id = "b-slot"; b.appendChild(slot);
+      var pool = document.createElement("div"); pool.className = "pool";
+      POOLS[p].forEach(function (w) {
+        var c = document.createElement("div"); c.className = "chip"; c.textContent = w; c.tabIndex = 0;
+        c.onclick = function () {
+          if (c.classList.contains("used")) return;
+          c.classList.add("used"); placed.push({ w: w, el: c });
+          var s = document.createElement("div"); s.className = "chip"; s.textContent = w; s.tabIndex = 0;
+          s.onclick = function () {
+            slot.removeChild(s); c.classList.remove("used");
+            placed = placed.filter(function (x) { return x.el !== c; });
+          };
+          slot.appendChild(s);
+        };
+        pool.appendChild(c);
+      });
+      b.appendChild(pool);
+    } else {
+      var inp = document.createElement("input");
+      inp.className = "p-input"; inp.id = "b-input"; inp.placeholder = "Voy…";
+      inp.autocomplete = "off"; b.appendChild(inp);
+    }
+    var fb = document.createElement("div"); fb.id = "b-fb"; fb.className = "fb"; b.appendChild(fb);
+  }
+  $("b-verify").onclick = function () {
+    var p = state.palier, ok, fb = $("b-fb");
+    if (p < 3) {
+      ok = placed.length === TARGET.length &&
+        placed.every(function (x, i) { return x.w === TARGET[i]; });
+    } else {
+      var v = ($("b-input").value || "").trim().toLowerCase().replace(/\.$/, "");
+      ok = v === "voy a la escuela";
+    }
+    if (ok) {
+      if (p < 3) {
+        state.palier = p + 1;
+        fb.className = "fb ok";
+        fb.textContent = "Correct ! Palier suivant : " +
+          ["P1 — des distracteurs arrivent.", "P2 — les 3 familles.", "P3 — à toi d'écrire."][p];
+        placed = [];
+        setTimeout(bRender, 1100);
+      } else {
+        state.stage = 3; renderFiche(); show("fiche");
+        toast("Construire ✓ — la règle est à toi. Place au Mélange !");
+      }
+    } else {
+      fb.className = "fb ko";
+      fb.textContent = p < 3 ? "Pas tout à fait — « je » → voy (ir est irrégulier)."
+        : "Presque — attendu : « Voy a la escuela. »";
+    }
+  };
+
+  /* ---------- Mélange (pager + cloze) ---------- */
+  var M_N = 3, mPage = 0, mPicks = [];
+  var M_CHIPS = ["Mi", "a", "-o", "-a", "-as"], M_GOOD = ["Mi", "-a"];
+  function openMelange() {
+    if (state.stage < 3) toast("Démo : en réel, le Mélange s'ouvre après les 5 leçons");
+    mPage = 0; mPicks = []; mRenderCloze(); mRender(); show("melange");
+  }
+  function mRender() {
+    document.querySelectorAll("#s-melange .page").forEach(function (p, i) { p.classList.toggle("on", i === mPage); });
+    var dots = $("m-dots").children;
+    for (var i = 0; i < M_N; i++) dots[i].className = i === mPage ? "on" : "";
+    var cta = $("m-cta");
+    if (mPage === 0) { cta.textContent = "Continuer"; cta.className = "cta ghost"; }
+    else if (mPage === 1) { cta.textContent = "Vérifier"; cta.className = "cta"; }
+    else { cta.textContent = "Continuer le parcours"; cta.className = "cta clay"; }
+  }
+  function mRenderCloze() {
+    var slot = $("m-slot"), pool = $("m-pool");
+    slot.innerHTML = ""; pool.innerHTML = ""; $("m-fb").className = "fb";
+    M_CHIPS.forEach(function (w) {
+      var c = document.createElement("div"); c.className = "chip"; c.textContent = w; c.tabIndex = 0;
+      c.onclick = function () {
+        if (c.classList.contains("used") || mPicks.length >= 2) return;
+        c.classList.add("used"); mPicks.push({ w: w, el: c });
+        var s = document.createElement("div"); s.className = "chip";
+        s.textContent = (mPicks.length === 1 ? "1·" : "2·") + w;
+        s.onclick = function () {
+          slot.removeChild(s); c.classList.remove("used");
+          mPicks = mPicks.filter(function (x) { return x.el !== c; });
+        };
+        slot.appendChild(s);
+      };
+      pool.appendChild(c);
+    });
+  }
+  $("m-prev").onclick = function () { if (mPage > 0) { mPage--; mRender(); } };
+  $("m-next").onclick = function () { if (mPage === 0) { mPage = 1; mRender(); } };
+  $("m-cta").onclick = function () {
+    if (mPage === 0) { mPage = 1; mRender(); return; }
+    if (mPage === 1) {
+      var ok = mPicks.length === 2 && mPicks[0].w === M_GOOD[0] && mPicks[1].w === M_GOOD[1];
+      var fb = $("m-fb");
+      if (ok) {
+        fb.className = "fb ok"; fb.textContent = "Exact — Mi (possessif) · trabaja (elle → -a).";
+        setTimeout(function () { mPage = 2; state.melangeDone = true; renderFiche(); mRender(); }, 900);
+      } else {
+        fb.className = "fb ko"; fb.textContent = "Regarde : « mon amie » → Mi ; « elle » → -a.";
+        mPicks.forEach(function (x) { x.el.classList.remove("used"); });
+        mPicks = []; $("m-slot").innerHTML = "";
+      }
+      return;
+    }
+    show("fiche"); toast("Cluster « Au quotidien » validé — « En ville » débloqué");
+  };
+
+  /* ---------- navigation globale ---------- */
+  document.querySelectorAll(".row[data-act]").forEach(function (r) {
+    r.tabIndex = 0;
+    r.addEventListener("click", function () {
+      var a = r.dataset.act;
+      if (a === "presente") nextForPresente();
+      else if (a === "melange") openMelange();
+      else if (r.dataset.toast) toast(r.dataset.toast);
+    });
+  });
+  document.querySelectorAll(".row[data-toast]:not([data-act])").forEach(function (r) {
+    r.tabIndex = 0;
+    r.addEventListener("click", function () { toast(r.dataset.toast); });
+  });
+  document.querySelectorAll(".bar .back[data-go]").forEach(function (b) {
+    b.addEventListener("click", function () { show(b.dataset.go); });
+  });
+  document.querySelector("#s-fiche .back").addEventListener("click", function () { toast(this.dataset.toast); });
+  $("cta-continue").onclick = nextForPresente;
+  document.querySelectorAll(".jump").forEach(function (j) {
+    j.addEventListener("click", function () {
+      var g = j.dataset.go;
+      if (g === "reset") { state = fresh(); renderFiche(); show("fiche"); toast("Démo réinitialisée"); return; }
+      if (g === "fiche") { renderFiche(); show("fiche"); }
+      else if (g === "lesson") openLesson();
+      else if (g === "reco") openReco();
+      else if (g === "build") openBuild();
+      else if (g === "melange") openMelange();
+    });
+  });
+
+  state = fresh(); renderFiche(); show("fiche");
+})();
+</script>

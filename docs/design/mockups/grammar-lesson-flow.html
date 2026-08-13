@@ -1,0 +1,600 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flux d'une leçon — VocabApp</title>
+<style>
+  /* ---------- tokens : chrome de page (thème-aware) ---------- */
+  :root {
+    --bg: #F6F1EA;            /* paper */
+    --bg-soft: #EFE7DB;       /* surface */
+    --card: #FFFFFF;
+    --ink: #2B2622;
+    --muted: #756C62;
+    --faint: #8A8073;
+    --line: #ECE3D7;
+    --line-strong: #DDD2C2;
+    --clay: #D08358;
+    --clay-deep: #C4703F;
+    --teal: #4C8C86;
+    --teal-deep: #3E736E;
+    --rose: #B0556B;
+    --chip-decided-bg: #E3EDE7; --chip-decided-fg: #2F5D4E;
+    --chip-proposed-bg: #F3E4D2; --chip-proposed-fg: #8A5326;
+    --chip-default-bg: #E9E4F0; --chip-default-fg: #5B4A78;
+    --shadow: 0 1px 2px rgba(43,38,34,.06), 0 8px 24px rgba(43,38,34,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #241F1B; --bg-soft: #2B2622; --card: #322C27;
+      --ink: #EFE7DB; --muted: #B3A99C; --faint: #8A8073;
+      --line: #3D362F; --line-strong: #4A4239;
+      --clay: #E0A079; --clay-deep: #E0A079;
+      --teal: #6BA39D; --teal-deep: #6BA39D;
+      --rose: #C97A8D;
+      --chip-decided-bg: #2E3D35; --chip-decided-fg: #9CC7B4;
+      --chip-proposed-bg: #453526; --chip-proposed-fg: #E0B183;
+      --chip-default-bg: #383046; --chip-default-fg: #B7A6DA;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #241F1B; --bg-soft: #2B2622; --card: #322C27;
+    --ink: #EFE7DB; --muted: #B3A99C; --faint: #8A8073;
+    --line: #3D362F; --line-strong: #4A4239;
+    --clay: #E0A079; --clay-deep: #E0A079;
+    --teal: #6BA39D; --teal-deep: #6BA39D;
+    --rose: #C97A8D;
+    --chip-decided-bg: #2E3D35; --chip-decided-fg: #9CC7B4;
+    --chip-proposed-bg: #453526; --chip-proposed-fg: #E0B183;
+    --chip-default-bg: #383046; --chip-default-fg: #B7A6DA;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.6 "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 40px 24px 80px; }
+  .mono { font-family: "Cascadia Code", Consolas, ui-monospace, monospace; font-size: 12px; }
+
+  /* ---------- entête ---------- */
+  .eyebrow { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--clay-deep); font-weight: 700; }
+  h1 { font-size: clamp(26px, 4vw, 34px); line-height: 1.15; margin: 8px 0 10px; font-weight: 750; letter-spacing: -.01em; text-wrap: balance; }
+  .lede { color: var(--muted); max-width: 62ch; margin: 0 0 18px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }
+  .status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 650; padding: 3px 10px; border-radius: 999px; }
+  .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .st-decided  { background: var(--chip-decided-bg);  color: var(--chip-decided-fg); }
+  .st-proposed { background: var(--chip-proposed-bg); color: var(--chip-proposed-fg); }
+  .st-default  { background: var(--chip-default-bg);  color: var(--chip-default-fg); }
+
+  /* ---------- timeline ---------- */
+  .stage { display: grid; grid-template-columns: 92px 1fr; gap: 0 26px; margin-top: 52px; }
+  .rail { position: relative; }
+  .rail::after { content: ""; position: absolute; left: 50%; top: 58px; bottom: -52px; width: 2px; background: var(--line-strong); transform: translateX(-50%); }
+  .stage:last-of-type .rail::after { display: none; }
+  .day {
+    width: 64px; height: 48px; margin: 0 auto; border-radius: 14px;
+    background: var(--card); border: 1.5px solid var(--line-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 15px; box-shadow: var(--shadow);
+  }
+  .day.accent { background: var(--clay); border-color: var(--clay); color: #FFF8F1; }
+  :root[data-theme="dark"] .day.accent, .day.accent { color: #3A2415; }
+  .day.teal { background: var(--teal); border-color: var(--teal); color: #10312D; }
+  .stage h2 { font-size: 20px; margin: 10px 0 4px; font-weight: 750; letter-spacing: -.01em; }
+  .stage h2 .where { color: var(--faint); font-weight: 500; font-size: 14px; }
+  .stage .sub { color: var(--muted); margin: 0 0 16px; max-width: 68ch; }
+  .stage .sub b { color: var(--ink); }
+
+  /* ---------- rangée de téléphones ---------- */
+  .flowrow { display: flex; gap: 10px; align-items: stretch; overflow-x: auto; padding: 6px 2px 14px; }
+  .step { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px; width: 270px; }
+  .arrow { flex: 0 0 auto; align-self: center; color: var(--faint); font-size: 18px; padding: 0 2px; margin-bottom: 40px; }
+  .caption { font-size: 12px; color: var(--muted); line-height: 1.45; padding: 0 4px; }
+  .caption b { color: var(--ink); }
+  .caption .fam-conj { color: var(--clay-deep); font-weight: 700; }
+  .caption .fam-morph { color: var(--teal-deep); font-weight: 700; }
+  .caption .fam-lure { color: var(--rose); font-weight: 700; }
+
+  /* ---------- le téléphone (toujours thème clair de l'app : c'est une maquette) ---------- */
+  .phone {
+    /* 360×800 dp (Android milieu de gamme, 20:9) à l'échelle 0,75 */
+    width: 270px; height: 600px; border-radius: 28px; overflow: hidden;
+    background: #F6F1EA; border: 1px solid #DDD2C2; box-shadow: var(--shadow);
+    display: flex; flex-direction: column; color: #2B2622;
+    font-size: 13.5px; line-height: 1.55;
+  }
+  .p-bar { display: flex; align-items: center; gap: 8px; padding: 14px 16px 8px; color: #756C62; font-size: 12.5px; }
+  .p-bar .back { font-size: 16px; line-height: 1; }
+  .p-bar .t { font-weight: 650; color: #2B2622; }
+  .p-dots { display: flex; gap: 4px; margin-left: auto; }
+  .p-dots i { width: 5px; height: 5px; border-radius: 50%; background: #DDD2C2; }
+  .p-dots i.on { background: #D08358; }
+  .p-body { flex: 1; padding: 14px 16px; display: flex; flex-direction: column; gap: 11px; overflow: hidden; }
+  .p-eyebrow { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #6F695F; font-weight: 700; }
+  .p-title { font-weight: 750; font-size: 16px; line-height: 1.3; }
+  .p-text { color: #2B2622; }
+  .hl-clay { background: #F6DFCE; color: #A85B28; border-radius: 4px; padding: 0 3px; font-weight: 700; }
+  .hl-teal { background: #DCE9E6; color: #33635E; border-radius: 4px; padding: 0 3px; font-weight: 700; }
+  .p-card { background: #FFFFFF; border: 1px solid #ECE3D7; border-radius: 12px; padding: 8px 10px; }
+  .p-note { font-size: 11px; color: #756C62; }
+  .voice { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; color: #4C8C86; font-weight: 650; }
+  .voice::before { content: "▶"; font-size: 8px; }
+  .p-cta { margin: auto 16px 18px; border-radius: 14px; padding: 12px 0; text-align: center; font-weight: 700; font-size: 14px; background: #3E736E; color: #FFF; }
+  .p-cta.clay { background: #C4703F; }
+  .p-cta.ghost { background: transparent; color: #756C62; border: 1px solid #DDD2C2; }
+  .bubble { border-radius: 12px; padding: 7px 10px; max-width: 88%; }
+  .bubble.a { background: #F6DFCE; align-self: flex-start; }
+  .bubble.b { background: #DCE9E6; align-self: flex-end; }
+  .bubble .who { font-size: 10px; font-weight: 700; color: #756C62; }
+  .qopt { background: #FFFFFF; border: 1.5px solid #ECE3D7; border-radius: 12px; padding: 10px 12px; font-weight: 600; }
+  .qopt.good { border-color: #4C8C86; background: #EDF4F2; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chipw { background: #FFFFFF; border: 1.5px solid #DDD2C2; border-radius: 11px; padding: 8px 12px; font-weight: 650; box-shadow: 0 1px 0 rgba(43,38,34,.05); }
+  .chipw.placed { background: #EFE7DB; border-style: dashed; color: #8A8073; }
+  .slotline { min-height: 34px; border-bottom: 2px solid #DDD2C2; display: flex; gap: 6px; align-items: center; padding-bottom: 6px; }
+  .p-input { border: 1.5px solid #D08358; border-radius: 12px; background: #FFF; padding: 10px 12px; color: #8A8073; }
+  .p-progress { height: 4px; background: #ECE3D7; border-radius: 2px; margin: 2px 12px 0; overflow: hidden; }
+  .p-progress i { display: block; height: 100%; width: 40%; background: #4C8C86; border-radius: 2px; }
+  .check { color: #3E736E; font-weight: 800; }
+  .cross { color: #B0556B; font-weight: 800; }
+
+  /* fiche groupe */
+  .rulerow { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid #ECE3D7; }
+  .rulerow:last-child { border-bottom: 0; }
+  .rulerow .nm { flex: 1; font-weight: 600; font-size: 12px; }
+  .tag-v { font-size: 9px; background: #DCE9E6; color: #33635E; border-radius: 5px; padding: 1px 5px; font-weight: 700; letter-spacing: .03em; }
+  .dots3 { display: flex; gap: 3px; }
+  .dots3 i { width: 7px; height: 7px; border-radius: 50%; background: #ECE3D7; }
+  .dots3 i.on { background: #D08358; }
+  .mbar { height: 6px; border-radius: 3px; background: #ECE3D7; overflow: hidden; }
+  .mbar i { display: block; height: 100%; background: #4C8C86; }
+
+  /* ---------- annotations ---------- */
+  .anno { background: var(--bg-soft); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; margin-top: 4px; max-width: 900px; }
+  .anno ul { margin: 6px 0 0; padding-left: 18px; }
+  .anno li { margin: 3px 0; }
+  .anno .src { color: var(--faint); }
+  table.ramp { border-collapse: collapse; margin-top: 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+  table.ramp th, table.ramp td { border: 1px solid var(--line-strong); padding: 5px 12px; text-align: center; }
+  table.ramp th { background: var(--bg-soft); font-weight: 700; }
+  table.ramp td:first-child, table.ramp th:first-child { text-align: left; }
+
+  footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--faint); font-size: 12.5px; }
+  footer .mono { font-size: 11.5px; }
+  a { color: var(--teal-deep); }
+
+  @media (max-width: 640px) {
+    .stage { grid-template-columns: 1fr; }
+    .rail { display: flex; align-items: center; gap: 10px; }
+    .rail::after { display: none; }
+    .day { margin: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">VocabApp · design de référence · 2026-08-09</div>
+  <h1>Le flux complet d'une leçon du parcours</h1>
+  <p class="lede">
+    Une règle du parcours, de la découverte à la production libre, vue côté apprenant.
+    Exemple réel du catalogue : <b>« Le présent de l'indicatif (-ar / -er / -ir) »</b>
+    (<span class="mono">es-present-indicative</span>), apprenant francophone, espagnol · Niveau 1.
+    Type de leçon : conjugaison — l'UI dit « leçon », jamais « grammaire ».
+    Chaque phrase affichée n'utilise que du vocabulaire déjà connu de l'apprenant.
+  </p>
+  <div class="legend">
+    <span class="status st-decided">décidé (utilisateur)</span>
+    <span class="status st-proposed">proposé — à valider</span>
+    <span class="status st-default">défaut réglable (délégué)</span>
+  </div>
+
+  <!-- ═══════════ CONTEXTE ═══════════ -->
+  <section class="stage">
+    <div class="rail"><div class="day">S9</div></div>
+    <div>
+      <h2>Le point de départ <span class="where">— fiche de groupe, onglet Grammaire</span></h2>
+      <p class="sub">
+        Le chemin d'un niveau est une suite de <b>clusters de ~5 leçons liées</b>, débloqués un
+        par un. Dans le cluster ouvert, <b>l'ordre est libre</b> — chaque règle garde sa porte de
+        vocabulaire (<b>≥ 80 % de mots connus</b>, toutes listes confondues). Valider le Mélange
+        ferme le cluster et ouvre le suivant.
+      </p>
+      <div class="flowrow">
+        <div class="step">
+          <div class="phone">
+            <div class="p-bar"><span class="back">‹</span><span class="t">Au quotidien — cluster 1·2</span></div>
+            <div class="p-body">
+              <div class="p-card">
+                <div class="rulerow"><span class="nm">La vie quotidienne <span class="tag-v">VOCAB</span></span><span class="check">✓</span></div>
+                <div class="rulerow"><span class="nm">Les articles el / la</span><span class="dots3"><i class="on"></i><i class="on"></i><i class="on"></i></span><span class="check">✓</span></div>
+                <div class="rulerow"><span class="nm">Le présent (-ar/-er/-ir)</span><span class="dots3"><i></i><i></i><i></i></span><span style="font-size:11px;color:#C4703F;font-weight:700">à toi</span></div>
+                <div class="rulerow"><span class="nm">Au café <span class="tag-v">VOCAB</span></span><span style="font-size:11px;color:#33635E;font-weight:650">libre</span></div>
+                <div class="rulerow"><span class="nm">La négation avec no</span><span class="dots3"><i></i><i></i><i></i></span><span style="font-size:11px;color:#8A8073">vocab 64 %</span></div>
+                <div class="rulerow"><span class="nm">Mélange du cluster</span><span style="font-size:11px;color:#8A8073">valide le cluster</span></div>
+              </div>
+              <div class="p-card">
+                <div class="p-eyebrow">Portes de vocabulaire</div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                  <span style="flex:1;font-size:11.5px">La vie quotidienne</span>
+                  <div class="mbar" style="width:64px"><i style="width:85%"></i></div>
+                  <span style="font-size:11px;color:#33635E;font-weight:700">85 %</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                  <span style="flex:1;font-size:11.5px">Au café</span>
+                  <div class="mbar" style="width:64px"><i style="width:64%"></i></div>
+                  <span style="font-size:11px;color:#8A8073;font-weight:700">64 %</span>
+                </div>
+                <div class="p-note" style="margin-top:2px">une règle s'ouvre à 80 % global de ses listes</div>
+              </div>
+            </div>
+            <div class="p-cta clay">S'entraîner maintenant</div>
+          </div>
+          <div class="caption"><b>Fiche de cluster (S9)</b> — ordre libre dans le cluster ouvert ; pastilles ●●● par leçon, portes de vocab visibles.</div>
+        </div>
+      </div>
+      <div class="anno">
+        <span class="status st-decided">décidé</span> clusters MIXTES — listes de vocab + règles liées par thème,
+        ~5 leçons, ordre libre à l'intérieur <span class="src mono">(2026-08-09)</span> · porte vocab globale 80 %
+        · prérequis par <span class="mono">seed_id</span> de liste — <span class="src mono">map/grammar-flow.md</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ J0 : LA LEÇON ═══════════ -->
+  <section class="stage">
+    <div class="rail"><div class="day accent">J0</div></div>
+    <div>
+      <h2>La leçon <span class="where">— visionneuse S4, « moins un quiz, plus une leçon »</span></h2>
+      <p class="sub">
+        Paginée, <b>une idée par écran</b>, 3-6 pages, jamais un mur de texte. Les pages
+        <b>alternent</b> explication → exemple(s) → explication. Navigation libre dans les deux
+        sens, aucune note, reprise où on s'est arrêté. Chaque page se lit à voix haute —
+        <b>voix distinctes par rôle</b> : narrateur en français, exemples en espagnol.
+      </p>
+      <div class="flowrow">
+        <div class="step">
+          <div class="phone">
+            <div class="p-bar"><span class="back">‹</span><span class="t">Le présent (-ar)</span>
+              <span class="p-dots"><i class="on"></i><i></i><i></i><i></i><i></i></span></div>
+            <div class="p-body">
+              <div class="p-eyebrow">Explication · page 1/5</div>
+              <p class="p-text">Pour parler au présent, on prend le verbe, on retire
+                <span class="hl-teal">-ar</span>, et on ajoute la terminaison de la personne :
+                <span class="hl-clay">-o</span> pour « je ».</p>
+              <div class="p-card"><span class="p-text">trabaj<span class="hl-teal">ar</span> → trabaj + <span class="hl-clay">o</span> → <b>trabajo</b></span></div>
+              <span class="voice">voix narrateur · FR</span>
+            </div>
+            <div class="p-cta ghost">Glisser pour continuer →</div>
+          </div>
+          <div class="caption"><b>Page explication</b> — surlignage <span class="mono">[[clay]]</span> sur la terminaison enseignée, <span class="mono">((teal))</span> sur le contraste.</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step">
+          <div class="phone">
+            <div class="p-bar"><span class="back">‹</span><span class="t">Le présent (-ar)</span>
+              <span class="p-dots"><i></i><i class="on"></i><i></i><i></i><i></i></span></div>
+            <div class="p-body">
+              <div class="p-eyebrow">Exemple · page 2/5</div>
+              <div class="p-card">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <b>Trabaj<span class="hl-clay">o</span> por la mañana.</b><span class="voice"></span>
+                </div>
+                <div class="p-note">Je travaille le matin.</div>
+              </div>
+              <div class="p-card">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <b>Mi amigo com<span class="hl-clay">e</span> pan.</b><span class="voice"></span>
+                </div>
+                <div class="p-note">Mon ami mange du pain.</div>
+              </div>
+              <div class="p-note">tap sur une ligne = audio de la ligne</div>
+              <span class="voice">voix exemples · ES</span>
+            </div>
+            <div class="p-cta ghost">← Revenir · Continuer →</div>
+          </div>
+          <div class="caption"><b>Page exemples</b> — phrases utilisables en voyage, composées avec le vocab connu.</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step">
+          <div class="phone">
+            <div class="p-bar"><span class="back">‹</span><span class="t">Le présent (-ar)</span>
+              <span class="p-dots"><i></i><i></i><i class="on"></i><i></i><i></i></span></div>
+            <div class="p-body">
+              <div class="p-eyebrow">Vérif rapide · non notée</div>
+              <p class="p-text">Tu ___ en un restaurante. <span class="p-note">(trabajar, « tu »)</span></p>
+              <div class="qopt good">trabajas <span class="check" style="float:right">✓</span></div>
+              <div class="qopt">trabajo</div>
+              <div class="p-note">« tu » → terminaison -as. Simple auto-contrôle, rien n'est compté.</div>
+            </div>
+            <div class="p-cta ghost">Continuer →</div>
+          </div>
+          <div class="caption"><b>Quick-check</b> — toutes les 3-4 pages, jamais noté.</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step">
+          <div class="phone">
+            <div class="p-bar"><span class="back">‹</span><span class="t">Le présent (-ar)</span>
+              <span class="p-dots"><i></i><i></i><i></i><i class="on"></i><i></i></span></div>
+            <div class="p-body">
+              <div class="p-eyebrow">Dialogue · page 4/5</div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div class="bubble a"><div class="who">A</div>¿Dónde trabaj<span class="hl-clay">as</span>?</div>
+                <div class="bubble b"><div class="who">B</div>Trabaj<span class="hl-clay">o</span> en un café.</div>
+                <div class="bubble a"><div class="who">A</div>¿Y tu amigo?</div>
+                <div class="bubble b"><div class="who">B</div>Trabaj<span class="hl-clay">a</span> en la escuela.</div>
+              </div>
+              <span class="voice">tout lire · une voix par personnage</span>
+            </div>
+            <div class="p-cta ghost">Continuer →</div>
+          </div>
+          <div class="caption"><b>Page dialogue</b> — deux voix, bulles colorées par locuteur, tap-par-ligne.</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step">
+          <div class="phone">
+            <div class="p-bar"><span class="back">‹</span><span class="t">Le présent (-ar)</span>
+              <span class="p-dots"><i></i><i></i><i></i><i></i><i class="on"></i></span></div>
+            <div class="p-body" style="justify-content:center;align-items:center;text-align:center;gap:12px">
+              <div style="font-size:34px" class="check">✓</div>
+              <div class="p-title">Leçon terminée</div>
+              <p class="p-note">Demain dans ton chemin : <b>Reconnaître</b> — repérer la bonne forme.<br>Tu peux relire cette leçon à tout moment depuis la fiche du groupe.</p>
+            </div>
+            <div class="p-cta">Terminé</div>
+          </div>
+          <div class="caption"><b>Fin</b> — la suite est planifiée par le chemin du jour (J+1).</div>
+        </div>
+      </div>
+      <div class="anno">
+        <span class="status st-decided">décidé</span> forme paginée, alternance, nav libre, surlignages, multi-voix
+        <span class="src mono">(2026-07-22)</span> · texte des leçons <b>auteuré et figé</b>, exemples composés
+        depuis le <b>vocab connu</b> <span class="src mono">(2026-08-09)</span>
+        <ul>
+          <li><span class="status st-proposed">proposé</span> types de pages exacts (explication / exemple / quick-check / dialogue), 3-6 pages par petite règle</li>
+          <li><span class="status st-decided">décidé</span> voix ElevenLabs par rôle en premium, TTS système en free — jamais une porte sur le contenu</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ J+1 : RECONNAÎTRE ═══════════ -->
+  <section class="stage">
+    <div class="rail"><div class="day teal">J+1</div></div>
+    <div>
+      <h2>Reconnaître <span class="where">— QCM, ~8 items, ~2 min</span></h2>
+      <p class="sub">
+        Premier drill, gros échafaudage : <b>repérer</b> la bonne forme parmi des formes fausses.
+        Les distracteurs sont <b>générés par le moteur</b> depuis la mécanique de la règle
+        (mêmes personnes, mauvaise terminaison) — aucun contenu à auteurer.
+      </p>
+      <div class="flowrow">
+        <div class="step">
+          <div class="phone">
+            <div class="p-progress"><i style="width:38%"></i></div>
+            <div class="p-bar"><span class="t">Reconnaître · 3/8</span></div>
+            <div class="p-body">
+              <div class="p-eyebrow">Choisis la bonne forme</div>
+              <p class="p-text"><b>Mi amigo ___ pan.</b><br><span class="p-note">Mon ami mange du pain.</span></p>
+              <div class="qopt good">come</div>
+              <div class="qopt">como</div>
+              <div class="qopt">comes</div>
+              <div class="qopt">comer</div>
+            </div>
+            <div class="p-cta">Valider</div>
+          </div>
+          <div class="caption"><b>Feedback immédiat</b>, mauvaise réponse ré-expliquée avec la règle (« mi amigo » = il → -e).</div>
+        </div>
+      </div>
+      <div class="anno">
+        <span class="status st-decided">décidé</span> format validé comme base <span class="src mono">(2026-08-09)</span> ·
+        distracteurs déterministes via <span class="mono">mechanics</span> (conjugaison p1sg-p3sg)
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ J+2… : CONSTRUIRE, LA RAMPE ═══════════ -->
+  <section class="stage">
+    <div class="rail"><div class="day teal">J+2…</div></div>
+    <div>
+      <h2>Construire — la rampe de distracteurs <span class="where">— chips → production tapée</span></h2>
+      <p class="sub">
+        Le cœur de la décision anti-Duolingo : au début on <b>applique et on analyse</b> avec les
+        chips exacts ; à chaque palier réussi, des distracteurs s'ajoutent — pour qu'on ne puisse
+        plus résoudre par la position des mots, il faut <b>appliquer la règle</b>. Au bout de la
+        rampe, plus de chips : <b>on tape la phrase soi-même</b>. Construire → Écrire est un
+        continuum, pas deux exercices.
+      </p>
+      <div class="flowrow">
+        <div class="step">
+          <div class="phone">
+            <div class="p-progress"><i style="width:20%"></i></div>
+            <div class="p-bar"><span class="t">Construire · P0</span></div>
+            <div class="p-body">
+              <div class="p-eyebrow">Assemble la phrase</div>
+              <p class="p-text p-note">« Je vais à l'école. »</p>
+              <div class="slotline"><span class="chipw">Voy</span><span class="chipw">a</span></div>
+              <div class="chips">
+                <span class="chipw placed">Voy</span><span class="chipw placed">a</span>
+                <span class="chipw">la</span><span class="chipw">escuela</span>
+              </div>
+            </div>
+            <div class="p-cta">Vérifier</div>
+          </div>
+          <div class="caption"><b>P0 — chips exacts</b>, zéro distracteur : on découvre, on analyse.</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step">
+          <div class="phone">
+            <div class="p-progress"><i style="width:45%"></i></div>
+            <div class="p-bar"><span class="t">Construire · P1</span></div>
+            <div class="p-body">
+              <div class="p-eyebrow">Assemble la phrase</div>
+              <p class="p-text p-note">« Je vais à l'école. »</p>
+              <div class="slotline"></div>
+              <div class="chips">
+                <span class="chipw">a</span><span class="chipw">vas</span><span class="chipw">Voy</span>
+                <span class="chipw">escuela</span><span class="chipw">va</span><span class="chipw">la</span>
+              </div>
+            </div>
+            <div class="p-cta">Vérifier</div>
+          </div>
+          <div class="caption"><b>P1 — +2 distracteurs</b> : <span class="fam-conj">vas · va</span> (le même verbe, autres personnes). La position ne suffit plus.</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step">
+          <div class="phone">
+            <div class="p-progress"><i style="width:70%"></i></div>
+            <div class="p-bar"><span class="t">Construire · P2</span></div>
+            <div class="p-body">
+              <div class="p-eyebrow">Assemble la phrase</div>
+              <p class="p-text p-note">« Je vais à l'école. »</p>
+              <div class="slotline"></div>
+              <div class="chips">
+                <span class="chipw">vas</span><span class="chipw">la</span><span class="chipw">comes</span>
+                <span class="chipw">Voy</span><span class="chipw">el</span><span class="chipw">a</span>
+                <span class="chipw">tren</span><span class="chipw">escuela</span><span class="chipw">va</span>
+              </div>
+            </div>
+            <div class="p-cta">Vérifier</div>
+          </div>
+          <div class="caption"><b>P2 — les 3 familles</b> : <span class="fam-conj">vas · va</span> conjugaisons ·
+            <span class="fam-morph">el</span> variante morpho (genre) · <span class="fam-lure">comes · tren</span> leurres hors phrase.</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step">
+          <div class="phone">
+            <div class="p-progress"><i style="width:90%"></i></div>
+            <div class="p-bar"><span class="t">Écrire · P3</span></div>
+            <div class="p-body">
+              <div class="p-eyebrow">Écris la phrase en espagnol</div>
+              <p class="p-text p-note">« Je vais à l'école. »</p>
+              <div class="p-input">Voy a la escuel|</div>
+              <div class="p-note">Plus de chips : production libre. Correction tolérante (accents, majuscules).</div>
+            </div>
+            <div class="p-cta">Vérifier</div>
+          </div>
+          <div class="caption"><b>P3 — l'échafaudage a disparu.</b> La règle est à toi.</div>
+        </div>
+      </div>
+      <div class="anno">
+        <span class="status st-decided">décidé</span> progression des distracteurs + bascule finale vers la
+        production tapée · déclencheur = <b>réussites sur la règle × maturité globale</b> (règles + vocab connus)
+        <span class="src mono">(2026-08-09)</span>
+        <ul>
+          <li><span class="status st-default">défauts réglables</span> seuils par maturité (passages réussis pour monter P0→P1→P2→P3) :</li>
+        </ul>
+        <table class="ramp">
+          <tr><th>Profil (règles maîtrisées, par langue)</th><th>P0</th><th>P1</th><th>P2</th></tr>
+          <tr><td>Novice · &lt; 5</td><td>2</td><td>3</td><td>3</td></tr>
+          <tr><td>Intermédiaire · 5-14</td><td>1</td><td>2</td><td>2</td></tr>
+          <tr><td>Avancé · ≥ 15</td><td>démarre à P1</td><td>1</td><td>2</td></tr>
+        </table>
+        <ul>
+          <li><span class="status st-default">défaut</span> 2 échecs consécutifs → on redescend d'un palier (jamais sous P0) · ≤ 12 chips à l'écran</li>
+          <li><span class="status st-default">défaut</span> ratio P2 ≈ 2 conjugaisons : 2 variantes : 1 leurre — les conjugaisons testent la règle, les leurres surtout le vocab</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ MÉLANGE ═══════════ -->
+  <section class="stage">
+    <div class="rail"><div class="day accent">Fin de groupe</div></div>
+    <div>
+      <h2>Le Mélange <span class="where">— le quiz de validation du cluster</span></h2>
+      <p class="sub">
+        Une vraie phrase n'utilise jamais une règle isolée. Quand les leçons du cluster sont
+        faites, le Mélange <b>enseigne leur interaction</b> — même visionneuse S4, mais le sujet
+        est la combinaison — puis une session mixte le prouve. Réussi → cluster ✓, le suivant s'ouvre.
+      </p>
+      <div class="flowrow">
+        <div class="step">
+          <div class="phone">
+            <div class="p-bar"><span class="back">‹</span><span class="t">Mélange — Au quotidien</span>
+              <span class="p-dots"><i class="on"></i><i></i><i></i><i></i></span></div>
+            <div class="p-body">
+              <div class="p-eyebrow">Leçon de combinaison</div>
+              <p class="p-text">Tout se joue ensemble : l'article s'accorde, le verbe se conjugue,
+                <span class="hl-teal">no</span> se place devant.</p>
+              <div class="p-card">
+                <b><span class="hl-teal">No</span> com<span class="hl-clay">o</span> en <span class="hl-clay">la</span> escuela.</b>
+                <div class="p-note">Je ne mange pas à l'école.</div>
+              </div>
+              <span class="voice">3 règles dans une phrase</span>
+            </div>
+            <div class="p-cta ghost">Continuer →</div>
+          </div>
+          <div class="caption"><b>Leçon de combinaison</b> — presque que des exemples et dialogues : rien de neuf à apprendre, tout à relier.</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step">
+          <div class="phone">
+            <div class="p-progress"><i style="width:60%"></i></div>
+            <div class="p-bar"><span class="t">Session mixte · 6/10</span></div>
+            <div class="p-body">
+              <div class="p-eyebrow">Complète</div>
+              <p class="p-text"><b>___ amiga no trabaj___ el domingo.</b><br>
+                <span class="p-note">Mon amie ne travaille pas le dimanche.</span></p>
+              <div class="chips">
+                <span class="chipw">Mi</span><span class="chipw">a</span><span class="chipw">-o</span><span class="chipw">-a</span><span class="chipw">-as</span>
+              </div>
+              <div class="p-note">items mêlant les 5 règles · 2-3 items parlés en fin de session</div>
+            </div>
+            <div class="p-cta">Vérifier</div>
+          </div>
+          <div class="caption"><b>Drill mixte</b> — cloze/construire/tapé sur toutes les règles, la rampe reste active.</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step">
+          <div class="phone">
+            <div class="p-body" style="justify-content:center;align-items:center;text-align:center;gap:10px">
+              <div style="font-size:34px" class="check">✓</div>
+              <div class="p-title">Cluster validé — 86 %</div>
+              <p class="p-note">Au quotidien · cluster 1·2<br><b>Cluster suivant débloqué :</b> En ville.</p>
+              <div class="mbar" style="width:120px"><i style="width:86%"></i></div>
+            </div>
+            <div class="p-cta clay">Continuer le parcours</div>
+          </div>
+          <div class="caption"><b>≥ 80 % → cluster ✓.</b> Échec : retenté demain avec un mix plus facile.</div>
+        </div>
+      </div>
+      <div class="anno">
+        <span class="status st-decided">décidé</span> le Mélange <b>est</b> le quiz de validation du cluster —
+        pas d'examen séparé <span class="src mono">(2026-08-09)</span>
+        <ul>
+          <li><span class="status st-proposed">proposé — en attente de validation</span> la recette : leçon de combinaison 4-6 pages
+            + ~10 items mixtes + 2-3 parlés · barre à 80 %</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ APRÈS ═══════════ -->
+  <section class="stage">
+    <div class="rail"><div class="day">∞</div></div>
+    <div>
+      <h2>Et après <span class="where">— la règle vit dans les révisions</span></h2>
+      <p class="sub">
+        Une règle « finie » n'est pas rangée : elle revient en <b>cloze et dialogues</b> dans les
+        révisions du chemin quotidien, mêlée au vocabulaire FSRS. Groupe après groupe, le niveau
+        se remplit ; le <b>test de palier (S17)</b> ferme le niveau — le réussir déverrouille
+        toutes les règles du niveau suivant.
+      </p>
+      <div class="anno">
+        <span class="status st-decided">décidé</span> examen de fin de palier ; démarrer plus haut exige de le réussir
+        <span class="src mono">(2026-08-06/07 · map/level-test.md)</span> ·
+        <span class="status st-proposed">proposé</span> session mixte ~20-30 items, barre ~85 %, sert aussi de placement
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Maquette de référence — pas du code de production. Spécifications :
+    <span class="mono">docs/design/map/grammar-flow.md · lesson-viewer.md · grammar-drills.md · level-test.md ·
+    docs/grammar-lessons-redesign.md · docs/design/v2-ux-architecture.md §6.4/§6.8</span><br>
+    Contenu : règle réelle <span class="mono">es-present-indicative</span> du catalogue seed · palette = thème clair de l'app
+    (<span class="mono">lib/core/theme/app_colors.dart</span>).
+  </footer>
+</div>
