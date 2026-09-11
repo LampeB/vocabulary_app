@@ -141,11 +141,20 @@
   .check { color: #3E736E; font-weight: 800; }
   .cross { color: #B0556B; font-weight: 800; }
 
-  /* fiche groupe */
-  .rulerow { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid #ECE3D7; }
+  /* fiche de cluster — grammaire d'états unique (2026-08-13) */
+  .rulerow { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #ECE3D7; }
   .rulerow:last-child { border-bottom: 0; }
-  .rulerow .nm { flex: 1; font-weight: 600; font-size: 12px; }
+  .rulerow .nm { font-weight: 650; font-size: 12.5px; }
+  .rulerow .rsub { font-size: 10.5px; color: #756C62; font-weight: 500; }
+  .rulerow .rtxt { flex: 1; min-width: 0; }
   .tag-v { font-size: 9px; background: #DCE9E6; color: #33635E; border-radius: 5px; padding: 1px 5px; font-weight: 700; letter-spacing: .03em; }
+  .scircle { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; border: 2px solid #DDD2C2; color: #8A8073; background: #FFF; flex-shrink: 0; }
+  .scircle.done { background: #EDF4F2; border-color: #4C8C86; color: #3E736E; }
+  .scircle.cur  { background: #F6DFCE; border-color: #D08358; font-size: 12px; }
+  .scircle.avail{ border-color: #4C8C86; color: #3E736E; }
+  .scircle.lock { border-color: #E3D9CB; color: #B0A695; background: #F6F1EA; }
+  .rgate { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
   .dots3 { display: flex; gap: 3px; }
   .dots3 i { width: 7px; height: 7px; border-radius: 50%; background: #ECE3D7; }
   .dots3 i.on { background: #D08358; }
@@ -195,50 +204,66 @@
   <section class="stage">
     <div class="rail"><div class="day">S9</div></div>
     <div>
-      <h2>Le point de départ <span class="where">— fiche de groupe, onglet Grammaire</span></h2>
+      <h2>Le point de départ <span class="where">— fiche de cluster, onglet Leçons</span></h2>
       <p class="sub">
         Le chemin d'un niveau est une suite de <b>clusters de ~5 leçons liées</b>, débloqués un
-        par un. Dans le cluster ouvert, <b>l'ordre est libre</b> — chaque règle garde sa porte de
+        par un. Dans le cluster ouvert, <b>l'ordre est libre</b> — chaque leçon garde sa porte de
         vocabulaire (<b>≥ 80 % de mots connus</b>, toutes listes confondues). Valider le Mélange
-        ferme le cluster et ouvre le suivant.
+        ferme le cluster et ouvre le suivant. Une seule grammaire d'états partout : <b>✓ fait ·
+        📖 en cours · ▶ prête · 🔒 verrouillée.</b>
       </p>
       <div class="flowrow">
         <div class="step">
           <div class="phone">
             <div class="p-bar"><span class="back">‹</span><span class="t">Au quotidien — cluster 1·2</span></div>
             <div class="p-body">
-              <div class="p-card">
-                <div class="rulerow"><span class="nm">La vie quotidienne <span class="tag-v">VOCAB</span></span><span class="check">✓</span></div>
-                <div class="rulerow"><span class="nm">Les articles el / la</span><span class="dots3"><i class="on"></i><i class="on"></i><i class="on"></i></span><span class="check">✓</span></div>
-                <div class="rulerow"><span class="nm">Le présent (-ar/-er/-ir)</span><span class="dots3"><i></i><i></i><i></i></span><span style="font-size:11px;color:#C4703F;font-weight:700">à toi</span></div>
-                <div class="rulerow"><span class="nm">Au café <span class="tag-v">VOCAB</span></span><span style="font-size:11px;color:#33635E;font-weight:650">libre</span></div>
-                <div class="rulerow"><span class="nm">La négation avec no</span><span class="dots3"><i></i><i></i><i></i></span><span style="font-size:11px;color:#8A8073">vocab 64 %</span></div>
-                <div class="rulerow"><span class="nm">Mélange du cluster</span><span style="font-size:11px;color:#8A8073">valide le cluster</span></div>
+              <div class="p-eyebrow">2/5 leçons ✓ · 1/2 listes de vocab maîtrisées · ordre libre</div>
+              <div class="p-card" style="padding:2px 12px">
+                <div class="rulerow"><span class="scircle done">✓</span>
+                  <span class="rtxt"><span class="nm">La vie quotidienne <span class="tag-v">VOCAB</span></span><br>
+                  <span class="rsub">liste de mots · maîtrisée à 85 %</span></span></div>
+                <div class="rulerow"><span class="scircle done">✓</span>
+                  <span class="rtxt"><span class="nm">Les articles el / la</span><br>
+                  <span class="rsub">grammaire · maîtrisée</span></span></div>
+                <div class="rulerow"><span class="scircle cur">📖</span>
+                  <span class="rtxt"><span class="nm">Le présent (-ar/-er/-ir)</span><br>
+                  <span class="rsub">conjugaison · prochaine étape : la leçon</span></span>
+                  <span style="color:#C4703F;font-weight:800">›</span></div>
+                <div class="rulerow"><span class="scircle avail">▶</span>
+                  <span class="rtxt"><span class="nm">Au café <span class="tag-v">VOCAB</span></span><br>
+                  <span class="rsub">liste de mots · prête à étudier</span></span></div>
+                <div class="rulerow"><span class="scircle lock">🔒</span>
+                  <span class="rtxt"><span class="nm">La négation avec no</span><br>
+                  <span class="rsub">grammaire · se débloque à 80 % du vocab « Au café »</span>
+                  <span class="rgate"><span class="mbar" style="width:80px"><i style="width:64%"></i></span>
+                  <span class="rsub" style="font-weight:700">64 % / 80 %</span></span></span></div>
               </div>
               <div class="p-card">
-                <div class="p-eyebrow">Portes de vocabulaire</div>
-                <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-                  <span style="flex:1;font-size:11.5px">La vie quotidienne</span>
-                  <div class="mbar" style="width:64px"><i style="width:85%"></i></div>
-                  <span style="font-size:11px;color:#33635E;font-weight:700">85 %</span>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span class="scircle lock" style="border-style:dashed">🎯</span>
+                  <span class="rtxt"><span class="nm">Mélange — le quiz du cluster</span><br>
+                  <span class="rsub">s'ouvre quand les 5 leçons sont faites · 2/5</span></span>
                 </div>
-                <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-                  <span style="flex:1;font-size:11.5px">Au café</span>
-                  <div class="mbar" style="width:64px"><i style="width:64%"></i></div>
-                  <span style="font-size:11px;color:#8A8073;font-weight:700">64 %</span>
-                </div>
-                <div class="p-note" style="margin-top:2px">une règle s'ouvre à 80 % global de ses listes</div>
               </div>
             </div>
-            <div class="p-cta clay">S'entraîner maintenant</div>
+            <div class="p-cta clay">Continuer : Le présent — la leçon</div>
           </div>
-          <div class="caption"><b>Fiche de cluster (S9)</b> — ordre libre dans le cluster ouvert ; pastilles ●●● par leçon, portes de vocab visibles.</div>
+          <div class="caption"><b>Fiche de cluster (S9)</b> — refonte 2026-08-13 : une grammaire d'états unique, la
+            porte de vocab s'affiche SUR la leçon qu'elle bloque, le Mélange est un bloc but distinct, le CTA
+            nomme l'action.</div>
         </div>
       </div>
       <div class="anno">
         <span class="status st-decided">décidé</span> clusters MIXTES — listes de vocab + règles liées par thème,
         ~5 leçons, ordre libre à l'intérieur <span class="src mono">(2026-08-09)</span> · porte vocab globale 80 %
         · prérequis par <span class="mono">seed_id</span> de liste — <span class="src mono">map/grammar-flow.md</span>
+        <ul>
+          <li><span class="status st-decided">décidé</span> résumé chiffré du cluster en cours visible partout
+            (fiche + route) : « X/5 leçons · Y/2 listes maîtrisées » <span class="src mono">(2026-08-13)</span></li>
+          <li><span class="status st-proposed">proposé</span> fiche clarifiée — retour utilisateur : l'ancienne
+            version (états mélangés, carte « Portes » séparée, CTA générique) était illisible
+            <span class="src mono">(2026-08-13)</span></li>
+        </ul>
       </div>
     </div>
   </section>
@@ -340,7 +365,7 @@
             <div class="p-body" style="justify-content:center;align-items:center;text-align:center;gap:12px">
               <div style="font-size:34px" class="check">✓</div>
               <div class="p-title">Leçon terminée</div>
-              <p class="p-note">Demain dans ton chemin : <b>Reconnaître</b> — repérer la bonne forme.<br>Tu peux relire cette leçon à tout moment depuis la fiche du groupe.</p>
+              <p class="p-note">Demain dans ton chemin : <b>Reconnaître</b> — repérer la bonne forme.<br>Tu peux relire cette leçon à tout moment depuis la fiche du cluster.</p>
             </div>
             <div class="p-cta">Terminé</div>
           </div>
@@ -501,7 +526,7 @@
 
   <!-- ═══════════ MÉLANGE ═══════════ -->
   <section class="stage">
-    <div class="rail"><div class="day accent">Fin de groupe</div></div>
+    <div class="rail"><div class="day accent">Fin de cluster</div></div>
     <div>
       <h2>Le Mélange <span class="where">— le quiz de validation du cluster</span></h2>
       <p class="sub">
@@ -578,7 +603,7 @@
       <h2>Et après <span class="where">— la règle vit dans les révisions</span></h2>
       <p class="sub">
         Une règle « finie » n'est pas rangée : elle revient en <b>cloze et dialogues</b> dans les
-        révisions du chemin quotidien, mêlée au vocabulaire FSRS. Groupe après groupe, le niveau
+        révisions du chemin quotidien, mêlée au vocabulaire FSRS. Cluster après cluster, le niveau
         se remplit ; le <b>test de palier (S17)</b> ferme le niveau — le réussir déverrouille
         toutes les règles du niveau suivant.
       </p>

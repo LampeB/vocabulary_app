@@ -18,8 +18,13 @@ note : le FAB central est mort (footer 5 slots égaux, décidé 2026-08-07)
   pratique libre ne contourne pas la porte)
 - Deux taps pour relancer la dernière session
 
+## Décidé (utilisateur, 2026-08-21)
+- **Bottom sheet confirmé** — la maquette du playground (3 choix : quoi,
+  sens, mode, puis « Lancer ») est validée telle quelle, pas de plein
+  écran
+
 ## À trancher 🔴
-- Bottom sheet vs plein écran ; visibilité de l'entrée dans Étudier
-  (carte ? bouton sous le parcours ?)
+- (rien — bottom sheet tranché ; l'entrée en pastille sous le parcours
+  reste la forme testée)
 
 Liens : [[navigation]] · [[quiz-canvas]] · [[vocab-flow]]

@@ -3,6 +3,24 @@
 **Statut : 🟢 décidé** · spec : `../v2-ux-architecture.md §7` ·
 `../../feature-roadmap.md` § multi-language
 
+## Décidé (utilisateur, 2026-08-13) — le sélecteur d'en-tête montre la PAIRE
+- Le chip d'en-tête doit afficher la paire (« FR ↔ ES »), jamais la
+  langue cible seule (« Espagnol ») — la langue de base varie d'une
+  langue étudiée à l'autre pour un même utilisateur (ex. il apprend
+  l'espagnol depuis le français mais le coréen depuis l'anglais),
+  l'afficher évite de supposer une base fixe
+- (2026-08-13, suite) Le chip d'en-tête EST le seul sélecteur de
+  langue — les chips de filtre par paire proposés pour l'onglet
+  Vocabulaire sont abandonnés (redondants). Tap sur le chip → feuille
+  « Tes langues » : switch entre langues déjà démarrées (série et
+  niveau par langue, cohérent avec [[daily-chain]]) **et** démarrer
+  une nouvelle langue depuis la même feuille
+- (2026-08-13, suite) Démarrer une langue = DEUX étapes explicites,
+  jamais une base supposée : 1) choisir la langue à ÉTUDIER (cible),
+  2) choisir depuis quelle langue on l'apprend (base — langue des
+  explications/leçons). Renforce la décision ci-dessus (pas de base
+  fixe) au moment précis où elle compte le plus : la création
+
 ## Décidé (utilisateur, 2026-07-22, livré en partie)
 - Toute feature doit marcher pour TOUTES les paires étudiables — rien de
   coréen-only par accident

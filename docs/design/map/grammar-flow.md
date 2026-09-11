@@ -114,9 +114,24 @@ diagrammes : `../diagrams/v2-grammar-flow.svg`, `../diagrams/grammar-stage-ramp.
   moins 4, décidé 2026-08-13) + 1-2 listes de vocab ; nombre de
   clusters par niveau dérivé du contenu réel (~3-4 au lancement)
 
+## Proposé (Claude, 2026-08-13) — fiche de cluster clarifiée (retour utilisateur : illisible)
+- UNE seule grammaire d'états, la même que la route : ✓ fait ·
+  📖 en cours · ▶ prête · 🔒 verrouillée — fini les libellés mélangés
+  (« libre », « à toi », pastilles muettes)
+- Chaque leçon porte un sous-libellé : son TYPE + sa prochaine étape
+  (« conjugaison · prochaine étape : Reconnaître »)
+- La porte de vocab s'affiche SUR la leçon qu'elle bloque (mini-barre
+  64 % / 80 %) — plus de carte « Portes » séparée
+- Le Mélange = bloc but distinct avec sa progression (« s'ouvre quand
+  les 5 leçons sont faites · 2/5 »)
+- Le CTA nomme l'action (« Continuer : Le présent — la leçon »,
+  « Lancer le Mélange ») au lieu d'un générique
+- Implémenté dans le playground — à valider en cliquant
+
 ## À trancher 🔴
 - (rien — la recette du Mélange est validée 2026-08-13, quiz ≥ 20
-  questions sans vocab pur : voir [[grammar-drills]])
+  questions sans vocab pur : voir [[grammar-drills]] ; la fiche
+  clarifiée ci-dessus attend validation)
 - ~~Contenu et flux du Niveau 0~~ → axes décidés 2026-08-13, sa carte :
   [[niveau-0]] (restent : tracé ?, obligatoire ?, romanisation)
 

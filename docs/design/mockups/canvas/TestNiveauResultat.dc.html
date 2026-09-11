@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #C4703F; text-decoration: none; }
+    a:hover { color: #A85A30; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; background: #F6F1EA; box-sizing: border-box; padding: 40px 24px 30px; display: flex; flex-direction: column; gap: 22px; font-family: Figtree, system-ui, sans-serif; color: #2B2622;">
+
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center;">
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none" aria-hidden="true">
+      <circle cx="40" cy="40" r="31" fill="#FBF0EA"/>
+      <circle cx="40" cy="40" r="31" stroke="#D08358" stroke-width="2.4"/>
+      <path d="M31 41.5l7 7 12-15" stroke="#C4703F" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <h1 style="margin: 0; font-size: 26px; line-height: 1.14; font-weight: 800; letter-spacing: -0.01em;">Test réussi — 21/24</h1>
+      <p style="margin: 0; font-size: 14.5px; line-height: 1.5; color: #756C62;">Tu es placé au <b style="color: #2B2622; font-weight: 700;">niveau 2</b>.</p>
+    </div>
+  </div>
+
+  <div style="background: #FFFFFF; border: 1px solid #ECE3D7; border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 13px;">
+    <span style="font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: #6F695F;">Par domaine</span>
+
+    <div style="display: flex; align-items: center; gap: 11px;">
+      <span style="width: 74px; font-size: 12.5px; font-weight: 650; color: #756C62;">Vocabulaire</span>
+      <span style="flex: 1; height: 8px; border-radius: 4px; background: #ECE3D7; overflow: hidden; display: block;"><span style="display: block; height: 100%; width: 92%; background: #4C8C86;"></span></span>
+      <b style="font-size: 12.5px; font-variant-numeric: tabular-nums; width: 34px; text-align: right;">11/12</b>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 11px;">
+      <span style="width: 74px; font-size: 12.5px; font-weight: 650; color: #756C62;">Leçons</span>
+      <span style="flex: 1; height: 8px; border-radius: 4px; background: #ECE3D7; overflow: hidden; display: block;"><span style="display: block; height: 100%; width: 83%; background: #4C8C86;"></span></span>
+      <b style="font-size: 12.5px; font-variant-numeric: tabular-nums; width: 34px; text-align: right;">10/12</b>
+    </div>
+  </div>
+
+  <div style="background: #FFFFFF; border: 1px solid #ECE3D7; border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+    <span style="font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: #6F695F;">Ce qui change</span>
+    <div style="display: flex; align-items: flex-start; gap: 11px;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#4C8C86" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+      <span style="flex: 1; font-size: 13.5px; line-height: 1.45; color: #756C62;">Le <b style="color: #2B2622; font-weight: 700;">niveau 1 est marqué acquis</b> — tu peux toujours y revenir.</span>
+    </div>
+    <div style="display: flex; align-items: flex-start; gap: 11px;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#4C8C86" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+      <span style="flex: 1; font-size: 13.5px; line-height: 1.45; color: #756C62;">Les <b style="color: #2B2622; font-weight: 700;">4 clusters du niveau 2</b> s'ouvrent, chacun derrière sa porte de vocabulaire.</span>
+    </div>
+    <div style="display: flex; align-items: flex-start; gap: 11px;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#8A8073" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4.5"/><circle cx="12" cy="8.2" r="0.9" fill="#8A8073"/></svg>
+      <span style="flex: 1; font-size: 13.5px; line-height: 1.45; color: #756C62;">Les mots du niveau 1 <b style="color: #2B2622; font-weight: 700;">n'entrent pas d'un coup</b> en révision — ils arriveront au fil des rencontres.</span>
+    </div>
+  </div>
+
+  <div style="margin-top: auto; min-height: 54px; border-radius: 16px; background: #A85A30; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 15.5px; font-weight: 700;">Voir mon parcours</div>
+
+</div>
+</x-dc>
+</body>
+</html>

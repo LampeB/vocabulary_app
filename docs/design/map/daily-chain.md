@@ -31,9 +31,11 @@ schéma : `../diagrams/v2-daily-chain.svg` (sources → générateur → étapes
   aujourd'hui ? »
 
 ## Proposé — pas encore vetté (Claude, réglages de build)
-- Quotas : 2-5 étapes/jour, 1-2 grammaire, budget ~8 mots ; étapes de
-  2-5 min ; grosse journée d'échéances → max ~20 mots par étape Réviser,
-  le surplus en 2ᵉ étape ou vers Pratique libre
+- Quotas : 2-5 étapes/jour, 1-2 grammaire ; budget de nouveaux mots
+  **tranché 2026-08-21** : 5-10/jour, adaptatif par semaine (voir
+  [[vocab-flow]]) ; étapes de 2-5 min ; grosse journée d'échéances →
+  max ~20 mots par étape Réviser, le surplus en 2ᵉ étape ou vers
+  Pratique libre
 - Hier disparaît sans culpabilisation ; étape sautée reste disponible
 - Résumé de session avec bloc « et ensuite » (Continuer le chemin)
 

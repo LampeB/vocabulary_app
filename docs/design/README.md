@@ -13,6 +13,12 @@ reference is permanent and version-controlled in the repo.
 > currently lives in Notion: **VocabKR — Design System & Screen Reference**
 > (under the "VocabApp — Flutter App" hub).
 
+> The repository decision record for interaction language lives in
+> [`map/interaction-language.md`](map/interaction-language.md): navigation
+> dives into a selected element, flashcard stacks belong only to revision
+> quizzes, lesson details use contextual popups, and scrolling is minimized
+> but clearly signalled when needed.
+
 All frames are designed at a **380 px-wide** phone frame; scale proportionally.
 
 ## Screens

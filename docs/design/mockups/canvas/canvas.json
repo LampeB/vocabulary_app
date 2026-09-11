@@ -1,0 +1,623 @@
+{
+  "pages": [
+    {
+      "id": "page-0",
+      "name": "★ Plan du flux"
+    },
+    {
+      "id": "page-1",
+      "name": "1 · PREMIÈRE OUVERTURE"
+    },
+    {
+      "id": "page-2",
+      "name": "2 · NIVEAU 0 — L'ÉCRITURE"
+    },
+    {
+      "id": "page-3",
+      "name": "3 · L'ACCUEIL ET CE QUI EN PART"
+    },
+    {
+      "id": "page-4",
+      "name": "4 · APPRENDRE UNE LEÇON"
+    },
+    {
+      "id": "page-5",
+      "name": "5 · LA BOUCLE DU JOUR"
+    },
+    {
+      "id": "page-6",
+      "name": "6 · CONSULTER"
+    },
+    {
+      "id": "page-7",
+      "name": "7 · ÉTATS LIMITES"
+    }
+  ],
+  "artboards": [
+    {
+      "file": "PlanDuFlux.dc.html",
+      "page": "page-0",
+      "x": 0,
+      "y": 0,
+      "w": 3120,
+      "h": 3365,
+      "title": "Enchaînement des écrans — les vraies maquettes, reliées",
+      "print": "flow"
+    },
+    {
+      "file": "Prechargement.dc.html",
+      "page": "page-1",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Préchargement"
+    },
+    {
+      "file": "Main.dc.html",
+      "page": "page-1",
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Bienvenue"
+    },
+    {
+      "file": "LangueCible.dc.html",
+      "page": "page-1",
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Langue cible"
+    },
+    {
+      "file": "LangueBase.dc.html",
+      "page": "page-1",
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Langue de base"
+    },
+    {
+      "file": "NiveauDepart.dc.html",
+      "page": "page-1",
+      "x": 1880,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Point de départ"
+    },
+    {
+      "file": "ObjectifQuotidien.dc.html",
+      "page": "page-1",
+      "x": 2350,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Objectif quotidien"
+    },
+    {
+      "file": "PremierChemin.dc.html",
+      "page": "page-1",
+      "x": 2820,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "C'est prêt"
+    },
+    {
+      "file": "TestNiveauIntro.dc.html",
+      "page": "page-1",
+      "x": 3290,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Test — intro"
+    },
+    {
+      "file": "TestNiveauResultat.dc.html",
+      "page": "page-1",
+      "x": 0,
+      "y": 1000,
+      "w": 390,
+      "h": 844,
+      "title": "Test — réussi"
+    },
+    {
+      "file": "TestNiveauEchoue.dc.html",
+      "page": "page-1",
+      "x": 470,
+      "y": 1000,
+      "w": 390,
+      "h": 844,
+      "title": "Test — pas encore"
+    },
+    {
+      "file": "Niveau0Cluster.dc.html",
+      "page": "page-2",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Les groupes de jamo"
+    },
+    {
+      "file": "Niveau0Reconnaitre.dc.html",
+      "page": "page-2",
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Reconnaître"
+    },
+    {
+      "file": "Niveau0Discrimination.dc.html",
+      "page": "page-2",
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Écouter"
+    },
+    {
+      "file": "Niveau0Syllabe.dc.html",
+      "page": "page-2",
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Composer une syllabe"
+    },
+    {
+      "file": "Parcours.dc.html",
+      "page": "page-3",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "PARCOURS — l'accueil"
+    },
+    {
+      "file": "CheminDuJour.dc.html",
+      "page": "page-3",
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Chemin du jour"
+    },
+    {
+      "file": "CheminTermine.dc.html",
+      "page": "page-3",
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Journée complète"
+    },
+    {
+      "file": "PratiqueLibre.dc.html",
+      "page": "page-3",
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Pratique libre"
+    },
+    {
+      "file": "MenuGeneral.dc.html",
+      "page": "page-3",
+      "x": 1880,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Menu général"
+    },
+    {
+      "file": "SelecteurLangue.dc.html",
+      "page": "page-3",
+      "x": 2350,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Tes langues"
+    },
+    {
+      "file": "FicheCluster.dc.html",
+      "page": "page-4",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Fiche de cluster"
+    },
+    {
+      "file": "LeconExplication.dc.html",
+      "page": "page-4",
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Leçon 1/6"
+    },
+    {
+      "file": "LeconExemples.dc.html",
+      "page": "page-4",
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Leçon 2/6"
+    },
+    {
+      "file": "LeconQuickCheck.dc.html",
+      "page": "page-4",
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Leçon 3/6"
+    },
+    {
+      "file": "LeconIrregulier.dc.html",
+      "page": "page-4",
+      "x": 1880,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Leçon 4/6"
+    },
+    {
+      "file": "LeconDialogue.dc.html",
+      "page": "page-4",
+      "x": 2350,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Leçon 5/6"
+    },
+    {
+      "file": "LeconFin.dc.html",
+      "page": "page-4",
+      "x": 2820,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Leçon 6/6"
+    },
+    {
+      "file": "Reconnaitre.dc.html",
+      "page": "page-4",
+      "x": 3290,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Reconnaître"
+    },
+    {
+      "file": "ConstruireP0.dc.html",
+      "page": "page-4",
+      "x": 0,
+      "y": 1000,
+      "w": 390,
+      "h": 844,
+      "title": "Construire P0"
+    },
+    {
+      "file": "ConstruireP2.dc.html",
+      "page": "page-4",
+      "x": 470,
+      "y": 1000,
+      "w": 390,
+      "h": 844,
+      "title": "Construire P2"
+    },
+    {
+      "file": "ConstruireP3.dc.html",
+      "page": "page-4",
+      "x": 940,
+      "y": 1000,
+      "w": 390,
+      "h": 844,
+      "title": "Écrire P3"
+    },
+    {
+      "file": "MelangeLecon.dc.html",
+      "page": "page-4",
+      "x": 1410,
+      "y": 1000,
+      "w": 390,
+      "h": 844,
+      "title": "Mélange — leçon"
+    },
+    {
+      "file": "MelangeDrill.dc.html",
+      "page": "page-4",
+      "x": 1880,
+      "y": 1000,
+      "w": 390,
+      "h": 844,
+      "title": "Mélange — quiz"
+    },
+    {
+      "file": "ClusterValide.dc.html",
+      "page": "page-4",
+      "x": 2350,
+      "y": 1000,
+      "w": 390,
+      "h": 844,
+      "title": "Cluster validé"
+    },
+    {
+      "file": "Decouvrir.dc.html",
+      "page": "page-5",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Découvrir"
+    },
+    {
+      "file": "Echo.dc.html",
+      "page": "page-5",
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Écho"
+    },
+    {
+      "file": "Flashcard.dc.html",
+      "page": "page-5",
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Cartes"
+    },
+    {
+      "file": "FlashcardRevelee.dc.html",
+      "page": "page-5",
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Cartes — révélée"
+    },
+    {
+      "file": "Ecrire.dc.html",
+      "page": "page-5",
+      "x": 1880,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Écrire"
+    },
+    {
+      "file": "Voix.dc.html",
+      "page": "page-5",
+      "x": 2350,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Voix"
+    },
+    {
+      "file": "MainsLibres.dc.html",
+      "page": "page-5",
+      "x": 2820,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Mains libres"
+    },
+    {
+      "file": "Cloze.dc.html",
+      "page": "page-5",
+      "x": 3290,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Cloze — en contexte"
+    },
+    {
+      "file": "FeedbackJuste.dc.html",
+      "page": "page-5",
+      "x": 0,
+      "y": 1000,
+      "w": 390,
+      "h": 844,
+      "title": "Flood « Juste ! »"
+    },
+    {
+      "file": "FeedbackARevoir.dc.html",
+      "page": "page-5",
+      "x": 470,
+      "y": 1000,
+      "w": 390,
+      "h": 844,
+      "title": "Flood « À revoir »"
+    },
+    {
+      "file": "Resume.dc.html",
+      "page": "page-5",
+      "x": 940,
+      "y": 1000,
+      "w": 390,
+      "h": 844,
+      "title": "Résumé → Chemin"
+    },
+    {
+      "file": "VocabTab.dc.html",
+      "page": "page-6",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Vocabulaire"
+    },
+    {
+      "file": "ListeDetail.dc.html",
+      "page": "page-6",
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Détail de liste"
+    },
+    {
+      "file": "Familles.dc.html",
+      "page": "page-6",
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Familles de mots"
+    },
+    {
+      "file": "LeconsTab.dc.html",
+      "page": "page-6",
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Leçons"
+    },
+    {
+      "file": "Progres.dc.html",
+      "page": "page-6",
+      "x": 1880,
+      "y": 0,
+      "w": 390,
+      "h": 1280,
+      "title": "Progrès",
+      "print": "flow"
+    },
+    {
+      "file": "BilanFort.dc.html",
+      "page": "page-6",
+      "x": 2350,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Bilan — grosse semaine"
+    },
+    {
+      "file": "BilanCalme.dc.html",
+      "page": "page-6",
+      "x": 2820,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Bilan — semaine calme"
+    },
+    {
+      "file": "Amis.dc.html",
+      "page": "page-6",
+      "x": 3290,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Amis"
+    },
+    {
+      "file": "AmiProfil.dc.html",
+      "page": "page-6",
+      "x": 0,
+      "y": 1000,
+      "w": 390,
+      "h": 844,
+      "title": "Profil d'un ami"
+    },
+    {
+      "file": "VocabVide.dc.html",
+      "page": "page-7",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Vocabulaire — jour 1"
+    },
+    {
+      "file": "HorsLigne.dc.html",
+      "page": "page-7",
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Parcours — hors ligne"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "n-flux",
+      "page": "page-0",
+      "x": 0,
+      "y": -190,
+      "w": 700,
+      "text": "L'ENCHAÎNEMENT DES ÉCRANS — commence ici.\n\nCe ne sont pas des étiquettes : chaque nœud est la vraie maquette, réduite. Les flèches portent le déclencheur (« swipe », « J+1 », « ≥ 80 % »…).\n\nLe PARCOURS est le hub ; il réapparaît en tête des bandes 4 et 6 parce que c'est de là qu'on y entre — encadré en clay pour le repérer.\n\nChaque bande a sa page dédiée dans le menu du haut, avec les mêmes écrans en taille réelle et dans le même ordre."
+    },
+    {
+      "id": "n-p1",
+      "page": "page-1",
+      "x": 0,
+      "y": -190,
+      "w": 620,
+      "text": "1 · PREMIÈRE OUVERTURE — rangée du haut : le chemin nominal. Rangée du bas : la branche « j'ai déjà des bases ».\n\nCible PUIS base (décidé 13/08) · budget 5-10 mots/j réévalué chaque semaine (21/08) · « Niveau 1-6 », jamais A1-C2.\n\n🔴 Ouvert : le placement se fait-il ici (écran 4/6), ou seulement plus tard depuis un niveau verrouillé ?"
+    },
+    {
+      "id": "n-p2",
+      "page": "page-2",
+      "x": 0,
+      "y": -190,
+      "w": 620,
+      "text": "2 · NIVEAU 0 — n'existe que pour les langues à script (coréen ici). Fortement recommandé, jamais obligatoire.\n\nReconnaissance dans les deux sens (romanisation ↔ hangeul, audio ↔ hangeul), jamo → syllabes → mots. Romanisation révisée (RR), et elle s'efface à mesure qu'on lit.\n\nPas de tracé pour l'instant — décidé, réouvrable plus tard."
+    },
+    {
+      "id": "n-p3",
+      "page": "page-3",
+      "x": 0,
+      "y": -190,
+      "w": 620,
+      "text": "3 · LE HUB — le Parcours est l'accueil et le point de retour de tout.\n\nTaper un nœud le déplie SUR PLACE (le contenu déplié = la fiche de cluster, page suivante).\n\nPratique libre, Menu général et « Tes langues » sont des surcouches : elles ne quittent jamais vraiment le hub. Le sélecteur de langue est le SEUL endroit où l'on change de langue — et démarrer une langue s'y fait en deux temps, cible puis base."
+    },
+    {
+      "id": "n-p4",
+      "page": "page-4",
+      "x": 0,
+      "y": -190,
+      "w": 620,
+      "text": "4 · APPRENDRE UNE LEÇON — rangée du haut : la leçon (6 pages, dans l'ordre). Rangée du bas : les drills, étalés sur plusieurs jours, puis le Mélange qui ferme le cluster.\n\n⚠️ Les chips de Construire sont VOLONTAIREMENT identiques : les colorer par famille de distracteur donnerait la réponse.\n\nÀ ne pas confondre avec les modes de révision (page suivante) : ici on exerce une LEÇON, là on révise du VOCABULAIRE."
+    },
+    {
+      "id": "n-p5",
+      "page": "page-5",
+      "x": 0,
+      "y": -190,
+      "w": 620,
+      "text": "5 · LA BOUCLE DU JOUR — Découvrir (le flux « apprendre »), puis les modes de révision, puis ce qui les termine.\n\nLes deux floods sont communs à tous les modes ET aux drills de leçon : plein écran tenu, jamais une teinte, identiques en clair et en sombre (couleurs figées dans app_colors.dart).\n\n🔴 Le cloze est une PROPOSITION : son layout n'a jamais été tranché (quiz-canvas.md). D'où viennent les phrases avant que les leçons existent reste aussi ouvert."
+    },
+    {
+      "id": "n-p6",
+      "page": "page-6",
+      "x": 0,
+      "y": -190,
+      "w": 620,
+      "text": "6 · CONSULTER — les onglets, atteignables à tout moment, hors chemin.\n\nCRUD actif uniquement sur les listes PERSO ; les listes PARCOURS sont du curriculum, en lecture seule (proposé 13/08, à valider). L'onglet Leçons est entièrement en lecture seule.\n\n⚠️ Progrès : trois chiffres de la carte « rythme » ne sont pas encore calculables — le log d'événements ne couvre pas les drills de leçon. Ticket code à créer."
+    },
+    {
+      "id": "n-p7",
+      "page": "page-7",
+      "x": 0,
+      "y": -190,
+      "w": 620,
+      "text": "7 · ÉTATS LIMITES — les états où les maquettes heureuses cassent d'habitude.\n\nDeux ici. Restent à faire si utile : liste très longue, mot coréen qui déborde, série perdue, aucune révision due.\n\nLes Défis ne sont pas dessinés : périmètre bloqué sur l'audit M9, et leur maintien n'est pas tranché."
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "page-0"
+  }
+}

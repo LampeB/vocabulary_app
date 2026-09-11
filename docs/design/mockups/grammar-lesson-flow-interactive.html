@@ -72,19 +72,25 @@
   .cta.off { opacity: .4; pointer-events: none; }
   .cta:focus-visible, .row:focus-visible, .opt:focus-visible, .chip:focus-visible { outline: 2px solid #C4703F; outline-offset: 2px; }
 
-  /* fiche */
-  .row { display: flex; align-items: center; gap: 8px; padding: 11px 2px; border-bottom: 1px solid #ECE3D7; cursor: pointer; }
+  /* fiche de cluster — grammaire d'états unique (2026-08-13) */
+  .row { display: flex; align-items: center; gap: 10px; padding: 10px 2px; border-bottom: 1px solid #ECE3D7; cursor: pointer; }
   .row:last-child { border-bottom: 0; }
-  .row .nm { flex: 1; font-weight: 650; font-size: 13.5px; }
+  .row .nm { font-weight: 650; font-size: 13.5px; }
+  .row .rsub { font-size: 11px; color: #756C62; font-weight: 500; display: block; }
+  .row .rtxt { flex: 1; min-width: 0; }
   .tag-v { font-size: 9px; background: #DCE9E6; color: #33635E; border-radius: 5px; padding: 1px 5px; font-weight: 700; }
   .st { font-size: 11.5px; font-weight: 700; }
   .st.you { color: #C4703F; } .st.free { color: #33635E; } .st.gate { color: #8A8073; font-weight: 600; }
-  .d3 { display: flex; gap: 3px; }
-  .d3 i { width: 8px; height: 8px; border-radius: 50%; background: #ECE3D7; }
-  .d3 i.on { background: #D08358; }
   .check { color: #3E736E; font-weight: 800; }
   .mbar { height: 6px; border-radius: 3px; background: #ECE3D7; overflow: hidden; }
   .mbar i { display: block; height: 100%; background: #4C8C86; }
+  .scircle { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; border: 2px solid #DDD2C2; color: #8A8073; background: #FFF; flex-shrink: 0; }
+  .scircle.done { background: #EDF4F2; border-color: #4C8C86; color: #3E736E; }
+  .scircle.cur  { background: #F6DFCE; border-color: #D08358; font-size: 13px; }
+  .scircle.avail{ border-color: #4C8C86; color: #3E736E; }
+  .scircle.lock { border-color: #E3D9CB; color: #B0A695; background: #F6F1EA; }
+  .rgate { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
 
   /* pager */
   .pagezone { flex: 1; position: relative; display: flex; }
@@ -147,48 +153,48 @@
 
   <!-- ═══ FICHE CLUSTER ═══ -->
   <div class="scr" id="s-fiche">
-    <div class="bar"><span class="back" data-toast="Démo : on reste dans le cluster">‹</span><span class="t">Au quotidien — cluster A1·2</span></div>
+    <div class="bar"><span class="back" data-toast="Démo : on reste dans le cluster">‹</span><span class="t">Au quotidien — cluster 1·2</span></div>
     <div class="body">
-      <div class="eyebrow">5 leçons · ordre libre</div>
-      <div class="card" id="fiche-rows">
+      <div class="eyebrow" id="fiche-sub">2/5 leçons ✓ · 1/2 listes de vocab maîtrisées · ordre libre</div>
+      <div class="card" id="fiche-rows" style="padding:2px 14px">
         <div class="row" data-toast="Démo : leçon de vocabulaire hors scope">
-          <span class="nm">La vie quotidienne <span class="tag-v">VOCAB</span></span><span class="check">✓</span>
-        </div>
-        <div class="row" data-toast="Démo : leçon de vocabulaire hors scope">
-          <span class="nm">Au café <span class="tag-v">VOCAB</span></span><span class="st free" id="cafe-st">libre</span>
+          <span class="scircle done">✓</span>
+          <span class="rtxt"><span class="nm">La vie quotidienne <span class="tag-v">VOCAB</span></span>
+          <span class="rsub">liste de mots · maîtrisée à 85 %</span></span>
         </div>
         <div class="row" data-act="articles" data-toast="Déjà maîtrisée — « Relire la leçon » possible">
-          <span class="nm">Les articles el / la</span>
-          <span class="d3"><i class="on"></i><i class="on"></i><i class="on"></i></span><span class="check">✓</span>
+          <span class="scircle done">✓</span>
+          <span class="rtxt"><span class="nm">Les articles el / la</span>
+          <span class="rsub">grammaire · maîtrisée — relire la leçon</span></span>
         </div>
         <div class="row" data-act="presente">
-          <span class="nm">Le présent (-ar/-er/-ir)</span>
-          <span class="d3" id="pres-dots"><i></i><i></i><i></i></span><span class="st you" id="pres-st">à toi</span>
+          <span class="scircle" id="pres-circle">📖</span>
+          <span class="rtxt"><span class="nm">Le présent (-ar/-er/-ir)</span>
+          <span class="rsub" id="pres-sub">conjugaison · prochaine étape : la leçon</span></span>
+          <span style="color:#C4703F;font-weight:800" id="pres-chev">›</span>
         </div>
-        <div class="row" data-toast="Porte fermée : « Au café » à 64 % — 80 % requis">
-          <span class="nm">La négation avec no</span>
-          <span class="d3"><i></i><i></i><i></i></span><span class="st gate">vocab 64 %</span>
+        <div class="row" data-toast="Démo : leçon de vocabulaire hors scope">
+          <span class="scircle avail">▶</span>
+          <span class="rtxt"><span class="nm">Au café <span class="tag-v">VOCAB</span></span>
+          <span class="rsub">liste de mots · prête à étudier</span></span>
         </div>
-        <div class="row" data-act="melange">
-          <span class="nm">Mélange du cluster</span><span class="st gate" id="mel-st">après les 5 leçons</span>
+        <div class="row" data-toast="Apprends encore quelques mots d'« Au café » pour l'ouvrir">
+          <span class="scircle lock">🔒</span>
+          <span class="rtxt"><span class="nm">La négation avec no</span>
+          <span class="rsub">grammaire · se débloque à 80 % du vocab « Au café »</span>
+          <span class="rgate"><span class="mbar" style="width:80px"><i style="width:64%"></i></span>
+          <span class="rsub" style="font-weight:700">64 % / 80 %</span></span></span>
         </div>
       </div>
-      <div class="card">
-        <div class="eyebrow">Portes de vocabulaire</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-          <span style="flex:1;font-size:12.5px">La vie quotidienne</span>
-          <div class="mbar" style="width:70px"><i style="width:85%"></i></div>
-          <span class="st free">85 %</span>
+      <div class="card" id="melange-row" data-act="melange" style="cursor:pointer">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="scircle lock" id="mel-circle">🎯</span>
+          <span class="rtxt"><span class="nm">Mélange — le quiz du cluster</span>
+          <span class="rsub" id="mel-sub">s'ouvre quand les 5 leçons sont faites · 2/5</span></span>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-          <span style="flex:1;font-size:12.5px">Au café</span>
-          <div class="mbar" style="width:70px"><i style="width:64%"></i></div>
-          <span class="st gate">64 %</span>
-        </div>
-        <div class="small" style="margin-top:4px">une règle s'ouvre à 80 % global de ses listes</div>
       </div>
     </div>
-    <div class="cta clay" id="cta-continue">S'entraîner maintenant</div>
+    <div class="cta clay" id="cta-continue">Continuer : Le présent — la leçon</div>
   </div>
 
   <!-- ═══ LEÇON (pager 5 pages) ═══ -->
@@ -283,7 +289,7 @@
         <div class="center">
           <div class="big" style="color:#3E736E">✓</div>
           <div style="font-weight:750;font-size:18px">Cluster validé — 86 %</div>
-          <p class="small">Au quotidien · cluster A1·2<br><b>Cluster suivant débloqué :</b> En ville.</p>
+          <p class="small">Au quotidien · cluster 1·2<br><b>Cluster suivant débloqué :</b> En ville.</p>
           <div class="mbar" style="width:130px"><i style="width:86%"></i></div>
         </div>
       </div>
@@ -316,21 +322,34 @@
   /* ---------- état + fiche ---------- */
   function fresh() { return { stage: 0, palier: 0, melangeDone: false }; }
   function renderFiche() {
-    var dots = $("pres-dots").children, st = $("pres-st");
-    for (var i = 0; i < 3; i++) dots[i].className = i < state.stage ? "on" : "";
-    if (state.stage === 0)      { st.textContent = "à toi";        st.className = "st you"; }
-    else if (state.stage === 1) { st.textContent = "Reconnaître";  st.className = "st you"; }
-    else if (state.stage === 2) { st.textContent = "Construire";   st.className = "st you"; }
-    else                        { st.textContent = "✓";            st.className = "check"; }
-    $("mel-st").textContent = state.melangeDone ? "✓ cluster validé"
-      : (state.stage >= 3 ? "prêt — à toi" : "après les 5 leçons");
-    $("mel-st").className = state.melangeDone ? "check" : (state.stage >= 3 ? "st you" : "st gate");
+    var presDone = state.stage >= 3;
+    var doneCount = 2 + (presDone ? 1 : 0);
+    $("fiche-sub").textContent = state.melangeDone ? "5/5 leçons ✓ · cluster validé"
+      : doneCount + "/5 leçons" + (doneCount ? " ✓ · " : " · ") + "1/2 listes de vocab maîtrisées · ordre libre";
+
+    var circle = $("pres-circle"), sub = $("pres-sub"), chev = $("pres-chev");
+    if (presDone) { circle.className = "scircle done"; circle.textContent = "✓"; sub.textContent = "conjugaison · maîtrisée"; chev.style.display = "none"; }
+    else {
+      circle.className = "scircle cur"; circle.textContent = "📖"; chev.style.display = "";
+      sub.textContent = "conjugaison · " + ["prochaine étape : la leçon", "prochaine étape : Reconnaître", "prochaine étape : Construire"][state.stage];
+    }
+
+    var mc = $("mel-circle"), ms = $("mel-sub");
+    if (state.melangeDone) { mc.className = "scircle done"; mc.textContent = "✓"; ms.textContent = "validé à 86 % — cluster terminé"; }
+    else if (presDone) { mc.className = "scircle cur"; mc.textContent = "🎯"; ms.textContent = "prêt ! ≥ 20 questions mêlant tes leçons"; }
+    else { mc.className = "scircle lock"; mc.textContent = "🎯"; ms.textContent = "s'ouvre quand les 5 leçons sont faites · " + doneCount + "/5"; }
+
+    var cta = $("cta-continue");
+    if (state.melangeDone) cta.textContent = "Cluster validé ✓";
+    else if (presDone) cta.textContent = "Lancer le Mélange";
+    else cta.textContent = ["Continuer : Le présent — la leçon", "Continuer : Reconnaître (Le présent)", "Continuer : Construire (Le présent)"][state.stage];
   }
   function nextForPresente() {
+    if (state.melangeDone) { toast("Cluster déjà validé ✓"); return; }
     if (state.stage === 0) { openLesson(); }
     else if (state.stage === 1) { openReco(); }
     else if (state.stage === 2) { openBuild(); }
-    else { toast("Règle maîtrisée — place au Mélange"); }
+    else { openMelange(); }
   }
 
   /* ---------- leçon (pager) ---------- */
@@ -537,7 +556,7 @@
   };
 
   /* ---------- navigation globale ---------- */
-  document.querySelectorAll(".row[data-act]").forEach(function (r) {
+  document.querySelectorAll(".row[data-act], [data-act='melange']").forEach(function (r) {
     r.tabIndex = 0;
     r.addEventListener("click", function () {
       var a = r.dataset.act;

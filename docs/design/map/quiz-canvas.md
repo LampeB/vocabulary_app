@@ -21,8 +21,23 @@ ces seams)
   difficiles » + étapes Renforcer
 - Résumé de session : bloc « et ensuite » vers le chemin
 
-## À trancher 🔴
-- Le layout cloze précis ; d'où viennent les phrases avant que les leçons
-  existent ; la définition leech (seuils) à valider
+## Confirmé (utilisateur, 2026-08-21)
+- Ce qui EST maquetté (flashcard avec flip + swipe, écrit) est bon tel
+  quel — pas de retouche demandée en repassant sur l'écran
 
-Liens : [[daily-chain]] · [[pratique-libre]] · [[grammar-drills]]
+## Décidé (utilisateur, 2026-09-11) — la pile est une métaphore de révision
+- Les quiz et révisions de vocabulaire sont le **seul** contexte qui utilise
+  une pile de flashcards légèrement inclinées : les cartes visibles derrière
+  montrent le travail restant, puis la carte active est dépilée après la
+  réponse.
+- La pile ne se propage pas aux écrans de setup, de sélection de mode ou de
+  navigation vers le quiz ; ceux-ci suivent la transition de plongée définie
+  dans [[interaction-language]].
+
+## À trancher 🔴
+- Cloze, mode voix et leeches n'ont jamais été réellement maquettés
+  (seuls flashcard/écrit le sont) — le layout cloze précis ; d'où
+  viennent les phrases avant que les leçons existent ; la définition
+  leech (seuils) à valider
+
+Liens : [[daily-chain]] · [[pratique-libre]] · [[grammar-drills]] · [[interaction-language]]

@@ -1,0 +1,1908 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VocabApp — test taille réelle</title>
+<style>
+  /* ═══ chrome de page (thème-aware) ═══ */
+  :root {
+    --bg:#F6F1EA; --card:#FFFFFF; --ink:#2B2622; --muted:#756C62;
+    --line:#ECE3D7; --line-strong:#DDD2C2; --clay:#D08358; --clay-deep:#C4703F;
+    --teal:#4C8C86; --teal-deep:#3E736E; --rose:#B0556B;
+    --shadow:0 2px 6px rgba(43,38,34,.08), 0 14px 40px rgba(43,38,34,.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#241F1B; --card:#322C27; --ink:#EFE7DB; --muted:#B3A99C;
+      --line:#3D362F; --line-strong:#4A4239; --clay-deep:#E0A079; --teal-deep:#6BA39D;
+      --shadow:0 2px 6px rgba(0,0,0,.3), 0 14px 40px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#241F1B; --card:#322C27; --ink:#EFE7DB; --muted:#B3A99C;
+    --line:#3D362F; --line-strong:#4A4239; --clay-deep:#E0A079; --teal-deep:#6BA39D;
+    --shadow:0 2px 6px rgba(0,0,0,.3), 0 14px 40px rgba(0,0,0,.4);
+  }
+  * { box-sizing: border-box; }
+  html, body { height:100%; }
+  body { margin:0; background:#000; color:var(--ink);
+    font:15px/1.5 "Segoe UI", system-ui, sans-serif;
+    display:flex; justify-content:center; }
+
+  /* ═══ plein écran réel : le "téléphone" EST la fenêtre du navigateur.
+     max-width plafonne sur tablette/desktop ; sur un vrai téléphone,
+     100 % de la largeur = taille physique réelle des éléments. ═══ */
+  .phone { width:100%; max-width:480px; height:100vh; height:100dvh; border-radius:0; overflow:hidden; position:relative;
+    background:#F6F1EA; border:none; box-shadow:none;
+    color:#2B2622; font-size:14px; line-height:1.5; flex-shrink:0; }
+  .scr { position:absolute; inset:0; display:none; flex-direction:column; background:#F6F1EA; }
+  .scr.on { display:flex; }
+
+  /* shell */
+  .sh-head { display:flex; align-items:center; gap:8px; padding:14px 14px 8px; }
+  .langchip { display:flex; align-items:center; gap:6px; background:#FFF; border:1px solid #ECE3D7;
+    border-radius:999px; padding:4px 11px; font-weight:700; font-size:13px; cursor:pointer; }
+  .flame { margin-left:auto; font-weight:800; font-size:13.5px; color:#C4703F; }
+  .avatar { width:32px; height:32px; border-radius:50%; background:#4C8C86; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; cursor:pointer; }
+  .sh-body { flex:1; overflow-y:auto; padding:6px 14px 12px; display:flex; flex-direction:column; gap:11px; }
+  .tabs { display:flex; border-top:1px solid #ECE3D7; background:#FBF8F3; }
+  .tab { flex:1; text-align:center; padding:9px 0 11px; font-size:9.5px; font-weight:700; color:#8A8073; cursor:pointer; }
+  .tab .ic { display:block; font-size:17px; margin-bottom:1px; filter:grayscale(1); opacity:.55; }
+  .tab.on { color:#C4703F; }
+  .tab.on .ic { filter:none; opacity:1; }
+  .tabpage { display:none; flex-direction:column; gap:11px; }
+  .tabpage.on { display:flex; }
+
+  /* composants app */
+  .card { background:#FFF; border:1px solid #ECE3D7; border-radius:16px; padding:13px 15px; }
+  .card.tap { cursor:pointer; }
+  .eyebrow { font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:#6F695F; font-weight:700; }
+  .small { font-size:12px; color:#756C62; }
+  .hl-clay { background:#F6DFCE; color:#A85B28; border-radius:4px; padding:0 3px; font-weight:700; }
+  .hl-teal { background:#DCE9E6; color:#33635E; border-radius:4px; padding:0 3px; font-weight:700; }
+  .mbar { height:6px; border-radius:3px; background:#ECE3D7; overflow:hidden; }
+  .mbar i { display:block; height:100%; background:#4C8C86; }
+  .btn { border-radius:13px; padding:11px 0; text-align:center; font-weight:700; font-size:14px;
+    background:#3E736E; color:#FFF; cursor:pointer; user-select:none; }
+  .btn.clay { background:#C4703F; }
+  .btn.ghost { background:transparent; color:#756C62; border:1.5px solid #DDD2C2; }
+  .btn.off { opacity:.4; pointer-events:none; }
+  .btn:focus-visible, .tab:focus-visible, .card.tap:focus-visible, .row:focus-visible,
+  .opt:focus-visible, .chip:focus-visible, .step:focus-visible { outline:2px solid #C4703F; outline-offset:2px; }
+  .row { display:flex; align-items:center; gap:8px; padding:10px 2px; border-bottom:1px solid #ECE3D7; cursor:pointer; }
+  .row:last-child { border-bottom:0; }
+  .row .nm { flex:1; font-weight:650; font-size:13.5px; }
+  .tag-v { font-size:9px; background:#DCE9E6; color:#33635E; border-radius:5px; padding:1px 5px; font-weight:700; }
+  .st { font-size:11.5px; font-weight:700; }
+  .st.you { color:#C4703F; } .st.free { color:#33635E; } .st.gate { color:#8A8073; font-weight:600; }
+  .check { color:#3E736E; font-weight:800; }
+  .d3 { display:flex; gap:3px; }
+  .d3 i { width:8px; height:8px; border-radius:50%; background:#ECE3D7; }
+  .d3 i.on { background:#D08358; }
+
+  /* route à nœuds (parcours) */
+  #path { display:flex; flex-direction:column; }
+  .pnode { position:relative; display:flex; align-items:center; gap:12px; padding:8px 4px; cursor:pointer; border-radius:12px; }
+  .pnode:hover { background:rgba(208,131,88,.07); }
+  .pline { position:absolute; left:24px; top:-12px; height:22px; width:3px; background:#E3D9CB; border-radius:2px; }
+  .pchev { margin-left:auto; color:#B0A695; font-weight:800; transition:transform .2s; flex-shrink:0; }
+  .pchev.open { color:#C4703F; transform:rotate(90deg); }
+  .ppanel { margin:2px 4px 12px 58px; animation:panelIn .22s ease; }
+  @keyframes panelIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: reduce) { .ppanel { animation:none; } }
+  .pcircle { width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:16px; font-weight:800; background:#FFF; border:2.5px solid #DDD2C2; color:#8A8073;
+    flex-shrink:0; position:relative; z-index:1; }
+  .pcircle.done { background:#EDF4F2; border-color:#4C8C86; color:#3E736E; }
+  .pcircle.cur { background:#F6DFCE; border-color:#D08358; font-size:18px; }
+  .pcircle.ptest { border-style:dashed; }
+  .plabel { font-weight:650; font-size:13.5px; line-height:1.3; }
+
+  /* accueil « Parcours » — refonte */
+  .hebdo-banner { display:none; align-items:center; justify-content:space-between; background:#F6DFCE;
+    color:#8A4B22; border-radius:12px; padding:9px 13px; font-size:12px; font-weight:650; cursor:pointer; }
+  .hebdo-banner.show { display:flex; }
+  .hero-chain { background:linear-gradient(150deg,#2E2823,#3D342B); color:#F6F1EA; border-radius:20px;
+    padding:16px 17px 14px; cursor:pointer; box-shadow:0 6px 18px rgba(43,38,34,.18); }
+  .hero-top { display:flex; align-items:center; }
+  .hero-eyebrow { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#D8CBB9; font-weight:700; }
+  .hero-flame { margin-left:auto; font-weight:800; font-size:13px; color:#E0A079; }
+  .hero-steps { display:flex; gap:7px; margin:13px 0 12px; }
+  .hstep { flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; min-width:0; }
+  .hstep .hic { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:13px; background:#463D34; border:2px solid #564A3E; }
+  .hstep.done .hic { background:#2E4038; border-color:#4C8C86; }
+  .hstep.cur .hic { background:#5A3B22; border-color:#D08358; }
+  .hstep .hlb { font-size:9px; color:#C7BBA9; font-weight:650; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  .hero-cta { display:flex; align-items:center; justify-content:space-between; border-top:1px solid #453D34;
+    padding-top:11px; font-size:12.5px; color:#D8CBB9; }
+  .hero-go { color:#E0A079; font-weight:800; }
+  .posline { display:flex; align-items:center; gap:14px; padding:2px 6px; }
+  .posline > b { font-size:14px; white-space:nowrap; }
+  .poscount { font-size:12px; color:#756C62; font-weight:650; white-space:nowrap; }
+  .poscount b { font-weight:800; color:#2B2622; font-variant-numeric:tabular-nums; }
+  .vd-bar { display:flex; height:14px; border-radius:7px; overflow:hidden; }
+  .vd-legend { display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:9px; font-size:11.5px; color:#756C62; }
+  .vd-legend i { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+  .pill-libre { align-self:flex-start; display:inline-flex; align-items:center; gap:6px; background:#FFF;
+    border:1px solid #ECE3D7; border-radius:999px; padding:8px 15px; font-size:12.5px; font-weight:650;
+    color:#756C62; cursor:pointer; }
+
+  /* onglet Vocabulaire — refonte 2026-08-13 */
+  .vtoolbar { display:flex; align-items:center; gap:7px; }
+  .vtoolbar .seg2 { display:flex; gap:6px; overflow-x:auto; flex:1; }
+  .seg2 .sgi { flex-shrink:0; border:1.5px solid #DDD2C2; border-radius:999px; padding:6px 13px;
+    font-size:12px; font-weight:650; cursor:pointer; white-space:nowrap; }
+  .seg2 .sgi.on { border-color:#4C8C86; background:#EDF4F2; color:#33635E; }
+  .sortpill { flex-shrink:0; display:inline-flex; align-items:center; gap:5px; background:#FFF;
+    border:1px solid #ECE3D7; border-radius:999px; padding:6px 12px; font-size:11.5px; font-weight:650;
+    color:#756C62; cursor:pointer; white-space:nowrap; }
+  .vlist-card { background:#FFF; border:1px solid #ECE3D7; border-radius:16px; padding:12px 14px;
+    display:flex; align-items:center; gap:12px; cursor:pointer; }
+  .vlist-dot { width:11px; height:11px; border-radius:50%; flex-shrink:0; }
+  .vlist-body { flex:1; min-width:0; }
+  .vlist-nm { font-weight:700; font-size:14px; }
+  .vlist-meta { font-size:11px; color:#756C62; margin-top:3px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .vlist-tag { font-size:9px; font-weight:700; border-radius:5px; padding:1.5px 6px; letter-spacing:.02em; }
+  .vlist-tag.parcours { background:#DCE9E6; color:#33635E; }
+  .vlist-tag.perso { background:#F0E6D8; color:#8A6A3A; }
+  .vlist-right { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
+  .vlist-pct { font-size:13px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .vlist-mbar { width:44px; height:5px; border-radius:3px; background:#ECE3D7; overflow:hidden; }
+  .vlist-mbar i { display:block; height:100%; background:#4C8C86; }
+  .fam-card { background:linear-gradient(135deg,#FBF3E9,#F3E4D2); border:1px solid #EAD9BE; border-radius:16px;
+    padding:14px 16px; cursor:pointer; display:flex; align-items:center; gap:13px; }
+  .fam-glyph { width:42px; height:42px; border-radius:13px; background:#FFF; border:1px solid #EAD9BE;
+    display:flex; align-items:center; justify-content:center; font-size:19px; flex-shrink:0; }
+  .fam-nm { font-weight:750; font-size:13.5px; color:#7A5423; }
+  .fam-sub { font-size:11.5px; color:#8A6A3A; margin-top:2px; }
+  .kebab { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    color:#8A8073; font-size:17px; cursor:pointer; flex-shrink:0; }
+  .kebab:hover { background:rgba(43,38,34,.06); }
+  .sheet-row { display:flex; align-items:center; gap:11px; padding:12px 2px; cursor:pointer; font-weight:650; font-size:13.5px; }
+  .sheet-row .sic { width:22px; text-align:center; font-size:15px; }
+  .sheet-row.danger { color:#B0556B; }
+  .menu-profile { display:flex; align-items:center; gap:12px; padding:2px 2px 14px; cursor:pointer; }
+  .menu-profile b { font-size:15px; }
+  .menu-profile .small { margin-top:2px; }
+  .sheet-section { font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:#8A8073;
+    font-weight:700; margin:12px 2px 2px; }
+  .sheet-section.first { margin-top:0; }
+  .menu-chev { margin-left:auto; color:#B0A695; font-weight:800; }
+  .menu-badge { font-size:10px; font-weight:700; background:#EFE7DB; color:#8A8073; border-radius:999px;
+    padding:2px 9px; margin-left:auto; }
+  #s-preload { background:linear-gradient(160deg,#2E2823,#241F1B); color:#EFE7DB;
+    align-items:center; justify-content:center; }
+  .preload-center { display:flex; flex-direction:column; align-items:center; gap:20px; }
+  .preload-word { font-size:20px; font-weight:800; letter-spacing:.02em; color:#F6F1EA; }
+  .preload-wave { display:flex; align-items:flex-end; gap:4px; height:28px; }
+  .preload-wave i { width:4px; border-radius:2px; background:#E0A079; animation:pwave 1.1s ease-in-out infinite; height:8px; }
+  .preload-wave i:nth-child(2) { animation-delay:.09s; } .preload-wave i:nth-child(3) { animation-delay:.18s; }
+  .preload-wave i:nth-child(4) { animation-delay:.27s; } .preload-wave i:nth-child(5) { animation-delay:.36s; }
+  .preload-wave i:nth-child(6) { animation-delay:.45s; } .preload-wave i:nth-child(7) { animation-delay:.54s; }
+  @keyframes pwave { 0%, 100% { height:8px; } 50% { height:26px; } }
+  .preload-status { font-size:12.5px; color:#C7BBA9; font-weight:600; min-height:16px; }
+  @media (prefers-reduced-motion: reduce) { .preload-wave i { animation:none; height:16px; } }
+  .btn.danger { background:#B0556B; }
+  .btnrow { display:flex; gap:8px; margin-top:14px; }
+  .btnrow .btn { flex:1; margin:0; }
+  .addword-row { display:flex; align-items:center; gap:8px; padding:9px 2px; cursor:pointer; color:#756C62; font-weight:650; font-size:13px; }
+  .wordrow-del { color:#B0A695; font-size:15px; padding:2px 4px; cursor:pointer; flex-shrink:0; }
+  .wordrow-del:hover { color:#B0556B; }
+  .wordrow-edit { font-size:13px; padding:2px 4px; cursor:pointer; flex-shrink:0; opacity:.6; }
+  .wordrow-edit:hover { opacity:1; }
+  .wordstack { display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; }
+  .wsuggest { display:inline-flex; align-items:center; gap:5px; background:#F6DFCE; color:#8A4B22;
+    border-radius:10px; padding:6px 11px; font-size:12px; font-weight:650; cursor:pointer; margin-top:8px; }
+  .lang-row { display:flex; align-items:center; gap:12px; padding:11px 2px; cursor:pointer; border-bottom:1px solid #F3ECE1; }
+  .lang-row:last-child { border-bottom:0; }
+  .lang-flag { font-size:22px; flex-shrink:0; }
+  .lang-body { flex:1; min-width:0; }
+  .lang-nm { font-weight:700; font-size:13.5px; }
+  .lang-meta { font-size:11px; color:#756C62; margin-top:2px; }
+  .lang-plus { color:#C4703F; font-weight:800; font-size:17px; }
+
+  /* fiche de cluster — mêmes états que la route */
+  .frow { display:flex; align-items:center; gap:11px; padding:9px 0; border-bottom:1px solid #F3ECE1; cursor:pointer; }
+  .frow:last-child { border-bottom:0; }
+  .pc-s { width:34px; height:34px; font-size:13px; border-width:2px; }
+  .pcircle.avail { border-color:#4C8C86; color:#3E736E; }
+  .pcircle.lock { border-color:#E3D9CB; color:#B0A695; background:#F6F1EA; }
+  .ftxt { flex:1; min-width:0; }
+  .ftxt b { font-size:13.5px; }
+  .fsub { font-size:11px; color:#756C62; line-height:1.35; }
+  .fgate { display:flex; align-items:center; gap:6px; margin-top:3px; }
+
+  /* niveau / parcours */
+  .lvl { border:1px solid #ECE3D7; border-radius:16px; background:#FFF; overflow:hidden; }
+  .lvl-head { display:flex; align-items:center; gap:10px; padding:12px 15px; cursor:pointer; }
+  .lvl-badge { width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    font-weight:800; background:#F6DFCE; color:#A85B28; }
+  .lvl-badge.lock { background:#EFE7DB; color:#8A8073; }
+  .lvl-body { border-top:1px solid #ECE3D7; padding:6px 15px 12px; display:none; }
+  .lvl.open .lvl-body { display:block; }
+  .cluster { display:flex; align-items:center; gap:10px; padding:9px 2px; border-bottom:1px solid #F3ECE1; cursor:pointer; }
+  .cluster:last-child { border-bottom:0; }
+  .cl-dot { width:12px; height:12px; border-radius:50%; background:#ECE3D7; flex-shrink:0; }
+  .cl-dot.done { background:#4C8C86; } .cl-dot.cur { background:#D08358; }
+
+  /* sessions */
+  .sess-bar { display:flex; align-items:center; gap:10px; padding:16px 16px 8px; color:#756C62; font-size:13px; }
+  .sess-bar .x { font-size:17px; cursor:pointer; padding:0 4px; }
+  .sess-bar .t { font-weight:700; color:#2B2622; }
+  .dots { display:flex; gap:5px; margin-left:auto; }
+  .dots i { width:6px; height:6px; border-radius:50%; background:#DDD2C2; }
+  .dots i.on { background:#D08358; }
+  .prog { height:5px; background:#ECE3D7; border-radius:3px; margin:4px 16px 0; overflow:hidden; }
+  .prog i { display:block; height:100%; width:0; background:#4C8C86; border-radius:3px; transition:width .25s; }
+  @media (prefers-reduced-motion: reduce) { .prog i, .sheet, .toast { transition:none !important; } }
+  .body { flex:1; padding:14px 18px; display:flex; flex-direction:column; gap:12px; overflow-y:auto; }
+  .cta { margin:auto 16px 18px; border-radius:14px; padding:13px 0; text-align:center;
+    font-weight:700; font-size:15px; background:#3E736E; color:#FFF; cursor:pointer; user-select:none; }
+  .cta.clay { background:#C4703F; }
+  .cta.ghost { background:transparent; color:#756C62; border:1.5px solid #DDD2C2; }
+  .cta.off { opacity:.4; pointer-events:none; }
+  .cta:focus-visible { outline:2px solid #C4703F; outline-offset:2px; }
+  .opt { background:#FFF; border:2px solid #ECE3D7; border-radius:12px; padding:11px 14px; font-weight:650; cursor:pointer; position:relative; z-index:2; }
+  .opt.good { border-color:#4C8C86; background:#EDF4F2; }
+  .opt.bad { border-color:#B0556B; background:#F7EBEE; }
+  .fb { border-radius:12px; padding:10px 12px; font-size:13px; font-weight:600; display:none; position:relative; z-index:2; }
+  .fb.ok { display:block; background:#EDF4F2; color:#33635E; }
+  .fb.ko { display:block; background:#F7EBEE; color:#8E4257; }
+  .chip { background:#FFF; border:1.5px solid #DDD2C2; border-radius:12px; padding:9px 13px; font-weight:650;
+    cursor:pointer; box-shadow:0 1px 0 rgba(43,38,34,.05); user-select:none; position:relative; z-index:2; }
+  .chip.used { opacity:0; pointer-events:none; }
+  .slot { min-height:46px; border-bottom:2px solid #DDD2C2; display:flex; flex-wrap:wrap; gap:7px; align-items:center; padding-bottom:8px; position:relative; z-index:2; }
+  .pool { display:flex; flex-wrap:wrap; gap:8px; position:relative; z-index:2; }
+  .p-input { border:2px solid #D08358; border-radius:12px; background:#FFF; padding:12px 14px; font:inherit; width:100%; color:#2B2622; position:relative; z-index:2; }
+  .p-input:focus { outline:none; border-color:#C4703F; }
+  .center { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; text-align:center; padding:18px; }
+  .big { font-size:42px; }
+  .voice { font-size:11px; color:#4C8C86; font-weight:650; }
+  .voice::before { content:"▶ "; font-size:9px; }
+  .pagezone { flex:1; position:relative; overflow:hidden; perspective:1000px; touch-action:pan-y; }
+  .page { position:absolute; inset:0; padding:14px 18px; display:flex; flex-direction:column; gap:12px;
+    overflow-y:auto; opacity:0; pointer-events:none; z-index:1; transform-style:preserve-3d; backface-visibility:hidden;
+    transition:opacity .26s ease, transform .32s cubic-bezier(.4,0,.2,1); }
+  .page.on { opacity:1; pointer-events:auto; z-index:2; }
+  .page.leave-fwd { opacity:0; transform:rotateY(-16deg) translateX(-4%); z-index:1; }
+  .page.leave-back { opacity:0; transform:rotateY(16deg) translateX(4%); z-index:1; }
+  .page.enter-fwd { opacity:0; transform:rotateY(16deg) translateX(4%); }
+  .page.enter-back { opacity:0; transform:rotateY(-16deg) translateX(-4%); }
+  .tapzones { position:absolute; inset:0; display:flex; z-index:3; }
+  .tapzones div { flex:1; cursor:pointer; }
+  .page .card, .page .opt, .page .fb { position:relative; z-index:2; }
+  @media (prefers-reduced-motion: reduce) {
+    .page { transition:opacity .12s linear !important; transform:none !important; }
+  }
+  .bubble { border-radius:14px; padding:9px 12px; max-width:88%; }
+  .bubble.a { background:#F6DFCE; align-self:flex-start; }
+  .bubble.b { background:#DCE9E6; align-self:flex-end; }
+  .bubble .who { font-size:10px; font-weight:700; color:#756C62; }
+
+  /* S18 sombre */
+  .dark { background:#241F1B; color:#EFE7DB; }
+  .dark .sess-bar .t { color:#EFE7DB; }
+  .step { display:flex; align-items:center; gap:12px; background:#2E2823; border:1px solid #3D362F;
+    border-radius:14px; padding:13px 14px; cursor:pointer; }
+  .step .ic { width:34px; height:34px; border-radius:11px; background:#3A332C; display:flex;
+    align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  .step .lb { flex:1; font-weight:650; font-size:13.5px; }
+  .step .lb .small { color:#8A8073; }
+  .step.done { opacity:.68; }
+  .step.done .ic { background:#2E4038; }
+  .step .stt { font-size:12px; font-weight:700; color:#8A8073; }
+  .step.done .stt { color:#6BA39D; }
+  .step.next .stt { color:#E0A079; }
+
+  /* overlays */
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:#FFF; border-radius:22px 22px 0 0;
+    box-shadow:0 -8px 30px rgba(43,38,34,.25); padding:16px 18px 20px; transform:translateY(105%);
+    transition:transform .25s; z-index:8; max-height:78%; overflow-y:auto; color:#2B2622; }
+  .sheet.show { transform:translateY(0); }
+  .scrim { position:absolute; inset:0; background:rgba(36,31,27,.45); opacity:0; pointer-events:none; transition:opacity .2s; z-index:7; }
+  .scrim.show { opacity:1; pointer-events:auto; }
+  .seg { display:flex; gap:6px; flex-wrap:wrap; }
+  .seg .sgi { border:1.5px solid #DDD2C2; border-radius:999px; padding:6px 13px; font-size:12.5px; font-weight:650; cursor:pointer; }
+  .seg .sgi.on { border-color:#4C8C86; background:#EDF4F2; color:#33635E; }
+  .toast { position:absolute; left:50%; bottom:88px; transform:translateX(-50%); background:#2B2622; color:#F6F1EA;
+    font-size:12px; padding:8px 14px; border-radius:10px; opacity:0; pointer-events:none; transition:opacity .25s;
+    white-space:nowrap; z-index:12; max-width:300px; }
+  .toast.show { opacity:.95; }
+  .celebrate { position:absolute; inset:0; background:rgba(36,31,27,.92); z-index:10; display:none;
+    flex-direction:column; align-items:center; justify-content:center; gap:14px; color:#EFE7DB; text-align:center; padding:24px; }
+  .celebrate.show { display:flex; }
+
+  .tiles { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  .tile { background:#FFF; border:1px solid #ECE3D7; border-radius:14px; padding:11px 13px; }
+  .tile .v { font-size:21px; font-weight:800; font-variant-numeric:tabular-nums; }
+
+  .statrow { display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:7px 0; border-bottom:1px solid #F3ECE1; font-size:12.5px; }
+  .statrow:last-child { border-bottom:0; }
+  .statrow span:first-child { color:#756C62; }
+  .statrow b { font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .tlrow { display:flex; gap:11px; padding:8px 0; border-bottom:1px solid #F3ECE1; }
+  .tlrow:last-child { border-bottom:0; }
+  .tldot { width:8px; height:8px; border-radius:50%; background:#DDD2C2; margin-top:5px; flex-shrink:0; }
+  .tldot.hi { background:#D08358; }
+  .tldate { font-size:10px; color:#8A8073; font-weight:700; white-space:nowrap; width:44px; flex-shrink:0; padding-top:1px; }
+  .tltxt { font-size:12.5px; font-weight:600; flex:1; }
+</style>
+
+<div class="phone" id="phone">
+
+  <!-- ═══ S2 PRÉCHARGEMENT ═══ -->
+  <div class="scr" id="s-preload">
+    <div class="preload-center">
+      <div class="preload-word">VocabApp</div>
+      <div class="preload-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="preload-status" id="preload-status">Connexion…</div>
+    </div>
+  </div>
+
+  <!-- ═══ SHELL (5 onglets) ═══ -->
+  <div class="scr on" id="s-shell">
+    <div class="sh-head">
+      <span class="langchip" id="btn-lang" tabindex="0">FR ↔ ES</span>
+      <span class="flame" id="flame">🔥 4</span>
+      <span class="avatar" id="btn-menu">T</span>
+    </div>
+    <div class="sh-body">
+
+      <!-- Parcours (S1, atterrissage) -->
+      <div class="tabpage on" id="tp-etudier">
+        <div class="hebdo-banner" id="hebdo-banner" tabindex="0">
+          <span>📅 C'est dimanche — vois ton bilan hebdo</span><span>›</span>
+        </div>
+
+        <div class="hero-chain" id="card-chain" tabindex="0">
+          <div class="hero-top">
+            <span class="hero-eyebrow">Chemin du jour</span>
+            <span class="hero-flame">🔥 <span id="hero-flame-n">4</span></span>
+          </div>
+          <div class="hero-steps" id="hero-steps"></div>
+          <div class="hero-cta"><span id="hero-hint"></span><span class="hero-go">Continuer ›</span></div>
+        </div>
+
+        <div class="posline">
+          <b>Niveau 1</b>
+          <span class="poscount"><b id="pos-lecons"></b> leçons</span>
+          <span class="poscount"><b id="pos-noeuds"></b> nœuds</span>
+        </div>
+
+        <div>
+          <div class="eyebrow">Ta route</div>
+          <div class="card" style="padding:8px 10px;margin-top:6px"><div id="path"></div></div>
+        </div>
+
+        <div class="pill-libre" id="btn-libre" tabindex="0">🎲 Pratique libre</div>
+      </div>
+
+      <!-- Vocabulaire (S7) -->
+      <div class="tabpage" id="tp-vocab">
+        <div class="vtoolbar">
+          <div class="eyebrow" style="flex:1">Tes listes</div>
+          <span class="sortpill" id="sort-pill" tabindex="0">⇅ <span id="sort-label">Récent</span></span>
+        </div>
+        <div id="vlists" style="display:flex;flex-direction:column;gap:9px"></div>
+
+        <div class="fam-card" id="btn-familles" tabindex="0">
+          <span class="fam-glyph">🌳</span>
+          <div style="flex:1">
+            <div class="fam-nm">Familles de mots</div>
+            <div class="fam-sub">trabajo · trabajar · trabajador — vois les racines</div>
+          </div>
+          <span style="color:#B08A4A;font-weight:800">›</span>
+        </div>
+
+        <div class="pill-libre" id="btn-new-list" tabindex="0">＋ Nouvelle liste</div>
+      </div>
+
+      <!-- Grammaire (S9) -->
+      <div class="tabpage" id="tp-gram">
+        <div class="eyebrow">Leçons · Niveau 1 · Espagnol</div>
+        <div class="card tap" id="g-cl1" tabindex="0">
+          <div style="display:flex;align-items:center;gap:8px">
+            <b style="flex:1">Les premiers pas <span class="small">· cluster 1·1</span></b><span class="check">✓</span>
+          </div>
+        </div>
+        <div class="card tap" id="g-cl2" tabindex="0">
+          <div style="display:flex;align-items:center;gap:8px">
+            <b style="flex:1">Au quotidien <span class="small">· cluster 1·2</span></b><span class="small" id="g-cl2-st">3/5 · Mélange à venir</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+            <span class="small" style="flex:1">Au café (porte)</span>
+            <div class="mbar" style="width:70px"><i style="width:64%"></i></div><span class="st gate">64 %</span>
+          </div>
+        </div>
+        <div class="card" style="opacity:.55">
+          <b>En ville <span class="small">· cluster 1·3 · 🔒 après « Au quotidien »</span></b>
+        </div>
+      </div>
+
+      <!-- Progrès (S12) -->
+      <div class="tabpage" id="tp-prog">
+        <div class="card">
+          <div class="eyebrow">Ta position</div>
+          <div style="display:flex;align-items:center;gap:16px;margin-top:6px">
+            <b style="font-size:17px">Niveau 1</b>
+            <span class="poscount"><b id="tp-lecons"></b> leçons</span>
+            <span class="poscount"><b id="tp-noeuds"></b> nœuds</span>
+          </div>
+          <div class="small" style="margin-top:3px">FR ↔ ES · voir le détail dans Parcours</div>
+        </div>
+        <div class="tiles">
+          <div class="tile"><div class="eyebrow">Mots connus</div><div class="v" id="t-mots">87</div></div>
+          <div class="tile"><div class="eyebrow">Leçons ✓</div><div class="v" id="t-regles">2/5</div></div>
+          <div class="tile"><div class="eyebrow">Série</div><div class="v" id="t-serie">🔥 4</div></div>
+          <div class="tile"><div class="eyebrow">Précision 7 j</div><div class="v">86 %</div></div>
+          <div class="tile"><div class="eyebrow">Jours actifs (total)</div><div class="v">23</div></div>
+          <div class="tile"><div class="eyebrow">Meilleure série</div><div class="v">🔥 12</div></div>
+        </div>
+        <div class="card">
+          <div class="eyebrow">Répartition du vocabulaire</div>
+          <div class="vd-bar" style="margin-top:9px">
+            <span style="width:13%;background:#DDD2C2"></span>
+            <span style="width:24%;background:#E0A079"></span>
+            <span style="width:37%;background:#6BA39D"></span>
+            <span style="width:26%;background:#4C8C86"></span>
+          </div>
+          <div class="vd-legend">
+            <span><i style="background:#DDD2C2"></i>Nouveaux · 18</span>
+            <span><i style="background:#E0A079"></i>En cours · 34</span>
+            <span><i style="background:#6BA39D"></i>Connus · 52</span>
+            <span><i style="background:#4C8C86"></i>Maîtrisés · 35</span>
+          </div>
+        </div>
+        <div class="seg" id="chart-range" style="margin:2px 0 2px auto;width:fit-content">
+          <span class="sgi on" data-range="7">7 j</span><span class="sgi" data-range="30">30 j</span>
+        </div>
+
+        <div class="card">
+          <div class="eyebrow">Mots connus</div>
+          <div id="chart-mots" style="margin-top:6px"></div>
+          <div class="small" id="axis-mots" style="display:flex;justify-content:space-between;margin-top:2px"></div>
+        </div>
+
+        <div class="card">
+          <div class="eyebrow">Précision</div>
+          <div id="chart-precision" style="margin-top:6px"></div>
+          <div class="small" id="axis-precision" style="display:flex;justify-content:space-between;margin-top:2px"></div>
+        </div>
+
+        <div class="card">
+          <div class="eyebrow">Activité (révisions)</div>
+          <div id="chart-activite" style="margin-top:6px"></div>
+          <div class="small" id="axis-activite" style="display:flex;justify-content:space-between;margin-top:2px"></div>
+          <div style="display:flex;gap:14px;margin-top:8px">
+            <span class="small"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#4C8C86;margin-right:5px"></span>Mots révisés</span>
+            <span class="small"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#D08358;margin-right:5px"></span>Leçons faites</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="eyebrow">Ton rythme</div>
+          <div style="margin-top:4px">
+            <div class="statrow"><span>Temps actif / jour actif</span><b>14 min</b></div>
+            <div class="statrow"><span>Jours actifs cette semaine</span><b>5/7</b></div>
+            <div class="statrow"><span>Budget de mots actuel</span><b>7 / jour</b></div>
+            <div class="statrow"><span>Temps moyen pour maîtriser une liste</span><b>9 j</b></div>
+            <div class="statrow"><span>Temps moyen pour maîtriser une leçon</span><b>4 j</b></div>
+            <div class="statrow"><span>Sessions pour valider un niveau</span><b>~38</b></div>
+          </div>
+          <div class="small" style="margin-top:6px">chiffres d'exemple — calculés une fois le suivi de session étendu aux leçons</div>
+        </div>
+
+        <div class="card">
+          <div class="eyebrow">Ton parcours</div>
+          <div style="margin-top:4px" id="journey"></div>
+        </div>
+      </div>
+
+      <!-- Amis (S14) -->
+      <div class="tabpage" id="tp-amis">
+        <div class="eyebrow">Amis</div>
+        <div class="card">
+          <div class="row" data-toast="Démo : profil ami hors scope"><span class="avatar" style="width:28px;height:28px;font-size:12px;background:#D08358">M</span>
+            <span class="nm">Marie</span><span class="small">🔥 12 · Niv. 2</span></div>
+          <div class="row" data-toast="Démo : profil ami hors scope"><span class="avatar" style="width:28px;height:28px;font-size:12px;background:#B0556B">J</span>
+            <span class="nm">Jules</span><span class="small">🔥 2 · Niv. 1</span></div>
+        </div>
+        <div class="card tap" data-toast="Défis : scope réel à l'audit M9">
+          <div class="eyebrow">Défis</div>
+          <div class="small" style="margin-top:3px">Défie un ami sur une liste ›</div>
+        </div>
+        <div class="btn ghost" data-toast="Démo : invitation hors scope">+ Inviter un ami</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab" data-tab="vocab" tabindex="0"><span class="ic">📚</span>Vocabulaire</div>
+      <div class="tab" data-tab="gram" tabindex="0"><span class="ic">📖</span>Leçons</div>
+      <div class="tab on" data-tab="etudier" tabindex="0"><span class="ic">🎯</span>Parcours</div>
+      <div class="tab" data-tab="prog" tabindex="0"><span class="ic">📈</span>Progrès</div>
+      <div class="tab" data-tab="amis" tabindex="0"><span class="ic">👥</span>Amis</div>
+    </div>
+  </div>
+
+  <!-- ═══ S18 CHEMIN DU JOUR (sombre) ═══ -->
+  <div class="scr dark" id="s-chain">
+    <div class="sess-bar"><span class="x" data-go="shell">‹</span><span class="t">Chemin du jour</span>
+      <span class="small" style="margin-left:auto;color:#8A8073" id="chain-count"></span></div>
+    <div class="body" id="chain-steps"></div>
+    <div class="cta ghost" data-go="shell" style="border-color:#4A4239;color:#B3A99C">Revenir à l'accueil</div>
+  </div>
+
+  <!-- ═══ FICHE CLUSTER ═══ -->
+  <div class="scr" id="s-fiche">
+    <div class="sess-bar"><span class="x" data-go="gram-tab">‹</span><span class="t">Au quotidien — cluster 1·2</span></div>
+    <div class="body">
+      <div class="eyebrow" id="fiche-sub"></div>
+      <div class="card" id="fiche-rows" style="padding:6px 14px"></div>
+      <div class="card" id="fiche-melange"></div>
+    </div>
+    <div class="cta clay" id="fiche-cta">Continuer</div>
+  </div>
+
+  <!-- ═══ S4 LEÇON ═══ -->
+  <div class="scr" id="s-lesson">
+    <div class="sess-bar"><span class="x" id="lesson-back">‹</span><span class="t">Le présent (-ar/-er/-ir)</span>
+      <span class="dots" id="l-dots"><i class="on"></i><i></i><i></i><i></i><i></i><i></i></span></div>
+    <div class="pagezone" id="lesson-pagezone">
+      <div class="page on">
+        <div class="eyebrow">Pourquoi ça change ? · 1/6</div>
+        <p>En espagnol, la fin du verbe change selon qui parle — comme en français
+          (« je parl<span class="hl-clay">e</span> », « tu parl<span class="hl-clay">es</span> »),
+          mais avec d'autres terminaisons à apprendre.</p>
+        <div class="card">
+          <div class="small" style="margin-bottom:5px">trabaj<span class="hl-teal">ar</span> → on retire
+            <span class="hl-teal">-ar</span>, on ajoute :</div>
+          <div style="display:flex;flex-direction:column;gap:3px;font-weight:700">
+            <span>Yo trabaj<span class="hl-clay">o</span></span>
+            <span>Tú trabaj<span class="hl-clay">as</span></span>
+            <span>Él / Ella trabaj<span class="hl-clay">a</span></span>
+          </div>
+        </div>
+        <div class="card"><b>Trabaj<span class="hl-clay">o</span> por la mañana. ¿Y tú, trabaj<span class="hl-clay">as</span> hoy?</b>
+          <div class="small">Je travaille le matin. Et toi, tu travailles aujourd'hui ? <span class="voice"></span></div></div>
+        <div class="small" style="margin-top:auto">glisse ou tape sur les bords pour tourner la page</div>
+      </div>
+      <div class="page">
+        <div class="eyebrow">-er et -ir : même geste · 2/6</div>
+        <p>Même principe pour les verbes en <span class="hl-teal">-er</span> et <span class="hl-teal">-ir</span> —
+          seule la voyelle change : un <span class="hl-clay">e</span> au lieu d'un <span class="hl-clay">a</span>.</p>
+        <div class="card">
+          <div style="display:flex;flex-direction:column;gap:3px;font-weight:700">
+            <span>com<span class="hl-clay">o</span> · com<span class="hl-clay">es</span> · com<span class="hl-clay">e</span></span>
+            <span>viv<span class="hl-clay">o</span> · viv<span class="hl-clay">es</span> · viv<span class="hl-clay">e</span></span>
+          </div>
+        </div>
+        <div class="card"><b>Com<span class="hl-clay">o</span> pan por la mañana. ¿Viv<span class="hl-clay">es</span> cerca de aquí?</b>
+          <div class="small">Je mange du pain le matin. Tu habites près d'ici ? <span class="voice"></span></div></div>
+      </div>
+      <div class="page">
+        <div class="eyebrow">Vérif rapide · non notée · 3/6</div>
+        <p><b>Tú ___ en un café.</b> <span class="small">(trabajar, « tu »)</span></p>
+        <div class="opt" data-qc="good">trabajas</div>
+        <div class="opt" data-qc="bad">trabajo</div>
+        <div class="fb" id="qc-fb"></div>
+      </div>
+      <div class="page">
+        <div class="eyebrow">Un verbe très courant fait exception · 4/6</div>
+        <p>Quelques verbes très fréquents ne suivent pas ce moule — à mémoriser à part.
+          <b>ir</b> (aller) en fait partie.</p>
+        <div class="card">
+          <span style="font-weight:700">Voy · Vas · Va</span>
+          <div class="small">yo voy · tú vas · él/ella va</div>
+        </div>
+        <div class="card"><b>Voy a la escuela. ¿Adónde vas tú?</b>
+          <div class="small">Je vais à l'école. Où vas-tu ? <span class="voice"></span></div></div>
+      </div>
+      <div class="page">
+        <div class="eyebrow">Dialogue · 5/6</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="bubble a"><div class="who">A</div>¿Dónde trabaj<span class="hl-clay">as</span>?</div>
+          <div class="bubble b"><div class="who">B</div>Trabaj<span class="hl-clay">o</span> en un café. ¿Y tú, adónde v<span class="hl-clay">as</span> ahora?</div>
+          <div class="bubble a"><div class="who">A</div>V<span class="hl-clay">oy</span> a la escuela.</div>
+        </div>
+        <span class="voice">tout lire · une voix par personnage</span>
+      </div>
+      <div class="page"><div class="center"><div class="big" style="color:#3E736E">✓</div>
+        <div style="font-weight:750;font-size:18px">Leçon terminée</div>
+        <p class="small">Prochaine étape : <b>Reconnaître</b> (réel : J+1 — ici tout de suite).</p></div></div>
+      <div class="tapzones"><div id="l-prev"></div><div id="l-next"></div></div>
+    </div>
+    <div class="cta" id="l-done" style="display:none">Terminé</div>
+  </div>
+
+  <!-- ═══ RECONNAÎTRE ═══ -->
+  <div class="scr" id="s-reco">
+    <div class="prog"><i id="r-prog"></i></div>
+    <div class="sess-bar"><span class="x" id="reco-back">✕</span><span class="t" id="r-count"></span></div>
+    <div class="body" id="r-body"></div>
+    <div class="cta off" id="r-next">Continuer</div>
+  </div>
+
+  <!-- ═══ CONSTRUIRE ═══ -->
+  <div class="scr" id="s-build">
+    <div class="prog"><i id="b-prog"></i></div>
+    <div class="sess-bar"><span class="x" id="build-back">✕</span><span class="t">Construire</span>
+      <span class="st free" id="b-palier" style="margin-left:auto"></span></div>
+    <div class="body" id="b-body"></div>
+    <div class="cta" id="b-verify">Vérifier</div>
+  </div>
+
+  <!-- ═══ MÉLANGE ═══ -->
+  <div class="scr" id="s-melange">
+    <div class="sess-bar"><span class="x" id="melange-back">‹</span><span class="t">Mélange — Au quotidien</span>
+      <span class="dots" id="m-dots"><i class="on"></i><i></i><i></i></span></div>
+    <div class="pagezone">
+      <div class="page on">
+        <div class="eyebrow">Leçon de combinaison · 1/3</div>
+        <p>Tout se joue ensemble : l'article s'accorde, le verbe se conjugue, <span class="hl-teal">no</span> devant.</p>
+        <div class="card"><b><span class="hl-teal">No</span> com<span class="hl-clay">o</span> en <span class="hl-clay">la</span> escuela.</b>
+          <div class="small">Je ne mange pas à l'école.</div></div>
+      </div>
+      <div class="page">
+        <div class="eyebrow">Session mixte · 2/3</div>
+        <p><b>___ amiga no trabaj___ el domingo.</b><br><span class="small">Mon amie ne travaille pas le dimanche.</span></p>
+        <div class="slot" id="m-slot"></div>
+        <div class="pool" id="m-pool"></div>
+        <div class="fb" id="m-fb"></div>
+      </div>
+      <div class="page"><div class="center"><div class="big" style="color:#3E736E">✓</div>
+        <div style="font-weight:750;font-size:18px">Cluster validé — 86 %</div>
+        <p class="small"><b>Cluster suivant débloqué :</b> En ville.</p></div></div>
+      <div class="tapzones"><div id="m-prev"></div><div id="m-next"></div></div>
+    </div>
+    <div class="cta" id="m-cta">Continuer</div>
+  </div>
+
+  <!-- ═══ S5 SESSION VOCAB (Réviser) ═══ -->
+  <div class="scr" id="s-vquiz">
+    <div class="prog"><i id="v-prog"></i></div>
+    <div class="sess-bar"><span class="x" data-go="shell">✕</span><span class="t" id="v-count"></span></div>
+    <div class="body" id="v-body"></div>
+    <div class="cta" id="v-cta">Voir la réponse</div>
+  </div>
+
+  <!-- ═══ S6 RÉSUMÉ ═══ -->
+  <div class="scr" id="s-resume">
+    <div class="body"><div class="center">
+      <div class="big">🎉</div>
+      <div style="font-weight:750;font-size:19px" id="res-score"></div>
+      <div class="card" style="width:100%;text-align:left">
+        <div class="row" style="cursor:default"><span class="nm">la mañana</span><span class="check" id="res-w1">✓</span></div>
+        <div class="row" style="cursor:default"><span class="nm">el café</span><span class="check" id="res-w2">✓</span></div>
+      </div>
+      <div class="small" id="res-next"></div>
+    </div></div>
+    <div class="cta clay" id="res-cta">Continuer le chemin</div>
+  </div>
+
+  <!-- ═══ S3 DÉCOUVRIR ═══ -->
+  <div class="scr" id="s-decouvrir">
+    <div class="sess-bar"><span class="x" data-go="chain">✕</span><span class="t" id="d-count">Découvrir · 1/3</span></div>
+    <div class="body" id="d-body"></div>
+    <div class="cta" id="d-cta">Suivant</div>
+  </div>
+
+  <!-- ═══ S17 TEST DE NIVEAU ═══ -->
+  <div class="scr" id="s-test">
+    <div class="sess-bar"><span class="x" data-go="shell">✕</span><span class="t">Test — Niveau 1</span></div>
+    <div class="body" id="test-body"></div>
+    <div class="cta" id="test-cta">Commencer</div>
+  </div>
+
+  <!-- ═══ S10 FAMILLES ═══ -->
+  <div class="scr" id="s-familles">
+    <div class="sess-bar"><span class="x" data-go="vocab-tab">‹</span><span class="t">Famille — trabaj-</span></div>
+    <div class="body">
+      <div class="card" style="text-align:center"><b style="font-size:18px">trabaj-</b><div class="small">la racine « travail »</div></div>
+      <div class="card">
+        <div class="row" style="cursor:default"><span class="nm">el trabajo</span><span class="small">le travail</span><span class="check">✓</span></div>
+        <div class="row" style="cursor:default"><span class="nm">trabajar</span><span class="small">travailler</span><span class="check">✓</span></div>
+        <div class="row" style="cursor:default"><span class="nm">el trabajador</span><span class="small">le travailleur</span><span class="st gate">nouveau</span></div>
+      </div>
+      <div class="small">mémoriser en réseau : les mots d'une racine se renforcent entre eux</div>
+    </div>
+    <div class="cta ghost" data-toast="Démo : quiz de famille hors scope">Pratiquer cette famille</div>
+  </div>
+
+  <!-- ═══ S8 DÉTAIL DE LISTE ═══ -->
+  <div class="scr" id="s-liste">
+    <div class="sess-bar"><span class="x" data-go="vocab-tab">‹</span><span class="t" id="ld-title"></span>
+      <span class="kebab" id="ld-kebab" style="margin-left:auto">⋯</span></div>
+    <div class="body">
+      <div class="card" id="ld-words"></div>
+      <div id="ld-addword"></div>
+    </div>
+    <div class="cta" id="ld-practice">Pratiquer cette liste</div>
+  </div>
+
+  <!-- overlays -->
+  <div class="scrim" id="scrim"></div>
+  <div class="sheet" id="sheet-list-actions"></div>
+  <div class="sheet" id="sheet-lang"></div>
+  <div class="sheet" id="sheet-menu">
+    <div class="menu-profile" data-toast="Démo : édition du profil / avatar hors scope">
+      <span class="avatar" style="width:46px;height:46px;font-size:18px">T</span>
+      <div><b>Thomas</b><div class="small" id="menu-sub"></div></div>
+    </div>
+    <div class="sheet-section first">Compte</div>
+    <div class="sheet-row" data-toast="Démo : Paramètres hors scope">
+      <span class="sic">⚙️</span><span>Paramètres</span><span class="menu-chev">›</span>
+    </div>
+    <div class="sheet-row" data-toast="Démo : gestion d'abonnement hors scope">
+      <span class="sic">⭐</span><span>Abonnement</span><span class="menu-badge">Gratuit</span><span class="menu-chev">›</span>
+    </div>
+    <div class="sheet-section">Autre</div>
+    <div class="sheet-row danger" data-toast="Démo : déconnexion hors scope">
+      <span class="sic">↩︎</span><span>Se déconnecter</span>
+    </div>
+  </div>
+  <div class="sheet" id="sheet-libre">
+    <div class="eyebrow">Pratique libre</div>
+    <div style="margin:10px 0 4px;font-weight:700;font-size:13px">Quoi ?</div>
+    <div class="seg" id="pl-quoi"><span class="sgi on">Tout ce qui est dû</span><span class="sgi">La vie quotidienne</span><span class="sgi">Au café</span></div>
+    <div style="margin:12px 0 4px;font-weight:700;font-size:13px">Sens</div>
+    <div class="seg" id="pl-sens"><span class="sgi on">Mixte</span><span class="sgi">ES → FR</span><span class="sgi">FR → ES</span></div>
+    <div style="margin:12px 0 4px;font-weight:700;font-size:13px">Mode</div>
+    <div class="seg" id="pl-mode"><span class="sgi on">Cartes</span><span class="sgi">Écrire</span><span class="sgi">Voix</span><span class="sgi">Mains libres</span></div>
+    <div class="btn" id="pl-go" style="margin-top:16px">Lancer</div>
+  </div>
+  <div class="sheet" id="sheet-hebdo">
+    <div class="eyebrow" style="margin-bottom:8px">Bilan hebdo</div>
+    <div class="tiles">
+      <div class="tile"><div class="eyebrow">Jours actifs</div><div class="v">5/7</div></div>
+      <div class="tile"><div class="eyebrow">Mots appris</div><div class="v">23</div></div>
+      <div class="tile"><div class="eyebrow">Révisions</div><div class="v">148</div></div>
+      <div class="tile"><div class="eyebrow">Précision</div><div class="v">86 %</div></div>
+    </div>
+    <div class="small" style="margin-top:10px">Belle semaine — la régularité bat l'intensité.</div>
+  </div>
+  <div class="celebrate" id="celebrate">
+    <div class="big">🎉</div>
+    <div style="font-weight:800;font-size:20px">Journée complète !</div>
+    <div>Toutes les étapes du chemin sont faites.<br>Série : <b id="cel-flame">🔥 5</b></div>
+    <div class="btn clay" id="cel-close" style="padding:11px 26px">Continuer</div>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ═══════════ CONFIG — tout se règle ici ═══════════ */
+  var CONFIG = {
+    gatePct: 80,          // porte vocab d'une règle (% global de ses listes)
+    examPct: 80,          // barre du Mélange (examen de cluster)
+    testPass: 2,          // items justes requis au test de niveau (sur 2 en démo)
+    streak: 4,            // série de départ
+    chainSteps: [         // le chemin du jour (réviser d'abord — décidé)
+      { id: "rev", ic: "🔁", lb: "Réviser", sub: "12 mots dus · ~4 min" },
+      { id: "dec", ic: "✨", lb: "Découvrir", sub: "6 nouveaux mots · Au café" },
+      { id: "les", ic: "📖", lb: "Leçon", sub: "Le présent (-ar) · ~3 min" },
+      { id: "dri", ic: "🎯", lb: "Drill", sub: "Reconnaître · 3 items" }
+    ],
+    clusterLessons: [     // la fiche cluster (mixte vocab + grammaire — décidé)
+      { id: "vie",   nm: "La vie quotidienne", vocab: true,  done: true },
+      { id: "cafe",  nm: "Au café",            vocab: true,  free: true },
+      { id: "artic", nm: "Les articles el / la", done: true },
+      { id: "pres",  nm: "Le présent (-ar/-er/-ir)", main: true },
+      { id: "neg",   nm: "La négation avec no", gate: "vocab 64 %" }
+    ]
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var state, toastTimer, vOrigin = "chain";
+  /* returnTo : d'où on est arrivé sur leçon/reco/construire/mélange —
+     le retour (‹ / ✕) doit repartir vers CE point d'entrée, jamais un
+     écran fixe (bug relevé : le retour ramenait toujours à la fiche
+     même en venant du chemin du jour) */
+  var returnTo = "road";
+  function goReturn() {
+    if (returnTo === "chain") { renderChain(); show("chain"); }
+    else if (returnTo === "road") { renderShell(); showTab("etudier"); }
+    else { renderShell(); openFiche(); }
+  }
+
+  function fresh() {
+    return { stage: 0, palier: 0, melange: false, a2: false, streak: CONFIG.streak,
+      chain: { rev: false, dec: false, les: false, dri: false } };
+  }
+  function toast(m) {
+    var t = $("toast"); t.textContent = m; t.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove("show"); }, 1900);
+  }
+  function show(id) {
+    document.querySelectorAll(".scr").forEach(function (s) { s.classList.remove("on"); });
+    $("s-" + id).classList.add("on");
+    closeSheets();
+  }
+  function showTab(name) {
+    show("shell");
+    document.querySelectorAll(".tab").forEach(function (t) { t.classList.toggle("on", t.dataset.tab === name); });
+    document.querySelectorAll(".tabpage").forEach(function (p) { p.classList.remove("on"); });
+    $("tp-" + name).classList.add("on");
+  }
+  function closeSheets() {
+    document.querySelectorAll(".sheet").forEach(function (s) { s.classList.remove("show"); });
+    $("scrim").classList.remove("show");
+  }
+  function openSheet(id) { $(id).classList.add("show"); $("scrim").classList.add("show"); }
+  $("scrim").onclick = closeSheets;
+
+  /* ═══ rendus dépendant de l'état ═══ */
+  function chainDoneCount() {
+    var c = state.chain, n = 0; ["rev","dec","les","dri"].forEach(function (k) { if (c[k]) n++; });
+    return n;
+  }
+  function renderShell() {
+    $("flame").textContent = "🔥 " + state.streak;
+    $("t-serie").textContent = "🔥 " + state.streak;
+    var ls = levelStats();
+    $("pos-lecons").textContent = ls.lessonsDone + "/" + ls.lessonsTotal;
+    $("pos-noeuds").textContent = ls.nodesCleared + "/" + ls.nodesTotal;
+    $("tp-lecons").textContent = ls.lessonsDone + "/" + ls.lessonsTotal;
+    $("tp-noeuds").textContent = ls.nodesCleared + "/" + ls.nodesTotal;
+    $("t-regles").textContent = (state.stage >= 3 ? "2/5" : "1/5");
+    $("g-cl2-st").textContent = state.melange ? "✓ validé"
+      : state.stage >= 3 ? "5/5 · Mélange prêt" : "3/5 · Mélange à venir";
+    renderHero();
+    renderPath();
+    renderJourney();
+  }
+  function renderJourney() {
+    var evts = [
+      { d: "04 août", t: "Compte créé · espagnol choisi" },
+      { d: "05 août", t: "Premier mot appris : el café" },
+      { d: "06 août", t: "Niveau 1 commencé" },
+      { d: "07 août", t: "Série de 3 jours 🔥" },
+      { d: "10 août", t: "Cluster « Les premiers pas » validé — 92 %" },
+      { d: "12 août", t: "50 mots appris au total" },
+      { d: "14 août", t: "Bilan hebdo : 5/7 jours actifs" },
+      { d: "15 août", t: "Série interrompue — reprise le lendemain" },
+      { d: "17 août", t: "Cluster « Au quotidien » commencé" },
+      { d: "19 août", t: "Série de 7 jours 🔥" },
+      { d: "20 août", t: "Budget de mots ajusté : 8 → 7 par jour" }
+    ];
+    if (state.stage >= 1) evts.push({ d: "21 août", t: "Leçon « Le présent » terminée", hi: true });
+    if (state.stage >= 3) evts.push({ d: "21 août", t: "« Le présent » maîtrisé", hi: true });
+    if (state.melange) evts.push({ d: "21 août", t: "Cluster « Au quotidien » validé — 86 %", hi: true });
+    if (state.a2) evts.push({ d: "21 août", t: "Test du niveau 1 réussi — Niveau 2 débloqué", hi: true });
+    var host = $("journey"); host.innerHTML = "";
+    evts.slice().reverse().forEach(function (e) {
+      var r = document.createElement("div"); r.className = "tlrow";
+      r.innerHTML = '<span class="tldot' + (e.hi ? " hi" : "") + '"></span>' +
+        '<span class="tldate">' + e.d + "</span><span class=\"tltxt\">" + e.t + "</span>";
+      host.appendChild(r);
+    });
+  }
+  function clusterSummaryText(compact) {
+    if (state.melange) return compact ? "5/5 leçons · cluster validé" : "5/5 leçons ✓ · cluster validé";
+    var doneCount = 2 + (state.stage >= 3 ? 1 : 0);
+    var masteredVocab = 1; // sur 2 listes du cluster — La vie quotidienne (85 %) ; Au café (64 %) pas encore
+    return doneCount + "/5 leçons" + (compact ? " · " : " ✓ · ") +
+      masteredVocab + "/2 listes " + (compact ? "maîtrisées" : "de vocab maîtrisées");
+  }
+  /* Graphes de progrès — points/lignes, plusieurs courbes possibles, plus
+     d'une semaine (remplace l'histogramme, décidé 2026-08-21). Trois
+     graphes distincts (mots connus / précision / activité), reprenant
+     l'intention d'origine de progres-suivi.md : « graphes (révisions,
+     précision, mots connus) » */
+  var CHART_DAYS = 30;
+  var WORDS_SERIES = [12,9,14,0,16,18,10, 8,15,17,0,11,13,19, 6,14,16,0,9,12,15, 17,10,0,13,16,18,8,14,11];
+  var LESSONS_SERIES = [1,1,0,0,1,1,0, 1,0,1,0,1,1,0, 0,1,1,0,0,1,0, 1,1,0,1,1,0,0,1,1];
+  var MOTS_CONNUS_SERIES = [40,40,43,43,46,49,49, 49,52,55,55,58,61,61, 61,64,67,70,70,70,73, 76,76,79,82,82,85,85,87,87];
+  var PRECISION_SERIES = [78,78,82,75,75,88,91, 80,85,79,79,92,83,87, 90,72,86,89,89,81,84, 90,93,85,85,82,88,91,86,90];
+  var DOW = ["L","M","M","J","V","S","D"];
+  var chartRange = 7;
+  var CW = 280, CH = 82, CPX = 5, CPY = 8;
+  function chartPts(data, n, max, min) {
+    return data.map(function (v, i) {
+      var x = CPX + (n === 1 ? 0 : i * ((CW - CPX * 2) / (n - 1)));
+      var y = CH - CPY - ((v - min) / ((max - min) || 1)) * (CH - CPY * 2);
+      return [x, y];
+    });
+  }
+  function chartPath(pts) {
+    return pts.map(function (p, i) { return (i === 0 ? "M" : "L") + p[0].toFixed(1) + "," + p[1].toFixed(1); }).join(" ");
+  }
+  function chartAxis(n) {
+    return n === 7 ? DOW.map(function (d) { return "<span>" + d + "</span>"; }).join("")
+      : "<span>il y a " + n + " j</span><span>aujourd'hui</span>";
+  }
+  /** Un graphe à une courbe (aire + ligne + points), échelle resserrée sur
+   *  la plage de la série (plus lisible pour une courbe qui ne part pas de 0). */
+  function renderSingleChart(hostId, axisId, series, color, dotColor) {
+    var n = chartRange, data = series.slice(CHART_DAYS - n);
+    var pts = chartPts(data, n, Math.max.apply(null, data), Math.min.apply(null, data));
+    var d = chartPath(pts);
+    var area = d + " L" + pts[pts.length - 1][0].toFixed(1) + "," + (CH - CPY) +
+      " L" + pts[0][0].toFixed(1) + "," + (CH - CPY) + " Z";
+    var dots = pts.map(function (p) { return '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="2.6" fill="' + (dotColor || color) + '"/>'; }).join("");
+    $(hostId).innerHTML = '<svg viewBox="0 0 ' + CW + ' ' + CH + '" style="width:100%;height:' + CH + 'px;display:block" preserveAspectRatio="none">' +
+      '<path d="' + area + '" fill="' + color + '22" stroke="none"/>' +
+      '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+      dots + "</svg>";
+    $(axisId).innerHTML = chartAxis(n);
+  }
+  function renderActivityChart() {
+    var n = chartRange;
+    var words = WORDS_SERIES.slice(CHART_DAYS - n), lessons = LESSONS_SERIES.slice(CHART_DAYS - n);
+    var wp = chartPts(words, n, Math.max.apply(null, words.concat([1])), 0);
+    var lp = chartPts(lessons, n, Math.max.apply(null, lessons.concat([1])), 0);
+    var wd = chartPath(wp);
+    var area = wd + " L" + wp[wp.length - 1][0].toFixed(1) + "," + (CH - CPY) +
+      " L" + wp[0][0].toFixed(1) + "," + (CH - CPY) + " Z";
+    var dotsW = wp.map(function (p) { return '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="2.6" fill="#4C8C86"/>'; }).join("");
+    var dotsL = lp.map(function (p) { return '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="2.1" fill="#D08358"/>'; }).join("");
+    $("chart-activite").innerHTML = '<svg viewBox="0 0 ' + CW + ' ' + CH + '" style="width:100%;height:' + CH + 'px;display:block" preserveAspectRatio="none">' +
+      '<path d="' + area + '" fill="#4C8C8620" stroke="none"/>' +
+      '<path d="' + wd + '" fill="none" stroke="#4C8C86" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+      '<path d="' + chartPath(lp) + '" fill="none" stroke="#D08358" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="3,3"/>' +
+      dotsW + dotsL + "</svg>";
+    $("axis-activite").innerHTML = chartAxis(n);
+  }
+  function renderTrendChart() {
+    renderSingleChart("chart-mots", "axis-mots", MOTS_CONNUS_SERIES, "#4C8C86");
+    renderSingleChart("chart-precision", "axis-precision", PRECISION_SERIES, "#D08358");
+    renderActivityChart();
+  }
+  document.querySelectorAll("#chart-range .sgi").forEach(function (s) {
+    s.onclick = function () {
+      document.querySelectorAll("#chart-range .sgi").forEach(function (x) { x.classList.remove("on"); });
+      s.classList.add("on");
+      chartRange = +s.dataset.range;
+      renderTrendChart();
+    };
+  });
+  /* Progression du NIVEAU — jamais de CEFR à l'écran (décidé) : on montre
+     x/20 leçons faites (chiffre déjà décidé pour le parcours) et x/4 nœuds
+     (clusters) franchis dans le niveau courant */
+  function levelStats() {
+    var cluster1 = 5; // « Les premiers pas » — cluster déjà validé
+    var cluster2 = state.melange ? 5 : (2 + (state.stage >= 3 ? 1 : 0)); // « Au quotidien »
+    return {
+      lessonsDone: cluster1 + cluster2, lessonsTotal: 20,
+      nodesCleared: 1 + (state.melange ? 1 : 0), nodesTotal: 4
+    };
+  }
+  function renderHero() {
+    var host = $("hero-steps"); host.innerHTML = "";
+    var nextFound = false;
+    CONFIG.chainSteps.forEach(function (s) {
+      var done = state.chain[s.id];
+      var cur = !done && !nextFound; if (cur) nextFound = true;
+      var d = document.createElement("div");
+      d.className = "hstep" + (done ? " done" : cur ? " cur" : "");
+      d.innerHTML = '<span class="hic">' + (done ? "✓" : s.ic) + '</span><span class="hlb">' + s.lb + "</span>";
+      host.appendChild(d);
+    });
+    var n = chainDoneCount();
+    $("hero-hint").textContent = n === CONFIG.chainSteps.length ? "Journée complète 🎉" : n + "/" + CONFIG.chainSteps.length + " étapes faites";
+    $("hero-flame-n").textContent = state.streak;
+  }
+  /* ficheContext : quel écran a construit les lignes cliquées — décide où
+     revenir (returnTo) une fois dans une leçon/un drill lancé depuis elles */
+  var ficheContext = "road"; // "road" (panneau en place du Parcours) | "fiche" (fiche plein écran, onglet Leçons)
+  var pathExpanded = 2; // index du nœud déplié dans la route — « Au quotidien » par défaut
+  function renderPath() {
+    var host = $("path"); host.innerHTML = "";
+    var nodes = [
+      { nm: "Niveau 0 · L'écriture", sub: "pas requis pour l'espagnol", st: "done",
+        panel: function (c) { c.innerHTML = '<p class="small">Pas requis pour l\'espagnol — direct au Niveau 1. Pour le coréen : apprentissage du hangul (jamo → syllabes → mots) avant le vocabulaire.</p>'; } },
+      { nm: "Les premiers pas", sub: "cluster 1·1", st: "done",
+        panel: function (c) {
+          c.innerHTML = '<p class="small">Cluster validé — 3 leçons et 1 liste maîtrisées.</p><div class="pill-libre" id="pp-relire">Relire les leçons</div>';
+          c.querySelector("#pp-relire").onclick = function () { showTab("gram"); };
+        } },
+      { nm: "Au quotidien", sub: clusterSummaryText(true), st: state.melange ? "done" : "cur", panel: renderFichePanel },
+      { nm: "En ville", sub: "cluster 1·3", st: state.melange ? "cur" : "todo",
+        panel: function (c) {
+          c.innerHTML = state.melange ? '<p class="small">Prêt à commencer — 0/5 leçons.</p>'
+            : '<p class="small">🔒 Termine « Au quotidien » pour débloquer ce cluster.</p>';
+        } },
+      { nm: "Test du niveau 1", sub: state.a2 ? "réussi ✓" : "ouvre tout le niveau 2", st: state.a2 ? "done" : "todo", test: true,
+        panel: function (c) {
+          c.innerHTML = '<p class="small">Session mixte notée : vocab + leçons, sans feedback par item. Réussi → tout le niveau 2 se débloque.</p>' +
+            '<div class="pill-libre" id="pn-test">' + (state.a2 ? "Repasser le test" : "Commencer le test") + '</div>';
+          c.querySelector("#pn-test").onclick = openTest;
+        } },
+      { nm: "Niveau 2 · Élémentaire", sub: state.a2 ? "débloqué — à toi" : "après le test", st: state.a2 ? "cur" : "todo",
+        panel: function (c) {
+          c.innerHTML = '<p class="small">' + (state.a2 ? "Démo : les clusters du niveau 2 arriveraient ici." : "Réussis le test du niveau 1 pour débloquer ce niveau.") + '</p>';
+        } }
+    ];
+    nodes.forEach(function (n, i) {
+      var wrap = document.createElement("div");
+      var expanded = pathExpanded === i;
+      var d = document.createElement("div"); d.className = "pnode"; d.tabIndex = 0;
+      var ic = n.st === "done" ? "✓" : n.st === "cur" ? "📖" : "?";
+      d.innerHTML = (i > 0 ? '<span class="pline"></span>' : "") +
+        '<span class="pcircle ' + n.st + (n.test ? " ptest" : "") + '">' + ic + "</span>" +
+        '<span class="plabel">' + n.nm + '<br><span class="small">' + n.sub + "</span></span>" +
+        '<span class="pchev' + (expanded ? " open" : "") + '">›</span>';
+      d.onclick = function () { pathExpanded = expanded ? -1 : i; renderPath(); };
+      wrap.appendChild(d);
+      if (expanded) {
+        var panel = document.createElement("div"); panel.className = "ppanel";
+        wrap.appendChild(panel);
+        n.panel(panel);
+      }
+      host.appendChild(wrap);
+    });
+  }
+  function ficheRowsData() {
+    var presDone = state.stage >= 3;
+    var doneCount = 2 + (presDone ? 1 : 0);
+    var rows = [
+      { ic: "✓", cls: "done", nm: "La vie quotidienne", sub: "liste de mots · maîtrisée à 85 %",
+        act: function () { toast("Liste maîtrisée — elle continue en révisions FSRS"); } },
+      { ic: "✓", cls: "done", nm: "Les articles el / la", sub: "grammaire · maîtrisée — tape pour relire la leçon",
+        act: function () { returnTo = ficheContext; lessonReview = true; lReset(); show("lesson"); toast("Relecture — rien n'est compté"); } },
+      presDone
+        ? { ic: "✓", cls: "done", nm: "Le présent (-ar/-er/-ir)", sub: "conjugaison · maîtrisée",
+            act: function () { toast("Maîtrisée — elle revient dans le Mélange"); } }
+        : { ic: "📖", cls: "cur", nm: "Le présent (-ar/-er/-ir)", chev: true,
+            sub: "conjugaison · " + ["commence par la leçon", "prochaine étape : Reconnaître", "prochaine étape : Construire"][state.stage],
+            act: nextForPres },
+      { ic: "▶", cls: "avail", nm: "Au café", sub: "liste de mots · prête à étudier",
+        act: function () { toast("Démo : l'étude de la liste passe par le chemin (Découvrir)"); } },
+      { ic: "🔒", cls: "lock", nm: "La négation avec no", gate: true,
+        sub: "grammaire · se débloque à 80 % du vocab « Au café »",
+        act: function () { toast("Apprends encore quelques mots d'« Au café » pour l'ouvrir"); } }
+    ];
+    return { rows: rows, doneCount: doneCount, presDone: presDone };
+  }
+  function renderFicheRowsInto(host, rows) {
+    host.innerHTML = "";
+    rows.forEach(function (r) {
+      var d = document.createElement("div"); d.className = "frow"; d.tabIndex = 0;
+      d.innerHTML = '<span class="pcircle pc-s ' + r.cls + '">' + r.ic + "</span>" +
+        '<span class="ftxt"><b>' + r.nm + '</b><br><span class="fsub">' + r.sub + "</span>" +
+        (r.gate ? '<span class="fgate"><span class="mbar" style="width:90px"><i style="width:64%"></i></span><span class="fsub" style="font-weight:700">64 % / 80 %</span></span>' : "") +
+        "</span>" + (r.chev ? '<span style="color:#C4703F;font-weight:800">›</span>' : "");
+      d.onclick = r.act;
+      host.appendChild(d);
+    });
+  }
+  function renderMelangeBlockInto(host, doneCount, presDone) {
+    if (state.melange) {
+      host.innerHTML = '<div style="display:flex;align-items:center;gap:11px"><span class="pcircle pc-s done">✓</span>' +
+        '<span class="ftxt"><b>Mélange — le quiz du cluster</b><br><span class="fsub">validé à 86 % — cluster terminé</span></span></div>';
+      host.onclick = function () { toast("Cluster validé ✓"); };
+    } else if (presDone) {
+      host.innerHTML = '<div style="display:flex;align-items:center;gap:11px;cursor:pointer"><span class="pcircle pc-s cur">🎯</span>' +
+        '<span class="ftxt"><b>Mélange — le quiz du cluster</b><br><span class="fsub">prêt ! ≥ 20 questions mêlant tes leçons</span></span>' +
+        '<span style="color:#C4703F;font-weight:800">›</span></div>';
+      host.onclick = openMelange;
+    } else {
+      host.innerHTML = '<div style="display:flex;align-items:center;gap:11px"><span class="pcircle pc-s lock">🎯</span>' +
+        '<span class="ftxt"><b>Mélange — le quiz du cluster</b><br><span class="fsub">s\'ouvre quand les 5 leçons sont faites · ' + doneCount + '/5</span></span></div>';
+      host.onclick = openMelange;
+    }
+  }
+  function renderFiche() {
+    ficheContext = "fiche";
+    var d = ficheRowsData();
+    $("fiche-sub").textContent = clusterSummaryText(false) + " · ordre libre";
+    renderFicheRowsInto($("fiche-rows"), d.rows);
+    renderMelangeBlockInto($("fiche-melange"), d.doneCount, d.presDone);
+    var cta = $("fiche-cta");
+    if (state.melange) {
+      cta.textContent = "Cluster validé ✓ — voir le parcours";
+      cta.onclick = function () { renderShell(); showTab("etudier"); };
+    } else if (d.presDone) {
+      cta.textContent = "Lancer le Mélange"; cta.onclick = openMelange;
+    } else {
+      cta.textContent = ["Continuer : Le présent — la leçon", "Continuer : Reconnaître (Le présent)", "Continuer : Construire (Le présent)"][state.stage];
+      cta.onclick = nextForPres;
+    }
+  }
+  function renderFichePanel(container) {
+    ficheContext = "road";
+    var d = ficheRowsData();
+    container.innerHTML = '<div class="small" style="margin-bottom:8px">' + clusterSummaryText(false) + " · ordre libre</div>" +
+      '<div class="card" id="pfiche-rows" style="padding:2px 12px;margin-bottom:9px"></div>' +
+      '<div class="card" id="pfiche-melange"></div>';
+    renderFicheRowsInto(container.querySelector("#pfiche-rows"), d.rows);
+    renderMelangeBlockInto(container.querySelector("#pfiche-melange"), d.doneCount, d.presDone);
+  }
+  function openFiche() { renderFiche(); show("fiche"); }
+  function nextForPres() {
+    returnTo = ficheContext;
+    if (state.stage === 0) { lessonReview = false; lReset(); show("lesson"); }
+    else if (state.stage === 1) openReco();
+    else if (state.stage === 2) openBuild();
+    else toast("Règle maîtrisée — place au Mélange");
+  }
+
+  /* ═══ S18 chemin ═══ */
+  function renderChain() {
+    $("chain-count").textContent = chainDoneCount() + "/" + CONFIG.chainSteps.length;
+    var host = $("chain-steps"); host.innerHTML = "";
+    var nextFound = false;
+    CONFIG.chainSteps.forEach(function (s) {
+      var done = state.chain[s.id];
+      var d = document.createElement("div"); d.tabIndex = 0;
+      d.className = "step" + (done ? " done" : !nextFound ? " next" : "");
+      var isNext = !done && !nextFound; if (isNext) nextFound = true;
+      d.innerHTML = '<span class="ic">' + (done ? "✓" : s.ic) + '</span>' +
+        '<span class="lb">' + s.lb + '<br><span class="small">' + s.sub + "</span></span>" +
+        '<span class="stt">' + (done ? "fait" : isNext ? "à toi" : "ensuite") + "</span>";
+      d.onclick = function () { launchStep(s.id); };
+      host.appendChild(d);
+    });
+  }
+  function launchStep(id) {
+    if (state.chain[id]) { toast("Déjà fait aujourd'hui ✓"); return; }
+    if (id === "rev") { vOrigin = "chain"; openVquiz(); }
+    else if (id === "dec") openDecouvrir();
+    else if (id === "les") {
+      if (state.stage > 0) { state.chain.les = true; completeStep(); return; }
+      returnTo = "chain";
+      lessonReview = false; lReset(); show("lesson");
+    }
+    else if (id === "dri") {
+      if (state.stage < 1) { toast("D'abord la leçon !"); return; }
+      returnTo = "chain";
+      openReco();
+    }
+  }
+  function completeStep() {
+    renderShell();
+    if (chainDoneCount() === CONFIG.chainSteps.length) {
+      state.streak = CONFIG.streak + 1;
+      $("cel-flame").textContent = "🔥 " + state.streak;
+      renderShell(); $("celebrate").classList.add("show");
+    } else { renderChain(); show("chain"); }
+  }
+  $("cel-close").onclick = function () { $("celebrate").classList.remove("show"); renderChain(); show("chain"); };
+
+  /* ═══ S4 leçon ═══ */
+  var lPage = 0, L_N = 6, lessonReview = false;
+  function lDotsAndDone() {
+    var dots = $("l-dots").children;
+    for (var i = 0; i < L_N; i++) dots[i].className = i === lPage ? "on" : "";
+    $("l-done").style.display = lPage === L_N - 1 ? "block" : "none";
+  }
+  function lReset() {
+    var pages = document.querySelectorAll("#s-lesson .page");
+    pages.forEach(function (p, i) { p.className = "page" + (i === 0 ? " on" : ""); });
+    lPage = 0;
+    lDotsAndDone();
+  }
+  function lGoTo(target) {
+    if (target === lPage || target < 0 || target >= L_N) return;
+    var dir = target > lPage ? "fwd" : "back";
+    var pages = document.querySelectorAll("#s-lesson .page");
+    var oldEl = pages[lPage], newEl = pages[target];
+    newEl.classList.add(dir === "fwd" ? "enter-fwd" : "enter-back");
+    void newEl.offsetWidth; /* force le navigateur à peindre l'état de départ avant l'animation */
+    oldEl.classList.remove("on");
+    oldEl.classList.add(dir === "fwd" ? "leave-fwd" : "leave-back");
+    newEl.classList.remove("enter-fwd", "enter-back");
+    newEl.classList.add("on");
+    lPage = target;
+    lDotsAndDone();
+    setTimeout(function () { oldEl.classList.remove("leave-fwd", "leave-back"); }, 340);
+  }
+  $("l-prev").onclick = function () { lGoTo(lPage - 1); };
+  $("l-next").onclick = function () { lGoTo(lPage + 1); };
+  (function enableSwipe() {
+    var zone = $("lesson-pagezone"), sx = null, sy = null, tracking = false, justSwiped = false;
+    zone.addEventListener("pointerdown", function (e) { sx = e.clientX; sy = e.clientY; tracking = true; });
+    zone.addEventListener("pointerup", function (e) {
+      if (!tracking) return; tracking = false;
+      var dx = e.clientX - sx, dy = e.clientY - sy;
+      if (Math.abs(dx) > 46 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+        justSwiped = true;
+        lGoTo(lPage + (dx < 0 ? 1 : -1));
+      }
+    });
+    zone.addEventListener("pointercancel", function () { tracking = false; });
+    /* capture-phase : un swipe déclenche aussi un click natif sur la tapzone
+       en dessous au relâchement — on l'avale pour ne pas avancer deux fois */
+    zone.addEventListener("click", function (e) {
+      if (justSwiped) { justSwiped = false; e.stopPropagation(); }
+    }, true);
+  })();
+  $("lesson-back").onclick = goReturn;
+  $("l-done").onclick = function () {
+    if (lessonReview) { goReturn(); return; }
+    if (state.stage < 1) state.stage = 1;
+    state.chain.les = true;
+    toast("Leçon ✓");
+    if (returnTo === "chain") completeStep(); else { renderShell(); openFiche(); }
+  };
+  document.querySelectorAll("[data-qc]").forEach(function (o) {
+    o.onclick = function () {
+      var ok = o.dataset.qc === "good", fb = $("qc-fb");
+      o.classList.add(ok ? "good" : "bad");
+      fb.className = "fb " + (ok ? "ok" : "ko");
+      fb.textContent = ok ? "Oui — « tu » → -as." : "« tu » prend -as : trabajas. (non noté)";
+    };
+  });
+
+  /* ═══ Reconnaître ═══ */
+  var RECO = [
+    { q: "Mi amigo ___ pan.", tr: "Mon ami mange du pain.", opts: ["come","como","comes","comer"], good: 0, why: "« mi amigo » = il → -e." },
+    { q: "Tú ___ en un café.", tr: "Tu travailles dans un café.", opts: ["trabajo","trabajas","trabaja","trabajar"], good: 1, why: "« tú » → -as." },
+    { q: "Yo ___ a la escuela.", tr: "Je vais à l'école.", opts: ["vas","va","voy","ir"], good: 2, why: "ir : yo → voy." }
+  ];
+  var rIdx = 0, rDone = false;
+  function openReco() { rIdx = 0; rItem(); show("reco"); }
+  function rItem() {
+    rDone = false;
+    $("r-count").textContent = "Reconnaître · " + (rIdx + 1) + "/" + RECO.length;
+    $("r-prog").style.width = (rIdx / RECO.length * 100) + "%";
+    $("r-next").classList.add("off");
+    var it = RECO[rIdx], b = $("r-body"); b.innerHTML = "";
+    var h = document.createElement("div");
+    h.innerHTML = '<div class="eyebrow">Choisis la bonne forme</div><p style="margin:8px 0 2px"><b>' + it.q +
+      '</b><br><span class="small">' + it.tr + "</span></p>";
+    b.appendChild(h);
+    it.opts.forEach(function (txt, i) {
+      var o = document.createElement("div"); o.className = "opt"; o.textContent = txt; o.tabIndex = 0;
+      o.onclick = function () {
+        if (rDone) return; rDone = true;
+        o.classList.add(i === it.good ? "good" : "bad");
+        if (i !== it.good) b.children[1 + it.good].classList.add("good");
+        var fb = document.createElement("div");
+        fb.className = "fb " + (i === it.good ? "ok" : "ko");
+        fb.textContent = (i === it.good ? "Exact ! " : "La bonne forme : " + it.opts[it.good] + ". ") + it.why;
+        b.appendChild(fb);
+        $("r-next").classList.remove("off");
+      };
+      b.appendChild(o);
+    });
+  }
+  $("reco-back").onclick = goReturn;
+  $("r-next").onclick = function () {
+    rIdx++;
+    if (rIdx < RECO.length) { rItem(); return; }
+    if (state.stage < 2) state.stage = 2;
+    state.chain.dri = true;
+    toast("Reconnaître ✓ — Construire est disponible");
+    if (returnTo === "chain") completeStep(); else { renderShell(); openFiche(); }
+  };
+
+  /* ═══ Construire (rampe) ═══ */
+  var TARGET = ["Voy","a","la","escuela"];
+  var POOLS = [
+    ["Voy","a","la","escuela"],
+    ["a","vas","Voy","escuela","va","la"],
+    ["vas","la","comes","Voy","el","a","tren","escuela","va"]
+  ];
+  var placed = [];
+  function openBuild() { placed = []; bRender(); show("build"); }
+  function bRender() {
+    var p = state.palier;
+    $("b-palier").textContent = p < 3 ? "Palier P" + p : "P3 — tapé";
+    $("b-prog").style.width = (p / 4 * 100) + "%";
+    var b = $("b-body"); b.innerHTML = "";
+    var head = document.createElement("div");
+    head.innerHTML = '<div class="eyebrow">' + (p < 3 ? "Assemble la phrase" : "Écris la phrase en espagnol") +
+      '</div><p style="margin:6px 0 2px"><b>« Je vais à l’école. »</b></p><div class="small">' + [
+        "P0 — chips exacts : on applique, on analyse.",
+        "P1 — + vas · va : le même verbe, autres personnes.",
+        "P2 — + el (genre) · comes, tren (leurres).",
+        "P3 — plus de chips : production libre."][p] + "</div>";
+    b.appendChild(head);
+    if (p < 3) {
+      var slot = document.createElement("div"); slot.className = "slot"; b.appendChild(slot);
+      var pool = document.createElement("div"); pool.className = "pool";
+      POOLS[p].forEach(function (w) {
+        var c = document.createElement("div"); c.className = "chip"; c.textContent = w; c.tabIndex = 0;
+        c.onclick = function () {
+          if (c.classList.contains("used")) return;
+          c.classList.add("used"); placed.push({ w: w, el: c });
+          var s = document.createElement("div"); s.className = "chip"; s.textContent = w;
+          s.onclick = function () {
+            slot.removeChild(s); c.classList.remove("used");
+            placed = placed.filter(function (x) { return x.el !== c; });
+          };
+          slot.appendChild(s);
+        };
+        pool.appendChild(c);
+      });
+      b.appendChild(pool);
+    } else {
+      var inp = document.createElement("input");
+      inp.className = "p-input"; inp.id = "b-input"; inp.placeholder = "Voy…"; inp.autocomplete = "off";
+      b.appendChild(inp);
+    }
+    var fb = document.createElement("div"); fb.id = "b-fb"; fb.className = "fb"; b.appendChild(fb);
+  }
+  $("b-verify").onclick = function () {
+    var p = state.palier, ok, fb = $("b-fb");
+    if (p < 3) ok = placed.length === TARGET.length && placed.every(function (x, i) { return x.w === TARGET[i]; });
+    else { var v = ($("b-input").value || "").trim().toLowerCase().replace(/\.$/, ""); ok = v === "voy a la escuela"; }
+    if (!ok) {
+      fb.className = "fb ko";
+      fb.textContent = p < 3 ? "Pas tout à fait — « je » → voy (ir est irrégulier)." : "Presque — attendu : « Voy a la escuela. »";
+      return;
+    }
+    if (p < 3) {
+      state.palier = p + 1; placed = [];
+      fb.className = "fb ok";
+      fb.textContent = "Correct ! " + ["P1 — des distracteurs arrivent.","P2 — les 3 familles.","P3 — à toi d'écrire."][p];
+      setTimeout(bRender, 1000);
+    } else {
+      state.stage = 3; toast("Construire ✓ — la règle est à toi");
+      renderShell(); openFiche();
+    }
+  };
+
+  /* ═══ Mélange ═══ */
+  var M_N = 3, mPage = 0, mPicks = [];
+  var M_CHIPS = ["Mi","a","-o","-a","-as"], M_GOOD = ["Mi","-a"];
+  function openMelange() {
+    returnTo = ficheContext; // lancé depuis le panneau du Parcours ou la fiche plein écran
+    if (state.melange) { toast("Cluster déjà validé ✓"); return; }
+    if (state.stage < 3) { toast("Démo : en réel, après les 5 leçons — on te laisse essayer"); }
+    mPage = 0; mPicks = []; mCloze(); mRender(); show("melange");
+  }
+  function mRender() {
+    document.querySelectorAll("#s-melange .page").forEach(function (p, i) { p.classList.toggle("on", i === mPage); });
+    var dots = $("m-dots").children;
+    for (var i = 0; i < M_N; i++) dots[i].className = i === mPage ? "on" : "";
+    var cta = $("m-cta");
+    if (mPage === 0) { cta.textContent = "Continuer"; cta.className = "cta ghost"; }
+    else if (mPage === 1) { cta.textContent = "Vérifier"; cta.className = "cta"; }
+    else { cta.textContent = "Continuer le parcours"; cta.className = "cta clay"; }
+  }
+  function mCloze() {
+    var slot = $("m-slot"), pool = $("m-pool");
+    slot.innerHTML = ""; pool.innerHTML = ""; $("m-fb").className = "fb";
+    M_CHIPS.forEach(function (w) {
+      var c = document.createElement("div"); c.className = "chip"; c.textContent = w; c.tabIndex = 0;
+      c.onclick = function () {
+        if (c.classList.contains("used") || mPicks.length >= 2) return;
+        c.classList.add("used"); mPicks.push({ w: w, el: c });
+        var s = document.createElement("div"); s.className = "chip";
+        s.textContent = (mPicks.length === 1 ? "1·" : "2·") + w;
+        s.onclick = function () {
+          slot.removeChild(s); c.classList.remove("used");
+          mPicks = mPicks.filter(function (x) { return x.el !== c; });
+        };
+        slot.appendChild(s);
+      };
+      pool.appendChild(c);
+    });
+  }
+  $("melange-back").onclick = goReturn;
+  $("m-prev").onclick = function () { if (mPage > 0) { mPage--; mRender(); } };
+  $("m-next").onclick = function () { if (mPage === 0) { mPage = 1; mRender(); } };
+  $("m-cta").onclick = function () {
+    if (mPage === 0) { mPage = 1; mRender(); return; }
+    if (mPage === 1) {
+      var ok = mPicks.length === 2 && mPicks[0].w === M_GOOD[0] && mPicks[1].w === M_GOOD[1];
+      var fb = $("m-fb");
+      if (ok) {
+        fb.className = "fb ok"; fb.textContent = "Exact — Mi (possessif) · trabaja (elle → -a).";
+        setTimeout(function () { mPage = 2; state.melange = true; renderShell(); mRender(); }, 900);
+      } else {
+        fb.className = "fb ko"; fb.textContent = "Regarde : « mon amie » → Mi ; « elle » → -a.";
+        mPicks.forEach(function (x) { x.el.classList.remove("used"); });
+        mPicks = []; $("m-slot").innerHTML = "";
+      }
+      return;
+    }
+    renderShell(); showTab("etudier");
+    toast("Cluster « Au quotidien » validé — « En ville » débloqué");
+  };
+  $("build-back").onclick = goReturn;
+
+  /* ═══ S5 session vocab (2 cartes) ═══ */
+  var vIdx = 0, vPhase = 0, vScore = 0;
+  function openVquiz() { vIdx = 0; vPhase = 0; vScore = 0; vItem(); show("vquiz"); }
+  function vItem() {
+    $("v-count").textContent = "Réviser · " + (vIdx + 1) + "/2";
+    $("v-prog").style.width = (vIdx / 2 * 100) + "%";
+    var b = $("v-body"); b.innerHTML = "";
+    if (vIdx === 0) {
+      b.innerHTML = '<div class="center"><div class="eyebrow">Carte · ES → FR</div>' +
+        '<div style="font-size:27px;font-weight:800">la mañana <span class="voice"></span></div>' +
+        (vPhase === 1 ? '<div style="font-size:19px;color:#3E736E;font-weight:700">le matin</div>' : "") + "</div>";
+      $("v-cta").textContent = vPhase === 0 ? "Voir la réponse" : "Je savais ✓";
+      if (vPhase === 1) {
+        var no = document.createElement("div");
+        no.className = "btn ghost"; no.style.margin = "0 0 6px"; no.textContent = "Pas su ✗";
+        no.onclick = function () { vNext(false); };
+        b.appendChild(no);
+      }
+    } else {
+      b.innerHTML = '<div class="eyebrow">Écrire · FR → ES</div>' +
+        '<p style="margin:8px 0 2px"><b>le café</b></p>' +
+        '<input class="p-input" id="v-input" placeholder="el…" autocomplete="off">' +
+        '<div class="fb" id="v-fb"></div>';
+      $("v-cta").textContent = "Vérifier";
+    }
+  }
+  function vNext(good) {
+    if (good) vScore++;
+    vIdx++; vPhase = 0;
+    if (vIdx < 2) { vItem(); return; }
+    $("res-score").textContent = vScore + "/2 — " + (vScore === 2 ? "parfait !" : "bien joué");
+    $("res-w1").textContent = "✓";
+    $("res-w2").textContent = vScore === 2 ? "✓" : "revu bientôt";
+    $("res-next").textContent = vOrigin === "chain" ? "Et ensuite : la suite du chemin t'attend."
+      : "Session libre terminée — rien n'était planifié.";
+    $("res-cta").textContent = vOrigin === "chain" ? "Continuer le chemin" : "Retour";
+    show("resume");
+  }
+  $("v-cta").onclick = function () {
+    if (vIdx === 0) {
+      if (vPhase === 0) { vPhase = 1; vItem(); return; }
+      vNext(true); return;
+    }
+    var v = ($("v-input").value || "").trim().toLowerCase();
+    var ok = v === "el café" || v === "el cafe";
+    var fb = $("v-fb");
+    if (ok) { fb.className = "fb ok"; fb.textContent = "Exact !"; setTimeout(function () { vNext(true); }, 700); }
+    else { fb.className = "fb ko"; fb.textContent = "La bonne réponse était : el café."; setTimeout(function () { vNext(false); }, 1400); }
+  };
+  $("res-cta").onclick = function () {
+    if (vOrigin === "chain") { state.chain.rev = true; completeStep(); }
+    else showTab("etudier");
+  };
+
+  /* ═══ S3 Découvrir ═══ */
+  var D_WORDS = [
+    { es: "la estación", fr: "la gare" },
+    { es: "el tren", fr: "le train" }
+  ];
+  var dIdx = 0, dEcho = false;
+  function openDecouvrir() { dIdx = 0; dEcho = false; dItem(); show("decouvrir"); }
+  function dItem() {
+    var b = $("d-body");
+    if (!dEcho) {
+      $("d-count").textContent = "Découvrir · " + (dIdx + 1) + "/" + (D_WORDS.length + 1);
+      $("d-cta").textContent = "Suivant"; $("d-cta").classList.remove("off");
+      var w = D_WORDS[dIdx];
+      b.innerHTML = '<div class="center"><div class="eyebrow">Nouveau mot · jamais noté</div>' +
+        '<div style="font-size:27px;font-weight:800">' + w.es + ' <span class="voice"></span></div>' +
+        '<div style="font-size:18px;color:#756C62">' + w.fr + "</div>" +
+        '<div class="small">premier contact : on regarde, on écoute — rien à prouver</div></div>';
+    } else {
+      $("d-count").textContent = "Écho · dernier pas";
+      $("d-cta").textContent = "Terminer"; $("d-cta").classList.add("off");
+      b.innerHTML = '<div class="eyebrow">Écho — retrouve « le train »</div>';
+      ["la estación", "el tren", "el café"].forEach(function (t) {
+        var o = document.createElement("div"); o.className = "opt"; o.textContent = t; o.tabIndex = 0;
+        o.onclick = function () {
+          var ok = t === "el tren";
+          o.classList.add(ok ? "good" : "bad");
+          if (ok) $("d-cta").classList.remove("off");
+        };
+        b.appendChild(o);
+      });
+    }
+  }
+  $("d-cta").onclick = function () {
+    if (!dEcho) {
+      dIdx++;
+      if (dIdx < D_WORDS.length) { dItem(); return; }
+      dEcho = true; dItem(); return;
+    }
+    state.chain.dec = true; toast(D_WORDS.length + " mots découverts — ils entrent dans l'échafaudage");
+    completeStep();
+  };
+
+  /* ═══ S17 test de niveau ═══ */
+  var T_ITEMS = [
+    { q: "« l'école » ?", opts: ["la escuela","el escuela","la casa","el agua"], good: 0 },
+    { q: "Ella ___ pan. (comer)", opts: ["como","come","comes"], good: 1 }
+  ];
+  var tIdx = -1, tScore = 0, tDone = false;
+  function openTest() { tIdx = -1; tScore = 0; tDone = false; tRender(); show("test"); }
+  function tRender() {
+    var b = $("test-body"), cta = $("test-cta");
+    if (tIdx === -1) {
+      b.innerHTML = '<div class="center"><div class="big">🎓</div>' +
+        '<div style="font-weight:750;font-size:18px">Test du niveau 1</div>' +
+        '<p class="small">Session mixte notée : vocab + grammaire, sans feedback par item.<br>' +
+        'Réel : 20-30 items, seuil ~85 %. Démo : 2 items, ' + CONFIG.testPass + '/2 requis.<br>' +
+        'Réussi → tout le niveau 2 se débloque.</p></div>';
+      cta.textContent = "Commencer"; cta.className = "cta clay"; return;
+    }
+    if (tIdx < T_ITEMS.length) {
+      var it = T_ITEMS[tIdx];
+      b.innerHTML = '<div class="eyebrow">Item ' + (tIdx + 1) + "/2 · pas de feedback</div>" +
+        '<p style="margin:8px 0 2px"><b>' + it.q + "</b></p>";
+      it.opts.forEach(function (t, i) {
+        var o = document.createElement("div"); o.className = "opt"; o.textContent = t; o.tabIndex = 0;
+        o.onclick = function () {
+          if (tDone) return; tDone = true;
+          o.style.borderColor = "#4C8C86";
+          if (i === it.good) tScore++;
+          setTimeout(function () { tDone = false; tIdx++; tRender(); }, 450);
+        };
+        b.appendChild(o);
+      });
+      cta.textContent = "…réponds pour avancer"; cta.className = "cta off"; return;
+    }
+    var pass = tScore >= CONFIG.testPass;
+    if (pass) {
+      state.a2 = true; renderShell();
+      b.innerHTML = '<div class="center"><div class="big">🎉</div>' +
+        '<div style="font-weight:750;font-size:18px">Réussi — ' + tScore + "/2</div>" +
+        '<p class="small">Le <b>niveau 2</b> est débloqué : toutes ses leçons sont visibles,<br>chacune derrière sa porte de vocabulaire.</p></div>';
+      cta.textContent = "Voir le parcours"; cta.className = "cta clay";
+    } else {
+      b.innerHTML = '<div class="center"><div class="big" style="color:#B0556B">✗</div>' +
+        '<div style="font-weight:750;font-size:18px">Pas encore — ' + tScore + "/2</div>" +
+        '<p class="small">Bilan calme par domaine + étapes <b>Renforcer</b>.<br>Repassable à volonté.</p></div>';
+      cta.textContent = "Retour au parcours"; cta.className = "cta";
+    }
+  }
+  $("test-cta").onclick = function () {
+    if (tIdx === -1) { tIdx = 0; tRender(); return; }
+    if (tIdx >= T_ITEMS.length) { showTab("etudier"); return; }
+  };
+
+  /* ═══ Vocabulaire — vue d'ensemble (2026-08-13) ═══ */
+  var VOCAB_LISTS = [
+    { id: "cafe", nm: "Au café", tag: "parcours", dot: "#D08358", words: 18, pct: 64, dues: 5, recency: 0 },
+    { id: "vie", nm: "La vie quotidienne", tag: "parcours", dot: "#4C8C86", words: 18, pct: 85, dues: 2, recency: 1 },
+    { id: "voyage", nm: "Mots de voyage", tag: "perso", dot: "#B0556B", words: 12, pct: 40, dues: 4, recency: 2 }
+  ];
+  var sortModes = ["Récent", "Maîtrise", "A→Z"];
+  var sortIdx = 0;
+  function renderVocabTab() {
+    var mode = sortModes[sortIdx];
+    $("sort-label").textContent = mode;
+    var sorted = VOCAB_LISTS.slice().sort(function (a, b) {
+      if (mode === "Récent") return a.recency - b.recency;
+      if (mode === "Maîtrise") return b.pct - a.pct;
+      return a.nm.localeCompare(b.nm);
+    });
+    var host = $("vlists"); host.innerHTML = "";
+    sorted.forEach(function (l) {
+      var known = Math.round(l.words * l.pct / 100);
+      var c = document.createElement("div"); c.className = "vlist-card"; c.tabIndex = 0;
+      c.innerHTML = '<span class="vlist-dot" style="background:' + l.dot + '"></span>' +
+        '<span class="vlist-body"><span class="vlist-nm">' + l.nm + '</span>' +
+        '<span class="vlist-meta"><span class="vlist-tag ' + l.tag + '">' + (l.tag === "parcours" ? "PARCOURS" : "PERSO") + '</span></span></span>' +
+        '<span class="vlist-right"><span class="vlist-pct">' + known + '/' + l.words + '</span>' +
+        '<span class="vlist-mbar"><i style="width:' + l.pct + '%"></i></span></span>' +
+        '<span class="kebab" tabindex="0" data-kebab="' + l.id + '">⋯</span>';
+      c.onclick = function () { openList(l.id); };
+      c.querySelector(".kebab").onclick = function (e) { e.stopPropagation(); openListActions(l.id); };
+      host.appendChild(c);
+    });
+  }
+  $("sort-pill").onclick = function () { sortIdx = (sortIdx + 1) % sortModes.length; renderVocabTab(); };
+
+  /* ═══ CRUD listes — rename/ajout/suppression réservés aux listes PERSO ;
+     les listes PARCOURS sont gérées par le curriculum, en lecture seule ═══ */
+  var currentListId = null;
+  function findVocabList(id) { return VOCAB_LISTS.filter(function (x) { return x.id === id; })[0]; }
+  function openListActions(id) { currentListId = id; renderListActionsSheet(); openSheet("sheet-list-actions"); }
+  function renderListActionsSheet() {
+    var v = findVocabList(currentListId), host = $("sheet-list-actions");
+    if (v.tag === "parcours") {
+      host.innerHTML = '<div class="eyebrow" style="margin-bottom:8px">' + v.nm + '</div>' +
+        '<p class="small">Liste du parcours — gérée par le niveau, pas modifiable ici.</p>' +
+        '<div class="btn ghost" style="margin-top:14px" id="sla-close">Fermer</div>';
+      $("sla-close").onclick = closeSheets;
+      return;
+    }
+    host.innerHTML = '<div class="eyebrow" style="margin-bottom:6px">' + v.nm + '</div>' +
+      '<div class="sheet-row" id="sla-rename"><span class="sic">✏️</span><span>Renommer</span></div>' +
+      '<div class="sheet-row" id="sla-addwords"><span class="sic">📝</span><span>Modifier la liste</span></div>' +
+      '<div class="sheet-row danger" id="sla-delete"><span class="sic">🗑️</span><span>Supprimer la liste</span></div>';
+    $("sla-rename").onclick = renderRenameForm;
+    $("sla-addwords").onclick = function () { closeSheets(); openList(currentListId); };
+    $("sla-delete").onclick = renderDeleteConfirm;
+  }
+  function renderRenameForm() {
+    var v = findVocabList(currentListId), host = $("sheet-list-actions");
+    host.innerHTML = '<div class="eyebrow" style="margin-bottom:8px">Renommer la liste</div>' +
+      '<input class="p-input" id="sla-name-input" value="' + v.nm.replace(/"/g, "&quot;") + '">' +
+      '<div class="btnrow"><div class="btn ghost" id="sla-cancel">Annuler</div><div class="btn clay" id="sla-save">Enregistrer</div></div>';
+    $("sla-cancel").onclick = renderListActionsSheet;
+    $("sla-save").onclick = function () {
+      var val = $("sla-name-input").value.trim();
+      if (!val) { toast("Le nom ne peut pas être vide"); return; }
+      v.nm = val; LISTS[currentListId].nm = val;
+      closeSheets(); renderVocabTab();
+      if ($("s-liste").classList.contains("on")) $("ld-title").textContent = val;
+      toast("Liste renommée");
+    };
+  }
+  function renderDeleteConfirm() {
+    var v = findVocabList(currentListId), host = $("sheet-list-actions");
+    host.innerHTML = '<div class="eyebrow" style="margin-bottom:8px">Supprimer « ' + v.nm + ' » ?</div>' +
+      '<p class="small">Cette action est irréversible.</p>' +
+      '<div class="btnrow"><div class="btn ghost" id="sla-cancel2">Annuler</div><div class="btn danger" id="sla-confirm">Supprimer</div></div>';
+    $("sla-cancel2").onclick = renderListActionsSheet;
+    $("sla-confirm").onclick = function () {
+      VOCAB_LISTS = VOCAB_LISTS.filter(function (x) { return x.id !== currentListId; });
+      delete LISTS[currentListId];
+      closeSheets(); renderVocabTab();
+      if ($("s-liste").classList.contains("on")) showTab("vocab");
+      toast("Liste supprimée");
+    };
+  }
+  function openCreateList() {
+    var host = $("sheet-list-actions");
+    host.innerHTML = '<div class="eyebrow" style="margin-bottom:8px">Nouvelle liste</div>' +
+      '<input class="p-input" id="sla-new-name" placeholder="Ex. Vocabulaire du travail">' +
+      '<div class="btnrow"><div class="btn ghost" id="sla-new-cancel">Annuler</div><div class="btn clay" id="sla-new-create">Créer</div></div>';
+    openSheet("sheet-list-actions");
+    $("sla-new-cancel").onclick = closeSheets;
+    $("sla-new-create").onclick = function () {
+      var val = $("sla-new-name").value.trim();
+      if (!val) { toast("Donne un nom à ta liste"); return; }
+      var id = "perso-" + Date.now();
+      VOCAB_LISTS.unshift({ id: id, nm: val, tag: "perso", dot: "#8A6A3A", words: 0, pct: 0, dues: 0, recency: -1 });
+      LISTS[id] = { nm: val, words: [] };
+      closeSheets(); renderVocabTab();
+      toast("Liste créée — ajoute des mots pour commencer");
+    };
+  }
+  $("btn-new-list").onclick = openCreateList;
+
+  /* ═══ S8 liste ═══ */
+  var LISTS = {
+    vie: { nm: "La vie quotidienne", words: [["la mañana","le matin","✓"],["trabajar","travailler","✓"],["la escuela","l'école","✓"],["dormir","dormir","·"]] },
+    cafe: { nm: "Au café", words: [["el café","le café","✓"],["el pan","le pain","✓"],["la leche","le lait","·"],["el agua","l'eau","·"]] },
+    voyage: { nm: "Mots de voyage", words: [["el billete","le billet","✓"],["el aeropuerto","l'aéroport","✓"],["la maleta","la valise","·"],["el pasaporte","le passeport","·"]] }
+  };
+  function openList(id) {
+    currentListId = id;
+    var l = LISTS[id], v = findVocabList(id);
+    $("ld-title").textContent = l.nm;
+    renderListWords();
+    var addHost = $("ld-addword");
+    if (v.tag === "perso") {
+      addHost.innerHTML = '<div class="addword-row" id="ld-add-toggle"><span class="sic">➕</span><span>Ajouter un mot</span></div>' +
+        '<div id="ld-add-form" style="display:none"></div>';
+      $("ld-add-toggle").onclick = function () { renderWordForm(null); };
+    } else {
+      addHost.innerHTML = '<div class="small">liste du parcours — vocabulaire géré par le niveau</div>';
+    }
+    show("liste");
+  }
+  function renderListWords() {
+    var l = LISTS[currentListId], v = findVocabList(currentListId);
+    var host = $("ld-words"); host.innerHTML = "";
+    l.words.forEach(function (w, i) {
+      var r = document.createElement("div"); r.className = "row"; r.style.cursor = "default";
+      r.innerHTML = '<span class="wordstack"><span class="nm">' + w[0] + '</span><span class="small">' + w[1] + "</span></span>" +
+        (w[2] === "✓" ? '<span class="check">✓</span>' : '<span class="st gate">en cours</span>') +
+        (v.tag === "perso" ? '<span class="wordrow-edit" data-i="' + i + '">✏️</span><span class="wordrow-del" data-i="' + i + '">✕</span>' : "");
+      host.appendChild(r);
+    });
+    if (v.tag === "perso") {
+      host.querySelectorAll(".wordrow-edit").forEach(function (b) {
+        b.onclick = function () { renderWordForm(+b.dataset.i); };
+      });
+      host.querySelectorAll(".wordrow-del").forEach(function (b) {
+        b.onclick = function () {
+          var i = +b.dataset.i;
+          l.words.splice(i, 1);
+          v.words = l.words.length; v.pct = v.words ? v.pct : 0;
+          renderListWords(); renderVocabTab();
+        };
+      });
+    }
+  }
+  /* Suggestions de traduction — banque démo bidirectionnelle, non liée à
+     un champ « langue A » ou « langue B » (les deux champs du formulaire
+     restent agnostiques ; l'ordre d'affichage se décide à l'enregistrement) */
+  var WORD_PAIRS = [
+    ["café", "le café"], ["tren", "le train"], ["billete", "le billet"], ["aeropuerto", "l'aéroport"],
+    ["maleta", "la valise"], ["pasaporte", "le passeport"], ["agua", "l'eau"], ["pan", "le pain"],
+    ["leche", "le lait"], ["escuela", "l'école"], ["mañana", "le matin"], ["trabajar", "travailler"],
+    ["hotel", "l'hôtel"], ["playa", "la plage"], ["mar", "la mer"], ["montaña", "la montagne"],
+    ["restaurante", "le restaurant"], ["mesa", "la table"], ["libro", "le livre"], ["casa", "la maison"]
+  ];
+  function normalizeWord(s) {
+    return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/^(el|la|los|las|un|una|le|les|l’|l'|des)\s+/, "").trim();
+  }
+  function suggestFor(input) {
+    var n = normalizeWord(input);
+    if (!n) return null;
+    for (var i = 0; i < WORD_PAIRS.length; i++) {
+      if (normalizeWord(WORD_PAIRS[i][0]) === n) return WORD_PAIRS[i][1];
+      if (normalizeWord(WORD_PAIRS[i][1]) === n) return WORD_PAIRS[i][0];
+    }
+    return null;
+  }
+  function renderWordForm(editIndex) {
+    $("ld-add-toggle").style.display = "none";
+    var host = $("ld-add-form"); host.style.display = "block";
+    var l = LISTS[currentListId];
+    var editing = editIndex !== null;
+    var w = editing ? l.words[editIndex] : ["", "", "·"];
+    host.innerHTML = '<div class="eyebrow" style="margin-bottom:6px">' + (editing ? "Modifier le mot" : "Nouveau mot") + '</div>' +
+      '<input class="p-input" id="ld-word-1" placeholder="Mot" style="margin-bottom:8px" value="' + w[0].replace(/"/g, "&quot;") + '">' +
+      '<input class="p-input" id="ld-word-2" placeholder="Traduction" value="' + w[1].replace(/"/g, "&quot;") + '">' +
+      '<div id="ld-suggest-box"></div>' +
+      '<div class="btnrow"><div class="btn ghost" id="ld-add-cancel">Annuler</div><div class="btn clay" id="ld-add-save">' + (editing ? "Enregistrer" : "Ajouter") + '</div></div>';
+    $("ld-word-2").addEventListener("focus", function () {
+      var box = $("ld-suggest-box");
+      if ($("ld-word-2").value.trim()) { box.innerHTML = ""; return; }
+      var sugg = suggestFor($("ld-word-1").value);
+      if (!sugg) { box.innerHTML = ""; return; }
+      box.innerHTML = '<span class="wsuggest" id="ld-suggest-chip">💡 ' + sugg + '</span>';
+      $("ld-suggest-chip").onclick = function () { $("ld-word-2").value = sugg; box.innerHTML = ""; $("ld-word-2").focus(); };
+    });
+    $("ld-add-cancel").onclick = function () {
+      host.style.display = "none"; host.innerHTML = "";
+      $("ld-add-toggle").style.display = "flex";
+    };
+    $("ld-add-save").onclick = function () {
+      var w1 = $("ld-word-1").value.trim(), w2 = $("ld-word-2").value.trim();
+      if (!w1 || !w2) { toast("Remplis les deux champs"); return; }
+      var v = findVocabList(currentListId);
+      if (editing) { l.words[editIndex][0] = w1; l.words[editIndex][1] = w2; }
+      else { l.words.push([w1, w2, "·"]); v.words = l.words.length; }
+      host.style.display = "none"; host.innerHTML = "";
+      $("ld-add-toggle").style.display = "flex";
+      renderListWords(); renderVocabTab();
+      toast(editing ? "Mot modifié" : "Mot ajouté");
+    };
+  }
+  $("ld-kebab").onclick = function () { openListActions(currentListId); };
+  $("ld-practice").onclick = function () { vOrigin = "libre"; openVquiz(); };
+
+  /* ═══ navigation globale ═══ */
+  document.querySelectorAll(".tab").forEach(function (t) {
+    t.onclick = function () { showTab(t.dataset.tab); };
+  });
+  document.querySelectorAll("[data-toast]").forEach(function (e) {
+    if (!e.onclick) e.onclick = function () { toast(e.dataset.toast); };
+  });
+  document.querySelectorAll("[data-go]").forEach(function (e) {
+    var prev = e.onclick;
+    e.onclick = function () {
+      var g = e.dataset.go;
+      if (g === "shell") { renderShell(); showTab("etudier"); }
+      else if (g === "gram-tab") showTab("gram");
+      else if (g === "vocab-tab") showTab("vocab");
+      else if (g === "chain") { renderChain(); show("chain"); }
+      else if (g === "fiche") openFiche();
+      else if (prev) prev();
+    };
+  });
+  $("card-chain").onclick = function () { renderChain(); show("chain"); };
+  $("hebdo-banner").onclick = function () { openSheet("sheet-hebdo"); };
+  /* Démo : la bannière n'apparaît que le dimanche en réel (décidé) —
+     ici visible en permanence pour rester testable hors dimanche */
+  $("hebdo-banner").classList.add("show");
+  $("btn-menu").onclick = function () {
+    $("menu-sub").textContent = "🔥 " + state.streak + " · " + $("btn-lang").textContent;
+    openSheet("sheet-menu");
+  };
+
+  /* ═══ Sélecteur de langue — en-tête, switch + démarrer une nouvelle langue ═══ */
+  var ROSTER = [
+    { id: "fr", flag: "🇫🇷", nm: "Français" }, { id: "en", flag: "🇬🇧", nm: "Anglais" },
+    { id: "it", flag: "🇮🇹", nm: "Italien" }, { id: "de", flag: "🇩🇪", nm: "Allemand" },
+    { id: "es", flag: "🇪🇸", nm: "Espagnol" }, { id: "ko", flag: "🇰🇷", nm: "Coréen" }
+  ];
+  function rosterOf(id) { return ROSTER.filter(function (x) { return x.id === id; })[0]; }
+  var LANGS = [
+    { id: "es", flag: "🇪🇸", nm: "Espagnol", pair: "FR ↔ ES", streak: 4, niveau: "Niveau 1" },
+    { id: "ko", flag: "🇰🇷", nm: "Coréen", pair: "FR ↔ KO", streak: 0, niveau: "Niveau 0 · à commencer" }
+  ];
+  var NEW_LANGS = [
+    { id: "en", flag: "🇬🇧", nm: "Anglais" },
+    { id: "it", flag: "🇮🇹", nm: "Italien" },
+    { id: "de", flag: "🇩🇪", nm: "Allemand" }
+  ];
+  var activeLangId = "es";
+  function renderLangSheet() {
+    var html = '<div class="eyebrow" style="margin-bottom:6px">Tes langues</div>';
+    LANGS.forEach(function (l) {
+      html += '<div class="lang-row" data-switch="' + l.id + '" tabindex="0">' +
+        '<span class="lang-flag">' + l.flag + '</span>' +
+        '<span class="lang-body"><span class="lang-nm">' + l.nm + ' <span class="small">· ' + l.pair + '</span></span>' +
+        '<div class="lang-meta">🔥 ' + l.streak + ' · ' + l.niveau + '</div></span>' +
+        (l.id === activeLangId ? '<span class="check">✓</span>' : "") + "</div>";
+    });
+    html += '<div class="eyebrow" style="margin:14px 0 2px">Découvrir une langue</div>';
+    if (!NEW_LANGS.length) html += '<p class="small">Toutes les langues disponibles sont déjà dans ton parcours.</p>';
+    NEW_LANGS.forEach(function (l) {
+      html += '<div class="lang-row" data-target="' + l.id + '" tabindex="0">' +
+        '<span class="lang-flag">' + l.flag + '</span>' +
+        '<span class="lang-body"><span class="lang-nm">' + l.nm + '</span></span><span class="lang-plus">＋</span></div>';
+    });
+    var host = $("sheet-lang"); host.innerHTML = html;
+    host.querySelectorAll("[data-switch]").forEach(function (r) { r.onclick = function () { switchLang(r.dataset.switch); }; });
+    host.querySelectorAll("[data-target]").forEach(function (r) { r.onclick = function () { renderBaseStep(r.dataset.target); }; });
+  }
+  function renderBaseStep(targetId) {
+    var t = rosterOf(targetId);
+    var html = '<div class="sheet-row" id="lang-back" style="padding-bottom:8px"><span class="sic">‹</span><span>Retour</span></div>' +
+      '<div class="eyebrow" style="margin:4px 0 2px">Apprendre le ' + t.nm.toLowerCase() + ', depuis quelle langue ?</div>' +
+      '<p class="small" style="margin:0 0 8px">Les leçons et explications seront dans cette langue.</p>';
+    ROSTER.filter(function (b) { return b.id !== targetId; }).forEach(function (b) {
+      html += '<div class="lang-row" data-base="' + b.id + '" tabindex="0">' +
+        '<span class="lang-flag">' + b.flag + '</span>' +
+        '<span class="lang-body"><span class="lang-nm">' + b.nm + '</span></span></div>';
+    });
+    var host = $("sheet-lang"); host.innerHTML = html;
+    $("lang-back").onclick = renderLangSheet;
+    host.querySelectorAll("[data-base]").forEach(function (r) {
+      r.onclick = function () { confirmNewLang(targetId, r.dataset.base); };
+    });
+  }
+  function confirmNewLang(targetId, baseId) {
+    var t = rosterOf(targetId), b = rosterOf(baseId);
+    NEW_LANGS = NEW_LANGS.filter(function (x) { return x.id !== targetId; });
+    LANGS.push({ id: targetId, flag: t.flag, nm: t.nm,
+      pair: b.id.toUpperCase() + " ↔ " + t.id.toUpperCase(), streak: 0, niveau: "Onboarding à faire" });
+    activateLang(targetId); closeSheets();
+    toast(t.nm + " ajouté, depuis le " + b.nm.toLowerCase() + " — l'onboarding déterminerait ton niveau de départ");
+  }
+  function activateLang(id) {
+    var l = LANGS.filter(function (x) { return x.id === id; })[0];
+    activeLangId = id;
+    $("btn-lang").textContent = l.pair;
+    $("flame").textContent = "🔥 " + l.streak;
+  }
+  function switchLang(id) {
+    if (id === activeLangId) { closeSheets(); return; }
+    var l = LANGS.filter(function (x) { return x.id === id; })[0];
+    activateLang(id); closeSheets();
+    if (id !== "es") toast("Démo : contenu limité à l'espagnol ici — le chemin, les listes et les leçons de " + l.nm + " s'afficheraient ici dans l'app réelle");
+  }
+  $("btn-lang").onclick = function () { renderLangSheet(); openSheet("sheet-lang"); };
+  $("btn-libre").onclick = function () { openSheet("sheet-libre"); };
+  $("btn-familles").onclick = function () { show("familles"); };
+  $("g-cl1").onclick = function () { toast("Cluster validé — fiche en lecture (démo : hors scope)"); };
+  $("g-cl2").onclick = openFiche;
+  document.querySelectorAll(".seg").forEach(function (s) {
+    s.querySelectorAll(".sgi").forEach(function (i) {
+      i.onclick = function () {
+        s.querySelectorAll(".sgi").forEach(function (x) { x.classList.remove("on"); });
+        i.classList.add("on");
+      };
+    });
+  });
+  $("pl-go").onclick = function () { closeSheets(); vOrigin = "libre"; openVquiz(); };
+
+  document.querySelectorAll(".jump").forEach(function (j) {
+    j.onclick = function () {
+      var g = j.dataset.j;
+      if (g === "reset") { playPreload(function () { bootApp(); toast("Démo réinitialisée"); }); return; }
+      if (g === "preload") { playPreload(function () { showTab("etudier"); }); return; }
+      if (g === "etudier") { renderShell(); showTab("etudier"); }
+      else if (g === "chain") { renderChain(); show("chain"); }
+      else if (g === "fiche") openFiche();
+      else if (g === "lesson") { returnTo = "road"; lessonReview = false; lReset(); show("lesson"); }
+      else if (g === "vocab") showTab("vocab");
+      else if (g === "grammaire") showTab("gram");
+      else if (g === "progres") showTab("prog");
+      else if (g === "amis") showTab("amis");
+      else if (g === "test") openTest();
+    };
+  });
+
+  /* ═══ S2 préchargement — porte pleine page, ne disparaît que chargement
+     fini (décidé) ; démo : joue au premier chargement de la page ═══ */
+  function playPreload(after) {
+    var lines = ["Connexion…", "Synchronisation…", "Préparation de ton chemin…"];
+    var i = 0;
+    show("preload");
+    $("preload-status").textContent = lines[0];
+    var iv = setInterval(function () {
+      i++;
+      if (i < lines.length) $("preload-status").textContent = lines[i];
+    }, 650);
+    setTimeout(function () { clearInterval(iv); after(); }, 650 * lines.length + 300);
+  }
+  function bootApp() {
+    state = fresh(); renderShell(); showTab("etudier"); renderVocabTab(); renderTrendChart();
+  }
+  playPreload(bootApp);
+})();
+</script>

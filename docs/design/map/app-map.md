@@ -18,9 +18,9 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 | Zone | Note | Statut | Reste à trancher |
 |---|---|---|---|
 | Navigation & onglets | [[navigation]] | 🟢 | modèle complet décidé/validé 2026-08-07 |
-| Accueil (Étudier) : structure validée | [[parcours-home]] | 🟢 | détails designer (Q5-Q7) |
+| Parcours (ex-Étudier) : structure validée | [[parcours-home]] | 🟢 | Q6 seule reste (test de saut sur niveau verrouillé) — nœud=expansion en place, compteurs sans CEFR : décidés 2026-08-21 |
 | Écran Chemin du jour (S18) | [[daily-chain]] | 🟢 | détails visuels (base = panneau sombre validée) |
-| Porte de préchargement | [[preload-gate]] | 🟢 | visuel seulement |
+| Porte de préchargement | [[preload-gate]] | 🟢 | (maquetté 2026-08-21) reste : cas retry/hors-ligne, jamais simulés |
 | Chemin du jour (mécanique) | [[daily-chain]] | 🟢 | nombres à régler au build (quotas, surplus) |
 | Onboarding | [[onboarding]] | 🟠 | rythme, placement |
 
@@ -28,10 +28,10 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 
 | Zone | Note | Statut | Reste à trancher |
 |---|---|---|---|
-| Flux vocabulaire (intro + porte) | [[vocab-flow]] | 🟢🟠 | écho, taille de lot, budget |
+| Flux vocabulaire (intro + porte) | [[vocab-flow]] | 🟢🟠 | écho, taille de lot — budget quotidien 5-10 mots/j adaptatif tranché 2026-08-21 |
 | Flux leçons (clusters) — ex-grammaire | [[grammar-flow]] | 🟢 | (complet — recette Mélange validée 2026-08-13 : ≥ 4 leçons, quiz ≥ 20 q, sans vocab pur) |
 | Niveau 0 (écriture — hangul) | [[niveau-0]] | 🟢 | (structure jamo validée 2026-08-13) |
-| Visionneuse de leçon | [[lesson-viewer]] | 🟢🟠 | **gabarits/ton 🔴** — modèle tranché 2026-08-09 : leçons auteurées figées, exemples sur vocab connu |
+| Visionneuse de leçon | [[lesson-viewer]] | 🟢🟠 | **gabarits/ton 🔴** — swipe + effet de page + exemple sur la même page que la leçon décidés 2026-08-21 (pacing recalibré, TTMIK/PACE) |
 | Exercices (drills) — ex-grammaire | [[grammar-drills]] | 🟢 | (complet — recette Mélange validée, défauts fins posés 2026-08-13) |
 | Test de niveau / placement | [[level-test]] | 🟢🟠 | sémantique du placement, seuil |
 
@@ -39,8 +39,8 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 
 | Zone | Note | Statut | Reste à trancher |
 |---|---|---|---|
-| Quiz canvas, voix, cloze, leeches | [[quiz-canvas]] | ⚪🟠 | layout cloze, thème teal |
-| Pratique libre (entrée dans Étudier) | [[pratique-libre]] | 🟠 | setup 3 choix, visibilité de l'entrée |
+| Quiz canvas, voix, cloze, leeches | [[quiz-canvas]] | ⚪🟠 | flashcard/écrit confirmés 2026-08-21 ; cloze/voix/leeches jamais maquettés |
+| Pratique libre (entrée dans Parcours) | [[pratique-libre]] | 🟢 | (confirmé 2026-08-21 — bottom sheet validé tel quel) |
 
 ## Contenu & suivi
 
@@ -48,7 +48,7 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 |---|---|---|---|
 | Onglets Vocabulaire & Leçons (ex-Grammaire) | [[bibliotheque]] | 🟢🟠 | entrée Familles (visuel) |
 | Familles de mots | [[familles]] | 🟢🟠 | design écran, gratuit vs premium |
-| Progrès, CEFR & bilan hebdo | [[progres-suivi]] | 🟢🟠 | layouts, seuils CEFR |
+| Progrès & bilan hebdo | [[progres-suivi]] | 🟢🟠 | breakdown niveau exact — courbe multi-séries points/lignes (jamais barres) décidée 2026-08-21, plus de % CEFR affiché |
 | Défis | [[defis]] | 🟢🟠 | scope après audit M9 |
 | Pipeline de contenu (génération) | [[content-pipeline]] | 🟢🟠 | slot des leçons (P3), revue native |
 
@@ -56,8 +56,9 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 
 | Zone | Note | Statut | Reste à trancher |
 |---|---|---|---|
+| Langage d'interaction (plongée, flashcards, popups, scroll) | [[interaction-language]] | 🟢 | décidé 2026-09-11 |
 | Multi-langue (règles transverses) | [[multi-language]] | 🟢 | — |
-| Menu général (avatar) → Paramètres · abonnement · avatar · déconnexion | — | 🟢⚪ | design du menu (S15 léger ; écrans v1 conservés dessous) |
+| Menu général (avatar) → Paramètres · abonnement · avatar · déconnexion | — | 🟢⚪ | (maquetté 2026-08-21) carte profil + sections, avatar fondu dans le profil ; écrans v1 dessous non redessinés |
 
 Docs sources : `../v2-ux-architecture.md` (structure + flux) ·
 `../app-design-overview.md` (état actuel) · `../../two-flow-daily-plan.md` ·
