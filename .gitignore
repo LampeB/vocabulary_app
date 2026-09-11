@@ -27,6 +27,9 @@ migrate_working_dir/
 .env.json
 test*.env.json
 
+# Local Codex desktop configuration (machine-specific paths and connectors)
+/.codex/
+
 # Test output
 quiz_test_out.txt
 
