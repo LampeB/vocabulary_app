@@ -10,6 +10,7 @@ import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/notifications/notification_provider.dart';
+import 'package:vocab_kr/presentation/providers/settings/default_pair_provider.dart';
 import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart'
     show QuizSource;
 import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
@@ -93,6 +94,8 @@ void main() {
         seedStarterListsProvider.overrideWith((ref) async {}),
         myListsProvider.overrideWith((ref) => Stream.value(lists)),
         dueCountProvider.overrideWith((ref) => Stream.value(dueCount)),
+        dueCountForPairProvider
+            .overrideWith((ref, pair) => Stream.value(dueCount)),
         notificationSettingsProvider.overrideWith(_FakeNotifSettings.new),
       ],
       routes: [
@@ -106,8 +109,7 @@ void main() {
           pageBuilder: (_, state) {
             navigatedTo = '/quiz';
             capturedQuizArgs = state.extra as QuizArgs?;
-            return const MaterialPage<void>(
-                child: Scaffold(body: SizedBox()));
+            return const MaterialPage<void>(child: Scaffold(body: SizedBox()));
           },
         ),
       ],
@@ -132,6 +134,11 @@ void main() {
       (tester) async {
     await pump(tester, lists: [_list('l1', 'Animaux')]);
 
+    await tester.scrollUntilVisible(
+      find.text('Animaux'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Animaux'));
     await tester.pumpAndSettle();
 
@@ -147,12 +154,14 @@ void main() {
     expect(navigatedTo, '/notifications');
   });
 
-  testWidgets('the grammar card opens the grammar hub screen',
-      (tester) async {
+  testWidgets('the grammar card opens the grammar hub screen', (tester) async {
     await pump(tester);
 
-    await tester.ensureVisible(
-        find.byKey(const ValueKey(WidgetKeys.homeGrammar)));
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey(WidgetKeys.homeGrammar)),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.byKey(const ValueKey(WidgetKeys.homeGrammar)),
         warnIfMissed: false);
     await tester.pumpAndSettle();
@@ -160,8 +169,7 @@ void main() {
     expect(navigatedTo, '/grammar');
   });
 
-  testWidgets('a positive streak arms the streak warning once',
-      (tester) async {
+  testWidgets('a positive streak arms the streak warning once', (tester) async {
     await pump(tester, user: _user(streak: 8), settle: false);
     expect(_lastNotif!.scheduledStreak, 8);
   });
@@ -179,8 +187,7 @@ void main() {
     expect(navigatedTo, isNull);
     expect(find.text('home.review_mode_title'.tr()), findsOneWidget);
 
-    await tester
-        .tap(find.byKey(ValueKey(WidgetKeys.homeReviewMode('typing'))));
+    await tester.tap(find.byKey(ValueKey(WidgetKeys.homeReviewMode('typing'))));
     await tester.pumpAndSettle();
 
     expect(navigatedTo, '/quiz');
@@ -188,6 +195,24 @@ void main() {
     expect(capturedQuizArgs!.mode, QuizMode.typing);
     expect(capturedQuizArgs!.listId, isNull);
     expect(capturedQuizArgs!.direction, QuizDirectionChoice.both);
+    expect(capturedQuizArgs!.langA, 'fr');
+    expect(capturedQuizArgs!.langB, 'ko');
+  });
+
+  testWidgets('the active V0 pair can be changed from the home header',
+      (tester) async {
+    await pump(tester);
+
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.homePairPicker)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('home.pair_picker_title'.tr()), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('home.pair.en-ko')));
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+        tester.element(find.byKey(const ValueKey(WidgetKeys.screenHome))));
+    expect(container.read(defaultPairProvider), ('en', 'ko'));
   });
 
   testWidgets('zero streak does not touch the notification scheduler',
@@ -195,8 +220,8 @@ void main() {
     await pump(tester, user: _user(streak: 0));
     // The screen never reads the lazy notifier when streak == 0; instantiate
     // it through the container to inspect it.
-    final container = ProviderScope.containerOf(tester
-        .element(find.byKey(const ValueKey(WidgetKeys.screenHome))));
+    final container = ProviderScope.containerOf(
+        tester.element(find.byKey(const ValueKey(WidgetKeys.screenHome))));
     container.read(notificationSettingsProvider.notifier);
     expect(_lastNotif!.scheduledStreak, isNull);
   });

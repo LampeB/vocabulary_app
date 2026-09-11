@@ -28,6 +28,10 @@ abstract final class WidgetKeys {
 
   // ── Home ───────────────────────────────────────────────────────────────────
   static const homeBell = 'home.bell'; // header bell → notifications
+  static const homePairPicker = 'home.pair_picker';
+  static const homeDailyPath = 'home.daily_path';
+  static String homePair(String langA, String langB) =>
+      'home.pair.$langA-$langB';
 
   // ── Profile nav tiles ──────────────────────────────────────────────────────
   static const profileTileStats = 'profile.tile.stats';
@@ -82,6 +86,7 @@ abstract final class WidgetKeys {
   static const editWordKo = 'word.edit.ko';
   static const editWordConfirm = 'word.edit.confirm';
   static const deleteWordConfirm = 'word.delete.confirm';
+
   /// Per-tile edit / delete icons (visible only in edit mode), keyed by the
   /// tile's current French word so a step can target a specific word.
   static String conceptEditIcon(String frWord) => 'word.tile.edit.$frWord';
@@ -89,7 +94,8 @@ abstract final class WidgetKeys {
 
   // ── Start-session accordion sections ────────────────────────────────────────
   static String startSection(int index) => 'ss.section.$index'; // header
-  static String startSmart(String name) => 'ss.smart.$name'; // 'due' | 'inprogress'
+  static String startSmart(String name) =>
+      'ss.smart.$name'; // 'due' | 'inprogress'
   static String startLanguage(String langB) => 'ss.lang.$langB'; // target lang
   static String homeReviewMode(String mode) => 'home.review.$mode';
   static const screenGrammar = 'screen.grammar';

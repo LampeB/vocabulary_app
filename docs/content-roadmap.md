@@ -21,6 +21,28 @@ or *"U5: generate the A2 grammar group for Spanish"*.
 | Lesson texts (viewer) | none (🔴 in map) | All levels, all languages |
 | Level tests | design only | Generated at runtime from vocab+rules — no seed content needed, but rules/lists must be level-tagged |
 
+## V0 content focus (decision 2026-09-12)
+
+The V0 is deliberately narrower than the seed catalogue. Its shipped pairs
+are **fr → ko**, **en → ko**, and **ko → fr**; the first learner validation is
+for Korean-speaking French learners.
+
+Before broadening A1 or adding A2, make one small, teacher-reviewed unit
+usable from first contact through review for all three pairs:
+
+- Start from `starter-greetings` (18 concepts), but do not claim it is
+  lesson-ready yet: only 3 of its Korean entries currently have an example.
+- Backfill aligned, practical examples for all 18 concepts in fr/en/ko.
+- Add a compact introductory lesson and its cards in **fr, en, and ko**. The
+  current grammar rule cards have fr/en text only, so they cannot serve a
+  Korean-base learner without a Korean fallback being authored.
+- Have the Korean-base French unit and the Korean copy reviewed by the
+  teacher before beta use. Record review status in the content change.
+
+This first unit is the content companion to `v0-daily-loop-plan.md`; only
+after it passes learner testing should U3/U4/U7 be expanded across the rest
+of the catalogue.
+
 ## Schema prerequisites (CODE, not content — do these first)
 
 The parcours A1→C2 and level tests need level metadata the seed schema

@@ -64,6 +64,35 @@
   genres allemands… — portés par des mécaniques pluggables du moteur
   (voir [[grammar-flow]])
 
+## Décidé — périmètre linguistique de la V0 (2026-09-12)
+
+La V0 démontre le multi-langue avec un périmètre pédagogique intentionnel,
+et non toutes les combinaisons que le modèle de données pourrait composer.
+
+- **Interfaces livrées et vérifiées** : français, anglais et coréen.
+- **Paires d'étude proposées** : français → coréen, anglais → coréen,
+  coréen → français.
+- **Public de la première bêta** : en priorité les élèves coréophones de
+  français ; coréen → français est donc le parcours à valider en premier sur
+  des apprenants réels.
+- Le français → coréen reste un parcours principal ; anglais → coréen prouve
+  que les parcours ne dépendent pas du français.
+- Les autres langues et paires restent compatibles avec l'architecture, mais
+  ne sont ni mises en avant ni promises comme expérience V0 complète.
+
+Conséquences d'exécution :
+
+1. Une interface coréenne complète est un critère de livraison, au même titre
+   que les interfaces fr/en. Les nouvelles clés doivent exister dans les trois
+   locales.
+2. Une paire ne peut être affichée comme prête que si ses explications,
+   exemples et écrans d'erreur existent dans la langue de base. Pour
+   coréen → français, les cartes pédagogiques coréennes sont donc requises ;
+   le repli anglais ne convient pas à la bêta.
+3. Toute unité de contenu V0 doit être relue par la professeure avant d'être
+   montrée à ses élèves, particulièrement registre, progression et consignes
+   en coréen.
+
 ## Proposé — pas encore vetté (Claude)
 - Tagging systématique par paire (drapeaux) sur toute donnée scopée
 - Scripts via le resolver existant (Hangul → Noto Sans KR, à étendre)

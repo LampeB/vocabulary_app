@@ -12,6 +12,7 @@ import '../../../domain/usecases/quiz/get_due_cards_usecase.dart'
     show QuizSource;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/languages.dart';
 import '../../../core/widget_keys.dart';
 import '../../../domain/entities/vocabulary_list.dart';
 import '../../widgets/dotted_ground.dart';
@@ -28,15 +29,23 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  static const _v0Pairs = <(String, String)>[
+    ('fr', 'ko'),
+    ('en', 'ko'),
+    ('ko', 'fr'),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final syncAsync = ref.watch(syncOnLoginProvider); // pulls remote data on login
-    final seedAsync =
-        ref.watch(seedStarterListsProvider); // first-ever login: starter content
+    final syncAsync =
+        ref.watch(syncOnLoginProvider); // pulls remote data on login
+    final seedAsync = ref
+        .watch(seedStarterListsProvider); // first-ever login: starter content
 
     final user = ref.watch(currentUserProvider);
     final listsAsync = ref.watch(myListsProvider);
-    final dueCount = ref.watch(dueCountProvider).valueOrNull ?? 0;
+    final pair = ref.watch(defaultPairProvider);
+    final dueCount = ref.watch(dueCountForPairProvider(pair)).valueOrNull ?? 0;
     final streak = user?.currentStreak ?? 0;
 
     // Preload gate (user decision 2026-07-21): the home page never renders
@@ -60,12 +69,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
 
-    return _buildHome(context, user, listsAsync, dueCount, streak);
+    return _buildHome(context, user, listsAsync, pair, dueCount, streak);
   }
 
   /// Compact mode chooser for the quick-review card: Voix / Mains libres /
   /// Écrit / Cartes, then straight into an all-due session in that mode.
-  void _showReviewModeSheet(BuildContext context) {
+  void _showReviewModeSheet(BuildContext context, (String, String) pair) {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -82,7 +91,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
             for (final (mode, icon, labelKey) in [
-              (QuizMode.voice, Icons.mic_rounded, 'quiz_setup.mode_voice_label'),
+              (
+                QuizMode.voice,
+                Icons.mic_rounded,
+                'quiz_setup.mode_voice_label'
+              ),
               (
                 QuizMode.handsFree,
                 Icons.headset_mic_rounded,
@@ -113,6 +126,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       direction: QuizDirectionChoice.both,
                       cardLimit: const int.fromEnvironment('TEST_CARD_LIMIT',
                           defaultValue: 20),
+                      langA: pair.$1,
+                      langB: pair.$2,
                     ),
                   );
                 },
@@ -124,8 +139,62 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildHome(BuildContext context, dynamic user,
-      AsyncValue<List<VocabularyList>> listsAsync, int dueCount, int streak) {
+  void _showPairPicker(BuildContext context, (String, String) activePair) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('home.pair_picker_title'.tr(),
+                  style: AppTextStyles.grotesk(18, FontWeight.w700)),
+              const SizedBox(height: 4),
+              Text('home.pair_picker_subtitle'.tr(),
+                  style: AppTextStyles.caption),
+              const SizedBox(height: 8),
+              for (final pair in _v0Pairs)
+                ListTile(
+                  key: ValueKey(WidgetKeys.homePair(pair.$1, pair.$2)),
+                  selected: pair == activePair,
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Text(
+                    '${Languages.flagFor(pair.$1)} → ${Languages.flagFor(pair.$2)}',
+                    style: const TextStyle(fontSize: 19),
+                  ),
+                  title: Text(
+                    '${Languages.displayName(pair.$1)} → '
+                    '${Languages.displayName(pair.$2)}',
+                  ),
+                  trailing: pair == activePair
+                      ? const Icon(Icons.check_rounded)
+                      : null,
+                  onTap: () {
+                    ref
+                        .read(defaultPairProvider.notifier)
+                        .set(pair.$1, pair.$2);
+                    Navigator.pop(ctx);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHome(
+      BuildContext context,
+      dynamic user,
+      AsyncValue<List<VocabularyList>> listsAsync,
+      (String, String) pair,
+      int dueCount,
+      int streak) {
     // Schedule streak warning once user data is available.
     if (streak > 0) {
       ref
@@ -156,25 +225,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               children: [
                 // ── Header ─────────────────────────────────────────────────
-                _Header(name: name, avatarUrl: user?.avatarUrl),
+                _Header(
+                  name: name,
+                  avatarUrl: user?.avatarUrl,
+                  pair: pair,
+                  onPairTap: () => _showPairPicker(context, pair),
+                ),
                 const SizedBox(height: 24),
                 // ── Streak block ────────────────────────────────────────────
                 _StreakCard(streak: streak),
                 const SizedBox(height: 12),
-                // ── À réviser ───────────────────────────────────────────────
-                if (dueCount > 0) ...[
-                  _ReviewCard(
-                    dueCount: dueCount,
-                    // Quick review, but the MODE is the user's choice — a
-                    // compact chooser sheet instead of forced voice mode
-                    // (user decision 2026-07-21).
-                    onStart: () => _showReviewModeSheet(context),
-                  ),
-                  const SizedBox(height: 24),
-                ],
+                // ── Chemin du jour ──────────────────────────────────────────
+                // Its count and session are scoped to the active ordered pair.
+                // Until the discovery flow lands, a new learner can still use
+                // this primary action to reach their starter lists.
+                _DailyPathCard(
+                  dueCount: dueCount,
+                  onStartReview: () => _showReviewModeSheet(context, pair),
+                  onExplore: () => context.go('/lists'),
+                ),
+                const SizedBox(height: 24),
                 // ── Grammaire (its own flow — never mixed into vocab setup) ─
-                _GrammarCard(
-                    onOpen: () => context.push('/grammar')),
+                _GrammarCard(onOpen: () => context.push('/grammar')),
                 const SizedBox(height: 24),
                 // ── Tes listes ──────────────────────────────────────────────
                 Builder(builder: (ctx) {
@@ -237,8 +309,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 // ── Header ────────────────────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
-  const _Header({required this.name, this.avatarUrl});
+  const _Header({
+    required this.name,
+    required this.pair,
+    required this.onPairTap,
+    this.avatarUrl,
+  });
   final String name;
+  final (String, String) pair;
+  final VoidCallback onPairTap;
   final String? avatarUrl;
 
   @override
@@ -280,6 +359,37 @@ class _Header extends StatelessWidget {
             const SizedBox(width: 12),
             _Avatar(avatarUrl: avatarUrl, name: name),
           ],
+        ),
+        const SizedBox(height: 10),
+        Semantics(
+          button: true,
+          label: 'home.pair_picker_title'.tr(),
+          child: InkWell(
+            key: const ValueKey(WidgetKeys.homePairPicker),
+            onTap: onPairTap,
+            borderRadius: BorderRadius.circular(999),
+            child: Ink(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest.withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: cs.outline),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                      '${Languages.flagFor(pair.$1)} → ${Languages.flagFor(pair.$2)}'),
+                  const SizedBox(width: 6),
+                  Text('${pair.$1.toUpperCase()} → ${pair.$2.toUpperCase()}',
+                      style: AppTextStyles.fig(13, FontWeight.w600)
+                          .copyWith(color: cs.onSurface)),
+                  const SizedBox(width: 4),
+                  Icon(Icons.expand_more_rounded, size: 18, color: muted),
+                ],
+              ),
+            ),
+          ),
         ),
       ],
     );
@@ -436,7 +546,8 @@ class _GrammarCard extends ConsumerWidget {
       onTap: onOpen,
       child: Container(
         decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest.withValues(alpha: isDark ? 0.4 : 0.6),
+          color:
+              cs.surfaceContainerHighest.withValues(alpha: isDark ? 0.4 : 0.6),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: cs.outline),
         ),
@@ -477,16 +588,22 @@ class _GrammarCard extends ConsumerWidget {
   }
 }
 
-class _ReviewCard extends StatelessWidget {
-  const _ReviewCard({required this.dueCount, required this.onStart});
+class _DailyPathCard extends StatelessWidget {
+  const _DailyPathCard({
+    required this.dueCount,
+    required this.onStartReview,
+    required this.onExplore,
+  });
   final int dueCount;
-  final VoidCallback onStart;
+  final VoidCallback onStartReview;
+  final VoidCallback onExplore;
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: Container(
+        key: const ValueKey(WidgetKeys.homeDailyPath),
         decoration: BoxDecoration(
           color: AppColors.ink,
           borderRadius: BorderRadius.circular(24),
@@ -500,21 +617,26 @@ class _ReviewCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'home.review_label'.tr(),
+                    'home.daily_path_label'.tr(),
                     style: AppTextStyles.eyebrow
                         .copyWith(color: AppColors.onDarkFaint),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '$dueCount ${dueCount == 1 ? 'home.review_word_one'.tr() : 'home.review_word_other'.tr()}',
-                    style: AppTextStyles.grotesk(32, FontWeight.w700)
+                    dueCount > 0
+                        ? 'home.daily_path_due'.tr(namedArgs: {
+                            'count': '$dueCount',
+                          })
+                        : 'home.daily_path_clear'.tr(),
+                    style: AppTextStyles.grotesk(
+                            dueCount > 0 ? 28 : 19, FontWeight.w700)
                         .copyWith(color: AppColors.onDark),
                   ),
                 ],
               ),
             ),
             GestureDetector(
-              onTap: onStart,
+              onTap: dueCount > 0 ? onStartReview : onExplore,
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -523,7 +645,10 @@ class _ReviewCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  'home.review_start'.tr(),
+                  (dueCount > 0
+                          ? 'home.review_start'
+                          : 'home.daily_path_explore')
+                      .tr(),
                   style: AppTextStyles.fig(14, FontWeight.w700)
                       .copyWith(color: Colors.white),
                 ),
@@ -666,8 +791,8 @@ class _SyncingLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       'home.syncing'.tr(),
-      style: AppTextStyles.caption.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant),
+      style: AppTextStyles.caption
+          .copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
     );
   }
 }
