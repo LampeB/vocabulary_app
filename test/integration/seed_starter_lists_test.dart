@@ -85,9 +85,9 @@ void main() {
       }
     }
     expect(totalConcepts, 111);
-    // 40 of the 111 concepts ship an example pair today (raised by the
-    // content phases); every one must survive composition, in both languages.
-    expect(examplesSeen, 80,
+    // 55 of the 111 concepts ship an example pair today (the complete
+    // starter-greetings list included); every one survives in both languages.
+    expect(examplesSeen, 110,
         reason: 'per-variant example sentences must survive composition');
   });
 
@@ -165,10 +165,9 @@ void main() {
     final bonjour = concepts.singleWhere((c) => c.seedId == 'bonjour');
     expect(bonjour.id, legacyConcept.id,
         reason: 'the healthy legacy concept was recognized by word match');
-    final variantIdsNow =
-        (await db.conceptDao.getVariantsByConcept(bonjour.id))
-            .map((v) => v.id)
-            .toSet();
+    final variantIdsNow = (await db.conceptDao.getVariantsByConcept(bonjour.id))
+        .map((v) => v.id)
+        .toSet();
     expect(variantIdsNow, legacyVariantIds,
         reason: 'existing variant rows (which may carry FSRS progress) must '
             'never be replaced');
@@ -244,8 +243,7 @@ void main() {
         reason: 'a later release shipping the layer must still seed');
   });
 
-  test('deleting everything later does NOT re-seed (flag is sticky)',
-      () async {
+  test('deleting everything later does NOT re-seed (flag is sticky)', () async {
     await seed();
     for (final l in await repo.watchMyLists().first) {
       await repo.deleteList(l.id);

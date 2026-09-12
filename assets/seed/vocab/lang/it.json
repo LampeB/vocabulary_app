@@ -1,5 +1,8 @@
 {
   "lang": "it",
+  "_pending_native_review": [
+    "starter-greetings examples added 2026-09-12"
+  ],
   "entries": {
     "acheter": {
       "words": [
@@ -62,7 +65,8 @@
             "m"
           ]
         }
-      ]
+      ],
+      "example": "Il mio amico arriva domani."
     },
     "arriver": {
       "words": [
@@ -80,7 +84,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Arrivederci, buon viaggio."
     },
     "au-revoir-a-celui-qui-reste": {
       "words": [
@@ -89,7 +94,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Arrivederci, a presto."
     },
     "aujourd-hui": {
       "words": [
@@ -137,7 +143,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Buonanotte, a domani."
     },
     "bus": {
       "words": [
@@ -180,7 +187,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Come sta oggi?"
     },
     "coree": {
       "words": [
@@ -198,7 +206,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "D'accordo, ho capito."
     },
     "de-rien": {
       "words": [
@@ -207,7 +216,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Grazie per il suo aiuto. — Prego."
     },
     "delicieux": {
       "words": [
@@ -262,7 +272,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Mi dia dell'acqua, per favore."
     },
     "dormir": {
       "words": [
@@ -315,7 +326,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Piacere, mi chiamo Mina."
     },
     "entreprise-bureau": {
       "words": [
@@ -438,7 +450,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Sono studente."
     },
     "journee": {
       "words": [
@@ -794,7 +807,8 @@
             "m"
           ]
         }
-      ]
+      ],
+      "example": "Come si chiama?"
     },
     "non": {
       "words": [
@@ -803,7 +817,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "No, grazie."
     },
     "ou": {
       "words": [
@@ -821,7 +836,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Sì, va bene."
     },
     "pain": {
       "words": [
@@ -842,7 +858,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Mi scusi, dov'è la stazione?"
     },
     "paris": {
       "words": [
@@ -872,7 +889,8 @@
             "f"
           ]
         }
-      ]
+      ],
+      "example": "Ci sono molte persone qui."
     },
     "poisson-aliment": {
       "words": [

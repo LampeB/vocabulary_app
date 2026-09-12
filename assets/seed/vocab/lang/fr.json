@@ -18,7 +18,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Au revoir, bonne route !"
     },
     "au-revoir-a-celui-qui-reste": {
       "words": [
@@ -27,7 +28,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Au revoir, à bientôt !"
     },
     "merci": {
       "words": [
@@ -46,7 +48,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Merci pour votre aide. — De rien !"
     },
     "pardon-excusez-moi": {
       "words": [
@@ -55,7 +58,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Pardon, où est la gare ?"
     },
     "donnez-moi-s-il-vous-plait": {
       "words": [
@@ -64,7 +68,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Donnez-moi de l'eau, s'il vous plaît."
     },
     "oui": {
       "words": [
@@ -73,7 +78,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Oui, d'accord."
     },
     "non": {
       "words": [
@@ -82,7 +88,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Non, merci."
     },
     "enchante-e": {
       "words": [
@@ -91,7 +98,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Enchantée, je m'appelle Mina."
     },
     "bonne-nuit": {
       "words": [
@@ -100,7 +108,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Bonne nuit, à demain."
     },
     "d-accord-compris": {
       "words": [
@@ -109,7 +118,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "D'accord, j'ai compris."
     },
     "comment-allez-vous": {
       "words": [
@@ -118,7 +128,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Comment allez-vous aujourd'hui ?"
     },
     "je-moi-forme-humble": {
       "words": [
@@ -127,7 +138,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Je suis étudiant."
     },
     "nom": {
       "words": [
@@ -139,7 +151,8 @@
             "m"
           ]
         }
-      ]
+      ],
+      "example": "Quel est votre nom ?"
     },
     "ami": {
       "words": [
@@ -151,7 +164,8 @@
             "m"
           ]
         }
-      ]
+      ],
+      "example": "Mon ami arrive demain."
     },
     "professeur": {
       "words": [
@@ -176,7 +190,8 @@
             "f"
           ]
         }
-      ]
+      ],
+      "example": "Il y a beaucoup de personnes ici."
     },
     "un": {
       "words": [

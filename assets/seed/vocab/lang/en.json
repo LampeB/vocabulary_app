@@ -56,7 +56,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "My friend arrives tomorrow."
     },
     "arriver": {
       "words": [
@@ -74,7 +75,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Goodbye, have a safe trip!"
     },
     "au-revoir-a-celui-qui-reste": {
       "words": [
@@ -83,7 +85,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Goodbye, see you soon!"
     },
     "aujourd-hui": {
       "words": [
@@ -131,7 +134,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Good night, see you tomorrow."
     },
     "bus": {
       "words": [
@@ -168,7 +172,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "How are you today?"
     },
     "coree": {
       "words": [
@@ -186,7 +191,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Okay, I understand."
     },
     "de-rien": {
       "words": [
@@ -195,7 +201,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Thank you for your help. — You're welcome!"
     },
     "delicieux": {
       "words": [
@@ -250,7 +257,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Please give me some water."
     },
     "dormir": {
       "words": [
@@ -297,7 +305,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Nice to meet you, my name is Mina."
     },
     "entreprise-bureau": {
       "words": [
@@ -408,7 +417,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "I am a student."
     },
     "journee": {
       "words": [
@@ -737,7 +747,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "What is your name?"
     },
     "non": {
       "words": [
@@ -746,7 +757,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "No, thank you."
     },
     "ou": {
       "words": [
@@ -764,7 +776,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Yes, okay."
     },
     "pain": {
       "words": [
@@ -782,7 +795,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Excuse me, where is the station?"
     },
     "paris": {
       "words": [
@@ -809,7 +823,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "There are many people here."
     },
     "poisson-aliment": {
       "words": [

@@ -1,5 +1,8 @@
 {
   "lang": "es",
+  "_pending_native_review": [
+    "starter-greetings examples added 2026-09-12"
+  ],
   "entries": {
     "acheter": {
       "words": [
@@ -62,7 +65,8 @@
             "m"
           ]
         }
-      ]
+      ],
+      "example": "Mi amigo llega mañana."
     },
     "arriver": {
       "words": [
@@ -80,7 +84,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Adiós, buen viaje."
     },
     "au-revoir-a-celui-qui-reste": {
       "words": [
@@ -89,7 +94,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Adiós, hasta pronto."
     },
     "aujourd-hui": {
       "words": [
@@ -128,7 +134,7 @@
           "position": 0
         }
       ],
-      "example": "¡Buenos días, profesor!"
+      "example": "¡Hola, profesor!"
     },
     "bonne-nuit": {
       "words": [
@@ -137,7 +143,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Buenas noches, hasta mañana."
     },
     "bus": {
       "words": [
@@ -180,7 +187,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "¿Cómo está hoy?"
     },
     "coree": {
       "words": [
@@ -198,7 +206,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "De acuerdo, he entendido."
     },
     "de-rien": {
       "words": [
@@ -207,7 +216,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Gracias por su ayuda. — De nada."
     },
     "delicieux": {
       "words": [
@@ -262,7 +272,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Por favor, deme agua."
     },
     "dormir": {
       "words": [
@@ -315,7 +326,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Encantado, me llamo Mina."
     },
     "entreprise-bureau": {
       "words": [
@@ -438,7 +450,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Soy estudiante."
     },
     "journee": {
       "words": [
@@ -794,7 +807,8 @@
             "m"
           ]
         }
-      ]
+      ],
+      "example": "¿Cómo se llama?"
     },
     "non": {
       "words": [
@@ -803,7 +817,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "No, gracias."
     },
     "ou": {
       "words": [
@@ -821,7 +836,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Sí, de acuerdo."
     },
     "pain": {
       "words": [
@@ -842,7 +858,8 @@
           "is_primary": true,
           "position": 0
         }
-      ]
+      ],
+      "example": "Disculpe, ¿dónde está la estación?"
     },
     "paris": {
       "words": [
@@ -872,7 +889,8 @@
             "f"
           ]
         }
-      ]
+      ],
+      "example": "Hay muchas personas aquí."
     },
     "poisson-aliment": {
       "words": [
@@ -919,7 +937,7 @@
           ]
         }
       ],
-      "example": "¡Buenos días, profesor!"
+      "example": "Hola, profesor!"
     },
     "quatre": {
       "words": [

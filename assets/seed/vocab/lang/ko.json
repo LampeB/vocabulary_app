@@ -1,5 +1,8 @@
 {
   "lang": "ko",
+  "_pending_native_review": [
+    "starter-greetings examples added 2026-09-12"
+  ],
   "entries": {
     "bonjour": {
       "words": [
@@ -26,7 +29,8 @@
       "notes": {
         "fr": "annyeonghi gaseyo — se dit à la personne qui s'en va",
         "en": "annyeonghi gaseyo — said to the person who is leaving"
-      }
+      },
+      "example": "안녕히 가세요, 조심히 가세요!"
     },
     "au-revoir-a-celui-qui-reste": {
       "words": [
@@ -39,7 +43,8 @@
       "notes": {
         "fr": "annyeonghi gyeseyo — se dit à la personne qui reste",
         "en": "annyeonghi gyeseyo — said to the person who is staying"
-      }
+      },
+      "example": "안녕히 계세요, 또 봐요!"
     },
     "merci": {
       "words": [
@@ -66,7 +71,8 @@
       "notes": {
         "fr": "cheonmaneyo — réponse polie à un remerciement, assez formelle",
         "en": "cheonmaneyo — polite, fairly formal reply to thanks"
-      }
+      },
+      "example": "도와주셔서 감사합니다. — 천만에요!"
     },
     "pardon-excusez-moi": {
       "words": [
@@ -79,7 +85,8 @@
       "notes": {
         "fr": "joesonghamnida — excuse formelle, pour s'excuser ou attirer l'attention",
         "en": "joesonghamnida — formal apology, for apologizing or getting attention"
-      }
+      },
+      "example": "죄송합니다, 역이 어디예요?"
     },
     "donnez-moi-s-il-vous-plait": {
       "words": [
@@ -92,7 +99,8 @@
       "notes": {
         "fr": "juseyo — se place après la chose demandée : « X juseyo » = « X, s'il vous plaît »",
         "en": "juseyo — placed after the thing requested: \"X juseyo\" = \"X, please\""
-      }
+      },
+      "example": "물 주세요."
     },
     "oui": {
       "words": [
@@ -105,7 +113,8 @@
       "notes": {
         "fr": "ne — oui poli ; sert aussi à montrer qu'on écoute",
         "en": "ne — polite yes; also used to show you are listening"
-      }
+      },
+      "example": "네, 알겠습니다."
     },
     "non": {
       "words": [
@@ -118,7 +127,8 @@
       "notes": {
         "fr": "aniyo — non poli",
         "en": "aniyo — polite no"
-      }
+      },
+      "example": "아니요, 감사합니다."
     },
     "enchante-e": {
       "words": [
@@ -131,7 +141,8 @@
       "notes": {
         "fr": "bangapseumnida — se dit lors d'une première rencontre",
         "en": "bangapseumnida — said when meeting someone for the first time"
-      }
+      },
+      "example": "반갑습니다, 저는 미나예요."
     },
     "bonne-nuit": {
       "words": [
@@ -144,7 +155,8 @@
       "notes": {
         "fr": "annyeonghi jumuseyo — littéralement « dormez paisiblement », forme honorifique",
         "en": "annyeonghi jumuseyo — literally \"sleep peacefully\", honorific form"
-      }
+      },
+      "example": "안녕히 주무세요, 내일 봐요."
     },
     "d-accord-compris": {
       "words": [
@@ -157,7 +169,8 @@
       "notes": {
         "fr": "algesseumnida — « j'ai compris », réponse polie à une instruction",
         "en": "algesseumnida — \"got it\", polite reply to an instruction"
-      }
+      },
+      "example": "알겠습니다."
     },
     "comment-allez-vous": {
       "words": [
@@ -170,7 +183,8 @@
       "notes": {
         "fr": "jal jinaeyo? — « vous allez bien ? », entre personnes qui se connaissent",
         "en": "jal jinaeyo? — \"how are you?\", between people who know each other"
-      }
+      },
+      "example": "오늘 잘 지내요?"
     },
     "je-moi-forme-humble": {
       "words": [
@@ -183,7 +197,8 @@
       "notes": {
         "fr": "jeo — pronom « je/moi » humble, à préférer avec des inconnus ou supérieurs",
         "en": "jeo — humble \"I / me\", preferred with strangers and superiors"
-      }
+      },
+      "example": "저는 학생이에요."
     },
     "nom": {
       "words": [
@@ -196,7 +211,8 @@
       "notes": {
         "fr": "ireum — nom, prénom",
         "en": "ireum — name, given name"
-      }
+      },
+      "example": "이름이 뭐예요?"
     },
     "ami": {
       "words": [
@@ -209,7 +225,8 @@
       "notes": {
         "fr": "chingu — ami du même âge ; ne s'emploie pas pour un aîné",
         "en": "chingu — friend of the same age; not used for someone older"
-      }
+      },
+      "example": "친구가 내일 와요."
     },
     "professeur": {
       "words": [
@@ -236,7 +253,8 @@
       "notes": {
         "fr": "saram — personne, être humain ; « 한국 사람 » = un Coréen",
         "en": "saram — person, human being; \"한국 사람\" = a Korean"
-      }
+      },
+      "example": "여기에 사람이 많아요."
     },
     "un": {
       "words": [

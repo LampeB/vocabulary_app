@@ -33,6 +33,10 @@ usable from first contact through review for all three pairs:
 - Start from `starter-greetings` (18 concepts), but do not claim it is
   lesson-ready yet: only 3 of its Korean entries currently have an example.
 - Backfill aligned, practical examples for all 18 concepts in fr/en/ko.
+- **En cours de relecture native (2026-09-12)** : les 18 exemples de
+  starter-greetings sont désormais présents et alignés dans les six couches
+  de langue. Les formulations KO/DE/ES/IT ajoutées doivent être validées par
+  l'enseignante avant la bêta.
 - Add a compact introductory lesson and its cards in **fr, en, and ko**. The
   current grammar rule cards have fr/en text only, so they cannot serve a
   Korean-base learner without a Korean fallback being authored.
