@@ -54,8 +54,10 @@ For the first unit, each condition below must hold in the three V0 pairs:
    amount (for example, a small discovery batch or the number of due reviews).
 3. Lesson navigation uses the **dive-in** transition. An example can open a
    contextual popup; it does not navigate to a generic card screen.
-4. A newly encountered item is introduced before it can be scheduled for an
-   FSRS review. First-contact practice is encouraging and ungraded.
+4. The guided daily path may introduce an item before practising it, with an
+   encouraging, ungraded first-contact step. This is a recommendation of the
+   guided path, never a global lock: free vocabulary practice can start a quiz
+   from any user or imported list immediately.
 5. Flashcard stacks are reserved for the review session. Feedback makes the
    next action clear.
 6. Scroll is avoided where possible; when necessary, an explicit visual cue
@@ -75,11 +77,13 @@ For the first unit, each condition below must hold in the three V0 pairs:
   deep-links into the current session flow.
 - Verify the active pair is passed through every step and persisted.
 
-### 2. Make discovery safe
+### 2. Make discovery useful, without locking free practice
 
-- Add the introduced-state gate described in `two-flow-daily-plan.md` so a
-  quiz cannot draw a raw, unseen variant.
-- Implement the discovery batch and its light echo practice.
+- Implement the discovery batch and its light echo practice for learners who
+  follow the daily path.
+- Preserve direct quiz access from every list, including user-created and
+  imported lists. A learner must not need a curriculum, a lesson or a daily
+  plan to study vocabulary.
 - Use the `starter-greetings` unit as the first real data set only after its
   content work is complete.
 
@@ -128,6 +132,7 @@ test unfinished screens.
 ## Definition of done for the V0 slice
 
 The slice is done when a Korean-speaking learner can complete the introductory
-French unit on a physical device with a Korean interface, resume it after a
-restart, and see the introduced words appear only in a later review session;
-the same loop must be demonstrably usable for FR → KO and EN → KO.
+French unit on a physical device with a Korean interface and resume it after a
+restart; the same loop must be demonstrably usable for FR → KO and EN → KO.
+Separately, a learner must be able to create or import a vocabulary list and
+launch a quiz immediately, without entering the daily path.

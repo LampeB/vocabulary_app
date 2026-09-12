@@ -44,14 +44,13 @@ remain reachable — the path complements, never traps).
   word — word + translation + audio (both languages) + example sentence when
   available; swipe through, tap to replay. Then a light **echo practice**
   (multiple choice both directions) — encouraging, not graded into FSRS.
-- **The gate:** a word enters the review pool only after introduction.
-  Data model: `variant_progress` rows are CREATED at introduction (state
-  newCard, introducedAt=now). Card sources (getDueCards + smart lists +
-  padding) draw only from existing progress rows — never raw unseen
-  variants. Migration: existing users' already-progressed words are
-  considered introduced (rows exist); pristine words become introducible.
-- This changes today's behavior where a quiz can deal never-seen words —
-  that path dies deliberately.
+- **Guided first contact:** in the daily path, an item can be presented before
+  its first graded practice. The introductory and echo steps are encouraging,
+  not graded into FSRS.
+- **Free-practice rule (decision 2026-09-12):** this is not a global gate.
+  A learner can create/import a list and launch a vocabulary quiz immediately,
+  without following a lesson or curriculum. The daily path recommends a
+  sequence; it must never trap users who simply want to practise vocabulary.
 
 ## Grammar learning flow
 
@@ -66,8 +65,8 @@ a sub-plan of this epic; its hub/progress design is unchanged.
    deep-links into current sessions. No behavior change inside sessions.
    The "Découvrir" step can initially open the list detail (placeholder)
    until phase 2 lands.
-2. **Vocab intro + gate:** introducedAt data model + migrations (Drift +
-   Supabase), intro/echo screens, card sources gated, budget setting.
+2. **Vocab intro:** intro/echo screens and budget setting for the guided path,
+   while preserving direct list-based quiz access in free practice.
 3. **Grammar ramp:** per the existing sub-plan (content schema → stage
    model → lesson viewer → MC/chips widgets → gate wiring).
 4. **Polish:** plan tuning (budget, pair balance), path completion
