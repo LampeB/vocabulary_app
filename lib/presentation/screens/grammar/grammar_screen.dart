@@ -32,7 +32,7 @@ class GrammarScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => context.pop(),
         ),
-        title: Text('grammar.screen_title'.tr()),
+        title: Text('daily_path.lessons_title'.tr()),
       ),
       body: Stack(
         children: [
@@ -143,6 +143,10 @@ class _RuleCard extends StatelessWidget {
                 fraction: (status.prereqProgress[name] ?? 0).clamp(0.0, 1.0),
                 color: AppColors.clay,
                 dense: true,
+                onTap: status.prereqListIds[name] == null
+                    ? null
+                    : () => context
+                        .push('/lists/${status.prereqListIds[name] ?? ''}'),
               ),
               const SizedBox(height: 6),
             ],
@@ -181,17 +185,19 @@ class _Bar extends StatelessWidget {
     required this.fraction,
     required this.color,
     this.dense = false,
+    this.onTap,
   });
   final String label;
   final double fraction;
   final Color color;
   final bool dense;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final pct = (fraction * 100).round();
-    return Column(
+    final child = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
@@ -221,5 +227,15 @@ class _Bar extends StatelessWidget {
         ),
       ],
     );
+    return onTap == null
+        ? child
+        : InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: child,
+            ),
+          );
   }
 }

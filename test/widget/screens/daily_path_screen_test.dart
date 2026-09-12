@@ -36,7 +36,7 @@ void main() {
         findsOneWidget);
     expect(find.byKey(const ValueKey(WidgetKeys.dailyPathPractice)),
         findsOneWidget);
-    expect(find.text('daily_path.optional_hint'.tr()), findsOneWidget);
+    expect(find.text('daily_path.title'.tr()), findsOneWidget);
   });
 
   testWidgets('passes the active pair into an all-due review session',

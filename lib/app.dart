@@ -9,7 +9,7 @@ import 'core/theme/app_theme.dart';
 import 'presentation/screens/onboarding/splash_screen.dart';
 import 'presentation/screens/onboarding/welcome_screen.dart';
 import 'presentation/screens/onboarding/auth_screen.dart';
-import 'presentation/screens/home/home_screen.dart';
+import 'presentation/screens/home/parcours_screen.dart';
 import 'presentation/screens/home/daily_path_screen.dart';
 import 'presentation/screens/lists/lists_screen.dart';
 import 'presentation/screens/lists/list_detail_screen.dart';
@@ -130,7 +130,11 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
           ShellRoute(
             builder: (_, __, child) => AppShell(child: child),
             routes: [
-              GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
+              // The signed-in landing page is the learning path. Vocabulary
+              // and lessons remain independent tabs, but the first-use flow
+              // always has one visible next step here.
+              GoRoute(
+                  path: '/home', builder: (_, __) => const ParcoursScreen()),
               GoRoute(
                 path: '/daily-path',
                 pageBuilder: (_, state) => DiveInPage<void>(

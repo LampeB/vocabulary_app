@@ -14,6 +14,9 @@ import '../../widgets/frosted_box.dart';
 import '../../providers/lists/vocab_assistant_provider.dart';
 import '../../../data/datasources/remote/vocab_assistant_datasource.dart';
 import '../../../domain/entities/word_variant.dart';
+import '../../../domain/usecases/quiz/get_due_cards_usecase.dart'
+    show QuizSource;
+import '../../providers/quiz/quiz_provider.dart';
 
 class ListDetailScreen extends ConsumerStatefulWidget {
   const ListDetailScreen({super.key, required this.listId});
@@ -28,7 +31,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final listAsync    = ref.watch(listInfoProvider(widget.listId));
+    final listAsync = ref.watch(listInfoProvider(widget.listId));
     final conceptsAsync = ref.watch(listDetailProvider(widget.listId));
 
     return Scaffold(
@@ -59,8 +62,8 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                 IconButton(
                   icon: const Icon(Icons.ios_share_outlined, size: 22),
                   tooltip: 'list_detail.tooltip_export'.tr(),
-                  onPressed: () => _exportList(
-                      context, listAsync.valueOrNull?.name ?? ''),
+                  onPressed: () =>
+                      _exportList(context, listAsync.valueOrNull?.name ?? ''),
                 ),
                 PopupMenuButton<String>(
                   key: const ValueKey(WidgetKeys.listDetailMenu),
@@ -68,8 +71,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                   onSelected: (value) {
                     if (value == 'edit') setState(() => _editMode = true);
                     if (value == 'export') {
-                      _exportList(
-                          context, listAsync.valueOrNull?.name ?? '');
+                      _exportList(context, listAsync.valueOrNull?.name ?? '');
                     }
                     if (value == 'ai_suggest') {
                       _showAiSuggestionsSheet(context);
@@ -132,12 +134,10 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
             ),
             error: (e, _) => Center(
               child: Text('$e',
-                  style: AppTextStyles.caption
-                      .copyWith(color: AppColors.rose)),
+                  style: AppTextStyles.caption.copyWith(color: AppColors.rose)),
             ),
             data: (concepts) => concepts.isEmpty
-                ? _EmptyState(
-                    onAddTap: () => _showAddWordDialog(context))
+                ? _EmptyState(onAddTap: () => _showAddWordDialog(context))
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                     itemCount: concepts.length,
@@ -154,9 +154,13 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-          // Studying is launched from the central nav button (Start-a-session);
-          // the list screen is for management only.
-          child: _addWordBar(context),
+          child: listAsync.when(
+            loading: () => _addWordBar(context),
+            error: (_, __) => _addWordBar(context),
+            data: (list) => list == null
+                ? _addWordBar(context)
+                : _studyAndEditBar(context, list),
+          ),
         ),
       ),
     );
@@ -173,8 +177,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Builder(builder: (ctx) {
           final isDark = Theme.of(ctx).brightness == Brightness.dark;
-          final muted =
-              isDark ? AppColors.onDarkMuted : AppColors.muted;
+          final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
           return Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -190,15 +193,51 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
     );
   }
 
+  /// A prerequisite list must lead somewhere concrete. The primary action
+  /// starts an immediate flashcard run; editing remains available alongside
+  /// it instead of forcing a learner through the generic setup accordion.
+  Widget _studyAndEditBar(BuildContext context, dynamic list) {
+    return Row(
+      children: [
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: () => context.push(
+              '/quiz',
+              extra: QuizArgs(
+                listId: list.id as String,
+                source: QuizSource.list,
+                mode: QuizMode.flashcard,
+                direction: QuizDirectionChoice.both,
+                cardLimit: 10,
+                langA: list.langA as String,
+                langB: list.langB as String,
+              ),
+            ),
+            icon: const Icon(Icons.play_arrow_rounded),
+            label: Text('course.free_practice'.tr()),
+          ),
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 52,
+          height: 52,
+          child: OutlinedButton(
+            key: const ValueKey(WidgetKeys.listDetailAddWord),
+            onPressed: () => _showAddWordDialog(context),
+            child: const Icon(Icons.add),
+          ),
+        ),
+      ],
+    );
+  }
+
   // ── Actions ───────────────────────────────────────────────────────────────
 
-  Future<void> _exportList(
-      BuildContext context, String listName) async {
+  Future<void> _exportList(BuildContext context, String listName) async {
     final messenger = ScaffoldMessenger.of(context);
     final error = await ref
         .read(listActionsProvider.notifier)
-        .exportList(widget.listId,
-            listName.isEmpty ? widget.listId : listName);
+        .exportList(widget.listId, listName.isEmpty ? widget.listId : listName);
     if (error != null) {
       messenger.showSnackBar(SnackBar(content: Text(error)));
     }
@@ -255,15 +294,14 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
         ref.read(listDetailProvider(widget.listId)).valueOrNull ?? [];
     final pairs = <WordPairSuggestion>[];
     for (final c in concepts) {
-      final variants =
-          await ref
+      final variants = await ref
           .read(variantsProvider(c.id).future)
           .catchError((_) => <WordVariant>[]);
       final fr = variants.where((v) => v.langCode == 'fr' && !v.isDeleted);
       final ko = variants.where((v) => v.langCode == 'ko' && !v.isDeleted);
       if (fr.isNotEmpty && ko.isNotEmpty) {
-        pairs.add(WordPairSuggestion(
-            source: fr.first.word, target: ko.first.word));
+        pairs.add(
+            WordPairSuggestion(source: fr.first.word, target: ko.first.word));
       }
     }
     if (!context.mounted) return;
@@ -409,8 +447,8 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
               ),
               if (_assistError != null)
                 Text(_assistError!,
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.rose)),
+                    style:
+                        AppTextStyles.caption.copyWith(color: AppColors.rose)),
               if (_assist != null) ...[
                 // Translation chips fill BOTH sides as a coherent pair
                 // (source word → translation), shown FR → KO regardless of
@@ -493,8 +531,8 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
           key: const ValueKey(WidgetKeys.addWordConfirm),
           onPressed: () async {
             if (!(_formKey.currentState?.validate() ?? false)) return;
-            final ok = await widget.onSubmit(
-                _frCtrl.text.trim(), _koCtrl.text.trim());
+            final ok =
+                await widget.onSubmit(_frCtrl.text.trim(), _koCtrl.text.trim());
             if (context.mounted && ok) Navigator.pop(context);
             if (context.mounted && !ok) Navigator.pop(context);
           },
@@ -582,8 +620,7 @@ class _AiSuggestionsSheetState extends ConsumerState<_AiSuggestionsSheet> {
                             final p = _result!.pairs[i];
                             return CheckboxListTile(
                               dense: true,
-                              controlAffinity:
-                                  ListTileControlAffinity.leading,
+                              controlAffinity: ListTileControlAffinity.leading,
                               value: _selected.contains(i),
                               onChanged: (v) => setState(() {
                                 if (v == true) {
@@ -615,8 +652,8 @@ class _AiSuggestionsSheetState extends ConsumerState<_AiSuggestionsSheet> {
                                 },
                           child: Text(_adding
                               ? '…'
-                              : 'list_detail.ai_add_selected'.tr(
-                                  namedArgs: {'n': '${_selected.length}'})),
+                              : 'list_detail.ai_add_selected'
+                                  .tr(namedArgs: {'n': '${_selected.length}'})),
                         ),
                       ),
                     ],
@@ -681,7 +718,8 @@ class _ConceptTile extends ConsumerWidget {
                       controller: frCtrl,
                       autofocus: true,
                       decoration: InputDecoration(
-                          labelText: 'list_detail.field_french'.tr(), prefixText: '🇫🇷  '),
+                          labelText: 'list_detail.field_french'.tr(),
+                          prefixText: '🇫🇷  '),
                       textInputAction: TextInputAction.next,
                       validator: (v) =>
                           (v?.trim().isEmpty ?? true) ? 'Requis' : null,
@@ -691,7 +729,8 @@ class _ConceptTile extends ConsumerWidget {
                       key: const ValueKey(WidgetKeys.editWordKo),
                       controller: koCtrl,
                       decoration: InputDecoration(
-                          labelText: 'list_detail.field_korean'.tr(), prefixText: '🇰🇷  '),
+                          labelText: 'list_detail.field_korean'.tr(),
+                          prefixText: '🇰🇷  '),
                       validator: (v) =>
                           (v?.trim().isEmpty ?? true) ? 'Requis' : null,
                     ),
@@ -707,9 +746,7 @@ class _ConceptTile extends ConsumerWidget {
                   key: const ValueKey(WidgetKeys.editWordConfirm),
                   onPressed: () async {
                     if (!(formKey.currentState?.validate() ?? false)) return;
-                    await ref
-                        .read(listActionsProvider.notifier)
-                        .updateVariants(
+                    await ref.read(listActionsProvider.notifier).updateVariants(
                           frVariant: fr.first,
                           newFrWord: frCtrl.text.trim(),
                           koVariant: ko.first,
@@ -729,9 +766,8 @@ class _ConceptTile extends ConsumerWidget {
             context: context,
             builder: (ctx) => AlertDialog(
               title: Text('list_detail.delete_dialog_title'.tr()),
-              content: Text(
-                  'list_detail.delete_dialog_body'.tr(
-                      namedArgs: {'wordA': frWord, 'wordB': koWord})),
+              content: Text('list_detail.delete_dialog_body'
+                  .tr(namedArgs: {'wordA': frWord, 'wordB': koWord})),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx, false),
@@ -739,8 +775,7 @@ class _ConceptTile extends ConsumerWidget {
                 ),
                 TextButton(
                   key: const ValueKey(WidgetKeys.deleteWordConfirm),
-                  style: TextButton.styleFrom(
-                      foregroundColor: AppColors.rose),
+                  style: TextButton.styleFrom(foregroundColor: AppColors.rose),
                   onPressed: () => Navigator.pop(ctx, true),
                   child: Text('common.delete'.tr(),
                       style: AppTextStyles.fig(14, FontWeight.w600)
@@ -756,8 +791,7 @@ class _ConceptTile extends ConsumerWidget {
 
         final tile = FrostedBox(
           borderRadius: BorderRadius.circular(16),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Builder(builder: (ctx) {
             final isDark = Theme.of(ctx).brightness == Brightness.dark;
             final ink = isDark ? AppColors.onDark : AppColors.ink;
@@ -879,8 +913,8 @@ class _EmptyState extends StatelessWidget {
             GestureDetector(
               onTap: onAddTap,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 decoration: BoxDecoration(
                   color: AppColors.clay,
                   borderRadius: BorderRadius.circular(999),

@@ -130,6 +130,7 @@ class RuleStatus {
     this.prereqProgress = const {},
     this.prereqTotals = const {},
     this.prereqNames = const {},
+    this.prereqListIds = const {},
   });
 
   final GrammarRule rule;
@@ -155,6 +156,10 @@ class RuleStatus {
 
   /// Prerequisite token → display name of the matched list, for the bars.
   final Map<String, String> prereqNames;
+
+  /// Prerequisite token → local list id, used to open the exact vocabulary
+  /// prerequisite from a locked lesson.
+  final Map<String, String> prereqListIds;
 
   /// Overall unlock progress weighted by prerequisite-list size (0–1); 1.0
   /// when there are no prerequisites. An unknown list reads as 0 instead of
@@ -197,6 +202,7 @@ final ruleStatusesProvider =
   final totals = <String, int>{};
   final prerequisiteProgress = <String, PrerequisiteProgress>{};
   final displayName = <String, String>{};
+  final listIds = <String, String>{};
   for (final token in tokens) {
     final matches = [
       for (final l in lists)
@@ -207,6 +213,7 @@ final ruleStatusesProvider =
           l,
     ];
     var best = const PrerequisiteProgress(known: 0, total: 0);
+    String? bestListId;
     for (final list in matches) {
       final stats = (await progressRepo.getListStats(list.id)).valueOrNull;
       if (stats == null) continue;
@@ -219,11 +226,13 @@ final ruleStatusesProvider =
       if (candidate.fraction >= best.fraction) {
         best = candidate;
         displayName[token] = list.name;
+        bestListId = list.id;
       }
     }
     fraction[token] = best.fraction;
     totals[token] = best.total;
     prerequisiteProgress[token] = best;
+    if (bestListId != null) listIds[token] = bestListId;
   }
 
   return [
@@ -269,6 +278,10 @@ final ruleStatusesProvider =
               token: totals[token] ?? 0,
           },
           prereqNames: displayName,
+          prereqListIds: {
+            for (final token in rule.prerequisiteLists)
+              if (listIds[token] != null) token: listIds[token]!,
+          },
         );
       }(),
   ];
