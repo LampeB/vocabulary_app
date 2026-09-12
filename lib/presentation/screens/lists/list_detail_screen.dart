@@ -222,6 +222,27 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
           width: 52,
           height: 52,
           child: OutlinedButton(
+            key: const ValueKey(WidgetKeys.listDetailHandsFree),
+            onPressed: () => context.push(
+              '/quiz',
+              extra: QuizArgs(
+                listId: list.id as String,
+                source: QuizSource.list,
+                mode: QuizMode.handsFree,
+                direction: QuizDirectionChoice.both,
+                cardLimit: 10,
+                langA: list.langA as String,
+                langB: list.langB as String,
+              ),
+            ),
+            child: const Icon(Icons.headset_mic_rounded),
+          ),
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 52,
+          height: 52,
+          child: OutlinedButton(
             key: const ValueKey(WidgetKeys.listDetailAddWord),
             onPressed: () => _showAddWordDialog(context),
             child: const Icon(Icons.add),

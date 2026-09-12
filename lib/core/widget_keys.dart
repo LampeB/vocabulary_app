@@ -80,6 +80,7 @@ abstract final class WidgetKeys {
   // ── List detail: word management ───────────────────────────────────────────
   static const listDetailBack = 'list_detail.back';
   static const listDetailAddWord = 'list_detail.add_word'; // bottom add bar
+  static const listDetailHandsFree = 'list_detail.hands_free';
   static const listDetailMenu = 'list_detail.menu'; // ⋮ menu
   static const listDetailEditItem = 'list_detail.menu.edit'; // → edit mode
   static const addWordFr = 'word.add.fr';

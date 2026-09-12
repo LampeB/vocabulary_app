@@ -143,8 +143,7 @@ void main() {
                 listId: list.id, wordA: fr, wordB: ko))
             .valueOrNull!;
         final variants = await db.conceptDao.getVariantsByConcept(concept.id);
-        dueCards.add(
-            due(variants.firstWhere((v) => v.langCode == 'fr').id));
+        dueCards.add(due(variants.firstWhere((v) => v.langCode == 'fr').id));
       }
     });
     progressRepo = _FakeProgressRepo(dueCards);
@@ -184,7 +183,8 @@ void main() {
     await tick(tester, times: 4); // loadCards + first frame
   }
 
-  testWidgets('flashcard: flip reveals the answer, grading advances to the '
+  testWidgets(
+      'flashcard: flip reveals the answer, grading advances to the '
       'summary, done goes home', (tester) async {
     await pump(tester,
         mode: QuizMode.flashcard, words: [('chat', '고양이'), ('chien', '개')]);
@@ -195,18 +195,19 @@ void main() {
     await tick(tester, times: 4);
     expect(find.text('고양이'), findsOneWidget);
 
-    // Grade "known" → feedback → continue → card 2.
-    await tester.tap(find.byKey(const ValueKey(WidgetKeys.gradeKnew)));
+    // Swipe right grades "known" and peels the card away without a verdict
+    // screen, revealing card 2 in the same physical stack position.
+    await tester.fling(find.byKey(const ValueKey(WidgetKeys.cartesCard)),
+        const Offset(300, 0), 1000);
     await tick(tester, times: 4);
-    await tapIfPresent(tester, WidgetKeys.feedbackContinue);
     expect(find.text('chien'), findsOneWidget);
 
     // Card 2 the same way → summary.
     await tester.tap(find.byKey(const ValueKey(WidgetKeys.cartesCard)));
     await tick(tester, times: 4);
-    await tester.tap(find.byKey(const ValueKey(WidgetKeys.gradeKnew)));
+    await tester.fling(find.byKey(const ValueKey(WidgetKeys.cartesCard)),
+        const Offset(300, 0), 1000);
     await tick(tester, times: 6);
-    await tapIfPresent(tester, WidgetKeys.feedbackContinue);
 
     // Cartes NEVER persists mastery (self-grading is too easy to fake) —
     // the session completes but no FSRS rating is written.
@@ -221,7 +222,8 @@ void main() {
     }
   });
 
-  testWidgets('typing: a correct answer shows the correct verdict and '
+  testWidgets(
+      'typing: a correct answer shows the correct verdict and '
       'completes at 100%', (tester) async {
     await pump(tester, mode: QuizMode.typing, words: [('chat', '고양이')]);
 
@@ -230,8 +232,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey(WidgetKeys.ecrireValidate)));
     await tick(tester, times: 4);
 
-    expect(find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)),
-        findsOneWidget);
+    expect(
+        find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)), findsOneWidget);
     await tapIfPresent(tester, WidgetKeys.feedbackContinue);
     await tick(tester, times: 4);
 

@@ -1,4 +1,5 @@
 import 'dart:async' show unawaited;
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -79,6 +80,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // stop talking (protocol spec, user request 2026-07-08).
   bool _hfAnalyzing = false;
   bool _hfAutoPausedSilence = false;
+  // Flashcards are self-graded by a directional swipe. Keeping this state in
+  // the screen (rather than in the quiz provider) makes the physical exit an
+  // animation concern and leaves the stack anchored in one place.
+  bool _flashcardExiting = false;
+  int _flashcardExitDirection = 1;
   // Whole-screen warm breathing pulse used during the hands-free reading state.
   late final AnimationController _pulseCtrl;
   // Listening-window countdown bar: fills left→right over the mic's
@@ -906,31 +912,74 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             .tr(namedArgs: {'days': scheduledDays.toString()});
   }
 
-  /// Cartes — flip card on the unified study canvas; self-grade shows the flood.
+  Future<void> _dismissFlashcard({required bool knew}) async {
+    if (_flashcardExiting) return;
+    setState(() {
+      _flashcardExiting = true;
+      _flashcardExitDirection = knew ? 1 : -1;
+    });
+    HapticFeedback.selectionClick();
+    ref
+        .read(quizProvider.notifier)
+        .gradeFlashcard(knew ? FsrsRating.good : FsrsRating.again);
+    await Future<void>.delayed(const Duration(milliseconds: 460));
+    if (!mounted) return;
+    setState(() => _flashcardExiting = false);
+    ref.read(quizProvider.notifier).advance();
+  }
+
+  /// Cartes — one stable physical stack: tap to turn, swipe to peel away.
   Widget _buildCartesStudy(BuildContext context, QuizState s, QuizCard card) {
     final questionIsHangul =
         Languages.usesHangul(card.progress.direction.questionLang);
     final answerIsHangul =
         Languages.usesHangul(card.progress.direction.answerLang);
 
-    if (s.answerState != QuizAnswerState.idle) {
-      final correct = s.answerState == QuizAnswerState.correct;
-      return StudyFeedbackFlood(
-        isCorrect: correct,
-        label:
-            correct ? 'quiz.feedback_correct'.tr() : 'quiz.feedback_wrong'.tr(),
-        answer: card.answerWords.join(' / '),
-        answerIsKorean: answerIsHangul,
-        detail: _nextReviewText(s.scheduledDays, correct),
-        continueLabel: 'quiz.continue_button'.tr(),
-        onContinue: () => ref.read(quizProvider.notifier).advance(),
+    final showBack = s.isFlipped;
+    Widget face({required bool back}) {
+      final word = back ? card.answerWords.join(' / ') : card.questionWord;
+      final wordIsKorean = back ? answerIsHangul : questionIsHangul;
+      return Material(
+        color: V3Colors.paper,
+        borderRadius: const BorderRadius.all(V3Radii.card),
+        child: InkWell(
+          onTap: back || _flashcardExiting
+              ? null
+              : () => ref.read(quizProvider.notifier).flipCard(),
+          borderRadius: const BorderRadius.all(V3Radii.card),
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(back ? 'RÉPONSE' : 'PRENDS LA CARTE',
+                    style: V3Text.mono(12)),
+                const SizedBox(height: 26),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      word,
+                      textAlign: TextAlign.center,
+                      style:
+                          wordIsKorean ? V3Text.korean(40) : V3Text.title(38),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  back
+                      ? '← PAS ENCORE     JE SAVAIS →'
+                      : 'quiz.card_flip_hint'.tr(),
+                  textAlign: TextAlign.center,
+                  style: V3Text.body(14, color: V3Colors.ink60),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
-
-    final showBack = s.isFlipped;
-    final word = showBack ? card.answerWords.join(' / ') : card.questionWord;
-    // Front = question (Korean only when KO→FR); back = answer (Korean when FR→KO).
-    final wordIsKorean = showBack ? answerIsHangul : questionIsHangul;
 
     return V3StudyScaffold(
       remaining: (s.displayTotal - s.position + 1).clamp(1, s.displayTotal),
@@ -941,84 +990,42 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           children: [
             Expanded(
               child: Center(
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 380,
-                  child: V3CardStack(
-                    remaining: (s.displayTotal - s.position + 1)
-                        .clamp(1, s.displayTotal),
-                    total: s.displayTotal,
-                    child: Material(
-                      color: V3Colors.paper,
-                      borderRadius: const BorderRadius.all(V3Radii.card),
-                      child: InkWell(
-                        key: const ValueKey(WidgetKeys.cartesCard),
-                        onTap: showBack
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final cardWidth = constraints.maxWidth > 350
+                        ? 350.0
+                        : constraints.maxWidth;
+                    return SizedBox(
+                      width: cardWidth,
+                      height: 380,
+                      child: GestureDetector(
+                        onHorizontalDragEnd: !showBack || _flashcardExiting
                             ? null
-                            : () => ref.read(quizProvider.notifier).flipCard(),
-                        borderRadius: const BorderRadius.all(V3Radii.card),
-                        child: Padding(
-                          padding: const EdgeInsets.all(28),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                showBack ? 'RÉPONSE' : 'PRENDS LA CARTE',
-                                style: V3Text.mono(12),
-                              ),
-                              const SizedBox(height: 26),
-                              Text(
-                                word,
-                                textAlign: TextAlign.center,
-                                style: wordIsKorean
-                                    ? V3Text.korean(40)
-                                    : V3Text.title(38),
-                              ),
-                              if (!showBack) ...[
-                                const SizedBox(height: 24),
-                                Text(
-                                  'quiz.card_flip_hint'.tr(),
-                                  textAlign: TextAlign.center,
-                                  style: V3Text.body(14, color: V3Colors.ink60),
-                                ),
-                              ],
-                            ],
+                            : (details) {
+                                final velocity = details.primaryVelocity ?? 0;
+                                if (velocity.abs() < 240) return;
+                                unawaited(
+                                    _dismissFlashcard(knew: velocity > 0));
+                              },
+                        child: V3CardStack(
+                          remaining: (s.displayTotal - s.position + 1)
+                              .clamp(1, s.displayTotal),
+                          total: s.displayTotal,
+                          isExiting: _flashcardExiting,
+                          exitDirection: _flashcardExitDirection,
+                          child: _FlashcardSurface(
+                            key: const ValueKey(WidgetKeys.cartesCard),
+                            isBack: showBack,
+                            front: face(back: false),
+                            back: face(back: true),
                           ),
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
             ),
-            if (showBack)
-              Row(
-                children: [
-                  Expanded(
-                    child: _GradeButton(
-                      key: const ValueKey(WidgetKeys.gradeAgain),
-                      label: 'quiz.flashcard_again'.tr(),
-                      icon: Icons.refresh_rounded,
-                      color: AppColors.feedbackWrong,
-                      onTap: () => ref
-                          .read(quizProvider.notifier)
-                          .gradeFlashcard(FsrsRating.again),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _GradeButton(
-                      key: const ValueKey(WidgetKeys.gradeKnew),
-                      label: 'quiz.flashcard_knew'.tr(),
-                      icon: Icons.check_rounded,
-                      color: AppColors.feedbackCorrect,
-                      onTap: () => ref
-                          .read(quizProvider.notifier)
-                          .gradeFlashcard(FsrsRating.good),
-                    ),
-                  ),
-                ],
-              ),
           ],
         ),
       ),
@@ -1281,50 +1288,43 @@ class _EscapePill extends StatelessWidget {
   }
 }
 
-// ── Cartes self-grade button ──────────────────────────────────────────────────
-
-class _GradeButton extends StatelessWidget {
-  const _GradeButton({
+/// A real two-sided turn: the answer stays hidden until the card passes its
+/// edge, rather than swapping text in place.
+class _FlashcardSurface extends StatelessWidget {
+  const _FlashcardSurface({
     super.key,
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.onTap,
+    required this.isBack,
+    required this.front,
+    required this.back,
   });
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
+
+  final bool isBack;
+  final Widget front;
+  final Widget back;
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 60,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            // Flexible: the half-width grade buttons clip long labels on
-            // narrow (360dp) screens instead of overflowing.
-            Flexible(
-              child: Text(label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.fig(15, FontWeight.w700)
-                      .copyWith(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+        tween: Tween(end: isBack ? 1 : 0),
+        duration: const Duration(milliseconds: 360),
+        curve: Curves.easeInOutCubic,
+        builder: (context, value, _) {
+          final backFace = value >= 0.5;
+          final transform = Matrix4.identity()
+            ..setEntry(3, 2, 0.001)
+            ..rotateY(value * math.pi);
+          return Transform(
+            alignment: Alignment.center,
+            transform: transform,
+            child: backFace
+                ? Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.rotationY(math.pi),
+                    child: back,
+                  )
+                : front,
+          );
+        },
+      );
 }
 
 // ── Hands-free oversized control ──────────────────────────────────────────────

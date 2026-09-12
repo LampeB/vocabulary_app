@@ -7,8 +7,11 @@ import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
+import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart'
+    show QuizSource;
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/purchases/purchase_provider.dart';
+import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
 import 'package:vocab_kr/presentation/screens/lists/list_detail_screen.dart';
 import '../../helpers/fake_remote.dart';
 import '../../helpers/pump_screen.dart';
@@ -30,10 +33,12 @@ void main() {
   // their microtasks outside a pump), so all direct DB work — seeding and
   // assertions — must run under tester.runAsync.
   String? pushedRoute;
+  QuizArgs? launchedQuiz;
 
   Future<void> pump(WidgetTester tester,
       {bool premium = true, int? forceWordCount}) async {
     pushedRoute = null;
+    launchedQuiz = null;
     await tester.runAsync(() async {
       db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
@@ -65,6 +70,13 @@ void main() {
             return const MaterialPage<void>(child: Scaffold(body: SizedBox()));
           },
         ),
+        GoRoute(
+          path: '/quiz',
+          pageBuilder: (_, state) {
+            launchedQuiz = state.extra! as QuizArgs;
+            return const MaterialPage<void>(child: Scaffold(body: SizedBox()));
+          },
+        ),
       ],
     );
   }
@@ -89,6 +101,19 @@ void main() {
     await unmountScreen(tester);
   });
 
+  testWidgets('hands-free quick action starts a hands-free list quiz',
+      (tester) async {
+    await pump(tester);
+
+    await tester.tap(byKey(WidgetKeys.listDetailHandsFree));
+    await tester.pumpAndSettle();
+
+    expect(launchedQuiz?.mode, QuizMode.handsFree);
+    expect(launchedQuiz?.source, QuizSource.list);
+    expect(launchedQuiz?.listId, listId);
+    await unmountScreen(tester);
+  });
+
   testWidgets('adding a word through the dialog shows the new tile',
       (tester) async {
     await pump(tester);
@@ -103,8 +128,8 @@ void main() {
     expect(find.text('maison'), findsOneWidget);
     expect(find.text('집'), findsOneWidget);
     // Persisted, not just painted.
-    final concepts = await tester
-        .runAsync(() => db.conceptDao.getConceptsByList(listId));
+    final concepts =
+        await tester.runAsync(() => db.conceptDao.getConceptsByList(listId));
     expect(concepts!.length, 3);
     await unmountScreen(tester);
   });
@@ -127,8 +152,7 @@ void main() {
     await unmountScreen(tester);
   });
 
-  testWidgets(
-      'free plan at the word quota: adding a word routes to /paywall',
+  testWidgets('free plan at the word quota: adding a word routes to /paywall',
       (tester) async {
     await pump(tester, premium: false, forceWordCount: 50);
 

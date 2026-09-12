@@ -15,6 +15,8 @@ class V3CardStack extends StatelessWidget {
     super.key,
     this.maxVisibleEdges = 3,
     this.emptyLabel = 'PILE VIDE',
+    this.isExiting = false,
+    this.exitDirection = 1,
   });
 
   final Widget child;
@@ -22,6 +24,13 @@ class V3CardStack extends StatelessWidget {
   final int total;
   final int maxVisibleEdges;
   final String emptyLabel;
+
+  /// True while the top card is being sent away. The stack itself stays put;
+  /// only this card moves, so the following card is revealed in the same spot.
+  final bool isExiting;
+
+  /// -1 for the "not yet" side, 1 for the "knew it" side.
+  final int exitDirection;
 
   static const _tilts = [-1.1, 1.7, -2.4, 1.2];
 
@@ -71,10 +80,21 @@ class V3CardStack extends StatelessWidget {
             ),
           )
         else
-          Transform.rotate(
-            angle: _tilts[topIndex] * (3.141592653589793 / 180),
-            alignment: Alignment.bottomCenter,
-            child: child,
+          AnimatedSlide(
+            duration: const Duration(milliseconds: 460),
+            curve: Curves.easeInCubic,
+            offset:
+                isExiting ? Offset(1.18 * exitDirection, 0.08) : Offset.zero,
+            child: AnimatedRotation(
+              duration: const Duration(milliseconds: 460),
+              curve: Curves.easeInCubic,
+              turns: isExiting ? (11 / 360) * exitDirection : 0,
+              child: Transform.rotate(
+                angle: _tilts[topIndex] * (3.141592653589793 / 180),
+                alignment: Alignment.bottomCenter,
+                child: child,
+              ),
+            ),
           ),
       ],
     );
