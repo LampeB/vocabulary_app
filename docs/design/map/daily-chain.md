@@ -15,6 +15,16 @@ schéma : `../diagrams/v2-daily-chain.svg` (sources → générateur → étapes
 - Base de design validée « pour l'instant » : le panneau sombre à étapes
   des diagrammes (`../diagrams/v2-daily-chain.svg`, panneau de droite)
 
+## Implémenté (V0, 2026-09-12)
+
+- La carte d'accueil ouvre désormais S18 (`/daily-path`) : une entrée dédiée,
+  contextualisée par la paire active.
+- Cette première tranche relie uniquement les capacités déjà réelles : révision
+  des échéances par paire (avec choix du mode), hub Leçons et Pratique libre.
+  Elle ne crée ni série ni complétion fictive.
+- Le chemin reste explicitement optionnel : les listes et leurs quiz directs ne
+  sont jamais bloqués par cet écran.
+
 ## Décidé (utilisateur, 2026-08-08 — mécanique tranchée)
 - **Ordre : Réviser d'abord** (échauffement sur du connu) → leçons du
   parcours → drills grammaire → Renforcer en dernier

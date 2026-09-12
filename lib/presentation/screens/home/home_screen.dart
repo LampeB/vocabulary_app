@@ -6,10 +6,7 @@ import '../../providers/auth/auth_provider.dart';
 import '../../providers/grammar/grammar_provider.dart';
 import '../../providers/lists/vocabulary_provider.dart';
 import '../../providers/notifications/notification_provider.dart';
-import '../../providers/quiz/quiz_provider.dart';
 import '../../providers/settings/default_pair_provider.dart';
-import '../../../domain/usecases/quiz/get_due_cards_usecase.dart'
-    show QuizSource;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/languages.dart';
@@ -70,73 +67,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     return _buildHome(context, user, listsAsync, pair, dueCount, streak);
-  }
-
-  /// Compact mode chooser for the quick-review card: Voix / Mains libres /
-  /// Écrit / Cartes, then straight into an all-due session in that mode.
-  void _showReviewModeSheet(BuildContext context, (String, String) pair) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('home.review_mode_title'.tr(),
-                    style: AppTextStyles.grotesk(18, FontWeight.w700)),
-              ),
-            ),
-            for (final (mode, icon, labelKey) in [
-              (
-                QuizMode.voice,
-                Icons.mic_rounded,
-                'quiz_setup.mode_voice_label'
-              ),
-              (
-                QuizMode.handsFree,
-                Icons.headset_mic_rounded,
-                'quiz_setup.mode_hands_free_label'
-              ),
-              (
-                QuizMode.typing,
-                Icons.keyboard_rounded,
-                'quiz_setup.mode_typing_label'
-              ),
-              (
-                QuizMode.flashcard,
-                Icons.style_rounded,
-                'quiz_setup.mode_flashcard_label'
-              ),
-            ])
-              ListTile(
-                key: ValueKey(WidgetKeys.homeReviewMode(mode.name)),
-                leading: Icon(icon, size: 22),
-                title: Text(labelKey.tr()),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  context.go(
-                    '/quiz',
-                    extra: QuizArgs(
-                      source: QuizSource.allDue,
-                      mode: mode,
-                      direction: QuizDirectionChoice.both,
-                      cardLimit: const int.fromEnvironment('TEST_CARD_LIMIT',
-                          defaultValue: 20),
-                      langA: pair.$1,
-                      langB: pair.$2,
-                    ),
-                  );
-                },
-              ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
   }
 
   void _showPairPicker(BuildContext context, (String, String) activePair) {
@@ -236,13 +166,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 _StreakCard(streak: streak),
                 const SizedBox(height: 12),
                 // ── Chemin du jour ──────────────────────────────────────────
-                // Its count and session are scoped to the active ordered pair.
-                // Until the discovery flow lands, a new learner can still use
-                // this primary action to reach their starter lists.
+                // Its count is scoped to the active ordered pair. The card
+                // enters a dedicated, optional daily-plan screen; free
+                // practice remains independently available from the Lists tab.
                 _DailyPathCard(
                   dueCount: dueCount,
-                  onStartReview: () => _showReviewModeSheet(context, pair),
-                  onExplore: () => context.go('/lists'),
+                  onOpen: () => context.push('/daily-path'),
                 ),
                 const SizedBox(height: 24),
                 // ── Grammaire (its own flow — never mixed into vocab setup) ─
@@ -591,12 +520,10 @@ class _GrammarCard extends ConsumerWidget {
 class _DailyPathCard extends StatelessWidget {
   const _DailyPathCard({
     required this.dueCount,
-    required this.onStartReview,
-    required this.onExplore,
+    required this.onOpen,
   });
   final int dueCount;
-  final VoidCallback onStartReview;
-  final VoidCallback onExplore;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -636,7 +563,7 @@ class _DailyPathCard extends StatelessWidget {
               ),
             ),
             GestureDetector(
-              onTap: dueCount > 0 ? onStartReview : onExplore,
+              onTap: onOpen,
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -645,10 +572,7 @@ class _DailyPathCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  (dueCount > 0
-                          ? 'home.review_start'
-                          : 'home.daily_path_explore')
-                      .tr(),
+                  'home.daily_path_open'.tr(),
                   style: AppTextStyles.fig(14, FontWeight.w700)
                       .copyWith(color: Colors.white),
                 ),

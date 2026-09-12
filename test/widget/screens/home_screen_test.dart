@@ -11,9 +11,6 @@ import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/notifications/notification_provider.dart';
 import 'package:vocab_kr/presentation/providers/settings/default_pair_provider.dart';
-import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart'
-    show QuizSource;
-import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
 import 'package:vocab_kr/presentation/screens/home/home_screen.dart';
 import '../../helpers/pump_screen.dart';
 
@@ -64,7 +61,6 @@ void main() {
   setUpAll(initTestLocalization);
 
   String? navigatedTo;
-  QuizArgs? capturedQuizArgs;
 
   Future<void> pump(
     WidgetTester tester, {
@@ -102,13 +98,13 @@ void main() {
         stub('/lists'),
         stub('/lists/:id'),
         stub('/notifications'),
+        stub('/daily-path'),
         stub('/start-session-grammar'),
         stub('/grammar'),
         GoRoute(
           path: '/quiz',
           pageBuilder: (_, state) {
             navigatedTo = '/quiz';
-            capturedQuizArgs = state.extra as QuizArgs?;
             return const MaterialPage<void>(child: Scaffold(body: SizedBox()));
           },
         ),
@@ -174,29 +170,14 @@ void main() {
     expect(_lastNotif!.scheduledStreak, 8);
   });
 
-  testWidgets(
-      'the À réviser card opens the mode chooser; picking a mode starts an '
-      'all-due session in THAT mode (user decision 2026-07-21)',
+  testWidgets('the daily-path card opens its dedicated optional plan screen',
       (tester) async {
     await pump(tester, dueCount: 3);
 
-    await tester.tap(find.text('home.review_start'.tr()));
+    await tester.tap(find.text('home.daily_path_open'.tr()));
     await tester.pumpAndSettle();
 
-    // Chooser sheet, not a direct start.
-    expect(navigatedTo, isNull);
-    expect(find.text('home.review_mode_title'.tr()), findsOneWidget);
-
-    await tester.tap(find.byKey(ValueKey(WidgetKeys.homeReviewMode('typing'))));
-    await tester.pumpAndSettle();
-
-    expect(navigatedTo, '/quiz');
-    expect(capturedQuizArgs!.source, QuizSource.allDue);
-    expect(capturedQuizArgs!.mode, QuizMode.typing);
-    expect(capturedQuizArgs!.listId, isNull);
-    expect(capturedQuizArgs!.direction, QuizDirectionChoice.both);
-    expect(capturedQuizArgs!.langA, 'fr');
-    expect(capturedQuizArgs!.langB, 'ko');
+    expect(navigatedTo, '/daily-path');
   });
 
   testWidgets('the active V0 pair can be changed from the home header',

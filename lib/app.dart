@@ -10,6 +10,7 @@ import 'presentation/screens/onboarding/splash_screen.dart';
 import 'presentation/screens/onboarding/welcome_screen.dart';
 import 'presentation/screens/onboarding/auth_screen.dart';
 import 'presentation/screens/home/home_screen.dart';
+import 'presentation/screens/home/daily_path_screen.dart';
 import 'presentation/screens/lists/lists_screen.dart';
 import 'presentation/screens/lists/list_detail_screen.dart';
 import 'presentation/screens/quiz/quiz_screen.dart';
@@ -33,8 +34,11 @@ const _kTestMode = bool.fromEnvironment('TEST_MODE');
 class _NoAnimationPageTransitionsBuilder extends PageTransitionsBuilder {
   const _NoAnimationPageTransitionsBuilder();
   @override
-  Widget buildTransitions<T>(PageRoute<T> route, BuildContext context,
-          Animation<double> animation, Animation<double> secondaryAnimation,
+  Widget buildTransitions<T>(
+          PageRoute<T> route,
+          BuildContext context,
+          Animation<double> animation,
+          Animation<double> secondaryAnimation,
           Widget child) =>
       child;
 }
@@ -45,7 +49,6 @@ class VocabKrApp extends ConsumerStatefulWidget {
   @override
   ConsumerState<VocabKrApp> createState() => _VocabKrAppState();
 }
-
 
 class _VocabKrAppState extends ConsumerState<VocabKrApp> {
   late final GoRouter _router;
@@ -97,8 +100,7 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
         initialLocation: '/splash',
         refreshListenable: _authNotifier,
         redirect: (context, state) {
-          final isSignedIn =
-              Supabase.instance.client.auth.currentUser != null;
+          final isSignedIn = Supabase.instance.client.auth.currentUser != null;
           final loc = state.matchedLocation;
           final onPublic =
               loc == '/splash' || loc == '/welcome' || loc == '/auth';
@@ -126,14 +128,16 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
           ShellRoute(
             builder: (_, __, child) => AppShell(child: child),
             routes: [
+              GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
               GoRoute(
-                  path: '/home', builder: (_, __) => const HomeScreen()),
-              GoRoute(
-                  path: '/lists', builder: (_, __) => const ListsScreen()),
+                path: '/daily-path',
+                builder: (_, __) => const DailyPathScreen(),
+              ),
+              GoRoute(path: '/lists', builder: (_, __) => const ListsScreen()),
               GoRoute(
                 path: '/lists/:listId',
-                builder: (_, state) => ListDetailScreen(
-                    listId: state.pathParameters['listId']!),
+                builder: (_, state) =>
+                    ListDetailScreen(listId: state.pathParameters['listId']!),
               ),
               GoRoute(
                 path: '/quiz',
@@ -155,24 +159,18 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
                 builder: (_, __) => const GrammarScreen(),
               ),
               GoRoute(
-                  path: '/social',
-                  builder: (_, __) => const SocialScreen()),
+                  path: '/social', builder: (_, __) => const SocialScreen()),
               GoRoute(
-                  path: '/profile',
-                  builder: (_, __) => const ProfileScreen()),
+                  path: '/profile', builder: (_, __) => const ProfileScreen()),
               GoRoute(
-                  path: '/paywall',
-                  builder: (_, __) => const PaywallScreen()),
+                  path: '/paywall', builder: (_, __) => const PaywallScreen()),
               GoRoute(
                   path: '/notifications',
-                  builder: (_, __) =>
-                      const NotificationSettingsScreen()),
+                  builder: (_, __) => const NotificationSettingsScreen()),
               GoRoute(
                   path: '/settings',
                   builder: (_, __) => const SettingsScreen()),
-              GoRoute(
-                  path: '/stats',
-                  builder: (_, __) => const StatsScreen()),
+              GoRoute(path: '/stats', builder: (_, __) => const StatsScreen()),
             ],
           ),
           GoRoute(
@@ -212,8 +210,7 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
 
 class _AuthChangeNotifier extends ChangeNotifier {
   _AuthChangeNotifier(SupabaseClient client) {
-    _sub = client.auth.onAuthStateChange
-        .listen((_) => notifyListeners());
+    _sub = client.auth.onAuthStateChange.listen((_) => notifyListeners());
   }
 
   late final StreamSubscription<AuthState> _sub;

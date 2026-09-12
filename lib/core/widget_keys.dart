@@ -15,6 +15,7 @@ abstract final class WidgetKeys {
   // One per destination, on the screen's top-level Scaffold, so a test can
   // assert *which* screen is showing without matching localized text.
   static const screenHome = 'screen.home';
+  static const screenDailyPath = 'screen.daily_path';
   static const screenLists = 'screen.lists';
   static const screenListDetail = 'screen.list_detail';
   static const screenStartSession = 'screen.start_session';
@@ -30,6 +31,9 @@ abstract final class WidgetKeys {
   static const homeBell = 'home.bell'; // header bell → notifications
   static const homePairPicker = 'home.pair_picker';
   static const homeDailyPath = 'home.daily_path';
+  static const dailyPathReview = 'daily_path.review';
+  static const dailyPathLessons = 'daily_path.lessons';
+  static const dailyPathPractice = 'daily_path.practice';
   static String homePair(String langA, String langB) =>
       'home.pair.$langA-$langB';
 
