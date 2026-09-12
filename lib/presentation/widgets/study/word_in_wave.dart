@@ -26,6 +26,7 @@ class WordInWave extends StatelessWidget {
     this.waveOpacity = 0.30,
     this.waveHeight = 140,
     this.wordSize,
+    this.wordColor,
   });
 
   /// The prompt word to display.
@@ -52,6 +53,10 @@ class WordInWave extends StatelessWidget {
   /// Optional override for the prompt word font size.
   final double? wordSize;
 
+  /// Explicit foreground for immersive surfaces whose brightness is different
+  /// from the app-wide light/dark setting.
+  final Color? wordColor;
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -60,7 +65,7 @@ class WordInWave extends StatelessWidget {
 
     var wordStyle =
         (isKorean ? AppTextStyles.koreanPrompt : AppTextStyles.promptWord)
-            .copyWith(color: cs.onSurface);
+            .copyWith(color: wordColor ?? cs.onSurface);
     if (wordSize != null) wordStyle = wordStyle.copyWith(fontSize: wordSize);
 
     return Stack(
@@ -86,7 +91,8 @@ class WordInWave extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 cue!.toUpperCase(),
-                style: AppTextStyles.eyebrow.copyWith(color: cueColor ?? mutedCue),
+                style:
+                    AppTextStyles.eyebrow.copyWith(color: cueColor ?? mutedCue),
                 textAlign: TextAlign.center,
               ),
             ],

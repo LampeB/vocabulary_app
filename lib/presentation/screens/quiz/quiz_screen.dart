@@ -713,8 +713,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       );
     }
 
-    final cs = Theme.of(context).colorScheme;
-    final isDark = cs.brightness == Brightness.dark;
     final reduceMotion = MediaQuery.of(context).disableAnimations;
     final listening = s.isListening && !_hfPaused;
 
@@ -735,9 +733,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                         'lang': 'lang.${_answerLangCode(card)}'.tr()
                       })
                     : 'quiz.hf_reading'.tr()))));
-    final cueColor = listening && !_hfAnalyzing
-        ? (isDark ? AppColors.clayLight : AppColors.clayDeep)
-        : (isDark ? AppColors.onDarkMuted : AppColors.muted);
+    // Hands-free lives on the V3 dark study canvas in every app theme. Never
+    // inherit light-theme foregrounds here: that is what made the light-mode
+    // version unreadable against the pond background.
+    final cueColor =
+        listening && !_hfAnalyzing ? V3Colors.amber : V3Colors.inkLight70;
 
     return V3StudyScaffold(
       remaining: (s.displayTotal - s.position + 1).clamp(1, s.displayTotal),
@@ -790,6 +790,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                             word: card.questionWord,
                             isKorean: questionIsHangul,
                             cue: cue,
+                            wordColor: V3Colors.inkLight,
                             cueColor: cueColor.withValues(alpha: fade),
                             waveActive: listening && !_hfAnalyzing,
                           );
@@ -813,10 +814,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                             value: _listenBarCtrl.value,
                             minHeight: 5,
                             backgroundColor:
-                                cs.onSurface.withValues(alpha: 0.08),
-                            valueColor: AlwaysStoppedAnimation(isDark
-                                ? AppColors.clayLight
-                                : AppColors.clayDeep),
+                                V3Colors.ruleDark.withValues(alpha: 0.7),
+                            valueColor:
+                                const AlwaysStoppedAnimation(V3Colors.amber),
                           ),
                         ),
                       ),
@@ -854,8 +854,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 onTap: _toggleHfPause,
                 behavior: HitTestBehavior.opaque,
                 child: ColoredBox(
-                  color: (isDark ? Colors.black : Colors.white)
-                      .withValues(alpha: 0.45),
+                  color: Colors.black.withValues(alpha: 0.58),
                   child: Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -865,7 +864,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                                 ? Icons.hearing_disabled_rounded
                                 : Icons.pause_rounded,
                             size: 56,
-                            color: cs.onSurface),
+                            color: V3Colors.inkLight),
                         const SizedBox(height: 10),
                         Text(
                             (_hfAutoPausedSilence
@@ -874,14 +873,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                                 .tr(),
                             textAlign: TextAlign.center,
                             style: AppTextStyles.grotesk(28, FontWeight.w700)
-                                .copyWith(color: cs.onSurface)),
+                                .copyWith(color: V3Colors.inkLight)),
                         const SizedBox(height: 6),
                         Text('quiz.hf_resume_hint'.tr(),
                             style: AppTextStyles.fig(14, FontWeight.w500)
-                                .copyWith(
-                                    color: isDark
-                                        ? AppColors.onDarkMuted
-                                        : AppColors.muted)),
+                                .copyWith(color: V3Colors.inkLight70)),
                       ],
                     ),
                   ),
@@ -1373,28 +1369,24 @@ class _HfButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = cs.brightness == Brightness.dark;
-    final fg = cs.onSurface;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
         height: 104,
         decoration: BoxDecoration(
-          color:
-              cs.surfaceContainerHighest.withValues(alpha: isDark ? 0.4 : 0.7),
+          color: V3Colors.block,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: cs.outline),
+          border: Border.all(color: V3Colors.ruleDark),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 32, color: fg),
+            Icon(icon, size: 32, color: V3Colors.inkLight),
             const SizedBox(height: 8),
             Text(label,
-                style:
-                    AppTextStyles.fig(15, FontWeight.w700).copyWith(color: fg)),
+                style: AppTextStyles.fig(15, FontWeight.w700)
+                    .copyWith(color: V3Colors.inkLight)),
           ],
         ),
       ),
