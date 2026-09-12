@@ -55,6 +55,31 @@ reconciled by these ids (`concepts.seed_id`, `vocabulary_lists.seed_id`), and
 grammar prerequisites reference list ids. List display names live in the
 translation files; they are resolved once at seed time and user-editable after.
 
+## Grammar lesson pages (P3)
+
+Grammar rules may carry an optional `lesson_pages` array. It is authored
+content, never generated at runtime, and is intentionally absent until a U7
+unit supplies reviewed pages. Each page uses this compact shape:
+
+```json
+{
+  "type": "explain",
+  "text": { "fr": "…", "en": "…", "ko": "…" },
+  "example": {
+    "target": "Je parle français.",
+    "translations": { "fr": "…", "en": "…", "ko": "…" },
+    "detail": { "fr": "…", "en": "…", "ko": "…" }
+  }
+}
+```
+
+`type` is descriptive (`explain`, `example`, then future reviewed types); the
+reader must degrade unknown types to readable text. `example` is optional. If
+present, its `target` is in the studied language; `translations` is shown on
+the page and `detail` is the short, localized copy for its contextual popup.
+For V0, every displayed page and example must include fr, en and ko: never
+fall back to English for the Korean → French learner path.
+
 ## Generation prompt (for LLM-drafted layers)
 
 Give the model: the registry concept ids with categories + the fr layer as

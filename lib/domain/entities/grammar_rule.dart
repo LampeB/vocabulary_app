@@ -8,6 +8,10 @@
 /// Content fields (title/description/explanation, worked-example
 /// translations) are locale maps; resolve them with [GrammarRule.title] etc.
 /// (requested locale → en → first available).
+///
+/// The optional [lessonPages] slot is the authored, fixed reader content for
+/// the rule. Exercise generation never writes into it: content is reviewed in
+/// seed JSON and the viewer only renders it.
 library;
 
 class GrammarRule {
@@ -17,6 +21,7 @@ class GrammarRule {
     required this.descriptions,
     required this.explanations,
     required this.workedExamples,
+    this.lessonPages = const [],
     required this.prerequisiteLists,
     required this.appliesToCategories,
     required this.minKnownWords,
@@ -29,6 +34,10 @@ class GrammarRule {
   final Map<String, String> descriptions;
   final Map<String, String> explanations;
   final List<WorkedExample> workedExamples;
+
+  /// Short, manually navigated teaching pages. Empty for legacy rules until
+  /// their U7 content unit is authored.
+  final List<LessonPage> lessonPages;
 
   /// Seed ids of the catalog lists (e.g. 'starter-greetings') that must be
   /// known collectively (≥80% weighted across all prerequisites, with ≥70%
@@ -67,6 +76,10 @@ class GrammarRule {
         for (final e in (r['worked_examples'] as List? ?? []))
           WorkedExample.fromJson(e as Map<String, dynamic>),
       ],
+      lessonPages: [
+        for (final p in (r['lesson_pages'] as List? ?? []))
+          LessonPage.fromJson(p as Map<String, dynamic>),
+      ],
       prerequisiteLists: (r['prerequisite_lists'] as List).cast<String>(),
       appliesToCategories: (r['applies_to_categories'] as List).cast<String>(),
       minKnownWords: (r['min_known_words'] as Map<String, dynamic>? ?? {})
@@ -91,6 +104,61 @@ class GrammarRule {
     final legacy = r['${field}_fr'] as String?;
     return legacy == null ? const {} : {'fr': legacy};
   }
+}
+
+/// One fixed page in the grammar lesson reader.
+///
+/// `type` is intentionally a string, rather than a closed enum: a newer seed
+/// can introduce a presentation type that an older app renders as normal text
+/// instead of failing to load the entire curriculum. An example carries both
+/// a short source-language translation and an optional contextual popup detail.
+class LessonPage {
+  const LessonPage({
+    required this.type,
+    required this.texts,
+    this.example,
+  });
+
+  final String type;
+  final Map<String, String> texts;
+  final LessonExample? example;
+
+  String text(String locale) => GrammarRule._resolve(texts, locale);
+
+  factory LessonPage.fromJson(Map<String, dynamic> json) {
+    final example = json['example'];
+    return LessonPage(
+      type: json['type'] as String? ?? 'explain',
+      texts: GrammarRule._localeMap(json, 'text'),
+      example: example is Map<String, dynamic>
+          ? LessonExample.fromJson(example)
+          : null,
+    );
+  }
+}
+
+/// A tappable target-language example on a [LessonPage].
+class LessonExample {
+  const LessonExample({
+    required this.target,
+    required this.translations,
+    this.details = const {},
+  });
+
+  final String target;
+  final Map<String, String> translations;
+  final Map<String, String> details;
+
+  String translation(String locale) =>
+      GrammarRule._resolve(translations, locale);
+
+  String detail(String locale) => GrammarRule._resolve(details, locale);
+
+  factory LessonExample.fromJson(Map<String, dynamic> json) => LessonExample(
+        target: json['target'] as String,
+        translations: GrammarRule._localeMap(json, 'translations'),
+        details: GrammarRule._localeMap(json, 'detail'),
+      );
 }
 
 class WorkedExample {

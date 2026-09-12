@@ -63,9 +63,10 @@ need re-touching:
   `"level": "A1", "group": "<lang>-a1-g1", "group_order": n` so the
   ~5-rule groups of `grammar-flow.md` exist in data. Existing rules = one
   group per language.
-- **P3 — lesson text slot**: decide where lesson-viewer texts live
-  (probably `assets/seed/grammar/<lang>/lessons.json` or a `lesson` locale
-  map on the rule). Blocks U7.
+- **P3 — lesson text slot**: ✅ implemented 2026-09-12 as the optional
+  `lesson_pages` array on each grammar rule. The documented locale-aware page
+  and contextual-example contract is ready; it deliberately contains no
+  unreviewed lesson copy. U7 can now add one reviewed unit at a time.
 
 ## Units of work (the orderable menu)
 
