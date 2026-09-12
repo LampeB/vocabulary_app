@@ -924,8 +924,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         .gradeFlashcard(knew ? FsrsRating.good : FsrsRating.again);
     await Future<void>.delayed(const Duration(milliseconds: 460));
     if (!mounted) return;
-    setState(() => _flashcardExiting = false);
     ref.read(quizProvider.notifier).advance();
+    setState(() => _flashcardExiting = false);
   }
 
   /// Cartes — one stable physical stack: tap to turn, swipe to peel away.
@@ -1011,6 +1011,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                           remaining: (s.displayTotal - s.position + 1)
                               .clamp(1, s.displayTotal),
                           total: s.displayTotal,
+                          cardId: card.progress.variantId,
                           isExiting: _flashcardExiting,
                           exitDirection: _flashcardExitDirection,
                           child: _FlashcardSurface(

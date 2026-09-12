@@ -17,6 +17,7 @@ class V3CardStack extends StatelessWidget {
     this.emptyLabel = 'PILE VIDE',
     this.isExiting = false,
     this.exitDirection = 1,
+    required this.cardId,
   });
 
   final Widget child;
@@ -24,6 +25,10 @@ class V3CardStack extends StatelessWidget {
   final int total;
   final int maxVisibleEdges;
   final String emptyLabel;
+
+  /// Identity of the visible card. A new id removes the previous top card
+  /// instead of reversing its exit animation with new content inside it.
+  final String cardId;
 
   /// True while the top card is being sent away. The stack itself stays put;
   /// only this card moves, so the following card is revealed in the same spot.
@@ -80,19 +85,22 @@ class V3CardStack extends StatelessWidget {
             ),
           )
         else
-          AnimatedSlide(
-            duration: const Duration(milliseconds: 460),
-            curve: Curves.easeInCubic,
-            offset:
-                isExiting ? Offset(1.18 * exitDirection, 0.08) : Offset.zero,
-            child: AnimatedRotation(
+          SizedBox.expand(
+            child: AnimatedSlide(
+              key: ValueKey('v3-card-$cardId'),
               duration: const Duration(milliseconds: 460),
               curve: Curves.easeInCubic,
-              turns: isExiting ? (11 / 360) * exitDirection : 0,
-              child: Transform.rotate(
-                angle: _tilts[topIndex] * (3.141592653589793 / 180),
-                alignment: Alignment.bottomCenter,
-                child: child,
+              offset:
+                  isExiting ? Offset(1.18 * exitDirection, 0.08) : Offset.zero,
+              child: AnimatedRotation(
+                duration: const Duration(milliseconds: 460),
+                curve: Curves.easeInCubic,
+                turns: isExiting ? (11 / 360) * exitDirection : 0,
+                child: Transform.rotate(
+                  angle: _tilts[topIndex] * (3.141592653589793 / 180),
+                  alignment: Alignment.bottomCenter,
+                  child: child,
+                ),
               ),
             ),
           ),

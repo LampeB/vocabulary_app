@@ -201,6 +201,7 @@ void main() {
         const Offset(300, 0), 1000);
     await tick(tester, times: 4);
     expect(find.text('chien'), findsOneWidget);
+    expect(find.text('chat'), findsNothing);
 
     // Card 2 the same way → summary.
     await tester.tap(find.byKey(const ValueKey(WidgetKeys.cartesCard)));
