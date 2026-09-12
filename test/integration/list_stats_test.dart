@@ -189,23 +189,40 @@ void main() {
   });
 
   group('arePrerequisitesKnown (grammar prerequisite gate)', () {
-    test('80% combined progress unlocks a lesson', () {
-      expect(arePrerequisitesKnown([1.0, 0.6]), isTrue);
-      expect(arePrerequisitesKnown([0.8]), isTrue);
+    PrerequisiteProgress p(int known, int total) =>
+        PrerequisiteProgress(known: known, total: total);
+
+    test('80% weighted progress unlocks when every list reaches 70%', () {
+      // 10/10 + 14/20 = 80% overall; the second list reaches its 70% floor.
+      expect(arePrerequisitesKnown([p(10, 10), p(14, 20)]), isTrue);
+      expect(arePrerequisitesKnown([p(8, 10)]), isTrue);
     });
 
-    test('below 80% combined progress keeps a lesson locked', () {
-      expect(arePrerequisitesKnown([1.0, 0.59]), isFalse);
-      expect(arePrerequisitesKnown([0.79]), isFalse);
+    test('a list below 70% remains locked even when the total reaches 80%', () {
+      // The previous average-only rule incorrectly opened this at 80%.
+      expect(arePrerequisitesKnown([p(10, 10), p(6, 10)]), isFalse);
     });
 
-    test('a missing prerequisite contributes no progress', () {
-      expect(arePrerequisitesKnown([1.0, 0]), isFalse);
+    test('weighted total prevents a short complete list masking a longer one',
+        () {
+      // Average = 85%, but 10/10 + 21/30 is only 77.5% of all words.
+      expect(arePrerequisitesKnown([p(10, 10), p(21, 30)]), isFalse);
+    });
+
+    test('a missing prerequisite cannot open a lesson', () {
+      expect(arePrerequisitesKnown([p(10, 10), p(0, 0)]), isFalse);
       expect(listMasteryRatio(total: 0, mastered: 0), 0);
     });
 
     test('threshold is overridable for a curriculum policy', () {
-      expect(arePrerequisitesKnown([0.5], threshold: 0.5), isTrue);
+      expect(
+        arePrerequisitesKnown(
+          [p(5, 10)],
+          combinedThreshold: 0.5,
+          minimumPerList: 0.5,
+        ),
+        isTrue,
+      );
     });
   });
 }

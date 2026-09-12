@@ -8,7 +8,8 @@ engagements, sauf lorsqu'ils contredisent une décision plus récente.
 ## Verdict
 
 Le noyau métier est cohérent : les listes restent libres, les prérequis de
-leçon existent, et le seuil est bien **80 % global**. La documentation est
+leçon existent, et le seuil est bien **80 % pondéré avec 70 % minimum par
+liste**. La documentation est
 maintenant claire : un quiz de vocabulaire peut démarrer sans parcours.
 
 L'écart principal est structurel. Le dépôt contient le moteur et l'interface
@@ -29,7 +30,7 @@ de produit, pas des correctifs isolés.
 | Une liste créée/importée peut être étudiée sans curriculum. | **Conforme** | `getDueCards` ajoute les variantes sans progression ; le setup accepte une source `list`. | Garder cet invariant testé. |
 | Découvrir recommande un premier contact, sans bloquer la pratique libre. | **Partiel** | Le quiz direct fonctionne ; les écrans Découvrir/écho n'existent pas. | Ajouter ces étapes seulement au chemin facultatif. |
 | Une leçon dépend de listes de vocabulaire préalables. | **Conforme** | `prerequisite_lists`, barres de progression et verrou dans le hub/le setup. | Conserver des prérequis par `seed_id`. |
-| Pré-requis à 80 % sur l'ensemble des listes, pas 90 % par liste. | **Conforme** | `arePrerequisitesKnown` moyenne les fractions ; les tests couvrent 100 % + 60 % ouvert et 100 % + 59 % verrouillé. | Rien. |
+| Pré-requis à 80 % pondéré, avec au moins 70 % dans chaque liste. | **Conforme** | `arePrerequisitesKnown` pondère par le nombre de mots et impose le plancher par liste ; les tests couvrent le cas 100 % + 60 % verrouillé. | Rien. |
 | Une leçon verrouillée dit quoi travailler. | **Conforme** | Le hub montre la progression et les listes ; le setup les nomme. | Réutiliser ce message dans le futur lecteur. |
 | Texte de leçon figé et exemples à partir de vocab connu. | **Partiel** | Règles JSON et exemples figés existent ; les drills sélectionnent des mots connus. Pas de schéma/lecteur multi-pages. | Créer le modèle de leçon seedé minimal. |
 | Clusters, mélange final et progression par niveau. | **À construire** | Règles et exercices individuels seulement. | Ajouter le modèle de cluster après le lecteur. |
@@ -80,7 +81,7 @@ du chemin critique V0, sauf décision produit contraire.
 
 ## Vérification
 
-Le seuil 80 % a été contrôlé par analyse ciblée et les tests d'écran de
+Le seuil hybride 80 % / 70 % a été contrôlé par analyse ciblée et les tests d'écran de
 grammaire/statistiques de listes. Cet audit compare les contrats documentation
 et code ; il ne valide ni appareil physique, ni backend déployé, ni qualité
 pédagogique des traductions.

@@ -159,6 +159,7 @@ class RuleStatus {
     required this.enoughWords,
     required this.correct,
     this.prereqProgress = const {},
+    this.prereqTotals = const {},
     this.prereqNames = const {},
   });
 
@@ -166,7 +167,7 @@ class RuleStatus {
   final RuleAvailability availability;
 
   /// Display names of the least-complete prerequisite lists when their
-  /// combined progress has not yet reached the 80% unlock threshold.
+  /// weighted progress has not reached 80%, or one list is below 70%.
   final List<String> missingLists;
 
   /// Whether enough vocabulary is mastered to generate a session.
@@ -179,23 +180,33 @@ class RuleStatus {
   /// ids, or display names for legacy content).
   final Map<String, double> prereqProgress;
 
+  /// Total words per prerequisite token. Used to calculate the weighted
+  /// overall progress shown to the learner.
+  final Map<String, int> prereqTotals;
+
   /// Prerequisite token → display name of the matched list, for the bars.
   final Map<String, String> prereqNames;
 
-  /// Overall unlock progress across all prerequisite lists (0–1); 1.0 when
-  /// there are no prerequisites.
+  /// Overall unlock progress weighted by prerequisite-list size (0–1); 1.0
+  /// when there are no prerequisites. An unknown list reads as 0 instead of
+  /// letting the visible percentage imply that the lesson is nearly ready.
   double get unlockFraction {
     if (rule.prerequisiteLists.isEmpty) return 1;
-    var sum = 0.0;
+    var known = 0.0;
+    var total = 0;
     for (final name in rule.prerequisiteLists) {
-      sum += prereqProgress[name] ?? 0;
+      final listTotal = prereqTotals[name] ?? 0;
+      if (listTotal <= 0) return 0;
+      known += (prereqProgress[name] ?? 0) * listTotal;
+      total += listTotal;
     }
-    return sum / rule.prerequisiteLists.length;
+    return total == 0 ? 0 : known / total;
   }
 }
 
 /// Availability of every rule of one target language: prerequisite lists gate
-/// unlocking (≥80% across its prerequisite lists), rule progress
+/// unlocking (≥80% weighted across its prerequisite lists, with ≥70% in each),
+/// rule progress
 /// gates "mastered". Prerequisites are matched by seed list id
 /// (`<id>:<any-source>><targetLang>`), falling back to display name for
 /// not-yet-adopted legacy lists.
@@ -214,6 +225,8 @@ final ruleStatusesProvider =
   // for catalog lists (any source language, this target), by name for legacy.
   final tokens = {for (final r in rules) ...r.prerequisiteLists};
   final fraction = <String, double>{};
+  final totals = <String, int>{};
+  final prerequisiteProgress = <String, PrerequisiteProgress>{};
   final displayName = <String, String>{};
   for (final token in tokens) {
     final matches = [
@@ -224,20 +237,24 @@ final ruleStatusesProvider =
             l.name == token)
           l,
     ];
-    var tokenFraction = 0.0;
+    var best = const PrerequisiteProgress(known: 0, total: 0);
     for (final list in matches) {
       final stats = (await progressRepo.getListStats(list.id)).valueOrNull;
       if (stats == null) continue;
-      final total = stats['total'] ?? 0;
-      final f = total == 0 ? 0.0 : (stats['known']! / total).clamp(0.0, 1.0);
+      final candidate = PrerequisiteProgress(
+        known: stats['known'] ?? 0,
+        total: stats['total'] ?? 0,
+      );
       // A user may study the same curriculum list from several source
       // languages; the furthest one counts.
-      if (f >= tokenFraction) {
-        tokenFraction = f;
+      if (candidate.fraction >= best.fraction) {
+        best = candidate;
         displayName[token] = list.name;
       }
     }
-    fraction[token] = tokenFraction;
+    fraction[token] = best.fraction;
+    totals[token] = best.total;
+    prerequisiteProgress[token] = best;
   }
 
   return [
@@ -247,10 +264,18 @@ final ruleStatusesProvider =
           for (final token in rule.prerequisiteLists)
             token: fraction[token] ?? 0,
         };
-        final vocabUnlocked = arePrerequisitesKnown(prereqProgress.values);
+        final prereqCounts = {
+          for (final token in rule.prerequisiteLists)
+            token: prerequisiteProgress[token] ??
+                const PrerequisiteProgress(known: 0, total: 0),
+        };
+        final vocabUnlocked = arePrerequisitesKnown(prereqCounts.values);
         final missing = [
           for (final token in rule.prerequisiteLists)
-            if ((prereqProgress[token] ?? 0) < kPrerequisiteUnlockThreshold)
+            if (!vocabUnlocked &&
+                ((prereqCounts[token]?.total ?? 0) <= 0 ||
+                    (prereqProgress[token] ?? 0) <
+                        kPrerequisiteUnlockThreshold))
               displayName[token] ?? token,
         ];
         final p = progress[rule.id];
@@ -270,6 +295,10 @@ final ruleStatusesProvider =
               devUnlock || (generator?.canGenerate(rule, drillWords) ?? false),
           correct: p?.correct ?? 0,
           prereqProgress: prereqProgress,
+          prereqTotals: {
+            for (final token in rule.prerequisiteLists)
+              token: totals[token] ?? 0,
+          },
           prereqNames: displayName,
         );
       }(),

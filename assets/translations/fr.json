@@ -365,6 +365,7 @@
   "grammar.status_unlocked": "Débloquée",
   "grammar.status_mastered": "Maîtrisée",
   "grammar.unlock_progress": "Progression du déblocage",
+  "grammar.unlock_requirement": "80 % au total · 70 % dans chaque liste",
   "grammar.mastery_progress": "Maîtrise : {correct}/{target}",
   "grammar.start_cta": "S'entraîner",
   "seed.list.starter-greetings.name": "Salutations & politesse",

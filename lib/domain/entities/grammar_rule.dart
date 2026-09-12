@@ -31,8 +31,9 @@ class GrammarRule {
   final List<WorkedExample> workedExamples;
 
   /// Seed ids of the catalog lists (e.g. 'starter-greetings') that must be
-  /// known collectively (≥80% across all prerequisites) before this rule
-  /// unlocks. Legacy content may still carry display names; ruleStatuses
+  /// known collectively (≥80% weighted across all prerequisites, with ≥70%
+  /// in each list) before this rule unlocks. Legacy content may still carry
+  /// display names; ruleStatuses
   /// matches both.
   final List<String> prerequisiteLists;
 

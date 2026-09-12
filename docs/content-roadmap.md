@@ -115,8 +115,9 @@ Each unit = one agent run, one reviewable diff, gate green
   (`starter-food`, `starter-daily-life`) — flat, and learners doing lists
   in order see no grammar for weeks. Restage like Korean: first rule on
   `starter-greetings`, then ramp 1→3 lists so rules unlock one at a time.
-  One run, all 5 languages. **Note**: with the new global-80 % gate the
-  wall is lower, but staging still sequences the unlocks.
+  One run, all 5 languages. **Note**: the 80 %-weighted gate, with a 70 %
+  floor per list, is less brittle than 90 % per list, but staging still
+  sequences the unlocks.
 
 ### U7 — Lesson texts (blocked on P3)
 - **Input**: rule/group ids for a language × level.

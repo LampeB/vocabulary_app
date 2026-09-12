@@ -226,10 +226,11 @@ The level ends on its Test de niveau (S17) — the tier mastery exam.
 **Vocab prerequisites — kept from v1, now per group.** Each group
 declares prerequisite vocab lists (different lists per group and per
 level) that must be **MASTERED, not just introduced**, before the group
-opens. Gate formula (decided 2026-08-08): **GLOBAL across the group's
-prerequisite lists — known words / total words ≥ 80 %** (list A at
-100 % + list B at 70 % → 85 % → open); this replaces any per-list
-threshold, so a couple of leech words can't block a group forever.
+opens. Gate formula (decided 2026-08-08, clarified 2026-09-12): **weighted
+across the group's prerequisite lists — known words / total words ≥ 80 % —
+with every prerequisite list at ≥ 70 %**. A complete list cannot hide a
+second list at 60 %, while a couple of leech words cannot block a group
+forever.
 A reachable-but-locked group still shows per-list mastery bars
 ("La maison · 82 %") as display, and the daily chain fills with those
 reviews until the gate opens. Lesson examples and drill sentences only

@@ -131,6 +131,11 @@ class _RuleCard extends StatelessWidget {
               fraction: status.unlockFraction,
               color: muted,
             ),
+            const SizedBox(height: 4),
+            Text(
+              'grammar.unlock_requirement'.tr(),
+              style: AppTextStyles.caption.copyWith(color: muted),
+            ),
             const SizedBox(height: 10),
             for (final name in status.rule.prerequisiteLists) ...[
               _Bar(

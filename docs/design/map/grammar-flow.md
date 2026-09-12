@@ -32,12 +32,12 @@ diagrammes : `../diagrams/v2-grammar-flow.svg`, `../diagrams/grammar-stage-ramp.
   le module coréen
 - Prérequis par `seed_id` de liste du catalogue (plus jamais par nom)
 
-## Décidé (utilisateur, 2026-08-08) — porte de vocabulaire GLOBALE
-- La porte d'une règle se calcule sur l'ENSEMBLE de ses listes
-  prérequises : mots connus / mots totaux ≥ **80 %** (ex. liste A à
-  100 % + liste B à 70 % → 85 % global → ouvert)
-- Remplace le seuil par liste à 90 % (mur à leeches : 2 mots
-  récalcitrants sur 18 bloquaient l'ouverture indéfiniment)
+## Décidé (utilisateur, 2026-08-08, précisé le 2026-09-12) — porte hybride
+- La porte d'une règle se calcule sur l'ENSEMBLE de ses listes prérequises :
+  mots connus / mots totaux ≥ **80 %**, pondéré par le nombre de mots.
+- Chaque liste doit aussi atteindre **70 %** au minimum. Une liste complète
+  ne peut donc pas masquer une seconde liste trop incomplète (100 % + 60 %
+  reste verrouillé), tout en évitant le mur à leeches du seuil 90 % par liste.
 
 ## Décidé (utilisateur, 2026-08-13) — « leçons » typées, pas « grammaire »
 - Le mot « grammaire » est TROMPEUR selon la langue (retour enseignante

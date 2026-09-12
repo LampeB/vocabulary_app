@@ -67,6 +67,7 @@ void main() {
         enoughWords: true,
         correct: 0,
         prereqProgress: const {'Salutations': 0.9, 'La nourriture': 0.45},
+        prereqTotals: const {'Salutations': 20, 'La nourriture': 20},
       ),
     ]);
 
@@ -75,7 +76,7 @@ void main() {
     // Both prerequisite lists are named with their own progress bar.
     expect(find.text('Salutations'), findsOneWidget);
     expect(find.text('La nourriture'), findsOneWidget);
-    // Overall prerequisite progress: (90% + 45%) / 2 = 67.5%.
+    // Equal-sized lists: (18 + 9) / (20 + 20) = 67.5%.
     expect(find.text('68%'), findsOneWidget);
     expect(
         find.byKey(ValueKey(WidgetKeys.grammarRuleStart('r1'))), findsNothing);
@@ -128,17 +129,18 @@ void main() {
       expect(s.unlockFraction, 1.0);
     });
 
-    test('uses the raw average across prerequisite lists', () {
+    test('uses the weighted fraction across prerequisite lists', () {
       final s = RuleStatus(
         rule: _rule('r', 't', prereqs: ['a', 'b']),
         availability: RuleAvailability.locked,
         missingLists: const ['b'],
         enoughWords: true,
         correct: 0,
-        // (90% + 45%) / 2 = 67.5%: still below the 80% unlock threshold.
+        // (9 + 9) / (10 + 20) = 60%: list sizes influence the total.
         prereqProgress: const {'a': 0.9, 'b': 0.45},
+        prereqTotals: const {'a': 10, 'b': 20},
       );
-      expect(s.unlockFraction, closeTo(0.675, 0.001));
+      expect(s.unlockFraction, closeTo(0.6, 0.001));
     });
 
     test('a list the user does not have yet counts as 0', () {
@@ -149,8 +151,9 @@ void main() {
         enoughWords: true,
         correct: 0,
         prereqProgress: const {'a': 0.9},
+        prereqTotals: const {'a': 10},
       );
-      expect(s.unlockFraction, closeTo(0.45, 0.001));
+      expect(s.unlockFraction, 0);
     });
   });
 }

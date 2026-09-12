@@ -365,6 +365,7 @@
   "grammar.status_unlocked": "잠금 해제",
   "grammar.status_mastered": "마스터",
   "grammar.unlock_progress": "잠금 해제 진행도",
+  "grammar.unlock_requirement": "전체 80% · 각 목록 70%",
   "grammar.mastery_progress": "숙련도: {correct}/{target}",
   "grammar.start_cta": "연습하기",
   "seed.list.starter-greetings.name": "인사와 예절 표현",
