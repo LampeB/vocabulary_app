@@ -22,6 +22,12 @@ représente une pile physique que lorsqu'on révise réellement des flashcards.
   elle doit rester brève, interruptible, et être remplacée par un fondu simple
   si `prefers-reduced-motion` est actif.
 
+**Fondation V0 (2026-09-12).** `DiveInPage` traduit ce principe en transition
+Flutter courte et réversible ; elle accepte un point d'origine approximatif et
+respecte la réduction des animations. La première migration est l'ouverture du
+Parcours du jour. Les autres routes seront migrées avec leurs flux, pas par un
+changement global aveugle.
+
 ### 2. Réviser un quiz = dépiler des flashcards
 
 - La pile de cartes légèrement inclinées est réservée aux **quiz et révisions

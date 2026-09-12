@@ -25,6 +25,7 @@ import 'presentation/screens/settings/settings_screen.dart';
 import 'presentation/screens/stats/stats_screen.dart';
 import 'presentation/providers/quiz/quiz_provider.dart' show QuizArgs;
 import 'presentation/providers/settings/settings_provider.dart';
+import 'presentation/navigation/dive_in_page.dart';
 import 'presentation/widgets/app_shell.dart';
 
 // Set via --dart-define-from-file in integration tests to skip page-transition
@@ -131,7 +132,12 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
               GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
               GoRoute(
                 path: '/daily-path',
-                builder: (_, __) => const DailyPathScreen(),
+                pageBuilder: (_, state) => DiveInPage<void>(
+                  key: state.pageKey,
+                  origin: Alignment.topCenter,
+                  disableAnimation: _kTestMode,
+                  child: const DailyPathScreen(),
+                ),
               ),
               GoRoute(path: '/lists', builder: (_, __) => const ListsScreen()),
               GoRoute(
