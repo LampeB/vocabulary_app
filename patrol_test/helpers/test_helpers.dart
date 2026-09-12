@@ -8,7 +8,7 @@ import 'package:vocab_kr/main.dart' as app;
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 
 // Injected via --dart-define-from-file=test.env.json
-const kTestEmail    = String.fromEnvironment('TEST_EMAIL');
+const kTestEmail = String.fromEnvironment('TEST_EMAIL');
 const kTestPassword = String.fromEnvironment('TEST_PASSWORD');
 const kTestUsername = String.fromEnvironment('TEST_USERNAME');
 
@@ -16,7 +16,7 @@ const kTestUsername = String.fromEnvironment('TEST_USERNAME');
 /// Handles three starting states: welcome screen, auth screen, already signed in.
 Future<void> launchAndSignIn(PatrolIntegrationTester $) async {
   final welcome = find.text('J\'ai déjà un compte');
-  final shell = find.byKey(const ValueKey(WidgetKeys.navStudy));
+  final shell = find.byKey(ValueKey(WidgetKeys.navTab('home')));
 
   // Launch the app ONLY if it isn't already running. Re-calling app.main() on
   // every test leaks providers/Supabase listeners and destabilises the Patrol
@@ -55,7 +55,8 @@ Future<void> launchAndSignIn(PatrolIntegrationTester $) async {
       // session check can briefly hide the password field.
       await $.pump(const Duration(seconds: 2));
       if ($(find.byKey(const Key('password_field'))).exists) {
-        await $(find.byKey(const Key('password_field'))).enterText(kTestPassword);
+        await $(find.byKey(const Key('password_field')))
+            .enterText(kTestPassword);
         await $(find.byKey(const Key('auth_submit_button'))).tap();
         // Allow time for Supabase auth + profile load. Fixed pump — NOT
         // pumpAndSettle, which hangs on home-screen providers.
@@ -133,7 +134,8 @@ Future<void> _deleteLists(
   // cannot cause tearDown to hang for the HTTP timeout (60-120 s).
   await Future.wait(toDelete.map((list) async {
     try {
-      await container.read(listActionsProvider.notifier)
+      await container
+          .read(listActionsProvider.notifier)
           .deleteList(list.id)
           .timeout(const Duration(seconds: 15));
     } catch (_) {

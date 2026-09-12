@@ -32,8 +32,7 @@ final pushOnReconnectProvider = Provider<void>((ref) {
   ref.listen(connectivityStreamProvider, (prev, next) {
     final wasOffline =
         prev?.valueOrNull != null && isOffline(prev!.valueOrNull!);
-    final nowOnline =
-        next.valueOrNull != null && !isOffline(next.valueOrNull!);
+    final nowOnline = next.valueOrNull != null && !isOffline(next.valueOrNull!);
     if (wasOffline && nowOnline) {
       unawaited(ref.read(pushSyncProvider).pushAll());
     }
@@ -46,7 +45,13 @@ class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.child});
   final Widget child;
 
-  static const _routes = ['/home', '/lists', '/social', '/profile'];
+  static const _routes = [
+    '/home',
+    '/lists',
+    '/grammar',
+    '/stats',
+    '/profile',
+  ];
 
   int _selectedIndex(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
@@ -85,7 +90,8 @@ class AppShell extends ConsumerWidget {
                             vertical: 6, horizontal: 16),
                         child: Row(
                           children: [
-                            const Icon(Icons.wifi_off, size: 16, color: Colors.white),
+                            const Icon(Icons.wifi_off,
+                                size: 16, color: Colors.white),
                             const SizedBox(width: 8),
                             // Expanded: the banner message is wider than any
                             // phone screen — let it wrap instead of clipping.
@@ -117,11 +123,7 @@ class AppShell extends ConsumerWidget {
             bottom: 0,
             child: _VkBottomNav(
               selectedIndex: selected,
-              onTap: (index) {
-                const dests = ['/home', '/lists', '/social', '/profile'];
-                context.go(dests[index]);
-              },
-              onStudy: () => context.push('/start-session'),
+              onTap: (index) => context.go(_routes[index]),
             ),
           ),
         ],
@@ -140,19 +142,20 @@ class _VkBottomNav extends StatelessWidget {
   const _VkBottomNav({
     required this.selectedIndex,
     required this.onTap,
-    required this.onStudy,
   });
 
   final int selectedIndex;
   final void Function(int index) onTap;
-  final VoidCallback onStudy;
 
   static const _tabs = [
-    _SlotDef(Icons.home_outlined,          Icons.home_rounded,         'shell.nav_home',    0),
-    _SlotDef(Icons.bookmark_border,        Icons.bookmark,             'shell.nav_lists',   1),
-    _SlotDef(Icons.emoji_events_outlined,  Icons.emoji_events_rounded, 'shell.nav_social',  2),
-    _SlotDef(Icons.person_outline_rounded, Icons.person_rounded,       'shell.nav_profile', 3),
+    _SlotDef(Icons.route_outlined, Icons.route_rounded, 'shell.nav_home'),
+    _SlotDef(Icons.bookmark_border, Icons.bookmark, 'shell.nav_lists'),
+    _SlotDef(Icons.menu_book_outlined, Icons.menu_book, 'shell.nav_lessons'),
+    _SlotDef(Icons.insights_outlined, Icons.insights, 'shell.nav_progress'),
+    _SlotDef(Icons.person_outline_rounded, Icons.person_rounded,
+        'shell.nav_profile'),
   ];
+  static const _tabNames = ['home', 'lists', 'grammar', 'stats', 'profile'];
 
   @override
   Widget build(BuildContext context) {
@@ -161,8 +164,7 @@ class _VkBottomNav extends StatelessWidget {
     final bgColor = isDark
         ? AppColors.paperDark.withValues(alpha: 0.96)
         : const Color(0xFAF6F1EA);
-    final borderColor =
-        isDark ? const Color(0x1AFFFFFF) : AppColors.line;
+    final borderColor = isDark ? const Color(0x1AFFFFFF) : AppColors.line;
 
     return Container(
       height: _kBarHeight + safeBottom,
@@ -173,74 +175,16 @@ class _VkBottomNav extends StatelessWidget {
       padding: EdgeInsets.only(bottom: safeBottom),
       child: Row(
         children: [
-          // 2 tabs · raised "study" centre button · 2 tabs.
-          Expanded(
-            child: _NavTile(
-                key: ValueKey(WidgetKeys.navTab('home')),
-                def: _tabs[0],
-                active: 0 == selectedIndex,
-                onTap: () => onTap(0)),
-          ),
-          Expanded(
-            child: _NavTile(
-                key: ValueKey(WidgetKeys.navTab('lists')),
-                def: _tabs[1],
-                active: 1 == selectedIndex,
-                onTap: () => onTap(1)),
-          ),
-          _StudyButton(
-              key: const ValueKey(WidgetKeys.navStudy), onTap: onStudy),
-          Expanded(
-            child: _NavTile(
-                key: ValueKey(WidgetKeys.navTab('social')),
-                def: _tabs[2],
-                active: 2 == selectedIndex,
-                onTap: () => onTap(2)),
-          ),
-          Expanded(
-            child: _NavTile(
-                key: ValueKey(WidgetKeys.navTab('profile')),
-                def: _tabs[3],
-                active: 3 == selectedIndex,
-                onTap: () => onTap(3)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Raised centre "study" button ────────────────────────────────────────────
-
-class _StudyButton extends StatelessWidget {
-  const _StudyButton({super.key, required this.onTap});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 64,
-      child: Center(
-        child: GestureDetector(
-          onTap: onTap,
-          child: Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: AppColors.clay,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.clay.withValues(alpha: 0.35),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+          for (var i = 0; i < _tabs.length; i++)
+            Expanded(
+              child: _NavTile(
+                key: ValueKey(WidgetKeys.navTab(_tabNames[i])),
+                def: _tabs[i],
+                active: i == selectedIndex,
+                onTap: () => onTap(i),
+              ),
             ),
-            child: const Icon(Icons.menu_book_rounded,
-                color: Colors.white, size: 26),
-          ),
-        ),
+        ],
       ),
     );
   }
@@ -249,11 +193,10 @@ class _StudyButton extends StatelessWidget {
 // ── Data + tiles ───────────────────────────────────────────────────────────────
 
 class _SlotDef {
-  const _SlotDef(this.icon, this.activeIcon, this.labelKey, this.tabIndex);
+  const _SlotDef(this.icon, this.activeIcon, this.labelKey);
   final IconData icon;
   final IconData activeIcon;
   final String labelKey; // i18n key
-  final int tabIndex; // 0–3
 }
 
 class _NavTile extends StatelessWidget {

@@ -7,8 +7,8 @@
 /// Plain strings only (no layer imports) so this stays usable from anywhere.
 abstract final class WidgetKeys {
   // ── Bottom nav ─────────────────────────────────────────────────────────────
-  static const navStudy = 'nav.study'; // raised centre "start studying" button
-  /// Bottom-nav tab by destination name: `home` | `lists` | `social` | `profile`.
+  /// Bottom-nav tab by destination name: `home` | `lists` | `grammar` |
+  /// `stats` | `profile`.
   static String navTab(String name) => 'nav.tab.$name';
 
   // ── Screen roots ───────────────────────────────────────────────────────────

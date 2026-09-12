@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patrol/patrol.dart';
+import 'package:go_router/go_router.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/core/stt_simulator.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
@@ -33,7 +34,7 @@ enum Screen {
   lists,
   listDetail,
   startSession,
-  social,
+  grammar,
   profile,
   stats,
   settings,
@@ -43,7 +44,7 @@ enum Screen {
 }
 
 /// Bottom-nav destinations. Names match `WidgetKeys.navTab(name)`.
-enum NavTab { home, lists, social, profile }
+enum NavTab { home, lists, grammar, stats, profile }
 
 /// Tappable navigation tiles on the Profile screen.
 enum ProfileTile { stats, settings, notifications, signOut }
@@ -55,7 +56,7 @@ String _screenRootKey(Screen s) => switch (s) {
       Screen.lists => WidgetKeys.screenLists,
       Screen.listDetail => WidgetKeys.screenListDetail,
       Screen.startSession => WidgetKeys.screenStartSession,
-      Screen.social => WidgetKeys.screenSocial,
+      Screen.grammar => WidgetKeys.screenGrammar,
       Screen.profile => WidgetKeys.screenProfile,
       Screen.stats => WidgetKeys.screenStats,
       Screen.settings => WidgetKeys.screenSettings,
@@ -155,15 +156,17 @@ class WhenSteps {
   WhenSteps(this.$);
   final PatrolIntegrationTester $;
 
-  /// Opens the Start-a-session screen via the raised centre nav button.
+  /// Opens the retained setup route. The V0 footer deliberately has no raised
+  /// study button; the visible Parcours entry is built in the next step.
   Future<void> opensStartASession() async {
-    await $(find.byKey(const ValueKey(WidgetKeys.navStudy))).tap();
+    final context = $.tester.element(find.byType(MaterialApp));
+    GoRouter.of(context).go('/start-session');
+    await $.pump(const Duration(milliseconds: 300));
     await $(find.byKey(const ValueKey(WidgetKeys.startSessionStart)))
         .waitUntilVisible(timeout: const Duration(seconds: 30));
   }
 
-  /// Taps a bottom-nav tab (Home / Lists / Social / Profile). The nav bar lives
-  /// in the shell, so it stays visible on every signed-in screen.
+  /// Taps a V0 bottom-nav tab. The nav bar stays visible on signed-in screens.
   Future<void> tapsNavTab(NavTab tab) async {
     await $(find.byKey(ValueKey(WidgetKeys.navTab(tab.name)))).tap();
     await $.pump(const Duration(milliseconds: 600));

@@ -8,8 +8,7 @@ import 'package:vocab_kr/presentation/widgets/app_shell.dart';
 import '../../helpers/pump_screen.dart';
 
 /// App shell: the offline banner appears/disappears with connectivity, nav
-/// tabs route to their destinations, and the study button opens the
-/// start-session flow.
+/// tabs route to their destinations, with five equally sized V0 slots.
 
 void main() {
   setUpAll(initTestLocalization);
@@ -30,9 +29,9 @@ void main() {
         for (final r in [
           '/home',
           '/lists',
-          '/social',
+          '/grammar',
+          '/stats',
           '/profile',
-          '/start-session'
         ])
           GoRoute(
             path: r,
@@ -63,19 +62,21 @@ void main() {
     expect(find.text('page-content'), findsOneWidget); // content still usable
   });
 
-  testWidgets('nav tabs route to their destinations', (tester) async {
+  testWidgets('V0 navigation has five equal slots and no raised study button',
+      (tester) async {
     await pump(tester, connectivity: [ConnectivityResult.wifi]);
 
-    await tester.tap(find.byKey(ValueKey(WidgetKeys.navTab('lists'))));
-    await tester.pumpAndSettle();
-    expect(navigatedTo, '/lists');
+    for (final tab in ['home', 'lists', 'grammar', 'stats', 'profile']) {
+      expect(find.byKey(ValueKey(WidgetKeys.navTab(tab))), findsOneWidget);
+    }
+    expect(find.byKey(const ValueKey('nav.study')), findsNothing);
   });
 
-  testWidgets('the raised study button opens start-session', (tester) async {
+  testWidgets('the lessons slot routes to the grammar hub', (tester) async {
     await pump(tester, connectivity: [ConnectivityResult.wifi]);
 
-    await tester.tap(find.byKey(const ValueKey(WidgetKeys.navStudy)));
+    await tester.tap(find.byKey(ValueKey(WidgetKeys.navTab('grammar'))));
     await tester.pumpAndSettle();
-    expect(navigatedTo, '/start-session');
+    expect(navigatedTo, '/grammar');
   });
 }

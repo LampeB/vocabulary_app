@@ -25,6 +25,9 @@
   Chemin du jour + carte progression + parcours + entrée Pratique libre
 - (validé 2026-08-07) Familles de mots hébergées sous Vocabulaire ;
   l'onglet Grammaire peut LANCER un drill depuis une fiche
+- **V0 (2026-09-12)** : Amis est reporté. Son slot est temporairement occupé
+  par **Profil** ; le footer V0 conserve donc cinq slots égaux :
+  Parcours · Vocabulaire · Leçons · Progrès · Profil.
 
 ## Proposé — pas encore vetté (Claude)
 - Header `sub` (détails + S18) : retour · titre · une action

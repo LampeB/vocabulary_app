@@ -4,8 +4,8 @@ import 'helpers/steps.dart';
 import 'helpers/test_helpers.dart';
 
 // Navigation net: proves every signed-in destination is reachable and renders
-// its own screen. Covers the four bottom-nav tabs, the raised centre Study
-// button, the Home header bell, the Profile nav tiles, and a list → detail tap.
+// its own screen. Covers the V0 bottom-nav tabs, the retained setup route, the
+// Home header bell, the Profile nav tiles, and a list → detail tap.
 //
 // Assertions use screen-root keys (WidgetKeys.screen*), never localized text, so
 // a copy/locale change can't break them — only an actual routing regression can.
@@ -16,11 +16,13 @@ const _navList = 'E2E Nav Test List';
 
 void main() {
   // Each bottom-nav tab opens its corresponding screen.
-  patrolTest('Navigation — bottom-nav tabs open Home, Lists, Social, Profile',
+  patrolTest(
+      'Navigation — bottom-nav tabs open Home, Lists, Lessons, Progress, Profile',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
+    addTearDown(
+        () => deleteAllLists($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate();
@@ -29,8 +31,11 @@ void main() {
     await app.when.tapsNavTab(NavTab.lists);
     await app.then.onScreen(Screen.lists);
 
-    await app.when.tapsNavTab(NavTab.social);
-    await app.then.onScreen(Screen.social);
+    await app.when.tapsNavTab(NavTab.grammar);
+    await app.then.onScreen(Screen.grammar);
+
+    await app.when.tapsNavTab(NavTab.stats);
+    await app.then.onScreen(Screen.stats);
 
     await app.when.tapsNavTab(NavTab.profile);
     await app.then.onScreen(Screen.profile);
@@ -39,12 +44,13 @@ void main() {
     await app.then.onScreen(Screen.home);
   });
 
-  // The raised centre Study button opens the Start-a-session screen.
-  patrolTest('Navigation — Study button opens Start-a-session',
+  // The retained setup route opens the Start-a-session screen.
+  patrolTest('Navigation — setup route opens Start-a-session',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
+    addTearDown(
+        () => deleteAllLists($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate();
@@ -60,7 +66,8 @@ void main() {
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
+    addTearDown(
+        () => deleteAllLists($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate();
@@ -78,7 +85,8 @@ void main() {
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
+    addTearDown(
+        () => deleteAllLists($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate();
@@ -107,7 +115,8 @@ void main() {
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
+    addTearDown(
+        () => deleteAllLists($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate();
