@@ -1,6 +1,6 @@
 # Alignement documentation ↔ code — règles produit V0
 
-**Date :** 12 septembre 2026  
+**Date :** 12 septembre 2026
 **Portée :** décisions marquées « décidé » dans les documents de design et
 périmètre V0 adopté le 12 septembre. Les éléments « proposés » ne sont pas des
 engagements, sauf lorsqu'ils contredisent une décision plus récente.
