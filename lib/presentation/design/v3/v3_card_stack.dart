@@ -17,6 +17,7 @@ class V3CardStack extends StatelessWidget {
     this.emptyLabel = 'PILE VIDE',
     this.isExiting = false,
     this.exitDirection = 1,
+    this.dragProgress = 0,
     required this.cardId,
   });
 
@@ -37,6 +38,9 @@ class V3CardStack extends StatelessWidget {
   /// -1 for the "not yet" side, 1 for the "knew it" side.
   final int exitDirection;
 
+  /// Horizontal position under the learner's finger, normalized to -1…1.
+  final double dragProgress;
+
   static const _tilts = [-1.1, 1.7, -2.4, 1.2];
 
   @override
@@ -47,6 +51,8 @@ class V3CardStack extends StatelessWidget {
         ? 0
         : (total - remaining).clamp(0, _tilts.length - 1).toInt();
     final hasCard = remaining > 0;
+    final dragTilt = dragProgress * (3.5 * 3.141592653589793 / 180);
+    final exitTilt = exitDirection * (11 * 3.141592653589793 / 180);
 
     return Stack(
       clipBehavior: Clip.none,
@@ -85,21 +91,30 @@ class V3CardStack extends StatelessWidget {
             ),
           )
         else
-          SizedBox.expand(
-            child: AnimatedSlide(
-              key: ValueKey('v3-card-$cardId'),
-              duration: const Duration(milliseconds: 460),
-              curve: Curves.easeInCubic,
-              offset:
-                  isExiting ? Offset(1.18 * exitDirection, 0.08) : Offset.zero,
-              child: AnimatedRotation(
-                duration: const Duration(milliseconds: 460),
-                curve: Curves.easeInCubic,
-                turns: isExiting ? (11 / 360) * exitDirection : 0,
-                child: Transform.rotate(
-                  angle: _tilts[topIndex] * (3.141592653589793 / 180),
-                  alignment: Alignment.bottomCenter,
-                  child: child,
+          LayoutBuilder(
+            builder: (context, constraints) => Transform.translate(
+              offset: Offset(dragProgress * constraints.maxWidth, 0),
+              child: SizedBox.expand(
+                child: AnimatedSlide(
+                  key: ValueKey('v3-card-$cardId'),
+                  duration: const Duration(milliseconds: 460),
+                  curve: Curves.easeInCubic,
+                  offset: isExiting
+                      ? Offset(1.18 * exitDirection - dragProgress, 0.08)
+                      : Offset.zero,
+                  child: AnimatedRotation(
+                    duration: const Duration(milliseconds: 460),
+                    curve: Curves.easeInCubic,
+                    turns: isExiting
+                        ? (exitTilt - dragTilt) / (2 * 3.141592653589793)
+                        : 0,
+                    child: Transform.rotate(
+                      angle: _tilts[topIndex] * (3.141592653589793 / 180) +
+                          dragTilt,
+                      alignment: Alignment.bottomCenter,
+                      child: child,
+                    ),
+                  ),
                 ),
               ),
             ),

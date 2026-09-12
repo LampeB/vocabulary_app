@@ -85,6 +85,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // animation concern and leaves the stack anchored in one place.
   bool _flashcardExiting = false;
   int _flashcardExitDirection = 1;
+  double _flashcardDragProgress = 0;
   // Whole-screen warm breathing pulse used during the hands-free reading state.
   late final AnimationController _pulseCtrl;
   // Listening-window countdown bar: fills left→right over the mic's
@@ -925,7 +926,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     await Future<void>.delayed(const Duration(milliseconds: 460));
     if (!mounted) return;
     ref.read(quizProvider.notifier).advance();
-    setState(() => _flashcardExiting = false);
+    setState(() {
+      _flashcardExiting = false;
+      _flashcardDragProgress = 0;
+    });
   }
 
   /// Cartes — one stable physical stack: tap to turn, swipe to peel away.
@@ -936,11 +940,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         Languages.usesHangul(card.progress.direction.answerLang);
 
     final showBack = s.isFlipped;
+    final dragAmount = _flashcardDragProgress.abs();
+    final tint = _flashcardDragProgress < 0
+        ? V3Colors.cardAgainTint
+        : V3Colors.cardKnownTint;
+    final paperColor = Color.lerp(V3Colors.paper, tint, dragAmount * 0.28)!;
     Widget face({required bool back}) {
       final word = back ? card.answerWords.join(' / ') : card.questionWord;
       final wordIsKorean = back ? answerIsHangul : questionIsHangul;
       return Material(
-        color: V3Colors.paper,
+        color: paperColor,
         borderRadius: const BorderRadius.all(V3Radii.card),
         child: InkWell(
           onTap: back || _flashcardExiting
@@ -999,13 +1008,33 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                       width: cardWidth,
                       height: 380,
                       child: GestureDetector(
+                        onHorizontalDragUpdate: !showBack || _flashcardExiting
+                            ? null
+                            : (details) => setState(() {
+                                  _flashcardDragProgress =
+                                      (_flashcardDragProgress +
+                                              details.delta.dx / cardWidth)
+                                          .clamp(-1.0, 1.0);
+                                }),
+                        onHorizontalDragCancel: !showBack || _flashcardExiting
+                            ? null
+                            : () => setState(() => _flashcardDragProgress = 0),
                         onHorizontalDragEnd: !showBack || _flashcardExiting
                             ? null
                             : (details) {
                                 final velocity = details.primaryVelocity ?? 0;
-                                if (velocity.abs() < 240) return;
+                                final progress = _flashcardDragProgress;
+                                if (progress.abs() < 0.25 &&
+                                    velocity.abs() < 240) {
+                                  setState(() => _flashcardDragProgress = 0);
+                                  return;
+                                }
                                 unawaited(
-                                    _dismissFlashcard(knew: velocity > 0));
+                                  _dismissFlashcard(
+                                      knew: progress.abs() >= 0.05
+                                          ? progress > 0
+                                          : velocity > 0),
+                                );
                               },
                         child: V3CardStack(
                           remaining: (s.displayTotal - s.position + 1)
@@ -1014,6 +1043,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                           cardId: card.progress.variantId,
                           isExiting: _flashcardExiting,
                           exitDirection: _flashcardExitDirection,
+                          dragProgress: _flashcardDragProgress,
                           child: _FlashcardSurface(
                             key: const ValueKey(WidgetKeys.cartesCard),
                             isBack: showBack,

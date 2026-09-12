@@ -35,6 +35,9 @@ abstract final class V3Colors {
   static const terraInk = Color(0xFF8B3F0D);
   static const amber = Color(0xFFEBC08C);
   static const moss = Color(0xFF6E7A66);
+  // Blended into a flashcard as the learner drags; never a full-screen verdict.
+  static const cardKnownTint = Color(0xFF6F9A72);
+  static const cardAgainTint = Color(0xFFC46B63);
   static const rule = Color(0xFFE4DCC8);
   static const ruleStrong = Color(0xFFD3CBB6);
 }
