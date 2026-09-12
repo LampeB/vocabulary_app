@@ -33,26 +33,31 @@ class SpeechRecognitionService {
     if (_initialized) return true;
     _initialized = await _speech.initialize(
       onError: (SpeechRecognitionError e) {
-        sttLog('[STT] ❌ onError: "${e.errorMsg}"  permanent=${e.permanent}  elapsed=${listenElapsedMs}ms');
+        sttLog(
+            '[STT] ❌ onError: "${e.errorMsg}"  permanent=${e.permanent}  elapsed=${listenElapsedMs}ms');
         _isListening = false;
         lastError = e.errorMsg;
         // error_no_match = STT heard audio but found no matching words.
         // This is the normal "no recognition" outcome — not a real error.
         // Anything else (error_audio, error_network, etc.) is worth reporting.
         if (e.errorMsg != 'error_no_match') {
-          sttLog('[STT] ⚠️ Forwarding hardware/network error to caller: ${e.errorMsg}');
+          sttLog(
+              '[STT] ⚠️ Forwarding hardware/network error to caller: ${e.errorMsg}');
           onError?.call(e.errorMsg);
         }
         if (!_sessionDone) {
           _sessionDone = true;
-          sttLog('[STT] → onListeningDone (via onError, elapsed=${listenElapsedMs}ms)');
+          sttLog(
+              '[STT] → onListeningDone (via onError, elapsed=${listenElapsedMs}ms)');
           onListeningDone?.call();
         } else {
-          sttLog('[STT] onError: sessionDone already set, skipping onListeningDone');
+          sttLog(
+              '[STT] onError: sessionDone already set, skipping onListeningDone');
         }
       },
       onStatus: (status) {
-        sttLog('[STT] onStatus: "$status"  _isListening=$_isListening  elapsed=${listenElapsedMs}ms');
+        sttLog(
+            '[STT] onStatus: "$status"  _isListening=$_isListening  elapsed=${listenElapsedMs}ms');
         if (status == 'listening') {
           _isListening = true;
           _sessionDone = false;
@@ -62,10 +67,12 @@ class SpeechRecognitionService {
           _isListening = false;
           if (!_sessionDone) {
             _sessionDone = true;
-            sttLog('[STT] → onListeningDone (via status="$status", elapsed=${listenElapsedMs}ms)');
+            sttLog(
+                '[STT] → onListeningDone (via status="$status", elapsed=${listenElapsedMs}ms)');
             onListeningDone?.call();
           } else {
-            sttLog('[STT] status="$status" but sessionDone already set, skipping');
+            sttLog(
+                '[STT] status="$status" but sessionDone already set, skipping');
           }
         }
       },
@@ -112,7 +119,8 @@ class SpeechRecognitionService {
           final now = DateTime.now();
           if (now.difference(rmsLastLogged).inMilliseconds >= 1000) {
             rmsLastLogged = now;
-            sttLog('[STT] 🎚 level=${level.toStringAsFixed(1)}  min=${rmsMin.toStringAsFixed(1)}  max=${rmsMax.toStringAsFixed(1)}  elapsed=${listenElapsedMs}ms');
+            sttLog(
+                '[STT] 🎚 level=${level.toStringAsFixed(1)}  min=${rmsMin.toStringAsFixed(1)}  max=${rmsMax.toStringAsFixed(1)}  elapsed=${listenElapsedMs}ms');
           }
         },
         onResult: (result) {
@@ -130,9 +138,11 @@ class SpeechRecognitionService {
             result.recognizedWords,
             for (final a in result.alternates) a.recognizedWords,
           }.where((w) => w.trim().isNotEmpty).toList();
-          sttLog('[STT] onResult: "${result.recognizedWords}"  final=${result.finalResult}  confidence=${result.confidence.toStringAsFixed(2)}  elapsed=${listenElapsedMs}ms  alternates=[$alternates]');
+          sttLog(
+              '[STT] onResult: "${result.recognizedWords}"  final=${result.finalResult}  confidence=${result.confidence.toStringAsFixed(2)}  elapsed=${listenElapsedMs}ms  alternates=[$alternates]');
           if (result.finalResult) {
-            sttLog('[STT] ✅ Final result → forwarding ${candidates.length} candidate(s)');
+            sttLog(
+                '[STT] ✅ Final result → forwarding ${candidates.length} candidate(s)');
             onResult(result.recognizedWords, candidates);
           } else if (result.recognizedWords.isNotEmpty) {
             sttLog('[STT] ⏳ Partial: "${result.recognizedWords}"');
@@ -149,7 +159,8 @@ class SpeechRecognitionService {
         ),
       );
       _isListening = true;
-      sttLog('[STT] 🎙️ startListening() → started (locale=$localeId pauseFor=${pauseFor.inSeconds}s listenFor=${listenFor.inSeconds}s)');
+      sttLog(
+          '[STT] 🎙️ startListening() → started (locale=$localeId pauseFor=${pauseFor.inSeconds}s listenFor=${listenFor.inSeconds}s)');
       return true;
     } catch (e) {
       sttLog('[STT] 💥 startListening() exception: $e');
@@ -159,15 +170,19 @@ class SpeechRecognitionService {
 
   Future<void> stopListening() async {
     sttLog('[STT] stopListening() _isListening=$_isListening');
-    if (_isListening) {
-      // Swallow the killed session's trailing done/error events: without
-      // this they fire onListeningDone AFTER the next session begins and
-      // get misattributed to the new card — burning its retry budget and
-      // skipping it before the user speaks (field log 2026-07-06).
-      _sessionDone = true;
+    // Always send the platform stop, even when its callback has already said
+    // `notListening`. Samsung's remote recognizer can still own the audio
+    // session after that callback; skipping this release caused a following
+    // system/Whisper lane to collide with an invisible live microphone.
+    // Swallow the killed session's trailing done/error events so they cannot
+    // be attributed to the lane that starts next.
+    _sessionDone = true;
+    try {
       await _speech.stop();
-      _isListening = false;
+    } catch (error) {
+      sttLog('[STT] stopListening() platform stop failed: $error');
     }
+    _isListening = false;
   }
 
   void dispose() {

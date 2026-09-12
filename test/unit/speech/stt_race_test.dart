@@ -133,7 +133,8 @@ void main() {
       expect(outcome.bestTranscript, 'bonjour'); // shown as "we heard…"
     });
 
-    test('late-result grace: a correction arriving after the window still '
+    test(
+        'late-result grace: a correction arriving after the window still '
         'wins (field 2026-07-22: "étudiant" → "étudier")', () async {
       final a = _FakeEngine('a');
       final future = SttRace([a]).run(
@@ -151,8 +152,7 @@ void main() {
       expect(outcome.matchedCandidate, 'étudier');
     });
 
-    test('pure silence gets NO grace — the window resolves promptly',
-        () async {
+    test('pure silence gets NO grace — the window resolves promptly', () async {
       final a = _FakeEngine('a');
       final sw = Stopwatch()..start();
       final outcome = await SttRace([a]).run(
@@ -186,8 +186,8 @@ void main() {
         () async {
       final fast = _FakeEngine('fast');
       final slow = _FakeEngine('slow');
-      final future = SttRace([fast, slow])
-          .run(langCode: 'fr', acceptedAnswers: ['thé']);
+      final future =
+          SttRace([fast, slow]).run(langCode: 'fr', acceptedAnswers: ['thé']);
       await _pump();
 
       fast.emit('thé');
@@ -201,8 +201,8 @@ void main() {
         () async {
       final fr = _FakeEngine('fr', languages: {'fr'});
       final koOnly = _FakeEngine('ko', languages: {'ko'});
-      final future = SttRace([fr, koOnly])
-          .run(langCode: 'fr', acceptedAnswers: ['thé']);
+      final future =
+          SttRace([fr, koOnly]).run(langCode: 'fr', acceptedAnswers: ['thé']);
       await _pump();
 
       expect(fr.started, isTrue);
@@ -234,6 +234,27 @@ void main() {
       final outcome = await future;
       expect(outcome.matched, isTrue);
       expect(outcome.matchedCandidate, 'manger');
+    });
+
+    test('hybrid handoff ends the system lane instead of restarting its mic',
+        () async {
+      final system = _FakeEngine('system');
+      final future = SttRace([system]).run(
+        langCode: 'fr',
+        acceptedAnswers: ['manger'],
+        restartOnSessionEnd: false,
+      );
+      await _pump();
+
+      system.emit('cheval');
+      system.endSession();
+      final outcome = await future;
+
+      expect(outcome.matched, isFalse);
+      expect(outcome.bestTranscript, 'cheval');
+      expect(system.startCalls, 1,
+          reason: 'the following offline lane must own the next capture');
+      expect(system.stopped, isTrue);
     });
 
     test('restarts are capped (no infinite churn)', () async {
@@ -284,8 +305,7 @@ void main() {
   group('throttle-killed restart (dead-mic back half, 2026-07-21)', () {
     test(
         'a session that dies before minSessionForRestart gets ONE cooldown '
-        'retry instead of burning the budget and leaving a dead mic',
-        () async {
+        'retry instead of burning the budget and leaving a dead mic', () async {
       final e = _FakeEngine('sys');
       final future = SttRace([e]).run(
         langCode: 'fr',

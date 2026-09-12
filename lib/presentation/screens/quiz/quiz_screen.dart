@@ -1,6 +1,5 @@
 import 'dart:async' show unawaited;
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -227,12 +226,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _raceSystemEngine ??= SystemSttEngine(_stt);
     _raceWhisperEngine ??= WhisperSttEngine(_whisper);
     await _raceSystemEngine!.prepare(); // idempotent — already initialised
-    // Whisper joins lane 2 in COURSE mode once its model is ready; kick the
-    // download in the background on first use. Système stays system-only.
-    // Debug builds skip whisper entirely (unoptimized inference ~16s/clip
-    // never fits the lane — 2026-07-19).
+    // Whisper joins lane 2 in hybrid mode once its model is ready; kick the
+    // download in the background on first use. This is intentionally enabled
+    // for debug APKs too: field tests must exercise the same hybrid pipeline
+    // as the version we plan to ship.
     final courseMode = ref.read(sttEngineModeProvider) == SttEngineMode.race;
-    if (courseMode && !kDebugMode && !_whisper.isReady && !_kTestMode) {
+    if (courseMode && !_whisper.isReady && !_kTestMode) {
       unawaited(_whisper.ensureModel());
     }
 
@@ -388,6 +387,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       acceptedAnswers: card.answerWords,
       promptHints: card.answerWords,
       timeout: const Duration(seconds: 10),
+      restartOnSessionEnd: false,
       onPartial: (h) {
         if (!_turnStale(turn, card)) {
           ref.read(quizProvider.notifier).setPartialTranscript(h.transcript);
@@ -398,7 +398,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     var hadReal = outcome.hadRealSession;
 
     final courseMode = ref.read(sttEngineModeProvider) == SttEngineMode.race;
-    if (!outcome.matched && courseMode && !kDebugMode && _whisper.isReady) {
+    if (!outcome.matched && courseMode && _whisper.isReady) {
       sttLog('[RACE][HF] lane 2 (whisper)  turn=$turn');
       await _runTurnCommands(m.micClosedPendingVerdict(turn), card, langCode);
       runBar();

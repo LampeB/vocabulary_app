@@ -68,14 +68,17 @@ class SttRace {
     Duration restartDelay = const Duration(milliseconds: 1000),
     Duration throttleCooldown = const Duration(milliseconds: 3500),
     Duration lateResultGrace = const Duration(milliseconds: 2500),
+    bool restartOnSessionEnd = true,
   }) async {
-    final racers =
-        engines.where((e) => e.isReady && e.supportsLanguage(langCode)).toList();
+    final racers = engines
+        .where((e) => e.isReady && e.supportsLanguage(langCode))
+        .toList();
     if (racers.isEmpty) {
       sttLog('[RACE] no ready engine for "$langCode"');
       return SttRaceOutcome.noEngines;
     }
-    sttLog('[RACE] start langCode=$langCode  racers=${racers.map((e) => e.id).join(",")}  answers=$acceptedAnswers');
+    sttLog(
+        '[RACE] start langCode=$langCode  racers=${racers.map((e) => e.id).join(",")}  answers=$acceptedAnswers');
 
     final completer = Completer<SttRaceOutcome>();
     final seen = <SttHypothesis>[];
@@ -124,7 +127,8 @@ class SttRace {
         isDrivingMode: isDrivingMode,
       );
       if (match != null) {
-        sttLog('[RACE] 🏁 "${engine.id}" wins with "$match" (${h.isFinal ? "final" : "partial"})');
+        sttLog(
+            '[RACE] 🏁 "${engine.id}" wins with "$match" (${h.isFinal ? "final" : "partial"})');
         finish(SttRaceOutcome(
           matched: true,
           winnerEngineId: engine.id,
@@ -139,11 +143,11 @@ class SttRace {
     final deadline = DateTime.now().add(timeout);
     var graceUsed = false;
     void finishTimedOut() {
-      sttLog('[RACE] ⏱ timeout — no engine validated (${seen.length} hypotheses)');
+      sttLog(
+          '[RACE] ⏱ timeout — no engine validated (${seen.length} hypotheses)');
       // A continuous engine that started ok and never self-ended was live
       // for the whole window.
-      final ranFullWindow =
-          startedOk.difference(selfEnded).isNotEmpty;
+      final ranFullWindow = startedOk.difference(selfEnded).isNotEmpty;
       finish(SttRaceOutcome(
         matched: false,
         bestTranscript: _bestTranscript(seen),
@@ -162,7 +166,8 @@ class SttRace {
       // no grace — there is no correction pending.
       if (!graceUsed && lateResultGrace > Duration.zero && seen.isNotEmpty) {
         graceUsed = true;
-        sttLog('[RACE] ⏳ unmatched at timeout — ${lateResultGrace.inMilliseconds}ms late-result grace');
+        sttLog(
+            '[RACE] ⏳ unmatched at timeout — ${lateResultGrace.inMilliseconds}ms late-result grace');
         timer = Timer(lateResultGrace, finishTimedOut);
         return;
       }
@@ -201,6 +206,19 @@ class SttRace {
               selfEnded.add(e.id);
               final lived = DateTime.now().difference(startedAt[e.id]!);
               if (lived >= minSessionForRestart) sawRealSession = true;
+              // A system recognizer owns Android's mic. In hybrid mode we do
+              // not restart it after a self-end: fully release it and let the
+              // offline lane use the same answer window instead. This avoids
+              // Samsung's `startListening while listening` throttle storm.
+              if (!restartOnSessionEnd) {
+                unawaited(finish(SttRaceOutcome(
+                  matched: false,
+                  bestTranscript: _bestTranscript(seen),
+                  hypotheses: List.of(seen),
+                  hadRealSession: sawRealSession,
+                )));
+                return;
+              }
               final used = restarts[e.id] ?? 0;
               final remaining = deadline.difference(DateTime.now());
               if (lived < minSessionForRestart) {
@@ -208,22 +226,26 @@ class SttRace {
                 final throttled = throttleRetries[e.id] ?? 0;
                 if (throttled < 1 && remaining > throttleCooldown) {
                   throttleRetries[e.id] = throttled + 1;
-                  sttLog('[RACE] 🧯 "${e.id}" throttle-killed after ${lived.inMilliseconds}ms — cooldown retry in ${throttleCooldown.inMilliseconds}ms');
+                  sttLog(
+                      '[RACE] 🧯 "${e.id}" throttle-killed after ${lived.inMilliseconds}ms — cooldown retry in ${throttleCooldown.inMilliseconds}ms');
                   Timer(throttleCooldown, () {
                     if (!completer.isCompleted) unawaited(startEngine(e));
                   });
                 } else {
-                  sttLog('[RACE] "${e.id}" throttle-killed (lived=${lived.inMilliseconds}ms, cooldownRetries=$throttled, remaining=${remaining.inMilliseconds}ms) — giving up this window');
+                  sttLog(
+                      '[RACE] "${e.id}" throttle-killed (lived=${lived.inMilliseconds}ms, cooldownRetries=$throttled, remaining=${remaining.inMilliseconds}ms) — giving up this window');
                 }
                 return;
               }
               if (used >= maxRestarts ||
                   remaining < const Duration(seconds: 2)) {
-                sttLog('[RACE] "${e.id}" session ended (lived=${lived.inMilliseconds}ms, restarts=$used, remaining=${remaining.inMilliseconds}ms) — not restarting');
+                sttLog(
+                    '[RACE] "${e.id}" session ended (lived=${lived.inMilliseconds}ms, restarts=$used, remaining=${remaining.inMilliseconds}ms) — not restarting');
                 return;
               }
               restarts[e.id] = used + 1;
-              sttLog('[RACE] 🔄 "${e.id}" session ended without a win — restart #${used + 1} in ${restartDelay.inMilliseconds}ms');
+              sttLog(
+                  '[RACE] 🔄 "${e.id}" session ended without a win — restart #${used + 1} in ${restartDelay.inMilliseconds}ms');
               Timer(restartDelay, () {
                 if (!completer.isCompleted) unawaited(startEngine(e));
               });
