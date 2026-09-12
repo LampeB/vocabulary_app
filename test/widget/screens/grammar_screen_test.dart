@@ -9,7 +9,7 @@ import '../../helpers/pump_screen.dart';
 
 /// Grammar hub: every lesson with its unlock/mastery progress — locked rules
 /// show HOW to unlock (overall + per-prerequisite-list bars), unlocked rules
-/// show mastery and start the session setup, mastered rules show the badge.
+/// open their lesson, mastered rules show the badge.
 
 GrammarRule _rule(String id, String title, {List<String> prereqs = const []}) =>
     GrammarRule(
@@ -45,9 +45,9 @@ void main() {
       ],
       routes: [
         GoRoute(
-          path: '/start-session-grammar',
+          path: '/grammar/:ruleId',
           builder: (_, state) {
-            navigatedTo = '/start-session-grammar';
+            navigatedTo = state.uri.toString();
             return const Scaffold(body: SizedBox());
           },
         ),
@@ -82,9 +82,8 @@ void main() {
         find.byKey(ValueKey(WidgetKeys.grammarRuleStart('r1'))), findsNothing);
   });
 
-  testWidgets(
-      'an unlocked rule shows mastery progress and starts the grammar '
-      'session setup', (tester) async {
+  testWidgets('an unlocked rule shows mastery progress and opens its lesson',
+      (tester) async {
     await pump(tester, [
       RuleStatus(
         rule: _rule('r2', 'Le présent poli'),
@@ -95,9 +94,10 @@ void main() {
       ),
     ]);
 
-    await tester.tap(find.byKey(ValueKey(WidgetKeys.grammarRuleStart('r2'))));
+    await tester
+        .tap(find.byKey(ValueKey(WidgetKeys.grammarRuleOpenLesson('r2'))));
     await tester.pumpAndSettle();
-    expect(navigatedTo, '/start-session-grammar');
+    expect(navigatedTo, '/grammar/r2');
   });
 
   testWidgets('a mastered rule shows the badge and no start button',
@@ -113,8 +113,8 @@ void main() {
     ]);
 
     expect(find.byIcon(Icons.verified_rounded), findsOneWidget);
-    expect(
-        find.byKey(ValueKey(WidgetKeys.grammarRuleStart('r3'))), findsNothing);
+    expect(find.byKey(ValueKey(WidgetKeys.grammarRuleOpenLesson('r3'))),
+        findsNothing);
   });
 
   group('RuleStatus.unlockFraction (unlock math)', () {

@@ -1,6 +1,6 @@
 # Grammar lessons: from quiz to progressive lesson
 
-**Status:** planned — now a SUB-PLAN of `docs/two-flow-daily-plan.md`
+**Status:** partial V0 foundation delivered — now a SUB-PLAN of `docs/two-flow-daily-plan.md`
 (the app-wide Apprendre/Réviser split with a daily path). Original trigger:
 user feedback 2026-07-22 after the first real grammar session ("DAMN that
 was hard… it should be more of a lesson and less of just a quiz, it should
@@ -100,6 +100,18 @@ migration).
 - Rule gating/unlock progress bars (grammar hub) — per-stage bars slot in.
 - The quiz machinery (machine/race) runs stages 4-5 as-is; stages 1-3 are
   simple non-voice widgets — much easier surface.
+
+## V0 reader foundation (implemented 2026-09-12)
+
+- An unlocked rule opens a dedicated reader before the existing practice
+  setup. Existing rule content renders as a concise fallback; authored
+  `lesson_pages` will become swipeable pages as U7 content is added.
+- Tapping an example opens an accessible contextual popup with an explicit
+  close action, preserving the reader below it. It is not a new navigation
+  stack or a flashcard.
+- A reusable scroll affordance displays a visible down cue when reading
+  content continues below the fold. The reader retains manual previous/next
+  controls and ends with an explicit practice action.
 
 ## Order of work (each step ships)
 

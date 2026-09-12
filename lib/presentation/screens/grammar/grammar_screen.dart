@@ -14,8 +14,8 @@ import '../../widgets/frosted_box.dart';
 
 /// Dedicated grammar hub (user decision 2026-07-21): every lesson with its
 /// unlock/mastery progress. Locked rules show HOW to unlock them — an overall
-/// bar plus per-prerequisite-list mastery bars; unlocked rules show their
-/// mastery progress and start the existing grammar session setup.
+/// bar plus per-prerequisite-list mastery bars; unlocked rules open their
+/// reader before the learner opts into the existing practice setup.
 class GrammarScreen extends ConsumerWidget {
   const GrammarScreen({super.key});
 
@@ -160,10 +160,11 @@ class _RuleCard extends StatelessWidget {
               Align(
                 alignment: Alignment.centerRight,
                 child: FilledButton.icon(
-                  key: ValueKey(WidgetKeys.grammarRuleStart(status.rule.id)),
-                  onPressed: () => context.push('/start-session-grammar'),
-                  icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                  label: Text('grammar.start_cta'.tr()),
+                  key: ValueKey(
+                      WidgetKeys.grammarRuleOpenLesson(status.rule.id)),
+                  onPressed: () => context.push('/grammar/${status.rule.id}'),
+                  icon: const Icon(Icons.menu_book_rounded, size: 18),
+                  label: Text('grammar.open_lesson'.tr()),
                 ),
               ),
             ],

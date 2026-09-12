@@ -66,6 +66,16 @@
   taille de texte augmentée, mais doit être annoncé visuellement. Voir
   [[interaction-language]].
 
+## Fondation V0 implémentée (2026-09-12)
+
+- La route de lecteur est ouverte depuis une règle déverrouillée et conserve
+  la lecture séparée des exercices.
+- Les exemples ouvrent une popup de contexte avec fermeture explicite ; la
+  page reste en place dessous.
+- Le lecteur utilise les explications/exemples existants tant qu'une unité U7
+  n'a pas ajouté ses `lesson_pages` relues. Son chevron de scroll apparaît si
+  le texte se prolonge réellement sous la zone visible.
+
 ### Recherche de terrain (2026-08-21)
 Deux repères utilisés pour recalibrer le pacing :
 - **Talk To Me In Korean** — structure quasi systématique : expliquer

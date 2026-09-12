@@ -16,6 +16,7 @@ import 'presentation/screens/lists/list_detail_screen.dart';
 import 'presentation/screens/quiz/quiz_screen.dart';
 import 'presentation/screens/quiz/start_session_screen.dart';
 import 'presentation/screens/grammar/grammar_screen.dart';
+import 'presentation/screens/grammar/grammar_lesson_screen.dart';
 import 'presentation/screens/social/social_screen.dart';
 import 'presentation/screens/profile/profile_screen.dart';
 import 'presentation/screens/paywall/paywall_screen.dart';
@@ -163,6 +164,17 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
               GoRoute(
                 path: '/grammar',
                 builder: (_, __) => const GrammarScreen(),
+              ),
+              GoRoute(
+                path: '/grammar/:ruleId',
+                pageBuilder: (_, state) => DiveInPage<void>(
+                  key: state.pageKey,
+                  origin: Alignment.center,
+                  disableAnimation: _kTestMode,
+                  child: GrammarLessonScreen(
+                    ruleId: state.pathParameters['ruleId']!,
+                  ),
+                ),
               ),
               GoRoute(
                   path: '/social', builder: (_, __) => const SocialScreen()),

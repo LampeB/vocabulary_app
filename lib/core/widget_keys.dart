@@ -103,10 +103,13 @@ abstract final class WidgetKeys {
   static String startLanguage(String langB) => 'ss.lang.$langB'; // target lang
   static String homeReviewMode(String mode) => 'home.review.$mode';
   static const screenGrammar = 'screen.grammar';
+  static const screenGrammarLesson = 'screen.grammar_lesson';
   static String grammarRuleCard(String id) => 'grammar.rule.$id';
   static String grammarRuleStart(String id) => 'grammar.rule.start.$id';
+  static String grammarRuleOpenLesson(String id) => 'grammar.rule.lesson.$id';
   static String startRule(String ruleId) => 'ss.rule.$ruleId';
   static const grammarLessonStart = 'grammar.lesson.start';
+  static const grammarLessonPractice = 'grammar.lesson.practice';
   static const homeGrammar = 'home.grammar'; // Home card → grammar setup
 
   // ── Auth flows (sign-out, password reset) ──────────────────────────────────
