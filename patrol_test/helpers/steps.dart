@@ -128,7 +128,7 @@ class GivenSteps {
     if (listId == null) {
       throw StateError('Could not create list "$name" (free-plan quota?).');
     }
-    await actions.addConcept(listId: listId, frWord: french, koWord: korean);
+    await actions.addConcept(listId: listId, wordA: french, wordB: korean);
     await $.pump(const Duration(milliseconds: 800)); // let the streams settle
   }
 
@@ -270,8 +270,10 @@ class WhenSteps {
     await $(field).waitUntilVisible(timeout: const Duration(seconds: 15));
     await $(field).enterText(name);
     await $(find.byKey(const ValueKey(WidgetKeys.listNameConfirm))).tap();
-    await _waitUntilGone(find.byKey(const ValueKey(WidgetKeys.listNameConfirm)));
-    await $(find.text(name)).waitUntilVisible(timeout: const Duration(seconds: 30));
+    await _waitUntilGone(
+        find.byKey(const ValueKey(WidgetKeys.listNameConfirm)));
+    await $(find.text(name))
+        .waitUntilVisible(timeout: const Duration(seconds: 30));
   }
 
   /// Adds a word ([fr]/[ko]) via the add-word dialog (must be in List Detail).
@@ -305,7 +307,8 @@ class WhenSteps {
     await $(frField).enterText(toFr);
     await $(find.byKey(const ValueKey(WidgetKeys.editWordKo))).enterText(toKo);
     await $(find.byKey(const ValueKey(WidgetKeys.editWordConfirm))).tap();
-    await _waitUntilGone(find.byKey(const ValueKey(WidgetKeys.editWordConfirm)));
+    await _waitUntilGone(
+        find.byKey(const ValueKey(WidgetKeys.editWordConfirm)));
   }
 
   /// Deletes the word whose French side is [fr] (trash icon + confirm).

@@ -36,10 +36,9 @@ class GrammarExercise {
   final String? variantKey;
 }
 
-/// Stage-2 drill generation: word-level application of ONE rule to mastered
-/// vocabulary. (Stage 3 — full-sentence composition mixing mastered rules —
-/// replaces this generator's output as rules get mastered; it needs the
-/// semantic annotation data.) Pure and deterministic given [random].
+/// Word-level application of one rule to mastered vocabulary. The generator
+/// is deliberately local and deterministic: grammar drills never depend on a
+/// runtime LLM or network response.
 class GrammarDrillGenerator {
   const GrammarDrillGenerator(this._module);
 
@@ -60,8 +59,7 @@ class GrammarDrillGenerator {
         // don't inflect as one token — keep them out of morphology drills.
         .where((w) => !w.word.contains('/') && !w.word.contains('('))
         .where((w) =>
-            requiredTags.isEmpty ||
-            w.tags.any((t) => requiredTags.contains(t)))
+            requiredTags.isEmpty || w.tags.any((t) => requiredTags.contains(t)))
         .toList();
   }
 
@@ -81,8 +79,7 @@ class GrammarDrillGenerator {
         ParticleMechanics(:final variants) when variants.length > 1 => [
             for (final v in variants) v.key,
           ],
-        ConjugationMechanics(:final persons) when persons.isNotEmpty =>
-          persons,
+        ConjugationMechanics(:final persons) when persons.isNotEmpty => persons,
         _ => const [],
       };
 

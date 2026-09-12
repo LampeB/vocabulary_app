@@ -22,11 +22,8 @@ import '../auth/auth_provider.dart';
 import '../../../services/audio/audio_player_service.dart';
 import '../grammar/grammar_provider.dart';
 import '../notifications/notification_provider.dart';
-import '../../../core/grammar/composition_validator.dart';
 import '../../../core/grammar/grammar_drill_generator.dart';
-import '../../../core/grammar/grammar_language_module.dart';
 import '../../../core/grammar/rule_mastery.dart';
-import '../../../domain/entities/grammar_rule.dart';
 import 'session_assembly.dart';
 
 const _uuid = Uuid();
@@ -147,6 +144,7 @@ class QuizState {
   final int correctCount;
   final bool isComplete;
   final String? errorMessage;
+
   /// FSRS-computed interval for the last answered card — used by the feedback screen.
   final int scheduledDays;
 
@@ -285,7 +283,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     _lastArgs = args;
     _sessionStartTime = DateTime.now();
     _requeuedOnce.clear();
-    state = state.copyWith(isLoading: true, isComplete: false, errorMessage: null);
+    state =
+        state.copyWith(isLoading: true, isComplete: false, errorMessage: null);
 
     final userId = ref.read(currentUserProvider)?.id ?? '';
 
@@ -316,7 +315,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       if (frResult.isFailure && koResult.isFailure) {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: frResult.exceptionOrNull?.message ?? 'Failed to load cards',
+          errorMessage:
+              frResult.exceptionOrNull?.message ?? 'Failed to load cards',
         );
         return;
       }
@@ -340,7 +340,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       if (result.isFailure) {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: result.exceptionOrNull?.message ?? 'Failed to load cards',
+          errorMessage:
+              result.exceptionOrNull?.message ?? 'Failed to load cards',
         );
         return;
       }
@@ -354,7 +355,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
 
     // Enrich each VariantProgress with question/answer word text.
     final conceptDao = ref.read(conceptDaoProvider);
-    final questionVariantIds = progressList.map((p) => p.variantId).toSet().toList();
+    final questionVariantIds =
+        progressList.map((p) => p.variantId).toSet().toList();
 
     // Look up question variants by ID (deduplicated).
     final questionVariantMap = <String, String>{}; // variantId → word
@@ -372,9 +374,11 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     final allConceptIds = conceptIdMap.values.toSet().toList();
     final answerByConceptAndLang = <String, Map<String, List<String>>>{};
     for (final langCode in {args.langA, args.langB}) {
-      final rows = await conceptDao.getVariantsByConceptIds(allConceptIds, langCode);
+      final rows =
+          await conceptDao.getVariantsByConceptIds(allConceptIds, langCode);
       for (final v in rows) {
-        ((answerByConceptAndLang[v.conceptId] ??= {})[langCode] ??= []).add(v.word);
+        ((answerByConceptAndLang[v.conceptId] ??= {})[langCode] ??= [])
+            .add(v.word);
       }
     }
 
@@ -391,7 +395,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         // every attempt would grade wrong no matter what the user says
         // (field log 2026-07-06: "singe" had no KO word; the user's correct
         // 원숭이 scored 0 against an empty list). Never deal such a card.
-        sttLog('[QUIZ] dropping unanswerable card "$q" — no $answerLang variant');
+        sttLog(
+            '[QUIZ] dropping unanswerable card "$q" — no $answerLang variant');
         continue;
       }
       quizCards.add(QuizCard(
@@ -420,16 +425,17 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       correctCount: 0,
     );
 
-    if (quizCards.isNotEmpty && !_kTestMode && args.source != QuizSource.grammar) {
+    if (quizCards.isNotEmpty &&
+        !_kTestMode &&
+        args.source != QuizSource.grammar) {
       final first = quizCards.first;
       final firstLang = first.progress.direction.questionLang;
       unawaited(_audio?.speak(first.questionWord, firstLang));
     }
   }
 
-  /// Grammar sessions: cards are GENERATED from the rule + mastered words
-  /// (stage-2 drills today; the sentence composer replaces the generator's
-  /// output as rules get mastered). The question is the localized prompt;
+  /// Grammar sessions use deterministic drills from the rule + mastered words.
+  /// The question is the localized prompt;
   /// the answer is validated against the module's accepted forms; answers
   /// record grammar progress instead of FSRS.
   Future<void> _loadGrammarCards(QuizArgs args) async {
@@ -443,45 +449,37 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     }
     final words = await ref.read(drillWordsProvider(args.langB).future);
 
-    // AI-composed full-sentence exercises first (stage 3); the deterministic
-    // word-level drill generator is the offline/error/TEST_MODE fallback.
-    var cards = _kTestMode
-        ? const <QuizCard>[]
-        : await _loadCompositionCards(args, rule, module, words);
-
-    if (cards.isEmpty) {
-      final exercises = GrammarDrillGenerator(module).generate(
-        rule,
-        words,
-        count: args.cardLimit,
-        // The drill prompt itself is localized to the UI locale (.tr), so the
-        // interpolated rule title must match it.
-        promptLocale: Intl.defaultLocale?.split(RegExp('[_-]')).first ?? 'en',
-      );
-      if (exercises.isEmpty) {
-        state = state.copyWith(isLoading: false, isComplete: true);
-        return;
-      }
-      final now = DateTime.now();
-      cards = [
-        for (final e in exercises)
-          QuizCard(
-            progress: VariantProgress(
-              id: 'grammar|${e.ruleId}',
-              userId: ref.read(currentUserProvider)?.id ?? '',
-              variantId: 'grammar|${e.ruleId}|${e.variantKey ?? ''}',
-              direction: args.forward,
-              createdAt: now,
-              updatedAt: now,
-            ),
-            questionWord: e.promptKey.tr(namedArgs: {
-              for (final entry in e.promptParams.entries)
-                entry.key: entry.key == 'hint' ? entry.value.tr() : entry.value,
-            }),
-            answerWords: e.accepted,
-          ),
-      ];
+    final exercises = GrammarDrillGenerator(module).generate(
+      rule,
+      words,
+      count: args.cardLimit,
+      // The drill prompt itself is localized to the UI locale (.tr), so the
+      // interpolated rule title must match it.
+      promptLocale: Intl.defaultLocale?.split(RegExp('[_-]')).first ?? 'en',
+    );
+    if (exercises.isEmpty) {
+      state = state.copyWith(isLoading: false, isComplete: true);
+      return;
     }
+    final now = DateTime.now();
+    final cards = [
+      for (final e in exercises)
+        QuizCard(
+          progress: VariantProgress(
+            id: 'grammar|${e.ruleId}',
+            userId: ref.read(currentUserProvider)?.id ?? '',
+            variantId: 'grammar|${e.ruleId}|${e.variantKey ?? ''}',
+            direction: args.forward,
+            createdAt: now,
+            updatedAt: now,
+          ),
+          questionWord: e.promptKey.tr(namedArgs: {
+            for (final entry in e.promptParams.entries)
+              entry.key: entry.key == 'hint' ? entry.value.tr() : entry.value,
+          }),
+          answerWords: e.accepted,
+        ),
+    ];
     state = state.copyWith(
       cards: cards,
       currentIndex: 0,
@@ -489,82 +487,6 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       isComplete: false,
       correctCount: 0,
     );
-  }
-
-  /// Full-sentence exercises composed at runtime by the AI from the target
-  /// rule + the user's KNOWN words (any list — user-made vocabulary works).
-  /// Every batch passes the local morphology validator (the engine verifies
-  /// what it can mechanically; hallucinated items are dropped), successful
-  /// batches are cached for offline reuse, and any failure returns [] so the
-  /// caller falls back to word-level drills.
-  Future<List<QuizCard>> _loadCompositionCards(
-    QuizArgs args,
-    GrammarRule rule,
-    GrammarLanguageModule module,
-    List<DrillWord> words,
-  ) async {
-    try {
-      final rawRules =
-          await ref.read(grammarRulesRawProvider(args.langB).future);
-      final targetRaw = rawRules[rule.id];
-      if (targetRaw == null) return const [];
-      final progress = await ref.read(grammarProgressProvider.future);
-      final masteredRaw = [
-        for (final e in progress.entries)
-          if (e.value.mastered && e.key != rule.id && rawRules[e.key] != null)
-            rawRules[e.key]!,
-      ];
-      // Prompts read in the learner's SOURCE language (the pair's langA), not
-      // the UI locale — a French-UI user studying es>ko still prompts in es.
-      final promptLang = args.langA;
-
-      final validator = CompositionValidator(module);
-      final result = await ref.read(grammarExerciseRemoteProvider).generate(
-            targetRule: targetRaw,
-            masteredRules: masteredRaw,
-            words: words,
-            promptLanguage: promptLang,
-            targetLanguage: module.langCode,
-            count: args.cardLimit,
-          );
-      final cache = ref.read(compositionCacheProvider);
-      var exercises =
-          validator.filter(rule, words, result.valueOrNull ?? const []);
-      if (exercises.isNotEmpty) {
-        unawaited(cache.save(rule.id, exercises));
-      } else {
-        // Network/AI unavailable → last good batch, still re-validated.
-        exercises = validator.filter(rule, words, await cache.load(rule.id));
-      }
-      if (exercises.length > args.cardLimit) {
-        exercises = exercises.sublist(0, args.cardLimit);
-      }
-
-      final now = DateTime.now();
-      final userId = ref.read(currentUserProvider)?.id ?? '';
-      return [
-        for (var i = 0; i < exercises.length; i++)
-          QuizCard(
-            progress: VariantProgress(
-              id: 'grammar|${rule.id}',
-              userId: userId,
-              variantId: 'grammar|${rule.id}|comp$i',
-              direction: args.forward,
-              createdAt: now,
-              updatedAt: now,
-            ),
-            questionWord: exercises[i].prompt,
-            answerWords: exercises[i].accepted,
-          ),
-      ];
-    } catch (e, st) {
-      assert(() {
-        // ignore: avoid_print
-        print('[composition] falling back to drills: $e\n$st');
-        return true;
-      }());
-      return const [];
-    }
   }
 
   void flipCard() {
@@ -813,9 +735,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     }
 
     // Snapshot total mastered-word count at session end.
-    final masteredResult = await ref
-        .read(progressRepositoryProvider)
-        .getMasteredVariants(userId);
+    final masteredResult =
+        await ref.read(progressRepositoryProvider).getMasteredVariants(userId);
     final masteredCount = (masteredResult.valueOrNull ?? []).length;
 
     try {

@@ -7,7 +7,7 @@
 
 Le socle d'apprentissage est solide : listes libres, quiz, calcul de maîtrise, prérequis hybrides, persistance locale et synchronisation sont réellement implémentés et testés. Les décisions V0 récentes sont bien reprises là où elles ont été intégrées.
 
-Le principal décalage est que les documents de design décrivent largement l'expérience V2 alors que l'application garde encore le shell et les parcours V1. Trois écarts demandent une décision ou une correction explicite : la génération LLM des drills de grammaire, le préchargement initial, et la santé du contrôle statique complet.
+Le principal décalage est que les documents de design décrivent largement l'expérience V2 alors que l'application garde encore le shell et les parcours V1. Les écarts de préchargement initial et de contrôle statique ont été corrigés après cet audit.
 
 Légende : **conforme** = livré ; **partiel** = base présente mais incomplète ; **à construire** = décision confirmée mais non livrée ; **à arbitrer** = contradiction réelle ; **différé V0** = hors périmètre volontaire.
 
@@ -18,7 +18,7 @@ Légende : **conforme** = livré ; **partiel** = base présente mais incomplète
 | Pratique libre sans cursus obligatoire | Création/import de liste, ajout de mots et quiz immédiat, y compris pour des mots jamais vus. | **Conforme** | Conserver cette séparation nette avec le parcours guidé. |
 | Pré-requis de leçon | Règle appliquée : 80 % pondérés au total et 70 % minimum dans chaque liste requise. Messages FR/EN/KO et tests couvrent le cas 100 % + 60 %. | **Conforme** | Aucune action. |
 | Quiz et répétition espacée | Modes de quiz, FSRS, auto-évaluation et statistiques existent. | **Conforme** | Consolider lors de la future refonte visuelle. |
-| Drills de grammaire | Les mots proposés sont filtrés selon les prérequis connus, mais la fonction de génération appelle Anthropic au runtime. La doc interdit au contraire le LLM runtime au profit de gabarits éditoriaux. | **À arbitrer** | Décider quelle règle est canonique, puis aligner code et docs. |
+| Drills de grammaire | Les drills sont construits localement, de façon déterministe, depuis les règles et les mots maîtrisés. Le client n'appelle plus de fonction LLM à chaque session. | **Conforme** | Le LLM peut rester un outil interne de rédaction, jamais une dépendance runtime. |
 | Chemin quotidien optionnel | L'accueil affiche une amorce « Chemin du jour », mais sans plan figé, route dédiée, achèvement ou streak par paire. | **Partiel** | Construire une verticale complète après le shell V2. |
 | Leçons, exemples et popups | Panneau de démarrage de grammaire présent, mais pas de lecteur multi-écrans, popup contextuelle ou restauration du focus. | **À construire** | À inclure dans la verticale leçon. |
 | Flashcards inclinées et swipe | Quiz actuel à bouton/carte retournable, sans pile inclinée ni swipe horizontal. | **À construire** | Limiter la pile aux quiz, comme décidé. |
@@ -59,7 +59,7 @@ Les maps de design signalent parfois ces choix comme « validés », mais elles 
 | Tests unitaires | flutter test test/unit : **368 passés**. | **Conforme** | Continuer à protéger les règles métier. |
 | Tests d'intégration | flutter test test/integration : **159 passés**. | **Conforme** | Ajouter les scénarios du chemin quotidien. |
 | Validation des seeds | flutter test test/seed : **9 passés**. | **Conforme** | Exiger ce contrôle pour chaque contenu. |
-| Analyse statique complète | dart analyze échoue : incompatibilité record_linux/interface, et helper Patrol sur anciens paramètres frWord/koWord. | **À corriger** | Réparer Patrol puis la dépendance audio. |
+| Analyse statique complète | Helper Patrol aligné sur les paramètres génériques ; ancien patch Linux non résolu exclu de l'analyse (la dépendance active vient de pub.dev). | **Conforme** | Garder l'exclusion tant que le patch local n'est pas supprimé. |
 | CI | Tests et seuil de couverture 47,5 %, mais pas d'analyse, formatage ou build de vérification. | **Partiel** | Bloquer les PR sur analyse + tests, puis ajouter un build Android. |
 | Authentification | Email/mot de passe branché ; Google, Apple et suppression de compte explicitement non configurés. | **Partiel** | Ne pas les annoncer avant configuration complète. |
 | Offline et sync | Drift, file locale, pull/push et protection contre l'écrasement local sont présents et testés. | **Conforme pour le socle** | Tester deux appareils et les conflits concurrents. |
@@ -71,11 +71,9 @@ Social, abonnements et paywall sont bien présents dans le code mais restent **d
 ## Priorités proposées
 
 1. **Rétablir une documentation canonique.** Corriger les fichiers obsolètes et créer un registre court des décisions V0 avec source et date.
-2. **Trancher les drills de grammaire.** Gabarits éditoriaux sans LLM runtime, ou génération contrôlée assumée : cette décision change architecture et coûts.
-3. **Faire repasser le contrôle statique.** Généraliser le helper Patrol puis résoudre/pinner record_linux ; ajouter l'analyse à la CI.
-4. **Livrer une verticale V0 visible.** Shell cinq entrées, chemin quotidien optionnel, leçon avec gate/popup, puis quiz en pile avec swipe.
-5. **Préparer KO→FR.** Contextes pédagogiques KO, localisation des nouveaux écrans et test de synchronisation sur deux appareils.
-6. **Avant ouverture externe.** Auth réellement annoncée, quotas/sécurité Supabase, et fonctions social/paiement masquées.
+2. **Livrer une verticale V0 visible.** Shell cinq entrées, chemin quotidien optionnel, leçon avec gate/popup, puis quiz en pile avec swipe.
+3. **Préparer KO→FR.** Contextes pédagogiques KO, localisation des nouveaux écrans et test de synchronisation sur deux appareils.
+4. **Avant ouverture externe.** Auth réellement annoncée, quotas/sécurité Supabase, et fonctions social/paiement masquées.
 
 ## Conclusion
 

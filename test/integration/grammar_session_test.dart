@@ -4,12 +4,9 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
-import 'package:vocab_kr/core/grammar/composition_exercise.dart';
 import 'package:vocab_kr/core/grammar/grammar_drill_generator.dart';
 import 'package:vocab_kr/core/grammar/rule_mastery.dart';
-import 'package:vocab_kr/data/datasources/remote/grammar_exercise_remote_datasource.dart';
 import 'package:vocab_kr/core/utils/fsrs_algorithm.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
@@ -69,28 +66,6 @@ class _FakeNotifService implements NotificationService {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-/// Canned AI batch (or failure) — stands in for the Supabase edge function.
-class _FakeExerciseRemote implements GrammarExerciseRemoteDataSource {
-  _FakeExerciseRemote({this.exercises, this.fail = false});
-  final List<CompositionExercise>? exercises;
-  final bool fail;
-  int calls = 0;
-
-  @override
-  Future<Result<List<CompositionExercise>>> generate({
-    required Map<String, dynamic> targetRule,
-    required List<Map<String, dynamic>> masteredRules,
-    required List<DrillWord> words,
-    required String promptLanguage,
-    required String targetLanguage,
-    required int count,
-  }) async {
-    calls++;
-    if (fail) return const Failure(NetworkException('offline'));
-    return Success(exercises ?? const []);
-  }
-}
-
 void main() {
   setUpAll(initTestLocalization);
 
@@ -105,11 +80,10 @@ void main() {
     DrillWord(word: '밥', category: 'nom'),
   ];
 
-  ProviderContainer makeContainer(GrammarExerciseRemoteDataSource remote) {
+  ProviderContainer makeContainer() {
     final c = ProviderContainer(overrides: [
       appDatabaseProvider.overrideWithValue(db),
       vocabularyRemoteProvider.overrideWithValue(FakeRemote()),
-      grammarExerciseRemoteProvider.overrideWithValue(remote),
       drillWordsProvider.overrideWith((ref, lang) async => words),
       currentUserProvider.overrideWithValue(AppUser(
         id: 'u',
@@ -130,9 +104,7 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    // Default: the AI generator is unavailable → the word-level drill
-    // generator serves the session (the guaranteed-offline baseline).
-    container = makeContainer(_FakeExerciseRemote(fail: true));
+    container = makeContainer();
     addTearDown(db.close);
   });
 
@@ -145,44 +117,6 @@ void main() {
         direction: QuizDirectionChoice.frToKo,
         cardLimit: cardLimit,
       );
-
-  test(
-      'AI composition: a validated remote batch becomes full-sentence cards',
-      () async {
-    final remote = _FakeExerciseRemote(exercises: const [
-      CompositionExercise(
-        prompt: "L'étudiant boit de l'eau",
-        expected: '학생은 물 마셔요',
-        accepted: ['학생은 물 마셔요', '물 마셔요'],
-      ),
-      CompositionExercise(
-        prompt: 'La baleine nage', // hallucinated vocab — must be dropped
-        expected: '고래는 헤엄쳐요',
-        accepted: ['고래는 헤엄쳐요'],
-      ),
-    ]);
-    final c = makeContainer(remote);
-    final sub = c.listen(quizProvider, (_, __) {});
-
-    await c.read(quizProvider.notifier).loadCards(args());
-
-    final state = sub.read();
-    expect(remote.calls, 1);
-    expect(state.cards, hasLength(1)); // hallucinated item validated away
-    expect(state.cards.single.questionWord, "L'étudiant boit de l'eau");
-    expect(state.cards.single.answerWords, ['학생은 물 마셔요', '물 마셔요']);
-  });
-
-  test('remote failure falls back to word-level drills (and caches nothing)',
-      () async {
-    final sub = container.listen(quizProvider, (_, __) {});
-    await container.read(quizProvider.notifier).loadCards(args());
-
-    final state = sub.read();
-    expect(state.cards, hasLength(3));
-    // Drill prompts are localized i18n sentences, not AI sentences.
-    expect(state.cards.first.questionWord, contains('particule'));
-  });
 
   test('loadCards generates localized drill cards from mastered words',
       () async {
@@ -264,8 +198,8 @@ void main() {
     // ("I chose 10 words but ended up with 12", field report 2026-07-09).
     expect(sub.read().total, initialTotal + 1);
     expect(sub.read().displayTotal, initialTotal);
-    expect(sub.read().cards.last.progress.variantId,
-        skipped.progress.variantId);
+    expect(
+        sub.read().cards.last.progress.variantId, skipped.progress.variantId);
     expect(sub.read().cards.last.isRequeue, isTrue);
     expect(sub.read().currentIndex, 1);
 

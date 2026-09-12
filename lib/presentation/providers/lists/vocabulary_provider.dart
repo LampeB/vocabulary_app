@@ -158,7 +158,13 @@ final seedStarterListsProvider = FutureProvider<void>((ref) async {
   if (_kTestMode) return;
   final user = ref.watch(currentUserProvider);
   if (user == null) return;
-  await ref.watch(syncOnLoginProvider.future);
+  // A remote pull improves an existing account, but must not prevent a new
+  // user (or an offline user) from receiving the bundled starter curriculum.
+  try {
+    await ref.watch(syncOnLoginProvider.future);
+  } catch (_) {
+    // The local database remains usable; a later reconnect retries the pull.
+  }
 
   // Re-read the persisted pair rather than trusting the notifier's state:
   // its initial ('fr','ko') stands in until the async prefs load lands, and
@@ -189,8 +195,7 @@ class ListActionsNotifier extends Notifier<void> {
 
   VocabularyRepository get _repo => ref.read(vocabularyRepositoryProvider);
 
-  Future<Result<VocabularyList>> createList(
-      String name, String? description,
+  Future<Result<VocabularyList>> createList(String name, String? description,
       {String langA = 'fr', String langB = 'ko'}) async {
     if (!ref.read(isPremiumProvider)) {
       // Only USER-created lists count against the free quota — seeded starter
@@ -230,8 +235,7 @@ class ListActionsNotifier extends Notifier<void> {
     );
   }
 
-  Future<Result<void>> deleteList(String listId) =>
-      _repo.deleteList(listId);
+  Future<Result<void>> deleteList(String listId) => _repo.deleteList(listId);
 
   Future<Result<Concept>> addConcept({
     required String listId,

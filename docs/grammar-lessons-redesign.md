@@ -95,7 +95,8 @@ migration).
   GENERATE stage-2/3 exercises + distractors deterministically — no AI
   needed for the scaffolded stages.
 - `workedExamples` + audio pipeline (AudioDirector/ElevenLabs) for stage 1.
-- The AI exercise generator (edge function) stays for stage 4/5 variety.
+- Stages 4/5 use the same local, deterministic rule mechanics; grammar
+  sessions never call a runtime LLM.
 - Rule gating/unlock progress bars (grammar hub) — per-stage bars slot in.
 - The quiz machinery (machine/race) runs stages 4-5 as-is; stages 1-3 are
   simple non-voice widgets — much easier surface.

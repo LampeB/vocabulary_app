@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth/auth_provider.dart';
+import '../../providers/lists/vocabulary_provider.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/vk_waveform.dart';
@@ -30,9 +31,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _navigate() async {
-    await Future.delayed(const Duration(milliseconds: 1600));
+    // Do not route on a timer: the destination needs a resolved auth state and,
+    // for a signed-in learner, its local starter curriculum. This also keeps
+    // first launch usable when the remote sync is temporarily unavailable.
+    final user = await ref.read(authStateProvider.future);
+    if (user != null) {
+      await ref.read(seedStarterListsProvider.future);
+    }
     if (!mounted) return;
-    final user = ref.read(currentUserProvider);
     if (mounted) context.go(user != null ? '/home' : '/welcome');
   }
 

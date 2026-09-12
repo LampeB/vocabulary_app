@@ -10,7 +10,6 @@ import '../../../core/grammar/grammar_language_module.dart';
 import '../../../core/grammar/latin/latin_grammar_modules.dart';
 import '../../../core/grammar/rule_mastery.dart';
 import '../../../core/utils/list_mastery.dart';
-import '../../../data/datasources/remote/grammar_exercise_remote_datasource.dart';
 import '../../../domain/entities/grammar_rule.dart';
 import '../auth/auth_provider.dart';
 import '../lists/vocabulary_provider.dart';
@@ -39,36 +38,6 @@ final grammarRulesProvider =
       GrammarRule.fromJson(j as Map<String, dynamic>),
   ].where((r) => r.mechanics is! UnsupportedMechanics).toList();
 });
-
-/// The same rules as raw JSON, keyed by id — the payload sent to the AI
-/// exercise generator (test vectors stripped: they're engine/authoring
-/// artifacts, not generation context).
-final grammarRulesRawProvider =
-    FutureProvider.family<Map<String, Map<String, dynamic>>, String>(
-        (ref, lang) async {
-  if (!kGrammarCurricula.contains(lang)) return const {};
-  final raw =
-      await rootBundle.loadString('assets/seed/grammar/$lang/rules.json');
-  final data = jsonDecode(raw) as Map<String, dynamic>;
-  return {
-    // Entries are wrapped as {"rule": {...}} — same shape GrammarRule.fromJson
-    // unwraps.
-    for (final j in (data['rules'] as List).cast<Map<String, dynamic>>())
-      (j['rule'] as Map<String, dynamic>)['id'] as String: {
-        for (final e in (j['rule'] as Map<String, dynamic>).entries)
-          if (e.key != 'test_vectors') e.key: e.value,
-      },
-  };
-});
-
-/// Remote AI exercise generation (Supabase edge function → Claude) + its
-/// offline cache. Overridden in tests.
-final grammarExerciseRemoteProvider = Provider<GrammarExerciseRemoteDataSource>(
-  (ref) => GrammarExerciseRemoteDataSource(ref.watch(supabaseClientProvider)),
-);
-
-final compositionCacheProvider =
-    Provider<CompositionExerciseCache>((ref) => CompositionExerciseCache());
 
 /// The language-module registry — one entry per language whose grammar can be
 /// applied deterministically. Null for languages without a module: callers

@@ -13,6 +13,10 @@ analyzer:
   exclude:
     - '**/*.g.dart'
     - '**/*.freezed.dart'
+    # This untracked legacy Linux patch is not part of the resolved dependency
+    # graph (pub uses record_linux from pub.dev). Its old interface otherwise
+    # makes a repository-wide analysis fail.
+    - 'packages/record_linux/**'
   errors:
     invalid_annotation_target: ignore
 
