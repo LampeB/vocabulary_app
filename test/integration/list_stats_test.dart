@@ -11,8 +11,8 @@ import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import '../helpers/fake_remote.dart';
 
 /// Per-list stats (total / mastered / due) + reset progress — formerly stubs,
-/// now the foundation of the grammar prerequisite gate ("is this list
-/// known?"). Also pins the pure isListKnown rule.
+/// now the foundation of the grammar prerequisite gate. Also pins the pure
+/// combined-prerequisite rule.
 
 const _kUserId = 'u';
 final _now = DateTime(2026, 7, 4);
@@ -74,8 +74,7 @@ void main() {
           state: 'review', scheduledDays: 10, nextReview: future);
       await seedWord(list.id, 'pain', '빵'); // never studied
 
-      final stats =
-          (await progressRepo.getListStats(list.id)).valueOrNull!;
+      final stats = (await progressRepo.getListStats(list.id)).valueOrNull!;
 
       expect(stats['total'], 4);
       expect(stats['mastered'], 1); // only review + ≥21 scheduled days
@@ -146,8 +145,7 @@ void main() {
       await progressRepo.resetProgress(a.id);
 
       expect(
-          (await progressRepo.getListStats(b.id)).valueOrNull!['mastered'],
-          1);
+          (await progressRepo.getListStats(b.id)).valueOrNull!['mastered'], 1);
     });
   });
 
@@ -161,8 +159,11 @@ void main() {
           scheduledDays: 30,
           nextReview: _now.subtract(const Duration(days: 1)));
       // Mastered and due before deletion…
-      expect((await progressRepo.getMasteredVariants(_kUserId))
-          .valueOrNull!.length, 1);
+      expect(
+          (await progressRepo.getMasteredVariants(_kUserId))
+              .valueOrNull!
+              .length,
+          1);
       expect(
           (await progressRepo.getAllDueCards(
                   userId: _kUserId, direction: QuizDirection.frToKo))
@@ -172,8 +173,8 @@ void main() {
       await vocabRepo.deleteList(list.id);
 
       // …gone everywhere after: mastery deleted, smart lists empty.
-      expect((await progressRepo.getMasteredVariants(_kUserId))
-          .valueOrNull!, isEmpty);
+      expect((await progressRepo.getMasteredVariants(_kUserId)).valueOrNull!,
+          isEmpty);
       expect(
           (await progressRepo.getAllDueCards(
                   userId: _kUserId, direction: QuizDirection.frToKo))
@@ -187,24 +188,24 @@ void main() {
     });
   });
 
-  group('isListKnown (grammar prerequisite gate)', () {
-    test('≥90% mastered → known', () {
-      expect(isListKnown(total: 10, mastered: 9), isTrue);
-      expect(isListKnown(total: 10, mastered: 10), isTrue);
+  group('arePrerequisitesKnown (grammar prerequisite gate)', () {
+    test('80% combined progress unlocks a lesson', () {
+      expect(arePrerequisitesKnown([1.0, 0.6]), isTrue);
+      expect(arePrerequisitesKnown([0.8]), isTrue);
     });
 
-    test('below the threshold → not known', () {
-      expect(isListKnown(total: 10, mastered: 8), isFalse);
-      expect(isListKnown(total: 3, mastered: 0), isFalse);
+    test('below 80% combined progress keeps a lesson locked', () {
+      expect(arePrerequisitesKnown([1.0, 0.59]), isFalse);
+      expect(arePrerequisitesKnown([0.79]), isFalse);
     });
 
-    test('an empty list is never known', () {
-      expect(isListKnown(total: 0, mastered: 0), isFalse);
+    test('a missing prerequisite contributes no progress', () {
+      expect(arePrerequisitesKnown([1.0, 0]), isFalse);
       expect(listMasteryRatio(total: 0, mastered: 0), 0);
     });
 
-    test('threshold is overridable per lesson', () {
-      expect(isListKnown(total: 10, mastered: 5, threshold: 0.5), isTrue);
+    test('threshold is overridable for a curriculum policy', () {
+      expect(arePrerequisitesKnown([0.5], threshold: 0.5), isTrue);
     });
   });
 }

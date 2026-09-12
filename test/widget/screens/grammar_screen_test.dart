@@ -18,7 +18,8 @@ GrammarRule _rule(String id, String title, {List<String> prereqs = const []}) =>
       descriptions: const {'fr': ''},
       explanations: const {'fr': 'Une explication.'},
       workedExamples: const [
-        WorkedExample(target: '저는 학생이에요', translations: {'fr': 'Je suis étudiant'})
+        WorkedExample(
+            target: '저는 학생이에요', translations: {'fr': 'Je suis étudiant'})
       ],
       prerequisiteLists: prereqs,
       appliesToCategories: const ['nom'],
@@ -69,15 +70,15 @@ void main() {
       ),
     ]);
 
-    expect(find.byKey(ValueKey(WidgetKeys.grammarRuleCard('r1'))),
-        findsOneWidget);
+    expect(
+        find.byKey(ValueKey(WidgetKeys.grammarRuleCard('r1'))), findsOneWidget);
     // Both prerequisite lists are named with their own progress bar.
     expect(find.text('Salutations'), findsOneWidget);
     expect(find.text('La nourriture'), findsOneWidget);
-    // Overall unlock progress: (0.9/0.9 capped at 1 + 0.45/0.9=0.5)/2 = 75%.
-    expect(find.text('75%'), findsOneWidget);
-    expect(find.byKey(ValueKey(WidgetKeys.grammarRuleStart('r1'))),
-        findsNothing);
+    // Overall prerequisite progress: (90% + 45%) / 2 = 67.5%.
+    expect(find.text('68%'), findsOneWidget);
+    expect(
+        find.byKey(ValueKey(WidgetKeys.grammarRuleStart('r1'))), findsNothing);
   });
 
   testWidgets(
@@ -93,8 +94,7 @@ void main() {
       ),
     ]);
 
-    await tester
-        .tap(find.byKey(ValueKey(WidgetKeys.grammarRuleStart('r2'))));
+    await tester.tap(find.byKey(ValueKey(WidgetKeys.grammarRuleStart('r2'))));
     await tester.pumpAndSettle();
     expect(navigatedTo, '/start-session-grammar');
   });
@@ -112,8 +112,8 @@ void main() {
     ]);
 
     expect(find.byIcon(Icons.verified_rounded), findsOneWidget);
-    expect(find.byKey(ValueKey(WidgetKeys.grammarRuleStart('r3'))),
-        findsNothing);
+    expect(
+        find.byKey(ValueKey(WidgetKeys.grammarRuleStart('r3'))), findsNothing);
   });
 
   group('RuleStatus.unlockFraction (unlock math)', () {
@@ -128,17 +128,17 @@ void main() {
       expect(s.unlockFraction, 1.0);
     });
 
-    test('fractions scale against the known threshold and cap at 1', () {
+    test('uses the raw average across prerequisite lists', () {
       final s = RuleStatus(
         rule: _rule('r', 't', prereqs: ['a', 'b']),
         availability: RuleAvailability.locked,
         missingLists: const ['b'],
         enoughWords: true,
         correct: 0,
-        // a is at the 0.9 threshold (fully counts), b halfway there.
+        // (90% + 45%) / 2 = 67.5%: still below the 80% unlock threshold.
         prereqProgress: const {'a': 0.9, 'b': 0.45},
       );
-      expect(s.unlockFraction, closeTo(0.75, 0.001));
+      expect(s.unlockFraction, closeTo(0.675, 0.001));
     });
 
     test('a list the user does not have yet counts as 0', () {
@@ -150,7 +150,7 @@ void main() {
         correct: 0,
         prereqProgress: const {'a': 0.9},
       );
-      expect(s.unlockFraction, closeTo(0.5, 0.001));
+      expect(s.unlockFraction, closeTo(0.45, 0.001));
     });
   });
 }

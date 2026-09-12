@@ -133,7 +133,11 @@ final grammarProgressProvider =
         (ref) {
   final userId = ref.watch(currentUserProvider)?.id ?? '';
   if (userId.isEmpty) return Stream.value(const {});
-  return ref.watch(appDatabaseProvider).grammarProgressDao.watchByUser(userId).map(
+  return ref
+      .watch(appDatabaseProvider)
+      .grammarProgressDao
+      .watchByUser(userId)
+      .map(
         (rows) => {
           for (final r in rows)
             r.ruleId: (
@@ -161,7 +165,8 @@ class RuleStatus {
   final GrammarRule rule;
   final RuleAvailability availability;
 
-  /// Display names of prerequisite lists not yet known (isListKnown < 90%).
+  /// Display names of the least-complete prerequisite lists when their
+  /// combined progress has not yet reached the 80% unlock threshold.
   final List<String> missingLists;
 
   /// Whether enough vocabulary is mastered to generate a session.
@@ -183,22 +188,19 @@ class RuleStatus {
     if (rule.prerequisiteLists.isEmpty) return 1;
     var sum = 0.0;
     for (final name in rule.prerequisiteLists) {
-      // A list counts as fully contributing once it crosses the known
-      // threshold — the bar reads 100% exactly when the rule unlocks.
-      final f = (prereqProgress[name] ?? 0) / kListKnownThreshold;
-      sum += f > 1 ? 1 : f;
+      sum += prereqProgress[name] ?? 0;
     }
     return sum / rule.prerequisiteLists.length;
   }
 }
 
 /// Availability of every rule of one target language: prerequisite lists gate
-/// unlocking (≥90% mastered per list — kListKnownThreshold), rule progress
+/// unlocking (≥80% across its prerequisite lists), rule progress
 /// gates "mastered". Prerequisites are matched by seed list id
 /// (`<id>:<any-source>><targetLang>`), falling back to display name for
 /// not-yet-adopted legacy lists.
-final ruleStatusesProvider = FutureProvider.family<List<RuleStatus>, String>(
-    (ref, targetLang) async {
+final ruleStatusesProvider =
+    FutureProvider.family<List<RuleStatus>, String>((ref, targetLang) async {
   final rules = await ref.watch(grammarRulesProvider(targetLang).future);
   if (rules.isEmpty) return const [];
   final lists = await ref.watch(myListsProvider.future);
@@ -211,7 +213,6 @@ final ruleStatusesProvider = FutureProvider.family<List<RuleStatus>, String>(
   // Resolve each prerequisite token to the user's matching list: by seed id
   // for catalog lists (any source language, this target), by name for legacy.
   final tokens = {for (final r in rules) ...r.prerequisiteLists};
-  final known = <String, bool>{};
   final fraction = <String, double>{};
   final displayName = <String, String>{};
   for (final token in tokens) {
@@ -223,7 +224,6 @@ final ruleStatusesProvider = FutureProvider.family<List<RuleStatus>, String>(
             l.name == token)
           l,
     ];
-    var tokenKnown = false;
     var tokenFraction = 0.0;
     for (final list in matches) {
       final stats = (await progressRepo.getListStats(list.id)).valueOrNull;
@@ -236,19 +236,22 @@ final ruleStatusesProvider = FutureProvider.family<List<RuleStatus>, String>(
         tokenFraction = f;
         displayName[token] = list.name;
       }
-      tokenKnown = tokenKnown ||
-          isListKnown(total: total, mastered: stats['known']!);
     }
-    known[token] = tokenKnown;
     fraction[token] = tokenFraction;
   }
 
   return [
     for (final rule in rules)
       () {
+        final prereqProgress = {
+          for (final token in rule.prerequisiteLists)
+            token: fraction[token] ?? 0,
+        };
+        final vocabUnlocked = arePrerequisitesKnown(prereqProgress.values);
         final missing = [
           for (final token in rule.prerequisiteLists)
-            if (!(known[token] ?? false)) displayName[token] ?? token,
+            if ((prereqProgress[token] ?? 0) < kPrerequisiteUnlockThreshold)
+              displayName[token] ?? token,
         ];
         final p = progress[rule.id];
         final mastered = p?.mastered ?? false;
@@ -259,17 +262,14 @@ final ruleStatusesProvider = FutureProvider.family<List<RuleStatus>, String>(
           rule: rule,
           availability: mastered
               ? RuleAvailability.mastered
-              : (devUnlock || missing.isEmpty)
+              : (devUnlock || vocabUnlocked)
                   ? RuleAvailability.unlocked
                   : RuleAvailability.locked,
           missingLists: devUnlock ? const [] : missing,
-          enoughWords: devUnlock ||
-              (generator?.canGenerate(rule, drillWords) ?? false),
+          enoughWords:
+              devUnlock || (generator?.canGenerate(rule, drillWords) ?? false),
           correct: p?.correct ?? 0,
-          prereqProgress: {
-            for (final token in rule.prerequisiteLists)
-              token: fraction[token] ?? 0,
-          },
+          prereqProgress: prereqProgress,
           prereqNames: displayName,
         );
       }(),

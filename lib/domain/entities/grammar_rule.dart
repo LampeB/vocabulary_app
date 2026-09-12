@@ -31,8 +31,9 @@ class GrammarRule {
   final List<WorkedExample> workedExamples;
 
   /// Seed ids of the catalog lists (e.g. 'starter-greetings') that must be
-  /// known (isListKnown ≥ 90%) before this rule unlocks. Legacy content may
-  /// still carry display names; ruleStatuses matches both.
+  /// known collectively (≥80% across all prerequisites) before this rule
+  /// unlocks. Legacy content may still carry display names; ruleStatuses
+  /// matches both.
   final List<String> prerequisiteLists;
 
   /// Which word categories this rule's exercises draw from ('nom', 'verbe'…).
@@ -49,9 +50,7 @@ class GrammarRule {
   String explanation(String locale) => _resolve(explanations, locale);
 
   static String _resolve(Map<String, String> texts, String locale) =>
-      texts[locale] ??
-      texts['en'] ??
-      (texts.isEmpty ? '' : texts.values.first);
+      texts[locale] ?? texts['en'] ?? (texts.isEmpty ? '' : texts.values.first);
 
   /// Parses both the current shape (locale maps, `worked_examples:
   /// [{target, translations}]`) and the legacy fr→ko one (`title_fr`,
@@ -111,8 +110,7 @@ class WorkedExample {
     if (e.containsKey('target')) {
       return WorkedExample(
         target: e['target'] as String,
-        translations:
-            (e['translations'] as Map<String, dynamic>? ?? {}).cast(),
+        translations: (e['translations'] as Map<String, dynamic>? ?? {}).cast(),
       );
     }
     // Legacy fr→ko shape.
@@ -158,8 +156,7 @@ sealed class GrammarMechanics {
           for (final entry in forms.entries)
             ParticleVariant(
               key: entry.key,
-              afterConsonant:
-                  (entry.value as Map)['after_consonant'] as String,
+              afterConsonant: (entry.value as Map)['after_consonant'] as String,
               afterVowel: (entry.value as Map)['after_vowel'] as String,
             ),
         ]);
@@ -216,9 +213,8 @@ class ParticleMechanics extends GrammarMechanics {
   const ParticleMechanics({required this.variants});
   final List<ParticleVariant> variants;
 
-  ParticleVariant variant(String? key) => key == null
-      ? variants.single
-      : variants.firstWhere((v) => v.key == key);
+  ParticleVariant variant(String? key) =>
+      key == null ? variants.single : variants.firstWhere((v) => v.key == key);
 }
 
 class ConjugationMechanics extends GrammarMechanics {

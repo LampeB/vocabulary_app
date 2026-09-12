@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/languages.dart' show uiLocaleCode;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/utils/list_mastery.dart' show kListKnownThreshold;
 import '../../../core/widget_keys.dart';
 import '../../providers/grammar/grammar_provider.dart';
 import '../../providers/settings/default_pair_provider.dart';
@@ -40,8 +39,8 @@ class GrammarScreen extends ConsumerWidget {
           const DottedGround(),
           statusesAsync.when(
             loading: () => const Center(
-              child:
-                  CircularProgressIndicator(color: AppColors.clay, strokeWidth: 2),
+              child: CircularProgressIndicator(
+                  color: AppColors.clay, strokeWidth: 2),
             ),
             error: (_, __) => Center(child: Text('common.error'.tr())),
             data: (statuses) => statuses.isEmpty
@@ -53,8 +52,8 @@ class GrammarScreen extends ConsumerWidget {
                       child: Text(
                         'grammar.no_curriculum'.tr(),
                         textAlign: TextAlign.center,
-                        style: AppTextStyles.body
-                            .copyWith(color: AppColors.muted),
+                        style:
+                            AppTextStyles.body.copyWith(color: AppColors.muted),
                       ),
                     ),
                   )
@@ -109,8 +108,7 @@ class _RuleCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                    status.rule.title(uiLocaleCode(context)),
+                child: Text(status.rule.title(uiLocaleCode(context)),
                     style: AppTextStyles.fig(16, FontWeight.w700)),
               ),
               Text(
@@ -137,9 +135,7 @@ class _RuleCard extends StatelessWidget {
             for (final name in status.rule.prerequisiteLists) ...[
               _Bar(
                 label: status.prereqNames[name] ?? name,
-                fraction: ((status.prereqProgress[name] ?? 0) /
-                        kListKnownThreshold)
-                    .clamp(0.0, 1.0),
+                fraction: (status.prereqProgress[name] ?? 0).clamp(0.0, 1.0),
                 color: AppColors.clay,
                 dense: true,
               ),
@@ -151,8 +147,7 @@ class _RuleCard extends StatelessWidget {
                 'correct': status.correct.toString(),
                 'target': ruleMasteryTarget.toString(),
               }),
-              fraction:
-                  (status.correct / ruleMasteryTarget).clamp(0.0, 1.0),
+              fraction: (status.correct / ruleMasteryTarget).clamp(0.0, 1.0),
               color: mastered ? AppColors.teal : AppColors.clay,
             ),
             if (!mastered) ...[
