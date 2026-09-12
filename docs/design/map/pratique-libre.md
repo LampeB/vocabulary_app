@@ -14,8 +14,9 @@ note : le FAB central est mort (footer 5 slots égaux, décidé 2026-08-07)
 - Accordéon 5 étapes → 3 choix mémorisés : Langue → Source → Mode
 - Nombre de cartes déplacé en Paramètres (valeur par défaut)
 - Sources : À réviser · Mots difficiles · une liste
-- Liste non étudiée → notice « passera d'abord par Découvrir » (la
-  pratique libre ne contourne pas la porte)
+- Liste non étudiée → lancement immédiat possible ; Découvrir peut être
+  proposé comme première étape du parcours, mais ne bloque jamais la pratique
+  libre (décision utilisateur, 2026-09-12)
 - Deux taps pour relancer la dernière session
 
 ## Décidé (utilisateur, 2026-08-21)

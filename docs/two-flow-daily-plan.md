@@ -3,8 +3,9 @@
 **Status:** planned (user direction 2026-07-22: "a studying flow and a
 learning flow… plan it before doing anything").
 **Decisions locked:** navigation = daily plan path (guided "today" sequence);
-vocab learning = batch intro **with gate** (reviews never serve unseen
-words); build order = navigation shell first.
+vocab learning = guided batch introduction for the daily path; build order =
+navigation shell first. Direct vocabulary practice is deliberately not gated
+(decision 2026-09-12).
 
 ## Vision
 
@@ -38,7 +39,7 @@ their pair flags; the path groups by pair, heaviest-due pair first.
 Home becomes the path screen (streak header stays; lists/stats/grammar hub
 remain reachable — the path complements, never traps).
 
-## Vocab learning flow (batch intro + gate)
+## Vocab learning flow (guided batch intro)
 
 - **Intro batch:** 5-10 unseen words from the active list(s): one screen per
   word — word + translation + audio (both languages) + example sentence when
