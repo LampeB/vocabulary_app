@@ -40,6 +40,10 @@ usable from first contact through review for all three pairs:
 - Add a compact introductory lesson and its cards in **fr, en, and ko**. The
   current grammar rule cards have fr/en text only, so they cannot serve a
   Korean-base learner without a Korean fallback being authored.
+- **En cours de relecture native (2026-09-12)** : les quatre cartes A1 de
+  grammaire française ont désormais leurs titres, descriptions, explications
+  et exemples de travail en coréen. L'enseignante doit valider ces formulations
+  avant de les montrer à la bêta coréen → français.
 - Have the Korean-base French unit and the Korean copy reviewed by the
   teacher before beta use. Record review status in the content change.
 
