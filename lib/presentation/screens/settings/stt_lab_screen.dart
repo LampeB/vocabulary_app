@@ -252,7 +252,7 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
           if (items.isEmpty) {
             return const Center(child: Text('Aucune liste disponible.'));
           }
-          final selected = _selectedListId ?? _foodList(items).id;
+          final selected = _selectedListId ?? _preferredList(items).id;
           if (_activePair != null) return _captureView(_activePair!);
           return _listView(items, selected);
         },
@@ -260,10 +260,20 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
     );
   }
 
-  VocabularyList _foodList(List<VocabularyList> lists) => lists.firstWhere(
-        (list) => list.name.toLowerCase().contains('nourriture'),
-        orElse: () => lists.first,
-      );
+  /// Prefer the actual list a saved corpus belongs to. Starter content can be
+  /// synchronised twice while changing accounts/configurations, producing two
+  /// same-named lists with different IDs. Falling back to the first name match
+  /// made a valid existing corpus look empty after such a sync.
+  VocabularyList _preferredList(List<VocabularyList> lists) {
+    final capturedListIds = _samples.map((sample) => sample.listId).toSet();
+    for (final list in lists) {
+      if (capturedListIds.contains(list.id)) return list;
+    }
+    return lists.firstWhere(
+      (list) => list.name.toLowerCase().contains('nourriture'),
+      orElse: () => lists.first,
+    );
+  }
 
   Widget _listView(List<VocabularyList> lists, String selectedListId) => Column(
         children: [
