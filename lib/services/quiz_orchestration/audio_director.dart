@@ -114,11 +114,13 @@ class AudioDirector {
   /// transcribes the earcon itself as an answer (double-bip field log
   /// 2026-07-07). Resolves when it is safe to open the mic.
   Future<void> listenCue(
-      {Duration clearance = const Duration(milliseconds: 450)}) async {
+      {Duration clearance = const Duration(milliseconds: 100)}) async {
     // Do not start the clearance clock until the platform accepted the sound.
     // `audioplayers.play` can be scheduled noticeably later than this Dart
-    // call on Samsung; the old fire-and-forget call could therefore put the
-    // recognizer live while the audible tick was still playing.
+    // call on Samsung. The long *pre-cue* hand-off already cleared TTS and
+    // audio focus; this tiny post-cue beat only lets the 70ms tick finish.
+    // A larger delay makes the cue lie: learners quite naturally answer as
+    // soon as they hear it, before the mic is live.
     await _sfx.playListenCue();
     await Future.delayed(clearance);
   }
