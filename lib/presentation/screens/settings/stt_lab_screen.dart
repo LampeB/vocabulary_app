@@ -228,6 +228,68 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
     }
   }
 
+  Future<void> _runElevenLabsBenchmark(String listId) async {
+    final captures =
+        _samples.where((sample) => sample.listId == listId).toList();
+    if (captures.isEmpty || _isBenchmarking) return;
+    setState(() {
+      _isBenchmarking = true;
+      _benchmarkDone = 0;
+      _benchmarkTotal = captures.length;
+      _message = 'Connexion à ElevenLabs…';
+    });
+    final client = ref.read(supabaseClientProvider);
+    var correct = 0;
+    var failures = 0;
+    try {
+      for (var index = 0; index < captures.length; index++) {
+        final sample = captures[index];
+        final startedAt = DateTime.now();
+        String? transcript;
+        try {
+          final response =
+              await client.functions.invoke('elevenlabs-stt-proxy', body: {
+            'audio_base64': base64Encode(await File(sample.path).readAsBytes()),
+            'language': sample.langCode,
+            'expected_word': sample.word,
+          });
+          final data = response.data;
+          if (data is Map) transcript = data['text'] as String?;
+        } catch (_) {
+          failures++;
+        }
+        final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
+        final accepted = transcript != null &&
+            AnswerValidator.validate(
+              userAnswer: transcript,
+              acceptedAnswers: [sample.word],
+              isDrivingMode: true,
+            ).isCorrect;
+        if (accepted) correct++;
+        await _recorder.saveElevenLabsResult(
+          sampleId: sample.id,
+          transcript: transcript,
+          durationMs: elapsedMs,
+        );
+        if (mounted) {
+          setState(() {
+            _benchmarkDone = index + 1;
+            _message = 'Analyse ElevenLabs : ${index + 1}/${captures.length} '
+                '· $correct reconnue(s)';
+          });
+        }
+      }
+      await _reload();
+      if (!mounted) return;
+      setState(() => _message = failures == 0
+          ? 'ElevenLabs : $correct/${captures.length} prises reconnues.'
+          : 'ElevenLabs : $correct/${captures.length} prises reconnues '
+              '($failures erreur(s) de service).');
+    } finally {
+      if (mounted) setState(() => _isBenchmarking = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final lists = ref.watch(myListsProvider);
@@ -304,6 +366,18 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
               label: Text(_isBenchmarking
                   ? 'Analyse $_benchmarkDone / $_benchmarkTotal'
                   : 'Analyser OpenAI (${_samples.where((s) => s.listId == selectedListId).length} prises)'),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: OutlinedButton.icon(
+              onPressed: _isBenchmarking
+                  ? null
+                  : () => _runElevenLabsBenchmark(selectedListId),
+              icon: const Icon(Icons.record_voice_over_outlined),
+              label: Text(_isBenchmarking
+                  ? 'Analyse $_benchmarkDone / $_benchmarkTotal'
+                  : 'Analyser ElevenLabs (${_samples.where((s) => s.listId == selectedListId).length} prises)'),
             ),
           ),
           const Padding(
