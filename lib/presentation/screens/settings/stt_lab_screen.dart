@@ -189,7 +189,9 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
               await client.functions.invoke('whisper-proxy', body: {
             'audio_base64': base64Encode(await File(sample.path).readAsBytes()),
             'language': sample.langCode,
-            'prompt': sample.word,
+            // The Edge Function turns this known quiz answer into a
+            // transcription hint. Keep this key in lockstep with its API.
+            'expected_word': sample.word,
           });
           final data = response.data;
           if (data is Map) transcript = data['text'] as String?;
