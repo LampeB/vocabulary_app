@@ -21,18 +21,18 @@ class AudioPlayerService {
   final bool _usePremium;
   final _player = AudioPlayer();
 
-  // A visible silent gap is worse than a temporary device-TTS voice. The
-  // ElevenLabs request keeps filling the cache after this budget expires, so
-  // following repetitions still use the premium recording.
+  // A visible silent gap is worse than a temporary device-TTS voice. Storage
+  // downloads keep filling the cache after this budget expires, so following
+  // repetitions still use the rendered recording.
   static const _premiumStartBudget = Duration(milliseconds: 500);
 
-  Future<void> speak(String text, String langCode) async {
-    if (!_usePremium) {
+  Future<void> speak(String text, String langCode, {String? audioPath}) async {
+    if (!_usePremium || audioPath == null) {
       await _tts.speak(text, langCode);
       return;
     }
     final path = await _elevenlabs
-        .generateAndCache(text, langCode, _elevenlabs.voiceIdFor(langCode))
+        .downloadAndCache(audioPath)
         .timeout(_premiumStartBudget, onTimeout: () => null);
     if (path != null) {
       // The speech-speed setting used to apply only to device TTS. Most
@@ -50,15 +50,11 @@ class AudioPlayerService {
   /// device TTS warm-up is the only one that matters.)
   Future<void> warmUp(String langCode) => _tts.warmUp(langCode);
 
-  /// Premium path: generates and caches [text]'s audio WITHOUT playing it.
-  /// A word's first ElevenLabs render is a network round-trip (1-4s) — the
-  /// "some words take seconds to start" report of 2026-07-21. Prefetching the
-  /// next card's words during the current listening window makes every
-  /// speak() start from the local cache. No-op on the free/device-TTS path.
-  Future<void> prefetch(String text, String langCode) async {
-    if (!_usePremium) return;
-    await _elevenlabs.generateAndCache(
-        text, langCode, _elevenlabs.voiceIdFor(langCode));
+  /// Downloads [audioPath] without playing it. This is intentionally a
+  /// Storage-only operation: no quiz can create a paid TTS render.
+  Future<void> prefetch(String text, String langCode, {String? audioPath}) async {
+    if (!_usePremium || audioPath == null) return;
+    await _elevenlabs.downloadAndCache(audioPath);
   }
 
   Future<void> stop() async {

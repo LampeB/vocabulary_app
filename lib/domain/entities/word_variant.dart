@@ -15,6 +15,7 @@ class WordVariant with _$WordVariant {
     @Default(false) bool isPrimary,
     String? audioHash,
     String? audioVoiceId,
+    String? audioPath,
     @Default(0) int position,
 
     /// Example sentence in this variant's own language.

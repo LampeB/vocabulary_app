@@ -1377,6 +1377,12 @@ class $WordVariantsTableTable extends WordVariantsTable
   late final GeneratedColumn<String> audioVoiceId = GeneratedColumn<String>(
       'audio_voice_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _audioPathMeta =
+      const VerificationMeta('audioPath');
+  @override
+  late final GeneratedColumn<String> audioPath = GeneratedColumn<String>(
+      'audio_path', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _positionMeta =
       const VerificationMeta('position');
   @override
@@ -1434,6 +1440,7 @@ class $WordVariantsTableTable extends WordVariantsTable
         isPrimary,
         audioHash,
         audioVoiceId,
+        audioPath,
         position,
         example,
         isSynced,
@@ -1501,6 +1508,10 @@ class $WordVariantsTableTable extends WordVariantsTable
           audioVoiceId.isAcceptableOrUnknown(
               data['audio_voice_id']!, _audioVoiceIdMeta));
     }
+    if (data.containsKey('audio_path')) {
+      context.handle(_audioPathMeta,
+          audioPath.isAcceptableOrUnknown(data['audio_path']!, _audioPathMeta));
+    }
     if (data.containsKey('position')) {
       context.handle(_positionMeta,
           position.isAcceptableOrUnknown(data['position']!, _positionMeta));
@@ -1556,6 +1567,8 @@ class $WordVariantsTableTable extends WordVariantsTable
           .read(DriftSqlType.string, data['${effectivePrefix}audio_hash']),
       audioVoiceId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}audio_voice_id']),
+      audioPath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}audio_path']),
       position: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}position'])!,
       example: attachedDatabase.typeMapping
@@ -1588,6 +1601,7 @@ class WordVariantsTableData extends DataClass
   final bool isPrimary;
   final String? audioHash;
   final String? audioVoiceId;
+  final String? audioPath;
   final int position;
   final String? example;
   final bool isSynced;
@@ -1604,6 +1618,7 @@ class WordVariantsTableData extends DataClass
       required this.isPrimary,
       this.audioHash,
       this.audioVoiceId,
+      this.audioPath,
       required this.position,
       this.example,
       required this.isSynced,
@@ -1625,6 +1640,9 @@ class WordVariantsTableData extends DataClass
     }
     if (!nullToAbsent || audioVoiceId != null) {
       map['audio_voice_id'] = Variable<String>(audioVoiceId);
+    }
+    if (!nullToAbsent || audioPath != null) {
+      map['audio_path'] = Variable<String>(audioPath);
     }
     map['position'] = Variable<int>(position);
     if (!nullToAbsent || example != null) {
@@ -1652,6 +1670,9 @@ class WordVariantsTableData extends DataClass
       audioVoiceId: audioVoiceId == null && nullToAbsent
           ? const Value.absent()
           : Value(audioVoiceId),
+      audioPath: audioPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(audioPath),
       position: Value(position),
       example: example == null && nullToAbsent
           ? const Value.absent()
@@ -1676,6 +1697,7 @@ class WordVariantsTableData extends DataClass
       isPrimary: serializer.fromJson<bool>(json['isPrimary']),
       audioHash: serializer.fromJson<String?>(json['audioHash']),
       audioVoiceId: serializer.fromJson<String?>(json['audioVoiceId']),
+      audioPath: serializer.fromJson<String?>(json['audioPath']),
       position: serializer.fromJson<int>(json['position']),
       example: serializer.fromJson<String?>(json['example']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
@@ -1697,6 +1719,7 @@ class WordVariantsTableData extends DataClass
       'isPrimary': serializer.toJson<bool>(isPrimary),
       'audioHash': serializer.toJson<String?>(audioHash),
       'audioVoiceId': serializer.toJson<String?>(audioVoiceId),
+      'audioPath': serializer.toJson<String?>(audioPath),
       'position': serializer.toJson<int>(position),
       'example': serializer.toJson<String?>(example),
       'isSynced': serializer.toJson<bool>(isSynced),
@@ -1716,6 +1739,7 @@ class WordVariantsTableData extends DataClass
           bool? isPrimary,
           Value<String?> audioHash = const Value.absent(),
           Value<String?> audioVoiceId = const Value.absent(),
+          Value<String?> audioPath = const Value.absent(),
           int? position,
           Value<String?> example = const Value.absent(),
           bool? isSynced,
@@ -1733,6 +1757,7 @@ class WordVariantsTableData extends DataClass
         audioHash: audioHash.present ? audioHash.value : this.audioHash,
         audioVoiceId:
             audioVoiceId.present ? audioVoiceId.value : this.audioVoiceId,
+        audioPath: audioPath.present ? audioPath.value : this.audioPath,
         position: position ?? this.position,
         example: example.present ? example.value : this.example,
         isSynced: isSynced ?? this.isSynced,
@@ -1755,6 +1780,7 @@ class WordVariantsTableData extends DataClass
       audioVoiceId: data.audioVoiceId.present
           ? data.audioVoiceId.value
           : this.audioVoiceId,
+      audioPath: data.audioPath.present ? data.audioPath.value : this.audioPath,
       position: data.position.present ? data.position.value : this.position,
       example: data.example.present ? data.example.value : this.example,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
@@ -1776,6 +1802,7 @@ class WordVariantsTableData extends DataClass
           ..write('isPrimary: $isPrimary, ')
           ..write('audioHash: $audioHash, ')
           ..write('audioVoiceId: $audioVoiceId, ')
+          ..write('audioPath: $audioPath, ')
           ..write('position: $position, ')
           ..write('example: $example, ')
           ..write('isSynced: $isSynced, ')
@@ -1797,6 +1824,7 @@ class WordVariantsTableData extends DataClass
       isPrimary,
       audioHash,
       audioVoiceId,
+      audioPath,
       position,
       example,
       isSynced,
@@ -1816,6 +1844,7 @@ class WordVariantsTableData extends DataClass
           other.isPrimary == this.isPrimary &&
           other.audioHash == this.audioHash &&
           other.audioVoiceId == this.audioVoiceId &&
+          other.audioPath == this.audioPath &&
           other.position == this.position &&
           other.example == this.example &&
           other.isSynced == this.isSynced &&
@@ -1835,6 +1864,7 @@ class WordVariantsTableCompanion
   final Value<bool> isPrimary;
   final Value<String?> audioHash;
   final Value<String?> audioVoiceId;
+  final Value<String?> audioPath;
   final Value<int> position;
   final Value<String?> example;
   final Value<bool> isSynced;
@@ -1852,6 +1882,7 @@ class WordVariantsTableCompanion
     this.isPrimary = const Value.absent(),
     this.audioHash = const Value.absent(),
     this.audioVoiceId = const Value.absent(),
+    this.audioPath = const Value.absent(),
     this.position = const Value.absent(),
     this.example = const Value.absent(),
     this.isSynced = const Value.absent(),
@@ -1870,6 +1901,7 @@ class WordVariantsTableCompanion
     this.isPrimary = const Value.absent(),
     this.audioHash = const Value.absent(),
     this.audioVoiceId = const Value.absent(),
+    this.audioPath = const Value.absent(),
     this.position = const Value.absent(),
     this.example = const Value.absent(),
     this.isSynced = const Value.absent(),
@@ -1893,6 +1925,7 @@ class WordVariantsTableCompanion
     Expression<bool>? isPrimary,
     Expression<String>? audioHash,
     Expression<String>? audioVoiceId,
+    Expression<String>? audioPath,
     Expression<int>? position,
     Expression<String>? example,
     Expression<bool>? isSynced,
@@ -1911,6 +1944,7 @@ class WordVariantsTableCompanion
       if (isPrimary != null) 'is_primary': isPrimary,
       if (audioHash != null) 'audio_hash': audioHash,
       if (audioVoiceId != null) 'audio_voice_id': audioVoiceId,
+      if (audioPath != null) 'audio_path': audioPath,
       if (position != null) 'position': position,
       if (example != null) 'example': example,
       if (isSynced != null) 'is_synced': isSynced,
@@ -1931,6 +1965,7 @@ class WordVariantsTableCompanion
       Value<bool>? isPrimary,
       Value<String?>? audioHash,
       Value<String?>? audioVoiceId,
+      Value<String?>? audioPath,
       Value<int>? position,
       Value<String?>? example,
       Value<bool>? isSynced,
@@ -1948,6 +1983,7 @@ class WordVariantsTableCompanion
       isPrimary: isPrimary ?? this.isPrimary,
       audioHash: audioHash ?? this.audioHash,
       audioVoiceId: audioVoiceId ?? this.audioVoiceId,
+      audioPath: audioPath ?? this.audioPath,
       position: position ?? this.position,
       example: example ?? this.example,
       isSynced: isSynced ?? this.isSynced,
@@ -1988,6 +2024,9 @@ class WordVariantsTableCompanion
     if (audioVoiceId.present) {
       map['audio_voice_id'] = Variable<String>(audioVoiceId.value);
     }
+    if (audioPath.present) {
+      map['audio_path'] = Variable<String>(audioPath.value);
+    }
     if (position.present) {
       map['position'] = Variable<int>(position.value);
     }
@@ -2024,6 +2063,7 @@ class WordVariantsTableCompanion
           ..write('isPrimary: $isPrimary, ')
           ..write('audioHash: $audioHash, ')
           ..write('audioVoiceId: $audioVoiceId, ')
+          ..write('audioPath: $audioPath, ')
           ..write('position: $position, ')
           ..write('example: $example, ')
           ..write('isSynced: $isSynced, ')
@@ -5485,6 +5525,7 @@ typedef $$WordVariantsTableTableCreateCompanionBuilder
   Value<bool> isPrimary,
   Value<String?> audioHash,
   Value<String?> audioVoiceId,
+  Value<String?> audioPath,
   Value<int> position,
   Value<String?> example,
   Value<bool> isSynced,
@@ -5504,6 +5545,7 @@ typedef $$WordVariantsTableTableUpdateCompanionBuilder
   Value<bool> isPrimary,
   Value<String?> audioHash,
   Value<String?> audioVoiceId,
+  Value<String?> audioPath,
   Value<int> position,
   Value<String?> example,
   Value<bool> isSynced,
@@ -5585,6 +5627,9 @@ class $$WordVariantsTableTableFilterComposer
 
   ColumnFilters<String> get audioVoiceId => $composableBuilder(
       column: $table.audioVoiceId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get audioPath => $composableBuilder(
+      column: $table.audioPath, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get position => $composableBuilder(
       column: $table.position, builder: (column) => ColumnFilters(column));
@@ -5681,6 +5726,9 @@ class $$WordVariantsTableTableOrderingComposer
       column: $table.audioVoiceId,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get audioPath => $composableBuilder(
+      column: $table.audioPath, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get position => $composableBuilder(
       column: $table.position, builder: (column) => ColumnOrderings(column));
 
@@ -5752,6 +5800,9 @@ class $$WordVariantsTableTableAnnotationComposer
 
   GeneratedColumn<String> get audioVoiceId => $composableBuilder(
       column: $table.audioVoiceId, builder: (column) => column);
+
+  GeneratedColumn<String> get audioPath =>
+      $composableBuilder(column: $table.audioPath, builder: (column) => column);
 
   GeneratedColumn<int> get position =>
       $composableBuilder(column: $table.position, builder: (column) => column);
@@ -5849,6 +5900,7 @@ class $$WordVariantsTableTableTableManager extends RootTableManager<
             Value<bool> isPrimary = const Value.absent(),
             Value<String?> audioHash = const Value.absent(),
             Value<String?> audioVoiceId = const Value.absent(),
+            Value<String?> audioPath = const Value.absent(),
             Value<int> position = const Value.absent(),
             Value<String?> example = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
@@ -5867,6 +5919,7 @@ class $$WordVariantsTableTableTableManager extends RootTableManager<
             isPrimary: isPrimary,
             audioHash: audioHash,
             audioVoiceId: audioVoiceId,
+            audioPath: audioPath,
             position: position,
             example: example,
             isSynced: isSynced,
@@ -5885,6 +5938,7 @@ class $$WordVariantsTableTableTableManager extends RootTableManager<
             Value<bool> isPrimary = const Value.absent(),
             Value<String?> audioHash = const Value.absent(),
             Value<String?> audioVoiceId = const Value.absent(),
+            Value<String?> audioPath = const Value.absent(),
             Value<int> position = const Value.absent(),
             Value<String?> example = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
@@ -5903,6 +5957,7 @@ class $$WordVariantsTableTableTableManager extends RootTableManager<
             isPrimary: isPrimary,
             audioHash: audioHash,
             audioVoiceId: audioVoiceId,
+            audioPath: audioPath,
             position: position,
             example: example,
             isSynced: isSynced,

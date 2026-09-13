@@ -41,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -118,6 +118,12 @@ class AppDatabase extends _$AppDatabase {
                 AND is_primary = 1
                 AND lang_code IN ('fr', 'ko')
             ''');
+          }
+          if (from < 10) {
+            // Server-rendered audio is immutable and addressed by its Storage
+            // object path. Keeping it on the variant lets every quiz use the
+            // file directly, without a per-card TTS request.
+            await m.addColumn(wordVariantsTable, wordVariantsTable.audioPath);
           }
         },
       );

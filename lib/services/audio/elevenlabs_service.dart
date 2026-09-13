@@ -1,20 +1,17 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:async' show unawaited;
 import 'package:crypto/crypto.dart';
-import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'audio_service.dart';
-import '../../core/config/app_config.dart';
+import 'audio_asset_path.dart';
 
 class ElevenLabsService implements AudioService {
   ElevenLabsService({Map<String, String>? voiceIds})
       : voiceIds = voiceIds ?? _defaultVoices;
 
-  /// Default premium voice per content langCode. All are ElevenLabs
-  /// multilingual-model voices, so each speaks its assigned language natively;
-  /// the mapping is an aesthetic default the user can re-curate. Unmapped
-  /// languages fall back to [_defaultVoiceId].
+  /// Default rendering voice per content language. Voice selection is applied
+  /// by the server when an asset is published, never while a learner quizzes.
   static const _defaultVoices = <String, String>{
     'fr': 'Charlotte',
     'en': 'Rachel',
@@ -24,8 +21,7 @@ class ElevenLabsService implements AudioService {
     'ko': 'Elli',
   };
 
-  /// ElevenLabs voice per content langCode; unmapped languages use the
-  /// service's default voice (generic-language-pairs epic).
+  /// Kept for the publishing/provisioning layer and settings compatibility.
   final Map<String, String> voiceIds;
   static const _defaultVoiceId = 'Charlotte';
 
@@ -44,21 +40,20 @@ class ElevenLabsService implements AudioService {
   void scheduleIdleCacheCleanup() => unawaited(cleanIdleCache());
 
   @override
-  Future<void> speak(String text, String langCode, {String? voiceId}) async {
-    final id = voiceId ?? voiceIdFor(langCode);
-    final path = await _getOrGenerate(text, langCode, id);
-    if (path == null) return;
-    // Play via audioplayers — caller injects the player; here we return path only
-    // AudioPlayerService wraps this and calls play(path)
+  Future<void> speak(String text, String langCode, {String? voiceId}) async {}
+
+  /// Downloads a pre-rendered Storage object into the device cache.
+  ///
+  /// This deliberately has no ElevenLabs request: all synthesis happens when
+  /// content is created or published. A cache miss is only a cheap Storage
+  /// download and an expired cache simply downloads the same immutable object.
+  Future<String?> downloadAndCache(String? audioPath) {
+    if (audioPath == null || audioPath.isEmpty) return Future.value(null);
+    return _getOrDownload(audioPath);
   }
 
-  Future<String?> generateAndCache(
-          String text, String langCode, String voiceId) =>
-      _getOrGenerate(text, langCode, voiceId);
-
-  Future<String?> _getOrGenerate(
-      String text, String langCode, String voiceId) async {
-    final key = _cacheKey(text, langCode, voiceId);
+  Future<String?> _getOrDownload(String audioPath) async {
+    final key = _cacheKey(audioPath);
     final memoryPath = _cache[key];
     if (memoryPath != null) {
       _touch(File(memoryPath));
@@ -71,7 +66,7 @@ class ElevenLabsService implements AudioService {
     final pending = _inFlight[key];
     if (pending != null) return pending;
 
-    final task = _downloadAndCache(key, text, langCode, voiceId);
+    final task = _downloadAndCache(key, audioPath);
     _inFlight[key] = task;
     try {
       return await task;
@@ -80,8 +75,7 @@ class ElevenLabsService implements AudioService {
     }
   }
 
-  Future<String?> _downloadAndCache(
-      String key, String text, String langCode, String voiceId) async {
+  Future<String?> _downloadAndCache(String key, String audioPath) async {
     final dir = await _cacheDir();
     final file = File('${dir.path}/$key.mp3');
     if (file.existsSync()) {
@@ -91,25 +85,11 @@ class ElevenLabsService implements AudioService {
     }
 
     try {
-      // A first render must not hold a study card hostage behind a slow
-      // network/edge-function call. AudioPlayerService falls back to device
-      // TTS on this timeout; a later prefetch can still populate the cache.
-      final res = await http
-          .post(
-            Uri.parse(AppConfig.elevenLabsEdgeFunctionUrl),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ${AppConfig.supabaseAnonKey}',
-            },
-            body: jsonEncode({
-              'text': text,
-              'voice_id': voiceId,
-              'lang_code': langCode,
-            }),
-          )
+      final bytes = await Supabase.instance.client.storage
+          .from(AudioAssetPath.bucket)
+          .download(audioPath)
           .timeout(const Duration(seconds: 3));
-      if (res.statusCode != 200) return null;
-      await file.writeAsBytes(res.bodyBytes);
+      await file.writeAsBytes(bytes, flush: true);
       _cache[key] = file.path;
       return file.path;
     } catch (_) {
@@ -117,10 +97,8 @@ class ElevenLabsService implements AudioService {
     }
   }
 
-  String _cacheKey(String text, String langCode, String voiceId) {
-    final input = '$text|$langCode|$voiceId';
-    return md5.convert(utf8.encode(input)).toString();
-  }
+  String _cacheKey(String audioPath) =>
+      md5.convert(audioPath.codeUnits).toString();
 
   Future<Directory> _cacheDir() async {
     final base = await getApplicationDocumentsDirectory();
@@ -175,7 +153,7 @@ class ElevenLabsService implements AudioService {
       .replaceFirst(RegExp(r'\.mp3$'), '');
 
   @override
-  Future<bool> isAvailable() async => AppConfig.enableElevenLabsTTS;
+  Future<bool> isAvailable() async => true;
 
   @override
   Future<void> stop() async {}

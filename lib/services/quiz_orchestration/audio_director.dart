@@ -24,11 +24,11 @@ class AudioDirector {
 
   bool get isSpeaking => _audio.isSpeaking;
 
-  Future<void> speak(String text, String langCode) =>
-      _audio.speak(text, langCode);
+  Future<void> speak(String text, String langCode, {String? audioPath}) =>
+      _audio.speak(text, langCode, audioPath: audioPath);
 
-  Future<void> prefetch(String text, String langCode) =>
-      _audio.prefetch(text, langCode);
+  Future<void> prefetch(String text, String langCode, {String? audioPath}) =>
+      _audio.prefetch(text, langCode, audioPath: audioPath);
 
   Future<void> warmUp(String langCode) => _audio.warmUp(langCode);
 

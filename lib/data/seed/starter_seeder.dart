@@ -10,6 +10,7 @@ import '../datasources/local/app_database.dart';
 import '../datasources/local/daos/concept_dao.dart';
 import '../datasources/local/daos/vocabulary_list_dao.dart';
 import 'seed_catalog.dart';
+import '../../services/audio/audio_asset_path.dart';
 
 /// Seeds the starter curriculum for one ordered language pair, composing the
 /// content from the per-language catalog layers (see [SeedCatalog]).
@@ -287,6 +288,7 @@ class StarterSeeder {
         isPrimary: Value(w.isPrimary),
         position: Value(w.position),
         example: Value(w.isPrimary ? entry.example : null),
+        audioPath: Value(AudioAssetPath.seed(text: w.word, langCode: lang)),
         isDeleted: const Value(false),
         createdAt: Value(now),
         updatedAt: Value(now),
