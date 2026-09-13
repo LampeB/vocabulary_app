@@ -34,6 +34,12 @@ class AudioDirector {
 
   Future<void> stop() => _audio.stop();
 
+  /// Stops both speech and the separate earcon player. Unlike [stop], this is
+  /// for a lifecycle interruption, where no sound may survive in background.
+  Future<void> stopAll() async {
+    await Future.wait([_audio.stop(), _sfx.stop()]);
+  }
+
   /// Resolves once nothing is playing, or after [timeout] — a stuck
   /// `isSpeaking` must never wedge the quiz (utterances have finite length;
   /// the cap only trips on platform bugs).

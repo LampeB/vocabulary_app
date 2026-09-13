@@ -30,7 +30,7 @@ class AudioPlayerService {
       // The speech-speed setting used to apply only to device TTS. Most
       // production playback comes from ElevenLabs, so it was always played
       // at 1.0× even when the learner chose a slower pedagogical pace.
-      await _player.setPlaybackRate(_speechRate);
+      await _player.setPlaybackRate(_premiumRateFor(langCode));
       await _player.play(DeviceFileSource(path));
     } else {
       await _tts.speak(text, langCode);
@@ -57,6 +57,12 @@ class AudioPlayerService {
     await _player.stop();
     await _tts.stop();
   }
+
+  /// Korean synthesized voices keep a much denser natural cadence than French
+  /// or English. Slow them a little further for word-by-word learning while
+  /// preserving the learner's chosen global speed for every language.
+  double _premiumRateFor(String langCode) =>
+      _speechRate * (langCode == 'ko' ? 0.82 : 1.0);
 
   Future<PlayerState> get state async => _player.state;
 

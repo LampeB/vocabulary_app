@@ -70,6 +70,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   int? _voiceKbIndex;
   // Hands-free pause state.
   bool _hfPaused = false;
+  // Guards delayed audio/STT work while Android has put us behind another
+  // app. Lifecycle pause invalidates existing work; this blocks work that had
+  // not started yet (for example a queued listen cue).
+  bool _appForeground = true;
   // Display-only: attempts consumed on the current card, fed by the
   // machine's ShowNotHeard command (the "essai x/3" banner).
   int _notHeardRetries = 0;
@@ -148,10 +152,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// callbacks cannot grade a card after the learner returns.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) return;
+    if (state == AppLifecycleState.resumed) {
+      _appForeground = true;
+      return;
+    }
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
+      _appForeground = false;
       unawaited(_pauseForBackground());
     }
   }
@@ -166,7 +174,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     await Future.wait([
       _stt.stopListening(),
       _whisper.stopListening(),
-      ref.read(audioDirectorProvider).stop(),
+      ref.read(audioDirectorProvider).stopAll(),
     ]);
     if (!mounted) return;
     ref.read(quizProvider.notifier).setListening(false);
@@ -189,13 +197,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // semantics (and their field-log history) live in AudioDirector.
     final director = ref.read(audioDirectorProvider);
     final waitStart = DateTime.now();
-    await director.chainQuiet(keepGoing: () => mounted);
+    await director.chainQuiet(keepGoing: () => mounted && _appForeground);
     final speechWaitMs = DateTime.now().difference(waitStart).inMilliseconds;
     sttLog(
         '[HF] waited ${speechWaitMs}ms for TTS chain (isSpeaking=${director.isSpeaking}) — starting 250ms echo tail');
     // Echo tail: let the room go quiet before the mic opens.
     await Future.delayed(const Duration(milliseconds: 250));
-    if (!mounted) return;
+    if (!mounted || !_appForeground) return;
     if (_stt.isListening) {
       // A stale session must not swallow this card's window (it would hear
       // our TTS and validate against the wrong card) — stop it, then start
@@ -205,7 +213,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       await _stt.stopListening();
       await _whisper.stopListening();
       await Future.delayed(const Duration(milliseconds: 200));
-      if (!mounted) return;
+      if (!mounted || !_appForeground) return;
     }
     sttLog('[HF] speech finished — calling _startListening');
     unawaited(_startListening(card));
@@ -291,6 +299,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// machine's own turn/terminal guards back this up.
   bool _turnStale(int turn, QuizCard card) =>
       !mounted ||
+      !_appForeground ||
       turn != _listenToken ||
       ref.read(quizProvider).currentCard?.progress.variantId !=
           card.progress.variantId ||
@@ -303,6 +312,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       List<TurnCommand> cmds, QuizCard card, String langCode) async {
     final m = _turnMachine!;
     final turn = m.turn;
+    if (_turnStale(turn, card)) return;
     for (final cmd in cmds) {
       switch (cmd) {
         case CleanSlate():
@@ -381,6 +391,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       {required bool rescue}) async {
     final m = _turnMachine!;
     final turn = m.turn;
+    if (_turnStale(turn, card)) return;
 
     // Retry attempts replay the "your turn" earcon (protocol 2026-07-08:
     // retry message → start bip); the first attempt's cue came from the
@@ -467,6 +478,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   Future<void> _startListeningInner(QuizCard card,
       {required bool isRetry}) async {
+    if (!_appForeground) return;
     // Fresh listens reset the banner to "speak now"; retry listens KEEP the
     // "try x/3" / "répète" prompts visible — they already say what to do.
     if ((_hfNotHeard && !isRetry) || _hfAnalyzing) {
@@ -482,7 +494,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
     if (SttSimulator.isOn) {
       await Future.delayed(const Duration(milliseconds: 800));
-      if (!mounted) return;
+      if (!mounted || !_appForeground) return;
       final answer = switch (SttSimulator.mode) {
         'correct' => card.answerWords.isNotEmpty ? card.answerWords.first : '',
         'wrong' => '__wrong__',
@@ -501,7 +513,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // buffers overlap the first recognition frames on Samsung.
     sttLog('[HF] Triggering audio stop + verified focus-handover wait');
     await ref.read(audioDirectorProvider).handOffToMic();
-    if (!mounted) return;
+    if (!mounted || !_appForeground) return;
 
     // Hands-free is eyes-off: "your turn" earcon + haptic BEFORE the mic
     // opens — played while listening, the recognizer hears the earcon itself
@@ -514,7 +526,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       sttLog('[HF] 🔔 playing listen earcon (mic opens after verified clearance)');
       HapticFeedback.selectionClick();
       await ref.read(audioDirectorProvider).listenCue();
-      if (!mounted) return;
+      if (!mounted || !_appForeground) return;
     }
 
     final currentDir = ref.read(quizProvider).currentCard?.progress.direction;

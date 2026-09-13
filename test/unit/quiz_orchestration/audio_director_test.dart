@@ -18,6 +18,8 @@ class _FakeSfx implements SoundEffectsService {
   @override
   Future<void> playListenDone() async => played.add('done');
   @override
+  Future<void> stop() async => played.add('stop');
+  @override
   void dispose() {}
 }
 
@@ -96,6 +98,14 @@ void main() {
   });
 
   group('handOffToMic / listenCue (step 2)', () {
+    test('stopAll stops both speech and an in-flight earcon', () async {
+      final audio = _FakeAudio()..speaking = true;
+      final sfx = _FakeSfx();
+      await AudioDirector(audio, sfx: sfx).stopAll();
+      expect(audio.speaking, isFalse);
+      expect(sfx.played, ['stop']);
+    });
+
     test('handOffToMic stops app audio and waits the focus beat', () async {
       final audio = _FakeAudio()..speaking = true;
       final sw = Stopwatch()..start();

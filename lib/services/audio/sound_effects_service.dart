@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
@@ -152,5 +153,16 @@ class SoundEffectsService {
     } catch (_) {}
   }
 
-  void dispose() => _playerInstance?.dispose();
+  /// Stops an in-flight earcon without disposing the player. Used when the
+  /// app backgrounds: a cue must never keep playing after the quiz is paused.
+  Future<void> stop() async {
+    try {
+      await _playerInstance?.stop();
+    } catch (_) {}
+  }
+
+  void dispose() {
+    unawaited(stop());
+    _playerInstance?.dispose();
+  }
 }
