@@ -10,10 +10,12 @@ class AudioPlayerService {
     double pitch = 1.0,
   })  : _elevenlabs = ElevenLabsService(voiceIds: voiceIds),
         _tts = FlutterTtsService(speechRate: speechRate, pitch: pitch),
+        _speechRate = speechRate,
         _usePremium = usePremium;
 
   final ElevenLabsService _elevenlabs;
   final FlutterTtsService _tts;
+  final double _speechRate;
   final bool _usePremium;
   final _player = AudioPlayer();
 
@@ -25,6 +27,10 @@ class AudioPlayerService {
     final path = await _elevenlabs.generateAndCache(
         text, langCode, _elevenlabs.voiceIdFor(langCode));
     if (path != null) {
+      // The speech-speed setting used to apply only to device TTS. Most
+      // production playback comes from ElevenLabs, so it was always played
+      // at 1.0× even when the learner chose a slower pedagogical pace.
+      await _player.setPlaybackRate(_speechRate);
       await _player.play(DeviceFileSource(path));
     } else {
       await _tts.speak(text, langCode);

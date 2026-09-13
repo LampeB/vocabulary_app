@@ -46,7 +46,7 @@ class QuizScreen extends ConsumerStatefulWidget {
 }
 
 class _QuizScreenState extends ConsumerState<QuizScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   final _stt = SpeechRecognitionService();
   // Whisper engine (own capture + own endpointing) — app-lifetime via
   // provider; the model is heavy. Initialized in initState: a lazy `late`
@@ -95,6 +95,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _whisper = ref.read(whisperSpeechProvider);
     _pulseCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1900));
@@ -132,12 +133,50 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pulseCtrl.dispose();
     _listenBarCtrl.dispose();
     _stt.dispose();
     unawaited(_whisper.stopListening());
     _answerCtrl.dispose();
     super.dispose();
+  }
+
+  /// A hands-free session must never keep listening, speaking, or advance a
+  /// card while the app is behind another application or the screen is off.
+  /// Invalidate the active turn before stopping the engines so their trailing
+  /// callbacks cannot grade a card after the learner returns.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) return;
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(_pauseForBackground());
+    }
+  }
+
+  Future<void> _pauseForBackground() async {
+    final wasHandsFree = widget.args.mode == QuizMode.handsFree;
+    if (wasHandsFree && _hfPaused) return;
+
+    _listenToken++; // every in-flight STT completion is now stale
+    _listenBarCtrl.stop();
+    sttLog('[HF] app backgrounded — pausing audio and recognition');
+    await Future.wait([
+      _stt.stopListening(),
+      _whisper.stopListening(),
+      ref.read(audioDirectorProvider).stop(),
+    ]);
+    if (!mounted) return;
+    ref.read(quizProvider.notifier).setListening(false);
+    if (wasHandsFree) {
+      setState(() {
+        _hfPaused = true;
+        _hfAutoPausedSilence = false;
+        _hfAnalyzing = false;
+      });
+    }
   }
 
   /// Opens the mic only AFTER the app has finished talking (question TTS,
