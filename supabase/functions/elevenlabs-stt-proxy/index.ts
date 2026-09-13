@@ -56,7 +56,8 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { audio_base64, language, expected_word } = await req.json();
+    const { audio_base64, audio_format, language, expected_word } =
+      await req.json();
     if (typeof audio_base64 !== "string" || audio_base64.length === 0) {
       return Response.json(
         { error: "Missing audio" },
@@ -77,17 +78,19 @@ serve(async (req: Request) => {
       );
     }
 
+    const rawPcm = audio_format === "pcm_s16le_16";
     const binary = Uint8Array.from(atob(audio_base64), (char) =>
       char.charCodeAt(0),
     );
     const formData = new FormData();
     formData.append(
       "file",
-      new Blob([binary], { type: "audio/wav" }),
-      "clip.wav",
+      new Blob([binary], { type: rawPcm ? "audio/pcm" : "audio/wav" }),
+      rawPcm ? "clip.pcm" : "clip.wav",
     );
     formData.append("model_id", "scribe_v2");
     formData.append("language_code", languageCode);
+    if (rawPcm) formData.append("file_format", "pcm_s16le_16");
     formData.append("tag_audio_events", "false");
     // Scribe's keyterm prompt is contextual rather than an unconditional
     // replacement: ideal for a known vocabulary answer in a quiz.
