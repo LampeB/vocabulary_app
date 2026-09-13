@@ -58,6 +58,47 @@ class WhisperSpeechService {
       ? 0
       : DateTime.now().difference(_listenStart!).inMilliseconds;
 
+  /// Transcribes an existing WAV capture without opening the microphone.
+  ///
+  /// This is used by the debug corpus lab to measure the exact model and
+  /// decoder configuration that hands-free quizzes use on a real speaker.
+  /// It deliberately stays on-device: [path] is given directly to whisper.cpp.
+  Future<WhisperFileResult?> transcribeFile({
+    required String path,
+    required String langCode,
+    List<String> promptHints = const [],
+  }) async {
+    await ensureModel();
+    if (!_modelReady || _whisper == null) return null;
+    final prompt = {
+      for (final hint in promptHints)
+        ...hint.split('/').map(AnswerValidator.stripAnnotations),
+    }.where((hint) => hint.isNotEmpty).join(', ');
+    try {
+      final stopwatch = Stopwatch()..start();
+      final response = await _whisper!.transcribe(
+        transcribeRequest: TranscribeRequest(
+          audio: path,
+          language: langCode,
+          isNoTimestamps: true,
+        ),
+        initialPrompt: prompt,
+      );
+      stopwatch.stop();
+      final cleaned = cleanTranscript(response.text);
+      sttLog('[WSP][CORPUS] $langCode ${stopwatch.elapsedMilliseconds}ms '
+          'raw="${response.text}" cleaned="${cleaned ?? '<discarded>'}"');
+      return WhisperFileResult(
+        rawText: response.text,
+        cleanedText: cleaned,
+        elapsedMs: stopwatch.elapsedMilliseconds,
+      );
+    } catch (error) {
+      sttLog('[WSP][CORPUS] inference failed: $error');
+      return null;
+    }
+  }
+
   /// Downloads (first run) and loads the model, then warms the native
   /// context with a 200ms silent clip so the first real inference isn't
   /// paying initialization costs. Fire-and-forget; gate on [isReady].
@@ -66,7 +107,8 @@ class WhisperSpeechService {
     _preparing = true;
     try {
       _whisper = Whisper(model: _model);
-      sttLog('[WSP] ensureModel — ggml-${_model.modelName} (downloads ~142MB on first run)');
+      sttLog(
+          '[WSP] ensureModel — ggml-${_model.modelName} (downloads ~142MB on first run)');
       final sw = Stopwatch()..start();
       final silence = pcm16ToWav(
         // 200ms of silence.
@@ -207,24 +249,28 @@ class WhisperSpeechService {
         final seg = _segmenter!;
         final segments = seg.feed(chunk);
         if (seg.inSpeech && !wasInSpeech) {
-          sttLog('[WSP] 🗣 speech onset  floor=${seg.noiseFloor.toStringAsFixed(0)}');
+          sttLog(
+              '[WSP] 🗣 speech onset  floor=${seg.noiseFloor.toStringAsFixed(0)}');
           _onSpeechStart?.call();
         }
         wasInSpeech = seg.inSpeech;
         final now = DateTime.now();
         if (now.difference(lastLevelLog).inMilliseconds >= 1000) {
           lastLevelLog = now;
-          sttLog('[WSP] 🎚 floor=${seg.noiseFloor.toStringAsFixed(0)}  inSpeech=${seg.inSpeech}  elapsed=${listenElapsedMs}ms');
+          sttLog(
+              '[WSP] 🎚 floor=${seg.noiseFloor.toStringAsFixed(0)}  inSpeech=${seg.inSpeech}  elapsed=${listenElapsedMs}ms');
         }
         for (final s in segments) {
-          sttLog('[WSP] segment complete: ${s.durationMs}ms  peak=${s.peakRms.toStringAsFixed(0)}');
+          sttLog(
+              '[WSP] segment complete: ${s.durationMs}ms  peak=${s.peakRms.toStringAsFixed(0)}');
           _onSegment?.call(); // utterance captured — inference starting
           _enqueueInference(s, langCode, windowSerial);
         }
       });
       _isListening = true;
       _listenStart = DateTime.now();
-      sttLog('[WSP] 🎙️ startListening lang=$langCode (own capture, base model)');
+      sttLog(
+          '[WSP] 🎙️ startListening lang=$langCode (own capture, base model)');
       return true;
     } catch (e) {
       sttLog('[WSP] 💥 startListening failed: $e');
@@ -239,7 +285,8 @@ class WhisperSpeechService {
     // session snowballed. Newest segments matter least (the answer usually
     // comes first) — drop them when the queue is deep.
     if (_pendingInferences >= 3) {
-      sttLog('[WSP] inference queue full ($_pendingInferences) — dropping ${segment.durationMs}ms segment');
+      sttLog(
+          '[WSP] inference queue full ($_pendingInferences) — dropping ${segment.durationMs}ms segment');
       return;
     }
     _pendingInferences++;
@@ -262,7 +309,8 @@ class WhisperSpeechService {
         );
         unawaited(f.delete().catchError((_) => f));
         final cleaned = cleanTranscript(res.text);
-        sttLog('[WSP] 📝 transcribed ${segment.durationMs}ms in ${sw.elapsedMilliseconds}ms: raw="${res.text}" cleaned="${cleaned ?? "<discarded>"}"');
+        sttLog(
+            '[WSP] 📝 transcribed ${segment.durationMs}ms in ${sw.elapsedMilliseconds}ms: raw="${res.text}" cleaned="${cleaned ?? "<discarded>"}"');
         if (cleaned == null) return;
         if (serial != _inferenceSerial) {
           sttLog('[WSP] transcript arrived after window closed — dropped');
@@ -299,4 +347,16 @@ class WhisperSpeechService {
     unawaited(stopListening());
     _recorder.dispose();
   }
+}
+
+class WhisperFileResult {
+  const WhisperFileResult({
+    required this.rawText,
+    required this.cleanedText,
+    required this.elapsedMs,
+  });
+
+  final String rawText;
+  final String? cleanedText;
+  final int elapsedMs;
 }

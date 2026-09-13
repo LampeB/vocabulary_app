@@ -16,6 +16,9 @@ class SttCorpusSample {
     required this.recordedAt,
     this.listId,
     this.conceptId,
+    this.whisperTranscript,
+    this.whisperDurationMs,
+    this.whisperTestedAt,
   });
 
   final String id;
@@ -27,6 +30,9 @@ class SttCorpusSample {
   /// Optional origin for a paired capture from a vocabulary list.
   final String? listId;
   final String? conceptId;
+  final String? whisperTranscript;
+  final int? whisperDurationMs;
+  final DateTime? whisperTestedAt;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -36,6 +42,9 @@ class SttCorpusSample {
         'recordedAt': recordedAt.toIso8601String(),
         'listId': listId,
         'conceptId': conceptId,
+        'whisperTranscript': whisperTranscript,
+        'whisperDurationMs': whisperDurationMs,
+        'whisperTestedAt': whisperTestedAt?.toIso8601String(),
       };
 
   factory SttCorpusSample.fromJson(Map<String, dynamic> json) =>
@@ -47,6 +56,28 @@ class SttCorpusSample {
         recordedAt: DateTime.parse(json['recordedAt'] as String),
         listId: json['listId'] as String?,
         conceptId: json['conceptId'] as String?,
+        whisperTranscript: json['whisperTranscript'] as String?,
+        whisperDurationMs: json['whisperDurationMs'] as int?,
+        whisperTestedAt: json['whisperTestedAt'] == null
+            ? null
+            : DateTime.parse(json['whisperTestedAt'] as String),
+      );
+
+  SttCorpusSample withWhisperResult({
+    required String? transcript,
+    required int? durationMs,
+  }) =>
+      SttCorpusSample(
+        id: id,
+        word: word,
+        langCode: langCode,
+        path: path,
+        recordedAt: recordedAt,
+        listId: listId,
+        conceptId: conceptId,
+        whisperTranscript: transcript,
+        whisperDurationMs: durationMs,
+        whisperTestedAt: DateTime.now(),
       );
 }
 
@@ -128,6 +159,27 @@ class SttCorpusRecorder {
       ...all.map((sample) => sample.toJson()),
     ]));
     return pending;
+  }
+
+  /// Persists a local Whisper benchmark alongside the capture label.
+  Future<void> saveWhisperResult({
+    required String sampleId,
+    required String? transcript,
+    required int? durationMs,
+  }) async {
+    final all = await samples();
+    final updated = all
+        .map((sample) => sample.id == sampleId
+            ? sample.withWhisperResult(
+                transcript: transcript,
+                durationMs: durationMs,
+              )
+            : sample)
+        .toList();
+    final manifest = await _manifest();
+    await manifest.writeAsString(jsonEncode(
+      updated.map((sample) => sample.toJson()).toList(),
+    ));
   }
 
   Future<Directory> _directory() async {

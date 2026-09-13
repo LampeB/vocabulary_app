@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/answer_validator.dart';
 import '../../../domain/entities/concept.dart';
 import '../../../domain/entities/vocabulary_list.dart';
 import '../../../domain/entities/word_variant.dart';
 import '../../../services/speech/stt_corpus_recorder.dart';
 import '../../providers/lists/vocabulary_provider.dart';
+import '../../providers/speech/whisper_speech_provider.dart';
 
 /// Debug-only, local capture flow for testing recognition on a real speaker.
 ///
@@ -25,6 +27,9 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
   String? _selectedListId;
   _CorpusPair? _activePair;
   var _phase = 0;
+  var _isBenchmarking = false;
+  var _benchmarkDone = 0;
+  var _benchmarkTotal = 0;
   String? _message;
 
   @override
@@ -110,6 +115,54 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
     });
   }
 
+  Future<void> _runWhisperBenchmark(String listId) async {
+    final captures =
+        _samples.where((sample) => sample.listId == listId).toList();
+    if (captures.isEmpty || _isBenchmarking) return;
+    setState(() {
+      _isBenchmarking = true;
+      _benchmarkDone = 0;
+      _benchmarkTotal = captures.length;
+      _message = 'Chargement du modèle Whisper…';
+    });
+    final whisper = ref.read(whisperSpeechProvider);
+    var correct = 0;
+    for (var index = 0; index < captures.length; index++) {
+      final sample = captures[index];
+      final result = await whisper.transcribeFile(
+        path: sample.path,
+        langCode: sample.langCode,
+        promptHints: [sample.word],
+      );
+      final transcript = result?.cleanedText;
+      final accepted = transcript != null &&
+          AnswerValidator.validate(
+            userAnswer: transcript,
+            acceptedAnswers: [sample.word],
+            isDrivingMode: true,
+          ).isCorrect;
+      if (accepted) correct++;
+      await _recorder.saveWhisperResult(
+        sampleId: sample.id,
+        transcript: transcript,
+        durationMs: result?.elapsedMs,
+      );
+      if (mounted) {
+        setState(() {
+          _benchmarkDone = index + 1;
+          _message = 'Analyse Whisper : ${index + 1}/${captures.length} '
+              '· $correct reconnue(s)';
+        });
+      }
+    }
+    await _reload();
+    if (!mounted) return;
+    setState(() {
+      _isBenchmarking = false;
+      _message = 'Whisper : $correct/${captures.length} prises reconnues.';
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final lists = ref.watch(myListsProvider);
@@ -174,6 +227,22 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
           ),
           Expanded(
             child: _ConceptPairs(listId: selectedListId, onTap: _openPair),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: OutlinedButton.icon(
+              onPressed: _isBenchmarking
+                  ? null
+                  : () => _runWhisperBenchmark(selectedListId),
+              icon: _isBenchmarking
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.analytics_outlined),
+              label: Text(_isBenchmarking
+                  ? 'Analyse $_benchmarkDone / $_benchmarkTotal'
+                  : 'Analyser Whisper (${_samples.where((s) => s.listId == selectedListId).length} prises)'),
+            ),
           ),
           if (_message != null)
             Padding(padding: const EdgeInsets.all(16), child: Text(_message!)),
