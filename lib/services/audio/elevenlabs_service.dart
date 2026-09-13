@@ -31,6 +31,7 @@ class ElevenLabsService implements AudioService {
   String voiceIdFor(String langCode) => voiceIds[langCode] ?? _defaultVoiceId;
 
   final _cache = <String, String>{}; // hash → file path
+  final _inFlight = <String, Future<String?>>{};
 
   @override
   Future<void> speak(String text, String langCode, {String? voiceId}) async {
@@ -50,6 +51,23 @@ class ElevenLabsService implements AudioService {
     final key = _cacheKey(text, langCode, voiceId);
     if (_cache.containsKey(key)) return _cache[key];
 
+    // Question playback and the next-card prefetch can request the same word
+    // at almost the same time. Share one network render instead of competing
+    // calls that both delay cache population.
+    final pending = _inFlight[key];
+    if (pending != null) return pending;
+
+    final task = _downloadAndCache(key, text, langCode, voiceId);
+    _inFlight[key] = task;
+    try {
+      return await task;
+    } finally {
+      if (identical(_inFlight[key], task)) _inFlight.remove(key);
+    }
+  }
+
+  Future<String?> _downloadAndCache(
+      String key, String text, String langCode, String voiceId) async {
     final dir = await _cacheDir();
     final file = File('${dir.path}/$key.mp3');
     if (file.existsSync()) {
@@ -109,6 +127,7 @@ class ElevenLabsService implements AudioService {
     final dir = await _cacheDir();
     if (dir.existsSync()) dir.deleteSync(recursive: true);
     _cache.clear();
+    _inFlight.clear();
   }
 
   @override

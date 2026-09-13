@@ -566,6 +566,21 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     await _startRaceListening(card, langCode, sessionToken);
   }
 
+  /// Start the following card's network renders as soon as this card becomes
+  /// visible — not only once its microphone opens. This gives ElevenLabs the
+  /// whole prompt + answer interval to fill the local cache.
+  void _prefetchFollowingCard(QuizCard? card) {
+    if (card == null || _kTestMode) return;
+    final audio = ref.read(audioPlayerServiceProvider);
+    unawaited(audio.warmUp(card.progress.direction.questionLang));
+    unawaited(audio.prefetch(
+        card.questionWord, card.progress.direction.questionLang));
+    if (card.answerWords.isNotEmpty) {
+      unawaited(audio.prefetch(
+          card.answerWords.first, card.progress.direction.answerLang));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final quizState = ref.watch(quizProvider);
@@ -651,6 +666,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               _hfNotHeard = false;
             });
           }
+          _prefetchFollowingCard(next.nextCard);
           unawaited(_waitForSpeechThenListen(card));
         }
       }

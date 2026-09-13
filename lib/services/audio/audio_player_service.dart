@@ -19,13 +19,19 @@ class AudioPlayerService {
   final bool _usePremium;
   final _player = AudioPlayer();
 
+  // A visible silent gap is worse than a temporary device-TTS voice. The
+  // ElevenLabs request keeps filling the cache after this budget expires, so
+  // following repetitions still use the premium recording.
+  static const _premiumStartBudget = Duration(milliseconds: 500);
+
   Future<void> speak(String text, String langCode) async {
     if (!_usePremium) {
       await _tts.speak(text, langCode);
       return;
     }
-    final path = await _elevenlabs.generateAndCache(
-        text, langCode, _elevenlabs.voiceIdFor(langCode));
+    final path = await _elevenlabs
+        .generateAndCache(text, langCode, _elevenlabs.voiceIdFor(langCode))
+        .timeout(_premiumStartBudget, onTimeout: () => null);
     if (path != null) {
       // The speech-speed setting used to apply only to device TTS. Most
       // production playback comes from ElevenLabs, so it was always played
