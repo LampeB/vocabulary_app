@@ -14,6 +14,8 @@ class SttCorpusSample {
     required this.langCode,
     required this.path,
     required this.recordedAt,
+    this.listId,
+    this.conceptId,
   });
 
   final String id;
@@ -22,12 +24,18 @@ class SttCorpusSample {
   final String path;
   final DateTime recordedAt;
 
-  Map<String, Object> toJson() => {
+  /// Optional origin for a paired capture from a vocabulary list.
+  final String? listId;
+  final String? conceptId;
+
+  Map<String, dynamic> toJson() => {
         'id': id,
         'word': word,
         'langCode': langCode,
         'path': path,
         'recordedAt': recordedAt.toIso8601String(),
+        'listId': listId,
+        'conceptId': conceptId,
       };
 
   factory SttCorpusSample.fromJson(Map<String, dynamic> json) =>
@@ -37,6 +45,8 @@ class SttCorpusSample {
         langCode: json['langCode'] as String,
         path: json['path'] as String,
         recordedAt: DateTime.parse(json['recordedAt'] as String),
+        listId: json['listId'] as String?,
+        conceptId: json['conceptId'] as String?,
       );
 }
 
@@ -67,7 +77,12 @@ class SttCorpusRecorder {
     }
   }
 
-  Future<bool> start({required String word, required String langCode}) async {
+  Future<bool> start({
+    required String word,
+    required String langCode,
+    String? listId,
+    String? conceptId,
+  }) async {
     if (word.trim().isEmpty || isRecording) return false;
     if (!await _recorder.hasPermission()) return false;
     final directory = await _directory();
@@ -79,6 +94,8 @@ class SttCorpusRecorder {
       langCode: langCode,
       path: '${directory.path}${Platform.pathSeparator}$id.wav',
       recordedAt: now,
+      listId: listId,
+      conceptId: conceptId,
     );
     await _recorder.start(
       const RecordConfig(

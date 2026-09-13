@@ -1,20 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../domain/entities/concept.dart';
+import '../../../domain/entities/vocabulary_list.dart';
+import '../../../domain/entities/word_variant.dart';
 import '../../../services/speech/stt_corpus_recorder.dart';
+import '../../providers/lists/vocabulary_provider.dart';
 
-/// Debug-only capture surface for building a labelled, real-speaker STT corpus.
-class SttLabScreen extends StatefulWidget {
+/// Debug-only, local capture flow for testing recognition on a real speaker.
+///
+/// Captures are deliberately organised by vocabulary concept: tapping one row
+/// records its French form, then its Korean form. This makes the resulting WAV
+/// corpus directly usable for per-language, per-word STT comparisons.
+class SttLabScreen extends ConsumerStatefulWidget {
   const SttLabScreen({super.key});
 
   @override
-  State<SttLabScreen> createState() => _SttLabScreenState();
+  ConsumerState<SttLabScreen> createState() => _SttLabScreenState();
 }
 
-class _SttLabScreenState extends State<SttLabScreen> {
+class _SttLabScreenState extends ConsumerState<SttLabScreen> {
   final _recorder = SttCorpusRecorder();
-  final _word = TextEditingController(text: 'bonjour');
-  var _langCode = 'fr';
   var _samples = const <SttCorpusSample>[];
+  String? _selectedListId;
+  _CorpusPair? _activePair;
+  var _phase = 0;
   String? _message;
 
   @override
@@ -25,7 +35,6 @@ class _SttLabScreenState extends State<SttLabScreen> {
 
   @override
   void dispose() {
-    _word.dispose();
     _recorder.dispose();
     super.dispose();
   }
@@ -35,93 +44,274 @@ class _SttLabScreenState extends State<SttLabScreen> {
     if (mounted) setState(() => _samples = samples);
   }
 
-  Future<void> _toggleRecording() async {
-    if (_recorder.isRecording) {
-      final sample = await _recorder.stop();
-      if (!mounted) return;
-      setState(() {
-        _message = sample == null
-            ? 'Aucun enregistrement sauvegardé.'
-            : 'Échantillon enregistré : ${sample.word}';
-      });
-      await _reload();
-      return;
-    }
-    final ok = await _recorder.start(word: _word.text, langCode: _langCode);
-    if (!mounted) return;
+  void _selectList(String? listId) {
     setState(() {
-      _message = ok
-          ? 'Parle naturellement, puis touche Terminer.'
-          : 'Micro indisponible ou mot vide.';
+      _selectedListId = listId;
+      _activePair = null;
+      _phase = 0;
+      _message = null;
     });
   }
 
-  void _changeLanguage(String langCode) {
+  bool _hasCapture(_CorpusPair pair, String langCode) => _samples.any(
+        (sample) =>
+            sample.listId == pair.listId &&
+            sample.conceptId == pair.conceptId &&
+            sample.langCode == langCode,
+      );
+
+  bool _isComplete(_CorpusPair pair) =>
+      _hasCapture(pair, 'fr') && _hasCapture(pair, 'ko');
+
+  Future<void> _toggleRecording() async {
+    final pair = _activePair;
+    if (pair == null) return;
+    if (_recorder.isRecording) {
+      final sample = await _recorder.stop();
+      if (!mounted) return;
+      await _reload();
+      if (sample == null) {
+        setState(() => _message = 'Aucun enregistrement sauvegardé.');
+      } else if (_phase == 0) {
+        setState(() {
+          _phase = 1;
+          _message = 'Français enregistré. À toi pour le coréen.';
+        });
+      } else {
+        setState(() {
+          _activePair = null;
+          _phase = 0;
+          _message =
+              'Paire complète enregistrée : ${pair.french} · ${pair.korean}';
+        });
+      }
+      return;
+    }
+
+    final langCode = _phase == 0 ? 'fr' : 'ko';
+    final word = _phase == 0 ? pair.french : pair.korean;
+    final ok = await _recorder.start(
+      word: word,
+      langCode: langCode,
+      listId: pair.listId,
+      conceptId: pair.conceptId,
+    );
+    if (!mounted) return;
+    setState(() => _message = ok
+        ? 'Parle naturellement, puis touche Terminer.'
+        : 'Micro indisponible.');
+  }
+
+  void _openPair(_CorpusPair pair) {
     setState(() {
-      _langCode = langCode;
-      _word.text = langCode == 'ko' ? '안녕하세요' : 'bonjour';
+      _activePair = pair;
+      _phase = _hasCapture(pair, 'fr') ? 1 : 0;
+      _message = null;
     });
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Laboratoire STT')),
-        body: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            const Text(
-              'Enregistre ta voix avec le mot affiché. Les WAV 16 kHz et leurs labels restent uniquement sur ce téléphone de test ; ils serviront à mesurer les moteurs et leurs délais.',
-            ),
-            const SizedBox(height: 20),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'fr', label: Text('Français')),
-                ButtonSegment(value: 'ko', label: Text('Coréen')),
-              ],
-              selected: {_langCode},
-              onSelectionChanged: (value) => _changeLanguage(value.first),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _word,
-              textInputAction: TextInputAction.done,
+  Widget build(BuildContext context) {
+    final lists = ref.watch(myListsProvider);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_activePair == null ? 'Corpus STT' : 'Enregistrer un mot'),
+        leading: _activePair == null
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: _recorder.isRecording
+                    ? null
+                    : () => setState(() {
+                          _activePair = null;
+                          _phase = 0;
+                        }),
+              ),
+      ),
+      body: lists.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) =>
+            Center(child: Text('Listes indisponibles : $error')),
+        data: (items) {
+          if (items.isEmpty) {
+            return const Center(child: Text('Aucune liste disponible.'));
+          }
+          final selected = _selectedListId ?? _foodList(items).id;
+          if (_activePair != null) return _captureView(_activePair!);
+          return _listView(items, selected);
+        },
+      ),
+    );
+  }
+
+  VocabularyList _foodList(List<VocabularyList> lists) => lists.firstWhere(
+        (list) => list.name.toLowerCase().contains('nourriture'),
+        orElse: () => lists.first,
+      );
+
+  Widget _listView(List<VocabularyList> lists, String selectedListId) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: DropdownButtonFormField<String>(
+              initialValue: selectedListId,
               decoration: const InputDecoration(
-                labelText: 'Mot attendu',
+                labelText: 'Liste à enregistrer',
                 border: OutlineInputBorder(),
               ),
+              items: [
+                for (final list in lists)
+                  DropdownMenuItem(value: list.id, child: Text(list.name)),
+              ],
+              onChanged: _selectList,
             ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: _toggleRecording,
-              icon: Icon(_recorder.isRecording
-                  ? Icons.stop_rounded
-                  : Icons.mic_rounded),
-              label: Text(_recorder.isRecording
-                  ? 'Terminer et sauvegarder'
-                  : 'Enregistrer'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(54),
-                backgroundColor:
-                    _recorder.isRecording ? Colors.red.shade700 : null,
-              ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 8, 20, 12),
+            child: Text(
+              'Touche un mot : tu enregistres d’abord le français, puis le coréen. Les WAV restent sur ce téléphone de test.',
             ),
-            if (_message != null) ...[
-              const SizedBox(height: 12),
-              Text(_message!),
-            ],
-            const SizedBox(height: 28),
-            Text('Échantillons (${_samples.length})',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            for (final sample in _samples)
-              ListTile(
-                dense: true,
-                leading: const Icon(Icons.graphic_eq_rounded),
-                title: Text(sample.word),
-                subtitle: Text(
-                    '${sample.langCode.toUpperCase()} · ${sample.recordedAt.toLocal()}'),
-              ),
-          ],
-        ),
+          ),
+          Expanded(
+            child: _ConceptPairs(listId: selectedListId, onTap: _openPair),
+          ),
+          if (_message != null)
+            Padding(padding: const EdgeInsets.all(16), child: Text(_message!)),
+        ],
       );
+
+  Widget _captureView(_CorpusPair pair) {
+    final french = _phase == 0;
+    final word = french ? pair.french : pair.korean;
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('${_phase + 1} / 2 · ${french ? 'Français' : 'Coréen'}',
+              style: Theme.of(context).textTheme.labelLarge),
+          const Spacer(),
+          Text(word,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.displaySmall),
+          const SizedBox(height: 12),
+          Text(french ? pair.korean : pair.french,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium),
+          const Spacer(),
+          FilledButton.icon(
+            onPressed: _toggleRecording,
+            icon: Icon(
+                _recorder.isRecording ? Icons.stop_rounded : Icons.mic_rounded),
+            label: Text(_recorder.isRecording ? 'Terminer' : 'Enregistrer'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(58),
+              backgroundColor:
+                  _recorder.isRecording ? Colors.red.shade700 : null,
+            ),
+          ),
+          if (_message != null) ...[
+            const SizedBox(height: 16),
+            Text(_message!, textAlign: TextAlign.center),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ConceptPairs extends ConsumerWidget {
+  const _ConceptPairs({required this.listId, required this.onTap});
+
+  final String listId;
+  final ValueChanged<_CorpusPair> onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final concepts = ref.watch(listDetailProvider(listId));
+    final state = context.findAncestorStateOfType<_SttLabScreenState>();
+    return concepts.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(child: Text('Mots indisponibles : $error')),
+      data: (items) => ListView.builder(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+        itemCount: items.length,
+        itemBuilder: (context, index) => _ConceptPairRow(
+          listId: listId,
+          concept: items[index],
+          onTap: onTap,
+          isComplete: (pair) => state?._isComplete(pair) ?? false,
+        ),
+      ),
+    );
+  }
+}
+
+class _ConceptPairRow extends ConsumerWidget {
+  const _ConceptPairRow({
+    required this.listId,
+    required this.concept,
+    required this.onTap,
+    required this.isComplete,
+  });
+
+  final String listId;
+  final Concept concept;
+  final ValueChanged<_CorpusPair> onTap;
+  final bool Function(_CorpusPair pair) isComplete;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final variants = ref.watch(variantsProvider(concept.id));
+    return variants.when(
+      loading: () => const ListTile(title: LinearProgressIndicator()),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (values) {
+        final french = _primary(values, 'fr');
+        final korean = _primary(values, 'ko');
+        if (french == null || korean == null) return const SizedBox.shrink();
+        final pair = _CorpusPair(
+          listId: listId,
+          conceptId: concept.id,
+          french: french.word,
+          korean: korean.word,
+        );
+        final complete = isComplete(pair);
+        return Card(
+          child: ListTile(
+            onTap: () => onTap(pair),
+            title: Text(french.word),
+            subtitle: Text(korean.word),
+            trailing: Icon(
+              complete ? Icons.check_circle_rounded : Icons.mic_none_rounded,
+              color: complete ? Colors.green : null,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  WordVariant? _primary(List<WordVariant> variants, String langCode) {
+    final matches = variants.where((variant) => variant.langCode == langCode);
+    if (matches.isEmpty) return null;
+    return matches.firstWhere(
+      (variant) => variant.isPrimary,
+      orElse: () => matches.first,
+    );
+  }
+}
+
+class _CorpusPair {
+  const _CorpusPair({
+    required this.listId,
+    required this.conceptId,
+    required this.french,
+    required this.korean,
+  });
+
+  final String listId;
+  final String conceptId;
+  final String french;
+  final String korean;
 }
