@@ -19,6 +19,9 @@ class SttCorpusSample {
     this.whisperTranscript,
     this.whisperDurationMs,
     this.whisperTestedAt,
+    this.openAiTranscript,
+    this.openAiDurationMs,
+    this.openAiTestedAt,
   });
 
   final String id;
@@ -33,6 +36,9 @@ class SttCorpusSample {
   final String? whisperTranscript;
   final int? whisperDurationMs;
   final DateTime? whisperTestedAt;
+  final String? openAiTranscript;
+  final int? openAiDurationMs;
+  final DateTime? openAiTestedAt;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -45,6 +51,9 @@ class SttCorpusSample {
         'whisperTranscript': whisperTranscript,
         'whisperDurationMs': whisperDurationMs,
         'whisperTestedAt': whisperTestedAt?.toIso8601String(),
+        'openAiTranscript': openAiTranscript,
+        'openAiDurationMs': openAiDurationMs,
+        'openAiTestedAt': openAiTestedAt?.toIso8601String(),
       };
 
   factory SttCorpusSample.fromJson(Map<String, dynamic> json) =>
@@ -61,6 +70,11 @@ class SttCorpusSample {
         whisperTestedAt: json['whisperTestedAt'] == null
             ? null
             : DateTime.parse(json['whisperTestedAt'] as String),
+        openAiTranscript: json['openAiTranscript'] as String?,
+        openAiDurationMs: json['openAiDurationMs'] as int?,
+        openAiTestedAt: json['openAiTestedAt'] == null
+            ? null
+            : DateTime.parse(json['openAiTestedAt'] as String),
       );
 
   SttCorpusSample withWhisperResult({
@@ -78,6 +92,26 @@ class SttCorpusSample {
         whisperTranscript: transcript,
         whisperDurationMs: durationMs,
         whisperTestedAt: DateTime.now(),
+      );
+
+  SttCorpusSample withOpenAiResult({
+    required String? transcript,
+    required int? durationMs,
+  }) =>
+      SttCorpusSample(
+        id: id,
+        word: word,
+        langCode: langCode,
+        path: path,
+        recordedAt: recordedAt,
+        listId: listId,
+        conceptId: conceptId,
+        whisperTranscript: whisperTranscript,
+        whisperDurationMs: whisperDurationMs,
+        whisperTestedAt: whisperTestedAt,
+        openAiTranscript: transcript,
+        openAiDurationMs: durationMs,
+        openAiTestedAt: DateTime.now(),
       );
 }
 
@@ -170,6 +204,27 @@ class SttCorpusRecorder {
     final updated = all
         .map((sample) => sample.id == sampleId
             ? sample.withWhisperResult(
+                transcript: transcript,
+                durationMs: durationMs,
+              )
+            : sample)
+        .toList();
+    final manifest = await _manifest();
+    await manifest.writeAsString(jsonEncode(
+      updated.map((sample) => sample.toJson()).toList(),
+    ));
+  }
+
+  /// Persists a cloud OpenAI benchmark alongside the local result.
+  Future<void> saveOpenAiResult({
+    required String sampleId,
+    required String? transcript,
+    required int? durationMs,
+  }) async {
+    final all = await samples();
+    final updated = all
+        .map((sample) => sample.id == sampleId
+            ? sample.withOpenAiResult(
                 transcript: transcript,
                 durationMs: durationMs,
               )
