@@ -1,0 +1,268 @@
+[
+  {
+    "id": "1789299282039_fr",
+    "word": "riz / repas",
+    "langCode": "fr",
+    "transcript": "le frit",
+    "elapsedMs": 1206
+  },
+  {
+    "id": "1789299288554_ko",
+    "word": "밥",
+    "langCode": "ko",
+    "transcript": "밥",
+    "elapsedMs": 1132
+  },
+  {
+    "id": "1789299293842_fr",
+    "word": "eau",
+    "langCode": "fr",
+    "transcript": "eau",
+    "elapsedMs": 1201
+  },
+  {
+    "id": "1789299297350_ko",
+    "word": "물",
+    "langCode": "ko",
+    "transcript": "물",
+    "elapsedMs": 1143
+  },
+  {
+    "id": "1789299301188_fr",
+    "word": "kimchi",
+    "langCode": "fr",
+    "transcript": "kimchi",
+    "elapsedMs": 1215
+  },
+  {
+    "id": "1789299304765_ko",
+    "word": "김치",
+    "langCode": "ko",
+    "transcript": "김치",
+    "elapsedMs": 1137
+  },
+  {
+    "id": "1789299308754_fr",
+    "word": "viande",
+    "langCode": "fr",
+    "transcript": "Zondo",
+    "elapsedMs": 1174
+  },
+  {
+    "id": "1789299312122_ko",
+    "word": "고기",
+    "langCode": "ko",
+    "transcript": "고기",
+    "elapsedMs": 1208
+  },
+  {
+    "id": "1789299316234_fr",
+    "word": "fruit",
+    "langCode": "fr",
+    "transcript": "fruits",
+    "elapsedMs": 1166
+  },
+  {
+    "id": "1789299318685_ko",
+    "word": "과일",
+    "langCode": "ko",
+    "transcript": "과일",
+    "elapsedMs": 1140
+  },
+  {
+    "id": "1789299322472_fr",
+    "word": "pomme",
+    "langCode": "fr",
+    "transcript": "BOOM",
+    "elapsedMs": 1237
+  },
+  {
+    "id": "1789299325640_ko",
+    "word": "사과",
+    "langCode": "ko",
+    "transcript": "사과",
+    "elapsedMs": 1192
+  },
+  {
+    "id": "1789299329669_fr",
+    "word": "thé",
+    "langCode": "fr",
+    "transcript": "Si",
+    "elapsedMs": 1194
+  },
+  {
+    "id": "1789299332147_ko",
+    "word": "차",
+    "langCode": "ko",
+    "transcript": "차",
+    "elapsedMs": 1147
+  },
+  {
+    "id": "1789299340079_fr",
+    "word": "café (boisson)",
+    "langCode": "fr",
+    "transcript": "Qu'est-ce que c'est ?",
+    "elapsedMs": 1248
+  },
+  {
+    "id": "1789299343072_ko",
+    "word": "커피",
+    "langCode": "ko",
+    "transcript": "커피",
+    "elapsedMs": 1226
+  },
+  {
+    "id": "1789299347757_fr",
+    "word": "lait",
+    "langCode": "fr",
+    "transcript": "Ling",
+    "elapsedMs": 1166
+  },
+  {
+    "id": "1789299350628_ko",
+    "word": "우유",
+    "langCode": "ko",
+    "transcript": "우유",
+    "elapsedMs": 1209
+  },
+  {
+    "id": "1789299355232_fr",
+    "word": "pain",
+    "langCode": "fr",
+    "transcript": "Ben",
+    "elapsedMs": 1201
+  },
+  {
+    "id": "1789299358191_ko",
+    "word": "빵",
+    "langCode": "ko",
+    "transcript": "빵",
+    "elapsedMs": 1182
+  },
+  {
+    "id": "1789299362977_fr",
+    "word": "poisson (aliment)",
+    "langCode": "fr",
+    "transcript": "poisson",
+    "elapsedMs": 1209
+  },
+  {
+    "id": "1789299367130_ko",
+    "word": "생선",
+    "langCode": "ko",
+    "transcript": "생선",
+    "elapsedMs": 1199
+  },
+  {
+    "id": "1789299372930_fr",
+    "word": "légume",
+    "langCode": "fr",
+    "transcript": "légume",
+    "elapsedMs": 1198
+  },
+  {
+    "id": "1789299376303_ko",
+    "word": "야채",
+    "langCode": "ko",
+    "transcript": "야채",
+    "elapsedMs": 1187
+  },
+  {
+    "id": "1789299381494_fr",
+    "word": "manger",
+    "langCode": "fr",
+    "transcript": "Manger",
+    "elapsedMs": 1154
+  },
+  {
+    "id": "1789299384697_ko",
+    "word": "먹다",
+    "langCode": "ko",
+    "transcript": "먹다",
+    "elapsedMs": 1224
+  },
+  {
+    "id": "1789299389564_fr",
+    "word": "boire",
+    "langCode": "fr",
+    "transcript": "boire",
+    "elapsedMs": 1155
+  },
+  {
+    "id": "1789299392717_ko",
+    "word": "마시다",
+    "langCode": "ko",
+    "transcript": "마시다",
+    "elapsedMs": 1218
+  },
+  {
+    "id": "1789299397271_fr",
+    "word": "délicieux",
+    "langCode": "fr",
+    "transcript": "délicieux",
+    "elapsedMs": 1170
+  },
+  {
+    "id": "1789299400757_ko",
+    "word": "맛있다",
+    "langCode": "ko",
+    "transcript": "맛있다",
+    "elapsedMs": 1183
+  },
+  {
+    "id": "1789299405914_fr",
+    "word": "mauvais (au goût)",
+    "langCode": "fr",
+    "transcript": "Movie",
+    "elapsedMs": 1261
+  },
+  {
+    "id": "1789299409691_ko",
+    "word": "맛없다",
+    "langCode": "ko",
+    "transcript": "맛없다",
+    "elapsedMs": 1183
+  },
+  {
+    "id": "1789299414511_fr",
+    "word": "avoir faim",
+    "langCode": "fr",
+    "transcript": "Avoir faim",
+    "elapsedMs": 1266
+  },
+  {
+    "id": "1789299419893_ko",
+    "word": "배고프다",
+    "langCode": "ko",
+    "transcript": "배고프다",
+    "elapsedMs": 1233
+  },
+  {
+    "id": "1789299425664_ko",
+    "word": "배고프다",
+    "langCode": "ko",
+    "transcript": "배고, 배고프다",
+    "elapsedMs": 1251
+  },
+  {
+    "id": "1789299432780_ko",
+    "word": "배고프다",
+    "langCode": "ko",
+    "transcript": "배고프다",
+    "elapsedMs": 1174
+  },
+  {
+    "id": "1789299436525_fr",
+    "word": "restaurant",
+    "langCode": "fr",
+    "transcript": "restaurant",
+    "elapsedMs": 1188
+  },
+  {
+    "id": "1789299439527_ko",
+    "word": "식당",
+    "langCode": "ko",
+    "transcript": "식당",
+    "elapsedMs": 1215
+  }
+]

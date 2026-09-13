@@ -50,8 +50,6 @@ quiz_test_out.txt
 /build/
 /coverage/
 
-# Local voice corpus captured on a test device — personal audio, never commit.
-/tool/stt_corpus/
 
 # Symbolication related
 app.*.symbols
