@@ -1,5 +1,3 @@
-import 'dart:async' show unawaited;
-
 import '../audio/audio_player_service.dart';
 import '../audio/sound_effects_service.dart';
 
@@ -94,14 +92,21 @@ class AudioDirector {
   Future<void> playListenCue() => _sfx.playListenCue();
   Future<void> playListenDone() => _sfx.playListenDone();
 
-  /// Releases the audio channel to the microphone: stops app audio and waits
-  /// the focus-handover beat (Samsung requires ~300ms between ExoPlayer
-  /// releasing focus and STT grabbing the mic). The stop itself is fired
-  /// without await — Android's focus system completes the release
-  /// concurrently; the beat IS the wait.
+  /// Releases the audio channel to the microphone.
+  ///
+  /// This is deliberately a strict hand-off: awaiting [stop] tells us the
+  /// app's player has actually released its track before the settling beat.
+  /// Merely firing `stop()` and waiting a fixed delay let a late audio buffer
+  /// (or a slow Samsung focus release) overlap the first STT frames, so some
+  /// cards appeared to reject speech before the learner could answer.
   Future<void> handOffToMic(
-      {Duration focusBeat = const Duration(milliseconds: 300)}) async {
-    unawaited(_audio.stop());
+      {Duration focusBeat = const Duration(milliseconds: 450)}) async {
+    try {
+      await _audio.stop().timeout(const Duration(milliseconds: 900));
+    } catch (_) {
+      // A stuck platform player must never block a quiz. The clearance below
+      // is still valuable even if its stop acknowledgement was lost.
+    }
     await Future.delayed(focusBeat);
   }
 
@@ -109,8 +114,12 @@ class AudioDirector {
   /// transcribes the earcon itself as an answer (double-bip field log
   /// 2026-07-07). Resolves when it is safe to open the mic.
   Future<void> listenCue(
-      {Duration clearance = const Duration(milliseconds: 250)}) async {
-    unawaited(_sfx.playListenCue());
+      {Duration clearance = const Duration(milliseconds: 450)}) async {
+    // Do not start the clearance clock until the platform accepted the sound.
+    // `audioplayers.play` can be scheduled noticeably later than this Dart
+    // call on Samsung; the old fire-and-forget call could therefore put the
+    // recognizer live while the audible tick was still playing.
+    await _sfx.playListenCue();
     await Future.delayed(clearance);
   }
 

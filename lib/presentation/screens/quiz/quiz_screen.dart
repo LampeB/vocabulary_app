@@ -457,10 +457,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       return;
     }
 
-    // Stop audio without awaiting — let Android's audio-focus system handle the
-    // handover concurrently.  We still wait 300 ms so ExoPlayer has time to
-    // release the focus before STT grabs the mic (Samsung requirement).
-    sttLog('[HF] Triggering audio stop + 300ms focus-handover wait');
+    // Wait for the question player to stop, then let Android settle the audio
+    // route before STT grabs the mic. A fire-and-forget stop let late TTS
+    // buffers overlap the first recognition frames on Samsung.
+    sttLog('[HF] Triggering audio stop + verified focus-handover wait');
     await ref.read(audioDirectorProvider).handOffToMic();
     if (!mounted) return;
 
@@ -472,7 +472,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // session starts are serialized — the old silent-retry rule guarded
     // against focus-contest kills that no longer happen.
     if (widget.args.mode == QuizMode.handsFree && !_kTestMode) {
-      sttLog('[HF] 🔔 playing listen earcon (mic opens in 250ms)');
+      sttLog('[HF] 🔔 playing listen earcon (mic opens after verified clearance)');
       HapticFeedback.selectionClick();
       await ref.read(audioDirectorProvider).listenCue();
       if (!mounted) return;
