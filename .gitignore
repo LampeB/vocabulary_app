@@ -70,6 +70,10 @@ app.*.map.json
 # Patrol generates this per --target; never commit it
 patrol_test/test_bundle.dart
 
+# Supabase CLI version marker
+/supabase/.temp/
+/supabase/.env.deploy
+
 # native build artifacts inside the vendored plugin
 /packages/whisper_flutter_new/android/.cxx/
 /packages/whisper_flutter_new/example/
