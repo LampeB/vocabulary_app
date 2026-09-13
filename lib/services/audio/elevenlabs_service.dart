@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async' show unawaited;
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -33,6 +34,15 @@ class ElevenLabsService implements AudioService {
   final _cache = <String, String>{}; // hash → file path
   final _inFlight = <String, Future<String?>>{};
 
+  /// Audio is durable across sessions but should not occupy the learner's
+  /// storage forever. A file's modification time is our lightweight LRU
+  /// marker: every cache hit touches it, and startup removes dormant files.
+  static const cacheMaxIdle = Duration(days: 30);
+
+  /// Runs independently from playback; an I/O failure must never delay a
+  /// spoken word. Called once when the app's audio service is created.
+  void scheduleIdleCacheCleanup() => unawaited(cleanIdleCache());
+
   @override
   Future<void> speak(String text, String langCode, {String? voiceId}) async {
     final id = voiceId ?? voiceIdFor(langCode);
@@ -49,7 +59,11 @@ class ElevenLabsService implements AudioService {
   Future<String?> _getOrGenerate(
       String text, String langCode, String voiceId) async {
     final key = _cacheKey(text, langCode, voiceId);
-    if (_cache.containsKey(key)) return _cache[key];
+    final memoryPath = _cache[key];
+    if (memoryPath != null) {
+      _touch(File(memoryPath));
+      return memoryPath;
+    }
 
     // Question playback and the next-card prefetch can request the same word
     // at almost the same time. Share one network render instead of competing
@@ -72,6 +86,7 @@ class ElevenLabsService implements AudioService {
     final file = File('${dir.path}/$key.mp3');
     if (file.existsSync()) {
       _cache[key] = file.path;
+      _touch(file);
       return file.path;
     }
 
@@ -123,12 +138,41 @@ class ElevenLabsService implements AudioService {
         .fold<int>(0, (sum, f) => sum + f.lengthSync());
   }
 
+  /// Removes generated clips that have not been played or prefetched for
+  /// [maxIdle]. This intentionally leaves freshly preloaded quiz audio alone.
+  Future<void> cleanIdleCache({Duration maxIdle = cacheMaxIdle}) async {
+    try {
+      final dir = await _cacheDir();
+      if (!await dir.exists()) return;
+      final cutoff = DateTime.now().subtract(maxIdle);
+      await for (final entity in dir.list()) {
+        if (entity is! File || !entity.path.endsWith('.mp3')) continue;
+        final stat = await entity.stat();
+        if (stat.modified.isBefore(cutoff)) {
+          await entity.delete();
+          _cache.remove(_keyFromPath(entity.path));
+        }
+      }
+    } catch (_) {
+      // Cache maintenance is opportunistic; playback remains best-effort.
+    }
+  }
+
   Future<void> clearCache() async {
     final dir = await _cacheDir();
     if (dir.existsSync()) dir.deleteSync(recursive: true);
     _cache.clear();
     _inFlight.clear();
   }
+
+  void _touch(File file) {
+    unawaited(file.setLastModified(DateTime.now()).catchError((_) => file));
+  }
+
+  String _keyFromPath(String path) => path
+      .split(Platform.pathSeparator)
+      .last
+      .replaceFirst(RegExp(r'\.mp3$'), '');
 
   @override
   Future<bool> isAvailable() async => AppConfig.enableElevenLabsTTS;

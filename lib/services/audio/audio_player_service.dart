@@ -11,7 +11,9 @@ class AudioPlayerService {
   })  : _elevenlabs = ElevenLabsService(voiceIds: voiceIds),
         _tts = FlutterTtsService(speechRate: speechRate, pitch: pitch),
         _speechRate = speechRate,
-        _usePremium = usePremium;
+        _usePremium = usePremium {
+    if (usePremium) _elevenlabs.scheduleIdleCacheCleanup();
+  }
 
   final ElevenLabsService _elevenlabs;
   final FlutterTtsService _tts;
