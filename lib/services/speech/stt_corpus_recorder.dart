@@ -92,6 +92,9 @@ class SttCorpusSample {
         whisperTranscript: transcript,
         whisperDurationMs: durationMs,
         whisperTestedAt: DateTime.now(),
+        openAiTranscript: openAiTranscript,
+        openAiDurationMs: openAiDurationMs,
+        openAiTestedAt: openAiTestedAt,
       );
 
   SttCorpusSample withOpenAiResult({
