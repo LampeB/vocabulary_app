@@ -100,7 +100,6 @@ class SttCorpusRecorder {
       return decoded
           .cast<Map<String, dynamic>>()
           .map(SttCorpusSample.fromJson)
-          .where((sample) => File(sample.path).existsSync())
           .toList()
         ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
     } catch (_) {
