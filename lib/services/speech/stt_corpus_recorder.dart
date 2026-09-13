@@ -22,6 +22,9 @@ class SttCorpusSample {
     this.openAiTranscript,
     this.openAiDurationMs,
     this.openAiTestedAt,
+    this.elevenLabsTranscript,
+    this.elevenLabsDurationMs,
+    this.elevenLabsTestedAt,
   });
 
   final String id;
@@ -39,6 +42,9 @@ class SttCorpusSample {
   final String? openAiTranscript;
   final int? openAiDurationMs;
   final DateTime? openAiTestedAt;
+  final String? elevenLabsTranscript;
+  final int? elevenLabsDurationMs;
+  final DateTime? elevenLabsTestedAt;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -54,6 +60,9 @@ class SttCorpusSample {
         'openAiTranscript': openAiTranscript,
         'openAiDurationMs': openAiDurationMs,
         'openAiTestedAt': openAiTestedAt?.toIso8601String(),
+        'elevenLabsTranscript': elevenLabsTranscript,
+        'elevenLabsDurationMs': elevenLabsDurationMs,
+        'elevenLabsTestedAt': elevenLabsTestedAt?.toIso8601String(),
       };
 
   factory SttCorpusSample.fromJson(Map<String, dynamic> json) =>
@@ -75,6 +84,11 @@ class SttCorpusSample {
         openAiTestedAt: json['openAiTestedAt'] == null
             ? null
             : DateTime.parse(json['openAiTestedAt'] as String),
+        elevenLabsTranscript: json['elevenLabsTranscript'] as String?,
+        elevenLabsDurationMs: json['elevenLabsDurationMs'] as int?,
+        elevenLabsTestedAt: json['elevenLabsTestedAt'] == null
+            ? null
+            : DateTime.parse(json['elevenLabsTestedAt'] as String),
       );
 
   SttCorpusSample withWhisperResult({
@@ -95,6 +109,9 @@ class SttCorpusSample {
         openAiTranscript: openAiTranscript,
         openAiDurationMs: openAiDurationMs,
         openAiTestedAt: openAiTestedAt,
+        elevenLabsTranscript: elevenLabsTranscript,
+        elevenLabsDurationMs: elevenLabsDurationMs,
+        elevenLabsTestedAt: elevenLabsTestedAt,
       );
 
   SttCorpusSample withOpenAiResult({
@@ -115,6 +132,32 @@ class SttCorpusSample {
         openAiTranscript: transcript,
         openAiDurationMs: durationMs,
         openAiTestedAt: DateTime.now(),
+        elevenLabsTranscript: elevenLabsTranscript,
+        elevenLabsDurationMs: elevenLabsDurationMs,
+        elevenLabsTestedAt: elevenLabsTestedAt,
+      );
+
+  SttCorpusSample withElevenLabsResult({
+    required String? transcript,
+    required int? durationMs,
+  }) =>
+      SttCorpusSample(
+        id: id,
+        word: word,
+        langCode: langCode,
+        path: path,
+        recordedAt: recordedAt,
+        listId: listId,
+        conceptId: conceptId,
+        whisperTranscript: whisperTranscript,
+        whisperDurationMs: whisperDurationMs,
+        whisperTestedAt: whisperTestedAt,
+        openAiTranscript: openAiTranscript,
+        openAiDurationMs: openAiDurationMs,
+        openAiTestedAt: openAiTestedAt,
+        elevenLabsTranscript: transcript,
+        elevenLabsDurationMs: durationMs,
+        elevenLabsTestedAt: DateTime.now(),
       );
 }
 
@@ -228,6 +271,27 @@ class SttCorpusRecorder {
     final updated = all
         .map((sample) => sample.id == sampleId
             ? sample.withOpenAiResult(
+                transcript: transcript,
+                durationMs: durationMs,
+              )
+            : sample)
+        .toList();
+    final manifest = await _manifest();
+    await manifest.writeAsString(jsonEncode(
+      updated.map((sample) => sample.toJson()).toList(),
+    ));
+  }
+
+  /// Persists an ElevenLabs Scribe benchmark alongside the other engines.
+  Future<void> saveElevenLabsResult({
+    required String sampleId,
+    required String? transcript,
+    required int? durationMs,
+  }) async {
+    final all = await samples();
+    final updated = all
+        .map((sample) => sample.id == sampleId
+            ? sample.withElevenLabsResult(
                 transcript: transcript,
                 durationMs: durationMs,
               )
