@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +9,7 @@ import '../../../domain/entities/concept.dart';
 import '../../../domain/entities/vocabulary_list.dart';
 import '../../../domain/entities/word_variant.dart';
 import '../../../services/speech/stt_corpus_recorder.dart';
+import '../../providers/auth/auth_provider.dart';
 import '../../providers/lists/vocabulary_provider.dart';
 import '../../providers/speech/whisper_speech_provider.dart';
 
@@ -163,6 +167,65 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
     });
   }
 
+  Future<void> _runOpenAiBenchmark(String listId) async {
+    final captures =
+        _samples.where((sample) => sample.listId == listId).toList();
+    if (captures.isEmpty || _isBenchmarking) return;
+    setState(() {
+      _isBenchmarking = true;
+      _benchmarkDone = 0;
+      _benchmarkTotal = captures.length;
+      _message = 'Connexion à OpenAI…';
+    });
+    final client = ref.read(supabaseClientProvider);
+    var correct = 0;
+    try {
+      for (var index = 0; index < captures.length; index++) {
+        final sample = captures[index];
+        final startedAt = DateTime.now();
+        String? transcript;
+        try {
+          final response =
+              await client.functions.invoke('whisper-proxy', body: {
+            'audio_base64': base64Encode(await File(sample.path).readAsBytes()),
+            'language': sample.langCode,
+            'prompt': sample.word,
+          });
+          final data = response.data;
+          if (data is Map) transcript = data['text'] as String?;
+        } catch (_) {
+          // A missing result is persisted so the corpus remains diagnostic.
+        }
+        final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
+        final accepted = transcript != null &&
+            AnswerValidator.validate(
+              userAnswer: transcript,
+              acceptedAnswers: [sample.word],
+              isDrivingMode: true,
+            ).isCorrect;
+        if (accepted) correct++;
+        await _recorder.saveOpenAiResult(
+          sampleId: sample.id,
+          transcript: transcript,
+          durationMs: elapsedMs,
+        );
+        if (mounted) {
+          setState(() {
+            _benchmarkDone = index + 1;
+            _message = 'Analyse OpenAI : ${index + 1}/${captures.length} '
+                '· $correct reconnue(s)';
+          });
+        }
+      }
+      await _reload();
+      if (!mounted) return;
+      setState(() =>
+          _message = 'OpenAI : $correct/${captures.length} prises reconnues.');
+    } finally {
+      if (mounted) setState(() => _isBenchmarking = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final lists = ref.watch(myListsProvider);
@@ -217,6 +280,18 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
                   DropdownMenuItem(value: list.id, child: Text(list.name)),
               ],
               onChanged: _selectList,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: FilledButton.icon(
+              onPressed: _isBenchmarking
+                  ? null
+                  : () => _runOpenAiBenchmark(selectedListId),
+              icon: const Icon(Icons.cloud_upload_outlined),
+              label: Text(_isBenchmarking
+                  ? 'Analyse $_benchmarkDone / $_benchmarkTotal'
+                  : 'Analyser OpenAI (${_samples.where((s) => s.listId == selectedListId).length} prises)'),
             ),
           ),
           const Padding(
