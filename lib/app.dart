@@ -23,6 +23,7 @@ import 'presentation/screens/paywall/paywall_screen.dart';
 import 'presentation/screens/notifications/notification_settings_screen.dart';
 import 'presentation/screens/import/import_from_link_screen.dart';
 import 'presentation/screens/settings/settings_screen.dart';
+import 'presentation/screens/settings/stt_lab_screen.dart';
 import 'presentation/screens/stats/stats_screen.dart';
 import 'presentation/providers/quiz/quiz_provider.dart' show QuizArgs;
 import 'presentation/providers/settings/settings_provider.dart';
@@ -192,6 +193,8 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
               GoRoute(
                   path: '/settings',
                   builder: (_, __) => const SettingsScreen()),
+              GoRoute(
+                  path: '/stt-lab', builder: (_, __) => const SttLabScreen()),
               GoRoute(path: '/stats', builder: (_, __) => const StatsScreen()),
             ],
           ),

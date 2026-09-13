@@ -436,7 +436,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       langCode: langCode,
       acceptedAnswers: card.answerWords,
       promptHints: card.answerWords,
-      timeout: const Duration(seconds: 10),
+      // The platform recognizer often stays silently open for its full
+      // 10-second window after a missed short word. Do not make a learner
+      // wait that long before the offline Whisper rescue gets a turn.
+      timeout: const Duration(seconds: 4),
       restartOnSessionEnd: false,
       onPartial: (h) {
         if (!_turnStale(turn, card)) {
@@ -523,7 +526,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // session starts are serialized — the old silent-retry rule guarded
     // against focus-contest kills that no longer happen.
     if (widget.args.mode == QuizMode.handsFree && !_kTestMode) {
-      sttLog('[HF] 🔔 playing listen earcon (mic opens after verified clearance)');
+      sttLog(
+          '[HF] 🔔 playing listen earcon (mic opens after verified clearance)');
       HapticFeedback.selectionClick();
       await ref.read(audioDirectorProvider).listenCue();
       if (!mounted || !_appForeground) return;

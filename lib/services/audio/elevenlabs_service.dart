@@ -42,7 +42,7 @@ class ElevenLabsService implements AudioService {
   }
 
   Future<String?> generateAndCache(
-      String text, String langCode, String voiceId) =>
+          String text, String langCode, String voiceId) =>
       _getOrGenerate(text, langCode, voiceId);
 
   Future<String?> _getOrGenerate(
@@ -58,18 +58,23 @@ class ElevenLabsService implements AudioService {
     }
 
     try {
-      final res = await http.post(
-        Uri.parse(AppConfig.elevenLabsEdgeFunctionUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${AppConfig.supabaseAnonKey}',
-        },
-        body: jsonEncode({
-          'text': text,
-          'voice_id': voiceId,
-          'lang_code': langCode,
-        }),
-      );
+      // A first render must not hold a study card hostage behind a slow
+      // network/edge-function call. AudioPlayerService falls back to device
+      // TTS on this timeout; a later prefetch can still populate the cache.
+      final res = await http
+          .post(
+            Uri.parse(AppConfig.elevenLabsEdgeFunctionUrl),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${AppConfig.supabaseAnonKey}',
+            },
+            body: jsonEncode({
+              'text': text,
+              'voice_id': voiceId,
+              'lang_code': langCode,
+            }),
+          )
+          .timeout(const Duration(seconds: 3));
       if (res.statusCode != 200) return null;
       await file.writeAsBytes(res.bodyBytes);
       _cache[key] = file.path;

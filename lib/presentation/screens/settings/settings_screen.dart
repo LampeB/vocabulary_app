@@ -22,9 +22,9 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user          = ref.watch(currentUserProvider);
-    final themeMode     = ref.watch(themeModeProvider);
-    final isPremium     = ref.watch(isPremiumProvider);
+    final user = ref.watch(currentUserProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final isPremium = ref.watch(isPremiumProvider);
     final audioSettings = ref.watch(audioSettingsProvider);
 
     final cs = Theme.of(context).colorScheme;
@@ -49,8 +49,8 @@ class SettingsScreen extends ConsumerWidget {
               _EyebrowSection('settings.section_account'.tr()),
               FrostedBox(
                 borderRadius: BorderRadius.circular(18),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Row(
                   children: [
                     _SmallAvatar(
@@ -68,8 +68,8 @@ class SettingsScreen extends ConsumerWidget {
                                 .copyWith(color: cs.onSurface),
                           ),
                           Text('@${user?.username ?? ''}',
-                              style: AppTextStyles.caption
-                                  .copyWith(color: faint)),
+                              style:
+                                  AppTextStyles.caption.copyWith(color: faint)),
                         ],
                       ),
                     ),
@@ -199,10 +199,8 @@ class SettingsScreen extends ConsumerWidget {
                         'settings.stt_engine_race'.tr(),
                       ],
                       values: const [0, 1],
-                      current: ref
-                          .watch(sttEngineModeProvider)
-                          .index
-                          .toDouble(),
+                      current:
+                          ref.watch(sttEngineModeProvider).index.toDouble(),
                       onSelect: (v) => ref
                           .read(sttEngineModeProvider.notifier)
                           .set(v == 0
@@ -255,8 +253,8 @@ class SettingsScreen extends ConsumerWidget {
                               style: AppTextStyles.fig(15, FontWeight.w500)
                                   .copyWith(color: cs.onSurface)),
                           Text(_subscriptionLabel(ref),
-                              style: AppTextStyles.caption
-                                  .copyWith(color: muted)),
+                              style:
+                                  AppTextStyles.caption.copyWith(color: muted)),
                         ],
                       ),
                     ),
@@ -287,8 +285,8 @@ class SettingsScreen extends ConsumerWidget {
                 // Localizations.localeOf == context.locale in the app (MaterialApp
                 // gets its locale from EasyLocalization) but doesn't require the
                 // EasyLocalization ancestor, so the screen stays widget-testable.
-                subtitle: _languageName(
-                    Localizations.localeOf(context).languageCode),
+                subtitle:
+                    _languageName(Localizations.localeOf(context).languageCode),
                 onTap: () => _showLanguagePicker(context),
               ),
               // ── Dev (debug builds only) ──────────────────────────────────
@@ -316,12 +314,19 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                       Switch(
                         value: ref.watch(devGrammarUnlockProvider),
-                        onChanged: (v) => ref
-                            .read(devGrammarUnlockProvider.notifier)
-                            .set(v),
+                        onChanged: (v) =>
+                            ref.read(devGrammarUnlockProvider.notifier).set(v),
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(height: 12),
+                _NavTile(
+                  icon: Icons.mic_external_on_rounded,
+                  label: 'Laboratoire STT',
+                  subtitle:
+                      'Enregistre des mots pour mesurer la reconnaissance',
+                  onTap: () => context.push('/stt-lab'),
                 ),
               ],
               const SizedBox(height: 24),
@@ -340,8 +345,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmSignOut(
-      BuildContext context, WidgetRef ref) async {
+  Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -431,8 +435,7 @@ class _EyebrowSection extends StatelessWidget {
     final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Text(label,
-          style: AppTextStyles.eyebrow.copyWith(color: muted)),
+      child: Text(label, style: AppTextStyles.eyebrow.copyWith(color: muted)),
     );
   }
 }
@@ -490,8 +493,8 @@ class _NavTile extends StatelessWidget {
                             style: AppTextStyles.fig(15, FontWeight.w500)
                                 .copyWith(color: color)),
                         Text(subtitle!,
-                            style: AppTextStyles.caption
-                                .copyWith(color: muted)),
+                            style:
+                                AppTextStyles.caption.copyWith(color: muted)),
                       ],
                     )
                   : Text(label,
@@ -641,9 +644,7 @@ class _ThemePill extends StatelessWidget {
             color: selected ? AppColors.teal : cs.outline,
           ),
         ),
-        child: Icon(icon,
-            size: 16,
-            color: selected ? Colors.white : faint),
+        child: Icon(icon, size: 16, color: selected ? Colors.white : faint),
       ),
     );
   }
