@@ -429,10 +429,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       final audio = ref.read(audioPlayerServiceProvider);
       unawaited(audio.warmUp(upcoming.progress.direction.questionLang));
       unawaited(audio.prefetch(
-          upcoming.questionWord, upcoming.progress.direction.questionLang));
+          upcoming.questionWord, upcoming.progress.direction.questionLang,
+          audioPath: upcoming.questionAudioPath));
       if (upcoming.answerWords.isNotEmpty) {
         unawaited(audio.prefetch(upcoming.answerWords.first,
-            upcoming.progress.direction.answerLang));
+            upcoming.progress.direction.answerLang,
+            audioPath: upcoming.answerAudioPath));
       }
     }
     void runBar() {
@@ -574,10 +576,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final audio = ref.read(audioPlayerServiceProvider);
     unawaited(audio.warmUp(card.progress.direction.questionLang));
     unawaited(audio.prefetch(
-        card.questionWord, card.progress.direction.questionLang));
+        card.questionWord, card.progress.direction.questionLang,
+        audioPath: card.questionAudioPath));
     if (card.answerWords.isNotEmpty) {
       unawaited(audio.prefetch(
-          card.answerWords.first, card.progress.direction.answerLang));
+          card.answerWords.first, card.progress.direction.answerLang,
+          audioPath: card.answerAudioPath));
     }
   }
 
@@ -618,7 +622,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             final answerLang = card.progress.direction.answerLang;
             unawaited(ref
                 .read(audioPlayerServiceProvider)
-                .speak(card.answerWords.first, answerLang));
+                .speak(card.answerWords.first, answerLang,
+                    audioPath: card.answerAudioPath));
           }
         }
         // Hands-free renders the full-screen StudyFeedbackFlood in build()
@@ -773,7 +778,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final questionLang = card.progress.direction.questionLang;
     unawaited(ref
         .read(audioPlayerServiceProvider)
-        .speak(card.questionWord, questionLang));
+        .speak(card.questionWord, questionLang,
+            audioPath: card.questionAudioPath));
     unawaited(_startListening(card));
   }
 
@@ -1170,7 +1176,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         onPlayAudio: card.answerWords.isEmpty
             ? null
             : () => unawaited(ref.read(audioPlayerServiceProvider).speak(
-                card.answerWords.first, card.progress.direction.answerLang)),
+                card.answerWords.first, card.progress.direction.answerLang,
+                audioPath: card.answerAudioPath)),
         label:
             correct ? 'quiz.feedback_correct'.tr() : 'quiz.feedback_wrong'.tr(),
         answer: card.answerWords.join(' / '),

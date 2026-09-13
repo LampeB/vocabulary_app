@@ -14,6 +14,7 @@ import '../datasources/remote/vocabulary_remote_datasource.dart';
 import '../models/variant_progress_dto.dart';
 import '../models/vocabulary_list_dto.dart';
 import '../models/word_variant_dto.dart';
+import '../../services/audio/audio_asset_path.dart';
 import 'package:drift/drift.dart' show Value;
 
 const _uuid = Uuid();
@@ -190,21 +191,33 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       createdAt: now,
       updatedAt: now,
     );
+    final frVariantId = _uuid.v4();
     final frVariant = WordVariant(
-      id: _uuid.v4(),
+      id: frVariantId,
       conceptId: concept.id,
       word: wordA,
       langCode: langA,
       isPrimary: true,
+      audioPath: AudioAssetPath.user(
+          userId: _userId,
+          variantId: frVariantId,
+          text: wordA,
+          langCode: langA),
       createdAt: now,
       updatedAt: now,
     );
+    final koVariantId = _uuid.v4();
     final koVariant = WordVariant(
-      id: _uuid.v4(),
+      id: koVariantId,
       conceptId: concept.id,
       word: wordB,
       langCode: langB,
       isPrimary: true,
+      audioPath: AudioAssetPath.user(
+          userId: _userId,
+          variantId: koVariantId,
+          text: wordB,
+          langCode: langB),
       createdAt: now,
       updatedAt: now,
     );
@@ -226,8 +239,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       });
       await _updateWordCount(listId, 1);
       unawaited(_remote.upsertConcept(_conceptToRemote(concept)));
-      unawaited(_remote.upsertVariant(_variantToRemote(frVariant)));
-      unawaited(_remote.upsertVariant(_variantToRemote(koVariant)));
+      unawaited(_syncVariant(frVariant));
+      unawaited(_syncVariant(koVariant));
       return Success(concept);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -296,19 +309,25 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     bool isPrimary = false,
   }) async {
     final now = DateTime.now();
+    final variantId = _uuid.v4();
     final variant = WordVariant(
-      id: _uuid.v4(),
+      id: variantId,
       conceptId: conceptId,
       word: word,
       langCode: langCode,
       registerTag: registerTag,
       isPrimary: isPrimary,
+      audioPath: AudioAssetPath.user(
+          userId: _userId,
+          variantId: variantId,
+          text: word,
+          langCode: langCode),
       createdAt: now,
       updatedAt: now,
     );
     try {
       await _conceptDao.upsertVariant(variant.toLocalCompanion());
-      unawaited(_remote.upsertVariant(_variantToRemote(variant)));
+      unawaited(_syncVariant(variant));
       return Success(variant);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -317,10 +336,18 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
 
   @override
   Future<Result<WordVariant>> updateVariant(WordVariant variant) async {
-    final updated = variant.copyWith(updatedAt: DateTime.now(), isSynced: false);
+    final updated = variant.copyWith(
+      audioPath: AudioAssetPath.user(
+          userId: _userId,
+          variantId: variant.id,
+          text: variant.word,
+          langCode: variant.langCode),
+      updatedAt: DateTime.now(),
+      isSynced: false,
+    );
     try {
       await _conceptDao.upsertVariant(updated.toLocalCompanion());
-      unawaited(_remote.upsertVariant(_variantToRemote(updated)));
+      unawaited(_syncVariant(updated));
       return Success(updated);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -447,12 +474,22 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
                       ?.cast<Map<String, dynamic>>() ??
                   [];
           for (final vData in variants) {
+            final variantId = _uuid.v4();
+            final word = vData['word'] as String? ?? '';
+            final langCode =
+                _field<String>(vData, 'langCode', 'lang_code') ?? langA;
+            final audioPath = origin == 'starter'
+                ? AudioAssetPath.seed(text: word, langCode: langCode)
+                : AudioAssetPath.user(
+                    userId: _userId,
+                    variantId: variantId,
+                    text: word,
+                    langCode: langCode);
             await _conceptDao.upsertVariant(WordVariantsTableCompanion(
-              id: Value(_uuid.v4()),
+              id: Value(variantId),
               conceptId: Value(conceptId),
-              word: Value(vData['word'] as String? ?? ''),
-              langCode:
-                  Value(_field<String>(vData, 'langCode', 'lang_code') ?? langA),
+              word: Value(word),
+              langCode: Value(langCode),
               registerTag: Value(
                   _field<String>(vData, 'registerTag', 'register_tag') ??
                       'neutral'),
@@ -463,6 +500,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
                   Value(_field<bool>(vData, 'isPrimary', 'is_primary') ?? false),
               position: Value(vData['position'] as int? ?? 0),
               example: Value(vData['example'] as String?),
+              audioPath: Value(audioPath),
               isDeleted: const Value(false),
               createdAt: Value(now),
               updatedAt: Value(now),
@@ -598,6 +636,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
                 isPrimary: Value(v['is_primary'] as bool? ?? false),
                 position: Value(v['position'] as int? ?? 0),
                 example: Value(v['example'] as String?),
+                audioPath: Value(v['audio_path'] as String?),
                 isDeleted: Value(v['is_deleted'] as bool? ?? false),
                 isSynced: const Value(true),
                 createdAt:
@@ -667,10 +706,25 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         'register_tag': v.registerTag,
         'context_tags': v.contextTags,
         'is_primary': v.isPrimary,
+        'audio_hash': v.audioHash,
+        'audio_voice_id': v.audioVoiceId,
+        'audio_path': v.audioPath,
         'position': v.position,
         'example': v.example,
         'is_deleted': v.isDeleted,
         'created_at': v.createdAt.toIso8601String(),
         'updated_at': v.updatedAt.toIso8601String(),
       };
+
+  Future<void> _syncVariant(WordVariant variant) async {
+    try {
+      final result = await _remote.upsertVariant(_variantToRemote(variant));
+      if (result.isSuccess && !variant.isDeleted && variant.audioPath != null) {
+        await _remote.provisionAudio(variant.id);
+      }
+    } catch (_) {
+      // The durable isSynced queue retries the row; audio is best-effort until
+      // the content itself has reached the server.
+    }
+  }
 }

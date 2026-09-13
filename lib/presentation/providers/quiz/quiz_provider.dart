@@ -36,6 +36,8 @@ class QuizCard {
     required this.progress,
     required this.questionWord,
     required this.answerWords,
+    this.questionAudioPath,
+    this.answerAudioPath,
     this.isRequeue = false,
   });
 
@@ -48,8 +50,14 @@ class QuizCard {
   /// The word shown as the question (French or Korean depending on direction).
   final String questionWord;
 
+  /// Immutable Storage path for the spoken prompt, if it has been published.
+  final String? questionAudioPath;
+
   /// Accepted answer words (used for typing / voice validation).
   final List<String> answerWords;
+
+  /// Immutable Storage path for the primary accepted answer.
+  final String? answerAudioPath;
 
   /// Derived from progress.direction — available as a convenience.
   QuizDirection get direction => progress.direction;
@@ -360,11 +368,13 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
 
     // Look up question variants by ID (deduplicated).
     final questionVariantMap = <String, String>{}; // variantId → word
+    final questionAudioPathMap = <String, String?>{};
     final conceptIdMap = <String, String>{}; // variantId → conceptId
     for (final id in questionVariantIds) {
       final row = await conceptDao.getVariantById(id);
       if (row != null) {
         questionVariantMap[id] = row.word;
+        questionAudioPathMap[id] = row.audioPath;
         conceptIdMap[id] = row.conceptId;
       }
     }
@@ -372,13 +382,14 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     // Fetch answer variants for both languages of the session's pair —
     // needed for mixed-direction "both" mode.
     final allConceptIds = conceptIdMap.values.toSet().toList();
-    final answerByConceptAndLang = <String, Map<String, List<String>>>{};
+    final answerByConceptAndLang =
+        <String, Map<String, List<WordVariantsTableData>>>{};
     for (final langCode in {args.langA, args.langB}) {
       final rows =
           await conceptDao.getVariantsByConceptIds(allConceptIds, langCode);
       for (final v in rows) {
         ((answerByConceptAndLang[v.conceptId] ??= {})[langCode] ??= [])
-            .add(v.word);
+            .add(v);
       }
     }
 
@@ -389,8 +400,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       final cId = conceptIdMap[p.variantId];
       if (q == null || cId == null) continue;
       final answerLang = p.direction.answerLang;
-      final answers = answerByConceptAndLang[cId]?[answerLang] ?? [];
-      if (answers.isEmpty) {
+      final answerVariants = answerByConceptAndLang[cId]?[answerLang] ?? [];
+      if (answerVariants.isEmpty) {
         // A concept missing its answer-language variant is UNANSWERABLE —
         // every attempt would grade wrong no matter what the user says
         // (field log 2026-07-06: "singe" had no KO word; the user's correct
@@ -402,7 +413,12 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       quizCards.add(QuizCard(
         progress: p,
         questionWord: q,
-        answerWords: answers,
+        questionAudioPath: questionAudioPathMap[p.variantId],
+        answerWords: answerVariants.map((v) => v.word).toList(),
+        answerAudioPath: answerVariants
+            .firstWhere((v) => v.isPrimary,
+                orElse: () => answerVariants.first)
+            .audioPath,
       ));
     }
 
@@ -425,12 +441,33 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       correctCount: 0,
     );
 
+    // Fill the on-device cache for the whole session in the background. The
+    // first prompt shares this same request; every later hands-free turn is
+    // therefore a local file read rather than an audio-generation wait.
+    unawaited(_prefetchSessionAudio(quizCards));
+
     if (quizCards.isNotEmpty &&
         !_kTestMode &&
         args.source != QuizSource.grammar) {
       final first = quizCards.first;
       final firstLang = first.progress.direction.questionLang;
-      unawaited(_audio?.speak(first.questionWord, firstLang));
+      unawaited(_audio?.speak(first.questionWord, firstLang,
+          audioPath: first.questionAudioPath));
+    }
+  }
+
+  Future<void> _prefetchSessionAudio(List<QuizCard> cards) async {
+    final audio = _audio;
+    if (audio == null) return;
+    for (final card in cards) {
+      await audio.prefetch(card.questionWord,
+          card.progress.direction.questionLang,
+          audioPath: card.questionAudioPath);
+      if (card.answerWords.isNotEmpty) {
+        await audio.prefetch(card.answerWords.first,
+            card.progress.direction.answerLang,
+            audioPath: card.answerAudioPath);
+      }
     }
   }
 
@@ -497,7 +534,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       final card = state.currentCard;
       if (card != null && card.answerWords.isNotEmpty) {
         final answerLang = card.progress.direction.answerLang;
-        unawaited(_audio?.speak(card.answerWords.first, answerLang));
+        unawaited(_audio?.speak(card.answerWords.first, answerLang,
+            audioPath: card.answerAudioPath));
       }
     }
   }

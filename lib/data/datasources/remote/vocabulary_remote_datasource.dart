@@ -86,6 +86,18 @@ class VocabularyRemoteDataSource {
     }
   }
 
+  /// Asks the authenticated server to render a newly created/edited custom
+  /// variant once and place it in Storage. Failures are intentionally silent:
+  /// sync retries the content, and device TTS remains the safe fallback.
+  Future<void> provisionAudio(String variantId) async {
+    try {
+      await _client.functions.invoke(
+        'audio-provision',
+        body: {'variant_id': variantId},
+      );
+    } catch (_) {}
+  }
+
   Future<Result<List<Map<String, dynamic>>>> fetchProgress(
       String userId) async {
     try {

@@ -32,12 +32,12 @@ class _FakeAudio implements AudioPlayerService {
   bool get isSpeaking => speaking;
 
   @override
-  Future<void> speak(String text, String langCode) async {
+  Future<void> speak(String text, String langCode, {String? audioPath}) async {
     spoken.add('$text|$langCode');
   }
 
   @override
-  Future<void> prefetch(String text, String langCode) async {
+  Future<void> prefetch(String text, String langCode, {String? audioPath}) async {
     prefetched.add('$text|$langCode');
   }
 
