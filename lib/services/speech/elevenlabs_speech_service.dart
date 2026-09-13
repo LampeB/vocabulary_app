@@ -1,14 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/utils/pcm_segmenter.dart';
 import '../../core/utils/stt_debug_log.dart';
-import '../../core/utils/wav_writer.dart';
 import 'whisper_speech_service.dart';
 
 /// Captures a short answer locally, then sends the completed WAV to the
@@ -21,6 +18,10 @@ import 'whisper_speech_service.dart';
 /// the quiz can reopen the mic for its offline Whisper rescue lane.
 class ElevenLabsSpeechService {
   static const _sampleRate = 16000;
+  // Scribe's 38/38 corpus result lets this cloud-only end-of-speech delay be
+  // shorter than the conservative offline Whisper setting (700ms). 450ms
+  // retains vowel/fricative tails while removing ~250ms of perceived wait.
+  static const _silenceEndMs = 450;
 
   final _recorder = AudioRecorder();
   StreamSubscription<dynamic>? _micSub;
@@ -44,6 +45,7 @@ class ElevenLabsSpeechService {
     try {
       _segmenter = PcmSegmenter(
         sampleRate: _sampleRate,
+        silenceEndMs: _silenceEndMs,
         maxUtteranceMs: 3000,
       );
       final stream = await _recorder.startStream(const RecordConfig(
@@ -97,19 +99,13 @@ class ElevenLabsSpeechService {
       _pendingRequests--;
       if (serial != _serial) return;
       final stopwatch = Stopwatch()..start();
-      File? file;
       try {
-        final directory = await getTemporaryDirectory();
-        file = File(
-          '${directory.path}/els_seg_${DateTime.now().microsecondsSinceEpoch}.wav',
-        );
-        await file.writeAsBytes(
-          pcm16ToWav(segment.bytes, sampleRate: _sampleRate),
-          flush: true,
-        );
+        // Scribe accepts raw PCM16/16kHz. Avoiding a temporary WAV file and
+        // its encode/read cycle removes local I/O from every quiz answer.
         final response = await Supabase.instance.client.functions
             .invoke('elevenlabs-stt-proxy', body: {
-          'audio_base64': base64Encode(await file.readAsBytes()),
+          'audio_base64': base64Encode(segment.bytes),
+          'audio_format': 'pcm_s16le_16',
           'language': langCode,
           'expected_word': promptHints.isEmpty ? '' : promptHints.first,
         }).timeout(const Duration(seconds: 5));
@@ -129,11 +125,6 @@ class ElevenLabsSpeechService {
       } catch (error) {
         sttLog('[ELS] cloud transcription failed: $error');
         if (serial == _serial) onServiceFailure?.call();
-      } finally {
-        final temporaryFile = file;
-        if (temporaryFile != null) {
-          unawaited(temporaryFile.delete().catchError((_) => temporaryFile));
-        }
       }
     });
   }
