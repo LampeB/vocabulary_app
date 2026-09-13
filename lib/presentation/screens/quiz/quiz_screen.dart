@@ -1,5 +1,6 @@
 import 'dart:async' show unawaited;
 import 'dart:math' as math;
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/quiz/quiz_provider.dart';
 import '../../providers/audio/audio_provider.dart';
 import '../../../core/languages.dart';
+import '../../../core/network/connectivity_status.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/stt_simulator.dart';
@@ -16,12 +18,15 @@ import '../../../core/utils/fsrs_algorithm.dart';
 import '../../../core/widget_keys.dart';
 import '../../../services/speech/speech_recognition_service.dart';
 import '../../../services/speech/whisper_speech_service.dart';
+import '../../../services/speech/elevenlabs_speech_service.dart';
 import '../../../services/speech/stt_race.dart';
 import '../../../services/speech/system_stt_engine.dart';
 import '../../../services/speech/whisper_stt_engine.dart';
+import '../../../services/speech/elevenlabs_stt_engine.dart';
 import '../../../services/quiz_orchestration/voice_turn_machine.dart';
 import '../../providers/settings/stt_engine_mode_provider.dart';
 import '../../providers/speech/whisper_speech_provider.dart';
+import '../../providers/speech/elevenlabs_speech_provider.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/vk_waveform.dart';
 import '../../widgets/mic_button.dart';
@@ -52,6 +57,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // provider; the model is heavy. Initialized in initState: a lazy `late`
   // here would first resolve in dispose(), where ref is no longer usable.
   late final WhisperSpeechService _whisper;
+  late final ElevenLabsSpeechService _elevenLabs;
   final _answerCtrl = TextEditingController();
   // Guards against stale STT callbacks firing on a new card.
   // True while the current listen session is managed by the SttRace pipeline
@@ -61,6 +67,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // lifecycles are unchanged; see dispose()).
   SystemSttEngine? _raceSystemEngine;
   WhisperSttEngine? _raceWhisperEngine;
+  ElevenLabsSttEngine? _raceElevenLabsEngine;
 
   // Incremented every time _startListening is called; onListeningDone
   // only acts if the token still matches.
@@ -101,6 +108,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _whisper = ref.read(whisperSpeechProvider);
+    _elevenLabs = ref.read(elevenLabsSpeechProvider);
     _pulseCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1900));
     // Don't run the perpetual breathing pulse under test — it never settles.
@@ -142,6 +150,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _listenBarCtrl.dispose();
     _stt.dispose();
     unawaited(_whisper.stopListening());
+    unawaited(_elevenLabs.stopListening());
     _answerCtrl.dispose();
     super.dispose();
   }
@@ -174,6 +183,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     await Future.wait([
       _stt.stopListening(),
       _whisper.stopListening(),
+      _elevenLabs.stopListening(),
       ref.read(audioDirectorProvider).stopAll(),
     ]);
     if (!mounted) return;
@@ -204,7 +214,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // Echo tail: let the room go quiet before the mic opens.
     await Future.delayed(const Duration(milliseconds: 250));
     if (!mounted || !_appForeground) return;
-    if (_stt.isListening) {
+    if (_stt.isListening || _whisper.isListening || _elevenLabs.isListening) {
       // A stale session must not swallow this card's window (it would hear
       // our TTS and validate against the wrong card) — stop it, then start
       // fresh. Never skip: skipping left cards without their own session.
@@ -212,6 +222,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           '[HF] stale session still open — stopping it before this card\'s listen');
       await _stt.stopListening();
       await _whisper.stopListening();
+      await _elevenLabs.stopListening();
       await Future.delayed(const Duration(milliseconds: 200));
       if (!mounted || !_appForeground) return;
     }
@@ -256,8 +267,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
   }
 
-  /// Experimental race pipeline (SttEngineMode.race): lane 1 races the system
-  /// recognizer; on a miss, lane 2 gives offline Whisper a shot. Every guess
+  /// Hybrid pipeline: online lane 1 uses ElevenLabs Scribe; a miss or an
+  /// offline device falls through to lane 2's on-device Whisper. Every guess
   /// is validated inside [SttRace] against the card's accepted answers, the
   /// first match wins, and the card is graded EXACTLY once — the race returns
   /// a single outcome (this also structurally prevents the triple-grade
@@ -272,6 +283,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       QuizCard card, String langCode, int sessionToken) async {
     _raceSystemEngine ??= SystemSttEngine(_stt);
     _raceWhisperEngine ??= WhisperSttEngine(_whisper);
+    _raceElevenLabsEngine ??= ElevenLabsSttEngine(_elevenLabs);
     await _raceSystemEngine!.prepare(); // idempotent — already initialised
     // Whisper joins lane 2 in hybrid mode once its model is ready; kick the
     // download in the background on first use. This is intentionally enabled
@@ -373,6 +385,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           sttLog('[RACE][HF] 🔇🔇 consecutive silent cards — auto-pausing');
           _stt.stopListening();
           unawaited(_whisper.stopListening());
+          unawaited(_elevenLabs.stopListening());
           ref.read(quizProvider.notifier).setListening(false);
           if (mounted) {
             setState(() {
@@ -384,8 +397,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
   }
 
-  /// One listen attempt: lane 1 races the system recognizer; on a miss lane 2
-  /// gives offline Whisper a shot. Outcomes are REPORTED to the machine —
+  /// One listen attempt: online Scribe is the primary lane; on a miss or
+  /// offline transport, on-device Whisper gets a fresh mic window. Outcomes
+  /// are REPORTED to the machine —
   /// every decision (grade/retry/skip/pause) comes back as commands.
   Future<void> _runRaceLanes(QuizCard card, String langCode,
       {required bool rescue}) async {
@@ -429,17 +443,24 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       }
     }
 
-    sttLog(
-        '[RACE][HF] lane 1 (system)  turn=$turn  attempt=${m.attempt}  rescue=$rescue  lang=$langCode');
+    final courseMode = ref.read(sttEngineModeProvider) == SttEngineMode.race;
+    final connectivity = await Connectivity().checkConnectivity();
+    final useElevenLabs = courseMode && !isOffline(connectivity);
+    sttLog('[RACE][HF] lane 1 (${useElevenLabs ? "elevenlabs" : "system"}) '
+        'turn=$turn attempt=${m.attempt} rescue=$rescue lang=$langCode');
     runBar();
-    var outcome = await SttRace([_raceSystemEngine!]).run(
+    var outcome = await SttRace(
+      useElevenLabs ? [_raceElevenLabsEngine!] : [_raceSystemEngine!],
+    ).run(
       langCode: langCode,
       acceptedAnswers: card.answerWords,
       promptHints: card.answerWords,
       // The platform recognizer often stays silently open for its full
       // 10-second window after a missed short word. Do not make a learner
       // wait that long before the offline Whisper rescue gets a turn.
-      timeout: const Duration(seconds: 4),
+      timeout: useElevenLabs
+          ? const Duration(seconds: 6)
+          : const Duration(seconds: 4),
       restartOnSessionEnd: false,
       onPartial: (h) {
         if (!_turnStale(turn, card)) {
@@ -450,7 +471,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (_turnStale(turn, card)) return;
     var hadReal = outcome.hadRealSession;
 
-    final courseMode = ref.read(sttEngineModeProvider) == SttEngineMode.race;
     if (!outcome.matched && courseMode && _whisper.isReady) {
       sttLog('[RACE][HF] lane 2 (whisper)  turn=$turn');
       await _runTurnCommands(m.micClosedPendingVerdict(turn), card, langCode);
@@ -608,10 +628,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           // grades it against the old card (field log 2026-07-06 — "mouton"
           // spoken by the app's own voice failed the 양 card).
           _listenToken++;
-          if (_stt.isListening || _whisper.isListening) {
+          if (_stt.isListening ||
+              _whisper.isListening ||
+              _elevenLabs.isListening) {
             sttLog('[HF] stopping stale listen session from previous card');
             unawaited(_stt.stopListening());
             unawaited(_whisper.stopListening());
+            unawaited(_elevenLabs.stopListening());
           }
           // Clean slate at the card boundary (field report 2026-07-20): the
           // countdown bar kept the PREVIOUS card's frozen value all through
@@ -717,6 +740,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (_hfPaused) {
       _stt.stopListening();
       unawaited(_whisper.stopListening());
+      unawaited(_elevenLabs.stopListening());
       ref.read(quizProvider.notifier).setListening(false);
       unawaited(ref.read(audioPlayerServiceProvider).stop());
     } else {
@@ -742,6 +766,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // returns later in the session.
     _stt.stopListening();
     unawaited(_whisper.stopListening());
+    unawaited(_elevenLabs.stopListening());
     ref.read(quizProvider.notifier).skipCurrentCard();
   }
 
@@ -947,6 +972,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   void _quit() {
     _stt.stopListening();
     unawaited(_whisper.stopListening());
+    unawaited(_elevenLabs.stopListening());
     ref.read(quizProvider.notifier).setListening(false);
     context.go('/home');
   }
