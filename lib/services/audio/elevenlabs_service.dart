@@ -6,8 +6,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'audio_service.dart';
 import 'audio_asset_path.dart';
+import 'audio_ports.dart';
 
-class ElevenLabsService implements AudioService {
+class ElevenLabsService implements AudioService, AudioAssetCache {
   ElevenLabsService({
     Map<String, String>? voiceIds,
     Future<Uint8List> Function(String audioPath)? assetDownloader,
@@ -45,6 +46,7 @@ class ElevenLabsService implements AudioService {
 
   /// Runs independently from playback; an I/O failure must never delay a
   /// spoken word. Called once when the app's audio service is created.
+  @override
   void scheduleIdleCacheCleanup() => unawaited(cleanIdleCache());
 
   @override
@@ -55,6 +57,7 @@ class ElevenLabsService implements AudioService {
   /// This deliberately has no ElevenLabs request: all synthesis happens when
   /// content is created or published. A cache miss is only a cheap Storage
   /// download and an expired cache simply downloads the same immutable object.
+  @override
   Future<String?> downloadAndCache(String? audioPath) {
     if (audioPath == null || audioPath.isEmpty) return Future.value(null);
     return _getOrDownload(audioPath);
