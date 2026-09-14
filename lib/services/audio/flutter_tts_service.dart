@@ -1,5 +1,6 @@
 import 'package:flutter_tts/flutter_tts.dart';
 import 'audio_service.dart';
+import 'audio_ports.dart';
 import '../../core/languages.dart';
 import '../../core/utils/stt_debug_log.dart';
 
@@ -15,7 +16,7 @@ const _enginePreferences = <String, List<String>>{
 };
 const _defaultEnginePreference = ['com.google.android.tts'];
 
-class FlutterTtsService implements AudioService {
+class FlutterTtsService implements AudioService, DeviceSpeech {
   FlutterTtsService({this.speechRate = 0.85, this.pitch = 1.0});
 
   final double speechRate;
@@ -32,6 +33,7 @@ class FlutterTtsService implements AudioService {
 
   /// Whether any utterance is still in flight — hands-free must not open the
   /// mic (which stops audio AND hears the speaker) while this is true.
+  @override
   bool get isSpeaking => _activeSpeaks > 0;
 
   Future<FlutterTts> _ttsFor(String langCode) async {
@@ -86,13 +88,15 @@ class FlutterTtsService implements AudioService {
     await tts.setSpeechRate(speechRate);
     await tts.setPitch(pitch);
     _nativeLang = langCode;
-    sttLog('[TTS] 🔥 voice switched to $langCode in ${sw.elapsedMilliseconds}ms');
+    sttLog(
+        '[TTS] 🔥 voice switched to $langCode in ${sw.elapsedMilliseconds}ms');
     return tts;
   }
 
   /// Pre-loads [langCode]'s voice on the shared engine so the next speak()
   /// in that language starts instantly. Call during idle windows (e.g. while
   /// the hands-free mic is listening); it produces no audio.
+  @override
   Future<void> warmUp(String langCode) =>
       _serialized(() async => _configure(langCode));
 
@@ -100,19 +104,22 @@ class FlutterTtsService implements AudioService {
   Future<void> speak(String text, String langCode, {String? voiceId}) async {
     final tts = await _serialized(() => _configure(langCode));
     _activeSpeaks++;
-    sttLog('[TTS] ▶ speak start lang=$langCode "$text" (active=$_activeSpeaks)');
+    sttLog(
+        '[TTS] ▶ speak start lang=$langCode "$text" (active=$_activeSpeaks)');
     try {
       await tts.speak(text);
     } finally {
       _activeSpeaks--;
-      sttLog('[TTS] ■ speak done  lang=$langCode "$text" (active=$_activeSpeaks)');
+      sttLog(
+          '[TTS] ■ speak done  lang=$langCode "$text" (active=$_activeSpeaks)');
     }
   }
 
   @override
   Future<void> stop() async {
     if (_activeSpeaks > 0) {
-      sttLog('[TTS] ✋ stop() while $_activeSpeaks utterance(s) in flight — speech is being CUT OFF');
+      sttLog(
+          '[TTS] ✋ stop() while $_activeSpeaks utterance(s) in flight — speech is being CUT OFF');
     }
     for (final tts in _ttsByLang.values) {
       await tts.stop();
