@@ -84,17 +84,16 @@ class ElevenLabsService implements AudioService {
   }
 
   Future<String?> _downloadAndCache(String key, String audioPath) async {
-    final dir = await _cacheDir();
-    final file = File('${dir.path}/$key.mp3');
-    if (file.existsSync()) {
-      _cache[key] = file.path;
-      _touch(file);
-      return file.path;
-    }
-
     try {
-      final bytes = await _assetDownloader(audioPath)
-          .timeout(const Duration(seconds: 3));
+      final dir = await _cacheDir();
+      final file = File('${dir.path}/$key.mp3');
+      if (file.existsSync()) {
+        _cache[key] = file.path;
+        _touch(file);
+        return file.path;
+      }
+      final bytes =
+          await _assetDownloader(audioPath).timeout(const Duration(seconds: 3));
       await file.writeAsBytes(bytes, flush: true);
       _cache[key] = file.path;
       return file.path;
