@@ -32,7 +32,8 @@ class _NoopAudio implements AudioPlayerService {
   @override
   Future<void> warmUp(String langCode) async {}
   @override
-  Future<void> prefetch(String text, String langCode, {String? audioPath}) async {}
+  Future<void> prefetch(String text, String langCode,
+      {String? audioPath}) async {}
   @override
   Future<void> speak(String text, String langCode, {String? audioPath}) async {}
   @override
@@ -162,6 +163,41 @@ void main() {
         await db.grammarProgressDao.get('u', 'particule-theme-eun-neun');
     expect(progress!.shown, 1);
     expect(progress.correct, 0);
+  });
+
+  test('a voice answer grades, stops listening, and records grammar progress',
+      () async {
+    final sub = container.listen(quizProvider, (_, __) {});
+    final notifier = container.read(quizProvider.notifier);
+    await notifier.loadCards(args());
+    final card = sub.read().currentCard!;
+
+    notifier.setListening(true);
+    notifier.submitVoiceAnswer(card.answerWords.first);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    expect(sub.read().answerState, QuizAnswerState.correct);
+    expect(sub.read().isListening, isFalse);
+    expect(sub.read().userAnswer, card.answerWords.first);
+    expect(
+        (await db.grammarProgressDao.get('u', 'particule-theme-eun-neun'))!
+            .correct,
+        1);
+  });
+
+  test('a hands-free correct answer advances only after its audio window',
+      () async {
+    final sub = container.listen(quizProvider, (_, __) {});
+    final notifier = container.read(quizProvider.notifier);
+    await notifier.loadCards(args(cardLimit: 2));
+    final answer = sub.read().currentCard!.answerWords.first;
+
+    notifier.submitVoiceAnswer(answer, isDrivingMode: true);
+    expect(sub.read().currentIndex, 0);
+
+    await Future<void>.delayed(const Duration(milliseconds: 950));
+    expect(sub.read().currentIndex, 1);
+    expect(sub.read().answerState, QuizAnswerState.idle);
   });
 
   test('cartes NEVER records grammar progress (practice only)', () async {

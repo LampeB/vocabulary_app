@@ -69,7 +69,7 @@ class _NoopAudio implements AudioPlayerService {
   @override
   Future<void> prefetch(String text, String langCode, {String? audioPath}) async {}
   @override
-  Future<void> speak(String text, String langCode) async {}
+  Future<void> speak(String text, String langCode, {String? audioPath}) async {}
   @override
   Future<void> stop() async {}
   @override
