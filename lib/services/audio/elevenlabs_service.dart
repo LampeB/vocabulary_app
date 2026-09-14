@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async' show unawaited;
+import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,8 +8,13 @@ import 'audio_service.dart';
 import 'audio_asset_path.dart';
 
 class ElevenLabsService implements AudioService {
-  ElevenLabsService({Map<String, String>? voiceIds})
-      : voiceIds = voiceIds ?? _defaultVoices;
+  ElevenLabsService({
+    Map<String, String>? voiceIds,
+    Future<Uint8List> Function(String audioPath)? assetDownloader,
+    Future<Directory> Function()? cacheDirectory,
+  })  : voiceIds = voiceIds ?? _defaultVoices,
+        _assetDownloader = assetDownloader ?? _downloadFromStorage,
+        _cacheDirectory = cacheDirectory ?? _defaultCacheDirectory;
 
   /// Default rendering voice per content language. Voice selection is applied
   /// by the server when an asset is published, never while a learner quizzes.
@@ -23,6 +29,8 @@ class ElevenLabsService implements AudioService {
 
   /// Kept for the publishing/provisioning layer and settings compatibility.
   final Map<String, String> voiceIds;
+  final Future<Uint8List> Function(String audioPath) _assetDownloader;
+  final Future<Directory> Function() _cacheDirectory;
   static const _defaultVoiceId = 'Charlotte';
 
   String voiceIdFor(String langCode) => voiceIds[langCode] ?? _defaultVoiceId;
@@ -85,9 +93,7 @@ class ElevenLabsService implements AudioService {
     }
 
     try {
-      final bytes = await Supabase.instance.client.storage
-          .from(AudioAssetPath.bucket)
-          .download(audioPath)
+      final bytes = await _assetDownloader(audioPath)
           .timeout(const Duration(seconds: 3));
       await file.writeAsBytes(bytes, flush: true);
       _cache[key] = file.path;
@@ -101,9 +107,18 @@ class ElevenLabsService implements AudioService {
       md5.convert(audioPath.codeUnits).toString();
 
   Future<Directory> _cacheDir() async {
+    return _cacheDirectory();
+  }
+
+  static Future<Uint8List> _downloadFromStorage(String audioPath) =>
+      Supabase.instance.client.storage
+          .from(AudioAssetPath.bucket)
+          .download(audioPath);
+
+  static Future<Directory> _defaultCacheDirectory() async {
     final base = await getApplicationDocumentsDirectory();
     final dir = Directory('${base.path}/audio_cache');
-    if (!dir.existsSync()) dir.createSync(recursive: true);
+    if (!dir.existsSync()) await dir.create(recursive: true);
     return dir;
   }
 

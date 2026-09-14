@@ -25,10 +25,13 @@ import '../helpers/fake_remote.dart';
 final _now = DateTime(2026, 7, 3);
 
 class _NoopAudio implements AudioPlayerService {
+  final prefetchedPaths = <String?>[];
   @override
   Future<void> warmUp(String langCode) async {}
   @override
-  Future<void> prefetch(String text, String langCode, {String? audioPath}) async {}
+  Future<void> prefetch(String text, String langCode, {String? audioPath}) async {
+    prefetchedPaths.add(audioPath);
+  }
   @override
   Future<void> speak(String text, String langCode, {String? audioPath}) async {}
   @override
@@ -78,6 +81,7 @@ void main() {
   // fr word → variant ids, seeded in setUp.
   late Map<String, String> frVariantId;
   late Map<String, String> koVariantId;
+  late _NoopAudio audio;
 
   const words = [('chat', '고양이'), ('chien', '개'), ('maison', '집')];
 
@@ -107,7 +111,7 @@ void main() {
           .overrideWithValue(GetDueCardsUseCase(_FakeProgressRepo(responses))),
       conceptDaoProvider.overrideWithValue(db.conceptDao),
       currentUserProvider.overrideWithValue(null),
-      audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
+      audioPlayerServiceProvider.overrideWithValue(audio = _NoopAudio()),
     ]);
     addTearDown(container.dispose);
     final sub = container.listen(quizProvider, (_, __) {});
@@ -145,6 +149,25 @@ void main() {
         containsAll(['chat', 'chien', 'maison']));
     final chat = state.cards.firstWhere((c) => c.questionWord == 'chat');
     expect(chat.answerWords, contains('고양이'));
+    expect(chat.questionAudioPath, startsWith('users/u/'));
+    expect(chat.answerAudioPath, startsWith('users/u/'));
+  });
+
+  test('a loaded session prefetches every published prompt and answer',
+      () async {
+    final (container, _) = harness({
+      QuizDirection.frToKo: Success([
+        _due(frVariantId['chat']!, QuizDirection.frToKo),
+        _due(frVariantId['chien']!, QuizDirection.frToKo),
+        _due(frVariantId['maison']!, QuizDirection.frToKo),
+      ]),
+    });
+
+    await container.read(quizProvider.notifier).loadCards(args());
+    await Future<void>.delayed(Duration.zero);
+
+    expect(audio.prefetchedPaths, hasLength(6));
+    expect(audio.prefetchedPaths, everyElement(startsWith('users/u/')));
   });
 
   test(

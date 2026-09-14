@@ -82,6 +82,9 @@ void main() {
             reason: 'concept ${concept.seedId} in "${l.name}" must have a '
                 'word in both languages, got $langs');
         examplesSeen += variants.where((v) => v.example != null).length;
+        expect(variants.every((v) =>
+            v.audioPath?.startsWith('seed/v1/${v.langCode}/') ?? false), isTrue,
+            reason: 'starter content must reference shared pre-rendered audio');
       }
     }
     expect(totalConcepts, 111);

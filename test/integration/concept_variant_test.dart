@@ -7,6 +7,7 @@ import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/domain/entities/concept.dart';
 import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
+import 'package:vocab_kr/services/audio/audio_asset_path.dart';
 
 import '../helpers/fake_remote.dart';
 
@@ -84,6 +85,32 @@ void main() {
       final ko = variants.firstWhere((v) => v.word == '안녕하세요');
       expect(ko.langCode, 'ko');
       expect(ko.isPrimary, isTrue);
+    });
+
+    test('custom variants receive immutable private audio paths', () async {
+      final result = await repo.addConceptWithVariants(
+          listId: list.id, wordA: 'Bonjour', wordB: '안녕하세요');
+      final variants = await db.conceptDao
+          .getVariantsByConcept((result as Success<Concept>).value.id);
+      final fr = variants.firstWhere((v) => v.langCode == 'fr');
+      final ko = variants.firstWhere((v) => v.langCode == 'ko');
+
+      expect(
+        fr.audioPath,
+        AudioAssetPath.user(
+            userId: _kUserId,
+            variantId: fr.id,
+            text: 'Bonjour',
+            langCode: 'fr'),
+      );
+      expect(
+        ko.audioPath,
+        AudioAssetPath.user(
+            userId: _kUserId,
+            variantId: ko.id,
+            text: '안녕하세요',
+            langCode: 'ko'),
+      );
     });
 
     test('a non-FR/KO list tags each variant with the list pair', () async {
@@ -243,6 +270,23 @@ void main() {
       await repo.updateVariant(variant.copyWith(word: 'Coucou'));
       final row = await db.conceptDao.getVariantById(variant.id);
       expect(row!.isSynced, isFalse);
+    });
+
+    test('editing a custom word invalidates its old audio object path',
+        () async {
+      final created = (await repo.createVariant(
+        conceptId: concept.id,
+        word: 'Salut',
+        langCode: 'fr',
+      ) as Success).value;
+      final oldPath = created.audioPath;
+
+      await repo.updateVariant(created.copyWith(word: 'Coucou'));
+      final updated = await db.conceptDao.getVariantById(created.id);
+
+      expect(updated!.audioPath, isNot(oldPath));
+      expect(updated.audioPath,
+          contains('/${created.id}/'));
     });
 
     test('deleteVariant disappears from getVariantsByConcept', () async {
