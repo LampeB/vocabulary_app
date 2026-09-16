@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/utils/pcm_segmenter.dart';
 import '../../core/utils/stt_debug_log.dart';
 import 'whisper_speech_service.dart';
+import 'elevenlabs_stt_engine.dart';
 
 /// Captures a short answer locally, then sends the completed WAV to the
 /// authenticated ElevenLabs Scribe proxy. The ElevenLabs key never reaches
@@ -16,7 +17,7 @@ import 'whisper_speech_service.dart';
 /// pre-roll, echo cancellation and endpointing are used regardless of which
 /// recognizer wins. On an unavailable network the engine ends promptly, so
 /// the quiz can reopen the mic for its offline Whisper rescue lane.
-class ElevenLabsSpeechService {
+class ElevenLabsSpeechService implements CloudSpeechCapture {
   static const _sampleRate = 16000;
   // Scribe's 38/38 corpus result lets this cloud-only end-of-speech delay be
   // shorter than the conservative offline Whisper setting (700ms). 450ms
@@ -33,6 +34,7 @@ class ElevenLabsSpeechService {
 
   bool get isListening => _isListening;
 
+  @override
   Future<bool> startListening({
     required String langCode,
     required List<String> promptHints,
@@ -129,6 +131,7 @@ class ElevenLabsSpeechService {
     });
   }
 
+  @override
   Future<void> stopListening() async {
     if (!_isListening) return;
     _isListening = false;
@@ -142,6 +145,7 @@ class ElevenLabsSpeechService {
     }
   }
 
+  @override
   void dispose() {
     unawaited(stopListening());
     _recorder.dispose();
