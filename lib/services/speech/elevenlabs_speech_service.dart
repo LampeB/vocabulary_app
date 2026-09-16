@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:record/record.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,6 +9,78 @@ import '../../core/utils/pcm_segmenter.dart';
 import '../../core/utils/stt_debug_log.dart';
 import 'whisper_speech_service.dart';
 import 'elevenlabs_stt_engine.dart';
+
+/// The one microphone capability the cloud capture pipeline needs.
+///
+/// Keeping the native recorder behind this port lets the timing-sensitive
+/// segmentation and request lifecycle be tested without a physical device.
+abstract interface class PcmMicrophone {
+  Future<bool> hasPermission();
+  Future<Stream<Uint8List>> startVoiceStream();
+  Future<void> stop();
+  void dispose();
+}
+
+/// Authenticated server-side Scribe invocation. The client never owns the
+/// ElevenLabs key; this boundary is deliberately narrow for deterministic
+/// tests of the capture pipeline.
+abstract interface class CloudTranscriber {
+  Future<String?> transcribe({
+    required Uint8List pcm16,
+    required String langCode,
+    required String expectedWord,
+  });
+}
+
+// Platform and Supabase bindings need device tests.
+// coverage:ignore-start
+class _RecordPcmMicrophone implements PcmMicrophone {
+  final _recorder = AudioRecorder();
+
+  @override
+  Future<bool> hasPermission() => _recorder.hasPermission();
+
+  @override
+  Future<Stream<Uint8List>> startVoiceStream() => _recorder.startStream(
+        const RecordConfig(
+          encoder: AudioEncoder.pcm16bits,
+          sampleRate: 16000,
+          numChannels: 1,
+          autoGain: true,
+          echoCancel: true,
+          noiseSuppress: true,
+          androidConfig: AndroidRecordConfig(
+            audioSource: AndroidAudioSource.voiceRecognition,
+          ),
+        ),
+      );
+
+  @override
+  Future<void> stop() => _recorder.stop();
+
+  @override
+  void dispose() => _recorder.dispose();
+}
+
+class _SupabaseCloudTranscriber implements CloudTranscriber {
+  @override
+  Future<String?> transcribe({
+    required Uint8List pcm16,
+    required String langCode,
+    required String expectedWord,
+  }) async {
+    final response = await Supabase.instance.client.functions
+        .invoke('elevenlabs-stt-proxy', body: {
+      'audio_base64': base64Encode(pcm16),
+      'audio_format': 'pcm_s16le_16',
+      'language': langCode,
+      'expected_word': expectedWord,
+    }).timeout(const Duration(seconds: 5));
+    final data = response.data;
+    return data is Map ? data['text'] as String? : null;
+  }
+}
+// coverage:ignore-end
 
 /// Captures a short answer locally, then sends the completed WAV to the
 /// authenticated ElevenLabs Scribe proxy. The ElevenLabs key never reaches
@@ -24,7 +97,14 @@ class ElevenLabsSpeechService implements CloudSpeechCapture {
   // retains vowel/fricative tails while removing ~250ms of perceived wait.
   static const _silenceEndMs = 450;
 
-  final _recorder = AudioRecorder();
+  ElevenLabsSpeechService({
+    PcmMicrophone? microphone,
+    CloudTranscriber? transcriber,
+  })  : _microphone = microphone ?? _RecordPcmMicrophone(),
+        _transcriber = transcriber ?? _SupabaseCloudTranscriber();
+
+  final PcmMicrophone _microphone;
+  final CloudTranscriber _transcriber;
   StreamSubscription<dynamic>? _micSub;
   PcmSegmenter? _segmenter;
   bool _isListening = false;
@@ -42,7 +122,7 @@ class ElevenLabsSpeechService implements CloudSpeechCapture {
     void Function()? onSessionEnd,
   }) async {
     if (_isListening) await stopListening();
-    if (!await _recorder.hasPermission()) return false;
+    if (!await _microphone.hasPermission()) return false;
     final serial = ++_serial;
     try {
       _segmenter = PcmSegmenter(
@@ -50,17 +130,7 @@ class ElevenLabsSpeechService implements CloudSpeechCapture {
         silenceEndMs: _silenceEndMs,
         maxUtteranceMs: 3000,
       );
-      final stream = await _recorder.startStream(const RecordConfig(
-        encoder: AudioEncoder.pcm16bits,
-        sampleRate: _sampleRate,
-        numChannels: 1,
-        autoGain: true,
-        echoCancel: true,
-        noiseSuppress: true,
-        androidConfig: AndroidRecordConfig(
-          audioSource: AndroidAudioSource.voiceRecognition,
-        ),
-      ));
+      final stream = await _microphone.startVoiceStream();
       _micSub = stream.listen((chunk) {
         final segments = _segmenter!.feed(chunk);
         for (final segment in segments) {
@@ -104,15 +174,11 @@ class ElevenLabsSpeechService implements CloudSpeechCapture {
       try {
         // Scribe accepts raw PCM16/16kHz. Avoiding a temporary WAV file and
         // its encode/read cycle removes local I/O from every quiz answer.
-        final response = await Supabase.instance.client.functions
-            .invoke('elevenlabs-stt-proxy', body: {
-          'audio_base64': base64Encode(segment.bytes),
-          'audio_format': 'pcm_s16le_16',
-          'language': langCode,
-          'expected_word': promptHints.isEmpty ? '' : promptHints.first,
-        }).timeout(const Duration(seconds: 5));
-        final data = response.data;
-        final raw = data is Map ? data['text'] as String? : null;
+        final raw = await _transcriber.transcribe(
+          pcm16: segment.bytes,
+          langCode: langCode,
+          expectedWord: promptHints.isEmpty ? '' : promptHints.first,
+        );
         final transcript =
             raw == null ? null : WhisperSpeechService.cleanTranscript(raw);
         sttLog('[ELS] ${segment.durationMs}ms captured, '
@@ -139,7 +205,7 @@ class ElevenLabsSpeechService implements CloudSpeechCapture {
     try {
       await _micSub?.cancel();
       _micSub = null;
-      await _recorder.stop();
+      await _microphone.stop();
     } catch (error) {
       sttLog('[ELS] mic stop failed: $error');
     }
@@ -148,6 +214,6 @@ class ElevenLabsSpeechService implements CloudSpeechCapture {
   @override
   void dispose() {
     unawaited(stopListening());
-    _recorder.dispose();
+    _microphone.dispose();
   }
 }
