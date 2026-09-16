@@ -1,8 +1,19 @@
 import 'dart:typed_data';
 
 import '../../core/languages.dart';
-import 'elevenlabs_speech_service.dart';
 import 'stt_engine.dart';
+
+abstract interface class CloudSpeechCapture {
+  Future<bool> startListening({
+    required String langCode,
+    required List<String> promptHints,
+    required void Function(String text, int segmentMs) onFinal,
+    void Function()? onSessionEnd,
+  });
+
+  Future<void> stopListening();
+  void dispose();
+}
 
 /// Adapter that makes cloud ElevenLabs Scribe available to [SttRace]. It owns
 /// the microphone while it captures one short answer, so Whisper runs only as
@@ -10,7 +21,7 @@ import 'stt_engine.dart';
 class ElevenLabsSttEngine implements SttEngine {
   ElevenLabsSttEngine(this._service);
 
-  final ElevenLabsSpeechService _service;
+  final CloudSpeechCapture _service;
 
   @override
   String get id => 'elevenlabs';
