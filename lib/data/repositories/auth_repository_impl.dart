@@ -8,13 +8,12 @@ import '../datasources/remote/auth_remote_datasource.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl(this._remote);
-  final AuthRemoteDataSource _remote;
+  final AuthRemote _remote;
 
   @override
   Stream<AppUser?> get authStateChanges => _remote.authStateChanges.map(
-        (state) => state.session?.user != null
-            ? _mapUser(state.session!.user)
-            : null,
+        (state) =>
+            state.session?.user != null ? _mapUser(state.session!.user) : null,
       );
 
   @override
@@ -37,8 +36,7 @@ class AuthRepositoryImpl implements AuthRepository {
           onFailure: (_) async {
             // Profile row missing — create it now (e.g. account pre-dates trigger).
             final username = _safeUsername(
-                user.userMetadata?['username'] as String?,
-                user.email);
+                user.userMetadata?['username'] as String?, user.email);
             await _remote.upsertProfile({
               'id': user.id,
               'username': username,
@@ -78,7 +76,7 @@ class AuthRepositoryImpl implements AuthRepository {
         if (e is AuthException &&
             e.message.toLowerCase().contains('already registered')) {
           return const Failure(
-            AuthException('Cette adresse e-mail est déjà utilisée.'));
+              AuthException('Cette adresse e-mail est déjà utilisée.'));
         }
         return Failure(e);
       },
@@ -135,8 +133,7 @@ class AuthRepositoryImpl implements AuthRepository {
       onFailure: (_) async {
         // Auto-create missing profile row.
         final username = _safeUsername(
-            user.userMetadata?['username'] as String?,
-            user.email);
+            user.userMetadata?['username'] as String?, user.email);
         await _remote.upsertProfile({
           'id': user.id,
           'username': username,
@@ -163,7 +160,8 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Result<void>> deleteAccount() async {
     // Requires Supabase admin call — implement via Edge Function
-    return const Failure(UnknownException('Account deletion not yet implemented'));
+    return const Failure(
+        UnknownException('Account deletion not yet implemented'));
   }
 
   AppUser _mapUser(sb.User user) => AppUser(
