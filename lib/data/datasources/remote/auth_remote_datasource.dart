@@ -2,13 +2,30 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/errors/app_exception.dart' as app_ex;
 import '../../../core/errors/failure.dart';
 
-class AuthRemoteDataSource {
+abstract interface class AuthRemote {
+  Stream<AuthState> get authStateChanges;
+  User? get currentUser;
+  Future<Result<User>> signInWithEmail(String email, String password);
+  Future<Result<User>> signUpWithEmail(
+      String email, String password, String username);
+  Future<Result<void>> signOut();
+  Future<Result<void>> sendPasswordReset(String email);
+  Future<bool> checkUsernameExists(String username);
+  Future<Result<Map<String, dynamic>>> getProfile(String userId);
+  Future<Result<Map<String, dynamic>>> upsertProfile(Map<String, dynamic> data);
+  Future<Result<void>> updateStreak(String userId);
+}
+
+class AuthRemoteDataSource implements AuthRemote {
   AuthRemoteDataSource(this._client);
   final SupabaseClient _client;
 
+  @override
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
+  @override
   User? get currentUser => _client.auth.currentUser;
 
+  @override
   Future<Result<User>> signInWithEmail(String email, String password) async {
     try {
       final res = await _client.auth.signInWithPassword(
@@ -26,6 +43,7 @@ class AuthRemoteDataSource {
     }
   }
 
+  @override
   Future<Result<User>> signUpWithEmail(
       String email, String password, String username) async {
     try {
@@ -45,6 +63,7 @@ class AuthRemoteDataSource {
     }
   }
 
+  @override
   Future<Result<void>> signOut() async {
     try {
       await _client.auth.signOut();
@@ -54,6 +73,7 @@ class AuthRemoteDataSource {
     }
   }
 
+  @override
   Future<Result<void>> sendPasswordReset(String email) async {
     try {
       await _client.auth.resetPasswordForEmail(email);
@@ -63,6 +83,7 @@ class AuthRemoteDataSource {
     }
   }
 
+  @override
   Future<bool> checkUsernameExists(String username) async {
     try {
       final rows = await _client
@@ -76,19 +97,18 @@ class AuthRemoteDataSource {
     }
   }
 
+  @override
   Future<Result<Map<String, dynamic>>> getProfile(String userId) async {
     try {
-      final data = await _client
-          .from('profiles')
-          .select()
-          .eq('id', userId)
-          .single();
+      final data =
+          await _client.from('profiles').select().eq('id', userId).single();
       return Success(data);
     } catch (e) {
       return Failure(app_ex.UnknownException(e.toString()));
     }
   }
 
+  @override
   Future<Result<Map<String, dynamic>>> upsertProfile(
       Map<String, dynamic> data) async {
     try {
@@ -100,14 +120,14 @@ class AuthRemoteDataSource {
     }
   }
 
+  @override
   Future<Result<void>> updateStreak(String userId) async {
     try {
-      final rows = List<Map<String, dynamic>>.from(
-          (await _client
-                  .from('profiles')
-                  .select('current_streak, longest_streak, last_study_date')
-                  .eq('id', userId)
-                  .limit(1)) as List);
+      final rows = List<Map<String, dynamic>>.from((await _client
+          .from('profiles')
+          .select('current_streak, longest_streak, last_study_date')
+          .eq('id', userId)
+          .limit(1)) as List);
       if (rows.isEmpty) return const Success(null);
       final profile = rows.first;
 
