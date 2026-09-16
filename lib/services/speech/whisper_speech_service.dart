@@ -10,6 +10,7 @@ import '../../core/utils/answer_validator.dart';
 import '../../core/utils/pcm_segmenter.dart';
 import '../../core/utils/stt_debug_log.dart';
 import '../../core/utils/wav_writer.dart';
+import 'pcm_microphone.dart';
 
 /// The Whisper capabilities used by the hybrid STT coordinator.
 ///
@@ -29,6 +30,44 @@ abstract interface class WhisperSpeechCapture {
   void dispose();
 }
 
+typedef WhisperSegmentTranscriber = Future<String> Function({
+  required Uint8List pcm16,
+  required String langCode,
+  required String prompt,
+});
+
+// Platform recorder binding. Its configuration is covered on a device; the
+// capture lifecycle it feeds is covered below with [PcmMicrophone] fakes.
+// coverage:ignore-start
+class _RecordPcmMicrophone implements PcmMicrophone {
+  final _recorder = AudioRecorder();
+
+  @override
+  Future<bool> hasPermission() => _recorder.hasPermission();
+
+  @override
+  Future<Stream<Uint8List>> startVoiceStream() => _recorder.startStream(
+        const RecordConfig(
+          encoder: AudioEncoder.pcm16bits,
+          sampleRate: 16000,
+          numChannels: 1,
+          autoGain: true,
+          echoCancel: true,
+          noiseSuppress: true,
+          androidConfig: AndroidRecordConfig(
+            audioSource: AndroidAudioSource.voiceRecognition,
+          ),
+        ),
+      );
+
+  @override
+  Future<void> stop() => _recorder.stop();
+
+  @override
+  void dispose() => _recorder.dispose();
+}
+// coverage:ignore-end
+
 /// Device-independent recognition: OUR mic capture + OUR endpointing
 /// ([PcmSegmenter]) + on-device Whisper inference (whisper.cpp, ggml-base
 /// multilingual). No vendor recognizer anywhere in the loop — the same
@@ -41,7 +80,13 @@ abstract interface class WhisperSpeechCapture {
 /// graded), and the segmenter's pre-roll means the first syllable of a
 /// short word is never lost.
 class WhisperSpeechService implements WhisperSpeechCapture {
-  WhisperSpeechService();
+  WhisperSpeechService({
+    PcmMicrophone? microphone,
+    WhisperSegmentTranscriber? segmentTranscriber,
+    bool modelReady = false,
+  })  : _microphone = microphone ?? _RecordPcmMicrophone(),
+        _segmentTranscriber = segmentTranscriber,
+        _modelReady = modelReady;
 
   /// ggml-base multilingual (~142MB): tiny's French on short words was
   /// garbage ("pomme" → "Bonne", field log 2026-07-10); base was accurate
@@ -51,10 +96,11 @@ class WhisperSpeechService implements WhisperSpeechCapture {
   static const _sampleRate = 16000;
 
   Whisper? _whisper;
-  bool _modelReady = false;
+  bool _modelReady;
   bool _preparing = false;
 
-  final _recorder = AudioRecorder();
+  final PcmMicrophone _microphone;
+  final WhisperSegmentTranscriber? _segmentTranscriber;
   StreamSubscription<dynamic>? _micSub;
   PcmSegmenter? _segmenter;
   bool _isListening = false;
@@ -82,6 +128,8 @@ class WhisperSpeechService implements WhisperSpeechCapture {
   /// This is used by the debug corpus lab to measure the exact model and
   /// decoder configuration that hands-free quizzes use on a real speaker.
   /// It deliberately stays on-device: [path] is given directly to whisper.cpp.
+  // The actual model/file boundary is exercised by the device corpus lab.
+  // coverage:ignore-start
   Future<WhisperFileResult?> transcribeFile({
     required String path,
     required String langCode,
@@ -153,6 +201,7 @@ class WhisperSpeechService implements WhisperSpeechCapture {
       _preparing = false;
     }
   }
+  // coverage:ignore-end
 
   /// Whisper hallucinates boilerplate on noise/near-silence (training-data
   /// artifacts: subtitle credits, "thanks for watching", …). Any transcript
@@ -241,7 +290,7 @@ class WhisperSpeechService implements WhisperSpeechCapture {
     final windowSerial = ++_inferenceSerial;
 
     try {
-      if (!await _recorder.hasPermission()) {
+      if (!await _microphone.hasPermission()) {
         sttLog('[WSP] ❌ mic permission denied');
         return false;
       }
@@ -249,21 +298,7 @@ class WhisperSpeechService implements WhisperSpeechCapture {
       // ambient conversation — two people testing together produced 5-6s
       // blobs whisper described as '*bruit de la chanson*' (2026-07-13).
       _segmenter = PcmSegmenter(sampleRate: _sampleRate, maxUtteranceMs: 3000);
-      final stream = await _recorder.startStream(const RecordConfig(
-        encoder: AudioEncoder.pcm16bits,
-        sampleRate: _sampleRate,
-        numChannels: 1,
-        // The phone's speech DSP chain was entirely OFF (package defaults).
-        // voiceRecognition source + hardware noise suppression / echo
-        // cancellation / auto-gain are tuned by the vendor for exactly this
-        // input; echoCancel also damps the app's own TTS reaching the mic.
-        autoGain: true,
-        echoCancel: true,
-        noiseSuppress: true,
-        androidConfig: AndroidRecordConfig(
-          audioSource: AndroidAudioSource.voiceRecognition,
-        ),
-      ));
+      final stream = await _microphone.startVoiceStream();
       var wasInSpeech = false;
       var lastLevelLog = DateTime.now();
       _micSub = stream.listen((chunk) {
@@ -316,22 +351,14 @@ class WhisperSpeechService implements WhisperSpeechCapture {
       if (serial != _inferenceSerial) return; // window closed meanwhile
       try {
         final sw = Stopwatch()..start();
-        final dir = await getTemporaryDirectory();
-        final f = File(
-            '${dir.path}/wsp_seg_${DateTime.now().millisecondsSinceEpoch}.wav');
-        await f.writeAsBytes(pcm16ToWav(segment.bytes), flush: true);
-        final res = await _whisper!.transcribe(
-          transcribeRequest: TranscribeRequest(
-            audio: f.path,
-            language: langCode,
-            isNoTimestamps: true,
-          ),
-          initialPrompt: _promptHints,
+        final raw = await _transcribeSegment(
+          pcm16: segment.bytes,
+          langCode: langCode,
+          prompt: _promptHints,
         );
-        unawaited(f.delete().catchError((_) => f));
-        final cleaned = cleanTranscript(res.text);
+        final cleaned = cleanTranscript(raw);
         sttLog(
-            '[WSP] 📝 transcribed ${segment.durationMs}ms in ${sw.elapsedMilliseconds}ms: raw="${res.text}" cleaned="${cleaned ?? "<discarded>"}"');
+            '[WSP] 📝 transcribed ${segment.durationMs}ms in ${sw.elapsedMilliseconds}ms: raw="$raw" cleaned="${cleaned ?? "<discarded>"}"');
         if (cleaned == null) return;
         if (serial != _inferenceSerial) {
           sttLog('[WSP] transcript arrived after window closed — dropped');
@@ -343,6 +370,49 @@ class WhisperSpeechService implements WhisperSpeechCapture {
       }
     });
   }
+
+  Future<String> _transcribeSegment({
+    required Uint8List pcm16,
+    required String langCode,
+    required String prompt,
+  }) {
+    final override = _segmentTranscriber;
+    if (override != null) {
+      return override(pcm16: pcm16, langCode: langCode, prompt: prompt);
+    }
+    return _transcribeNativeSegment(
+      pcm16: pcm16,
+      langCode: langCode,
+      prompt: prompt,
+    );
+  }
+
+  // Temp files and the native plugin are validated by corpus/device tests.
+  // coverage:ignore-start
+  Future<String> _transcribeNativeSegment({
+    required Uint8List pcm16,
+    required String langCode,
+    required String prompt,
+  }) async {
+    final dir = await getTemporaryDirectory();
+    final file = File(
+        '${dir.path}/wsp_seg_${DateTime.now().millisecondsSinceEpoch}.wav');
+    await file.writeAsBytes(pcm16ToWav(pcm16), flush: true);
+    try {
+      final result = await _whisper!.transcribe(
+        transcribeRequest: TranscribeRequest(
+          audio: file.path,
+          language: langCode,
+          isNoTimestamps: true,
+        ),
+        initialPrompt: prompt,
+      );
+      return result.text;
+    } finally {
+      unawaited(file.delete().catchError((_) => file));
+    }
+  }
+  // coverage:ignore-end
 
   /// Stops the mic. By default queued/in-flight transcripts are dropped
   /// (card changed, quiz quit). [keepPendingTranscripts] lets the window-
@@ -359,7 +429,7 @@ class WhisperSpeechService implements WhisperSpeechCapture {
     try {
       await _micSub?.cancel();
       _micSub = null;
-      await _recorder.stop();
+      await _microphone.stop();
     } catch (e) {
       sttLog('[WSP] stop failed: $e');
     }
@@ -368,7 +438,7 @@ class WhisperSpeechService implements WhisperSpeechCapture {
   @override
   void dispose() {
     unawaited(stopListening());
-    _recorder.dispose();
+    _microphone.dispose();
   }
 }
 

@@ -9,17 +9,7 @@ import '../../core/utils/pcm_segmenter.dart';
 import '../../core/utils/stt_debug_log.dart';
 import 'whisper_speech_service.dart';
 import 'elevenlabs_stt_engine.dart';
-
-/// The one microphone capability the cloud capture pipeline needs.
-///
-/// Keeping the native recorder behind this port lets the timing-sensitive
-/// segmentation and request lifecycle be tested without a physical device.
-abstract interface class PcmMicrophone {
-  Future<bool> hasPermission();
-  Future<Stream<Uint8List>> startVoiceStream();
-  Future<void> stop();
-  void dispose();
-}
+import 'pcm_microphone.dart';
 
 /// Authenticated server-side Scribe invocation. The client never owns the
 /// ElevenLabs key; this boundary is deliberately narrow for deterministic
