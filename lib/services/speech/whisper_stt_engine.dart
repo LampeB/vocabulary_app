@@ -16,7 +16,7 @@ import 'whisper_speech_service.dart';
 class WhisperSttEngine implements SttEngine {
   WhisperSttEngine(this._service);
 
-  final WhisperSpeechService _service;
+  final WhisperSpeechCapture _service;
 
   @override
   String get id => 'whisper';

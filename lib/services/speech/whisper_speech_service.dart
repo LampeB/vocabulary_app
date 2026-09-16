@@ -11,6 +11,24 @@ import '../../core/utils/pcm_segmenter.dart';
 import '../../core/utils/stt_debug_log.dart';
 import '../../core/utils/wav_writer.dart';
 
+/// The Whisper capabilities used by the hybrid STT coordinator.
+///
+/// Native model loading and microphone capture stay behind this interface so
+/// the coordinator adapter can be verified without a phone or a 142 MB model.
+abstract interface class WhisperSpeechCapture {
+  bool get isReady;
+  Future<void> ensureModel();
+  Future<bool> startListening({
+    required String langCode,
+    required void Function(String text, int segmentMs) onFinal,
+    void Function()? onSpeechStart,
+    void Function()? onSegment,
+    List<String> promptHints,
+  });
+  Future<void> stopListening({bool keepPendingTranscripts});
+  void dispose();
+}
+
 /// Device-independent recognition: OUR mic capture + OUR endpointing
 /// ([PcmSegmenter]) + on-device Whisper inference (whisper.cpp, ggml-base
 /// multilingual). No vendor recognizer anywhere in the loop — the same
@@ -22,7 +40,7 @@ import '../../core/utils/wav_writer.dart';
 /// open-vocabulary (wrong answers are real transcripts, so they can be
 /// graded), and the segmenter's pre-roll means the first syllable of a
 /// short word is never lost.
-class WhisperSpeechService {
+class WhisperSpeechService implements WhisperSpeechCapture {
   WhisperSpeechService();
 
   /// ggml-base multilingual (~142MB): tiny's French on short words was
@@ -51,6 +69,7 @@ class WhisperSpeechService {
   void Function()? _onSegment;
   String _promptHints = '';
 
+  @override
   bool get isReady => _modelReady;
   bool get isListening => _isListening;
 
@@ -102,6 +121,7 @@ class WhisperSpeechService {
   /// Downloads (first run) and loads the model, then warms the native
   /// context with a 200ms silent clip so the first real inference isn't
   /// paying initialization costs. Fire-and-forget; gate on [isReady].
+  @override
   Future<void> ensureModel() async {
     if (_modelReady || _preparing) return;
     _preparing = true;
@@ -197,6 +217,7 @@ class WhisperSpeechService {
   /// [promptHints]: expected answers used as decoder-bias context —
   /// dramatically improves short-word transcription ("thé" → "T" without
   /// it, field 2026-07-10). Annotations/slashes are cleaned here.
+  @override
   Future<bool> startListening({
     required String langCode,
     required void Function(String text, int segmentMs) onFinal,
@@ -327,6 +348,7 @@ class WhisperSpeechService {
   /// (card changed, quiz quit). [keepPendingTranscripts] lets the window-
   /// expiry path close the mic while a segment captured near the deadline
   /// finishes inference and can still grade.
+  @override
   Future<void> stopListening({bool keepPendingTranscripts = false}) async {
     if (!_isListening) return;
     _isListening = false;
@@ -343,6 +365,7 @@ class WhisperSpeechService {
     }
   }
 
+  @override
   void dispose() {
     unawaited(stopListening());
     _recorder.dispose();
