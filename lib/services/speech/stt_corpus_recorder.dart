@@ -4,6 +4,38 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
+/// Minimal port around the native microphone recorder used by the corpus lab.
+/// The corpus manifest and file lifecycle can then be tested on a desktop
+/// without opening a real microphone session.
+abstract interface class CorpusAudioRecorder {
+  Future<bool> hasPermission();
+  Future<void> start(RecordConfig config, {required String path});
+  Future<String?> stop();
+  void dispose();
+}
+
+// coverage:ignore-start
+// Native record plugin adapter: exercised by the real-device corpus workflow.
+class _RecordCorpusAudioRecorder implements CorpusAudioRecorder {
+  _RecordCorpusAudioRecorder() : _recorder = AudioRecorder();
+
+  final AudioRecorder _recorder;
+
+  @override
+  Future<bool> hasPermission() => _recorder.hasPermission();
+
+  @override
+  Future<void> start(RecordConfig config, {required String path}) =>
+      _recorder.start(config, path: path);
+
+  @override
+  Future<String?> stop() => _recorder.stop();
+
+  @override
+  void dispose() => _recorder.dispose();
+}
+// coverage:ignore-end
+
 /// A labelled, local-only WAV capture used to benchmark speech recognition.
 /// The audio stays in the app sandbox until a developer explicitly extracts it
 /// from a debug device; it is never uploaded by this service.
@@ -167,7 +199,21 @@ class SttCorpusSample {
 /// on-device Whisper pipeline, so the files can be replayed through an engine
 /// without a lossy conversion or a second microphone capture.
 class SttCorpusRecorder {
-  final _recorder = AudioRecorder();
+  // coverage:ignore-start
+  // The default wires platform plugins; tests inject the same ports below.
+  SttCorpusRecorder({
+    CorpusAudioRecorder? recorder,
+    Future<Directory> Function()? documentsDirectory,
+    DateTime Function()? clock,
+  })  : _recorder = recorder ?? _RecordCorpusAudioRecorder(),
+        _documentsDirectory =
+            documentsDirectory ?? getApplicationDocumentsDirectory,
+        _clock = clock ?? DateTime.now;
+  // coverage:ignore-end
+
+  final CorpusAudioRecorder _recorder;
+  final Future<Directory> Function() _documentsDirectory;
+  final DateTime Function() _clock;
   SttCorpusSample? _pending;
 
   bool get isRecording => _pending != null;
@@ -196,7 +242,7 @@ class SttCorpusRecorder {
     if (word.trim().isEmpty || isRecording) return false;
     if (!await _recorder.hasPermission()) return false;
     final directory = await _directory();
-    final now = DateTime.now();
+    final now = _clock();
     final id = '${now.millisecondsSinceEpoch}_$langCode';
     final pending = SttCorpusSample(
       id: id,
@@ -304,7 +350,7 @@ class SttCorpusRecorder {
   }
 
   Future<Directory> _directory() async {
-    final docs = await getApplicationDocumentsDirectory();
+    final docs = await _documentsDirectory();
     final directory =
         Directory('${docs.path}${Platform.pathSeparator}stt_corpus');
     if (!await directory.exists()) await directory.create(recursive: true);
