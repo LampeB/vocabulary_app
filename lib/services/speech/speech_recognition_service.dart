@@ -3,7 +3,21 @@ import '../../core/languages.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:speech_to_text/speech_recognition_error.dart';
 
-class SpeechRecognitionService {
+/// Platform recognizer capabilities consumed by [SystemSttEngine].
+abstract interface class SystemSpeechCapture {
+  void Function()? get onListeningDone;
+  set onListeningDone(void Function()? callback);
+  Future<bool> initialize();
+  Future<bool> startListening({
+    required String langCode,
+    required void Function(String primary, List<String> candidates) onResult,
+    void Function(String primary, List<String> candidates)? onPartial,
+  });
+  Future<void> stopListening();
+  void dispose();
+}
+
+class SpeechRecognitionService implements SystemSpeechCapture {
   final _speech = stt.SpeechToText();
   bool _initialized = false;
   bool _isListening = false;
@@ -24,11 +38,13 @@ class SpeechRecognitionService {
       ? 0
       : DateTime.now().difference(_listenStartTime!).inMilliseconds;
 
-  Function()? onListeningDone;
+  @override
+  void Function()? onListeningDone;
   // Called for genuine hardware/network errors (NOT error_no_match, which is a
   // normal "no speech recognised" result and is handled via onListeningDone).
   void Function(String)? onError;
 
+  @override
   Future<bool> initialize() async {
     if (_initialized) return true;
     _initialized = await _speech.initialize(
@@ -81,6 +97,7 @@ class SpeechRecognitionService {
     return _initialized;
   }
 
+  @override
   Future<bool> startListening({
     required String langCode,
     required void Function(String primary, List<String> candidates) onResult,
@@ -168,6 +185,7 @@ class SpeechRecognitionService {
     }
   }
 
+  @override
   Future<void> stopListening() async {
     sttLog('[STT] stopListening() _isListening=$_isListening');
     // Always send the platform stop, even when its callback has already said
@@ -185,6 +203,7 @@ class SpeechRecognitionService {
     _isListening = false;
   }
 
+  @override
   void dispose() {
     _speech.stop();
     _initialized = false;

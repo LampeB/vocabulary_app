@@ -14,7 +14,7 @@ class SystemSttEngine implements SttEngine {
   SystemSttEngine(this._service, {Set<String>? languages})
       : _languages = languages ?? Languages.supported.toSet();
 
-  final SpeechRecognitionService _service;
+  final SystemSpeechCapture _service;
   final Set<String> _languages;
   bool _ready = false;
 
