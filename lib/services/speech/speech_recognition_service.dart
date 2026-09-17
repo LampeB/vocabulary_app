@@ -1,7 +1,6 @@
 import '../../core/utils/stt_debug_log.dart';
 import '../../core/languages.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:speech_to_text/speech_recognition_error.dart';
 
 /// Platform recognizer capabilities consumed by [SystemSttEngine].
 abstract interface class SystemSpeechCapture {
@@ -17,8 +16,105 @@ abstract interface class SystemSpeechCapture {
   void dispose();
 }
 
+/// A platform-neutral recognition result. It keeps the service testable while
+/// preserving every alternate hypothesis for the answer validator.
+class SystemRecognitionResult {
+  const SystemRecognitionResult({
+    required this.words,
+    required this.isFinal,
+    required this.confidence,
+    this.alternates = const [],
+  });
+
+  final String words;
+  final bool isFinal;
+  final double confidence;
+  final List<({String words, double confidence})> alternates;
+}
+
+/// Port for the Android/iOS recognizer. The production implementation maps
+/// `speech_to_text`; unit tests supply deterministic status/error callbacks.
+abstract interface class SystemSpeechRecognizer {
+  Future<bool> initialize({
+    required void Function(String message, bool permanent) onError,
+    required void Function(String status) onStatus,
+  });
+  Future<void> listen({
+    required void Function(double level) onSoundLevel,
+    required void Function(SystemRecognitionResult result) onResult,
+    required String localeId,
+    required Duration pauseFor,
+    required Duration listenFor,
+  });
+  Future<void> stop();
+}
+
+// coverage:ignore-start
+// Thin device-plugin adapter; the protocol above is exhaustively unit-tested.
+class _SpeechToTextRecognizer implements SystemSpeechRecognizer {
+  _SpeechToTextRecognizer() : _speech = stt.SpeechToText();
+
+  final stt.SpeechToText _speech;
+
+  @override
+  Future<bool> initialize({
+    required void Function(String message, bool permanent) onError,
+    required void Function(String status) onStatus,
+  }) =>
+      _speech.initialize(
+        onError: (error) => onError(error.errorMsg, error.permanent),
+        onStatus: onStatus,
+      );
+
+  @override
+  Future<void> listen({
+    required void Function(double level) onSoundLevel,
+    required void Function(SystemRecognitionResult result) onResult,
+    required String localeId,
+    required Duration pauseFor,
+    required Duration listenFor,
+  }) =>
+      _speech.listen(
+        onSoundLevelChange: onSoundLevel,
+        onResult: (result) => onResult(SystemRecognitionResult(
+          words: result.recognizedWords,
+          isFinal: result.finalResult,
+          confidence: result.confidence,
+          alternates: [
+            for (final alternate in result.alternates)
+              (
+                words: alternate.recognizedWords,
+                confidence: alternate.confidence,
+              ),
+          ],
+        )),
+        listenOptions: stt.SpeechListenOptions(
+          cancelOnError: false,
+          listenMode: stt.ListenMode.search,
+          partialResults: true,
+          localeId: localeId,
+          listenFor: listenFor,
+          pauseFor: pauseFor,
+        ),
+      );
+
+  @override
+  Future<void> stop() => _speech.stop();
+}
+// coverage:ignore-end
+
 class SpeechRecognitionService implements SystemSpeechCapture {
-  final _speech = stt.SpeechToText();
+  SpeechRecognitionService({
+    SystemSpeechRecognizer? recognizer,
+    DateTime Function()? clock,
+    Future<void> Function(Duration duration)? delay,
+  })  : _speech = recognizer ?? _SpeechToTextRecognizer(),
+        _clock = clock ?? DateTime.now,
+        _delay = delay ?? Future<void>.delayed;
+
+  final SystemSpeechRecognizer _speech;
+  final DateTime Function() _clock;
+  final Future<void> Function(Duration duration) _delay;
   bool _initialized = false;
   bool _isListening = false;
   // Guards against duplicate onListeningDone calls within a single session.
@@ -36,7 +132,7 @@ class SpeechRecognitionService implements SystemSpeechCapture {
   // Used by the caller to detect audio-focus races (session stops too fast).
   int get listenElapsedMs => _listenStartTime == null
       ? 0
-      : DateTime.now().difference(_listenStartTime!).inMilliseconds;
+      : _clock().difference(_listenStartTime!).inMilliseconds;
 
   @override
   void Function()? onListeningDone;
@@ -48,18 +144,18 @@ class SpeechRecognitionService implements SystemSpeechCapture {
   Future<bool> initialize() async {
     if (_initialized) return true;
     _initialized = await _speech.initialize(
-      onError: (SpeechRecognitionError e) {
+      onError: (message, permanent) {
         sttLog(
-            '[STT] ❌ onError: "${e.errorMsg}"  permanent=${e.permanent}  elapsed=${listenElapsedMs}ms');
+            '[STT] ❌ onError: "$message"  permanent=$permanent  elapsed=${listenElapsedMs}ms');
         _isListening = false;
-        lastError = e.errorMsg;
+        lastError = message;
         // error_no_match = STT heard audio but found no matching words.
         // This is the normal "no recognition" outcome — not a real error.
         // Anything else (error_audio, error_network, etc.) is worth reporting.
-        if (e.errorMsg != 'error_no_match') {
+        if (message != 'error_no_match') {
           sttLog(
-              '[STT] ⚠️ Forwarding hardware/network error to caller: ${e.errorMsg}');
-          onError?.call(e.errorMsg);
+              '[STT] ⚠️ Forwarding hardware/network error to caller: $message');
+          onError?.call(message);
         }
         if (!_sessionDone) {
           _sessionDone = true;
@@ -77,7 +173,7 @@ class SpeechRecognitionService implements SystemSpeechCapture {
         if (status == 'listening') {
           _isListening = true;
           _sessionDone = false;
-          _listenStartTime = DateTime.now();
+          _listenStartTime = _clock();
           sttLog('[STT] ✅ STT now listening — timer reset');
         } else if (status == 'notListening' || status == 'done') {
           _isListening = false;
@@ -112,7 +208,7 @@ class SpeechRecognitionService implements SystemSpeechCapture {
     if (_isListening) {
       sttLog('[STT] startListening() — stopping stale session first');
       await stopListening();
-      await Future.delayed(const Duration(milliseconds: 200));
+      await _delay(const Duration(milliseconds: 200));
     }
 
     _sessionDone = false;
@@ -125,15 +221,15 @@ class SpeechRecognitionService implements SystemSpeechCapture {
     // (flat level) — field case 2026-07-08: short words in a noisy room
     // produced zero hypotheses, not even wrong ones.
     var rmsMin = double.infinity, rmsMax = double.negativeInfinity;
-    var rmsLastLogged = DateTime.now();
+    var rmsLastLogged = _clock();
 
     try {
       await _speech.listen(
-        onSoundLevelChange: (level) {
+        onSoundLevel: (level) {
           if (level < rmsMin) rmsMin = level;
           if (level > rmsMax) rmsMax = level;
           // One line per second keeps the trace readable at 10+ events/s.
-          final now = DateTime.now();
+          final now = _clock();
           if (now.difference(rmsLastLogged).inMilliseconds >= 1000) {
             rmsLastLogged = now;
             sttLog(
@@ -149,31 +245,26 @@ class SpeechRecognitionService implements SystemSpeechCapture {
           // forwarded for validation.
           final alternates = [
             for (final a in result.alternates)
-              '"${a.recognizedWords}"(${a.confidence.toStringAsFixed(2)})',
+              '"${a.words}"(${a.confidence.toStringAsFixed(2)})',
           ].join(' | ');
           final candidates = <String>{
-            result.recognizedWords,
-            for (final a in result.alternates) a.recognizedWords,
+            result.words,
+            for (final a in result.alternates) a.words,
           }.where((w) => w.trim().isNotEmpty).toList();
           sttLog(
-              '[STT] onResult: "${result.recognizedWords}"  final=${result.finalResult}  confidence=${result.confidence.toStringAsFixed(2)}  elapsed=${listenElapsedMs}ms  alternates=[$alternates]');
-          if (result.finalResult) {
+              '[STT] onResult: "${result.words}"  final=${result.isFinal}  confidence=${result.confidence.toStringAsFixed(2)}  elapsed=${listenElapsedMs}ms  alternates=[$alternates]');
+          if (result.isFinal) {
             sttLog(
                 '[STT] ✅ Final result → forwarding ${candidates.length} candidate(s)');
-            onResult(result.recognizedWords, candidates);
-          } else if (result.recognizedWords.isNotEmpty) {
-            sttLog('[STT] ⏳ Partial: "${result.recognizedWords}"');
-            onPartial?.call(result.recognizedWords, candidates);
+            onResult(result.words, candidates);
+          } else if (result.words.isNotEmpty) {
+            sttLog('[STT] ⏳ Partial: "${result.words}"');
+            onPartial?.call(result.words, candidates);
           }
         },
-        listenOptions: stt.SpeechListenOptions(
-          cancelOnError: false,
-          listenMode: stt.ListenMode.search,
-          partialResults: true,
-          localeId: localeId,
-          listenFor: listenFor,
-          pauseFor: pauseFor,
-        ),
+        localeId: localeId,
+        listenFor: listenFor,
+        pauseFor: pauseFor,
       );
       _isListening = true;
       sttLog(
