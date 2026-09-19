@@ -3,10 +3,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patrol/patrol.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
+import 'package:vocab_kr/core/utils/fsrs_algorithm.dart';
 import 'package:vocab_kr/core/stt_simulator.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
+import 'package:vocab_kr/data/seed/starter_seeder.dart';
+import 'package:vocab_kr/domain/entities/variant_progress.dart';
+import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
+import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
 import 'test_helpers.dart';
 
 /// Shared Patrol config for the whole E2E suite.
@@ -36,6 +42,7 @@ enum Screen {
   listDetail,
   startSession,
   grammar,
+  grammarLesson,
   profile,
   stats,
   settings,
@@ -59,6 +66,7 @@ String _screenRootKey(Screen s) => switch (s) {
       Screen.listDetail => WidgetKeys.screenListDetail,
       Screen.startSession => WidgetKeys.screenStartSession,
       Screen.grammar => WidgetKeys.screenGrammar,
+      Screen.grammarLesson => WidgetKeys.screenGrammarLesson,
       Screen.profile => WidgetKeys.screenProfile,
       Screen.stats => WidgetKeys.screenStats,
       Screen.settings => WidgetKeys.screenSettings,
@@ -150,7 +158,86 @@ class GivenSteps {
   /// A clean slate: deletes EVERY existing list via the data layer, so the
   /// free-plan list quota is empty before a UI-driven create. Fast (no UI).
   Future<void> aCleanSlate() => deleteAllLists($);
+
+  /// Seeds the real production French → Korean starter curriculum. TEST_MODE
+  /// intentionally skips automatic seed data, so a prerequisite E2E invokes
+  /// the same [StarterSeeder] the app uses in production, with its per-pair
+  /// idempotency flag reset after the isolated test cleanup.
+  Future<void> theFrenchKoreanStarterCurriculum() async {
+    await deleteAllLists($);
+    final container = _container($);
+    final user = container.read(currentUserProvider);
+    if (user == null) {
+      throw StateError('Starter curriculum E2E needs an authenticated user.');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(StarterSeeder.flagKeyFor(user.id, 'fr', 'ko'));
+    await container.read(starterSeederProvider).ensureSeededForPair('fr', 'ko');
+
+    container.invalidate(myListsProvider);
+    final lists = await container.read(myListsProvider.future);
+    for (final token in _requiredFrenchKoreanStarterTokens) {
+      final found = lists.any((list) =>
+          list.seedId?.startsWith('$token:fr>ko') == true &&
+          list.langB == 'ko');
+      if (!found) {
+        throw StateError('Starter fixture did not create $token.');
+      }
+    }
+    await $.pump(const Duration(milliseconds: 700));
+  }
+
+  /// Persists graduated FSRS progress for every concept in one production
+  /// starter list. Grammar availability still reads the resulting data through
+  /// `getListStats` → `ruleStatusesProvider`; no RuleStatus is overridden.
+  Future<void> theStarterListIsKnown(String token) async {
+    final container = _container($);
+    container.invalidate(myListsProvider);
+    final lists = await container.read(myListsProvider.future);
+    final list = lists.firstWhere((list) =>
+        list.seedId?.startsWith('$token:fr>ko') == true && list.langB == 'ko');
+    final vocabulary = container.read(vocabularyRepositoryProvider);
+    final progress = container.read(progressRepositoryProvider);
+    final concepts = await vocabulary.watchConcepts(list.id).first;
+    if (concepts.isEmpty) {
+      throw StateError('Starter list $token has no concepts.');
+    }
+
+    for (final concept in concepts) {
+      final variants = (await vocabulary.getVariants(concept.id)).valueOrNull;
+      final variant = variants?.firstOrNull;
+      if (variant == null) {
+        throw StateError(
+            'Concept ${concept.id} in $token has no word variant.');
+      }
+      final current = (await progress.getProgress(
+        variantId: variant.id,
+        direction: QuizDirection.frToKo,
+      ))
+          .valueOrNull;
+      if (current == null) {
+        throw StateError('Could not initialise progress for ${variant.word}.');
+      }
+      final saved = await progress.updateProgress(current.copyWith(
+        state: CardState.review,
+        scheduledDays: 21,
+        reps: 3,
+        lastReview: DateTime.now(),
+        nextReview: DateTime.now().add(const Duration(days: 21)),
+      ));
+      if (!saved.isSuccess) {
+        throw StateError('Could not persist progress for ${variant.word}.');
+      }
+    }
+  }
 }
+
+const _requiredFrenchKoreanStarterTokens = [
+  'starter-greetings',
+  'starter-food',
+  'starter-daily-life',
+];
 
 // ── WHEN — actions ────────────────────────────────────────────────────────────
 
@@ -214,6 +301,27 @@ class WhenSteps {
     await $(f).scrollTo();
     await $(f).tap();
     await $.pump(const Duration(milliseconds: 600));
+  }
+
+  /// On a locked grammar card, opens its exact prerequisite vocabulary list.
+  Future<void> opensGrammarPrerequisite({
+    required String ruleId,
+    required String token,
+  }) async {
+    final card = find.byKey(ValueKey(WidgetKeys.grammarRuleCard(ruleId)));
+    await $(card).scrollTo();
+    await $(card).waitUntilVisible(timeout: const Duration(seconds: 30));
+    final prerequisite =
+        find.byKey(ValueKey(WidgetKeys.grammarPrerequisiteList(token)));
+    await $(prerequisite).scrollTo();
+    await $(prerequisite).tap();
+  }
+
+  /// Opens an unlocked lesson reader from its grammar card.
+  Future<void> opensGrammarLesson(String ruleId) async {
+    final open = find.byKey(ValueKey(WidgetKeys.grammarRuleOpenLesson(ruleId)));
+    await $(open).scrollTo();
+    await $(open).tap();
   }
 
   // ── Auth flows ──────────────────────────────────────────────────────────────
@@ -482,6 +590,15 @@ class ThenSteps {
   Future<void> onScreen(Screen screen) =>
       $(find.byKey(ValueKey(_screenRootKey(screen))))
           .waitUntilVisible(timeout: const Duration(seconds: 30));
+
+  /// The rule remains locked: its lesson-reader CTA is absent from its card.
+  Future<void> grammarRuleIsLocked(String ruleId) async {
+    final card = find.byKey(ValueKey(WidgetKeys.grammarRuleCard(ruleId)));
+    await $(card).scrollTo();
+    await $(card).waitUntilVisible(timeout: const Duration(seconds: 30));
+    expect(find.byKey(ValueKey(WidgetKeys.grammarRuleOpenLesson(ruleId))),
+        findsNothing);
+  }
 
   /// The given user-data [text] (a word or list name — not localized UI copy)
   /// is visible on screen.

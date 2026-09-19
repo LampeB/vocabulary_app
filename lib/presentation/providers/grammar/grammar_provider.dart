@@ -186,6 +186,11 @@ class RuleStatus {
 /// not-yet-adopted legacy lists.
 final ruleStatusesProvider =
     FutureProvider.family<List<RuleStatus>, String>((ref, targetLang) async {
+  // Same dependency as drill words: prerequisite fractions are derived from
+  // FSRS rows, so the lock state must refresh as vocabulary is learned. Await
+  // the stream provider's current revision just like grammar progress below;
+  // later revisions invalidate and recalculate this provider.
+  await ref.watch(vocabularyProgressChangesProvider.future);
   final rules = await ref.watch(grammarRulesProvider(targetLang).future);
   if (rules.isEmpty) return const [];
   final lists = await ref.watch(myListsProvider.future);

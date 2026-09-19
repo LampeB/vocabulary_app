@@ -343,5 +343,6 @@ If step 2 had found a gap (say the spec wanted KO→FR), you'd first add
 - [ ] Any new selector is a `WidgetKeys` constant wired into the widget.
 - [ ] Seeded data is torn down (`addTearDown`).
 - [ ] One-line comment states the behaviour proven.
-- [ ] New E2E file is imported by an umbrella target.
+- [ ] New E2E file is added to the CI target list in `e2e.yml` (an umbrella
+      target is optional and should not be the CI gate).
 - [ ] `flutter analyze` clean; host tests pass with `LD_LIBRARY_PATH`.
