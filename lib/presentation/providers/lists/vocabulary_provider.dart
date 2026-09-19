@@ -48,6 +48,15 @@ final progressDaoProvider = Provider<ProgressDao>(
   (ref) => ref.watch(appDatabaseProvider).progressDao,
 );
 
+/// Emits whenever the signed-in learner's FSRS rows change. This is separate
+/// from [myListsProvider]: completing a card changes list *progress*, not its
+/// metadata, but consumers such as grammar prerequisites must recompute.
+final vocabularyProgressChangesProvider = StreamProvider<void>((ref) {
+  final userId = ref.watch(currentUserProvider)?.id ?? '';
+  if (userId.isEmpty) return Stream<void>.empty();
+  return ref.watch(progressDaoProvider).watchChanges(userId);
+});
+
 final vocabularyRemoteProvider = Provider<VocabularyRemoteDataSource>(
   (ref) => VocabularyRemoteDataSource(ref.watch(supabaseClientProvider)),
 );

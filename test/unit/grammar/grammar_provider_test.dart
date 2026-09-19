@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,7 +15,6 @@ import 'package:vocab_kr/domain/entities/subscription_type.dart';
 import 'package:vocab_kr/domain/entities/variant_progress.dart';
 import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
 import 'package:vocab_kr/domain/repositories/progress_repository.dart';
-import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/grammar/grammar_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
@@ -90,6 +91,11 @@ VariantProgress _progress(String id, String variantId) => VariantProgress(
       createdAt: DateTime(2026),
       updatedAt: DateTime(2026),
     );
+
+Stream<void> _withInitialProgressChange(Stream<void> changes) async* {
+  yield null;
+  yield* changes;
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -231,6 +237,8 @@ void main() {
       grammarProgressProvider.overrideWith((ref) => Stream.value({
             'mastered': (shown: 10, correct: 10, mastered: true),
           })),
+      vocabularyProgressChangesProvider
+          .overrideWith((ref) => Stream<void>.value(null)),
       drillWordsProvider.overrideWith((ref, lang) async => const [
             DrillWord(word: '학생', category: 'nom'),
             DrillWord(word: '친구', category: 'nom'),
@@ -260,5 +268,50 @@ void main() {
     expect(mastered.availability, RuleAvailability.mastered);
     expect(mastered.correct, 10);
     expect(mastered.enoughWords, isFalse);
+  });
+
+  test('refreshes prerequisite availability when FSRS progress changes',
+      () async {
+    final changes = StreamController<void>.broadcast();
+    addTearDown(changes.close);
+    final stats = <String, Map<String, int>>{
+      'starter': {'known': 0, 'total': 10},
+    };
+    final container = ProviderContainer(overrides: [
+      grammarRulesProvider.overrideWith((ref, lang) async => [
+            _rule('reactive', prerequisites: const ['a'])
+          ]),
+      grammarModuleProvider
+          .overrideWith((ref, lang) async => const KoreanGrammarModule()),
+      myListsProvider.overrideWith((ref) =>
+          Stream.value([_list(id: 'starter', name: 'A', seedId: 'a:fr>ko')])),
+      progressRepositoryProvider
+          .overrideWithValue(_StatsProgressRepository(stats)),
+      grammarProgressProvider.overrideWith((ref) => Stream.value({})),
+      drillWordsProvider.overrideWith((ref, lang) async => const []),
+      vocabularyProgressChangesProvider
+          .overrideWith((ref) => _withInitialProgressChange(changes.stream)),
+    ]);
+    addTearDown(container.dispose);
+
+    final initial = await container.read(ruleStatusesProvider('ko').future);
+    expect(initial.single.availability, RuleAvailability.locked);
+
+    final refreshed = Completer<List<RuleStatus>>();
+    final subscription =
+        container.listen(ruleStatusesProvider('ko'), (_, next) {
+      final statuses = next.valueOrNull;
+      if (statuses?.single.availability == RuleAvailability.unlocked &&
+          !refreshed.isCompleted) {
+        refreshed.complete(statuses!);
+      }
+    });
+    addTearDown(subscription.close);
+
+    stats['starter'] = {'known': 10, 'total': 10};
+    changes.add(null);
+
+    expect((await refreshed.future).single.availability,
+        RuleAvailability.unlocked);
   });
 }

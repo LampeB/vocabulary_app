@@ -10,6 +10,18 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
     with _$ProgressDaoMixin {
   ProgressDao(super.db);
 
+  /// Emits after any of [userId]'s FSRS rows changes. Consumers that derive
+  /// aggregate vocabulary state (for example lesson prerequisites) need this
+  /// invalidation signal even when a list's metadata itself did not change.
+  Stream<void> watchChanges(String userId) async* {
+    // Make the dependency usable immediately; a table watch alone may not emit
+    // until its first database invalidation on some test/back-end combinations.
+    yield null;
+    yield* (select(variantProgressTable)..where((t) => t.userId.equals(userId)))
+        .watch()
+        .map((_) {});
+  }
+
   Stream<int> watchDueCount(String userId) {
     final now = DateTime.now();
     return (selectOnly(variantProgressTable)
@@ -38,8 +50,7 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
       'WHERE vp.user_id = ?',
       variables: [Variable<String>(userId)],
       readsFrom: {variantProgressTable, wordVariantsTable, db.conceptsTable},
-    ).watch().map(
-        (rows) => rows.map((r) => r.read<String>('list_id')).toSet());
+    ).watch().map((rows) => rows.map((r) => r.read<String>('list_id')).toSet());
   }
 
   /// Due-card count for a single language pair (both directions), so the quiz
@@ -215,13 +226,12 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
     required List<String> variantIds,
   }) =>
       (delete(variantProgressTable)
-            ..where((t) =>
-                t.userId.equals(userId) & t.variantId.isIn(variantIds)))
+            ..where(
+                (t) => t.userId.equals(userId) & t.variantId.isIn(variantIds)))
           .go();
 
   Future<List<VariantProgressTableData>> getUnsyncedProgress() =>
-      (select(variantProgressTable)
-            ..where((t) => t.isSynced.equals(false)))
+      (select(variantProgressTable)..where((t) => t.isSynced.equals(false)))
           .get();
 
   /// Returns all rows the user has mastered: FSRS review state with
