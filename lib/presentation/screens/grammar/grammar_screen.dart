@@ -139,6 +139,7 @@ class _RuleCard extends StatelessWidget {
             const SizedBox(height: 10),
             for (final name in status.rule.prerequisiteLists) ...[
               _Bar(
+                key: ValueKey(WidgetKeys.grammarPrerequisiteList(name)),
                 label: status.prereqNames[name] ?? name,
                 fraction: (status.prereqProgress[name] ?? 0).clamp(0.0, 1.0),
                 color: AppColors.clay,
@@ -181,6 +182,7 @@ class _RuleCard extends StatelessWidget {
 
 class _Bar extends StatelessWidget {
   const _Bar({
+    super.key,
     required this.label,
     required this.fraction,
     required this.color,
@@ -230,6 +232,7 @@ class _Bar extends StatelessWidget {
     return onTap == null
         ? child
         : InkWell(
+            key: key,
             onTap: onTap,
             borderRadius: BorderRadius.circular(8),
             child: Padding(
