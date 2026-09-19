@@ -31,6 +31,7 @@ enum Dir { frToKo, koToFr, both }
 enum Screen {
   welcome,
   home,
+  dailyPath,
   lists,
   listDetail,
   startSession,
@@ -53,6 +54,7 @@ enum ProfileTile { stats, settings, notifications, signOut }
 String _screenRootKey(Screen s) => switch (s) {
       Screen.welcome => WidgetKeys.screenWelcome,
       Screen.home => WidgetKeys.screenHome,
+      Screen.dailyPath => WidgetKeys.screenDailyPath,
       Screen.lists => WidgetKeys.screenLists,
       Screen.listDetail => WidgetKeys.screenListDetail,
       Screen.startSession => WidgetKeys.screenStartSession,
@@ -176,6 +178,22 @@ class WhenSteps {
     await $(find.byKey(const ValueKey(WidgetKeys.startSessionStart)))
         .waitUntilVisible(timeout: const Duration(seconds: 30));
   }
+
+  /// Opens the optional daily path from the signed-in home screen.
+  Future<void> opensDailyPath() async {
+    await $(find.byKey(const ValueKey(WidgetKeys.homeDailyPath))).tap();
+    await $(find.byKey(const ValueKey(WidgetKeys.screenDailyPath)))
+        .waitUntilVisible(timeout: const Duration(seconds: 30));
+  }
+
+  /// Opens the daily vocabulary-discovery task. With a seeded list, this
+  /// reaches that list's detail screen; without one it falls back to Lists.
+  Future<void> opensDailyPractice() =>
+      $(find.byKey(const ValueKey(WidgetKeys.dailyPathPractice))).tap();
+
+  /// Opens the lessons hub from the daily path.
+  Future<void> opensDailyLessons() =>
+      $(find.byKey(const ValueKey(WidgetKeys.dailyPathLessons))).tap();
 
   /// Taps a V0 bottom-nav tab. The nav bar stays visible on signed-in screens.
   Future<void> tapsNavTab(NavTab tab) async {
