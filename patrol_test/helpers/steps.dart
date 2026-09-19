@@ -125,17 +125,24 @@ class GivenSteps {
   /// The user is signed in and on the Today screen.
   Future<void> signedIn() => launchAndSignIn($);
 
-  /// A fresh list [name] exists with exactly one word ([french] / [korean]).
+  /// A fresh list [name] exists with exactly one word. [french]/[korean] are
+  /// legacy parameter names for its first/second language; [langA]/[langB]
+  /// carry the real pair, so this fixture also supports EN→KO and KO→FR.
   /// Seeded via the provider layer (fast, and avoids the add-word dialog) after
   /// removing any stale list of the same name.
   Future<void> aListWithOneWord({
     required String name,
     required String french,
     required String korean,
+    String langA = 'fr',
+    String langB = 'ko',
   }) async {
     await deleteListsByName($, name);
     final actions = _container($).read(listActionsProvider.notifier);
-    final listId = (await actions.createList(name, null)).valueOrNull?.id;
+    final listId =
+        (await actions.createList(name, null, langA: langA, langB: langB))
+            .valueOrNull
+            ?.id;
     if (listId == null) {
       throw StateError('Could not create list "$name" (free-plan quota?).');
     }
@@ -462,10 +469,18 @@ class WhenSteps {
   }
 
   /// Chooses the language pair before selecting a list. The session setup has
-  /// no implicit default: selecting the target language opens the list section.
+  /// no implicit default: selecting a pair opens the list section.
   Future<void> choosesLanguage(String targetLanguage) async {
+    await choosesLanguagePair('fr', targetLanguage);
+  }
+
+  /// Chooses an exact source → target pair. This is required when a learner has
+  /// more than one route to the same target language (FR→KO and EN→KO).
+  Future<void> choosesLanguagePair(
+      String sourceLanguage, String targetLanguage) async {
     await $(find.byKey(ValueKey(WidgetKeys.startSection(0)))).tap();
-    await $(find.byKey(ValueKey(WidgetKeys.startLanguage(targetLanguage))))
+    await $(find.byKey(ValueKey(
+            WidgetKeys.startLanguagePair(sourceLanguage, targetLanguage))))
         .tap();
   }
 

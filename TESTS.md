@@ -21,12 +21,13 @@ patrol test --target patrol_test/quiz_test.dart \
 | `user_flows_test.dart` | Create/edit/delete a list through the UI · study the resulting list in typing and flashcard modes |
 | `daily_path_test.dart` | Daily-path vocabulary entry · Daily-path lessons entry |
 | `lesson_prerequisites_test.dart` | An unrelated list cannot unlock a lesson · real graduated prerequisite vocabulary unlocks and opens it |
+| `language_pairs_test.dart` | EN→KO and KO→FR pair selection · forward typing sessions validate the selected pair |
 | `quiz_test.dart` | Voice all-correct→100% · Voice all-wrong→0% · Hands-free auto→100% · Cartes known→100% · Cartes forgotten→0% |
 | `quiz_ecrire_test.dart` | Écrire correct/wrong · KO→FR · per-card verdicts · selected 10-card count |
 | `auth_flows_test.dart` | Sign-out · password-reset request response |
 | `auth_login_test.dart` | Real email/password login smoke test |
 
-The emulator workflow runs these eight suites separately, with retries per file.
+The emulator workflow runs these nine suites separately, with retries per file.
 `auth_test.dart`, `vocab_list_test.dart`, and `sign_up_test.dart` remain legacy
 standalone targets; the maintained coverage lives in the suites above.
 
