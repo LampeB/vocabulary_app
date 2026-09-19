@@ -111,6 +111,11 @@ abstract final class WidgetKeys {
   static String grammarRuleCard(String id) => 'grammar.rule.$id';
   static String grammarRuleStart(String id) => 'grammar.rule.start.$id';
   static String grammarRuleOpenLesson(String id) => 'grammar.rule.lesson.$id';
+
+  /// Tappable prerequisite row on a locked grammar lesson. [token] is the
+  /// stable curriculum-list id, not its localized display name.
+  static String grammarPrerequisiteList(String token) =>
+      'grammar.prerequisite.$token';
   static String startRule(String ruleId) => 'ss.rule.$ruleId';
   static const grammarLessonStart = 'grammar.lesson.start';
   static const grammarLessonPractice = 'grammar.lesson.practice';
