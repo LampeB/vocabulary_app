@@ -95,4 +95,34 @@ void main() {
     await tester.pump();
     expect(find.text('Welcome ready'), findsOneWidget);
   });
+
+  testWidgets('falls back to welcome when auth restoration times out',
+      (tester) async {
+    final pendingAuth = Completer<AppUser?>();
+
+    await pumpScreen(
+      tester,
+      screen: const SplashScreen(authTimeout: Duration(milliseconds: 10)),
+      settle: false,
+      overrides: [
+        authStateProvider
+            .overrideWith(() => _DelayedAuthNotifier(pendingAuth.future)),
+      ],
+      routes: [
+        GoRoute(
+          path: '/home',
+          builder: (_, __) => const Scaffold(body: Text('Home ready')),
+        ),
+        GoRoute(
+          path: '/welcome',
+          builder: (_, __) => const Scaffold(body: Text('Welcome ready')),
+        ),
+      ],
+    );
+
+    await tester.pump(const Duration(milliseconds: 11));
+    await tester.pump();
+
+    expect(find.text('Welcome ready'), findsOneWidget);
+  });
 }

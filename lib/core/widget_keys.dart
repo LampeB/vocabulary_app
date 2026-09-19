@@ -24,11 +24,14 @@ abstract final class WidgetKeys {
   static const screenStats = 'screen.stats';
   static const screenSettings = 'screen.settings';
   static const screenNotifications = 'screen.notifications';
+  // Retained for the legacy Home screen, which remains covered by widget tests.
+  // The active Parcours home does not render this control; notifications are
+  // reached from Profile and exercised there by Patrol.
+  static const homeBell = 'home.bell';
   static const screenPaywall = 'screen.paywall';
   static const screenImport = 'screen.import';
 
   // ── Home ───────────────────────────────────────────────────────────────────
-  static const homeBell = 'home.bell'; // header bell → notifications
   static const homePairPicker = 'home.pair_picker';
   static const homeDailyPath = 'home.daily_path';
   static const dailyPathReview = 'daily_path.review';

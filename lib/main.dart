@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,12 +27,19 @@ const _kTestSession = String.fromEnvironment('TEST_SESSION');
 bool _initialized = false;
 
 Future<void> main() async {
+  // `main()` is also called by Patrol after its binding is already created.
+  // Do not create another Dart zone here: Flutter requires binding creation
+  // and runApp to share one zone in both normal and integration-test launches.
   WidgetsFlutterBinding.ensureInitialized();
 
-  FlutterError.onError = (details) {
-    FlutterError.presentError(details);
-    debugPrint('[FlutterError] ${details.exceptionAsString()}');
-  };
+  // Patrol owns FlutterError.onError to report assertion failures. Replacing it
+  // makes a genuine test error look like a runner crash instead.
+  if (!_kTestMode) {
+    FlutterError.onError = (details) {
+      FlutterError.presentError(details);
+      debugPrint('[FlutterError] ${details.exceptionAsString()}');
+    };
+  }
 
   if (!_initialized) {
     await Supabase.initialize(
@@ -63,28 +69,25 @@ Future<void> main() async {
 
   await EasyLocalization.ensureInitialized();
 
-  runZonedGuarded(
-    () => runApp(EasyLocalization(
-      supportedLocales: const [
-        Locale('fr'),
-        Locale('en'),
-        Locale('es'),
-        Locale('de'),
-        Locale('it'),
-        Locale('ja'),
-        Locale('ko'),
+  runApp(EasyLocalization(
+    supportedLocales: const [
+      Locale('fr'),
+      Locale('en'),
+      Locale('es'),
+      Locale('de'),
+      Locale('it'),
+      Locale('ja'),
+      Locale('ko'),
+    ],
+    path: 'assets/translations',
+    fallbackLocale: const Locale('fr'),
+    startLocale: _kTestLocale.isEmpty ? null : Locale(_kTestLocale),
+    child: ProviderScope(
+      overrides: [
+        notificationServiceProvider
+            .overrideWithValue(NotificationService.instance),
       ],
-      path: 'assets/translations',
-      fallbackLocale: const Locale('fr'),
-      startLocale: _kTestLocale.isEmpty ? null : Locale(_kTestLocale),
-      child: ProviderScope(
-        overrides: [
-          notificationServiceProvider
-              .overrideWithValue(NotificationService.instance),
-        ],
-        child: const VocabKrApp(),
-      ),
-    )),
-    (error, stack) => debugPrint('[ZoneError] $error\n$stack'),
-  );
+      child: const VocabKrApp(),
+    ),
+  ));
 }

@@ -9,9 +9,9 @@ step library (`patrol_test/helpers/steps.dart`), selecting widgets by stable key
 a step can state intent — `given.theLearnerWillAnswerCorrectly()` — and one run
 covers both correct and wrong cases.
 
-Run the quiz suite via its umbrella target:
+Run a suite on a connected Android emulator:
 ```
-patrol test --target patrol_test/quiz_all_test.dart \
+patrol test --target patrol_test/quiz_test.dart \
             --dart-define-from-file=test.env.json -d <device-id>
 ```
 
@@ -29,7 +29,7 @@ the simulator off — don't call a `given.theLearnerWillAnswer…` step).
 
 | File | Use |
 |------|-----|
-| `test.env.json` | Default — `SIMULATE_SPEECH=correct` seeds the simulator; steps override per scenario |
+| `test.env.json` | Default — copy `test.env.json.example`, fill the test-account credentials, and keep `TEST_MODE=true` / `TEST_LOCALE=fr` |
 | `test.free.env.json` | Alias for the free plan |
 | `test.nosim.env.json` | Real STT on device (simulator off) |
 
@@ -173,7 +173,7 @@ Progress/FSRS layer over in-memory DB.
 
 ---
 
-**Total: 224 unit/integration tests on host** (`flutter test`), plus the Patrol
+**Total: 745 host tests** (`flutter test`, snapshot at 2026-09-19), plus the Patrol
 E2E suite above (run on a device).
 
 ---
