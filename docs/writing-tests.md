@@ -55,6 +55,7 @@ patrolTest('Voice — all answers correct → 100%',
   await app.given.theLearnerWillAnswerCorrectly();
 
   await app.when.opensStartASession();
+  await app.when.choosesLanguage('ko');
   await app.when.choosesList(_list);
   await app.when.choosesQuizType(Quiz.voice);
   await app.when.startsTheSession();
@@ -97,6 +98,7 @@ grouped `given` / `when` / `then`. Each does **one** thing and is named for it.
 | Step | Effect |
 |------|--------|
 | `when.opensStartASession()` | Tap the raised centre **Study** nav button → Start-a-session screen. |
+| `when.choosesLanguage(targetLanguage)` | Pick the target language (`'ko'` for a French → Korean list), which opens the list section. |
 | `when.choosesList(name)` | Pick the list to study by name. |
 | `when.choosesQuizType(Quiz mode)` | Pick `Quiz.voice` / `.flashcard` / `.typing` / `.handsFree`. |
 | `when.startsTheSession()` | Tap **Commencer** (grants the mic on real-STT runs). |
@@ -205,14 +207,13 @@ When a spec needs something the steps don't cover:
 
 ```bash
 # Local, on a connected device/emulator:
-patrol test --target patrol_test/quiz_all_test.dart \
+patrol test --target patrol_test/quiz_test.dart \
             --dart-define-from-file=test.env.json -d <device-id>
 
 # Cloud (no device): GitHub Actions → "E2E (emulator)" workflow_dispatch.
 ```
-New scenario files must be imported by the umbrella
-[`patrol_test/quiz_all_test.dart`](../patrol_test/quiz_all_test.dart) (or another
-target) to run in CI.
+New scenario files must be added to the target list in
+[`.github/workflows/e2e.yml`](../.github/workflows/e2e.yml) to run in CI.
 
 ### 2.9 Test data isolation & cleanup
 
@@ -318,6 +319,7 @@ patrolTest('Écrire — correct typed answer → 100%',
   await app.given.aListWithOneWord(name: _list, french: _fr, korean: _ko);
 
   await app.when.opensStartASession();
+  await app.when.choosesLanguage('ko');
   await app.when.choosesList(_list);
   await app.when.choosesQuizType(Quiz.typing);
   await app.when.startsTheSession();

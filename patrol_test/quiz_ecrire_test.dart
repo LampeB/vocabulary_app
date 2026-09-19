@@ -14,19 +14,20 @@ const _fr = 'Bonjour';
 const _ko = '안녕하세요';
 
 void main() {
-
   // Type the correct Korean word on every card → 100%.
   patrolTest('Écrire — correct typed answer → 100%',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
+    addTearDown(
+        () => deleteAllLists($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate(); // start from a clean slate
     await app.given.aListWithOneWord(name: _list, french: _fr, korean: _ko);
 
     await app.when.opensStartASession();
+    await app.when.choosesLanguage('ko');
     await app.when.choosesList(_list);
     await app.when.choosesQuizType(Quiz.typing);
     await app.when.startsTheSession();
@@ -41,13 +42,15 @@ void main() {
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
+    addTearDown(
+        () => deleteAllLists($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate(); // start from a clean slate
     await app.given.aListWithOneWord(name: _list, french: _fr, korean: _ko);
 
     await app.when.opensStartASession();
+    await app.when.choosesLanguage('ko');
     await app.when.choosesList(_list);
     await app.when.choosesQuizType(Quiz.typing);
     await app.when.startsTheSession();
@@ -65,13 +68,15 @@ void main() {
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
+    addTearDown(
+        () => deleteAllLists($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate(); // start from a clean slate
     await app.given.aListWithOneWord(name: _list, french: _fr, korean: _ko);
 
     await app.when.opensStartASession();
+    await app.when.choosesLanguage('ko');
     await app.when.choosesList(_list);
     await app.when.choosesQuizType(Quiz.typing);
     await app.when.choosesDirection(Dir.koToFr);
@@ -88,13 +93,15 @@ void main() {
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
+    addTearDown(
+        () => deleteAllLists($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate(); // start from a clean slate
     await app.given.aListWithOneWord(name: _list, french: _fr, korean: _ko);
 
     await app.when.opensStartASession();
+    await app.when.choosesLanguage('ko');
     await app.when.choosesList(_list);
     await app.when.choosesQuizType(Quiz.typing);
     await app.when.startsTheSession();
@@ -108,13 +115,15 @@ void main() {
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
+    addTearDown(
+        () => deleteAllLists($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate(); // start from a clean slate
     await app.given.aListWithOneWord(name: _list, french: _fr, korean: _ko);
 
     await app.when.opensStartASession();
+    await app.when.choosesLanguage('ko');
     await app.when.choosesList(_list);
     await app.when.choosesQuizType(Quiz.typing);
     await app.when.startsTheSession();
@@ -131,13 +140,15 @@ void main() {
       timeout: const Timeout(Duration(minutes: 8)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
+    addTearDown(
+        () => deleteAllLists($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate(); // start from a clean slate
     await app.given.aListWithOneWord(name: _list, french: _fr, korean: _ko);
 
     await app.when.opensStartASession();
+    await app.when.choosesLanguage('ko');
     await app.when.choosesList(_list);
     await app.when.choosesQuizType(Quiz.typing);
     await app.when.choosesDirection(Dir.frToKo); // advances accordion to count

@@ -17,7 +17,8 @@ patrol test --target patrol_test/quiz_test.dart \
 
 | File | Scenarios |
 |------|-----------|
-| `quiz_test.dart` | Voice all-correct→100% · Voice all-wrong→0% · Hands-free auto→100% · Cartes known→100% · Cartes forgotten→0% · Écrire correct→100% · Écrire wrong→0% (+ JIT warmup) |
+| `quiz_test.dart` | Voice all-correct→100% · Voice all-wrong→0% · Hands-free auto→100% · Cartes known→100% · Cartes forgotten→0% |
+| `quiz_ecrire_test.dart` | Écrire correct/wrong · KO→FR · per-card verdicts · selected 10-card count |
 | `auth_test.dart` | sign-in lands on Today · profile loaded after sign-in |
 | `vocab_list_test.dart` | created list appears · word added is visible · word count matches |
 | `sign_up_test.dart` | sign-up flow |
