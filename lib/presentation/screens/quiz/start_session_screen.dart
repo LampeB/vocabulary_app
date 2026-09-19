@@ -282,7 +282,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
         for (final (i, p) in pairs.indexed) ...[
           if (i != 0) const SizedBox(height: 8),
           _OptionTile(
-            key: ValueKey(WidgetKeys.startLanguage(p.$2)),
+            key: ValueKey(WidgetKeys.startLanguagePair(p.$1, p.$2)),
             label: '${Languages.flagFor(p.$1)} → ${Languages.flagFor(p.$2)}'
                 '   ${_cap(Languages.displayName(p.$2))}',
             selected: _langChosen && _langA == p.$1 && _langB == p.$2,

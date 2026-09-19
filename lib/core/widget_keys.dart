@@ -104,7 +104,14 @@ abstract final class WidgetKeys {
   static String startSection(int index) => 'ss.section.$index'; // header
   static String startSmart(String name) =>
       'ss.smart.$name'; // 'due' | 'inprogress'
-  static String startLanguage(String langB) => 'ss.lang.$langB'; // target lang
+  /// A study-pair option in the first session-setup section. The source is
+  /// part of the identity: French → Korean and English → Korean are distinct
+  /// choices even though they share a target language.
+  static String startLanguagePair(String langA, String langB) =>
+      'ss.lang.$langA.$langB';
+
+  /// Legacy shorthand for the original French → target flow.
+  static String startLanguage(String langB) => startLanguagePair('fr', langB);
   static String homeReviewMode(String mode) => 'home.review.$mode';
   static const screenGrammar = 'screen.grammar';
   static const screenGrammarLesson = 'screen.grammar_lesson';
