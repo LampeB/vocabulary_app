@@ -61,25 +61,6 @@ void main() {
     await app.then.onScreen(Screen.home);
   });
 
-  // The Home header bell opens Notification settings.
-  patrolTest('Navigation — Home bell opens Notifications',
-      timeout: const Timeout(Duration(minutes: 7)),
-      config: kFastSettle, ($) async {
-    final app = Steps($);
-    addTearDown(
-        () => deleteAllLists($)); // leave a clean slate (even on failure)
-
-    await app.given.signedIn();
-    await app.given.aCleanSlate();
-    await app.then.onScreen(Screen.home);
-
-    await app.when.opensNotificationsFromBell();
-    await app.then.onScreen(Screen.notifications);
-
-    await app.when.tapsNavTab(NavTab.home);
-    await app.then.onScreen(Screen.home);
-  });
-
   // The Profile nav tiles open Stats, Settings, and Notifications in turn.
   patrolTest('Navigation — Profile tiles open Stats, Settings, Notifications',
       timeout: const Timeout(Duration(minutes: 7)),

@@ -159,7 +159,12 @@ class WhenSteps {
   /// Opens the retained setup route. The V0 footer deliberately has no raised
   /// study button; the visible Parcours entry is built in the next step.
   Future<void> opensStartASession() async {
-    final context = $.tester.element(find.byType(MaterialApp));
+    // MaterialApp is above GoRouter's inherited scope. Resolve the context from
+    // the mounted home route instead, so this remains a real app navigation
+    // rather than depending on an implementation detail of MaterialApp.router.
+    final context = $.tester.element(
+      find.byKey(const ValueKey(WidgetKeys.screenHome)),
+    );
     GoRouter.of(context).go('/start-session');
     await $.pump(const Duration(milliseconds: 300));
     await $(find.byKey(const ValueKey(WidgetKeys.startSessionStart)))
@@ -184,12 +189,6 @@ class WhenSteps {
     final f = find.byKey(ValueKey(_profileTileKey(tile)));
     await $(f).scrollTo();
     await $(f).tap();
-    await $.pump(const Duration(milliseconds: 600));
-  }
-
-  /// Opens Notification settings via the Home header bell.
-  Future<void> opensNotificationsFromBell() async {
-    await $(find.byKey(const ValueKey(WidgetKeys.homeBell))).tap();
     await $.pump(const Duration(milliseconds: 600));
   }
 

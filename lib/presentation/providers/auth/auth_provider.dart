@@ -8,6 +8,11 @@ import '../../../domain/repositories/auth_repository.dart';
 import '../../../core/errors/failure.dart';
 import '../../../services/purchases/purchase_service.dart';
 
+// Test builds deliberately skip the RevenueCat bootstrap. Auth must skip its
+// companion login/logout calls too, otherwise native purchase calls race the
+// E2E runner with an unconfigured SDK.
+const _kTestMode = bool.fromEnvironment('TEST_MODE');
+
 final supabaseClientProvider = Provider<SupabaseClient>(
   (_) => Supabase.instance.client,
 );
@@ -39,13 +44,13 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
         state = const AsyncData(null);
         return;
       }
-      unawaited(PurchaseService.instance.logIn(user.id));
+      if (!_kTestMode) unawaited(PurchaseService.instance.logIn(user.id));
       final result = await _repo.reloadProfile();
       state = AsyncData(result.valueOrNull ?? user);
     });
     final user = _repo.currentUser;
     if (user == null) return null;
-    unawaited(PurchaseService.instance.logIn(user.id));
+    if (!_kTestMode) unawaited(PurchaseService.instance.logIn(user.id));
     final result = await _repo.reloadProfile();
     return result.valueOrNull ?? user;
   }
@@ -57,7 +62,7 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
     result.fold(
       onSuccess: (user) {
         state = AsyncData(user);
-        unawaited(PurchaseService.instance.logIn(user.id));
+        if (!_kTestMode) unawaited(PurchaseService.instance.logIn(user.id));
       },
       onFailure: (e) => state = AsyncError(e, StackTrace.current),
     );
@@ -72,7 +77,7 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
     result.fold(
       onSuccess: (user) {
         state = AsyncData(user);
-        unawaited(PurchaseService.instance.logIn(user.id));
+        if (!_kTestMode) unawaited(PurchaseService.instance.logIn(user.id));
       },
       onFailure: (e) => state = AsyncError(e, StackTrace.current),
     );
@@ -81,7 +86,7 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
 
   Future<void> signOut() async {
     await _repo.signOut();
-    unawaited(PurchaseService.instance.logOut());
+    if (!_kTestMode) unawaited(PurchaseService.instance.logOut());
     state = const AsyncData(null);
   }
 
