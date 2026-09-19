@@ -160,11 +160,17 @@ class WhenSteps {
   /// study button; the visible Parcours entry is built in the next step.
   Future<void> opensStartASession() async {
     // MaterialApp is above GoRouter's inherited scope. Resolve the context from
-    // the mounted home route instead, so this remains a real app navigation
-    // rather than depending on an implementation detail of MaterialApp.router.
-    final context = $.tester.element(
+    // whichever signed-in route is currently mounted, rather than assuming the
+    // learner is on Home: the UI-driven flows arrive here from Lists too.
+    final routeRoot = <Finder>[
       find.byKey(const ValueKey(WidgetKeys.screenHome)),
-    );
+      find.byKey(const ValueKey(WidgetKeys.screenLists)),
+      find.byKey(const ValueKey(WidgetKeys.screenListDetail)),
+      find.byKey(const ValueKey(WidgetKeys.screenGrammar)),
+      find.byKey(const ValueKey(WidgetKeys.screenStats)),
+      find.byKey(const ValueKey(WidgetKeys.screenProfile)),
+    ].firstWhere((finder) => finder.evaluate().isNotEmpty);
+    final context = $.tester.element(routeRoot);
     GoRouter.of(context).go('/start-session');
     await $.pump(const Duration(milliseconds: 300));
     await $(find.byKey(const ValueKey(WidgetKeys.startSessionStart)))
@@ -329,7 +335,15 @@ class WhenSteps {
     await $.pump(const Duration(milliseconds: 600));
   }
 
-  /// Picks the list to study (its accordion section is open by default).
+  /// Chooses the language pair before selecting a list. The session setup has
+  /// no implicit default: selecting the target language opens the list section.
+  Future<void> choosesLanguage(String targetLanguage) async {
+    await $(find.byKey(ValueKey(WidgetKeys.startSection(0)))).tap();
+    await $(find.byKey(ValueKey(WidgetKeys.startLanguage(targetLanguage))))
+        .tap();
+  }
+
+  /// Picks the list to study after [choosesLanguage] has opened its section.
   Future<void> choosesList(String name) => $(find.text(name)).tap();
 
   /// Picks the quiz input mode (voice / flashcard / typing / hands-free).
@@ -370,31 +384,36 @@ class WhenSteps {
     }
   }
 
-  /// Flashcards: flip and self-grade every card as "Je savais" (known) until the
-  /// session ends. Cartes isn't auto-advanced, so each card is flip → grade →
-  /// Continuer.
-  Future<void> answersEachCardAsKnown() => _gradeEachCard(WidgetKeys.gradeKnew);
+  /// Flashcards: flip and swipe every card right for "Je savais" until the
+  /// session ends. This mirrors the V3 flashcard interaction; it has no grade
+  /// buttons or intermediate verdict screen.
+  Future<void> answersEachCardAsKnown() => _swipeEachFlashcard(knew: true);
 
-  /// Flashcards: flip and self-grade every card as "À revoir" (forgotten).
-  Future<void> answersEachCardAsForgotten() =>
-      _gradeEachCard(WidgetKeys.gradeAgain);
+  /// Flashcards: flip and swipe every card left for "Pas encore".
+  Future<void> answersEachCardAsForgotten() => _swipeEachFlashcard(knew: false);
 
-  Future<void> _gradeEachCard(String gradeKey) async {
+  Future<void> _swipeEachFlashcard({required bool knew}) async {
     final summary = find.byKey(const ValueKey(WidgetKeys.summary));
     final card = find.byKey(const ValueKey(WidgetKeys.cartesCard));
-    final grade = find.byKey(ValueKey(gradeKey));
-    final cont = find.byKey(const ValueKey(WidgetKeys.feedbackContinue));
     await $(card).waitUntilVisible(timeout: const Duration(seconds: 30));
-    for (var i = 0; i < 240; i++) {
+    for (var i = 0; i < 120; i++) {
       if (summary.evaluate().isNotEmpty) return;
-      if (grade.evaluate().isNotEmpty) {
-        await $(grade).tap(); // back is showing → grade it
-      } else if (cont.evaluate().isNotEmpty) {
-        await $(cont).tap(); // verdict flood → next card
-      } else if (card.evaluate().isNotEmpty) {
-        await $(card).tap(); // front is showing → flip to reveal
-      }
-      await $.pump(const Duration(milliseconds: 400));
+      await $(card).tap(); // front → flip and reveal the answer
+      // The V3 card turn takes ~1 s. Swiping before its reverse side is active
+      // intentionally does nothing, so wait for the same fixed duration as the
+      // widget-level interaction test.
+      await $.pump(const Duration(seconds: 1));
+      // Use Patrol's device gesture instead of a widget-test fling. The latter
+      // can finish before LiveTestWidgetsFlutterBinding forwards its final drag
+      // update to the V3 GestureDetector on a physical emulator.
+      await $.platform.mobile.swipe(
+        from: const Offset(.5, .55),
+        to: Offset(knew ? .94 : .06, .55),
+        steps: 24,
+      );
+      // The peel animation waits 460 ms before the provider advances. Keep a
+      // margin so we always interact with the next physical card in the stack.
+      await $.pump(const Duration(seconds: 1));
     }
   }
 

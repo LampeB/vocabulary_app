@@ -19,7 +19,8 @@ void main() {
       timeout: const Timeout(Duration(minutes: 9)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
+    addTearDown(
+        () => deleteAllLists($)); // leave a clean slate (even on failure)
 
     // ── Connect (and start from a clean slate so the list quota is free) ──────
     await app.given.signedIn();
@@ -57,10 +58,11 @@ void main() {
     // ── Start a quiz, choosing a value in every section ───────────────────────
     await app.when.opensStartASession();
     await app.then.onScreen(Screen.startSession);
-    await app.when.choosesList(_flowList); // section 0 — the list
-    await app.when.choosesQuizType(Quiz.typing); // section 1 — Écrire
-    await app.when.choosesDirection(Dir.koToFr); // section 2 — KO→FR
-    await app.when.choosesCardCount(10); // section 3 — 10 cards
+    await app.when.choosesLanguage('ko'); // section 0 — Français → coréen
+    await app.when.choosesList(_flowList); // section 1 — the list
+    await app.when.choosesQuizType(Quiz.typing); // section 2 — Écrire
+    await app.when.choosesDirection(Dir.koToFr); // section 3 — KO→FR
+    await app.when.choosesCardCount(10); // section 4 — 10 cards
     await app.when.startsTheSession();
 
     // KO→FR → the expected answer is the French word; only 'Bonsoir' remains and
@@ -76,7 +78,8 @@ void main() {
       timeout: const Timeout(Duration(minutes: 8)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($)); // leave a clean slate (even on failure)
+    addTearDown(
+        () => deleteAllLists($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate();
@@ -90,6 +93,7 @@ void main() {
 
     await app.when.opensStartASession();
     await app.then.onScreen(Screen.startSession);
+    await app.when.choosesLanguage('ko');
     await app.when.choosesList(_studyList);
     await app.when.choosesQuizType(Quiz.flashcard);
     await app.when.startsTheSession();
