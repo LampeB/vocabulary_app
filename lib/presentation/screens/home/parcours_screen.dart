@@ -13,6 +13,13 @@ import '../../providers/grammar/grammar_provider.dart';
 import '../../providers/lists/vocabulary_provider.dart';
 import '../../providers/settings/default_pair_provider.dart';
 import '../../widgets/dotted_ground.dart';
+import 'v3_home_screen.dart';
+
+/// Active signed-in landing page. The previous path prototype remains below as
+/// [LegacyParcoursScreen] until its route view is migrated separately.
+class ParcoursScreen extends V3HomeScreen {
+  const ParcoursScreen({super.key});
+}
 
 /// V0's signed-in landing screen.
 ///
@@ -20,8 +27,8 @@ import '../../widgets/dotted_ground.dart';
 /// the first vertical slice of the production mockup. It points a new learner
 /// to today's next action, then to the exact prerequisite vocabulary that
 /// opens the first lesson. Free practice remains an explicit side entrance.
-class ParcoursScreen extends ConsumerWidget {
-  const ParcoursScreen({super.key});
+class LegacyParcoursScreen extends ConsumerWidget {
+  const LegacyParcoursScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

@@ -59,14 +59,23 @@ void main() {
         stub('/grammar'),
         stub('/start-session'),
       ],
+      settle: false,
     );
+    await tester.pump();
 
     expect(
         find.byKey(const ValueKey(WidgetKeys.homeDailyPath)), findsOneWidget);
-    expect(find.text('La nourriture'), findsOneWidget);
+    expect(find.byKey(const ValueKey(WidgetKeys.homeGrammar)), findsOneWidget);
 
-    await tester.tap(find.text('La nourriture'));
-    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.homeGrammar)));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    final resumeList = find.text('Reprendre «\u202fLa nourriture\u202f»');
+    expect(resumeList, findsOneWidget);
+
+    await tester.tap(resumeList);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(route, '/lists/starter-food');
   });
 }
