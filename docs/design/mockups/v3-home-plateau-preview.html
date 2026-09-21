@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VocabKR v3 — Accueil</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Noto+Sans+KR:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+    :root {
+      --app: #262A24; --block: #313A2F; --block-2: #333B31; --block-3: #2E362C;
+      --chip: #3D4539; --chip-2: #45503F; --rule-dark: #4E5A4A;
+      --paper: #FBF7EC; --paper-2: #F3EDE0; --paper-3: #EFE8D6;
+      --edge-1: #EAE3D2; --edge-warm-1: #DED5BE; --edge-warm-2: #C8BFA8;
+      --ink: #23231D; --ink-70: #4B473C; --ink-60: #5C5749;
+      --light: #F1EDE2; --light-70: #C9D0C6; --light-60: #AFB9AD;
+      --terra: #9B4F13; --terra-ink: #8B3F0D; --amber: #EBC08C; --canvas: #DDD9CE;
+      --serif: 'DM Serif Display', Georgia, serif;
+      --sans: 'Space Grotesk', 'Noto Sans KR', system-ui, sans-serif;
+      --mono: 'Space Mono', ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; background: var(--canvas); color: var(--ink); font-family: var(--sans); }
+    button { font: inherit; cursor: pointer; }
+    .stage { display: grid; grid-template-columns: 270px 390px; align-items: center; gap: 42px; padding: 28px; }
+    .caption h1 { margin: 0 0 12px; font: 42px/1.02 var(--serif); }
+    .caption p { margin: 0; color: var(--ink-70); font-size: 15px; line-height: 1.55; }
+    .caption dl { margin: 22px 0 0; }
+    .caption dt { margin-top: 14px; color: var(--terra-ink); font: 700 12px var(--mono); letter-spacing: .08em; }
+    .caption dd { margin: 4px 0 0; color: var(--ink-70); font-size: 13.5px; line-height: 1.45; }
+
+    .phone { position: relative; width: 390px; height: 844px; overflow: hidden; border: 7px solid #181b17; border-radius: 34px; background: var(--app); box-shadow: 0 24px 52px -20px rgba(15,17,13,.7); }
+    .phone::before { content: ''; position: absolute; z-index: 30; top: 0; left: 50%; width: 114px; height: 24px; transform: translateX(-50%); border-radius: 0 0 14px 14px; background: #181b17; }
+    .pond { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+    .pond-origin { position: absolute; top: var(--pond-y); left: var(--pond-x); width: 96px; height: 96px; transform: translate(-50%, -50%); }
+    .ripple { position: absolute; inset: 0; border: 1px solid rgba(241,237,226,.18); border-radius: 50%; opacity: 0; animation: ripple 6.4s linear forwards; }
+    @keyframes ripple { 0% { transform: scale(.16); opacity: 0; } 9% { opacity: .68; } 100% { transform: scale(4.3); opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .pond { display: none; } }
+
+    .home { position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column; padding: 28px 16px 16px; color: var(--light); }
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .route { color: var(--light-60); font: 12px var(--mono); letter-spacing: .1em; }
+    .top-actions { display: flex; align-items: center; gap: 12px; }
+    .streak { border: 0; padding: 0; color: var(--amber); background: transparent; font: 12px var(--mono); letter-spacing: .06em; }
+    .avatar { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 50%; color: var(--light); background: var(--chip); font-size: 12px; font-weight: 700; }
+    .daily-stack { position: relative; margin: 0 0 14px; padding-top: 7px; }
+    .daily-stack::before, .daily-stack::after { content: ''; position: absolute; left: 7px; right: 7px; height: 26px; border-radius: 12px 12px 0 0; }
+    .daily-stack::before { top: 0; background: var(--edge-warm-2); }
+    .daily-stack::after { top: 4px; left: 3px; right: 3px; border-radius: 13px 13px 0 0; background: var(--edge-warm-1); }
+    .daily-card { position: relative; width: 100%; border: 0; border-radius: 15px; padding: 15px 17px 16px; color: var(--ink); text-align: left; background: var(--paper-2); box-shadow: 0 14px 28px -14px rgba(0,0,0,.6); }
+    .card-meta { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+    .kicker { color: var(--terra-ink); font: 700 12px var(--mono); letter-spacing: .1em; }
+    .count { color: var(--ink-60); font: 12px var(--mono); }
+    .daily-card h2 { margin: 0 0 4px; font: 30px/1.04 var(--serif); }
+    .daily-card p { margin: 0 0 13px; color: var(--ink-60); font-size: 14.5px; }
+    .primary { display: block; width: 100%; border: 0; border-radius: 11px; padding: 14px 0; color: var(--paper); background: var(--terra); font-size: 15.5px; font-weight: 700; text-align: center; }
+    .path-card { width: 100%; border: 0; border-radius: 14px; padding: 13px 15px; margin-bottom: 10px; color: var(--light); text-align: left; background: var(--block); }
+    .path-card .card-meta { margin-bottom: 9px; }.path-card .kicker, .path-card .count { color: var(--light-60); font-weight: 400; }
+    .path-row { display: flex; align-items: center; justify-content: space-between; }.path-title { display: block; font: 21px/1.1 var(--serif); }.path-sub { display: block; margin-top: 2px; color: var(--light-70); font-size: 13px; }.arrow { color: var(--amber); font-size: 21px; }
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }.metric { min-height: 88px; border-radius: 13px; padding: 12px 14px; background: var(--block-2); }.metric strong { display: block; font: 25px/1 var(--serif); }.metric b { display: block; margin-top: 4px; font-size: 14px; }.metric small { display: block; margin-top: 2px; color: var(--light-60); font: 12px var(--mono); }.metric small.amber { color: var(--amber); }
+    .bottom-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 9px; }.small-action { display: flex; align-items: center; justify-content: space-between; min-height: 72px; border: 0; border-radius: 13px; padding: 12px 14px; color: var(--light); text-align: left; background: var(--block-2); }.small-action.active { background: var(--chip-2); }.small-action b { display: block; font-size: 14.5px; }.small-action small { display: block; margin-top: 2px; color: var(--light-60); font: 12px var(--mono); }.small-action.active small, .small-action.active .arrow { color: var(--amber); }.small-action .arrow { color: var(--light-60); }
+    .footer { display: flex; justify-content: space-between; margin-top: auto; padding-top: 14px; color: var(--light-60); font: 12px var(--mono); letter-spacing: .06em; }
+
+    .ink-layer { transition: color 420ms ease; }.home.is-muted .ink-layer { color: transparent !important; }.home.is-muted .ink-layer * { color: inherit !important; }.home.is-muted .avatar { color: var(--light) !important; }.home.is-muted .daily-stack, .home.is-muted .path-card, .home.is-muted .metric, .home.is-muted .small-action { opacity: .54; }
+    .sheet { position: absolute; z-index: 10; left: 12px; right: 12px; bottom: 12px; display: none; border-radius: 20px; padding: 13px 20px 22px; color: var(--ink); background: var(--paper-2); box-shadow: 0 -12px 44px -8px rgba(20,22,18,.6); animation: rise 380ms cubic-bezier(.22,.9,.24,1); }.sheet.open { display: block; }@keyframes rise { from { transform: translateY(26px) scale(.985); opacity: 0; } to { transform: none; opacity: 1; } }.grabber { width: 42px; height: 4px; margin: 0 auto 16px; border-radius: 2px; background: #D3CBB6; }.sheet h2 { margin: 0 0 6px; font: 29px/1.06 var(--serif); }.sheet p { margin: 0 0 18px; color: var(--ink-60); font-size: 15px; line-height: 1.5; }.sheet .section-label { margin-bottom: 8px; color: var(--ink-60); font: 12px var(--mono); letter-spacing: .1em; }.choices { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 16px; }.choice { border: 0; border-radius: 10px; padding: 12px 15px; color: #4A4436; background: #E9E1CF; font-size: 14.5px; font-weight: 600; }.choice.selected { color: var(--paper); background: var(--terra); }.close-sheet { display: block; width: 100%; border: 0; border-radius: 12px; padding: 16px 0; color: var(--paper); background: var(--terra); font-size: 16px; font-weight: 700; }
+    @media (max-width: 760px) { body { display: block; background: var(--app); }.stage { display: block; padding: 0; }.caption { display: none; }.phone { width: 100%; height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }.phone::before { display: none; } }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <aside class="caption">
+      <h1>Accueil<br>v3</h1>
+      <p>Le <em>plateau</em> : des choix indépendants, rangés d’équerre. Le sentier n’apparaît que dans sa carte dédiée.</p>
+      <dl><dt>À FAIRE AUJOURD’HUI</dt><dd>La seule action principale : ce que tu peux commencer maintenant.</dd><dt>MON PARCOURS</dt><dd>La vue d’ensemble : où tu en es et ce qui s’ouvrira ensuite.</dd><dt>CHOISIR UNE ACTIVITÉ</dt><dd>Une carte par-dessus le plateau, pour étudier librement sans modifier le parcours.</dd></dl>
+    </aside>
+    <section class="phone" aria-label="Aperçu de l'accueil VocabKR v3">
+      <div class="pond" aria-hidden="true"><span class="pond-origin"></span><span class="pond-origin"></span><span class="pond-origin"></span></div>
+      <main class="home" id="home">
+        <header class="topbar ink-layer"><span class="route">FR → KO</span><span class="top-actions"><button class="streak" type="button">12 JOURS</button><button class="avatar" type="button" aria-label="Ouvrir le menu">T</button></span></header>
+        <section class="daily-stack">
+          <button class="daily-card" type="button" aria-label="Commencer l’activité du jour"><span class="card-meta"><span class="kicker">À FAIRE AUJOURD’HUI</span><span class="count">4 ACTIVITÉS À FAIRE</span></span><h2>7 mots à découvrir</h2><p>Liste «&#8239;Au café&#8239;» · environ 4 minutes</p><span class="primary">Commencer</span></button>
+        </section>
+        <button class="path-card ink-layer" type="button"><span class="card-meta"><span class="kicker">MON PARCOURS</span><span class="count">13 LEÇONS À DÉCOUVRIR</span></span><span class="path-row"><span><span class="path-title">Niveau 1</span><span class="path-sub">En ce moment · Au quotidien</span></span><span class="arrow">Voir ›</span></span></button>
+        <section class="metrics ink-layer" aria-label="Ce que tu connais"><article class="metric"><strong>87</strong><b>Mots connus</b><small class="amber">19 À REVOIR</small></article><article class="metric"><strong>7</strong><b>Leçons lues</b><small>13 À DÉCOUVRIR</small></article><article class="metric"><strong>312</strong><b>Mots dans tes listes</b><small>À TON RYTHME</small></article><article class="metric"><strong>28</strong><b>Familles de mots</b><small>À EXPLORER</small></article></section>
+        <section class="bottom-actions ink-layer"><button class="small-action active" type="button"><span><b>Mes listes</b><small>VOIR MES MOTS</small></span><span class="arrow">›</span></button><button class="small-action" type="button" id="practice"><span><b>Choisir une activité</b><small>EN DEHORS DU PARCOURS</small></span><span class="arrow">›</span></button></section>
+        <footer class="footer ink-layer"><span>RÉVISÉ CE MATIN · 12 MOTS</span><span>RÉGLAGES</span></footer>
+      </main>
+      <section class="sheet" id="practice-sheet" aria-label="Choisir une activité" aria-hidden="true"><div class="grabber"></div><div class="kicker">EN DEHORS DU PARCOURS</div><h2>Que veux-tu faire&#8239;?</h2><p>Choisis ce que tu veux travailler. Ton parcours reste tel quel.</p><div class="section-label">CHOISIR LE CONTENU</div><div class="choices"><button class="choice selected" type="button">Mes mots à revoir</button><button class="choice" type="button">Une liste</button><button class="choice" type="button">Une leçon</button><button class="choice" type="button">Mes mots difficiles</button></div><div class="section-label">CHOISIR UN MODE</div><div class="choices"><button class="choice selected" type="button">Reconnaître</button><button class="choice" type="button">Construire</button><button class="choice" type="button">Écrire</button><button class="choice" type="button">Écouter</button></div><button class="close-sheet" type="button" id="close-practice">Commencer · 19 mots à revoir</button></section>
+    </section>
+  </main>
+  <script>
+    const home = document.getElementById('home');
+    const sheet = document.getElementById('practice-sheet');
+    document.getElementById('practice').addEventListener('click', () => { home.classList.add('is-muted'); sheet.classList.add('open'); sheet.setAttribute('aria-hidden', 'false'); });
+    document.getElementById('close-practice').addEventListener('click', () => { home.classList.remove('is-muted'); sheet.classList.remove('open'); sheet.setAttribute('aria-hidden', 'true'); });
+    document.querySelectorAll('.choice').forEach((choice) => choice.addEventListener('click', () => { const group = choice.parentElement; group.querySelectorAll('.choice').forEach((item) => item.classList.remove('selected')); choice.classList.add('selected'); }));
+    const rippleGrid = [12, 32, 52, 72, 88].flatMap((x) =>
+      [12, 30, 48, 66, 84].map((y) => [x, y]),
+    );
+    const activeFoci = new Map();
+    const minimumFocusDistance = 31;
+    const distance = ([x1, y1], [x2, y2]) => Math.hypot(x2 - x1, y2 - y1);
+    function chooseFocus(origin) {
+      const otherFoci = [...activeFoci.entries()]
+        .filter(([otherOrigin]) => otherOrigin !== origin)
+        .map(([, focus]) => focus);
+      const available = rippleGrid.filter((focus) =>
+        otherFoci.every((otherFocus) => distance(focus, otherFocus) >= minimumFocusDistance),
+      );
+      const candidates = available.length ? available : rippleGrid;
+      const focus = candidates[Math.floor(Math.random() * candidates.length)];
+      activeFoci.set(origin, focus);
+      return focus;
+    }
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    async function makeRippleGroup(origin, firstDelay) {
+      await wait(firstDelay);
+      while (true) {
+        const [x, y] = chooseFocus(origin);
+        origin.style.setProperty('--pond-x', `${x}%`);
+        origin.style.setProperty('--pond-y', `${y}%`);
+        const waveCount = 3 + Math.floor(Math.random() * 3);
+        for (let wave = 0; wave < waveCount; wave += 1) {
+          const ripple = document.createElement('i');
+          ripple.className = 'ripple';
+          origin.appendChild(ripple);
+          ripple.addEventListener('animationend', () => ripple.remove(), { once: true });
+          await wait(720 + Math.random() * 380);
+        }
+        await wait(2600 + Math.random() * 2600);
+      }
+    }
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.querySelectorAll('.pond-origin').forEach((origin, index) => {
+        makeRippleGroup(origin, index * 2100 + Math.random() * 1200);
+      });
+    }
+  </script>
+</body>
+</html>
