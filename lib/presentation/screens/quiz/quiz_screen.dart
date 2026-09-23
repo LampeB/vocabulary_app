@@ -27,7 +27,6 @@ import '../../../services/quiz_orchestration/voice_turn_machine.dart';
 import '../../providers/settings/stt_engine_mode_provider.dart';
 import '../../providers/speech/whisper_speech_provider.dart';
 import '../../providers/speech/elevenlabs_speech_provider.dart';
-import '../../widgets/dotted_ground.dart';
 import '../../widgets/vk_waveform.dart';
 import '../../widgets/mic_button.dart';
 import '../../widgets/study/study_scaffold.dart';
@@ -35,6 +34,7 @@ import '../../widgets/study/word_in_wave.dart';
 import '../../widgets/study/study_feedback_flood.dart';
 import '../../design/v3/v3_study_scaffold.dart';
 import '../../design/v3/v3_card_stack.dart';
+import '../../design/v3/v3_pond.dart';
 import '../../design/v3/v3_tokens.dart';
 
 // Under test, animations are frozen so Patrol's pumpAndSettle actually settles
@@ -432,8 +432,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           upcoming.questionWord, upcoming.progress.direction.questionLang,
           audioPath: upcoming.questionAudioPath));
       if (upcoming.answerWords.isNotEmpty) {
-        unawaited(audio.prefetch(upcoming.answerWords.first,
-            upcoming.progress.direction.answerLang,
+        unawaited(audio.prefetch(
+            upcoming.answerWords.first, upcoming.progress.direction.answerLang,
             audioPath: upcoming.answerAudioPath));
       }
     }
@@ -620,10 +620,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           final card = next.currentCard;
           if (card != null && card.answerWords.isNotEmpty) {
             final answerLang = card.progress.direction.answerLang;
-            unawaited(ref
-                .read(audioPlayerServiceProvider)
-                .speak(card.answerWords.first, answerLang,
-                    audioPath: card.answerAudioPath));
+            unawaited(ref.read(audioPlayerServiceProvider).speak(
+                card.answerWords.first, answerLang,
+                audioPath: card.answerAudioPath));
           }
         }
         // Hands-free renders the full-screen StudyFeedbackFlood in build()
@@ -776,10 +775,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final card = ref.read(quizProvider).currentCard;
     if (card == null) return;
     final questionLang = card.progress.direction.questionLang;
-    unawaited(ref
-        .read(audioPlayerServiceProvider)
-        .speak(card.questionWord, questionLang,
-            audioPath: card.questionAudioPath));
+    unawaited(ref.read(audioPlayerServiceProvider).speak(
+        card.questionWord, questionLang,
+        audioPath: card.questionAudioPath));
     unawaited(_startListening(card));
   }
 
@@ -817,6 +815,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
     final reduceMotion = MediaQuery.of(context).disableAnimations;
     final listening = s.isListening && !_hfPaused;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final foreground = dark ? V3Colors.inkLight : V3Colors.ink;
+    final muted = dark ? V3Colors.inkLight70 : V3Colors.ink60;
+    final rule = dark ? V3Colors.ruleDark : V3Colors.edge2;
 
     // Phase priority: paused > analyzing (mic closed, verdict pending) >
     // not-heard (retry prompt with attempt count) > listening (speak now) >
@@ -835,11 +837,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                         'lang': 'lang.${_answerLangCode(card)}'.tr()
                       })
                     : 'quiz.hf_reading'.tr()))));
-    // Hands-free lives on the V3 dark study canvas in every app theme. Never
-    // inherit light-theme foregrounds here: that is what made the light-mode
-    // version unreadable against the pond background.
-    final cueColor =
-        listening && !_hfAnalyzing ? V3Colors.amber : V3Colors.inkLight70;
+    final cueColor = listening && !_hfAnalyzing ? V3Colors.amber : muted;
 
     return V3StudyScaffold(
       remaining: (s.displayTotal - s.position + 1).clamp(1, s.displayTotal),
@@ -892,7 +890,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                             word: card.questionWord,
                             isKorean: questionIsHangul,
                             cue: cue,
-                            wordColor: V3Colors.inkLight,
+                            wordColor: foreground,
                             cueColor: cueColor.withValues(alpha: fade),
                             waveActive: listening && !_hfAnalyzing,
                           );
@@ -915,8 +913,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                           child: LinearProgressIndicator(
                             value: _listenBarCtrl.value,
                             minHeight: 5,
-                            backgroundColor:
-                                V3Colors.ruleDark.withValues(alpha: 0.7),
+                            backgroundColor: rule.withValues(alpha: 0.7),
                             valueColor:
                                 const AlwaysStoppedAnimation(V3Colors.amber),
                           ),
@@ -966,7 +963,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                                 ? Icons.hearing_disabled_rounded
                                 : Icons.pause_rounded,
                             size: 56,
-                            color: V3Colors.inkLight),
+                            color: foreground),
                         const SizedBox(height: 10),
                         Text(
                             (_hfAutoPausedSilence
@@ -975,11 +972,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                                 .tr(),
                             textAlign: TextAlign.center,
                             style: AppTextStyles.grotesk(28, FontWeight.w700)
-                                .copyWith(color: V3Colors.inkLight)),
+                                .copyWith(color: foreground)),
                         const SizedBox(height: 6),
                         Text('quiz.hf_resume_hint'.tr(),
                             style: AppTextStyles.fig(14, FontWeight.w500)
-                                .copyWith(color: V3Colors.inkLight70)),
+                                .copyWith(color: muted)),
                       ],
                     ),
                   ),
@@ -1473,24 +1470,27 @@ class _HfButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final surface = dark ? V3Colors.block : V3Colors.paperPanel;
+    final foreground = dark ? V3Colors.inkLight : V3Colors.ink;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
         height: 104,
         decoration: BoxDecoration(
-          color: V3Colors.block,
+          color: surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: V3Colors.ruleDark),
+          border: Border.all(color: dark ? V3Colors.ruleDark : V3Colors.edge2),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 32, color: V3Colors.inkLight),
+            Icon(icon, size: 32, color: foreground),
             const SizedBox(height: 8),
             Text(label,
                 style: AppTextStyles.fig(15, FontWeight.w700)
-                    .copyWith(color: V3Colors.inkLight)),
+                    .copyWith(color: foreground)),
           ],
         ),
       ),
@@ -1555,97 +1555,96 @@ class _SummaryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final pct = total == 0 ? 0 : (correct / total * 100).round();
     final isGreat = pct >= 80;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final foreground = dark ? V3Colors.inkLight : V3Colors.ink;
+    final muted = dark ? V3Colors.inkLight70 : V3Colors.ink60;
+    final surface = dark ? V3Colors.block : V3Colors.paperPanel;
 
     return Scaffold(
       key: const ValueKey(WidgetKeys.summary),
-      body: Stack(
-        children: [
-          const DottedGround(),
-          SafeArea(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Waveform celebration
-                    VkWaveform(
-                      height: 72,
-                      barWidth: 8,
-                      gap: 5,
-                      isAnimating: isGreat,
-                      opacity: isGreat ? 1.0 : 0.4,
-                    ),
-                    const SizedBox(height: 32),
-                    Text('quiz.summary_label'.tr(),
-                        style: AppTextStyles.eyebrow
-                            .copyWith(color: AppColors.muted)),
-                    const SizedBox(height: 12),
-                    // Big accuracy
-                    Text(
-                      '$pct %',
-                      style: AppTextStyles.heroNumber.copyWith(
-                        color: isGreat ? AppColors.clay : AppColors.muted,
+      backgroundColor: dark ? V3Colors.app : V3Colors.paper,
+      body: V3Pond(
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  VkWaveform(
+                    height: 72,
+                    barWidth: 8,
+                    gap: 5,
+                    isAnimating: isGreat,
+                    opacity: isGreat ? 1.0 : 0.4,
+                  ),
+                  const SizedBox(height: 32),
+                  Text('quiz.summary_label'.tr(),
+                      style: V3Text.mono(12, color: muted)),
+                  const SizedBox(height: 12),
+                  Text(
+                    '$pct %',
+                    style: V3Text.title(64,
+                        color: isGreat ? V3Colors.amber : foreground),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'quiz.summary_correct_count'.tr(namedArgs: {
+                      'correct': correct.toString(),
+                      'total': total.toString()
+                    }),
+                    style: AppTextStyles.fig(16, FontWeight.w500)
+                        .copyWith(color: muted),
+                  ),
+                  const SizedBox(height: 48),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: onRestart,
+                          child: Container(
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: surface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: dark
+                                      ? V3Colors.ruleDark
+                                      : V3Colors.edge2),
+                            ),
+                            child: Center(
+                              child: Text('quiz.summary_restart'.tr(),
+                                  style: AppTextStyles.fig(14, FontWeight.w600)
+                                      .copyWith(color: foreground)),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'quiz.summary_correct_count'.tr(namedArgs: {
-                        'correct': correct.toString(),
-                        'total': total.toString()
-                      }),
-                      style: AppTextStyles.fig(16, FontWeight.w500)
-                          .copyWith(color: AppColors.muted),
-                    ),
-                    const SizedBox(height: 48),
-                    // Buttons
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: onRestart,
-                            child: Container(
-                              height: 52,
-                              decoration: BoxDecoration(
-                                color: AppColors.line,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Center(
-                                child: Text('quiz.summary_restart'.tr(),
-                                    style:
-                                        AppTextStyles.fig(14, FontWeight.w600)
-                                            .copyWith(color: AppColors.muted)),
-                              ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: onDone,
+                          child: Container(
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: V3Colors.terra,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Text('quiz.summary_home'.tr(),
+                                  style: AppTextStyles.fig(14, FontWeight.w700)
+                                      .copyWith(color: Colors.white)),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: onDone,
-                            child: Container(
-                              height: 52,
-                              decoration: BoxDecoration(
-                                color: AppColors.teal,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Center(
-                                child: Text('quiz.summary_home'.tr(),
-                                    style:
-                                        AppTextStyles.fig(14, FontWeight.w700)
-                                            .copyWith(color: Colors.white)),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
