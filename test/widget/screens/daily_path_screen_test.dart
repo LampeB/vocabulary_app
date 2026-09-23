@@ -1,4 +1,3 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -36,7 +35,7 @@ void main() {
         findsOneWidget);
     expect(find.byKey(const ValueKey(WidgetKeys.dailyPathPractice)),
         findsOneWidget);
-    expect(find.text('daily_path.title'.tr()), findsOneWidget);
+    expect(find.text('TES CARTES DU JOUR'), findsOneWidget);
   });
 
   testWidgets('passes the active pair into an all-due review session',
@@ -59,7 +58,7 @@ void main() {
       ],
     );
 
-    await tester.tap(find.text('daily_path.review_open'.tr()));
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.dailyPathReview)));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(ValueKey(WidgetKeys.homeReviewMode('typing'))));
     await tester.pumpAndSettle();
