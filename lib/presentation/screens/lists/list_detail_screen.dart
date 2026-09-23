@@ -8,9 +8,9 @@ import '../../../core/errors/failure.dart';
 import '../../../core/languages.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/v3_colors.dart';
 import '../../../core/widget_keys.dart';
-import '../../widgets/dotted_ground.dart';
-import '../../widgets/frosted_box.dart';
+import '../../widgets/v3_pond.dart';
 import '../../providers/lists/vocab_assistant_provider.dart';
 import '../../../data/datasources/remote/vocab_assistant_datasource.dart';
 import '../../../domain/entities/word_variant.dart';
@@ -33,19 +33,40 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
   Widget build(BuildContext context) {
     final listAsync = ref.watch(listInfoProvider(widget.listId));
     final conceptsAsync = ref.watch(listDetailProvider(widget.listId));
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final foreground = dark ? V3Colors.light : V3Colors.ink;
+    final muted = dark ? V3Colors.light70 : V3Colors.ink60;
+    final surface = dark ? V3Colors.block : V3Colors.paper2;
 
     return Scaffold(
       key: const ValueKey(WidgetKeys.screenListDetail),
+      backgroundColor: dark ? V3Colors.app : V3Colors.paper,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: foreground,
+        elevation: 0,
         leading: IconButton(
           key: const ValueKey(WidgetKeys.listDetailBack),
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
           onPressed: () => context.pop(),
         ),
         title: listAsync.when(
-          data: (l) => Text(l?.name ?? 'list_detail.appbar_fallback'.tr()),
+          data: (l) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('LISTE DE VOCABULAIRE',
+                  style: AppTextStyles.mono(10, FontWeight.w700)
+                      .copyWith(color: muted, letterSpacing: 1.2)),
+              Text(l?.name ?? 'list_detail.appbar_fallback'.tr(),
+                  style: AppTextStyles.serif(24, FontWeight.w400)
+                      .copyWith(color: foreground)),
+            ],
+          ),
           loading: () => const SizedBox.shrink(),
-          error: (_, __) => Text('list_detail.appbar_fallback'.tr()),
+          error: (_, __) => Text('list_detail.appbar_fallback'.tr(),
+              style: AppTextStyles.serif(24, FontWeight.w400)
+                  .copyWith(color: foreground)),
         ),
         actions: _editMode
             ? [
@@ -126,11 +147,11 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
       ),
       body: Stack(
         children: [
-          const DottedGround(),
+          const Positioned.fill(child: V3Pond(animate: false)),
           conceptsAsync.when(
             loading: () => const Center(
               child: CircularProgressIndicator(
-                  color: AppColors.clay, strokeWidth: 2),
+                  color: V3Colors.terra, strokeWidth: 2),
             ),
             error: (e, _) => Center(
               child: Text('$e',
@@ -151,15 +172,23 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-          child: listAsync.when(
-            loading: () => _addWordBar(context),
-            error: (_, __) => _addWordBar(context),
-            data: (list) => list == null
-                ? _addWordBar(context)
-                : _studyAndEditBar(context, list),
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          color: surface,
+          border: Border(
+              top: BorderSide(
+                  color: dark ? V3Colors.ruleDark : V3Colors.edgeWarm2)),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+            child: listAsync.when(
+              loading: () => _addWordBar(context),
+              error: (_, __) => _addWordBar(context),
+              data: (list) => list == null
+                  ? _addWordBar(context)
+                  : _studyAndEditBar(context, list),
+            ),
           ),
         ),
       ),
@@ -169,26 +198,29 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
   // ── Bottom bar variants ───────────────────────────────────────────────────
 
   Widget _addWordBar(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final muted = dark ? V3Colors.light70 : V3Colors.ink60;
     return GestureDetector(
       key: const ValueKey(WidgetKeys.listDetailAddWord),
       onTap: () => _showAddWordDialog(context),
-      child: FrostedBox(
-        borderRadius: BorderRadius.circular(999),
+      child: Container(
+        decoration: BoxDecoration(
+          color: dark ? V3Colors.block2 : V3Colors.paper3,
+          borderRadius: BorderRadius.circular(12),
+          border:
+              Border.all(color: dark ? V3Colors.ruleDark : V3Colors.edgeWarm2),
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        child: Builder(builder: (ctx) {
-          final isDark = Theme.of(ctx).brightness == Brightness.dark;
-          final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.add, color: muted, size: 18),
-              const SizedBox(width: 8),
-              Text('list_detail.add_word_bar'.tr(),
-                  style: AppTextStyles.fig(15, FontWeight.w600)
-                      .copyWith(color: muted)),
-            ],
-          );
-        }),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add, color: muted, size: 18),
+            const SizedBox(width: 8),
+            Text('list_detail.add_word_bar'.tr(),
+                style: AppTextStyles.fig(15, FontWeight.w600)
+                    .copyWith(color: muted)),
+          ],
+        ),
       ),
     );
   }
@@ -197,10 +229,20 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
   /// starts an immediate flashcard run; editing remains available alongside
   /// it instead of forcing a learner through the generic setup accordion.
   Widget _studyAndEditBar(BuildContext context, dynamic list) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final outline = dark ? V3Colors.ruleDark : V3Colors.edgeWarm2;
+    final icon = dark ? V3Colors.light : V3Colors.ink;
     return Row(
       children: [
         Expanded(
           child: FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: V3Colors.terra,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              minimumSize: const Size.fromHeight(52),
+            ),
             onPressed: () => context.push(
               '/quiz',
               extra: QuizArgs(
@@ -222,6 +264,12 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
           width: 52,
           height: 52,
           child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: icon,
+              side: BorderSide(color: outline),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
             key: const ValueKey(WidgetKeys.listDetailHandsFree),
             onPressed: () => context.push(
               '/quiz',
@@ -243,6 +291,12 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
           width: 52,
           height: 52,
           child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: icon,
+              side: BorderSide(color: outline),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
             key: const ValueKey(WidgetKeys.listDetailAddWord),
             onPressed: () => _showAddWordDialog(context),
             child: const Icon(Icons.add),
@@ -699,7 +753,10 @@ class _ConceptTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cs = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final surface = dark ? V3Colors.block2 : V3Colors.paper3;
+    final ink = dark ? V3Colors.light : V3Colors.ink;
+    final rule = dark ? V3Colors.ruleDark : V3Colors.edgeWarm2;
     final variantsAsync = ref.watch(variantsProvider(concept.id));
 
     return variantsAsync.when(
@@ -707,8 +764,8 @@ class _ConceptTile extends ConsumerWidget {
         margin: const EdgeInsets.only(bottom: 8),
         height: 64,
         decoration: BoxDecoration(
-          color: cs.outline.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(16),
+          color: surface,
+          borderRadius: BorderRadius.circular(14),
         ),
       ),
       error: (_, __) => const SizedBox.shrink(),
@@ -810,83 +867,81 @@ class _ConceptTile extends ConsumerWidget {
           }
         }
 
-        final tile = FrostedBox(
-          borderRadius: BorderRadius.circular(16),
+        final tile = Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Builder(builder: (ctx) {
-            final isDark = Theme.of(ctx).brightness == Brightness.dark;
-            final ink = isDark ? AppColors.onDark : AppColors.ink;
-            return Row(
-              children: [
-                // French side
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('list_detail.lang_fr'.tr(),
-                          style: AppTextStyles.eyebrowSm
-                              .copyWith(color: AppColors.teal)),
-                      const SizedBox(height: 2),
-                      Text(frWord,
-                          style: AppTextStyles.fig(15, FontWeight.w600)
-                              .copyWith(color: ink),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis),
-                    ],
+          decoration: BoxDecoration(
+            color: surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: rule),
+          ),
+          child: Row(
+            children: [
+              // French side
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('list_detail.lang_fr'.tr(),
+                        style: AppTextStyles.eyebrowSm
+                            .copyWith(color: AppColors.teal)),
+                    const SizedBox(height: 2),
+                    Text(frWord,
+                        style: AppTextStyles.fig(15, FontWeight.w600)
+                            .copyWith(color: ink),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              ),
+              // Divider
+              Container(
+                width: 1,
+                height: 36,
+                color: rule,
+                margin: const EdgeInsets.symmetric(horizontal: 14),
+              ),
+              // Korean side
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('list_detail.lang_kr'.tr(),
+                        style: AppTextStyles.eyebrowSm
+                            .copyWith(color: AppColors.clay)),
+                    const SizedBox(height: 2),
+                    Text(koWord,
+                        style: AppTextStyles.kr(16, FontWeight.w500)
+                            .copyWith(color: ink),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              ),
+              // Edit-mode action buttons
+              if (editMode) ...[
+                const SizedBox(width: 8),
+                GestureDetector(
+                  key: ValueKey(WidgetKeys.conceptEditIcon(frWord)),
+                  onTap: showEditDialog,
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(Icons.edit_outlined,
+                        color: AppColors.teal.withValues(alpha: 0.7), size: 20),
                   ),
                 ),
-                // Divider
-                Container(
-                  width: 1,
-                  height: 36,
-                  color: cs.outline,
-                  margin: const EdgeInsets.symmetric(horizontal: 14),
-                ),
-                // Korean side
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('list_detail.lang_kr'.tr(),
-                          style: AppTextStyles.eyebrowSm
-                              .copyWith(color: AppColors.clay)),
-                      const SizedBox(height: 2),
-                      Text(koWord,
-                          style: AppTextStyles.kr(16, FontWeight.w500)
-                              .copyWith(color: ink),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis),
-                    ],
+                const SizedBox(width: 4),
+                GestureDetector(
+                  key: ValueKey(WidgetKeys.conceptDeleteIcon(frWord)),
+                  onTap: confirmDelete,
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(Icons.delete_outline,
+                        color: AppColors.rose.withValues(alpha: 0.6), size: 20),
                   ),
                 ),
-                // Edit-mode action buttons
-                if (editMode) ...[
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    key: ValueKey(WidgetKeys.conceptEditIcon(frWord)),
-                    onTap: showEditDialog,
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(Icons.edit_outlined,
-                          color: AppColors.teal.withValues(alpha: 0.7),
-                          size: 20),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  GestureDetector(
-                    key: ValueKey(WidgetKeys.conceptDeleteIcon(frWord)),
-                    onTap: confirmDelete,
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(Icons.delete_outline,
-                          color: AppColors.rose.withValues(alpha: 0.6),
-                          size: 20),
-                    ),
-                  ),
-                ],
               ],
-            );
-          }),
+            ],
+          ),
         );
 
         return Padding(
@@ -908,10 +963,10 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = cs.brightness == Brightness.dark;
-    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
-    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final ink = dark ? V3Colors.light : V3Colors.ink;
+    final muted = dark ? V3Colors.light70 : V3Colors.ink60;
+    final faint = dark ? V3Colors.moss : V3Colors.edgeWarm2;
 
     return Center(
       child: Padding(
@@ -923,7 +978,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 16),
             Text('list_detail.empty_title'.tr(),
                 style: AppTextStyles.grotesk(20, FontWeight.w700)
-                    .copyWith(color: cs.onSurface)),
+                    .copyWith(color: ink)),
             const SizedBox(height: 8),
             Text(
               'list_detail.empty_subtitle'.tr(),
@@ -937,8 +992,8 @@ class _EmptyState extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 decoration: BoxDecoration(
-                  color: AppColors.clay,
-                  borderRadius: BorderRadius.circular(999),
+                  color: V3Colors.terra,
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text('list_detail.empty_button'.tr(),
                     style: AppTextStyles.fig(15, FontWeight.w700)
