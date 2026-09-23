@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 
 import 'v3_tokens.dart';
 
-/// The v3 pond: two barely-visible rings that drift slowly behind cards.
-/// Motion is disabled when the system requests reduced motion.
+/// The v3 pond: quiet rings behind study cards. Its palette follows the app's
+/// light/dark setting; study mode is immersive, not an exception to theming.
 class V3Pond extends StatefulWidget {
   const V3Pond({super.key, this.child});
   final Widget? child;
@@ -38,15 +38,18 @@ class _V3PondState extends State<V3Pond> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final background = dark ? V3Colors.app : V3Colors.paper;
+    final ripple = dark ? V3Colors.inkLight : V3Colors.ink;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     if (reduceMotion) {
       return ColoredBox(
-        color: V3Colors.app,
+        color: background,
         child: widget.child,
       );
     }
     return ColoredBox(
-      color: V3Colors.app,
+      color: background,
       child: AnimatedBuilder(
         animation: Listenable.merge([_drift, _rippleA, _rippleB]),
         builder: (_, __) => Stack(
@@ -55,7 +58,7 @@ class _V3PondState extends State<V3Pond> with TickerProviderStateMixin {
             Transform.translate(
               offset: Offset(-14 * _drift.value, 10 * _drift.value),
               child: CustomPaint(
-                painter: _PondPainter(_rippleA.value, _rippleB.value),
+                painter: _PondPainter(_rippleA.value, _rippleB.value, ripple),
               ),
             ),
             if (widget.child != null) widget.child!,
@@ -67,9 +70,10 @@ class _V3PondState extends State<V3Pond> with TickerProviderStateMixin {
 }
 
 class _PondPainter extends CustomPainter {
-  const _PondPainter(this.first, this.second);
+  const _PondPainter(this.first, this.second, this.ripple);
   final double first;
   final double second;
+  final Color ripple;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -84,7 +88,7 @@ class _PondPainter extends CustomPainter {
       Offset(size.width * origin.dx, size.height * origin.dy),
       radius,
       Paint()
-        ..color = const Color(0xFFF1EDE2).withValues(alpha: opacity)
+        ..color = ripple.withValues(alpha: opacity)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1,
     );
@@ -92,5 +96,7 @@ class _PondPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PondPainter oldDelegate) =>
-      oldDelegate.first != first || oldDelegate.second != second;
+      oldDelegate.first != first ||
+      oldDelegate.second != second ||
+      oldDelegate.ripple != ripple;
 }

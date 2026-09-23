@@ -21,40 +21,43 @@ class V3StudyScaffold extends StatelessWidget {
   final Widget? footer;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        backgroundColor: V3Colors.app,
-        body: V3Pond(
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: onQuit,
-                        tooltip: 'Quitter',
-                        icon: const Icon(Icons.close_rounded,
-                            color: V3Colors.inkLight),
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final foreground = dark ? V3Colors.inkLight : V3Colors.ink;
+    return Scaffold(
+      backgroundColor: dark ? V3Colors.app : V3Colors.paper,
+      body: V3Pond(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: onQuit,
+                      tooltip: 'Quitter',
+                      icon: Icon(Icons.close_rounded, color: foreground),
+                    ),
+                    Expanded(
+                      child: Center(
+                        child: V3StackCounter(remaining: remaining),
                       ),
-                      Expanded(
-                        child: Center(
-                          child: V3StackCounter(remaining: remaining),
-                        ),
-                      ),
-                      const SizedBox(width: 48),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Expanded(child: child),
-                  if (footer != null) ...[
-                    const SizedBox(height: 18),
-                    footer!,
+                    ),
+                    const SizedBox(width: 48),
                   ],
+                ),
+                const SizedBox(height: 14),
+                Expanded(child: child),
+                if (footer != null) ...[
+                  const SizedBox(height: 18),
+                  footer!,
                 ],
-              ),
+              ],
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 }

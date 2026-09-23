@@ -131,11 +131,14 @@ class V3StackCounter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final label = switch (remaining) {
       0 => 'LES CARTES SONT DÉPILÉES',
       1 => 'DERNIÈRE CARTE',
       _ => '$remaining CARTES À DÉPILER',
     };
-    return Text(label, style: V3Text.mono(12, color: V3Colors.inkLight70));
+    return Text(label,
+        style: V3Text.mono(12,
+            color: dark ? V3Colors.inkLight70 : V3Colors.ink60));
   }
 }
