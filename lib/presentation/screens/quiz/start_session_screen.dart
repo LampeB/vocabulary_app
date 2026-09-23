@@ -12,8 +12,9 @@ import '../../providers/lists/vocabulary_provider.dart';
 import '../../providers/quiz/quiz_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/v3_colors.dart';
 import '../../../core/widget_keys.dart';
-import '../../widgets/dotted_ground.dart';
+import '../../widgets/v3_pond.dart';
 
 /// Session setup (start-session-screen.md). An accordion: one section open
 /// at a time; selecting a value auto-advances to the next.
@@ -67,6 +68,10 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   @override
   Widget build(BuildContext context) {
     final listsAsync = ref.watch(myListsProvider);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final foreground = dark ? V3Colors.light : V3Colors.ink;
+    final muted = dark ? V3Colors.light70 : V3Colors.ink60;
+    final footer = dark ? V3Colors.block : V3Colors.paper2;
 
     // Section indices. Vocab gains a Language step at 0, shifting the rest;
     // grammar keeps its Rule → Type → Count layout (no language/list/direction).
@@ -77,19 +82,35 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
 
     return Scaffold(
       key: const ValueKey(WidgetKeys.screenStartSession),
+      backgroundColor: dark ? V3Colors.app : V3Colors.paper,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: foreground,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
           onPressed: () => context.pop(),
         ),
-        title: Text((_grammar
-                ? 'start_session.title_grammar'
-                : 'start_session.title')
-            .tr()),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('CONFIGURER',
+                style: AppTextStyles.mono(10, FontWeight.w700)
+                    .copyWith(letterSpacing: 1.2, color: muted)),
+            Text(
+                (_grammar
+                        ? 'start_session.title_grammar'
+                        : 'start_session.title')
+                    .tr(),
+                style: AppTextStyles.serif(24, FontWeight.w400)
+                    .copyWith(color: foreground)),
+          ],
+        ),
       ),
       body: Stack(
         children: [
-          const DottedGround(),
+          const Positioned.fill(child: V3Pond(animate: false)),
           ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
             children: [
@@ -160,29 +181,29 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
               // iDir — Sens (vocab only: grammar drills are FR → KR by nature).
               if (!_grammar)
                 _Section(
-                index: iDir,
-                isOpen: _open == iDir,
-                label: 'quiz_setup.section_direction'.tr(),
-                value: _dir == null ? '' : _dirLabel(_dir!),
-                onHeaderTap: () => _select(iDir),
-                child: Column(
-                  children: [
-                    for (final d in QuizDirectionChoice.values) ...[
-                      if (d != QuizDirectionChoice.values.first)
-                        const SizedBox(height: 8),
-                      _OptionTile(
-                        key: ValueKey(WidgetKeys.startDirection(d.name)),
-                        label: _dirLabel(d),
-                        selected: _dir == d,
-                        onTap: () {
-                          setState(() => _dir = d);
-                          _select(iCount);
-                        },
-                      ),
+                  index: iDir,
+                  isOpen: _open == iDir,
+                  label: 'quiz_setup.section_direction'.tr(),
+                  value: _dir == null ? '' : _dirLabel(_dir!),
+                  onHeaderTap: () => _select(iDir),
+                  child: Column(
+                    children: [
+                      for (final d in QuizDirectionChoice.values) ...[
+                        if (d != QuizDirectionChoice.values.first)
+                          const SizedBox(height: 8),
+                        _OptionTile(
+                          key: ValueKey(WidgetKeys.startDirection(d.name)),
+                          label: _dirLabel(d),
+                          selected: _dir == d,
+                          onTap: () {
+                            setState(() => _dir = d);
+                            _select(iCount);
+                          },
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
               const SizedBox(height: 10),
               // iCount — Nombre de mots.
               _Section(
@@ -214,21 +235,37 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
           Positioned(
             left: 20,
             right: 20,
-            bottom: 20 + MediaQuery.of(context).padding.bottom,
-            child: SizedBox(
-              height: 56,
-              child: ElevatedButton.icon(
-                key: const ValueKey(WidgetKeys.startSessionStart),
-                onPressed: _canStart ? _start : null,
-                icon: const Icon(Icons.play_arrow_rounded,
-                    color: Colors.white, size: 22),
-                label: Text(
-                  _count == null
-                      ? 'start_session.start'.tr()
-                      : 'start_session.start_with_count'
-                          .tr(namedArgs: {'count': _count.toString()}),
-                  style: AppTextStyles.fig(15, FontWeight.w700)
-                      .copyWith(color: Colors.white),
+            bottom: 16 + MediaQuery.of(context).padding.bottom,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: footer,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                    color: dark ? V3Colors.ruleDark : V3Colors.edgeWarm2),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: SizedBox(
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    key: const ValueKey(WidgetKeys.startSessionStart),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: V3Colors.terra,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(11)),
+                    ),
+                    onPressed: _canStart ? _start : null,
+                    icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                    label: Text(
+                      _count == null
+                          ? 'start_session.start'.tr()
+                          : 'start_session.start_with_count'
+                              .tr(namedArgs: {'count': _count.toString()}),
+                      style: AppTextStyles.fig(15, FontWeight.w700),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -408,15 +445,13 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
               key: ValueKey(WidgetKeys.startRule(st.rule.id)),
               label: st.rule.title(uiLocaleCode(context)),
               selected: _ruleId == st.rule.id,
-              disabled: st.availability == RuleAvailability.locked ||
-                  !st.enoughWords,
+              disabled:
+                  st.availability == RuleAvailability.locked || !st.enoughWords,
               trailing: switch (st.availability) {
-                RuleAvailability.mastered =>
-                  'start_session.rule_mastered'.tr(),
+                RuleAvailability.mastered => 'start_session.rule_mastered'.tr(),
                 RuleAvailability.unlocked when !st.enoughWords =>
                   'start_session.rule_not_enough_words'.tr(),
-                RuleAvailability.unlocked =>
-                  '${st.correct}/$ruleMasteryTarget',
+                RuleAvailability.unlocked => '${st.correct}/$ruleMasteryTarget',
                 RuleAvailability.locked => 'start_session.rule_locked'
                     .tr(namedArgs: {'lists': st.missingLists.join(', ')}),
               },
@@ -450,8 +485,8 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                     style: AppTextStyles.body.copyWith(color: cs.onSurface)),
                 const SizedBox(height: 16),
                 Text('grammar.lesson.examples'.tr(),
-                    style: AppTextStyles.eyebrow
-                        .copyWith(color: AppColors.muted)),
+                    style:
+                        AppTextStyles.eyebrow.copyWith(color: AppColors.muted)),
                 const SizedBox(height: 8),
                 for (final e in rule.workedExamples) ...[
                   Text(e.target,
@@ -460,8 +495,8 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                               : AppTextStyles.fig(16, FontWeight.w600))
                           .copyWith(color: cs.onSurface)),
                   Text(e.translation(uiLocaleCode(ctx)),
-                      style:
-                          AppTextStyles.caption.copyWith(color: AppColors.muted)),
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.muted)),
                   const SizedBox(height: 8),
                 ],
                 const SizedBox(height: 8),
@@ -590,30 +625,28 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = cs.brightness == Brightness.dark;
-    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
-    // Sections must stand out from the page: lighter than the background in
-    // dark mode, darker in light mode — and the expanded section pushes
-    // further in the same direction so the active step reads at a glance.
-    final bg = isDark
-        ? Color.lerp(cs.surface, Colors.white, isOpen ? 0.16 : 0.08)!
-        : Color.lerp(cs.surface, Colors.black, isOpen ? 0.10 : 0.05)!;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final muted = dark ? V3Colors.light70 : V3Colors.ink60;
+    final foreground = dark ? V3Colors.light : V3Colors.ink;
+    final bg = dark
+        ? (isOpen ? V3Colors.chip : V3Colors.block)
+        : (isOpen ? V3Colors.paper3 : V3Colors.paper2);
+    final border = dark ? V3Colors.ruleDark : V3Colors.edgeWarm2;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeInOut,
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.outline),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: border),
       ),
       child: Column(
         children: [
           InkWell(
             key: ValueKey(WidgetKeys.startSection(index)),
             onTap: onHeaderTap,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
@@ -626,7 +659,7 @@ class _Section extends StatelessWidget {
                       child: Text(value,
                           overflow: TextOverflow.ellipsis,
                           style: AppTextStyles.fig(14, FontWeight.w600)
-                              .copyWith(color: cs.onSurface)),
+                              .copyWith(color: foreground)),
                     ),
                   const SizedBox(width: 8),
                   AnimatedRotation(
@@ -681,12 +714,18 @@ class _OptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = cs.brightness == Brightness.dark;
-    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final muted = dark ? V3Colors.light70 : V3Colors.ink60;
     final fg = selected
         ? Colors.white
-        : (disabled ? (isDark ? AppColors.onDarkFaint : AppColors.faint) : cs.onSurface);
+        : (disabled
+            ? (dark ? V3Colors.moss : V3Colors.edgeWarm2)
+            : (dark ? V3Colors.light : V3Colors.ink));
+    final background =
+        selected ? V3Colors.terra : (dark ? V3Colors.block2 : V3Colors.paper);
+    final border = selected
+        ? V3Colors.terra
+        : (dark ? V3Colors.ruleDark : V3Colors.edgeWarm2);
 
     return Opacity(
       opacity: disabled ? 0.6 : 1,
@@ -696,9 +735,9 @@ class _OptionTile extends StatelessWidget {
           duration: const Duration(milliseconds: 140),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: selected ? AppColors.teal : cs.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: selected ? AppColors.teal : cs.outline),
+            color: background,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: border),
           ),
           child: Row(
             children: [
@@ -714,13 +753,14 @@ class _OptionTile extends StatelessWidget {
                   child: Text(trailing!,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.end,
-                      style: AppTextStyles.caption.copyWith(
-                          color: selected ? Colors.white70 : muted)),
+                      style: AppTextStyles.caption
+                          .copyWith(color: selected ? Colors.white70 : muted)),
                 ),
               if (selected)
                 const Padding(
                   padding: EdgeInsets.only(left: 8),
-                  child: Icon(Icons.check_rounded, color: Colors.white, size: 18),
+                  child:
+                      Icon(Icons.check_rounded, color: Colors.white, size: 18),
                 ),
               // Peek icon LAST so it sits at the row's right edge
               // (user feedback 2026-07-19).
@@ -756,18 +796,22 @@ class _CountChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = cs.brightness == Brightness.dark;
-    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final muted = dark ? V3Colors.light70 : V3Colors.ink60;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? AppColors.teal : cs.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: selected ? AppColors.teal : cs.outline),
+          color: selected
+              ? V3Colors.terra
+              : (dark ? V3Colors.block2 : V3Colors.paper),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+              color: selected
+                  ? V3Colors.terra
+                  : (dark ? V3Colors.ruleDark : V3Colors.edgeWarm2)),
         ),
         child: Text('$n',
             style: AppTextStyles.fig(14, FontWeight.w700)
@@ -872,9 +916,10 @@ class _PreviewRow extends ConsumerWidget {
       return '—';
     }
 
-    TextStyle styleFor(String lang, {Color? color}) => Languages.usesHangul(lang)
-        ? AppTextStyles.koreanBody.copyWith(color: color)
-        : AppTextStyles.fig(15, FontWeight.w600).copyWith(color: color);
+    TextStyle styleFor(String lang, {Color? color}) =>
+        Languages.usesHangul(lang)
+            ? AppTextStyles.koreanBody.copyWith(color: color)
+            : AppTextStyles.fig(15, FontWeight.w600).copyWith(color: color);
 
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     return Padding(
@@ -886,8 +931,7 @@ class _PreviewRow extends ConsumerWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(wordFor(langB),
-                textAlign: TextAlign.end,
-                style: styleFor(langB, color: muted)),
+                textAlign: TextAlign.end, style: styleFor(langB, color: muted)),
           ),
         ],
       ),
