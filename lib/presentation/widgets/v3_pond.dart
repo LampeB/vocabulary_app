@@ -7,32 +7,48 @@ import '../../core/theme/v3_colors.dart';
 /// The quiet V3 water layer. It deliberately has no semantic content and is
 /// removed for users who request reduced motion.
 class V3Pond extends StatefulWidget {
-  const V3Pond({super.key});
+  const V3Pond({super.key, this.animate = true});
+
+  /// The sentier shares the pond texture but keeps it still: its motion is the
+  /// learner's path, not the surrounding water.
+  final bool animate;
 
   @override
   State<V3Pond> createState() => _V3PondState();
 }
 
 class _V3PondState extends State<V3Pond> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 23),
-  )..repeat();
+  AnimationController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.animate) {
+      _controller = AnimationController(
+        vsync: this,
+        duration: const Duration(seconds: 23),
+      )..repeat();
+    }
+  }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     if (MediaQuery.disableAnimationsOf(context)) return const SizedBox.expand();
+    if (!widget.animate) {
+      return const IgnorePointer(
+          child: CustomPaint(painter: _PondPainter(0), size: Size.infinite));
+    }
     return IgnorePointer(
       child: AnimatedBuilder(
-        animation: _controller,
+        animation: _controller!,
         builder: (_, __) => CustomPaint(
-          painter: _PondPainter(_controller.value),
+          painter: _PondPainter(_controller!.value),
           size: Size.infinite,
         ),
       ),
