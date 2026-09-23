@@ -7,9 +7,9 @@ import 'package:go_router/go_router.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/lists/vocabulary_provider.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/v3_colors.dart';
 import '../../../domain/entities/app_user.dart';
-import '../../widgets/dotted_ground.dart';
-import '../../widgets/vk_waveform.dart';
+import '../../widgets/v3_pond.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key, this.authTimeout});
@@ -70,37 +70,46 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return Scaffold(
-      // Background from AppTheme.scaffoldBackgroundColor.
+      backgroundColor: V3Colors.app,
       body: Stack(
         children: [
-          const DottedGround(),
-          Center(
-            child: FadeTransition(
-              opacity: _fade,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    height: 48,
-                    child: VkWaveform(isAnimating: true, opacity: 1),
+          const Positioned.fill(child: V3Pond(animate: false)),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: FadeTransition(
+                opacity: _fade,
+                child: Column(children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('VocabKR',
+                        style: AppTextStyles.serif(29, FontWeight.w400,
+                            color: V3Colors.light)),
                   ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'splash.appName'.tr(),
-                    style: AppTextStyles.grotesk(42, FontWeight.w800)
-                        .copyWith(color: cs.onSurface),
+                  const Spacer(),
+                  const _SplashPlateau(),
+                  const Spacer(),
+                  Text('On prépare tes cartes',
+                      style: AppTextStyles.serif(24, FontWeight.w400,
+                          color: V3Colors.light)),
+                  const SizedBox(height: 7),
+                  Text('Quelques secondes, puis tu pourras travailler.',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.fig(14.5, FontWeight.w400,
+                          color: V3Colors.light70)),
+                  const SizedBox(height: 17),
+                  const LinearProgressIndicator(
+                    minHeight: 5,
+                    value: .62,
+                    backgroundColor: V3Colors.chip,
+                    valueColor: AlwaysStoppedAnimation<Color>(V3Colors.amber),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'splash.subtitle'.tr(),
-                    style: AppTextStyles.mono(14, FontWeight.w400).copyWith(
-                        color: cs.onSurface.withValues(alpha: 0.45),
-                        letterSpacing: 3),
-                  ),
-                ],
+                  const SizedBox(height: 10),
+                  Text('splash.subtitle'.tr(),
+                      style: AppTextStyles.mono(11, FontWeight.w400,
+                          letterSpacing: 1.4, color: V3Colors.light60)),
+                ]),
               ),
             ),
           ),
@@ -108,4 +117,59 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       ),
     );
   }
+}
+
+class _SplashPlateau extends StatelessWidget {
+  const _SplashPlateau();
+
+  @override
+  Widget build(BuildContext context) => Column(children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Container(
+            width: double.infinity,
+            height: 150,
+            decoration: BoxDecoration(
+                color: V3Colors.chip2, borderRadius: BorderRadius.circular(15)),
+            child: Padding(
+              padding: const EdgeInsets.all(17),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(width: 126, height: 10, color: V3Colors.moss),
+                    const SizedBox(height: 14),
+                    Container(width: 205, height: 24, color: V3Colors.light60),
+                    const SizedBox(height: 11),
+                    Container(width: 170, height: 10, color: V3Colors.moss),
+                    const Spacer(),
+                    Container(
+                        width: double.infinity,
+                        height: 39,
+                        color: V3Colors.moss),
+                  ]),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Row(children: [
+          Expanded(child: _SkeletonBlock()),
+          SizedBox(width: 9),
+          Expanded(child: _SkeletonBlock()),
+        ]),
+        const SizedBox(height: 9),
+        const Row(children: [
+          Expanded(child: _SkeletonBlock()),
+          SizedBox(width: 9),
+          Expanded(child: _SkeletonBlock()),
+        ]),
+      ]);
+}
+
+class _SkeletonBlock extends StatelessWidget {
+  const _SkeletonBlock();
+  @override
+  Widget build(BuildContext context) => Container(
+      height: 74,
+      decoration: BoxDecoration(
+          color: V3Colors.block2, borderRadius: BorderRadius.circular(13)));
 }
