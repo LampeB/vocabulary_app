@@ -1,5 +1,10 @@
 # Hands-free (Mains libres) — screen spec
 
+> **Statut : référence historique (26 juin 2026).** Le mode mains libres est
+> bien dans la slice V3, mais cette composition et ses feedbacks sont une
+> proposition antérieure. La référence de navigation et d'interaction est
+> [V3 — Sentier de cartes](v3-sentier-de-cartes.md).
+
 *Finalized design. Replaces the earlier "orb" concept. Built around the signature waveform, eyes-free. 26 June 2026.*
 
 ## Purpose

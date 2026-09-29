@@ -1,5 +1,10 @@
 # Quiz study modes — unified design
 
+> **Statut : référence historique (26 juin 2026).** Les mécaniques de quiz
+> restent utiles, mais ce canevas sombre partagé et le feedback plein écran ne
+> sont pas la cible V3. Pour le comportement attendu aujourd'hui, voir
+> [V3 — Sentier de cartes](v3-sentier-de-cartes.md).
+
 *Voix, Cartes, and Écrire now share one dark, immersive study canvas (the same language as Hands-free). Approved 26 June 2026.*
 
 ## Shared canvas (all study modes)

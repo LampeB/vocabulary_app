@@ -1,4 +1,8 @@
-# Feature roadmap (selected 2026-07-22)
+# Feature roadmap (selected 2026-07-22, historical portfolio)
+
+> This is a product-ideas portfolio from the two-flow planning period, not the
+> active delivery order. `../PROJECT_STATUS.md` is the current priority list;
+> retain this document for decisions that remain valid after the V3 slice.
 
 Seven features picked by the user, planned around the two-flow epic
 (`docs/two-flow-daily-plan.md`). Two tracks: **epic-integrated** (build

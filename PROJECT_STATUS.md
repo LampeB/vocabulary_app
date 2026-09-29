@@ -1,51 +1,111 @@
-# VocabApp (VocabKR) — Project Status
+# VocabKR — état actuel
 
-*Status report as of 26 June 2026. Compiled from the Notion workspace and the local repo.*
+**Mis à jour : 29 septembre 2026** · **Branche de travail :**
+`feat/multi-language-learning`
 
-## What the app is
+## Produit en une phrase
 
-VocabApp (product name **VocabKR**) is a mobile app for learning vocabulary between **French and Korean**, built ground-up in **Flutter / Dart** (the current rewrite started June 2026 and supersedes an earlier, now-archived plan to move to React Native).
+VocabKR est une application Flutter d'apprentissage de vocabulaire et de
+grammaire, hors ligne d'abord, avec répétition espacée FSRS, listes libres,
+parcours guidé optionnel et révision vocale ou par flashcards.
 
-It is **audio-first**: every word is read aloud and the learner answers by speaking, with a dedicated eyes-free "hands-free" mode. Reviews are scheduled with **spaced repetition (FSRS)** targeting 90% retention. The app is **offline-first** with cloud sync, and runs a **freemium** model. Content today is French ↔ Korean only, but the data model is designed to grow into other language pairs.
+Les trois paires présentées dans la V0 sont **FR→KO**, **EN→KO** et **KO→FR**.
+Le modèle de données et les listes libres restent génériques pour d'autres
+langues.
 
-## Overall state: healthy and mature
+## Ce qui est réellement livré
 
-The code, the documentation, and the design system are all consistent with each other. This is not an early prototype — it's a substantially complete build.
+### Noyau pédagogique
 
-- All **15 screens** are implemented (onboarding, home, lists, quiz modes, stats, social, profile, paywall, settings).
-- Clean four-layer architecture (presentation → domain ← data, plus services).
-- **216 unit + integration tests**.
-- A complete, documented **design system** ("VocabKR — Design System & Screen Reference") with tokens, components, motion, and a full screen set; design screenshots were committed to the repo yesterday.
-- The latest commit (26 Jun) added the design screen reference and screenshots; recent commits before that restyled the paywall, onboarding, import, settings, and notification screens.
+- Listes personnelles/importées étudiables immédiatement, sans cursus.
+- Quiz flashcards, saisie, voix et mains-libres ; FSRS et historique local.
+- Pré-requis de leçon isolés de la pratique libre : 80 % pondéré de mots
+  gradués, avec au moins 70 % dans chaque liste requise.
+- Règles de grammaire, lecteur de leçon et drills issus des données seedées.
+- Drift/SQLite local, synchronisation Supabase et opérations hors ligne.
 
-## Tech at a glance
+### Voix et audio
 
-Flutter + Riverpod (state), drift/SQLite (local DB), Supabase (auth + cloud sync), freezed (models), RevenueCat (subscriptions). Audio uses ElevenLabs (premium TTS) and flutter_tts (free) via Supabase edge functions; voice input uses on-device STT with an OpenAI Whisper proxy available. Secrets are injected at build time via `--dart-define`.
+- `VoiceTurnMachine` pilote les tours mains-libres ; `AudioDirector` séquence
+  les prompts, réponses et signaux.
+- `SttRace` valide une hypothèse contre la réponse attendue et coordonne les
+  moteurs système, Whisper et ElevenLabs selon leur disponibilité.
+- Les enregistrements de corpus et le laboratoire STT permettent de comparer
+  les moteurs sur un appareil.
+- Les audios de quiz sont provisionnés à la création/publication puis téléchargés
+  en cache local ; un quiz ne génère pas de TTS ElevenLabs à chaque carte.
 
-## Where it left off — open threads
+### Slice V3 livrée
 
-### 1. Speech recognition — the biggest open item (planned, not built)
+Le flux visible suivant est implémenté et relié :
 
-There is an uncommitted document, `docs/stt-improvement-plan.md`, explicitly marked *"proposed / not yet implemented."* It identifies voice recognition — the core interaction of the whole app — as **the weakest part of the experience**. Real symptoms noted: slight background noise throws it off, it mishears short single words (especially Korean spoken by a non-native), and it frequently marks a correct spoken answer as wrong.
+```text
+splash/auth + seed → plateau → chemin du jour → liste/prérequis
+→ configurateur → flashcards ou mains-libres → bilan
+```
 
-The plan's key insight: the quiz already knows the expected answer, so this should be **constrained recognition** ("did they say *this* word?"), not open-ended dictation as it does today. It also notes a second, better-designed Whisper implementation already exists in the code but is currently unplugged. The plan proposes a tiered approach: a free on-device engine (a "bake-off" between two options) and a premium cloud option (Azure Pronunciation Assessment). **This is written but no code has been done yet.**
+La portée, les composants et les écarts de cette slice sont documentés dans
+[docs/design/v3-sentier-de-cartes.md](docs/design/v3-sentier-de-cartes.md).
 
-### 2. Open UI polish tasks (on the Notion board)
+## Ce qui n'est pas terminé
 
-- **Quiz Setup** — UI polish: mode grid, direction tile opacity and selected color.
-- **Quiz screen** — light/dark card redesign (remove the always-black center block).
+### V0 pédagogique
 
-### 3. Dark theme not fully designed
+La **définition de sortie complète** de `docs/v0-daily-loop-plan.md` n'est pas
+encore satisfaite. Il manque notamment : découverte réellement séquencée, écho
+non noté, plan quotidien figé/persistant, complétion, et validation physique
+sur les trois paires.
 
-The design system notes that dark surfaces exist on a few screens, but a **full dark theme of every screen is not yet designed**. Token mappings are sketched but need to be confirmed with design before shipping.
+Les pages et exemples de leçon rédigés et relus pour KO→FR restent un bloqueur
+de contenu avant bêta pédagogique.
 
-## Recommendation
+### Finition V3
 
-The design side is in good shape, so the highest-impact next move is **the speech recognition rework** — it's the core interaction, it's the most-complained-about, and there's already a detailed plan plus a half-built Whisper path to build on. The two quiz UI tasks are smaller and good to knock out alongside it. The full dark theme is worth doing but is the least urgent of the three.
+- Localiser tous les textes V3 en FR/EN/KO ; des libellés sont encore en
+  français dans le code.
+- Décider et créer les variantes claires du plateau, du chemin et du splash.
+- Retirer les piles décoratives hors révision, généraliser les plongées et
+  signaler les surfaces scrollables.
+- Migrer les écrans non inclus : bibliothèque globale, leçons, voix/écrire,
+  profil, réglages, shell/navigation, social et paiement.
 
-## Sources
+### Validation avant bêta
 
-- [VocabApp — Flutter App (Notion)](https://app.notion.com/p/38a7700fd0fb81a4a8f0ca3cdd9f7dff)
-- [VocabKR — Design System & Screen Reference (Notion)](https://app.notion.com/p/38b7700fd0fb81298f95fbce440b7fde)
-- VocabApp — Tasks board (Notion database)
-- Local repo: `vocabulary_app` (latest commit `25b25d0`, 26 Jun 2026) and `docs/stt-improvement-plan.md`
+- Vérification visuelle V3 sur petits écrans, grandes polices, deux thèmes et
+  trois locales.
+- Tests réels microphone, latence réseau, cache audio, reprise arrière-plan et
+  synchronisation sur deux appareils.
+- Audit de la configuration Supabase/Edge Functions, secrets, JWT, limites et
+  coût ; ce point n'est pas vérifiable depuis ce dépôt seul.
+
+## Tests et CI
+
+- La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
+  sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
+- `TESTS.md` recense **746** tests hôte lors de la dernière validation locale
+  complète ; le nombre exact n'est pas un contrat et doit être vérifié par
+  `flutter test`.
+- La CI Patrol contient neuf suites Android, lancées manuellement avec des
+  secrets Supabase : navigation, auth, flux utilisateur, chemin quotidien,
+  prérequis de leçon, paires de langues, quiz voix/cartes, écriture et login.
+- Les comportements audio, microphone réel, rendu et réseau restent à tester
+  sur appareil : la simulation rend les E2E déterministes mais ne prouve pas
+  l'expérience physique.
+
+## Priorités recommandées
+
+1. Fermer les écarts V3 visibles : localisation, thème clair, plongée/scroll,
+   piles décoratives hors quiz.
+2. Finaliser une unité pédagogique V0 relue, incluant KO→FR, leçon, exemples et
+   écho non noté.
+3. Transformer le chemin quotidien de recommandation en plan persistant et
+   complétable, sans jamais bloquer la pratique libre.
+4. Valider sur appareil et sécuriser/configurer les services externes avant
+   ouverture bêta.
+
+## Références
+
+- [Portail documentaire](docs/README.md)
+- [Décisions produit](docs/design/map/app-map.md)
+- [Couverture et stratégie de test](TESTS.md)
+- [Roadmap de contenu](docs/content-roadmap.md)

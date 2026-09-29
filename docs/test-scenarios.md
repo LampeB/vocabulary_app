@@ -1,5 +1,10 @@
 # Test scenarios — VocabKR
 
+> **Statut : catalogue de travail, mis à jour au fil des campagnes.** Vérifier
+> sa date et son état avant de l'utiliser comme vérité de couverture ;
+> [`TESTS.md`](../TESTS.md) et les workflows CI restent l'inventaire exécutable
+> de référence.
+
 > A **scenario catalogue** for thoroughly validating the app, derived from the
 > Notion functional + domain docs and the live codebase. This is the *what to
 > prove* list. For *how to write each test* see [`writing-tests.md`](./writing-tests.md);

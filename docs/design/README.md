@@ -1,17 +1,22 @@
-# Design reference — screens & design system
+# Design references
 
-Visual reference for VocabKR (the FR ↔ KO vocabulary app). These are design
-**prototypes / mockups**, not production code — the task is to recreate them in
-the Flutter codebase.
+> **Current implementation reference:**
+> [V3 — Sentier de cartes](v3-sentier-de-cartes.md).
+>
+> This file catalogs the legacy v1/v2 materials. It does **not** describe the
+> current V3 slice and must not be used alone to implement a new V3 screen.
+
+These are historical visual references for VocabKR. They are prototypes and
+mockups, not production code.
 
 The screenshots below were originally embedded in the Notion page
 **"VocabKR — Design System & Screen Reference"** via temporary
 `claudeusercontent.com` URLs that expire. They're mirrored here so the design
 reference is permanent and version-controlled in the repo.
 
-> Canonical design-system spec (tokens, components, motion, full screen notes)
-> currently lives in Notion: **VocabKR — Design System & Screen Reference**
-> (under the "VocabApp — Flutter App" hub).
+> The original V3 archive and its tokens informed the versioned V3 note and
+> Flutter tokens. New product decisions belong in the repository first; Notion
+> must not be the sole source of truth.
 
 > The repository decision record for interaction language lives in
 > [`map/interaction-language.md`](map/interaction-language.md): navigation
@@ -21,24 +26,24 @@ reference is permanent and version-controlled in the repo.
 
 All frames are designed at a **380 px-wide** phone frame; scale proportionally.
 
-## Screens
+## Legacy v1/v2 screens
 
 | Screen | Preview |
 |--------|---------|
-| **Onboarding** — first run, 6 steps (Bienvenue · Langues · Ton rythme · Rappel · Première liste · Prêt) | ![Onboarding](screenshots/onboarding.png) |
-| **Home / Today** — greeting, streak equalizer, "À réviser" card, list cards | ![Home](screenshots/home.png) |
-| **Study · Voice** — canonical **F1 (Space Grotesk)** frame; ignore the other font-exploration frames | ![Study voice F1](screenshots/study-f1.png) |
-| **Quiz Modes** — mode picker + feedback (juste / à revoir) + Cartes + Écrire | ![Quiz modes](screenshots/quiz-modes.png) |
-| **Lists Flow** — Mes listes · Nouvelle liste · empty state · Ajouter un mot · Liste détail | ![Lists flow](screenshots/lists-flow.png) |
-| **Edit Flow** — Modifier le mot · Modifier la liste · delete confirmation | ![Edit flow](screenshots/edit-flow.png) |
-| **Screens 2** — Résumé · Profil · Amis (classement) · Premium · Réglages | ![Screens 2](screenshots/screens2.png) |
-| **Add Friend** — search, invite-code card, suggestions | ![Add friend](screenshots/add-friend.png) |
+| **Onboarding** — first run, 6 steps (Bienvenue · Langues · Ton rythme · Rappel · Première liste · Prêt) | ![Onboarding](archive/onboarding.png) |
+| **Home / Today** — greeting, streak equalizer, "À réviser" card, list cards | ![Home](archive/home.png) |
+| **Study · Voice** — canonical **F1 (Space Grotesk)** frame; ignore the other font-exploration frames | ![Study voice F1](archive/study-f1.png) |
+| **Quiz Modes** — mode picker + feedback (juste / à revoir) + Cartes + Écrire | ![Quiz modes](archive/quiz-modes.png) |
+| **Lists Flow** — Mes listes · Nouvelle liste · empty state · Ajouter un mot · Liste détail | ![Lists flow](archive/lists-flow.png) |
+| **Edit Flow** — Modifier le mot · Modifier la liste · delete confirmation | ![Edit flow](archive/edit-flow.png) |
+| **Screens 2** — Résumé · Profil · Amis (classement) · Premium · Réglages | ![Screens 2](archive/screens2.png) |
+| **Add Friend** — search, invite-code card, suggestions | ![Add friend](archive/add-friend.png) |
 
-## Notes for implementation
+## Legacy notes for implementation
 
-- **Theming:** both light + dark are required. A full dark theme of every screen
-  is **not yet designed** — confirm with design before shipping dark variants.
-  Relevant to the open task *"Quiz screen — light/dark card redesign"*.
+- **Theming:** both light + dark remain product requirements. V3 has partial
+  two-theme implementation; its outstanding theme work is listed in
+  [v3-sentier-de-cartes.md](v3-sentier-de-cartes.md).
 - **Study · Voice:** only the **F1 / Space Grotesk** frame is canonical.
 - No raster image assets in the app itself — the dotted ground and waveforms are
   drawn in code.

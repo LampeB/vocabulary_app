@@ -1,4 +1,4 @@
-# VocabApp (vocab_kr)
+# VocabKR (vocab_kr)
 
 Multi-language vocabulary & grammar learning app (Flutter). Originally
 French↔Korean, now generalized: any ordered pair among **fr · en · it ·
@@ -58,18 +58,19 @@ Debug builds use the application id `com.vocabkr.vocab_kr.debug`
 ## Tests
 
 ```bash
-# host suite (unit + widget + integration; ~650 tests, must stay green)
+# host suite (unit + widget + integration; 746 at the last full local run)
 LD_LIBRARY_PATH="$HOME/.local/lib:$LD_LIBRARY_PATH" flutter test
 ```
 
 - The **seed validity gate** (`test/seed/seed_catalog_validity_test.dart`)
   enforces the content contracts; grammar rules carry `test_vectors`
   executed against their language module.
-- **E2E** (Patrol, real quiz on an emulator) runs in CI
-  (`.github/workflows/e2e.yml`); config in `patrol.toml`.
-- CI: `test.yml` (host suite) + `e2e.yml` gate PRs; `build-apk.yml` and
-  `ios-testflight.yml` produce artifacts and inject `.env.json` from
-  repo secrets.
+- **E2E** (Patrol on an Android emulator) is available through the manual
+  `workflow_dispatch` workflow in `.github/workflows/e2e.yml`; config in
+  `patrol.toml`.
+- CI: `test.yml` gates every push and PR. `e2e.yml` is manually dispatched;
+  `build-apk.yml` and `ios-testflight.yml` produce artifacts and inject
+  `.env.json` from repo secrets.
 
 Discipline: run the suite and read its verdict **before** building or
 committing — never chain test+build+commit blindly.
@@ -90,15 +91,18 @@ committing — never chain test+build+commit blindly.
 
 ## Where to read next
 
-- **`docs/design/v2-ux-architecture.md`** — the v2 product/UX blueprint
-  (screens, flows, diagrams).
-- **`docs/design/map/app-map.md`** — the decision map: per area, what's
-  decided / proposed / open. **Keep it updated with every decision.**
-- `docs/implementation-plan-v2.md` — build milestones M1-M10.
+- **[`PROJECT_STATUS.md`](PROJECT_STATUS.md)** — current delivery status,
+  known gaps and next steps. Read this first.
+- **[`docs/design/v3-sentier-de-cartes.md`](docs/design/v3-sentier-de-cartes.md)**
+  — the active V3 slice: source of truth for its visual language and scope.
+- **[`docs/README.md`](docs/README.md)** — documentation portal and status of
+  active versus historical plans.
+- `docs/design/map/app-map.md` — decisions per area, with decided/proposed/open
+  status. Keep it updated with every decision.
 - `docs/content-roadmap.md` + `docs/seed-content-authoring.md` — the
   content pipeline (orderable units U1-U9, format contracts). Content
   is generated via the `seed-content` skill / `seed-content-author`
-  agent (`.claude/`), one unit per run, gate green.
+  agent (`.agents/skills/seed-content`), one unit per run, gate green.
 - Task tracking lives on the Notion board **“VocabApp — Tasks”**.
 
 ## House rules

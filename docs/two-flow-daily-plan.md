@@ -1,7 +1,9 @@
 # Two flows, one daily path: Apprendre / Réviser
 
-**Status:** planned (user direction 2026-07-22: "a studying flow and a
-learning flow… plan it before doing anything").
+**Status:** historical product plan; partial foundations are delivered, while
+the complete two-flow daily plan remains pending (see `v0-daily-loop-plan.md`
+and `PROJECT_STATUS.md`). Original user direction 2026-07-22: "a studying flow
+and a learning flow… plan it before doing anything".
 **Decisions locked:** navigation = daily plan path (guided "today" sequence);
 vocab learning = guided batch introduction for the daily path; build order =
 navigation shell first. Direct vocabulary practice is deliberately not gated

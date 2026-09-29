@@ -1,7 +1,30 @@
 # V0 — daily learning loop
 
-**Status:** agreed scope, ready for implementation planning  
-**Last updated:** 2026-09-12
+**Status:** target V0; the visual/interaction slice is delivered, the complete
+learning loop is not.
+**Last updated:** 2026-09-29
+
+## Implementation status — 29 September 2026
+
+The V3 slice now provides real entry points for splash/auth, plateau, daily
+trail, prerequisite list, session setup, flashcards/mains-free and summary.
+It deliberately does **not** yet fulfil this document's definition of done:
+
+| Requirement | Current state |
+| --- | --- |
+| Free practice from a personal/imported list | **Delivered** |
+| 80 % weighted / 70 % per-list lesson gate | **Delivered** |
+| Pair selection FR→KO, EN→KO, KO→FR | **Delivered** |
+| Discovery batch and ungraded echo | **Not delivered** |
+| Authored first lesson + contextual example popup | **Partly delivered** — reader exists, reviewed V0 content and popup flow remain incomplete |
+| Daily plan frozen/persisted per pair, completion and streak | **Not delivered** — current trail is a live recommendation |
+| FR/EN/KO copy on every V3 surface | **Not delivered** |
+| Physical-device validation of all three pairs and sync | **Not delivered** |
+
+Use [PROJECT_STATUS.md](../PROJECT_STATUS.md) and
+[V3 — Sentier de cartes](design/v3-sentier-de-cartes.md) for the current code
+status. The rest of this document remains the product target, not a claim of
+delivery.
 
 ## Outcome
 

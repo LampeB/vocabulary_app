@@ -1,5 +1,9 @@
 # Automatable tests (Gherkin)
 
+> **Statut : inventaire Gherkin historique.** Les scénarios restent une source
+> d'idées, mais ils ne garantissent pas qu'un test existe ou passe. La source
+> exécutable est [`TESTS.md`](../TESTS.md) et la CI.
+
 > Every test we **can** automate (no hard device/payment/network limit) across the
 > currently-uncovered areas. Derived from [`test-feasibility.md`](./test-feasibility.md).
 > Excludes device/manual-only outputs (real purchase, real audio out, OS

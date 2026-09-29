@@ -3,8 +3,8 @@
 **Statut : 🟢 principe décidé · 🟠 unités proposées** ·
 docs : `../../content-roadmap.md` (inventaire des manques + unités U1-U9) ·
 `../../seed-content-authoring.md` (contrat de format) ·
-skill : `.claude/skills/seed-content/SKILL.md` ·
-agent : `.claude/agents/seed-content-author.md`
+skill : `.agents/skills/seed-content/SKILL.md` ·
+agent : `seed-content-author`
 
 ## Décidé (utilisateur, 2026-08-08)
 - Le contenu manquant (falaise post-A1) se cartographie en unités

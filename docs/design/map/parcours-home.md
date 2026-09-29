@@ -8,6 +8,15 @@
 **Statut : 🟢 modèle décidé · 🟠 détails proposés** · écran S1 · flux F0/F10 ·
 spec : `../v2-ux-architecture.md §6.1` · wireframe : `../diagrams/v2-home-parcours.svg`
 
+## Implémentation V3 — 2026-09-29
+
+L'accueil actif est désormais `V3HomeScreen` (adapté par `ParcoursScreen`) :
+paire active, activité du jour, entrée parcours, métriques et entrées vers les
+listes/activités libres. Il ne matérialise pas encore la route complète de
+nœuds/clusters ni les compteurs pédagogiques par niveau définis ci-dessous.
+Les éléments décidés plus bas restent le cap produit, pas une description de
+l'écran livré.
+
 ## Décidé (utilisateur, 2026-08-06)
 - L'accueil montre la langue courante (la dernière étudiée si plusieurs)
 - Carte d'aperçu de la progression en tête

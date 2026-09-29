@@ -1,4 +1,7 @@
-# v2 implementation plan — the two-flow era
+# v2 implementation plan — the two-flow era (historical)
+
+> **Historical plan.** It records the V2 sequencing and is not the active
+> delivery board. See `../PROJECT_STATUS.md` for current priorities.
 
 **Baseline:** `v1.2.0` (2026-07-22) — voice refactor complete, multi-language
 shipped, all plans committed. This document consolidates

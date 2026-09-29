@@ -25,6 +25,14 @@ schéma : `../diagrams/v2-daily-chain.svg` (sources → générateur → étapes
 - Le chemin reste explicitement optionnel : les listes et leurs quiz directs ne
   sont jamais bloqués par cet écran.
 
+## Implémentation V3 — 2026-09-29
+
+`DailyPathScreen` remplace cette première tranche par un sentier V3 : révisions
+dues de la paire active, entrée vers une liste de vocabulaire et entrée vers
+les leçons. Il lance les modes flashcards/mains-libres et conserve la pratique
+libre. Le chemin est toujours une recommandation en direct, pas encore le plan
+figé, persistant et complétable décidé plus bas.
+
 ## Décidé (utilisateur, 2026-08-08 — mécanique tranchée)
 - **Ordre : Réviser d'abord** (échauffement sur du connu) → leçons du
   parcours → drills grammaire → Renforcer en dernier
