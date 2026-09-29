@@ -1,4 +1,9 @@
-# VocabApp v2 — UX architecture & flows (design handoff)
+# VocabApp v2 — UX architecture & flows (historical design handoff)
+
+> **Historical blueprint.** This document preserves the V2 information
+> architecture and product decisions. It does not describe the live V3 slice;
+> start with [`../../PROJECT_STATUS.md`](../../PROJECT_STATUS.md) and
+> [`v3-sentier-de-cartes.md`](v3-sentier-de-cartes.md) for current work.
 
 **This is the document to give Claude Design.** It rethinks the app's
 information architecture and every flow around the v2 feature set, instead
@@ -10,9 +15,9 @@ of patching new screens onto the v1 layout.
 > here.
 
 Companion references:
-- `app-design-overview.md` — the CURRENT app: design system (palette,
-  type, components) + live screenshots of every v1 screen. Use it for
-  visual consistency; use THIS doc for structure.
+- `app-design-overview.md` — historical v1 design system (palette, type,
+  components) + screenshots. Use it only for legacy-screen context; use the
+  V3 note for current visual implementation.
 - Functional specs: `../two-flow-daily-plan.md` (path, intro gate),
   `../grammar-lessons-redesign.md` (lesson viewer, stages),
   `../feature-roadmap.md` (features 1-9), `../implementation-plan-v2.md`

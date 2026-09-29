@@ -1,8 +1,20 @@
 # Feature coverage — what the tests actually verify
 
-> Per-**feature** assessment (2026-07-03, 392 host tests + 21 E2E tests in the
-> gate). Line coverage says how much code ran; this says which **user-facing
-> behaviors** are protected against regressions, and by which layer.
+> **Current status (2026-09-29).** The tables below began as a 2026-07-03
+> inventory and retain useful feature-level detail, but their test counts and
+> E2E wording are historical. `TESTS.md` records 746 host tests at the latest
+> full local snapshot. The maintained Patrol configuration is the nine-suite
+> manual workflow in `.github/workflows/e2e.yml`, not a PR gate.
+>
+> The V3 slice has widget coverage for home/parcours, daily trail, list detail,
+> session setup and quiz behavior. It has no golden/screenshot suite and no
+> E2E assertion of visual fidelity across V3 themes/locales. Physical STT,
+> audio latency, background behavior and deployed-service behavior remain
+> device/external validation.
+>
+> Line coverage says how much code ran; this document says which
+> **user-facing behaviors** are protected against regressions, and by which
+> layer.
 >
 > Legend: ✅ verified · ⚠️ partly verified (what's missing is stated) ·
 > ❌ gap (testable, not tested) · 📵 device-only by nature (cannot be verified
@@ -13,7 +25,7 @@
 
 | Behavior | Status | Verified by |
 |---|---|---|
-| Sign in (success → Home) | ✅ | widget `auth_screen_test` + **live E2E** `auth_login_test` (in gate) |
+| Sign in (success → Home) | ✅ | widget `auth_screen_test` + **live E2E** `auth_login_test` (maintained manual Patrol suite) |
 | Sign in (bad credentials → inline error) | ✅ | widget |
 | Form validation blocks bad input | ✅ | widget + unit `sign_up_usecase_test` |
 | Sign up (username + account) | ⚠️ | unit + widget with fake repo. No E2E (creating real accounts each run pollutes Supabase — accepted) |
@@ -127,13 +139,13 @@
 |---|---|---|
 | Bottom tabs, list→detail, bell, profile tiles, study button | ✅ | E2E `navigation` (5) + per-screen widget nav stubs |
 | App shell (nav bar rendering, offline banner) | ✅ | widget: tabs + study button route; banner per §7. Found+fixed: nav labels overflowed the bar at large text scales |
-| Legacy patrol files (`auth_test`, `sign_up_test`, `vocab_list_test`) | ⚠️ | exist but NOT in the E2E gate — superseded by auth_flows/user_flows; delete or fold in |
+| Legacy patrol files (`auth_test`, `sign_up_test`, `vocab_list_test`) | ⚠️ | exist but are not in the maintained nine-suite workflow — superseded by auth_flows/user_flows; delete or fold in |
 
 ---
 
 ## The honest per-feature summary (updated after the gap-closing pass)
 
-**~92% of CI-testable behaviors are now verified** (49 of ~53; was ~74%
+**Historical 2026-07-03 estimate: ~92% of CI-testable behaviors were verified** (49 of ~53; was ~74%
 when this document was first written). All five ranked gaps were closed the
 same day — see the ✅ rows above.
 
@@ -147,4 +159,5 @@ same day — see the ✅ rows above.
   routing.
 - **Stubs awaiting implementation (test with the feature):** challenges.
 - Housekeeping: legacy patrol files (`auth_test`, `sign_up_test`,
-  `vocab_list_test`) are not in the gate — fold in or delete (owner call).
+  `vocab_list_test`) are not in the maintained workflow — fold in or delete
+  (owner call).

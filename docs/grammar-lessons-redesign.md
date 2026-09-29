@@ -1,7 +1,8 @@
 # Grammar lessons: from quiz to progressive lesson
 
-**Status:** partial V0 foundation delivered — now a SUB-PLAN of `docs/two-flow-daily-plan.md`
-(the app-wide Apprendre/Réviser split with a daily path). Original trigger:
+**Status:** partial V0 foundation delivered. This remains a product/content
+sub-plan; use `PROJECT_STATUS.md` for delivery status and
+`v0-daily-loop-plan.md` for the V0 exit criteria. Original trigger:
 user feedback 2026-07-22 after the first real grammar session ("DAMN that
 was hard… it should be more of a lesson and less of just a quiz, it should
 be progressive"). Builds in that epic's phase 3.

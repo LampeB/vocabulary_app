@@ -1,5 +1,10 @@
 # Start a session — screen spec
 
+> **Statut : référence historique (26 juin 2026).** Cette spécification décrit
+> l'ancienne direction v1/v2. La cible de la vertical slice est le parcours V3
+> dans [V3 — Sentier de cartes](v3-sentier-de-cartes.md) ; ne pas reprendre cet
+> accordéon ou ses cartes sans décision V3 explicite.
+
 *New screen. The single front door to studying. Replaces launching a quiz from inside a list. Interaction model: **accordion**. Updated 26 June 2026.*
 
 ## Purpose & navigation

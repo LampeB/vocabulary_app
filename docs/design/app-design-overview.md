@@ -1,4 +1,9 @@
-# VocabKR — current app design overview (v1.2.0)
+# VocabKR — historical app design overview (v1.2.0)
+
+> **Historical snapshot.** This document records the pre-V3 interface and
+> design-system inventory. For current implementation status, see
+> [`../../PROJECT_STATUS.md`](../../PROJECT_STATUS.md); for the active visual
+> reference, see [`v3-sentier-de-cartes.md`](v3-sentier-de-cartes.md).
 
 Reference document for designing the v2 screens (daily path, lesson viewer,
 vocab intro, dashboard — see `../implementation-plan-v2.md` for which

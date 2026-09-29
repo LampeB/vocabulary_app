@@ -1,5 +1,10 @@
 # Test-feasibility study — the untested areas
 
+> **Statut : étude historique de faisabilité.** Les écarts et les nombres
+> reflètent le moment de l'étude. Pour la couverture et les suites réellement
+> maintenues, consulter [`TESTS.md`](../TESTS.md),
+> [`feature-coverage.md`](feature-coverage.md) et `.github/workflows/`.
+
 > **Question:** for the app areas the E2E net doesn't yet cover, what *can* we
 > test in CI, what *can't* we, and why? Is the gap a real limitation or just
 > not-done-yet?

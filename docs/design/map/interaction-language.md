@@ -3,6 +3,13 @@
 **Statut : 🟢 décidé (utilisateur, 2026-09-11)** · règle transverse de
 navigation, de leçon et de quiz.
 
+> **État d'implémentation (2026-09-29).** La slice V3 applique la pile/flip/
+> swipe aux flashcards et utilise `DiveInPage` pour le chemin quotidien et le
+> lecteur de grammaire. La règle n'est pas encore généralisée : certaines routes
+> V3 ouvrent encore normalement, le plateau scrollable ne signale pas le scroll,
+> et des effets de pile décorative subsistent hors quiz. Voir
+> [`../v3-sentier-de-cartes.md`](../v3-sentier-de-cartes.md).
+
 Ce document définit la métaphore à employer selon l'intention de l'action.
 Elle évite d'utiliser la carte comme décoration générique : une carte ne
 représente une pile physique que lorsqu'on révise réellement des flashcards.
@@ -22,11 +29,11 @@ représente une pile physique que lorsqu'on révise réellement des flashcards.
   elle doit rester brève, interruptible, et être remplacée par un fondu simple
   si `prefers-reduced-motion` est actif.
 
-**Fondation V0 (2026-09-12).** `DiveInPage` traduit ce principe en transition
+**Fondation V0/V3.** `DiveInPage` traduit ce principe en transition
 Flutter courte et réversible ; elle accepte un point d'origine approximatif et
 respecte la réduction des animations. La première migration est l'ouverture du
-Parcours du jour. Les autres routes seront migrées avec leurs flux, pas par un
-changement global aveugle.
+Parcours du jour ; le lecteur de grammaire l'utilise aussi. Les autres routes
+seront migrées avec leurs flux, pas par un changement global aveugle.
 
 ### 2. Réviser un quiz = dépiler des flashcards
 

@@ -9,7 +9,7 @@ How to order a unit: invoke the `seed-content` skill (or the
 parameters, e.g. *"U3: backfill examples for the 71 concepts without one"*
 or *"U5: generate the A2 grammar group for Spanish"*.
 
-## Current state (2026-08-08)
+## Current state (2026-08-08; delivery status superseded by `PROJECT_STATUS.md`)
 
 | Asset | Have | Missing |
 |---|---|---|
@@ -187,11 +187,11 @@ people**. Concretely:
 
 ## The generation pipeline (agent + skill + flow)
 
-- **Skill** `.claude/skills/seed-content/SKILL.md` — the how-to: format
+- **Skill** `.agents/skills/seed-content/SKILL.md` — the how-to: format
   contracts, per-unit workflows, style guide, validation commands.
-- **Agent** `.claude/agents/seed-content-author.md` — a subagent wired to
-  load the skill and produce exactly one unit per run, gate green,
-  flagged for native review.
+- **Agent** `seed-content-author` — the configured content agent; it loads the
+  skill and produces exactly one unit per run, gate green, flagged for native
+  review.
 - **Flow** per run: pick unit → agent drafts JSON + translation keys →
   runs the validity gate + grammar tests → summarizes what needs human
   (native) review → you review the diff and commit. Content lands as

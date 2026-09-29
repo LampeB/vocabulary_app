@@ -1,4 +1,8 @@
-# Study redesign — implementation plan
+# Study redesign — historical implementation plan
+
+> **Historical plan.** Its June/July milestones describe the pre-V3 redesign.
+> Use `../PROJECT_STATUS.md` and `design/v3-sentier-de-cartes.md` to choose new
+> work; retain this document for rationale and commit history.
 
 > Branch: `feat/study-redesign` (off `main`). One PR at the end.
 > Tracks the Notion **VocabApp — Tasks** redesign tasks. Each numbered step = one

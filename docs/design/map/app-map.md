@@ -10,6 +10,11 @@ choix proposé dans `../v2-ux-architecture.md` / les specs) doit mettre à
 jour la note concernée ET son statut dans la table ci-dessous — sinon la
 carte ment.
 
+> **Important — décision ≠ livraison.** Cette carte trace les décisions et les
+> questions produit ; elle ne certifie pas l'état de code. Pour le périmètre
+> réellement livré, commencer par `../../PROJECT_STATUS.md` puis
+> `../v3-sentier-de-cartes.md`.
+
 Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) ·
 🔴 ouvert (personne n'a tranché) · ⚪ établi (v1, inchangé)
 
@@ -21,7 +26,7 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 | Parcours (ex-Étudier) : structure validée | [[parcours-home]] | 🟢 | Q6 seule reste (test de saut sur niveau verrouillé) — nœud=expansion en place, compteurs sans CEFR : décidés 2026-08-21 |
 | Écran Chemin du jour (S18) | [[daily-chain]] | 🟢 | détails visuels (base = panneau sombre validée) |
 | Porte de préchargement | [[preload-gate]] | 🟢 | (maquetté 2026-08-21) reste : cas retry/hors-ligne, jamais simulés |
-| Chemin du jour (mécanique) | [[daily-chain]] | 🟢 | nombres à régler au build (quotas, surplus) |
+| Chemin du jour (mécanique) | [[daily-chain]] | 🟢 | V3 livré comme recommandation ; plan figé/persistant et complétion restent à construire |
 | Onboarding | [[onboarding]] | 🟠 | rythme, placement |
 
 ## Apprendre
@@ -56,7 +61,7 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 
 | Zone | Note | Statut | Reste à trancher |
 |---|---|---|---|
-| Langage d'interaction (plongée, flashcards, popups, scroll) | [[interaction-language]] | 🟢 | décidé 2026-09-11 |
+| Langage d'interaction (plongée, flashcards, popups, scroll) | [[interaction-language]] | 🟢 | slice V3 partielle ; généralisation et écarts documentés dans la note |
 | Multi-langue (règles transverses) | [[multi-language]] | 🟢 | — |
 | Menu général (avatar) → Paramètres · abonnement · avatar · déconnexion | — | 🟢⚪ | (maquetté 2026-08-21) carte profil + sections, avatar fondu dans le profil ; écrans v1 dessous non redessinés |
 

@@ -1,7 +1,39 @@
 # Speech Recognition Improvement Plan
 
-> Status: **proposed / not yet implemented**. This is a design doc, not a record of
-> shipped work. Author: planning session 2026-06-26.
+> **Status: original proposal superseded in part — updated 2026-09-29.** The
+> phased Azure/sherpa plan below is historical design context, not a statement
+> of the current implementation. Read the status block first.
+
+## Current implementation — 2026-09-29
+
+The initial architecture work is no longer merely proposed:
+
+- `VoiceTurnMachine` owns the hands-free turn policy (retry, silent-card pause,
+  grade-once and transition commands).
+- `AudioDirector` serializes prompts, TTS, earcons and handoff to the microphone.
+- `SttRace` validates each engine hypothesis against the expected answer and
+  accepts the first valid candidate; it protects against stale callbacks,
+  throttle-killed sessions and late final results.
+- The available adapters are platform STT, on-device Whisper and ElevenLabs
+  Scribe. The current hands-free policy uses an online ElevenLabs lane and can
+  fall back to Whisper when available; simultaneous own-microphone capture is
+  intentionally avoided.
+- `SttLabScreen` and `SttCorpusRecorder` save labelled device recordings and
+  compare recognizers. They are diagnostic tools, not a learner feature.
+- The audio path is separate: quiz clips are generated/provisioned once and
+  cached locally, rather than synthesized by ElevenLabs on every quiz turn.
+
+### Still open
+
+1. Validate latency, reliability, battery and permissions on representative
+   physical devices and real network conditions.
+2. Decide whether to ship/download an offline Whisper model, and document its
+   size, languages and fallback UX.
+3. Audit the deployed Supabase/ElevenLabs functions: authentication, rate
+   limiting, quotas, error observability and cost are external configuration and
+   cannot be certified from this repository.
+4. Run a repeatable corpus bake-off before changing engine priority or adding a
+   shared-PCM engine such as sherpa-onnx.
 
 ## 1. Problem
 

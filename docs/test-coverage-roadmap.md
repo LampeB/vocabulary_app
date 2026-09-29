@@ -7,10 +7,12 @@
 > order, tick the checkboxes as you complete items (edit this file), commit
 > per phase, and keep the suite green at every commit.
 >
-> Status: phases 0–9 of the original coverage plan (auth, settings,
-> import/export, audio, offline, notifications, stats, social, paywall) are
-> **done** — 293 host tests green as of 2026-07-03. This document is the
-> follow-up plan.
+> **Status (2026-09-29): historical execution record.** The original phases
+> are complete; their 2026-07 counts are retained below for traceability, not
+> as the current test inventory. Read `TESTS.md`, `feature-coverage.md` and
+> `.github/workflows/` for the active suite/CI. New coverage work must include
+> V3 behavior, three locales, two themes where applicable, and physical-device
+> validation where a host test cannot prove the risk.
 
 ---
 

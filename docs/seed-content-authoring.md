@@ -1,7 +1,7 @@
 # Seed content authoring (starter catalog)
 
 > Companion docs: `content-roadmap.md` (what's missing, generation units
-> U1–U9, agent/skill pipeline) · `.claude/skills/seed-content/SKILL.md`
+> U1–U9, agent/skill pipeline) · `.agents/skills/seed-content/SKILL.md`
 > (the how-to an agent follows). **Style rule (2026-08-08): every example
 > or learner-built sentence must be practically usable in travel or real
 > conversation — no Duolingo-style absurd sentences, anywhere, including
