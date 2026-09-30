@@ -1,6 +1,6 @@
 # VocabKR — état actuel
 
-**Mis à jour : 29 septembre 2026** · **Branche de travail :**
+**Mis à jour : 30 septembre 2026** · **Branche de travail :**
 `feat/multi-language-learning`
 
 ## Produit en une phrase
@@ -92,6 +92,21 @@ de contenu avant bêta pédagogique.
   sur appareil : la simulation rend les E2E déterministes mais ne prouve pas
   l'expérience physique.
 
+## Documentation et gouvernance
+
+- La racine du dépôt est un vault Obsidian versionné. Son point d'entrée est
+  [`docs/knowledge-base/00-Accueil.md`](docs/knowledge-base/00-Accueil.md) ;
+  Git et Markdown, et non une base Obsidian séparée, restent la source de
+  vérité.
+- [`AGENTS.md`](AGENTS.md) oblige tout agent à consulter le portail et la
+  spécification active avant une décision matérielle, à demander une décision
+  absente ou ambiguë, puis à documenter la réponse.
+- Le hook versionné `.githooks/pre-commit`, installé par
+  `tool/install-git-hooks.ps1`, vérifie les liens Markdown et refuse un commit
+  de code/configuration sans mise à jour documentaire. Son usage et l'exception
+  rare sont documentés dans
+  [`docs/runbooks/documentation-et-commits.md`](docs/runbooks/documentation-et-commits.md).
+
 ## Priorités recommandées
 
 1. Fermer les écarts V3 visibles : localisation, thème clair, plongée/scroll,
@@ -106,6 +121,7 @@ de contenu avant bêta pédagogique.
 ## Références
 
 - [Portail documentaire](docs/README.md)
+- [Base de connaissances](docs/knowledge-base/00-Accueil.md)
 - [Décisions produit](docs/design/map/app-map.md)
 - [Couverture et stratégie de test](TESTS.md)
 - [Roadmap de contenu](docs/content-roadmap.md)
