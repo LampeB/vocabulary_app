@@ -6,9 +6,7 @@
 > ÉCRAN sont supersédées ; CEFR reste un usage interne possible
 > (estimation de données), jamais montré à l'utilisateur
 
-**Statut : 🟢 features décidées · 🟠 layouts proposés** · écrans S12/S13 ·
-flux F6/F9 · spec : `../v2-ux-architecture.md §6.11, §6.12` ·
-`../../feature-roadmap.md` #6/#9 · M2/M7
+**Statut : 🟢 features décidées · 🟠 layouts proposés**
 
 ## Décidé (utilisateur, 2026-07-22)
 - Dashboard détaillé : progression à plusieurs échelles + niveaux

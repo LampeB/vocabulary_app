@@ -7,8 +7,8 @@ user feedback 2026-07-22 after the first real grammar session ("DAMN that
 was hard… it should be more of a lesson and less of just a quiz, it should
 be progressive"). Builds in that epic's phase 3.
 
-> **Addendum 2026-08 (parcours era):** structure and scheduling are
-> superseded by `design/v2-ux-architecture.md` §F3 — CEFR levels contain
+> **Décision de parcours (2026-08) :** structure and scheduling are defined in
+> [`design/map/grammar-flow.md`](design/map/grammar-flow.md) — levels contain
 > GROUPS of ~5 small rules, each group gated by MASTERY of its
 > prerequisite vocab lists (the v1 unlock mechanic + bars, kept at group
 > scope; different lists per group/level). Per rule: stages 1-3 only

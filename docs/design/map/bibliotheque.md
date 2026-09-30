@@ -1,7 +1,6 @@
 # Onglets Vocabulaire & Leçons (ex-Grammaire)
 
-**Statut : 🟢 deux onglets séparés décidés · 🟠 détails** ·
-écrans S7/S8/S9 · spec : `../v2-ux-architecture.md §6.7, §6.8`
+**Statut : 🟢 deux onglets séparés décidés · 🟠 détails**
 
 ## Décidé (utilisateur, 2026-08-06/07)
 - Les utilisateurs créent des listes de VOCABULAIRE, jamais de grammaire

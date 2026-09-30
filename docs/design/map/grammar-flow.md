@@ -3,9 +3,9 @@
 > **Renommé 2026-08-13** : « grammaire » disparaît de l'UI — on dit
 > **LEÇONS**. Le fichier garde son nom historique.
 
-**Statut : 🟢 modèle décidé · 🟠 mécanique proposée** · flux F3 ·
-spec : `../v2-ux-architecture.md §5 F3` · `../../grammar-lessons-redesign.md` ·
-diagrammes : `../diagrams/v2-grammar-flow.svg`, `../diagrams/grammar-stage-ramp.svg`
+**Statut : 🟢 modèle décidé · 🟠 mécanique proposée** ·
+complément : `../../grammar-lessons-redesign.md` ·
+diagramme : `../diagrams/grammar-stage-ramp.svg`
 
 ## Décidé (utilisateur, 2026-08-07)
 - Beaucoup de PETITES règles, organisées en GROUPES (~5 règles)

@@ -1,8 +1,8 @@
 # Documentation VocabKR
 
-Ce dossier sépare volontairement l'état **actuel** des plans, maquettes et
-audits historiques. Ne déduisez jamais qu'une décision est livrée parce qu'un
-ancien document la décrit comme souhaitable.
+Ce dossier est la base de connaissances active du projet. Chaque note doit
+indiquer une décision applicable, une règle vérifiable ou une procédure
+exécutable ; Git conserve l'historique des versions retirées.
 
 ## Commencer ici
 
@@ -30,26 +30,17 @@ dans [`runbooks/`](runbooks/README.md).
 | --- | --- |
 | Boucle V0 complète et critères de sortie | [v0-daily-loop-plan.md](v0-daily-loop-plan.md) |
 | Interaction : plongée, flashcards, popups, scroll | [interaction-language.md](design/map/interaction-language.md) |
-| Prérequis de leçons | [audit d'alignement V0](audits/2026-09-12-doc-code-alignment.md) |
+| Prérequis de leçons | [flux Leçons](design/map/grammar-flow.md) · [flux vocabulaire](design/map/vocab-flow.md) |
 | Contenu et génération | [content-roadmap.md](content-roadmap.md) · [seed-content-authoring.md](seed-content-authoring.md) |
-| Architecture voix/audio | [stt-improvement-plan.md](stt-improvement-plan.md) · [refactor-voice-orchestration.md](refactor-voice-orchestration.md) |
-
-## Historique et matériel de référence
-
-- `audits/` contient des constats datés ; ils ne remplacent pas l'état actuel.
-- `design/app-design-overview.md`, `design/v2-ux-architecture.md`, les
-  maquettes et les captures v1/v2 restent des références historiques ou des
-  propositions. Leur statut est indiqué dans chaque fichier.
-- `feature-coverage.md` et `test-coverage-roadmap.md` expliquent la stratégie
-  et l'historique de couverture ; l'inventaire exécutable est `TESTS.md` et la
-  CI dans `.github/workflows/`.
+| Architecture voix/audio | [stt-improvement-plan.md](stt-improvement-plan.md) |
+| Couverture fonctionnelle | [feature-coverage.md](feature-coverage.md) · [test-scenarios.md](test-scenarios.md) |
 
 ## Règle d'entretien
 
 Un changement qui modifie une règle produit, une route de la slice V3, une
 source de vérité design, une architecture voix/audio ou la CI doit mettre à
-jour au minimum `PROJECT_STATUS.md` et le document canonique concerné, dans le
-même commit.
+jour le document canonique concerné, et `PROJECT_STATUS.md` lorsqu'il modifie
+l'état réellement livré ou les priorités, dans le même commit.
 
 Le hook versionné décrit dans [Documentation et commits](runbooks/documentation-et-commits.md)
 vérifie automatiquement qu'un changement applicatif/configuration est accompagné

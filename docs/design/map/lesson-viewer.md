@@ -1,7 +1,7 @@
 # Visionneuse de leçon (grammaire)
 
 **Statut : 🟢 principes + modèle de contenu décidés · 🟠 détails proposés · gabarits/ton 🔴** ·
-écran S4 · spec : `../v2-ux-architecture.md §6.4` · `../../grammar-lessons-redesign.md`
+complément : `../../grammar-lessons-redesign.md`
 
 ## Décidé (utilisateur, 2026-07-22)
 - Leçon en plusieurs écrans, jamais un bloc de texte

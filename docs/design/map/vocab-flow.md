@@ -1,7 +1,6 @@
 # Flux vocabulaire : introduction + porte
 
-**Statut : 🟢 modèle décidé · 🟠 détails proposés** · écran S3 · flux F2 ·
-spec : `../v2-ux-architecture.md §6.3` · `../../two-flow-daily-plan.md` ·
+**Statut : 🟢 modèle décidé · 🟠 détails proposés** ·
 diagramme : `../diagrams/word-lifecycle-gate.svg`
 
 ## Décidé (utilisateur, 2026-07-22, précisé le 2026-09-12)

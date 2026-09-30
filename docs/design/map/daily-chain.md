@@ -1,8 +1,6 @@
 # Chemin du jour (les étapes quotidiennes)
 
-**Statut : 🟢 principe décidé · 🟠 mécanique proposée** · flux F0 ·
-spec : `../v2-ux-architecture.md §1, §5 F0` · `../../two-flow-daily-plan.md` ·
-schéma : `../diagrams/v2-daily-chain.svg` (sources → générateur → étapes)
+**Statut : 🟢 principe décidé · 🟠 mécanique proposée**
 
 ## Décidé (utilisateur, 2026-07-22)
 - Deux flux : Apprendre (nouveau, jamais noté au 1er contact) / Réviser
@@ -13,7 +11,6 @@ schéma : `../diagrams/v2-daily-chain.svg` (sources → générateur → étapes
 - Le chemin du jour a son ÉCRAN DÉDIÉ (S18), ouvert par une carte
   « Chemin du jour » sur l'accueil
 - Base de design validée « pour l'instant » : le panneau sombre à étapes
-  des diagrammes (`../diagrams/v2-daily-chain.svg`, panneau de droite)
 
 ## Implémenté (V0, 2026-09-12)
 

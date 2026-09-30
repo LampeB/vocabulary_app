@@ -1,6 +1,6 @@
 # Porte de préchargement
 
-**Statut : 🟢 décidé** · écran S2 · spec : `../v2-ux-architecture.md §6.2`
+**Statut : 🟢 décidé**
 
 ## Implémentation V3 — 2026-09-29
 

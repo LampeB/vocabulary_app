@@ -1,7 +1,6 @@
 # Familles de mots (hanja + racines)
 
-**Statut : 🟢 feature retenue · 🟠 design proposé** · écran S10 · flux F7 ·
-spec : `../v2-ux-architecture.md §6.9` · `../../feature-roadmap.md` #7 · M8
+**Statut : 🟢 feature retenue · 🟠 design proposé**
 
 ## Décidé (utilisateur, 2026-07-22)
 - Feature retenue : familles hanja (학교/학생/학년 → 학) généralisées à

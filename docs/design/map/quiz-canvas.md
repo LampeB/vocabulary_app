@@ -1,9 +1,8 @@
 # Quiz canvas, voix, cloze & mots difficiles
 
-**Statut : ⚪ canvas établi (v1) · 🟠 ajouts proposés** · écran S5 ·
-spec : `../v2-ux-architecture.md §6.5` · mémoire : refactor voix COMPLET
-(VoiceTurnMachine/AudioDirector/SttRace — tout changement voix passe par
-ces seams)
+**Statut : ⚪ canvas établi (v1) · 🟠 ajouts proposés** ·
+mémoire : `VoiceTurnMachine` / `AudioDirector` / `SttRace` — tout changement
+voix passe par ces seams.
 
 ## Décidé (utilisateur)
 - Le canvas v1 (barre de progression, gros mot, waveform, modes
