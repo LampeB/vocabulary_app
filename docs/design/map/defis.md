@@ -1,8 +1,6 @@
 # Défis (duel asynchrone)
 
-**Statut : 🟢 feature retenue · 🟠 scope proposé (audit d'abord)** ·
-écran S14 · flux F8 · spec : `../v2-ux-architecture.md §6.13` ·
-`../../feature-roadmap.md` #8 · M9
+**Statut : 🟢 feature retenue · 🟠 scope proposé (audit d'abord)**
 
 ## Décidé (utilisateur, 2026-07-22)
 - Feature retenue : raviver les challenges (tables dormantes)

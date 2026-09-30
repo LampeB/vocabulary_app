@@ -1,6 +1,6 @@
 # Navigation & onglets
 
-**Statut : 🟠 proposé — à vetter** · spec : `../v2-ux-architecture.md §3`
+**Statut : 🟠 proposé — à vetter**
 
 ## Décidé (utilisateur, 2026-08-07)
 - Un header GÉNÉRAL et un menu footer GÉNÉRAL, composants partagés

@@ -2,9 +2,9 @@
 
 **Statut : implémentation partielle, référence active au 29 septembre 2026.**
 
-Cette note est la référence versionnée du design V3. Les fichiers d'origine
-fournis pour V3 et les maquettes HTML restent des références visuelles ; le
-code Flutter et cette note décrivent ce qui est réellement livré.
+Cette note est la référence versionnée du design V3. Le code Flutter et cette
+note décrivent ce qui est réellement livré ; le prototype HTML du plateau ne
+sert qu'à discuter l'intention visuelle.
 
 ## Intention
 
@@ -69,5 +69,5 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   `lib/presentation/screens/quiz/quiz_screen.dart`.
 - Aperçu HTML du plateau : `mockups/v3-home-plateau-preview.html`.
 
-Les anciennes maquettes v1/v2 restent utiles pour les écrans non migrés, mais
-ne sont pas la source de vérité du rendu V3.
+Les écrans non migrés doivent être conçus à partir de ces règles et des
+décisions de [map/](map/app-map.md), pas à partir d'anciens prototypes.

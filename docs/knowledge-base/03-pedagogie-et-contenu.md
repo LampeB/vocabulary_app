@@ -11,7 +11,8 @@ tags:
 - [Roadmap de contenu](../content-roadmap.md)
 - [Guide de création du contenu seed](../seed-content-authoring.md)
 - [Boucle quotidienne V0](../v0-daily-loop-plan.md)
-- [Audit des règles et du code](../audits/2026-09-12-doc-code-alignment.md)
+- [Flux Leçons](../design/map/grammar-flow.md)
+- [Flux vocabulaire](../design/map/vocab-flow.md)
 
 ## Contrats importants
 

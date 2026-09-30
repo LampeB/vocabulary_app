@@ -1,7 +1,6 @@
 # Pratique libre (entrée dans Étudier)
 
-**Statut : 🟠 proposé — à vetter** · écran S11 · flux F5 ·
-spec : `../v2-ux-architecture.md §6.10` ·
+**Statut : 🟠 proposé — à vetter** ·
 note : le FAB central est mort (footer 5 slots égaux, décidé 2026-08-07)
 — l'entrée vit dans l'onglet Étudier (🟠)
 

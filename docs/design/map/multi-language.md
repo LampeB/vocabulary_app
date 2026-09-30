@@ -1,7 +1,6 @@
 # Multi-langue (règles transverses)
 
-**Statut : 🟢 décidé** · spec : `../v2-ux-architecture.md §7` ·
-`../../feature-roadmap.md` § multi-language
+**Statut : 🟢 décidé**
 
 ## Décidé (utilisateur, 2026-08-13) — le sélecteur d'en-tête montre la PAIRE
 - Le chip d'en-tête doit afficher la paire (« FR ↔ ES »), jamais la

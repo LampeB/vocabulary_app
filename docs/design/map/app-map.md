@@ -1,12 +1,12 @@
-# Carte de l'app — suivi des décisions v2
+# Carte de l'app — suivi des décisions produit
 
-Open this folder (`docs/design/map/`) as an Obsidian vault, or read it on
-GitHub. One note per zone; each note separates **ce qui est décidé** (par
+Ouvrir la racine du dépôt comme vault Obsidian, ou lire ces notes sur GitHub.
+Une note par zone sépare **ce qui est décidé** (par
 Thomas, avec la date), **ce qui est proposé mais pas encore vetté** (par
 Claude), et **ce qui reste ouvert**.
 
 **Règle d'entretien :** toute décision prise en session (ou tout nouveau
-choix proposé dans `../v2-ux-architecture.md` / les specs) doit mettre à
+choix proposé dans les spécifications actives) doit mettre à
 jour la note concernée ET son statut dans la table ci-dessous — sinon la
 carte ment.
 
@@ -65,7 +65,6 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 | Multi-langue (règles transverses) | [[multi-language]] | 🟢 | — |
 | Menu général (avatar) → Paramètres · abonnement · avatar · déconnexion | — | 🟢⚪ | (maquetté 2026-08-21) carte profil + sections, avatar fondu dans le profil ; écrans v1 dessous non redessinés |
 
-Docs sources : `../v2-ux-architecture.md` (structure + flux) ·
-`../app-design-overview.md` (état actuel) · `../../two-flow-daily-plan.md` ·
-`../../grammar-lessons-redesign.md` · `../../feature-roadmap.md` ·
-`../../implementation-plan-v2.md`.
+Sources actives : `../v3-sentier-de-cartes.md` ·
+`../../v0-daily-loop-plan.md` · `../../grammar-lessons-redesign.md` ·
+`../../content-roadmap.md` · `../../PROJECT_STATUS.md`.

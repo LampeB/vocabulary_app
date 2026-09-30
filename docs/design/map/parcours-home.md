@@ -5,8 +5,7 @@
 > pas cet onglet ; « Parcours » colle à ce qu'il montre (route à
 > nœuds + chemin du jour + position). Voir [[navigation]].
 
-**Statut : 🟢 modèle décidé · 🟠 détails proposés** · écran S1 · flux F0/F10 ·
-spec : `../v2-ux-architecture.md §6.1` · wireframe : `../diagrams/v2-home-parcours.svg`
+**Statut : 🟢 modèle décidé · 🟠 détails proposés**
 
 ## Implémentation V3 — 2026-09-29
 

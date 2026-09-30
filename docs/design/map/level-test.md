@@ -1,7 +1,6 @@
 # Test de niveau / examen de palier / placement
 
-**Statut : 🟢 existence décidée · 🟠 contenu proposé** · écran S17 ·
-spec : `../v2-ux-architecture.md §6.15, F10`
+**Statut : 🟢 existence décidée · 🟠 contenu proposé**
 
 ## Décidé (utilisateur, 2026-08-13)
 - Libellés à l'écran : « Test du niveau N » (Niveau 1-6, jamais A1-C2

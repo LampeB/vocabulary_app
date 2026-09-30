@@ -1,7 +1,6 @@
 # Onboarding (première ouverture)
 
-**Statut : 🟠 proposé — à vetter** · écran S16 · flux F1 ·
-spec : `../v2-ux-architecture.md §5 F1, §6.14`
+**Statut : 🟠 proposé — à vetter**
 
 ## Décidé (utilisateur)
 - (rien explicitement)
