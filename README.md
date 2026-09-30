@@ -116,3 +116,11 @@ committing — never chain test+build+commit blindly.
   conversation.
 - Multi-language by design: nothing ships Korean-only by accident;
   every feature states its story for all studyable pairs.
+- **Documentation is a contract:** read [`PROJECT_STATUS.md`](PROJECT_STATUS.md)
+  and the matching active spec through [`docs/README.md`](docs/README.md)
+  before making a material product or technical decision. If the decision is
+  absent or ambiguous, ask the product owner, then document the answer.
+- **Install the documentation guard after cloning:**
+  `powershell -ExecutionPolicy Bypass -File tool/install-git-hooks.ps1`.
+  It rejects code/configuration commits that omit a documentation update and
+  checks local Markdown links.

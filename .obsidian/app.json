@@ -1,0 +1,7 @@
+{
+  "showFrontmatter": true,
+  "strictLineBreaks": false,
+  "newLinkFormat": "relative",
+  "attachmentFolderPath": "docs/assets",
+  "alwaysUpdateLinks": true
+}

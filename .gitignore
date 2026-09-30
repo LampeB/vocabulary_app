@@ -30,6 +30,12 @@ test*.env.json
 # Local Codex desktop configuration (machine-specific paths and connectors)
 /.codex/
 
+# Obsidian keeps this layout per local machine; the shared vault settings are
+# versioned in .obsidian/app.json.
+/.obsidian/workspace.json
+/.obsidian/workspace-mobile.json
+/.obsidian/cache/
+
 # Test output
 quiz_test_out.txt
 

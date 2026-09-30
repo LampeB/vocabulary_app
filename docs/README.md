@@ -15,6 +15,15 @@ ancien document la décrit comme souhaitable.
 4. [Tests](../TESTS.md) et [guide d'écriture](writing-tests.md) — inventaire,
    commandes et règles de test.
 
+## Base de connaissances Obsidian
+
+Le dépôt est aussi un vault Obsidian versionné : ouvrir sa racine dans Obsidian,
+puis commencer par [la base de connaissances](knowledge-base/00-Accueil.md).
+Elle organise les sources existantes sans créer une copie concurrente de la
+documentation. Les décisions durables sont consignées dans
+[`decisions/`](decisions/README.md) ; les procédures de poste et de livraison
+dans [`runbooks/`](runbooks/README.md).
+
 ## Spécifications actives
 
 | Sujet | Document |
@@ -41,3 +50,7 @@ Un changement qui modifie une règle produit, une route de la slice V3, une
 source de vérité design, une architecture voix/audio ou la CI doit mettre à
 jour au minimum `PROJECT_STATUS.md` et le document canonique concerné, dans le
 même commit.
+
+Le hook versionné décrit dans [Documentation et commits](runbooks/documentation-et-commits.md)
+vérifie automatiquement qu'un changement applicatif/configuration est accompagné
+d'une mise à jour documentaire et que les liens Markdown préparés sont valides.
