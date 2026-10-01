@@ -39,7 +39,7 @@ void main() {
   isolatedPatrolTest(
     'sign-up with already-used email shows French error',
     scenarioId: 'sign_up.sign_up_with_already_used_email_shows_french_error',
-    timeout: const Timeout(Duration(minutes: 2)),
+    timeout: const Timeout(Duration(minutes: 3)),
     ($) async {
       await _launchAndGoToSignUp($);
 
@@ -65,7 +65,7 @@ void main() {
   isolatedPatrolTest(
     'sign-up with already-used username shows French error',
     scenarioId: 'sign_up.sign_up_with_already_used_username_shows_french_error',
-    timeout: const Timeout(Duration(minutes: 2)),
+    timeout: const Timeout(Duration(minutes: 3)),
     ($) async {
       await _launchAndGoToSignUp($);
 

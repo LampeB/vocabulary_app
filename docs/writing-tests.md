@@ -47,7 +47,7 @@ Every scenario is one `isolatedPatrolTest(...)` with three readable phases. Exam
 // One-line description of the behaviour being proven.
 isolatedPatrolTest('Voice — all answers correct → 100%',
     scenarioId: 'quiz.voice_all_answers_correct_100',
-    timeout: const Timeout(Duration(minutes: 7)), ($) async {
+    timeout: const Timeout(Duration(minutes: 3)), ($) async {
   final app = Steps($);
   addTearDown(() => cleanupAfterTest($)); // always clean up seeded data
 
@@ -69,6 +69,9 @@ isolatedPatrolTest('Voice — all answers correct → 100%',
 Rules:
 - **`final app = Steps($);`** then read top-to-bottom: `given.*` (preconditions),
   `when.*` (actions), `then.*` (assertions). Don't interleave them.
+- **Timeout: 3 minutes per scenario**, including baseline preparation and the
+  test body. `isolatedPatrolTest` uses this default for new scenarios. Build and
+  emulator startup are outside this timeout.
 - **Always prepare a verified baseline** — use `isolatedPatrolTest`, which resets
   the enrolled account on Supabase and clears local state before launching the
   app. Then call `given.signedIn()` and the scenario's explicit `given.*`
@@ -307,7 +310,7 @@ Spec: *"A learner can take a typing quiz; typing the right answer scores 100%."*
 // Typing the correct Korean word on every card → 100%.
 isolatedPatrolTest('Écrire — correct typed answer → 100%',
     scenarioId: 'quiz_ecrire.ecrire_correct_typed_answer_100',
-    timeout: const Timeout(Duration(minutes: 7)), ($) async {
+    timeout: const Timeout(Duration(minutes: 3)), ($) async {
   final app = Steps($);
   addTearDown(() => cleanupAfterTest($));
 
