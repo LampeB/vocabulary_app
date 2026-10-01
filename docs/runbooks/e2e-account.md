@@ -82,6 +82,10 @@ patrol test --target patrol_test/quiz_test.dart \
   --dart-define-from-file=test.accounts.env.json -d <device-id>
 ```
 
+La CI fixe `patrol_cli` à **4.4.0**, compatible avec `patrol` **4.6.1**.
+Utiliser cette même version localement : `dart pub global activate patrol_cli 4.4.0`.
+Une mise à jour du package Patrol doit réévaluer cette compatibilité.
+
 La CI utilise `SUPABASE_URL`, `SUPABASE_ANON_KEY` et `E2E_ACCOUNTS_JSON`.
 Les anciens secrets `TEST_EMAIL` et `TEST_PASSWORD` ne sont plus utilisés.
 Le précontrôle valide le catalogue complet sans modifier les comptes ; seul

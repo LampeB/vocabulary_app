@@ -91,9 +91,10 @@ de contenu avant bêta pédagogique.
 - Le reset E2E par scénario, le verrou commun et le planning quotidien à
   22 h 17 (Séoul) sont implémentés. Le dispatcher est activé sur `main`
   ([PR #1](https://github.com/LampeB/vocabulary_app/pull/1)) et cible
-  `feat/multi-language-learning`. **Supabase et E2E réel restent à valider** :
-  appliquer les migrations 008 et 009, provisionner les 36 comptes distincts
-  (un par scénario permanent), puis réussir un passage Patrol. Le reset refuse
+  `feat/multi-language-learning`. **Les 36 comptes distincts sont provisionnés** et le secret CI est installé.
+  Le passage Patrol réel reste à valider : le premier run a validé la
+  configuration, puis échoué avant les tests sur une incompatibilité du CLI.
+  La CI fixe désormais Patrol CLI 4.4.0 pour Patrol 4.6.1. Le reset refuse
   une identité attribuée à un autre scénario et les relations intercomptes.
   Les 752 tests hôte, les contrôles Python et les tests SQL sur base jetable
   passent ; `flutter analyze` ne rapporte aucun problème. Procédure dans le

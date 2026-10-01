@@ -46,9 +46,8 @@ jobs:
 
       - run: flutter pub get
 
-      # Patrol CLI. If this version mismatches the `patrol` package (4.6.x), pin
-      # it here to the compatible release.
-      - run: dart pub global activate patrol_cli
+      # Patrol 4.6.1 requires CLI 4.4.0; do not install the latest implicitly.
+      - run: dart pub global activate patrol_cli 4.4.0
 
       - name: Validate distinct scenario accounts and write build-time config
         env:
