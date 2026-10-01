@@ -82,7 +82,7 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- `TESTS.md` recense **746** tests hôte lors de la dernière validation locale
+- La suite compte **752** tests hôte lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - La CI Patrol contient neuf suites Android, lançables manuellement avec des
@@ -92,8 +92,11 @@ de contenu avant bêta pédagogique.
   22 h 17 (Séoul) sont implémentés. Le dispatcher est activé sur `main`
   ([PR #1](https://github.com/LampeB/vocabulary_app/pull/1)) et cible
   `feat/multi-language-learning`. **Supabase et E2E réel restent à valider** :
-  appliquer la migration 008, inscrire le compte dédié, puis réussir un passage
-  Patrol. Les 748 tests hôte passent localement. Procédure dans le
+  appliquer les migrations 008 et 009, provisionner les 36 comptes distincts
+  (un par scénario permanent), puis réussir un passage Patrol. Le reset refuse
+  une identité attribuée à un autre scénario et les relations intercomptes.
+  Les 752 tests hôte, les contrôles Python et les tests SQL sur base jetable
+  passent ; `flutter analyze` ne rapporte aucun problème. Procédure dans le
   [runbook E2E](docs/runbooks/e2e-account.md).
 - Les comportements audio, microphone réel, rendu et réseau restent à tester
   sur appareil : la simulation rend les E2E déterministes mais ne prouve pas

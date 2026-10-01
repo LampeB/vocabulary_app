@@ -8,6 +8,7 @@ void main() {
   // ── Sign-in flow ──────────────────────────────────────────────────────────
 
   isolatedPatrolTest('sign-in lands on Today screen',
+      scenarioId: 'auth.sign_in_lands_on_today_screen',
       timeout: const Timeout(Duration(minutes: 2)), ($) async {
     await launchAndSignIn($);
 
@@ -26,6 +27,7 @@ void main() {
   // which fail the test before any assertion can run.
 
   isolatedPatrolTest('profile data is loaded after sign-in',
+      scenarioId: 'auth.profile_data_is_loaded_after_sign_in',
       timeout: const Timeout(Duration(minutes: 2)), ($) async {
     await launchAndSignIn($);
 

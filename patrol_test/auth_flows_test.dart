@@ -8,6 +8,7 @@ import 'helpers/test_helpers.dart';
 void main() {
   // Signing out from Profile returns to the Welcome screen.
   isolatedPatrolTest('Auth — sign out returns to Welcome',
+      scenarioId: 'auth_flows.auth_sign_out_returns_to_welcome',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
@@ -22,6 +23,7 @@ void main() {
   // delivery nor success is asserted — Supabase rate-limits resets, so we only
   // prove the form → submit → response flow works.
   isolatedPatrolTest('Auth — password reset request is handled',
+      scenarioId: 'auth_flows.auth_password_reset_request_is_handled',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);

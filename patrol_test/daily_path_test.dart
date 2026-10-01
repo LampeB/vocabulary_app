@@ -10,6 +10,8 @@ const _list = 'E2E Daily Path List';
 
 void main() {
   isolatedPatrolTest('Daily path — suggested vocabulary opens its seeded list',
+      scenarioId:
+          'daily_path.daily_path_suggested_vocabulary_opens_its_seeded_list',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
@@ -28,6 +30,7 @@ void main() {
   });
 
   isolatedPatrolTest('Daily path — lessons entry opens the grammar hub',
+      scenarioId: 'daily_path.daily_path_lessons_entry_opens_the_grammar_hub',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);

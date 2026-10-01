@@ -15,6 +15,8 @@ void main() {
   // value is chosen in EVERY section of the start screen.
   isolatedPatrolTest(
       'Full flow — create a list, add-edit-delete words, then start a custom quiz',
+      scenarioId:
+          'user_flows.full_flow_create_a_list_add_edit_delete_words_then_start_a_custom_quiz',
       timeout: const Timeout(Duration(minutes: 9)),
       config: kFastSettle, ($) async {
     final app = Steps($);
@@ -75,6 +77,8 @@ void main() {
   // UI-built data flows straight into a study session.
   isolatedPatrolTest(
       'Flow — build a list in the UI, then study it with flashcards',
+      scenarioId:
+          'user_flows.flow_build_a_list_in_the_ui_then_study_it_with_flashcards',
       timeout: const Timeout(Duration(minutes: 8)),
       config: kFastSettle, ($) async {
     final app = Steps($);

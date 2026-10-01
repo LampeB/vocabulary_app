@@ -15,6 +15,7 @@ const _ko = '안녕하세요';
 void main() {
   // Type the correct Korean word on every card → 100%.
   isolatedPatrolTest('Écrire — correct typed answer → 100%',
+      scenarioId: 'quiz_ecrire.ecrire_correct_typed_answer_100',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
@@ -38,6 +39,7 @@ void main() {
 
   // Type a wrong answer on every card → 0%.
   isolatedPatrolTest('Écrire — wrong typed answer → 0%',
+      scenarioId: 'quiz_ecrire.ecrire_wrong_typed_answer_0',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
@@ -64,6 +66,7 @@ void main() {
   // Typing the correct French word on every card → 100%. Proves direction
   // selection routes through to validation (the default is FR→KO).
   isolatedPatrolTest('Écrire KO→FR — correct French answer → 100%',
+      scenarioId: 'quiz_ecrire.ecrire_kofr_correct_french_answer_100',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
@@ -89,6 +92,7 @@ void main() {
 
   // A correct typed answer flashes the correct (teal) verdict on that card.
   isolatedPatrolTest('Écrire — correct answer shows the correct verdict',
+      scenarioId: 'quiz_ecrire.ecrire_correct_answer_shows_the_correct_verdict',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
@@ -111,6 +115,7 @@ void main() {
 
   // A wrong typed answer flashes the wrong (orange) verdict on that card.
   isolatedPatrolTest('Écrire — wrong answer shows the wrong verdict',
+      scenarioId: 'quiz_ecrire.ecrire_wrong_answer_shows_the_wrong_verdict',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
@@ -136,6 +141,7 @@ void main() {
   // Choosing a card count (10) drives a 10-card session that still completes;
   // the one-word list pads up to 10 and every correct answer → 100%.
   isolatedPatrolTest('Écrire — chosen card count of 10 completes at 100%',
+      scenarioId: 'quiz_ecrire.ecrire_chosen_card_count_of_10_completes_at_100',
       timeout: const Timeout(Duration(minutes: 8)),
       config: kFastSettle, ($) async {
     final app = Steps($);

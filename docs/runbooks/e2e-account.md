@@ -1,111 +1,107 @@
-# Compte E2E permanent et préparation des scénarios
+# Comptes E2E permanents par scénario
 
-Décision du 30 septembre 2026 : un compte réservé aux E2E, réutilisé en série.
-Son identité Auth est conservée ; son état applicatif est reconstruit avant
-chaque scénario. Aucun compte personnel ne doit être inscrit dans ce mécanisme.
+Décision du 1 octobre 2026 : **chaque scénario possède son propre compte**,
+réutilisé et remis dans un état connu avant chaque exécution. Le catalogue
+[scenarios.json](../../tool/e2e/scenarios.json) contient 36 identifiants stables,
+y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
 
-## Activation Supabase (une seule fois)
+## Activation Supabase
 
-1. Réactiver le projet si nécessaire.
-2. Appliquer [la migration 008](../../supabase/migrations/008_e2e_reset.sql)
-   dans le SQL Editor avec un accès administrateur. Les migrations antérieures
-   du projet, dont `add_subscription_type.sql`, doivent être présentes.
-3. Inscrire explicitement le compte correspondant au secret GitHub `TEST_EMAIL`.
-   Remplacer l'adresse ci-dessous par celle du compte dédié. L'instruction doit
-   insérer exactement une ligne ; vérifier son résultat avant de lancer les tests.
+1. Réactiver le projet si nécessaire. Appliquer dans le SQL Editor les migrations
+   [008](../../supabase/migrations/008_e2e_reset.sql) puis
+   [009](../../supabase/migrations/009_e2e_scenario_accounts.sql).
+   Les migrations antérieures, dont `add_subscription_type.sql`, sont requises.
+   Pour obtenir un seul script atomique prêt à coller :
+   `python3 tool/e2e/build_activation.py > /tmp/activer-vocab-e2e.sql`.
+2. Depuis la racine du dépôt, avec `.env.json` configuré pour ce projet :
 
-```sql
-INSERT INTO e2e_private.accounts (user_id, username)
-SELECT u.id, p.username
-FROM auth.users u JOIN public.profiles p ON p.id = u.id
-WHERE lower(u.email) = lower('ADRESSE_DU_COMPTE_E2E')
-ON CONFLICT (user_id) DO UPDATE SET username = EXCLUDED.username
-RETURNING user_id, username;
+   ```bash
+   python3 tool/e2e/provision.py --publish-github
+   ```
+
+   Saisir la clé Supabase `service_role` ou secret key dans l'invite masquée du
+   terminal. Ne pas la coller dans un chat. Elle reste en mémoire et n'est
+   transmise ni à GitHub ni à l'APK. L'option GitHub nécessite `gh auth login`.
+3. Sauvegarder **privément** `.e2e/accounts.json`. Ce fichier ignoré par Git
+   conserve les mots de passe et UUID ; `test.accounts.env.json` est généré
+   pour Patrol. Les fichiers sont écrits avec des permissions 0600.
+4. Lancer une suite locale ou le workflow E2E et vérifier son résultat réel.
+
+L'outil crée les comptes via l'API administrateur, avec email confirmé et
+métadonnées administrateur identifiant le scénario. Il les inscrit via une RPC
+réservée au rôle serveur. Une relance reprend une création interrompue sans
+changer les mots de passe ni recréer les identités. Un compte distant existant
+sans sauvegarde locale ou une identité incohérente provoque un arrêt, sans
+adoption ni suppression. Le fichier `.e2e/project.json` lie les données au projet.
+Les adresses générées sont consultables dans le fichier privé ; rien à inventer
+ou à saisir manuellement pour chaque test.
+
+L'ancien compte partagé reste non attribué et ne peut plus appeler le reset.
+Aucun compte existant n'est supprimé par cette migration.
+
+## Isolation et état initial
+
+Chaque `isolatedPatrolTest` reçoit un `scenarioId` explicite. La configuration
+`TEST_ACCOUNTS_JSON` associe chaque ID à un UUID, email, mot de passe et pseudo.
+Les UUID et emails doivent être distincts ; aucune entrée de secours partagée.
+Avant `app.main()`, le helper :
+
+1. sélectionne le compte du scénario, se connecte et vérifie UUID et email ;
+2. appelle `reset_e2e_account(p_scenario_id)` et vérifie identité, scénario,
+   pseudo et baseline `empty-free-v1` ;
+3. vide transactionnellement les tables SQLite et les préférences locales ;
+4. démarre l'app, puis les étapes `given.*` construisent les préconditions.
+
+Le serveur vérifie l'association compte/scénario sous verrou. La liste
+`e2e_private.accounts` a RLS activée sans politique client et des droits retirés.
+La fonction sans argument est privée ; le client ne peut cibler un autre UUID.
+Une erreur annule le reset et fait échouer uniquement le scénario concerné.
+Les suites suivantes restent exécutées même après les retries d'une suite en
+échec. Les processus Android sont renouvelés par Test Orchestrator avec
+`clearPackageData=true`. `TEST_SESSION` est interdit.
+
+Le reset efface listes, concepts, variantes, progression, abonnements Supabase,
+notifications et classement du compte. Il recrée son profil gratuit avec le
+pseudo enregistré. Les historiques serveur optionnels sont également effacés.
+Les amitiés, demandes, défis et progressions d'autres comptes sur ses listes
+font **refuser** le reset : ne pas créer de fixtures partagées entre scénarios.
+Les futurs tests sociaux devront disposer d'une stratégie dédiée documentée.
+
+L'identité Auth est conservée. Le reset ne supprime pas les objets Storage ni
+l'état des services externes. RevenueCat est désactivé en mode test et STT est
+simulé. Toute nouvelle table synchronisée doit être intégrée au reset et à ses
+tests. Le teardown reste au mieux ; il ne remplace jamais la préparation.
+
+## Ajouter ou lancer un scénario
+
+Ajouter un ID stable dans le test et dans le catalogue, puis relancer le script
+de provisioning. Renommer une description ne change pas l'ID ni le compte.
+
+```bash
+patrol test --target patrol_test/quiz_test.dart \
+  --dart-define-from-file=test.accounts.env.json -d <device-id>
 ```
 
-La liste d'autorisation est inaccessible aux utilisateurs de l'application :
-RLS activée sans politique client, et droits retirés sur la table et le schéma.
-`reset_e2e_account()` n'accepte aucun identifiant cible : il ne peut effacer que
-les données de `auth.uid()`, et uniquement si ce compte est inscrit. La fonction
-utilise une transaction et un `search_path` vide. Une erreur annule tout.
-Retirer la ligne de `e2e_private.accounts` désactive immédiatement l'autorisation.
-Aucune clé `service_role` n'est nécessaire dans la CI ou dans l'APK.
+La CI utilise `SUPABASE_URL`, `SUPABASE_ANON_KEY` et `E2E_ACCOUNTS_JSON`.
+Les anciens secrets `TEST_EMAIL` et `TEST_PASSWORD` ne sont plus utilisés.
+Le précontrôle valide le catalogue complet sans modifier les comptes ; seul
+le scénario sur le point de démarrer réinitialise son propre compte.
 
-## État initial et périmètre
-
-Chaque scénario utilise `isolatedPatrolTest`, qui prépare l'état **avant**
-`app.main()` et avant la synchronisation :
-
-1. Connexion avec `TEST_EMAIL` / `TEST_PASSWORD`, vérification de l'identité.
-2. Reset serveur et vérification de la réponse `empty-free-v1` : suppression
-   des listes, concepts, variantes, progression, abonnements locaux Supabase,
-   notifications, classement, demandes d'amis, amitiés et défis liés au compte.
-   Le profil est recréé avec le pseudo inscrit, les valeurs par défaut et
-   l'accès gratuit. Les historiques `review_events`, `quiz_sessions` et
-   `grammar_progress` sont aussi effacés s'ils existent sur le serveur.
-3. Suppression transactionnelle de toutes les tables SQLite de l'app, y compris
-   les historiques locaux, puis des préférences. Vérification de leur vacuité.
-4. Lancement de l'app, connexion, puis préparation spécifique via `given.*`.
-
-Les scénarios Android exigent un processus neuf via Test Orchestrator et
-`clearPackageData=true`. Une réutilisation de processus est refusée : le reset
-ne doit jamais courir en même temps qu'une ancienne synchronisation.
-`TEST_SESSION` doit être absent : aucune session compilée partagée entre tests.
-Le nettoyage après test reste au mieux ; le reset préalable est obligatoire et
-ses erreurs arrêtent le scénario. Ne pas lancer un test local pendant la CI.
-
-Les méthodes `given.aListWithOneWord`, `given.theFrenchKoreanStarterCurriculum`
-et `given.theStarterListIsKnown` construisent les préconditions. La première
-vérifie le concept et ses deux variantes, la deuxième les listes seedées, et
-la troisième l'enregistrement de la progression. Étendre ces préparations pour
-chaque nouvel état métier ; ne pas dépendre des résultats d'un autre test.
-
-La réinitialisation conserve l'identité Auth (email, mot de passe, métadonnées
-d'identité). Elle ne supprime pas les fichiers Storage, notamment les audios
-partagés, ni l'état des services externes (RevenueCat, emails). RevenueCat et
-la reconnaissance vocale réelle restent désactivés/simulés par la configuration
-CI. Toute nouvelle table métier synchronisée doit être ajoutée au reset et à
-ses tests ; ce mécanisme ne promet pas de vider un schéma distant inconnu.
-
-## GitHub Actions
-
-Le [workflow E2E](../../.github/workflows/e2e.yml) utilise les quatre secrets
-existants : `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `TEST_EMAIL`, `TEST_PASSWORD`.
-Le précontrôle teste le reset avant de démarrer l'émulateur et génère le JSON
-avec un encodeur, sans écrire de session dans les logs. Le fichier est supprimé
-à la fin du job. Le mode manuel permet toujours de choisir une suite.
-
-- Planification quotidienne : **22 h 17 Asia/Seoul**, soit 13 h 17 UTC.
-- Verrou commun `supabase-e2e-account` entre branches et déclenchements ; un run
-  actif n'est pas annulé par un nouveau run. GitHub peut remplacer un run en
-  attente par un plus récent ; ce n'est pas une file illimitée.
-- Le [déclencheur nocturne](../../.github/workflows/e2e-nightly.yml) doit être
-  présent sur `main`. Il déclenche `e2e.yml` sur `feat/multi-language-learning`,
-  qui contient les neuf suites maintenues et le reset. Cela évite de fusionner
-  tout le développement dans `main`. Il n'y a qu'un seul schedule ; `e2e.yml`
-  reste déclenchable manuellement. Le job dispatcher réussi confirme l'envoi,
-  pas le succès E2E : consulter ensuite le run « E2E (emulator) ».
-  Lors du déplacement de la branche de travail, mettre à jour le `--ref`.
-- Les anciennes versions du workflow sans ce verrou ne sont pas protégées.
-- Les schedules des dépôts publics peuvent être désactivés après 60 jours
-  d'inactivité du dépôt ; surveiller l'onglet Actions et réactiver si nécessaire.
-- Le trafic E2E constitue une activité réelle, sans garantie contractuelle
-  contre la pause Supabase. Une pause déjà effective doit être levée manuellement.
-
-Sources : [GitHub schedules](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule),
-[Supabase pausing](https://supabase.com/docs/guides/platform/free-project-pausing).
+Le dispatcher sur `main` cible `feat/multi-language-learning` chaque soir à
+22 h 17 Asia/Seoul (13 h 17 UTC). Le verrou `supabase-e2e-account` sérialise les
+runs ; ne pas exécuter le même scénario localement pendant la CI. Un dispatcher
+réussi ne prouve pas le succès du run « E2E (emulator) ».
+Le trafic ne garantit pas contractuellement l'absence de pause Supabase.
 
 ## Vérification
 
-- `flutter test test/integration/e2e_reset_test.dart` vérifie la remise à zéro
-  SQLite avec clés étrangères actives et le rollback sur échec.
-- [Tests SQL](../../supabase/tests/reset_e2e_account.sql) : sur une base jetable
-  uniquement, avec le schéma du projet installé ; vérifient les permissions,
-  les comptes non inscrits, les cascades, l'isolation et le rollback.
-- Un passage réel Patrol après activation reste nécessaire pour valider le
-  schéma hébergé et le démarrage Android de bout en bout.
-
-En cas d'échec de préparation, le log indique l'étape (`sign-in` ou
-`account reset`), le statut HTTP et le code Supabase/Postgres. Les corps de
-réponse et les identifiants ne sont jamais imprimés. Corriger l'étape indiquée
-avant de relancer l'émulateur.
+- `python3 -m unittest discover -s tool/e2e -p 'test_*.py'` : catalogue,
+  unicité et reprise du provisioning sans rotation d'identité.
+- `flutter test test/unit/e2e_scenario_accounts_test.dart test/integration/e2e_reset_test.dart` :
+  sélection, absence de compte partagé, reset local et rollback.
+- Sur une base **jetable**, appliquer 008 et exécuter
+  [les tests du reset](../../supabase/tests/reset_e2e_account.sql), puis 009 et
+  [les tests d'isolation](../../supabase/tests/e2e_scenario_accounts.sql).
+  Ils vérifient les permissions, le refus de réaffectation, le rollback et
+  l'absence de modification du compte B lorsque A est réinitialisé.
+- Un passage Patrol réel reste nécessaire après activation de la base hébergée.

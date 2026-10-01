@@ -6,13 +6,15 @@ import 'package:patrol/patrol.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'reset_account.dart';
+import 'scenario_account.dart';
 import 'package:vocab_kr/main.dart' as app;
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 
-// Injected via --dart-define-from-file=test.env.json
-const kTestEmail = String.fromEnvironment('TEST_EMAIL');
-const kTestPassword = String.fromEnvironment('TEST_PASSWORD');
-const kTestUsername = String.fromEnvironment('TEST_USERNAME');
+// Selected before preparation; all UI/auth helpers use this scenario's identity.
+late ScenarioAccount _account;
+String get kTestEmail => _account.email;
+String get kTestPassword => _account.password;
+String get kTestUsername => _account.username;
 
 bool _scenarioStarted = false;
 
@@ -21,6 +23,7 @@ bool _scenarioStarted = false;
 void isolatedPatrolTest(
   String description,
   Future<void> Function(PatrolIntegrationTester) body, {
+  required String scenarioId,
   Timeout? timeout,
   PatrolTesterConfig config = const PatrolTesterConfig(printLogs: true),
 }) {
@@ -30,8 +33,10 @@ void isolatedPatrolTest(
           'E2E requires a fresh process per scenario. Use Patrol with Android Test Orchestrator.');
     }
     _scenarioStarted = true;
+    _account = accountForScenario(
+        scenarioId, const String.fromEnvironment('TEST_ACCOUNTS_JSON'));
     final ready = await $.tester.runAsync(() async {
-      await resetTestAccount().timeout(const Duration(seconds: 90));
+      await resetTestAccount(_account).timeout(const Duration(seconds: 90));
       return true;
     });
     if (ready != true) throw StateError('E2E baseline preparation failed.');
@@ -49,7 +54,7 @@ Future<void> launchAndSignIn(PatrolIntegrationTester $) async {
   // every test leaks providers/Supabase listeners and destabilises the Patrol
   // process after ~10 tests (hang/crash). If the binding tore the tree down
   // between tests (no MaterialApp), we relaunch as before; otherwise we reuse
-  // the already-running app — one launch for the whole suite.
+  // the already-running app within this scenario.
   final alreadyRunning = find.byType(MaterialApp).evaluate().isNotEmpty;
   if (!alreadyRunning) {
     unawaited(app.main());
@@ -94,7 +99,7 @@ Future<void> launchAndSignIn(PatrolIntegrationTester $) async {
   }
 
   // Reset to Home so every test starts from a known screen when the app is
-  // reused across tests (the home tab lives in the persistent shell).
+  // reused by steps in this scenario (the home tab lives in the shell).
   final homeTab = find.byKey(ValueKey(WidgetKeys.navTab('home')));
   if (homeTab.evaluate().isNotEmpty) {
     try {

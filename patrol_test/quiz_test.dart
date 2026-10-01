@@ -19,6 +19,7 @@ void main() {
 
   // Voice quiz where every spoken answer is recognised correctly → 100%.
   isolatedPatrolTest('Voice — all answers correct → 100%',
+      scenarioId: 'quiz.voice_all_answers_correct_100',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
@@ -42,6 +43,7 @@ void main() {
 
   // Voice quiz where every spoken answer is wrong → 0%.
   isolatedPatrolTest('Voice — all answers wrong → 0%',
+      scenarioId: 'quiz.voice_all_answers_wrong_0',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
@@ -68,6 +70,7 @@ void main() {
   // Hands-free auto-plays, auto-listens and auto-advances every card on its own;
   // with correct recognition the summary is 100%.
   isolatedPatrolTest('Hands-free — auto-completes at 100%',
+      scenarioId: 'quiz.hands_free_auto_completes_at_100',
       timeout: const Timeout(Duration(minutes: 8)),
       config: kFastSettle, ($) async {
     final app = Steps($);
@@ -93,6 +96,7 @@ void main() {
 
   // Flip each card and self-grade "Je savais" → 100%.
   isolatedPatrolTest('Cartes — all known → 100%',
+      scenarioId: 'quiz.cartes_all_known_100',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
@@ -115,6 +119,7 @@ void main() {
 
   // Flip each card and self-grade "À revoir" → 0%.
   isolatedPatrolTest('Cartes — all forgotten → 0%',
+      scenarioId: 'quiz.cartes_all_forgotten_0',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);

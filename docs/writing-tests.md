@@ -46,6 +46,7 @@ Every scenario is one `isolatedPatrolTest(...)` with three readable phases. Exam
 ```dart
 // One-line description of the behaviour being proven.
 isolatedPatrolTest('Voice — all answers correct → 100%',
+    scenarioId: 'quiz.voice_all_answers_correct_100',
     timeout: const Timeout(Duration(minutes: 7)), ($) async {
   final app = Steps($);
   addTearDown(() => cleanupAfterTest($)); // always clean up seeded data
@@ -162,13 +163,13 @@ the **same isolate**, a step sets the outcome at runtime:
 
 | Define | Purpose |
 |--------|---------|
-| `TEST_EMAIL`, `TEST_PASSWORD` | account `given.signedIn()` uses |
+| `TEST_ACCOUNTS_JSON` | JSON map from stable scenario ID to distinct user_id/email/password/username |
 | `SIMULATE_SPEECH` | seeds `SttSimulator` (`correct` in CI) |
 | `TEST_LOCALE` | forces app locale (CI emulators default to **English**; set `fr` so French finders/text work) |
 | `TEST_MODE` | disables animations & live connectivity for stable, fast tests |
 | `TEST_CARD_LIMIT` | shrinks a session to N cards in CI (prod default 20) so a one-word list pads to just a few cards |
 
-Locally these come from a gitignored `test.env.json`; in CI from
+Locally these come from a gitignored `test.accounts.env.json`; in CI from
 [`.github/workflows/e2e.yml`](../.github/workflows/e2e.yml) (built from repo secrets).
 
 ### 2.6 Extending the library (do this, don't inline)
@@ -194,7 +195,7 @@ When a spec needs something the steps don't cover:
 - **Locale**: the emulator boots in English. Anything matching French text needs
   `TEST_LOCALE=fr`. Prefer keys to dodge this entirely.
 - **Fresh process**: Android Test Orchestrator and `clearPackageData=true`
-  isolate each scenario. `isolatedPatrolTest` rejects process reuse. The same
+  isolate each scenario. `isolatedPatrolTest` rejects process reuse. The scenario's own
   dedicated account is authenticated afresh; do not supply `TEST_SESSION`.
 - **Padding**: a session pads a short list up to the card limit by repeating, so a
   one-word list still yields N cards. Keep N small in CI (`TEST_CARD_LIMIT`).
@@ -208,7 +209,7 @@ When a spec needs something the steps don't cover:
 ```bash
 # Local, on a connected device/emulator:
 patrol test --target patrol_test/quiz_test.dart \
-            --dart-define-from-file=test.env.json -d <device-id>
+            --dart-define-from-file=test.accounts.env.json -d <device-id>
 
 # Cloud (no device): GitHub Actions → "E2E (emulator)" workflow_dispatch.
 ```
@@ -217,7 +218,11 @@ New scenario files must be added to the target list in
 
 ### 2.9 Test data isolation & cleanup
 
-Tests reuse one permanent, dedicated account, but never inherit its state.
+Each scenario reuses its own permanent, dedicated account, but never inherits its state.
+Pass an explicit stable `scenarioId` to `isolatedPatrolTest` and register it in
+[`tool/e2e/scenarios.json`](../tool/e2e/scenarios.json). Renaming a description
+must not change this ID. Run provisioning to add credentials for a new scenario.
+Duplicate accounts and missing credentials fail validation; there is no shared fallback.
 `isolatedPatrolTest` performs an authorized transactional server reset and a
 verified SQLite/preferences reset **before app startup**. Any preparation error
 fails the scenario. `given.*` then constructs and checks the requested state.
@@ -301,6 +306,7 @@ Spec: *"A learner can take a typing quiz; typing the right answer scores 100%."*
 ```dart
 // Typing the correct Korean word on every card → 100%.
 isolatedPatrolTest('Écrire — correct typed answer → 100%',
+    scenarioId: 'quiz_ecrire.ecrire_correct_typed_answer_100',
     timeout: const Timeout(Duration(minutes: 7)), ($) async {
   final app = Steps($);
   addTearDown(() => cleanupAfterTest($));
