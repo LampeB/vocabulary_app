@@ -104,3 +104,8 @@ Sources : [GitHub schedules](https://docs.github.com/en/actions/reference/workfl
   les comptes non inscrits, les cascades, l'isolation et le rollback.
 - Un passage réel Patrol après activation reste nécessaire pour valider le
   schéma hébergé et le démarrage Android de bout en bout.
+
+En cas d'échec de préparation, le log indique l'étape (`sign-in` ou
+`account reset`), le statut HTTP et le code Supabase/Postgres. Les corps de
+réponse et les identifiants ne sont jamais imprimés. Corriger l'étape indiquée
+avant de relancer l'émulateur.
