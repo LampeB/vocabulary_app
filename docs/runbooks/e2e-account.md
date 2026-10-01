@@ -69,7 +69,9 @@ Les futurs tests sociaux devront disposer d'une stratégie dédiée documentée.
 L'identité Auth est conservée. Le reset ne supprime pas les objets Storage ni
 l'état des services externes. RevenueCat est désactivé en mode test et STT est
 simulé. Toute nouvelle table synchronisée doit être intégrée au reset et à ses
-tests. Le teardown reste au mieux ; il ne remplace jamais la préparation.
+tests. En `TEST_MODE`, la création de listes ne déclenche pas non plus le seeding
+automatique : les fixtures restent seules responsables des listes présentes.
+Le teardown reste au mieux ; il ne remplace jamais la préparation.
 
 ## Ajouter ou lancer un scénario
 
@@ -120,3 +122,7 @@ Le trafic ne garantit pas contractuellement l'absence de pause Supabase.
   Ils vérifient les permissions, le refus de réaffectation, le rollback et
   l'absence de modification du compte B lorsque A est réinitialisé.
 - Un passage Patrol réel reste nécessaire après activation de la base hébergée.
+
+Les jobs conservent pendant 7 jours les rapports Android HTML/XML/textuels,
+même en cas d’échec. Les identifiants configurés et JWT sont masqués avant
+upload ; les APK et fichiers de configuration ne sont pas inclus.
