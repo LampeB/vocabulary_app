@@ -223,7 +223,7 @@ class ListActionsNotifier extends Notifier<void> {
     }
     final result = await _repo.createList(
         name: name, description: description, langA: langA, langB: langB);
-    if (result is Success<VocabularyList>) {
+    if (result is Success<VocabularyList> && !_kTestMode) {
       // First list in a new pair → that pair's starter curriculum appears
       // alongside it (idempotent; no-op for already-seeded pairs). Fire and
       // forget: a failure here must not break list creation — the login-path

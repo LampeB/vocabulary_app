@@ -99,6 +99,11 @@ de contenu avant bêta pédagogique.
   Les 752 tests hôte, les contrôles Python et les tests SQL sur base jetable
   passent ; `flutter analyze` ne rapporte aucun problème. Procédure dans le
   [runbook E2E](docs/runbooks/e2e-account.md).
+- Le run parallèle a validé sept suites sur neuf. Le chemin quotidien a
+  révélé un seeding automatique encore actif lors de la création de listes
+  en mode test ; ce déclenchement est désormais désactivé. Le quiz a terminé
+  quatre scénarios sur cinq sans rapport Android conservé ; les artefacts
+  de diagnostic sont désormais collectés. Validation CI des corrections en attente.
 - Les neuf suites CI sont réparties en neuf jobs indépendants, avec trois
   jobs simultanés maximum, une tentative par suite, `fail-fast: false` et
   40 minutes par job. Le verrou entre runs reste actif.
