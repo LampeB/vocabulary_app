@@ -83,3 +83,6 @@ patrol_test/test_bundle.dart
 # native build artifacts inside the vendored plugin
 /packages/whisper_flutter_new/android/.cxx/
 /packages/whisper_flutter_new/example/
+
+# Private permanent E2E account credentials
+/.e2e/

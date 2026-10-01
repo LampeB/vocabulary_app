@@ -1,4 +1,4 @@
-"""Validate credentials/reset access before building; never print response bodies."""
+"""Validate the scenario credential map before building; never print response bodies."""
 import json
 import os
 import re
@@ -23,10 +23,10 @@ def http_failure(stage, error):
     if not re.fullmatch(r'[A-Za-z0-9_]{1,64}', code):
         code = 'unknown'
     hint = {
-        'invalid_credentials': 'Check TEST_EMAIL and TEST_PASSWORD.',
+        'invalid_credentials': 'Check the scenario credentials.',
         'email_not_confirmed': 'Confirm the dedicated account email.',
         '42501': 'Check E2E account enrollment and RPC permissions.',
-        'PGRST202': 'Install migration 008 in the project targeted by GitHub secrets.',
+        'PGRST202': 'Install migrations 008 and 009 in the project targeted by GitHub secrets.',
         '42P01': 'A table required by reset is missing from the hosted schema.',
         '42703': 'A column required by reset is missing from the hosted schema.',
         '23503': 'A foreign-key dependency prevents reset.',
@@ -43,41 +43,17 @@ def http_failure(stage, error):
 
 
 def prepare():
-    config = {name: os.environ[name] for name in (
-        'SUPABASE_URL', 'SUPABASE_ANON_KEY', 'TEST_EMAIL', 'TEST_PASSWORD')}
+    from accounts import scenarios, validate_accounts, write_private
+    config = {name: os.environ[name] for name in ('SUPABASE_URL', 'SUPABASE_ANON_KEY')}
     if not all(config.values()) or not config['SUPABASE_URL'].startswith('https://'):
-        raise ValueError('Missing E2E configuration or invalid Supabase URL')
-
-    def post(path, data, token=None):
-        stage = "sign-in" if path.startswith("/auth/") else "account reset"
-        headers = {'apikey': config['SUPABASE_ANON_KEY'], 'Content-Type': 'application/json'}
-        if token:
-            headers['Authorization'] = f'Bearer {token}'
-        request = Request(config['SUPABASE_URL'].rstrip('/') + path,
-                          data=json.dumps(data).encode(), headers=headers, method='POST')
-        try:
-            with urlopen(request, timeout=30) as response:
-                return json.load(response)
-        except HTTPError as error:
-            raise http_failure(stage, error) from None
-
-    session = post('/auth/v1/token?grant_type=password', {
-        'email': config['TEST_EMAIL'], 'password': config['TEST_PASSWORD']})
-    if session['user']['email'].lower() != config['TEST_EMAIL'].lower():
-        raise ValueError('Unexpected test account identity')
-    baseline = post('/rest/v1/rpc/reset_e2e_account', {}, session['access_token'])
-    if (baseline.get('user_id') != session['user']['id'] or
-            baseline.get('baseline') != 'empty-free-v1'):
-        raise ValueError('Reset baseline was not confirmed')
-    config.update(TEST_USERNAME=baseline['username'], TEST_MODE='true',
+        raise ValueError('Missing Supabase configuration')
+    accounts = validate_accounts(json.loads(os.environ['E2E_ACCOUNTS_JSON']), scenarios())
+    # No account is modified here. Only the scenario about to run resets itself.
+    config.update(TEST_ACCOUNTS_JSON=json.dumps(accounts), TEST_MODE='true',
                   TEST_LOCALE='fr', TEST_CARD_LIMIT='3', SIMULATE_SPEECH='correct',
                   REVENUECAT_API_KEY='YOUR_REVENUECAT_KEY')
-    # No shared TEST_SESSION: each isolated scenario authenticates afresh.
-    descriptor = os.open('.env.json', os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    os.fchmod(descriptor, 0o600)
-    with os.fdopen(descriptor, 'w') as output:
-        json.dump(config, output, indent=2)
-    print('E2E reset authorized; configuration ready.')
+    write_private('.env.json', config)
+    print(f'Validated {len(accounts)} distinct scenario accounts; no server data changed.')
 
 
 if __name__ == '__main__':
@@ -88,5 +64,5 @@ if __name__ == '__main__':
         sys.exit(1)
     except Exception as error:
         print(f'E2E preparation failed ({type(error).__name__}). Check project availability, '
-              'credentials, migration 008 and account enrollment.', file=sys.stderr)
+              'E2E_ACCOUNTS_JSON and scenario enrollment.', file=sys.stderr)
         sys.exit(1)

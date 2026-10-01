@@ -20,6 +20,7 @@ if [[ "$target" != all ]]; then
   esac
   targets=("$target")
 fi
+failed=()
 for target in "${targets[@]}"; do
   ok=0
   for attempt in 1 2 3; do
@@ -29,5 +30,7 @@ for target in "${targets[@]}"; do
       break
     fi
   done
-  [[ "$ok" == 1 ]] || { echo "::error::$target failed 3 attempts"; exit 1; }
+  [[ "$ok" == 1 ]] || { echo "::error::$target failed 3 attempts"; failed+=("$target"); }
 done
+
+[[ ${#failed[@]} == 0 ]]

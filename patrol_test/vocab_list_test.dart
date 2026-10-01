@@ -67,6 +67,7 @@ void main() {
   // ── Create list ───────────────────────────────────────────────────────────
 
   isolatedPatrolTest('created list appears in Lists screen',
+      scenarioId: 'vocab_list.created_list_appears_in_lists_screen',
       timeout: const Timeout(Duration(minutes: 3)), ($) async {
     addTearDown(() => deleteListsByName($, _listName));
     await launchAndSignIn($);
@@ -83,6 +84,7 @@ void main() {
   // could be inserted outside the right scope.
 
   isolatedPatrolTest('word added to list is visible in detail screen',
+      scenarioId: 'vocab_list.word_added_to_list_is_visible_in_detail_screen',
       timeout: const Timeout(Duration(minutes: 3)), ($) async {
     addTearDown(() => deleteListsByName($, _listName));
     await launchAndSignIn($);
@@ -106,6 +108,7 @@ void main() {
   // ── Word count in list view matches words in detail ───────────────────────
 
   isolatedPatrolTest('word count in list view matches words in detail',
+      scenarioId: 'vocab_list.word_count_in_list_view_matches_words_in_detail',
       timeout: const Timeout(Duration(minutes: 3)), ($) async {
     addTearDown(() => deleteListsByName($, _listName));
     await launchAndSignIn($);
@@ -140,6 +143,8 @@ void main() {
 
   isolatedPatrolTest(
       'tapping word tile opens pre-populated edit dialog and saves changes',
+      scenarioId:
+          'vocab_list.tapping_word_tile_opens_pre_populated_edit_dialog_and_saves_changes',
       timeout: const Timeout(Duration(minutes: 3)), ($) async {
     addTearDown(() => deleteListsByName($, _listName));
     await launchAndSignIn($);
@@ -189,6 +194,8 @@ void main() {
 
   isolatedPatrolTest(
       'trash button + confirmation deletes word from detail screen',
+      scenarioId:
+          'vocab_list.trash_button_confirmation_deletes_word_from_detail_screen',
       timeout: const Timeout(Duration(minutes: 3)), ($) async {
     addTearDown(() => deleteListsByName($, _listName));
     await launchAndSignIn($);
@@ -228,6 +235,8 @@ void main() {
 
   isolatedPatrolTest(
       'cancelling delete confirmation keeps word in detail screen',
+      scenarioId:
+          'vocab_list.cancelling_delete_confirmation_keeps_word_in_detail_screen',
       timeout: const Timeout(Duration(minutes: 3)), ($) async {
     addTearDown(() => deleteListsByName($, _listName));
     await launchAndSignIn($);

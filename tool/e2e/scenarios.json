@@ -1,0 +1,146 @@
+{
+  "auth_flows.auth_sign_out_returns_to_welcome": {
+    "file": "patrol_test/auth_flows_test.dart",
+    "description": "Auth — sign out returns to Welcome"
+  },
+  "auth_flows.auth_password_reset_request_is_handled": {
+    "file": "patrol_test/auth_flows_test.dart",
+    "description": "Auth — password reset request is handled"
+  },
+  "auth_login.auth_real_email_password_sign_in_lands_on_home": {
+    "file": "patrol_test/auth_login_test.dart",
+    "description": "Auth — real email-password sign-in lands on Home"
+  },
+  "auth.sign_in_lands_on_today_screen": {
+    "file": "patrol_test/auth_test.dart",
+    "description": "sign-in lands on Today screen"
+  },
+  "auth.profile_data_is_loaded_after_sign_in": {
+    "file": "patrol_test/auth_test.dart",
+    "description": "profile data is loaded after sign-in"
+  },
+  "daily_path.daily_path_suggested_vocabulary_opens_its_seeded_list": {
+    "file": "patrol_test/daily_path_test.dart",
+    "description": "Daily path — suggested vocabulary opens its seeded list"
+  },
+  "daily_path.daily_path_lessons_entry_opens_the_grammar_hub": {
+    "file": "patrol_test/daily_path_test.dart",
+    "description": "Daily path — lessons entry opens the grammar hub"
+  },
+  "language_pairs.language_pairs_english_to_korean_list_studies_forward": {
+    "file": "patrol_test/language_pairs_test.dart",
+    "description": "Language pairs — English to Korean list studies forward"
+  },
+  "language_pairs.language_pairs_korean_to_french_list_studies_forward": {
+    "file": "patrol_test/language_pairs_test.dart",
+    "description": "Language pairs — Korean to French list studies forward"
+  },
+  "lesson_prerequisites.lessons_unrelated_vocabulary_does_not_unlock_a_locked_prerequisite_lesson": {
+    "file": "patrol_test/lesson_prerequisites_test.dart",
+    "description": "Lessons — unrelated vocabulary does not unlock a locked prerequisite lesson"
+  },
+  "lesson_prerequisites.lessons_graduated_required_vocabulary_unlocks_and_opens_the_real_lesson": {
+    "file": "patrol_test/lesson_prerequisites_test.dart",
+    "description": "Lessons — graduated required vocabulary unlocks and opens the real lesson"
+  },
+  "navigation.navigation_bottom_nav_tabs_open_home_lists_lessons_progress_profile": {
+    "file": "patrol_test/navigation_test.dart",
+    "description": "Navigation — bottom-nav tabs open Home, Lists, Lessons, Progress, Profile"
+  },
+  "navigation.navigation_setup_route_opens_start_a_session": {
+    "file": "patrol_test/navigation_test.dart",
+    "description": "Navigation — setup route opens Start-a-session"
+  },
+  "navigation.navigation_profile_tiles_open_stats_settings_notifications": {
+    "file": "patrol_test/navigation_test.dart",
+    "description": "Navigation — Profile tiles open Stats, Settings, Notifications"
+  },
+  "navigation.navigation_tapping_a_list_opens_its_detail": {
+    "file": "patrol_test/navigation_test.dart",
+    "description": "Navigation — tapping a list opens its detail"
+  },
+  "quiz_ecrire.ecrire_correct_typed_answer_100": {
+    "file": "patrol_test/quiz_ecrire_test.dart",
+    "description": "Écrire — correct typed answer → 100%"
+  },
+  "quiz_ecrire.ecrire_wrong_typed_answer_0": {
+    "file": "patrol_test/quiz_ecrire_test.dart",
+    "description": "Écrire — wrong typed answer → 0%"
+  },
+  "quiz_ecrire.ecrire_kofr_correct_french_answer_100": {
+    "file": "patrol_test/quiz_ecrire_test.dart",
+    "description": "Écrire KO→FR — correct French answer → 100%"
+  },
+  "quiz_ecrire.ecrire_correct_answer_shows_the_correct_verdict": {
+    "file": "patrol_test/quiz_ecrire_test.dart",
+    "description": "Écrire — correct answer shows the correct verdict"
+  },
+  "quiz_ecrire.ecrire_wrong_answer_shows_the_wrong_verdict": {
+    "file": "patrol_test/quiz_ecrire_test.dart",
+    "description": "Écrire — wrong answer shows the wrong verdict"
+  },
+  "quiz_ecrire.ecrire_chosen_card_count_of_10_completes_at_100": {
+    "file": "patrol_test/quiz_ecrire_test.dart",
+    "description": "Écrire — chosen card count of 10 completes at 100%"
+  },
+  "quiz.voice_all_answers_correct_100": {
+    "file": "patrol_test/quiz_test.dart",
+    "description": "Voice — all answers correct → 100%"
+  },
+  "quiz.voice_all_answers_wrong_0": {
+    "file": "patrol_test/quiz_test.dart",
+    "description": "Voice — all answers wrong → 0%"
+  },
+  "quiz.hands_free_auto_completes_at_100": {
+    "file": "patrol_test/quiz_test.dart",
+    "description": "Hands-free — auto-completes at 100%"
+  },
+  "quiz.cartes_all_known_100": {
+    "file": "patrol_test/quiz_test.dart",
+    "description": "Cartes — all known → 100%"
+  },
+  "quiz.cartes_all_forgotten_0": {
+    "file": "patrol_test/quiz_test.dart",
+    "description": "Cartes — all forgotten → 0%"
+  },
+  "sign_up.sign_up_with_already_used_email_shows_french_error": {
+    "file": "patrol_test/sign_up_test.dart",
+    "description": "sign-up with already-used email shows French error"
+  },
+  "sign_up.sign_up_with_already_used_username_shows_french_error": {
+    "file": "patrol_test/sign_up_test.dart",
+    "description": "sign-up with already-used username shows French error"
+  },
+  "user_flows.full_flow_create_a_list_add_edit_delete_words_then_start_a_custom_quiz": {
+    "file": "patrol_test/user_flows_test.dart",
+    "description": "Full flow — create a list, add-edit-delete words, then start a custom quiz"
+  },
+  "user_flows.flow_build_a_list_in_the_ui_then_study_it_with_flashcards": {
+    "file": "patrol_test/user_flows_test.dart",
+    "description": "Flow — build a list in the UI, then study it with flashcards"
+  },
+  "vocab_list.created_list_appears_in_lists_screen": {
+    "file": "patrol_test/vocab_list_test.dart",
+    "description": "created list appears in Lists screen"
+  },
+  "vocab_list.word_added_to_list_is_visible_in_detail_screen": {
+    "file": "patrol_test/vocab_list_test.dart",
+    "description": "word added to list is visible in detail screen"
+  },
+  "vocab_list.word_count_in_list_view_matches_words_in_detail": {
+    "file": "patrol_test/vocab_list_test.dart",
+    "description": "word count in list view matches words in detail"
+  },
+  "vocab_list.tapping_word_tile_opens_pre_populated_edit_dialog_and_saves_changes": {
+    "file": "patrol_test/vocab_list_test.dart",
+    "description": "tapping word tile opens pre-populated edit dialog and saves changes"
+  },
+  "vocab_list.trash_button_confirmation_deletes_word_from_detail_screen": {
+    "file": "patrol_test/vocab_list_test.dart",
+    "description": "trash button + confirmation deletes word from detail screen"
+  },
+  "vocab_list.cancelling_delete_confirmation_keeps_word_in_detail_screen": {
+    "file": "patrol_test/vocab_list_test.dart",
+    "description": "cancelling delete confirmation keeps word in detail screen"
+  }
+}

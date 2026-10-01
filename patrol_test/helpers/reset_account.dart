@@ -1,3 +1,4 @@
+import 'scenario_account.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vocab_kr/core/config/app_config.dart';
@@ -5,9 +6,9 @@ import 'package:vocab_kr/data/datasources/local/app_database.dart';
 
 /// Runs before app.main(), so no sync or provider can repopulate cleared data.
 /// Only the server-side administrator allowlist authorizes the destructive RPC.
-Future<void> resetTestAccount() async {
-  const email = String.fromEnvironment('TEST_EMAIL');
-  const password = String.fromEnvironment('TEST_PASSWORD');
+Future<void> resetTestAccount(ScenarioAccount account) async {
+  final email = account.email;
+  final password = account.password;
   if (!const bool.fromEnvironment('TEST_MODE') ||
       const String.fromEnvironment('TEST_SESSION').isNotEmpty ||
       email.isEmpty ||
@@ -21,12 +22,16 @@ Future<void> resetTestAccount() async {
     final auth =
         await client.auth.signInWithPassword(email: email, password: password);
     if (auth.user == null ||
+        auth.user!.id.toLowerCase() != account.userId ||
         auth.user!.email?.toLowerCase() != email.toLowerCase()) {
       throw StateError('E2E account identity mismatch.');
     }
-    final result = await client.rpc('reset_e2e_account');
+    final result = await client.rpc('reset_e2e_account',
+        params: {'p_scenario_id': account.scenarioId});
     if (result is! Map ||
         result['user_id'] != auth.user!.id ||
+        result['scenario_id'] != account.scenarioId ||
+        result['username'] != account.username ||
         result['baseline'] != 'empty-free-v1') {
       throw StateError('E2E server baseline was not confirmed.');
     }

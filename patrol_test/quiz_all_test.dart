@@ -4,7 +4,7 @@
 // includes the quiz suite:
 //
 //   patrol test --target patrol_test/quiz_all_test.dart \
-//               --dart-define-from-file=test.free.env.json
+//               --dart-define-from-file=test.accounts.env.json
 //
 // The quiz scenarios now live in one consolidated file (quiz_test.dart) built on
 // the given/when/then step library in helpers/steps.dart.
@@ -15,10 +15,8 @@ import 'quiz_ecrire_test.dart' as quiz_ecrire;
 import 'quiz_test.dart' as quiz;
 import 'user_flows_test.dart' as user_flows;
 
-// All 18 scenarios run in ONE Patrol process. The instability that capped a
-// process at ~10 tests came from relaunching app.main() every test; the harness
-// now launches once and reuses the app (see launchAndSignIn), so the whole suite
-// shares one app launch.
+// Each registered scenario requires a fresh Android Orchestrator process and
+// uses its own account. CI runs individual suite files for bounded retries.
 
 void main() {
   quiz.main();

@@ -15,6 +15,7 @@ import 'helpers/test_helpers.dart';
 void main() {
   // Sign out to clear the session, then sign back in through the UI → Home.
   isolatedPatrolTest('Auth — real email-password sign-in lands on Home',
+      scenarioId: 'auth_login.auth_real_email_password_sign_in_lands_on_home',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);

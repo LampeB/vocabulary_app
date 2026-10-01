@@ -3,7 +3,7 @@ name: E2E (emulator)
 # Runs the Patrol app E2E suite on an Android emulator on GitHub's cloud runners —
 # no local machine or phone needed. Nightly on the default branch, or manual.
 #
-# Requires repo secrets: SUPABASE_URL, SUPABASE_ANON_KEY, TEST_EMAIL, TEST_PASSWORD.
+# Requires repo secrets: SUPABASE_URL, SUPABASE_ANON_KEY, E2E_ACCOUNTS_JSON.
 on:
   workflow_dispatch:
     inputs:
@@ -12,7 +12,7 @@ on:
         default: 'all'
         required: false
 
-# One permanent test account shared by all branches and manual/nightly runs.
+# Permanent per-scenario accounts: serialize runs of the same scenario across branches.
 concurrency:
   group: supabase-e2e-account
   cancel-in-progress: false
@@ -50,12 +50,11 @@ jobs:
       # it here to the compatible release.
       - run: dart pub global activate patrol_cli
 
-      - name: Write build-time config and check reset authorization
+      - name: Validate distinct scenario accounts and write build-time config
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
-          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          E2E_ACCOUNTS_JSON: ${{ secrets.E2E_ACCOUNTS_JSON }}
         run: python3 tool/e2e/prepare.py
 
       - name: Enable KVM
