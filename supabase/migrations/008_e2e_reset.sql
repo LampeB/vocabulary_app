@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS e2e_private.accounts (
   user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   username text UNIQUE NOT NULL CHECK (length(username) >= 3)
 );
+ALTER TABLE e2e_private.accounts ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON e2e_private.accounts FROM PUBLIC, anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.reset_e2e_account()
