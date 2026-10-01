@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:patrol/patrol.dart';
 import 'helpers/steps.dart';
 import 'helpers/test_helpers.dart';
 
@@ -15,12 +14,12 @@ const _ko = '안녕하세요';
 
 void main() {
   // Type the correct Korean word on every card → 100%.
-  patrolTest('Écrire — correct typed answer → 100%',
+  isolatedPatrolTest('Écrire — correct typed answer → 100%',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(
-        () => deleteAllLists($)); // leave a clean slate (even on failure)
+        () => cleanupAfterTest($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate(); // start from a clean slate
@@ -38,12 +37,12 @@ void main() {
   });
 
   // Type a wrong answer on every card → 0%.
-  patrolTest('Écrire — wrong typed answer → 0%',
+  isolatedPatrolTest('Écrire — wrong typed answer → 0%',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(
-        () => deleteAllLists($)); // leave a clean slate (even on failure)
+        () => cleanupAfterTest($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate(); // start from a clean slate
@@ -64,12 +63,12 @@ void main() {
   // Reverse direction: the question is Korean and the expected answer is French.
   // Typing the correct French word on every card → 100%. Proves direction
   // selection routes through to validation (the default is FR→KO).
-  patrolTest('Écrire KO→FR — correct French answer → 100%',
+  isolatedPatrolTest('Écrire KO→FR — correct French answer → 100%',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(
-        () => deleteAllLists($)); // leave a clean slate (even on failure)
+        () => cleanupAfterTest($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate(); // start from a clean slate
@@ -89,12 +88,12 @@ void main() {
   // ── Per-card verdict flood ────────────────────────────────────────────────────
 
   // A correct typed answer flashes the correct (teal) verdict on that card.
-  patrolTest('Écrire — correct answer shows the correct verdict',
+  isolatedPatrolTest('Écrire — correct answer shows the correct verdict',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(
-        () => deleteAllLists($)); // leave a clean slate (even on failure)
+        () => cleanupAfterTest($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate(); // start from a clean slate
@@ -111,12 +110,12 @@ void main() {
   });
 
   // A wrong typed answer flashes the wrong (orange) verdict on that card.
-  patrolTest('Écrire — wrong answer shows the wrong verdict',
+  isolatedPatrolTest('Écrire — wrong answer shows the wrong verdict',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(
-        () => deleteAllLists($)); // leave a clean slate (even on failure)
+        () => cleanupAfterTest($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate(); // start from a clean slate
@@ -136,12 +135,12 @@ void main() {
 
   // Choosing a card count (10) drives a 10-card session that still completes;
   // the one-word list pads up to 10 and every correct answer → 100%.
-  patrolTest('Écrire — chosen card count of 10 completes at 100%',
+  isolatedPatrolTest('Écrire — chosen card count of 10 completes at 100%',
       timeout: const Timeout(Duration(minutes: 8)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(
-        () => deleteAllLists($)); // leave a clean slate (even on failure)
+        () => cleanupAfterTest($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate(); // start from a clean slate

@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:patrol/patrol.dart';
 
 import 'helpers/steps.dart';
 import 'helpers/test_helpers.dart';
@@ -12,12 +11,12 @@ const _prerequisites = ['starter-greetings', 'starter-food'];
 const _unrelatedList = 'starter-daily-life';
 
 void main() {
-  patrolTest(
+  isolatedPatrolTest(
       'Lessons — unrelated vocabulary does not unlock a locked prerequisite lesson',
       timeout: const Timeout(Duration(minutes: 8)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($));
+    addTearDown(() => cleanupAfterTest($));
 
     await app.given.signedIn();
     await app.given.theFrenchKoreanStarterCurriculum();
@@ -33,12 +32,12 @@ void main() {
     await app.then.onScreen(Screen.listDetail);
   });
 
-  patrolTest(
+  isolatedPatrolTest(
       'Lessons — graduated required vocabulary unlocks and opens the real lesson',
       timeout: const Timeout(Duration(minutes: 8)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($));
+    addTearDown(() => cleanupAfterTest($));
 
     await app.given.signedIn();
     await app.given.theFrenchKoreanStarterCurriculum();

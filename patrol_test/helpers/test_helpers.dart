@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:patrol/patrol.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
+import 'package:vocab_kr/core/errors/failure.dart';
+import 'reset_account.dart';
 import 'package:vocab_kr/main.dart' as app;
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 
@@ -11,6 +13,31 @@ import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 const kTestEmail = String.fromEnvironment('TEST_EMAIL');
 const kTestPassword = String.fromEnvironment('TEST_PASSWORD');
 const kTestUsername = String.fromEnvironment('TEST_USERNAME');
+
+bool _scenarioStarted = false;
+
+/// All E2E scenarios must use this wrapper. Android Test Orchestrator must
+/// provide a fresh process for each scenario (clearPackageData=true).
+void isolatedPatrolTest(
+  String description,
+  Future<void> Function(PatrolIntegrationTester) body, {
+  Timeout? timeout,
+  PatrolTesterConfig config = const PatrolTesterConfig(printLogs: true),
+}) {
+  patrolTest(description, ($) async {
+    if (_scenarioStarted) {
+      throw StateError(
+          'E2E requires a fresh process per scenario. Use Patrol with Android Test Orchestrator.');
+    }
+    _scenarioStarted = true;
+    final ready = await $.tester.runAsync(() async {
+      await resetTestAccount().timeout(const Duration(seconds: 90));
+      return true;
+    });
+    if (ready != true) throw StateError('E2E baseline preparation failed.');
+    await body($);
+  }, timeout: timeout, config: config);
+}
 
 /// Launches the app and signs in with [kTestEmail] / [kTestPassword].
 /// Handles three starting states: welcome screen, auth screen, already signed in.
@@ -110,42 +137,36 @@ Future<void> deleteListsByName(PatrolIntegrationTester $, String name) =>
 Future<void> deleteAllLists(PatrolIntegrationTester $) =>
     _deleteLists($, (_) => true);
 
+/// Cleanup must not hide the original test failure; the next test resets first.
+Future<void> cleanupAfterTest(PatrolIntegrationTester $) async {
+  try {
+    await deleteAllLists($).timeout(const Duration(seconds: 20));
+  } catch (_) {
+    debugPrint('E2E teardown incomplete; next scenario performs a full reset.');
+  }
+}
+
 /// Shared core: deletes the lists matching [where] through the provider layer.
 Future<void> _deleteLists(
     PatrolIntegrationTester $, bool Function(dynamic list) where) async {
-  // The widget tree may be transitioning between tests; bail out gracefully.
-  final BuildContext context;
-  try {
-    context = $.tester.element(find.byType(MaterialApp));
-  } catch (_) {
-    return;
-  }
-
-  ProviderContainer container;
-  try {
-    container = ProviderScope.containerOf(context);
-  } catch (_) {
-    return;
-  }
-
-  final lists = container.read(myListsProvider).valueOrNull ?? [];
-  final toDelete = lists.where(where).toList();
-  // Parallel deletes with a per-call cap so that a slow Supabase connection
-  // cannot cause tearDown to hang for the HTTP timeout (60-120 s).
-  await Future.wait(toDelete.map((list) async {
-    try {
-      await container
-          .read(listActionsProvider.notifier)
-          .deleteList(list.id)
-          .timeout(const Duration(seconds: 15));
-    } catch (_) {
-      // Swallow TimeoutException and Supabase errors — stale lists are
-      // acceptable; a hanging tearDown is not.
+  final context = $.tester.element(find.byType(MaterialApp));
+  final container = ProviderScope.containerOf(context);
+  final lists = await container
+      .read(myListsProvider.future)
+      .timeout(const Duration(seconds: 15));
+  for (final list in lists.where(where)) {
+    final result = await container
+        .read(listActionsProvider.notifier)
+        .deleteList(list.id)
+        .timeout(const Duration(seconds: 15));
+    if (!result.isSuccess) {
+      throw StateError('Could not remove E2E list ${list.id}.');
     }
-  }));
-  // Fixed pump — NOT pumpAndSettle which hangs on Supabase realtime streams
-  // emitting updates after each delete.
-  try {
-    await $.pump(const Duration(milliseconds: 500));
-  } catch (_) {}
+  }
+  container.invalidate(myListsProvider);
+  final remaining = await container
+      .read(myListsProvider.future)
+      .timeout(const Duration(seconds: 15));
+  if (remaining.any(where)) throw StateError('E2E lists remain after cleanup.');
+  await $.pump(const Duration(milliseconds: 500));
 }

@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:patrol/patrol.dart';
 import 'helpers/steps.dart';
 import 'helpers/test_helpers.dart';
 
@@ -14,13 +13,13 @@ const _studyList = 'E2E Flow Study List';
 void main() {
   // The headline journey: connect → build & curate a list → start a quiz where a
   // value is chosen in EVERY section of the start screen.
-  patrolTest(
+  isolatedPatrolTest(
       'Full flow — create a list, add-edit-delete words, then start a custom quiz',
       timeout: const Timeout(Duration(minutes: 9)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(
-        () => deleteAllLists($)); // leave a clean slate (even on failure)
+        () => cleanupAfterTest($)); // leave a clean slate (even on failure)
 
     // ── Connect (and start from a clean slate so the list quota is free) ──────
     await app.given.signedIn();
@@ -74,12 +73,13 @@ void main() {
   // A second flow: a learner builds a one-word list in the UI and immediately
   // studies it with flashcards, grading every card "known" → 100%. Proves the
   // UI-built data flows straight into a study session.
-  patrolTest('Flow — build a list in the UI, then study it with flashcards',
+  isolatedPatrolTest(
+      'Flow — build a list in the UI, then study it with flashcards',
       timeout: const Timeout(Duration(minutes: 8)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(
-        () => deleteAllLists($)); // leave a clean slate (even on failure)
+        () => cleanupAfterTest($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate();

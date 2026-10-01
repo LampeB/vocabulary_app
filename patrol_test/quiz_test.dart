@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:patrol/patrol.dart';
 import 'helpers/steps.dart';
 import 'helpers/test_helpers.dart';
 
@@ -19,12 +18,12 @@ void main() {
   // ── Voice ───────────────────────────────────────────────────────────────────
 
   // Voice quiz where every spoken answer is recognised correctly → 100%.
-  patrolTest('Voice — all answers correct → 100%',
+  isolatedPatrolTest('Voice — all answers correct → 100%',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(
-        () => deleteAllLists($)); // leave a clean slate (even on failure)
+        () => cleanupAfterTest($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate(); // start from a clean slate
@@ -42,12 +41,12 @@ void main() {
   });
 
   // Voice quiz where every spoken answer is wrong → 0%.
-  patrolTest('Voice — all answers wrong → 0%',
+  isolatedPatrolTest('Voice — all answers wrong → 0%',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(
-        () => deleteAllLists($)); // leave a clean slate (even on failure)
+        () => cleanupAfterTest($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate(); // start from a clean slate
@@ -68,12 +67,12 @@ void main() {
 
   // Hands-free auto-plays, auto-listens and auto-advances every card on its own;
   // with correct recognition the summary is 100%.
-  patrolTest('Hands-free — auto-completes at 100%',
+  isolatedPatrolTest('Hands-free — auto-completes at 100%',
       timeout: const Timeout(Duration(minutes: 8)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(
-        () => deleteAllLists($)); // leave a clean slate (even on failure)
+        () => cleanupAfterTest($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate(); // start from a clean slate
@@ -93,12 +92,12 @@ void main() {
   // ── Cartes (flashcards, self-graded) ──────────────────────────────────────────
 
   // Flip each card and self-grade "Je savais" → 100%.
-  patrolTest('Cartes — all known → 100%',
+  isolatedPatrolTest('Cartes — all known → 100%',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(
-        () => deleteAllLists($)); // leave a clean slate (even on failure)
+        () => cleanupAfterTest($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate(); // start from a clean slate
@@ -115,12 +114,12 @@ void main() {
   });
 
   // Flip each card and self-grade "À revoir" → 0%.
-  patrolTest('Cartes — all forgotten → 0%',
+  isolatedPatrolTest('Cartes — all forgotten → 0%',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(
-        () => deleteAllLists($)); // leave a clean slate (even on failure)
+        () => cleanupAfterTest($)); // leave a clean slate (even on failure)
 
     await app.given.signedIn();
     await app.given.aCleanSlate(); // start from a clean slate

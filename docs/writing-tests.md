@@ -40,15 +40,15 @@ unit/integration tests + **one** representative E2E happy-path per journey.
 
 ### 2.1 Anatomy of a scenario
 
-Every scenario is one `patrolTest(...)` with three readable phases. Example
+Every scenario is one `isolatedPatrolTest(...)` with three readable phases. Example
 ([`patrol_test/quiz_test.dart`](../patrol_test/quiz_test.dart)):
 
 ```dart
 // One-line description of the behaviour being proven.
-patrolTest('Voice — all answers correct → 100%',
+isolatedPatrolTest('Voice — all answers correct → 100%',
     timeout: const Timeout(Duration(minutes: 7)), ($) async {
   final app = Steps($);
-  addTearDown(() => deleteListsByName($, _list)); // always clean up seeded data
+  addTearDown(() => cleanupAfterTest($)); // always clean up seeded data
 
   await app.given.signedIn();
   await app.given.aListWithOneWord(name: _list, french: _fr, korean: _ko);
@@ -68,10 +68,11 @@ patrolTest('Voice — all answers correct → 100%',
 Rules:
 - **`final app = Steps($);`** then read top-to-bottom: `given.*` (preconditions),
   `when.*` (actions), `then.*` (assertions). Don't interleave them.
-- **Always start and end clean** — call `given.aCleanSlate()` right after
-  `given.signedIn()`, and register `addTearDown(() => deleteAllLists($))` at the
-  top of the body. Tests share one signed-in account and run in sequence in the
-  same process, so each must both *start from* and *leave* a clean slate (§2.9).
+- **Always prepare a verified baseline** — use `isolatedPatrolTest`, which resets
+  the enrolled account on Supabase and clears local state before launching the
+  app. Then call `given.signedIn()` and the scenario's explicit `given.*`
+  fixtures. Register `addTearDown(() => cleanupAfterTest($))` for best-effort
+  cleanup; teardown is never the isolation guarantee (§2.9).
 - One comment line above the `patrolTest` saying *what user behaviour* it proves.
 - Keep the body to `Steps` calls. No `$(...).tap()` in a scenario file.
 - **Never put `/` in a `patrolTest` name.** The Android Test Orchestrator names
@@ -192,10 +193,9 @@ When a spec needs something the steps don't cover:
 
 - **Locale**: the emulator boots in English. Anything matching French text needs
   `TEST_LOCALE=fr`. Prefer keys to dodge this entirely.
-- **Shared session**: tests run in sequence in one process and the sign-in
-  persists. `given.signedIn()` is therefore a fast no-op after the first test —
-  rely on it. Isolation comes from every test **starting and ending clean**
-  (§2.9), not from a fresh app per test.
+- **Fresh process**: Android Test Orchestrator and `clearPackageData=true`
+  isolate each scenario. `isolatedPatrolTest` rejects process reuse. The same
+  dedicated account is authenticated afresh; do not supply `TEST_SESSION`.
 - **Padding**: a session pads a short list up to the card limit by repeating, so a
   one-word list still yields N cards. Keep N small in CI (`TEST_CARD_LIMIT`).
 - **Per-card cost**: each card is real wall-clock on the emulator (~seconds).
@@ -217,26 +217,16 @@ New scenario files must be added to the target list in
 
 ### 2.9 Test data isolation & cleanup
 
-Tests share one signed-in account, so list data must not leak between them.
-**Three layers** keep every run isolated — and a `create`-via-UI step can never
-hit the free-plan list quota (max 3 lists):
+Tests reuse one permanent, dedicated account, but never inherit its state.
+`isolatedPatrolTest` performs an authorized transactional server reset and a
+verified SQLite/preferences reset **before app startup**. Any preparation error
+fails the scenario. `given.*` then constructs and checks the requested state.
+Teardown is best-effort and does not replace preparation.
 
-1. **Server-side reset before the run (CI).** The `e2e.yml` *"Reset test account
-   data"* step signs in as the test user over the Supabase REST API and deletes
-   their `vocabulary_lists` (cascading to concepts → word_variants →
-   variant_progress). This stops rows from a *previous* run syncing down into the
-   fresh emulator and pre-filling the quota. Uses only the existing secrets — it
-   relies on RLS (`owner_id = auth.uid()`), no service-role key.
-2. **Clean before every test.** Each scenario calls `given.aCleanSlate()` right
-   after `signedIn()` — it deletes every list through the **provider/data layer**
-   (`deleteAllLists`), not raw HTTP. That matters because the app is offline-first
-   and renders from the local SQLite DB; a remote-only delete wouldn't clear what
-   the UI shows. (The seeding helpers use the same layer.)
-3. **Clean after every test.** Each scenario registers
-   `addTearDown(() => deleteAllLists($))` at the top, so the account is wiped even
-   if the test fails partway through.
-
-Net effect: every test starts from and leaves a clean slate.
+See [the account runbook](runbooks/e2e-account.md) for the administrator allowlist,
+reset scope, activation, nightly schedule and concurrency restrictions. Local
+runs must not overlap CI runs. The existing `given.aCleanSlate()` remains a
+strict list-only helper for a scenario; it is not a full-account reset.
 
 ---
 
@@ -310,10 +300,10 @@ Spec: *"A learner can take a typing quiz; typing the right answer scores 100%."*
 
 ```dart
 // Typing the correct Korean word on every card → 100%.
-patrolTest('Écrire — correct typed answer → 100%',
+isolatedPatrolTest('Écrire — correct typed answer → 100%',
     timeout: const Timeout(Duration(minutes: 7)), ($) async {
   final app = Steps($);
-  addTearDown(() => deleteListsByName($, _list));
+  addTearDown(() => cleanupAfterTest($));
 
   await app.given.signedIn();
   await app.given.aListWithOneWord(name: _list, french: _fr, korean: _ko);

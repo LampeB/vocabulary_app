@@ -28,6 +28,12 @@ patrol test --target patrol_test/quiz_test.dart \
 | `auth_login_test.dart` | Real email/password login smoke test |
 
 The emulator workflow runs these nine suites separately, with retries per file.
+Every scenario uses `isolatedPatrolTest`: a verified server/local reset before
+app startup, followed by its explicit `given.*` fixtures. The same permanent
+account is reused, with server-side enrollment required. See the
+[activation and isolation runbook](docs/runbooks/e2e-account.md).
+The workflow includes a nightly 22:17 Asia/Seoul schedule and a shared concurrency
+lock; the schedule requires deployment to the default branch.
 `auth_test.dart`, `vocab_list_test.dart`, and `sign_up_test.dart` remain legacy
 standalone targets; the maintained coverage lives in the suites above.
 

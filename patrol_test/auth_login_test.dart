@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:patrol/patrol.dart';
 import 'helpers/steps.dart';
 import 'helpers/test_helpers.dart';
 
@@ -15,11 +14,11 @@ import 'helpers/test_helpers.dart';
 // output file after the description and a path separator crashes the run.
 void main() {
   // Sign out to clear the session, then sign back in through the UI → Home.
-  patrolTest('Auth — real email-password sign-in lands on Home',
+  isolatedPatrolTest('Auth — real email-password sign-in lands on Home',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($));
+    addTearDown(() => cleanupAfterTest($));
 
     await app.given.signedIn();
     await app.when.signsOut();
