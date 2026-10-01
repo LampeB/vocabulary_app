@@ -1,6 +1,6 @@
 # VocabKR — état actuel
 
-**Mis à jour : 30 septembre 2026** · **Branche de travail :**
+**Mis à jour : 1 octobre 2026** · **Branche de travail :**
 `feat/multi-language-learning`
 
 ## Produit en une phrase
@@ -89,9 +89,11 @@ de contenu avant bêta pédagogique.
   secrets Supabase : navigation, auth, flux utilisateur, chemin quotidien,
   prérequis de leçon, paires de langues, quiz voix/cartes, écriture et login.
 - Le reset E2E par scénario, le verrou commun et le planning quotidien à
-  22 h 17 (Séoul) sont implémentés. **Activation distante non validée** : appliquer
-  la migration 008, inscrire le compte dédié, intégrer le workflow à `main`,
-  puis réussir un passage Patrol. Procédure dans le
+  22 h 17 (Séoul) sont implémentés. Le dispatcher est activé sur `main`
+  ([PR #1](https://github.com/LampeB/vocabulary_app/pull/1)) et cible
+  `feat/multi-language-learning`. **Supabase et E2E réel restent à valider** :
+  appliquer la migration 008, inscrire le compte dédié, puis réussir un passage
+  Patrol. Les 748 tests hôte passent localement. Procédure dans le
   [runbook E2E](docs/runbooks/e2e-account.md).
 - Les comportements audio, microphone réel, rendu et réseau restent à tester
   sur appareil : la simulation rend les E2E déterministes mais ne prouve pas
