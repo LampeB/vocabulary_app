@@ -30,6 +30,9 @@ UPDATE public.profiles SET is_premium = true, subscription_type = 'premium', cur
   bio = 'old state' WHERE id = '00000000-0000-0000-0000-000000000001';
 
 DO $$ BEGIN
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'e2e_private.accounts'::regclass) THEN
+    RAISE EXCEPTION 'Allowlist RLS must be enabled';
+  END IF;
   IF has_function_privilege('anon', 'public.reset_e2e_account()', 'EXECUTE')
     OR has_table_privilege('authenticated', 'e2e_private.accounts', 'INSERT') THEN
     RAISE EXCEPTION 'Reset permissions are too broad';

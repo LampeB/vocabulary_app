@@ -23,7 +23,8 @@ ON CONFLICT (user_id) DO UPDATE SET username = EXCLUDED.username
 RETURNING user_id, username;
 ```
 
-La liste d'autorisation est inaccessible aux utilisateurs de l'application.
+La liste d'autorisation est inaccessible aux utilisateurs de l'application :
+RLS activée sans politique client, et droits retirés sur la table et le schéma.
 `reset_e2e_account()` n'accepte aucun identifiant cible : il ne peut effacer que
 les données de `auth.uid()`, et uniquement si ce compte est inscrit. La fonction
 utilise une transaction et un `search_path` vide. Une erreur annule tout.
