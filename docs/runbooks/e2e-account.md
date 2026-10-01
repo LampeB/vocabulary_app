@@ -78,9 +78,13 @@ avec un encodeur, sans écrire de session dans les logs. Le fichier est supprim�
 - Verrou commun `supabase-e2e-account` entre branches et déclenchements ; un run
   actif n'est pas annulé par un nouveau run. GitHub peut remplacer un run en
   attente par un plus récent ; ce n'est pas une file illimitée.
-- Le planning ne devient actif qu'une fois le workflow intégré à la branche
-  par défaut (`main`). Une modification locale ou sur une branche de feature
-  n'active pas le planning.
+- Le [déclencheur nocturne](../../.github/workflows/e2e-nightly.yml) doit être
+  présent sur `main`. Il déclenche `e2e.yml` sur `feat/multi-language-learning`,
+  qui contient les neuf suites maintenues et le reset. Cela évite de fusionner
+  tout le développement dans `main`. Il n'y a qu'un seul schedule ; `e2e.yml`
+  reste déclenchable manuellement. Le job dispatcher réussi confirme l'envoi,
+  pas le succès E2E : consulter ensuite le run « E2E (emulator) ».
+  Lors du déplacement de la branche de travail, mettre à jour le `--ref`.
 - Les anciennes versions du workflow sans ce verrou ne sont pas protégées.
 - Les schedules des dépôts publics peuvent être désactivés après 60 jours
   d'inactivité du dépôt ; surveiller l'onglet Actions et réactiver si nécessaire.

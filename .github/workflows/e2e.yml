@@ -5,8 +5,6 @@ name: E2E (emulator)
 #
 # Requires repo secrets: SUPABASE_URL, SUPABASE_ANON_KEY, TEST_EMAIL, TEST_PASSWORD.
 on:
-  schedule:
-    - cron: '17 13 * * *' # 22:17 Asia/Seoul (UTC+9), away from the hour boundary
   workflow_dispatch:
     inputs:
       target:
