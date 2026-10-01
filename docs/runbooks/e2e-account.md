@@ -56,8 +56,7 @@ Le serveur vérifie l'association compte/scénario sous verrou. La liste
 `e2e_private.accounts` a RLS activée sans politique client et des droits retirés.
 La fonction sans argument est privée ; le client ne peut cibler un autre UUID.
 Une erreur annule le reset et fait échouer uniquement le scénario concerné.
-Les suites suivantes restent exécutées même après les retries d'une suite en
-échec. Les processus Android sont renouvelés par Test Orchestrator avec
+Les autres suites continuent même après un échec. Les processus Android sont renouvelés par Test Orchestrator avec
 `clearPackageData=true`. `TEST_SESSION` est interdit.
 
 Le reset efface listes, concepts, variantes, progression, abonnements Supabase,
@@ -81,6 +80,18 @@ de provisioning. Renommer une description ne change pas l'ID ni le compte.
 patrol test --target patrol_test/quiz_test.dart \
   --dart-define-from-file=test.accounts.env.json -d <device-id>
 ```
+
+La CI crée **neuf jobs indépendants**, un par suite, avec **trois jobs maximum
+simultanément** (`max-parallel: 3`, `fail-fast: false`). GitHub démarre une suite
+en attente dès qu'un créneau se libère. Chaque job possède son propre émulateur.
+Une seule tentative est effectuée ; les jobs en échec peuvent être relancés
+explicitement. Le timeout est de **3 minutes par scénario**, **35 minutes pour
+la commande Patrol** (compilation comprise, arrêt forcé après 30 secondes de
+grâce) et **40 minutes par job** (installation et émulateur compris).
+Le choix manuel d'un fichier ne crée qu'un job E2E. Le catalogue des neuf suites
+CI est dans `tool/e2e/matrix.py` ; ajouter toute nouvelle suite à cette liste.
+Le verrou reste au niveau du workflow entier pour empêcher deux runs d'utiliser
+simultanément le compte d'un même scénario.
 
 La CI fixe `patrol_cli` à **4.4.0**, compatible avec `patrol` **4.6.1**.
 Utiliser cette même version localement : `dart pub global activate patrol_cli 4.4.0`.

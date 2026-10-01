@@ -27,7 +27,9 @@ patrol test --target patrol_test/quiz_test.dart \
 | `auth_flows_test.dart` | Sign-out · password-reset request response |
 | `auth_login_test.dart` | Real email/password login smoke test |
 
-The emulator workflow runs these nine suites separately, with retries per file.
+The emulator workflow runs nine independent jobs, up to three concurrently,
+with one attempt per suite and `fail-fast: false`. Each job has a 40-minute
+budget; each scenario has a 3-minute timeout.
 Every scenario uses `isolatedPatrolTest`: a verified server/local reset before
 app startup, followed by its explicit `given.*` fixtures. Each scenario reuses its own permanent
 account, with server-side enrollment binding it to its stable scenario ID.

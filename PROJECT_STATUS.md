@@ -99,6 +99,9 @@ de contenu avant bêta pédagogique.
   Les 752 tests hôte, les contrôles Python et les tests SQL sur base jetable
   passent ; `flutter analyze` ne rapporte aucun problème. Procédure dans le
   [runbook E2E](docs/runbooks/e2e-account.md).
+- Les neuf suites CI sont réparties en neuf jobs indépendants, avec trois
+  jobs simultanés maximum, une tentative par suite, `fail-fast: false` et
+  40 minutes par job. Le verrou entre runs reste actif.
 - Chaque scénario Patrol a un timeout de **3 minutes**, également appliqué
   par défaut par le helper commun. Cette limite ne couvre pas la compilation
   ni le démarrage de l’émulateur.
