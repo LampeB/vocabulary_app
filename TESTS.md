@@ -32,8 +32,8 @@ Every scenario uses `isolatedPatrolTest`: a verified server/local reset before
 app startup, followed by its explicit `given.*` fixtures. The same permanent
 account is reused, with server-side enrollment required. See the
 [activation and isolation runbook](docs/runbooks/e2e-account.md).
-The workflow includes a nightly 22:17 Asia/Seoul schedule and a shared concurrency
-lock; the schedule requires deployment to the default branch.
+The E2E workflow has a shared concurrency lock. A separate nightly dispatcher
+on `main` runs `feat/multi-language-learning` at 22:17 Asia/Seoul.
 `auth_test.dart`, `vocab_list_test.dart`, and `sign_up_test.dart` remain legacy
 standalone targets; the maintained coverage lives in the suites above.
 
