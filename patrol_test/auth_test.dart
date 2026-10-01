@@ -9,7 +9,7 @@ void main() {
 
   isolatedPatrolTest('sign-in lands on Today screen',
       scenarioId: 'auth.sign_in_lands_on_today_screen',
-      timeout: const Timeout(Duration(minutes: 2)), ($) async {
+      timeout: const Timeout(Duration(minutes: 3)), ($) async {
     await launchAndSignIn($);
 
     // The shell's bottom nav shows 'ACCUEIL' as the first tab.
@@ -28,7 +28,7 @@ void main() {
 
   isolatedPatrolTest('profile data is loaded after sign-in',
       scenarioId: 'auth.profile_data_is_loaded_after_sign_in',
-      timeout: const Timeout(Duration(minutes: 2)), ($) async {
+      timeout: const Timeout(Duration(minutes: 3)), ($) async {
     await launchAndSignIn($);
 
     // MaterialApp is a child of ProviderScope, so its element's context can

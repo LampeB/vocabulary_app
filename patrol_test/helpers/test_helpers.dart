@@ -24,7 +24,7 @@ void isolatedPatrolTest(
   String description,
   Future<void> Function(PatrolIntegrationTester) body, {
   required String scenarioId,
-  Timeout? timeout,
+  Timeout timeout = const Timeout(Duration(minutes: 3)),
   PatrolTesterConfig config = const PatrolTesterConfig(printLogs: true),
 }) {
   patrolTest(description, ($) async {

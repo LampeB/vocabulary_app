@@ -13,7 +13,7 @@ void main() {
   isolatedPatrolTest('Language pairs — English to Korean list studies forward',
       scenarioId:
           'language_pairs.language_pairs_english_to_korean_list_studies_forward',
-      timeout: const Timeout(Duration(minutes: 7)),
+      timeout: const Timeout(Duration(minutes: 3)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(() => cleanupAfterTest($));
@@ -41,7 +41,7 @@ void main() {
   isolatedPatrolTest('Language pairs — Korean to French list studies forward',
       scenarioId:
           'language_pairs.language_pairs_korean_to_french_list_studies_forward',
-      timeout: const Timeout(Duration(minutes: 7)),
+      timeout: const Timeout(Duration(minutes: 3)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(() => cleanupAfterTest($));

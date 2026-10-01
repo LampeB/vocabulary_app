@@ -99,6 +99,9 @@ de contenu avant bêta pédagogique.
   Les 752 tests hôte, les contrôles Python et les tests SQL sur base jetable
   passent ; `flutter analyze` ne rapporte aucun problème. Procédure dans le
   [runbook E2E](docs/runbooks/e2e-account.md).
+- Chaque scénario Patrol a un timeout de **3 minutes**, également appliqué
+  par défaut par le helper commun. Cette limite ne couvre pas la compilation
+  ni le démarrage de l’émulateur.
 - Les comportements audio, microphone réel, rendu et réseau restent à tester
   sur appareil : la simulation rend les E2E déterministes mais ne prouve pas
   l'expérience physique.

@@ -19,7 +19,7 @@ void main() {
       'Navigation — bottom-nav tabs open Home, Lists, Lessons, Progress, Profile',
       scenarioId:
           'navigation.navigation_bottom_nav_tabs_open_home_lists_lessons_progress_profile',
-      timeout: const Timeout(Duration(minutes: 7)),
+      timeout: const Timeout(Duration(minutes: 3)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(
@@ -48,7 +48,7 @@ void main() {
   // The retained setup route opens the Start-a-session screen.
   isolatedPatrolTest('Navigation — setup route opens Start-a-session',
       scenarioId: 'navigation.navigation_setup_route_opens_start_a_session',
-      timeout: const Timeout(Duration(minutes: 7)),
+      timeout: const Timeout(Duration(minutes: 3)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(
@@ -68,7 +68,7 @@ void main() {
       'Navigation — Profile tiles open Stats, Settings, Notifications',
       scenarioId:
           'navigation.navigation_profile_tiles_open_stats_settings_notifications',
-      timeout: const Timeout(Duration(minutes: 7)),
+      timeout: const Timeout(Duration(minutes: 3)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(
@@ -99,7 +99,7 @@ void main() {
   // Tapping a list on the Lists screen opens its detail screen.
   isolatedPatrolTest('Navigation — tapping a list opens its detail',
       scenarioId: 'navigation.navigation_tapping_a_list_opens_its_detail',
-      timeout: const Timeout(Duration(minutes: 7)),
+      timeout: const Timeout(Duration(minutes: 3)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(

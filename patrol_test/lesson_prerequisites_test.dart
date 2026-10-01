@@ -15,7 +15,7 @@ void main() {
       'Lessons — unrelated vocabulary does not unlock a locked prerequisite lesson',
       scenarioId:
           'lesson_prerequisites.lessons_unrelated_vocabulary_does_not_unlock_a_locked_prerequisite_lesson',
-      timeout: const Timeout(Duration(minutes: 8)),
+      timeout: const Timeout(Duration(minutes: 3)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(() => cleanupAfterTest($));
@@ -38,7 +38,7 @@ void main() {
       'Lessons — graduated required vocabulary unlocks and opens the real lesson',
       scenarioId:
           'lesson_prerequisites.lessons_graduated_required_vocabulary_unlocks_and_opens_the_real_lesson',
-      timeout: const Timeout(Duration(minutes: 8)),
+      timeout: const Timeout(Duration(minutes: 3)),
       config: kFastSettle, ($) async {
     final app = Steps($);
     addTearDown(() => cleanupAfterTest($));
