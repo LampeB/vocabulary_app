@@ -66,7 +66,7 @@ Future<void> _addWord(
 void main() {
   // ── Create list ───────────────────────────────────────────────────────────
 
-  patrolTest('created list appears in Lists screen',
+  isolatedPatrolTest('created list appears in Lists screen',
       timeout: const Timeout(Duration(minutes: 3)), ($) async {
     addTearDown(() => deleteListsByName($, _listName));
     await launchAndSignIn($);
@@ -82,7 +82,7 @@ void main() {
   // because importFromJson wasn't wrapped in a transaction and variants
   // could be inserted outside the right scope.
 
-  patrolTest('word added to list is visible in detail screen',
+  isolatedPatrolTest('word added to list is visible in detail screen',
       timeout: const Timeout(Duration(minutes: 3)), ($) async {
     addTearDown(() => deleteListsByName($, _listName));
     await launchAndSignIn($);
@@ -105,7 +105,7 @@ void main() {
 
   // ── Word count in list view matches words in detail ───────────────────────
 
-  patrolTest('word count in list view matches words in detail',
+  isolatedPatrolTest('word count in list view matches words in detail',
       timeout: const Timeout(Duration(minutes: 3)), ($) async {
     addTearDown(() => deleteListsByName($, _listName));
     await launchAndSignIn($);
@@ -138,7 +138,8 @@ void main() {
   // Tapping a word tile opens a pre-populated edit dialog ('Modifier le mot').
   // Saving with new text updates the tile in-place.
 
-  patrolTest('tapping word tile opens pre-populated edit dialog and saves changes',
+  isolatedPatrolTest(
+      'tapping word tile opens pre-populated edit dialog and saves changes',
       timeout: const Timeout(Duration(minutes: 3)), ($) async {
     addTearDown(() => deleteListsByName($, _listName));
     await launchAndSignIn($);
@@ -186,7 +187,8 @@ void main() {
   // Tapping the trash icon shows a confirmation dialog ('Supprimer le mot ?').
   // Confirming removes the word tile from the list.
 
-  patrolTest('trash button + confirmation deletes word from detail screen',
+  isolatedPatrolTest(
+      'trash button + confirmation deletes word from detail screen',
       timeout: const Timeout(Duration(minutes: 3)), ($) async {
     addTearDown(() => deleteListsByName($, _listName));
     await launchAndSignIn($);
@@ -224,7 +226,8 @@ void main() {
 
   // ── Cancelling delete confirmation keeps the word ─────────────────────────
 
-  patrolTest('cancelling delete confirmation keeps word in detail screen',
+  isolatedPatrolTest(
+      'cancelling delete confirmation keeps word in detail screen',
       timeout: const Timeout(Duration(minutes: 3)), ($) async {
     addTearDown(() => deleteListsByName($, _listName));
     await launchAndSignIn($);

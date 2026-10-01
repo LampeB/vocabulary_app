@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:patrol/patrol.dart';
 import 'helpers/steps.dart';
 import 'helpers/test_helpers.dart';
 
@@ -8,11 +7,11 @@ import 'helpers/test_helpers.dart';
 // are device/manual-only (see docs/test-feasibility.md).
 void main() {
   // Signing out from Profile returns to the Welcome screen.
-  patrolTest('Auth — sign out returns to Welcome',
+  isolatedPatrolTest('Auth — sign out returns to Welcome',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($));
+    addTearDown(() => cleanupAfterTest($));
 
     await app.given.signedIn();
     await app.when.signsOut();
@@ -22,11 +21,11 @@ void main() {
   // Requesting a password reset submits and the app shows a response. Neither
   // delivery nor success is asserted — Supabase rate-limits resets, so we only
   // prove the form → submit → response flow works.
-  patrolTest('Auth — password reset request is handled',
+  isolatedPatrolTest('Auth — password reset request is handled',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($));
+    addTearDown(() => cleanupAfterTest($));
 
     await app.given.signedIn();
     await app.when.signsOut();

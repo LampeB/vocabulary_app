@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:patrol/patrol.dart';
 
 import 'helpers/steps.dart';
 import 'helpers/test_helpers.dart';
@@ -11,11 +10,11 @@ const _englishKorean = 'E2E English Korean';
 const _koreanFrench = 'E2E Korean French';
 
 void main() {
-  patrolTest('Language pairs — English to Korean list studies forward',
+  isolatedPatrolTest('Language pairs — English to Korean list studies forward',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($));
+    addTearDown(() => cleanupAfterTest($));
 
     await app.given.signedIn();
     await app.given.aCleanSlate();
@@ -37,11 +36,11 @@ void main() {
     await app.then.sessionScoreIs(percent: 100);
   });
 
-  patrolTest('Language pairs — Korean to French list studies forward',
+  isolatedPatrolTest('Language pairs — Korean to French list studies forward',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($));
+    addTearDown(() => cleanupAfterTest($));
 
     await app.given.signedIn();
     await app.given.aCleanSlate();

@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:patrol/patrol.dart';
 
 import 'helpers/steps.dart';
 import 'helpers/test_helpers.dart';
@@ -10,11 +9,11 @@ import 'helpers/test_helpers.dart';
 const _list = 'E2E Daily Path List';
 
 void main() {
-  patrolTest('Daily path — suggested vocabulary opens its seeded list',
+  isolatedPatrolTest('Daily path — suggested vocabulary opens its seeded list',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($));
+    addTearDown(() => cleanupAfterTest($));
 
     await app.given.signedIn();
     await app.given.aCleanSlate();
@@ -28,11 +27,11 @@ void main() {
     await app.then.seesText(_list);
   });
 
-  patrolTest('Daily path — lessons entry opens the grammar hub',
+  isolatedPatrolTest('Daily path — lessons entry opens the grammar hub',
       timeout: const Timeout(Duration(minutes: 7)),
       config: kFastSettle, ($) async {
     final app = Steps($);
-    addTearDown(() => deleteAllLists($));
+    addTearDown(() => cleanupAfterTest($));
 
     await app.given.signedIn();
     await app.given.aCleanSlate();

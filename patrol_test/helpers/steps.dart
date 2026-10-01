@@ -146,7 +146,27 @@ class GivenSteps {
     if (listId == null) {
       throw StateError('Could not create list "$name" (free-plan quota?).');
     }
-    await actions.addConcept(listId: listId, wordA: french, wordB: korean);
+    final added =
+        await actions.addConcept(listId: listId, wordA: french, wordB: korean);
+    if (!added.isSuccess) throw StateError('Could not seed word in "$name".');
+    final concepts = await _container($)
+        .read(vocabularyRepositoryProvider)
+        .watchConcepts(listId)
+        .first
+        .timeout(const Duration(seconds: 15));
+    if (concepts.length != 1) {
+      throw StateError('Expected exactly one fixture concept.');
+    }
+    final variants = await _container($)
+        .read(vocabularyRepositoryProvider)
+        .getVariants(concepts.single.id);
+    final words = variants.valueOrNull;
+    if (words == null ||
+        !words.any((v) => v.word == french && v.langCode == langA) ||
+        !words.any((v) => v.word == korean && v.langCode == langB)) {
+      throw StateError(
+          'Fixture word variants do not match the requested pair.');
+    }
     await $.pump(const Duration(milliseconds: 800)); // let the streams settle
   }
 
