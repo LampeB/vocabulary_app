@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Patrol target — a single _test.dart file for a quick run; default runs the 9 suites sequentially'
+        description: 'Patrol target — a single _test.dart file for a quick run; default runs 9 suites with up to 3 parallel jobs'
         default: 'all'
         required: false
 
@@ -21,16 +21,30 @@ permissions:
   contents: read
 
 jobs:
-  e2e:
+  suites:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: select
+        env:
+          E2E_TARGET: ${{ inputs.target || 'all' }}
+        run: python3 tool/e2e/matrix.py
+
+  e2e:
+    needs: suites
+    name: E2E (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix: ${{ fromJSON(needs.suites.outputs.matrix) }}
     env:
-      E2E_TARGET: ${{ inputs.target || 'all' }}
-    # clearPackageData isolates each test (fresh process + sign-in), so there's no
-    # cross-test accumulation — but a per-test app spawn occasionally dies
-    # silently. The suites therefore run as 9 separate patrol invocations, each
-    # with its own capped-and-retried attempts (see the script below). A clean
-    # full pass is ~35 min incl. boot; 60 min leaves room for several retries.
-    timeout-minutes: 60
+      E2E_TARGET: ${{ matrix.target }}
+    # Independent budget per suite, including setup and a cold Android build.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
