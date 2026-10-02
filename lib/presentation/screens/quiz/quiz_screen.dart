@@ -19,18 +19,26 @@ import '../../../core/widget_keys.dart';
 import '../../../services/speech/speech_recognition_service.dart';
 import '../../../services/speech/whisper_speech_service.dart';
 import '../../../services/speech/elevenlabs_speech_service.dart';
+import '../../../services/speech/phone_pcm_recognizer.dart';
+import '../../../services/speech/phone_stt_engine.dart';
+import '../../../services/speech/stt_engine_registry.dart';
 import '../../../services/speech/stt_race.dart';
+import '../../../services/speech/stt_race_status.dart';
 import '../../../services/speech/system_stt_engine.dart';
 import '../../../services/speech/whisper_stt_engine.dart';
 import '../../../services/speech/elevenlabs_stt_engine.dart';
 import '../../../services/quiz_orchestration/voice_turn_machine.dart';
+import '../../providers/settings/audio_settings_provider.dart';
 import '../../providers/settings/stt_engine_mode_provider.dart';
+import 'hf_cue.dart';
 import '../../providers/speech/whisper_speech_provider.dart';
 import '../../providers/speech/elevenlabs_speech_provider.dart';
+import '../../providers/speech/shared_pcm_capture_provider.dart';
 import '../../widgets/vk_waveform.dart';
 import '../../widgets/mic_button.dart';
 import '../../widgets/study/study_scaffold.dart';
 import '../../widgets/study/word_in_wave.dart';
+import '../../widgets/study/stt_status_strip.dart';
 import '../../widgets/study/study_feedback_flood.dart';
 import '../../design/v3/v3_study_scaffold.dart';
 import '../../design/v3/v3_card_stack.dart';
@@ -68,6 +76,24 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   SystemSttEngine? _raceSystemEngine;
   WhisperSttEngine? _raceWhisperEngine;
   ElevenLabsSttEngine? _raceElevenLabsEngine;
+  // The phone's recognizer fed with OUR recording (Android 13+ bridge).
+  PhoneSttEngine? _racePhoneEngine;
+
+  /// Engines ranked best-first; each attempt activates the best available
+  /// ones (see [SttEngineRegistry.select]).
+  SttEngineRegistry? _sttRegistry;
+
+  /// The listen attempt in progress. Cancelled whenever a new turn starts,
+  /// the card changes or the session pauses, so its timers can never cut
+  /// the NEXT attempt's mic (field log 2026-10-02: a stale timer closed a
+  /// fresh window 38ms after it opened).
+  SttRace? _activeRace;
+
+  /// What the current attempt is doing — drives the cue line and the engine
+  /// chips (user feedback 2026-10-02: "je sais pas si ça écoute, si ça
+  /// analyse, si ça envoie").
+  SttRaceStatus? _sttStatus;
+  bool _sttOnline = true;
 
   // Incremented every time _startListening is called; onListeningDone
   // only acts if the token still matches.
@@ -89,6 +115,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // Marked by a low closing tick + pulsing status text so the user knows to
   // stop talking (protocol spec, user request 2026-07-08).
   bool _hfAnalyzing = false;
+  // "3 · 2 · 1" before the mic opens (null = no countdown showing).
+  int? _hfCountdown;
+  // The "analysis started" bip plays once per listen attempt.
+  bool _analysisBipPlayed = false;
   bool _hfAutoPausedSilence = false;
   // Flashcards are self-graded by a directional swipe. Keeping this state in
   // the screen (rather than in the quiz provider) makes the physical exit an
@@ -148,6 +178,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     WidgetsBinding.instance.removeObserver(this);
     _pulseCtrl.dispose();
     _listenBarCtrl.dispose();
+    _activeRace?.cancel();
     _stt.dispose();
     unawaited(_whisper.stopListening());
     unawaited(_elevenLabs.stopListening());
@@ -178,6 +209,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (wasHandsFree && _hfPaused) return;
 
     _listenToken++; // every in-flight STT completion is now stale
+    _cancelActiveRace();
     _listenBarCtrl.stop();
     sttLog('[HF] app backgrounded — pausing audio and recognition');
     await Future.wait([
@@ -220,6 +252,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       // fresh. Never skip: skipping left cards without their own session.
       sttLog(
           '[HF] stale session still open — stopping it before this card\'s listen');
+      _cancelActiveRace();
       await _stt.stopListening();
       await _whisper.stopListening();
       await _elevenLabs.stopListening();
@@ -244,10 +277,35 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   void _enterAnalyzing() {
     if (_hfAnalyzing || widget.args.mode != QuizMode.handsFree) return;
     _listenBarCtrl.stop(); // mic closed — freeze the countdown
+    _playAnalysisBip();
+    if (mounted) setState(() => _hfAnalyzing = true);
+  }
+
+  /// The bip that says "your answer is being analysed" — once per attempt,
+  /// whether analysis starts while the mic is open or after it closed.
+  void _playAnalysisBip() {
+    if (_analysisBipPlayed || widget.args.mode != QuizMode.handsFree) return;
+    _analysisBipPlayed = true;
     if (!_kTestMode) {
       unawaited(ref.read(audioDirectorProvider).playListenDone());
     }
-    if (mounted) setState(() => _hfAnalyzing = true);
+  }
+
+  /// A quick "3 · 2 · 1" so the learner knows exactly when to speak (user
+  /// request 2026-10-02). Returns false when the turn went stale meanwhile.
+  Future<bool> _runCountdown(bool Function() stale) async {
+    if (widget.args.mode != QuizMode.handsFree || _kTestMode) return true;
+    for (final n in const [3, 2, 1]) {
+      if (stale()) {
+        if (mounted) setState(() => _hfCountdown = null);
+        return false;
+      }
+      if (mounted) setState(() => _hfCountdown = n);
+      HapticFeedback.selectionClick();
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    }
+    if (mounted) setState(() => _hfCountdown = null);
+    return !stale();
   }
 
   Future<void> _startListening(QuizCard card, {bool isRetry = false}) async {
@@ -267,13 +325,20 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
   }
 
-  /// Hybrid pipeline: online lane 1 uses ElevenLabs Scribe; a miss or an
-  /// offline device falls through to lane 2's on-device Whisper. Every guess
-  /// is validated inside [SttRace] against the card's accepted answers, the
-  /// first match wins, and the card is graded EXACTLY once — the race returns
-  /// a single outcome (this also structurally prevents the triple-grade
-  /// >100% score bug of 2026-07-19). Becomes a true parallel race when a
-  /// sharedPcm engine (sherpa-onnx) is registered.
+  /// Abandons the listen attempt in progress (see [_activeRace]).
+  void _cancelActiveRace() {
+    _activeRace?.cancel();
+    _activeRace = null;
+    if (_sttStatus != null && mounted) setState(() => _sttStatus = null);
+  }
+
+  /// Parallel pipeline: the registry activates the best available engines
+  /// (online: ElevenLabs Scribe + on-device Whisper on one shared mic;
+  /// offline: the phone recognizer, Whisper on the rescue attempt). Every
+  /// guess is validated inside [SttRace] against the card's accepted
+  /// answers, the first match wins, and the card is graded EXACTLY once —
+  /// the race returns a single outcome (this also structurally prevents the
+  /// triple-grade >100% score bug of 2026-07-19).
   // The per-session turn machine (race mode). Owns grade-once, the
   // not-heard ladder, retry pacing and the consecutive-silence auto-pause —
   // one instance per screen so the silence streak spans the whole session.
@@ -284,8 +349,21 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _raceSystemEngine ??= SystemSttEngine(_stt);
     _raceWhisperEngine ??= WhisperSttEngine(_whisper);
     _raceElevenLabsEngine ??= ElevenLabsSttEngine(_elevenLabs);
+    _racePhoneEngine ??=
+        PhoneSttEngine(const MethodChannelPhonePcmRecognizer());
+    // Registration order = quality rank (field logs + the corpora): cloud
+    // Scribe, the phone recognizer on our recording, the live phone
+    // recognizer (a mic owner — only used when no shared engine is
+    // available, e.g. offline), then on-device Whisper. Online, the three
+    // shared engines transcribe the same recording in parallel.
+    _sttRegistry ??= SttEngineRegistry()
+      ..register(_raceElevenLabsEngine!)
+      ..register(_racePhoneEngine!)
+      ..register(_raceSystemEngine!)
+      ..register(_raceWhisperEngine!);
     await _raceSystemEngine!.prepare(); // idempotent — already initialised
-    // Whisper joins lane 2 in hybrid mode once its model is ready; kick the
+    await _racePhoneEngine!.prepare();
+    // Whisper joins the parallel race once its model is ready; kick the
     // download in the background on first use. This is intentionally enabled
     // for debug APKs too: field tests must exercise the same hybrid pipeline
     // as the version we plan to ship.
@@ -383,6 +461,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           ref.read(quizProvider.notifier).skipCurrentCard();
         case PauseSession():
           sttLog('[RACE][HF] 🔇🔇 consecutive silent cards — auto-pausing');
+          _cancelActiveRace();
           _stt.stopListening();
           unawaited(_whisper.stopListening());
           unawaited(_elevenLabs.stopListening());
@@ -413,6 +492,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (m.attempt > 1 &&
         widget.args.mode == QuizMode.handsFree &&
         !_kTestMode) {
+      if (!await _runCountdown(() => _turnStale(turn, card))) return;
       await ref.read(audioDirectorProvider).listenCue();
       if (_turnStale(turn, card)) return;
     }
@@ -446,50 +526,69 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
 
     final courseMode = ref.read(sttEngineModeProvider) == SttEngineMode.race;
-    final connectivity = await Connectivity().checkConnectivity();
-    final useElevenLabs = courseMode && !isOffline(connectivity);
-    sttLog('[RACE][HF] lane 1 (${useElevenLabs ? "elevenlabs" : "system"}) '
-        'turn=$turn attempt=${m.attempt} rescue=$rescue lang=$langCode');
-    runBar();
-    var outcome = await SttRace(
-      useElevenLabs ? [_raceElevenLabsEngine!] : [_raceSystemEngine!],
-    ).run(
+    final online = !isOffline(await Connectivity().checkConnectivity());
+    if (_turnStale(turn, card)) return;
+    final engines = courseMode
+        ? _sttRegistry!
+            .select(langCode: langCode, online: online, rescue: rescue)
+        : [_raceSystemEngine!];
+    sttLog('[RACE][HF] engines=${engines.map((e) => e.id).join("+")} '
+        'online=$online turn=$turn attempt=${m.attempt} rescue=$rescue '
+        'lang=$langCode');
+    _activeRace?.cancel(); // never two attempts alive at once
+    final race = SttRace(engines, capture: ref.read(sharedPcmCaptureProvider));
+    _activeRace = race;
+    _analysisBipPlayed = false;
+    // User-tunable (Réglages → Temps d'écoute). The bar drains over exactly
+    // this window, starting when the mic is really open.
+    final listenWindow =
+        Duration(seconds: ref.read(audioSettingsProvider).listenSeconds);
+    _listenBarCtrl
+      ..stop()
+      ..reset()
+      ..duration = listenWindow;
+    var barStarted = false;
+    if (mounted) {
+      setState(() {
+        _sttOnline = online;
+        _sttStatus = null;
+      });
+    }
+    final outcome = await race.run(
       langCode: langCode,
       acceptedAnswers: card.answerWords,
       promptHints: card.answerWords,
-      // The platform recognizer often stays silently open for its full
-      // 10-second window after a missed short word. Do not make a learner
-      // wait that long before the offline Whisper rescue gets a turn.
-      timeout: useElevenLabs
-          ? const Duration(seconds: 6)
-          : const Duration(seconds: 4),
+      // Shared capture: time to START answering — the window never cuts a
+      // learner mid-word and awaits every analysis in flight. The phone
+      // recognizer ends its own session after one utterance, so its window
+      // is only an upper bound.
+      timeout: listenWindow,
       restartOnSessionEnd: false,
+      onStatus: (status) {
+        if (!identical(_activeRace, race) || !mounted) return;
+        final micOpen = status.phase == SttPhase.listening ||
+            status.phase == SttPhase.speaking;
+        if (micOpen && !barStarted) {
+          barStarted = true;
+          runBar();
+        }
+        if (status.phase == SttPhase.analyzing) _playAnalysisBip();
+        setState(() => _sttStatus = status);
+      },
+      onMicClosedPending: () {
+        if (_turnStale(turn, card)) return;
+        unawaited(
+            _runTurnCommands(m.micClosedPendingVerdict(turn), card, langCode));
+      },
       onPartial: (h) {
         if (!_turnStale(turn, card)) {
           ref.read(quizProvider.notifier).setPartialTranscript(h.transcript);
         }
       },
     );
-    if (_turnStale(turn, card)) return;
-    var hadReal = outcome.hadRealSession;
-
-    if (!outcome.matched && courseMode && _whisper.isReady) {
-      sttLog('[RACE][HF] lane 2 (whisper)  turn=$turn');
-      await _runTurnCommands(m.micClosedPendingVerdict(turn), card, langCode);
-      runBar();
-      final second = await SttRace([_raceWhisperEngine!]).run(
-        langCode: langCode,
-        acceptedAnswers: card.answerWords,
-        promptHints: card.answerWords,
-        timeout: const Duration(seconds: 8),
-      );
-      if (_turnStale(turn, card)) return;
-      hadReal = hadReal || second.hadRealSession;
-      if (second.matched ||
-          (second.bestTranscript?.trim().isNotEmpty ?? false)) {
-        outcome = second;
-      }
-    }
+    if (identical(_activeRace, race)) _activeRace = null;
+    if (outcome.cancelled || _turnStale(turn, card)) return;
+    final hadReal = outcome.hadRealSession;
 
     _listenBarCtrl.stop();
     final heard = outcome.bestTranscript;
@@ -513,6 +612,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       });
     }
     _listenToken++;
+    _cancelActiveRace(); // the previous attempt's timers must not touch this one
     sttLog(
         '[HF] _startListening  token=$_listenToken  isRetry=$isRetry  question="${card.questionWord}"  answerWords=${card.answerWords}');
     ref.read(quizProvider.notifier).setListening(true);
@@ -533,6 +633,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       return;
     }
 
+    final token = _listenToken;
     // Wait for the question player to stop, then let Android settle the audio
     // route before STT grabs the mic. A fire-and-forget stop let late TTS
     // buffers overlap the first recognition frames on Samsung.
@@ -547,6 +648,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // (user request 2026-07-08). Safe now that earcons use FOCUS_NONE and
     // session starts are serialized — the old silent-retry rule guarded
     // against focus-contest kills that no longer happen.
+    // "3 · 2 · 1" first, so the learner knows exactly when to speak.
+    if (!await _runCountdown(
+        () => !mounted || !_appForeground || token != _listenToken)) {
+      return;
+    }
+
     if (widget.args.mode == QuizMode.handsFree && !_kTestMode) {
       sttLog(
           '[HF] 🔔 playing listen earcon (mic opens after verified clearance)');
@@ -647,6 +754,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           // grades it against the old card (field log 2026-07-06 — "mouton"
           // spoken by the app's own voice failed the 양 card).
           _listenToken++;
+          _cancelActiveRace();
           if (_stt.isListening ||
               _whisper.isListening ||
               _elevenLabs.isListening) {
@@ -758,6 +866,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _hfAutoPausedSilence = false;
     });
     if (_hfPaused) {
+      _cancelActiveRace();
       _stt.stopListening();
       unawaited(_whisper.stopListening());
       unawaited(_elevenLabs.stopListening());
@@ -784,6 +893,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   void _hfSkip() {
     // A deliberate skip is not a wrong answer: nothing is graded, the card
     // returns later in the session.
+    _cancelActiveRace();
     _stt.stopListening();
     unawaited(_whisper.stopListening());
     unawaited(_elevenLabs.stopListening());
@@ -820,24 +930,40 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final muted = dark ? V3Colors.inkLight70 : V3Colors.ink60;
     final rule = dark ? V3Colors.ruleDark : V3Colors.edge2;
 
-    // Phase priority: paused > analyzing (mic closed, verdict pending) >
-    // not-heard (retry prompt with attempt count) > listening (speak now) >
-    // reading the word.
-    final cue = _hfPaused
-        ? null
-        : (_hfAnalyzing
-            ? 'quiz.hf_analyzing'.tr()
-            : ((_hfNotHeard
-                ? 'quiz.hf_not_heard_retry'.tr(namedArgs: {
-                    'attempt': '${_notHeardRetries + 1}',
-                    'total': '3',
-                  })
-                : (listening
-                    ? 'quiz.say_in_lang'.tr(namedArgs: {
-                        'lang': 'lang.${_answerLangCode(card)}'.tr()
-                      })
-                    : 'quiz.hf_reading'.tr()))));
-    final cueColor = listening && !_hfAnalyzing ? V3Colors.amber : muted;
+    // What to tell the learner — see hfCueFor for the sequence and its
+    // priorities (user requests 2026-10-02).
+    final phase = _sttStatus?.phase;
+    final hfCue = hfCueFor(
+      paused: _hfPaused,
+      countdown: _hfCountdown,
+      micRequested: listening,
+      phase: phase,
+      verdictPending: _hfAnalyzing,
+      notHeard: _hfNotHeard,
+    );
+    final analyzing = hfCue == HfCue.analyzing;
+    final micLive = hfBarVisible(
+      paused: _hfPaused,
+      countdown: _hfCountdown,
+      micRequested: listening,
+      phase: phase,
+      verdictPending: _hfAnalyzing,
+    );
+    final langName = 'lang.${_answerLangCode(card)}'.tr();
+    final cue = switch (hfCue) {
+      HfCue.none => null,
+      HfCue.reading => 'quiz.hf_reading'.tr(),
+      HfCue.countdown => 'quiz.stt_get_ready'.tr(),
+      HfCue.opening => 'quiz.stt_opening'.tr(),
+      HfCue.listening => 'quiz.stt_listening'.tr(namedArgs: {'lang': langName}),
+      HfCue.hearing => 'quiz.stt_hearing'.tr(),
+      HfCue.analyzing => 'quiz.hf_analyzing'.tr(),
+      HfCue.notHeard => 'quiz.hf_not_heard_retry'.tr(namedArgs: {
+          'attempt': '${_notHeardRetries + 1}',
+          'total': '3',
+        }),
+    };
+    final cueColor = micLive ? V3Colors.amber : muted;
 
     return V3StudyScaffold(
       remaining: (s.displayTotal - s.position + 1).clamp(1, s.displayTotal),
@@ -883,7 +1009,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                       child: AnimatedBuilder(
                         animation: _pulseCtrl,
                         builder: (_, __) {
-                          final fade = _hfAnalyzing && !reduceMotion
+                          final fade = analyzing && !reduceMotion
                               ? 0.35 + 0.65 * _pulseCtrl.value
                               : 1.0;
                           return WordInWave(
@@ -892,18 +1018,40 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                             cue: cue,
                             wordColor: foreground,
                             cueColor: cueColor.withValues(alpha: fade),
-                            waveActive: listening && !_hfAnalyzing,
+                            waveActive: micLive,
                           );
                         },
                       ),
                     ),
                   ),
-                  // Listening-window countdown: fills left→right while the
-                  // mic is open; a full bar = this attempt timed out. Hidden
+                  // "3 · 2 · 1" — big, so it reads from arm's length.
+                  if (_hfCountdown != null && !_hfPaused)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        '$_hfCountdown',
+                        key: const ValueKey('hf_countdown'),
+                        style: AppTextStyles.grotesk(64, FontWeight.w700)
+                            .copyWith(color: V3Colors.amber),
+                      ),
+                    ),
+                  // Which engines are working on the answer, and what each
+                  // one heard.
+                  if (!_hfPaused && (listening || !_sttOnline))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: SttStatusStrip(
+                        status: _sttStatus,
+                        online: _sttOnline,
+                        labels: _sttLabels(),
+                      ),
+                    ),
+                  // Time left to answer: drains while the mic is open, over
+                  // the window set in Réglages → Temps d'écoute. Hidden
                   // outside the listening phase.
                   AnimatedOpacity(
                     duration: const Duration(milliseconds: 200),
-                    opacity: listening && !_hfAnalyzing ? 1.0 : 0.0,
+                    opacity: micLive ? 1.0 : 0.0,
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: AnimatedBuilder(
@@ -911,7 +1059,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                         builder: (_, __) => ClipRRect(
                           borderRadius: BorderRadius.circular(3),
                           child: LinearProgressIndicator(
-                            value: _listenBarCtrl.value,
+                            value: 1 - _listenBarCtrl.value,
                             minHeight: 5,
                             backgroundColor: rule.withValues(alpha: 0.7),
                             valueColor:
@@ -989,6 +1137,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   void _quit() {
+    _cancelActiveRace();
     _stt.stopListening();
     unawaited(_whisper.stopListening());
     unawaited(_elevenLabs.stopListening());
@@ -1000,6 +1149,22 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // QuizDirection enum; the generic-language-pairs task replaces this with the
   // list's target langCode.
   String _answerLangCode(QuizCard card) => card.progress.direction.answerLang;
+
+  SttStatusLabels _sttLabels() => SttStatusLabels(
+        engineName: (id) => switch (id) {
+          'elevenlabs' => 'ElevenLabs',
+          'whisper' => 'Whisper',
+          'system' || 'phone' => 'quiz.stt_engine_system'.tr(),
+          _ => id,
+        },
+        waiting: 'quiz.stt_engine_waiting'.tr(),
+        sending: 'quiz.stt_engine_sending'.tr(),
+        analyzing: 'quiz.stt_engine_analyzing'.tr(),
+        empty: 'quiz.stt_engine_empty'.tr(),
+        failed: 'quiz.stt_engine_failed'.tr(),
+        offline: 'quiz.stt_offline'.tr(),
+        noEngine: 'quiz.stt_no_engine'.tr(),
+      );
 
   String _nextReviewText(int scheduledDays, bool correct) {
     if (!correct) return 'quiz.next_review_soon'.tr();
@@ -1315,6 +1480,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 ),
               ),
             ),
+            if (s.isListening || !_sttOnline)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: SttStatusStrip(
+                  status: _sttStatus,
+                  online: _sttOnline,
+                  labels: _sttLabels(),
+                ),
+              ),
             if (s.partialTranscript.isNotEmpty) ...[
               Text(
                 s.partialTranscript,

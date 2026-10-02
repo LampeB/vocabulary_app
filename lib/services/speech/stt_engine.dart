@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import '../../core/utils/pcm_segmenter.dart';
 
 /// How an STT engine gets its audio — the key constraint for racing engines in
 /// parallel. On Android/iOS only ONE component can own the microphone at a
@@ -52,6 +52,11 @@ abstract interface class SttEngine {
   /// True once the engine can recognize (model loaded / platform initialised).
   bool get isReady;
 
+  /// True for cloud engines: they are never selected while the device is
+  /// offline (user rule 2026-10-02 — "hors ligne on n'active pas les moteurs
+  /// en ligne").
+  bool get requiresNetwork;
+
   /// Content languages this engine can transcribe well (langCodes, e.g. 'fr').
   bool supportsLanguage(String langCode);
 
@@ -74,9 +79,15 @@ abstract interface class SttEngine {
     void Function()? onSessionEnd,
   });
 
-  /// Feeds a PCM16 mono @16kHz frame to a [SttCapture.sharedPcm] engine. No-op
-  /// for [SttCapture.ownsMicrophone] engines (they capture themselves).
-  void feed(Uint8List pcm16) {}
+  /// Transcribes one utterance captured by the race's shared microphone
+  /// ([SttCapture.sharedPcm] engines only). Returns null when the engine
+  /// heard nothing usable (silence, hallucination, service failure).
+  /// Mic owners return null — they capture themselves via [start].
+  Future<SttHypothesis?> recognize(
+    PcmSegment segment, {
+    required String langCode,
+    required List<String> promptHints,
+  });
 
   /// Stops recognition and releases the mic/decoder for this turn.
   Future<void> stop();

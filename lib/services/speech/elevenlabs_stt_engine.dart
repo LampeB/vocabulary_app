@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../core/languages.dart';
+import '../../core/utils/pcm_segmenter.dart';
 import 'stt_engine.dart';
 
 abstract interface class CloudSpeechCapture {
@@ -12,12 +13,22 @@ abstract interface class CloudSpeechCapture {
   });
 
   Future<void> stopListening();
+
+  /// Sends one utterance captured by the race's shared microphone to Scribe.
+  /// Returns the cleaned transcript, or null when Scribe heard nothing.
+  /// Throws on a transport/service failure (offline, timeout, 5xx).
+  Future<String?> transcribeSegment({
+    required Uint8List pcm16,
+    required String langCode,
+    required String expectedWord,
+  });
   void dispose();
 }
 
-/// Adapter that makes cloud ElevenLabs Scribe available to [SttRace]. It owns
-/// the microphone while it captures one short answer, so Whisper runs only as
-/// a sequential offline rescue after it releases the mic.
+/// Adapter that makes cloud ElevenLabs Scribe available to [SttRace]. It
+/// consumes the race's shared capture, so it runs in PARALLEL with the other
+/// shared engines (on-device Whisper) on the very same utterance. It needs the
+/// network, so the registry never selects it offline.
 class ElevenLabsSttEngine implements SttEngine {
   ElevenLabsSttEngine(this._service);
 
@@ -27,7 +38,10 @@ class ElevenLabsSttEngine implements SttEngine {
   String get id => 'elevenlabs';
 
   @override
-  SttCapture get capture => SttCapture.ownsMicrophone;
+  SttCapture get capture => SttCapture.sharedPcm;
+
+  @override
+  bool get requiresNetwork => true;
 
   @override
   bool get isReady => true;
@@ -60,7 +74,25 @@ class ElevenLabsSttEngine implements SttEngine {
       );
 
   @override
-  void feed(Uint8List pcm16) {}
+  Future<SttHypothesis?> recognize(
+    PcmSegment segment, {
+    required String langCode,
+    required List<String> promptHints,
+  }) async {
+    final text = await _service.transcribeSegment(
+      pcm16: segment.bytes,
+      langCode: langCode,
+      expectedWord: promptHints.isEmpty ? '' : promptHints.first,
+    );
+    if (text == null) return null;
+    return SttHypothesis(
+      engineId: id,
+      transcript: text,
+      candidates: [text],
+      confidence: 0.95,
+      isFinal: true,
+    );
+  }
 
   @override
   Future<void> stop() => _service.stopListening();

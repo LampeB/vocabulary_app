@@ -57,6 +57,7 @@ class SttCorpusSample {
     this.elevenLabsTranscript,
     this.elevenLabsDurationMs,
     this.elevenLabsTestedAt,
+    this.meta = const {},
   });
 
   final String id;
@@ -78,6 +79,11 @@ class SttCorpusSample {
   final int? elevenLabsDurationMs;
   final DateTime? elevenLabsTestedAt;
 
+  /// Free-form labels for a capture session — e.g. the near-miss sessions of
+  /// 2026-10-03: `speaker`, `expected` (the card's answer), `kind`
+  /// (`target` | `near`), `condition` (`calme` | `bruit`).
+  final Map<String, String> meta;
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'word': word,
@@ -95,6 +101,7 @@ class SttCorpusSample {
         'elevenLabsTranscript': elevenLabsTranscript,
         'elevenLabsDurationMs': elevenLabsDurationMs,
         'elevenLabsTestedAt': elevenLabsTestedAt?.toIso8601String(),
+        if (meta.isNotEmpty) 'meta': meta,
       };
 
   factory SttCorpusSample.fromJson(Map<String, dynamic> json) =>
@@ -121,6 +128,9 @@ class SttCorpusSample {
         elevenLabsTestedAt: json['elevenLabsTestedAt'] == null
             ? null
             : DateTime.parse(json['elevenLabsTestedAt'] as String),
+        meta: (json['meta'] as Map?)
+                ?.map((k, v) => MapEntry(k.toString(), v.toString())) ??
+            const {},
       );
 
   SttCorpusSample withWhisperResult({
@@ -144,6 +154,7 @@ class SttCorpusSample {
         elevenLabsTranscript: elevenLabsTranscript,
         elevenLabsDurationMs: elevenLabsDurationMs,
         elevenLabsTestedAt: elevenLabsTestedAt,
+        meta: meta,
       );
 
   SttCorpusSample withOpenAiResult({
@@ -167,6 +178,7 @@ class SttCorpusSample {
         elevenLabsTranscript: elevenLabsTranscript,
         elevenLabsDurationMs: elevenLabsDurationMs,
         elevenLabsTestedAt: elevenLabsTestedAt,
+        meta: meta,
       );
 
   SttCorpusSample withElevenLabsResult({
@@ -190,6 +202,7 @@ class SttCorpusSample {
         elevenLabsTranscript: transcript,
         elevenLabsDurationMs: durationMs,
         elevenLabsTestedAt: DateTime.now(),
+        meta: meta,
       );
 }
 
@@ -238,6 +251,7 @@ class SttCorpusRecorder {
     required String langCode,
     String? listId,
     String? conceptId,
+    Map<String, String> meta = const {},
   }) async {
     if (word.trim().isEmpty || isRecording) return false;
     if (!await _recorder.hasPermission()) return false;
@@ -252,6 +266,7 @@ class SttCorpusRecorder {
       recordedAt: now,
       listId: listId,
       conceptId: conceptId,
+      meta: meta,
     );
     await _recorder.start(
       const RecordConfig(

@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import '../../core/utils/answer_validator.dart';
+import '../../core/utils/pcm_segmenter.dart';
 import '../../core/utils/stt_debug_log.dart';
+import 'shared_pcm_capture.dart';
 import 'stt_engine.dart';
+import 'stt_race_status.dart';
 
 /// The result of one recognition turn.
 class SttRaceOutcome {
@@ -13,6 +16,7 @@ class SttRaceOutcome {
     this.bestTranscript,
     this.hypotheses = const [],
     this.hadRealSession = false,
+    this.cancelled = false,
   });
 
   /// A guess validated against the accepted answers.
@@ -37,6 +41,9 @@ class SttRaceOutcome {
   /// instant engine deaths must not count against the card.
   final bool hadRealSession;
 
+  /// The race was superseded ([SttRace.cancel]) — its caller must ignore it.
+  final bool cancelled;
+
   static const noEngines = SttRaceOutcome(matched: false);
 }
 
@@ -49,7 +56,24 @@ class SttRaceOutcome {
 /// Adding/removing racers is done through [SttEngineRegistry]; this coordinator
 /// is engine-agnostic and never names a concrete engine.
 class SttRace {
-  SttRace(this.engines);
+  SttRace(this.engines, {this.capture});
+
+  /// The single microphone shared by [SttCapture.sharedPcm] engines.
+  final PcmCaptureSource? capture;
+
+  void Function()? _cancel;
+  bool _cancelled = false;
+
+  /// Abandons this race: its timers stop, its own mic window closes, later
+  /// results are ignored, and it resolves with [SttRaceOutcome.cancelled].
+  /// Engines are deliberately NOT stopped — they are shared with the race
+  /// that superseded this one, and stopping them would kill its session.
+  void cancel() {
+    if (_cancelled) return;
+    _cancelled = true;
+    sttLog('[RACE] ✋ cancelled (superseded)');
+    _cancel?.call();
+  }
 
   /// The mic-compatible racer set for this turn (see
   /// [SttEngineRegistry.racersFor]). All own-mic engines here must be a single
@@ -69,16 +93,63 @@ class SttRace {
     Duration throttleCooldown = const Duration(milliseconds: 3500),
     Duration lateResultGrace = const Duration(milliseconds: 2500),
     bool restartOnSessionEnd = true,
+    // Shared-capture tuning (see [_runShared]).
+    Duration maxSpeechOverrun = const Duration(seconds: 3),
+    Duration analysisTimeout = const Duration(seconds: 6),
+    void Function(SttRaceStatus status)? onStatus,
+    void Function()? onMicClosedPending,
   }) async {
     final racers = engines
         .where((e) => e.isReady && e.supportsLanguage(langCode))
         .toList();
-    if (racers.isEmpty) {
+    if (racers.isEmpty || _cancelled) {
       sttLog('[RACE] no ready engine for "$langCode"');
-      return SttRaceOutcome.noEngines;
+      return _cancelled
+          ? const SttRaceOutcome(matched: false, cancelled: true)
+          : SttRaceOutcome.noEngines;
     }
     sttLog(
         '[RACE] start langCode=$langCode  racers=${racers.map((e) => e.id).join(",")}  answers=$acceptedAnswers');
+
+    final shared = racers.every((e) => e.capture == SttCapture.sharedPcm);
+    if (shared) {
+      if (capture == null) {
+        sttLog('[RACE] shared engines need a capture source');
+        return SttRaceOutcome.noEngines;
+      }
+      return _runShared(
+        racers: racers,
+        source: capture!,
+        langCode: langCode,
+        acceptedAnswers: acceptedAnswers,
+        promptHints: promptHints,
+        isDrivingMode: isDrivingMode,
+        timeout: timeout,
+        maxSpeechOverrun: maxSpeechOverrun,
+        analysisTimeout: analysisTimeout,
+        onStatus: onStatus,
+        onMicClosedPending: onMicClosedPending,
+      );
+    }
+
+    // ── Mic-owner path (one platform recognizer) ──
+    final chips = {
+      for (final e in racers)
+        e.id: SttEngineStatus(
+            engineId: e.id,
+            state: SttEngineState.waiting,
+            requiresNetwork: e.requiresNetwork),
+    };
+    var phase = SttPhase.starting;
+    void emit([SttPhase? next]) {
+      if (next != null) phase = next;
+      if (!_cancelled) {
+        onStatus
+            ?.call(SttRaceStatus(phase: phase, engines: chips.values.toList()));
+      }
+    }
+
+    emit();
 
     final completer = Completer<SttRaceOutcome>();
     final seen = <SttHypothesis>[];
@@ -113,8 +184,20 @@ class SttRace {
           sttLog('[RACE] stop "${e.id}" failed/timed out: $err');
         }
       }
+      emit(SttPhase.done);
       completer.complete(outcome);
     }
+
+    _cancel = () {
+      if (finishing || completer.isCompleted) return;
+      finishing = true;
+      timer?.cancel();
+      completer.complete(SttRaceOutcome(
+        matched: false,
+        hypotheses: List.of(seen),
+        cancelled: true,
+      ));
+    };
 
     void onHyp(SttEngine engine, SttHypothesis h) {
       if (finishing || completer.isCompleted) return;
@@ -126,6 +209,12 @@ class SttRace {
         acceptedAnswers: acceptedAnswers,
         isDrivingMode: isDrivingMode,
       );
+      chips[engine.id] = chips[engine.id]!.copyWith(
+        state: SttEngineState.heard,
+        transcript: h.transcript,
+        matched: match != null,
+      );
+      emit(h.isFinal ? SttPhase.analyzing : SttPhase.speaking);
       if (match != null) {
         sttLog(
             '[RACE] 🏁 "${engine.id}" wins with "$match" (${h.isFinal ? "final" : "partial"})');
@@ -253,6 +342,7 @@ class SttRace {
           );
           if (ok) {
             startedOk.add(e.id);
+            if (phase == SttPhase.starting) emit(SttPhase.listening);
           } else {
             sttLog('[RACE] "${e.id}" failed to start');
           }
@@ -263,6 +353,214 @@ class SttRace {
     for (final e in racers) {
       unawaited(startEngine(e));
     }
+
+    return completer.future;
+  }
+
+  /// Parallel race on ONE shared microphone. Every utterance the capture
+  /// detects is transcribed by every engine at once; the first validating
+  /// transcript wins.
+  ///
+  /// The window is speech-aware (field log 2026-10-02, 7 of 20 right
+  /// answers lost to the guillotine):
+  ///  * at the deadline a learner who is mid-answer is NOT cut — the mic stays
+  ///    open until their utterance ends, up to [maxSpeechOverrun], after which
+  ///    the partial utterance is flushed and analysed anyway;
+  ///  * transcriptions already in flight are AWAITED (each bounded by
+  ///    [analysisTimeout]), never dropped: the verdict is only "nothing
+  ///    validated" once every engine has answered.
+  Future<SttRaceOutcome> _runShared({
+    required List<SttEngine> racers,
+    required PcmCaptureSource source,
+    required String langCode,
+    required List<String> acceptedAnswers,
+    required List<String> promptHints,
+    required bool isDrivingMode,
+    required Duration timeout,
+    required Duration maxSpeechOverrun,
+    required Duration analysisTimeout,
+    void Function(SttRaceStatus status)? onStatus,
+    void Function()? onMicClosedPending,
+  }) async {
+    final completer = Completer<SttRaceOutcome>();
+    final seen = <SttHypothesis>[];
+    final chips = {
+      for (final e in racers)
+        e.id: SttEngineStatus(
+            engineId: e.id,
+            state: SttEngineState.waiting,
+            requiresNetwork: e.requiresNetwork),
+    };
+    PcmCaptureSession? session;
+    Timer? deadline;
+    Timer? overrun;
+    var micOpen = false;
+    var micClosed = false;
+    var speaking = false;
+    var inFlight = 0;
+    var finished = false;
+
+    SttPhase phase() {
+      if (finished) return SttPhase.done;
+      if (inFlight > 0) return SttPhase.analyzing;
+      if (micClosed) return SttPhase.done;
+      if (speaking) return SttPhase.speaking;
+      return micOpen ? SttPhase.listening : SttPhase.starting;
+    }
+
+    void emit() {
+      if (_cancelled) return;
+      onStatus
+          ?.call(SttRaceStatus(phase: phase(), engines: chips.values.toList()));
+    }
+
+    void finish(SttRaceOutcome outcome) {
+      if (finished) return;
+      finished = true;
+      deadline?.cancel();
+      overrun?.cancel();
+      if (!micClosed) {
+        micClosed = true;
+        unawaited(session?.close());
+      }
+      emit();
+      completer.complete(outcome);
+    }
+
+    void finishIfSettled() {
+      if (finished || !micClosed || inFlight > 0) return;
+      sttLog('[RACE] ⏱ window over — no engine validated '
+          '(${seen.length} hypotheses)');
+      finish(SttRaceOutcome(
+        matched: false,
+        bestTranscript: _bestTranscript(seen),
+        hypotheses: List.of(seen),
+        hadRealSession: true,
+      ));
+    }
+
+    void dispatch(PcmSegment segment) {
+      if (finished) return;
+      for (final engine in racers) {
+        inFlight++;
+        chips[engine.id] =
+            chips[engine.id]!.copyWith(state: SttEngineState.working);
+        unawaited(engine
+            .recognize(segment, langCode: langCode, promptHints: promptHints)
+            .timeout(analysisTimeout)
+            .then<void>((h) {
+          if (finished) return;
+          if (h == null) {
+            chips[engine.id] =
+                chips[engine.id]!.copyWith(state: SttEngineState.empty);
+            return;
+          }
+          seen.add(h);
+          final match = AnswerValidator.firstCorrect(
+            candidates: h.candidates.isEmpty ? [h.transcript] : h.candidates,
+            acceptedAnswers: acceptedAnswers,
+            isDrivingMode: isDrivingMode,
+          );
+          chips[engine.id] = chips[engine.id]!.copyWith(
+            state: SttEngineState.heard,
+            transcript: h.transcript,
+            matched: match != null,
+          );
+          if (match != null) {
+            sttLog('[RACE] 🏁 "${engine.id}" wins with "$match"');
+            finish(SttRaceOutcome(
+              matched: true,
+              winnerEngineId: engine.id,
+              matchedCandidate: match,
+              bestTranscript: h.transcript,
+              hypotheses: List.of(seen),
+              hadRealSession: true,
+            ));
+          }
+        }, onError: (Object error) {
+          if (finished) return;
+          sttLog('[RACE] "${engine.id}" failed: $error');
+          chips[engine.id] =
+              chips[engine.id]!.copyWith(state: SttEngineState.failed);
+        }).whenComplete(() {
+          inFlight--;
+          if (finished) return;
+          emit();
+          finishIfSettled();
+        }));
+      }
+      emit();
+    }
+
+    Future<void> closeMic() async {
+      if (micClosed || finished) return;
+      micClosed = true;
+      overrun?.cancel();
+      speaking = false;
+      final tail = await session?.close(flush: true);
+      if (tail != null) dispatch(tail);
+      if (finished) return;
+      if (inFlight > 0) {
+        sttLog('[RACE] 🎙️ mic closed — awaiting $inFlight analyses');
+        onMicClosedPending?.call();
+      }
+      emit();
+      finishIfSettled();
+    }
+
+    _cancel = () {
+      if (finished) return;
+      finished = true;
+      deadline?.cancel();
+      overrun?.cancel();
+      if (!micClosed) {
+        micClosed = true;
+        unawaited(session?.close());
+      }
+      completer.complete(SttRaceOutcome(
+          matched: false, hypotheses: List.of(seen), cancelled: true));
+    };
+
+    emit();
+    session = await source.open(
+      onSpeechChange: (inSpeech) {
+        if (finished || micClosed) return;
+        speaking = inSpeech;
+        emit();
+      },
+      onSegment: (segment) {
+        if (finished) return;
+        speaking = false;
+        dispatch(segment);
+        // The deadline passed while this answer was being spoken: it is now
+        // complete, so the mic can close.
+        if (overrun != null) unawaited(closeMic());
+      },
+    );
+    if (finished) {
+      // Cancelled while the mic was opening.
+      unawaited(session?.close());
+      return completer.future;
+    }
+    if (session == null) {
+      sttLog('[RACE] shared mic failed to open');
+      micClosed = true;
+      finish(const SttRaceOutcome(matched: false));
+      return completer.future;
+    }
+    micOpen = true;
+    emit();
+
+    deadline = Timer(timeout, () {
+      if (finished) return;
+      if (session!.inSpeech) {
+        sttLog('[RACE] ⏳ deadline while speaking — waiting for the answer '
+            'to end (≤${maxSpeechOverrun.inMilliseconds}ms)');
+        overrun = Timer(maxSpeechOverrun, () => unawaited(closeMic()));
+        return;
+      }
+      unawaited(closeMic());
+    });
 
     return completer.future;
   }

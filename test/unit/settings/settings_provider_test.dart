@@ -49,7 +49,8 @@ void main() {
     });
 
     test('falls back to system for an unknown saved value', () async {
-      SharedPreferences.setMockInitialValues({'settings_theme_mode': 'garbage'});
+      SharedPreferences.setMockInitialValues(
+          {'settings_theme_mode': 'garbage'});
       final c = makeContainer();
       c.read(themeModeProvider);
       await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -65,7 +66,8 @@ void main() {
       expect(s.pitch, 1.0);
     });
 
-    test('setSpeechRate updates + persists and leaves pitch untouched', () async {
+    test('setSpeechRate updates + persists and leaves pitch untouched',
+        () async {
       SharedPreferences.setMockInitialValues({});
       final c = makeContainer();
       await c.read(audioSettingsProvider.notifier).setSpeechRate(1.1);
@@ -94,6 +96,40 @@ void main() {
       final s = c.read(audioSettingsProvider);
       expect(s.speechRate, 0.6);
       expect(s.pitch, 1.15);
+    });
+
+    group('listen window (user request 2026-10-02)', () {
+      test('defaults to 7 seconds', () {
+        SharedPreferences.setMockInitialValues({});
+        expect(makeContainer().read(audioSettingsProvider).listenSeconds, 7);
+      });
+
+      test('set() persists the value', () async {
+        SharedPreferences.setMockInitialValues({});
+        final c = makeContainer();
+        await c.read(audioSettingsProvider.notifier).setListenSeconds(10);
+        expect(c.read(audioSettingsProvider).listenSeconds, 10);
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getInt('audio_listen_seconds'), 10);
+      });
+
+      test('values are clamped to 3–15 seconds', () async {
+        SharedPreferences.setMockInitialValues({});
+        final c = makeContainer();
+        final n = c.read(audioSettingsProvider.notifier);
+        await n.setListenSeconds(1);
+        expect(c.read(audioSettingsProvider).listenSeconds, 3);
+        await n.setListenSeconds(40);
+        expect(c.read(audioSettingsProvider).listenSeconds, 15);
+      });
+
+      test('loads (and clamps) the saved value on build', () async {
+        SharedPreferences.setMockInitialValues({'audio_listen_seconds': 99});
+        final c = makeContainer();
+        c.read(audioSettingsProvider);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(c.read(audioSettingsProvider).listenSeconds, 15);
+      });
     });
   });
 }

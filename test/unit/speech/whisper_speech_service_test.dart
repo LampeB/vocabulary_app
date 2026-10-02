@@ -238,4 +238,84 @@ void main() {
       mic.stream.close();
     });
   });
+
+  group('WhisperSpeechService.transcribeSegment (shared capture)', () {
+    test('cleans the transcript and builds the prompt from the hints',
+        () async {
+      final transcriber = _FakeTranscriber(response: ' Pomme. ');
+      final service = WhisperSpeechService(
+        microphone: _FakeMicrophone(),
+        modelReady: true,
+        segmentTranscriber: transcriber.call,
+      );
+      final text = await service.transcribeSegment(
+          pcm16: Uint8List(64),
+          langCode: 'fr',
+          promptHints: const ['pomme / fruit']);
+      expect(text, 'Pomme');
+      expect(transcriber.calls.single.langCode, 'fr');
+      expect(transcriber.calls.single.prompt, 'pomme, fruit');
+    });
+
+    test('hallucinations come back as null, not as an answer', () async {
+      final service = WhisperSpeechService(
+        microphone: _FakeMicrophone(),
+        modelReady: true,
+        segmentTranscriber:
+            _FakeTranscriber(response: 'Sous-titres réalisés par Amara.org')
+                .call,
+      );
+      expect(
+          await service.transcribeSegment(
+              pcm16: Uint8List(64), langCode: 'fr', promptHints: const []),
+          isNull);
+    });
+
+    test('refuses to run before the model is ready', () async {
+      final service = WhisperSpeechService(microphone: _FakeMicrophone());
+      expect(
+          service.transcribeSegment(
+              pcm16: Uint8List(64), langCode: 'fr', promptHints: const []),
+          throwsStateError);
+    });
+
+    test('inferences run one at a time; a failure does not jam the queue',
+        () async {
+      final gate = Completer<String>();
+      var active = 0;
+      var maxActive = 0;
+      var calls = 0;
+      Future<String> transcriber({
+        required Uint8List pcm16,
+        required String langCode,
+        required String prompt,
+      }) async {
+        calls++;
+        active++;
+        maxActive = active > maxActive ? active : maxActive;
+        try {
+          if (calls == 1) return await gate.future;
+          if (calls == 2) throw StateError('native crash');
+          return 'thé';
+        } finally {
+          active--;
+        }
+      }
+
+      final service = WhisperSpeechService(
+          microphone: _FakeMicrophone(),
+          modelReady: true,
+          segmentTranscriber: transcriber);
+      Future<String?> run() => service.transcribeSegment(
+          pcm16: Uint8List(64), langCode: 'fr', promptHints: const []);
+      final first = run();
+      final second = run();
+      final third = run();
+      gate.complete('café');
+      expect(await first, 'café');
+      await expectLater(second, throwsStateError);
+      expect(await third, 'thé');
+      expect(maxActive, 1);
+    });
+  });
 }

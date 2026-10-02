@@ -29,10 +29,15 @@ livraison et les validations qui manquent sont dans
 | --- | --- |
 | `VoiceTurnMachine` | Politique d'un tour mains-libres : retries, pause silencieuse, validation unique et transition. |
 | `AudioDirector` | Sérialise TTS, clips, earcons et remise du microphone. |
-| `SttRace` | Coordonne les hypothèses des moteurs, rejette les callbacks périmés et accepte la première réponse validée. |
+| `SttRace` | Coordonne les hypothèses des moteurs, rejette les callbacks périmés et accepte la première réponse validée. Expose l'état en direct (`SttRaceStatus`). |
+| `SharedPcmCapture` | Micro unique pour toute la vie de l'app : **tous les moteurs transcrivent le même enregistrement** (décision utilisateur 2026-10-02). |
+| `PhoneSttEngine` / `PcmSpeechRecognizer.kt` | Reconnaissance du téléphone appliquée à NOTRE enregistrement (Android 13+ `EXTRA_AUDIO_SOURCE`, canal `vocab_kr/pcm_speech`). |
+| `SttStatusStrip` | Montre à l'apprenant s'il est écouté, entendu, ou si chaque moteur envoie/analyse/échoue. |
+| `hf_cue.dart` | Séquence mains-libres visible : lecture → 3·2·1 → bip « Écoute en cours » + barre qui se vide (durée réglable dans les paramètres). |
 | `answer_validator.dart` | Compare l'hypothèse au mot attendu et à ses variantes, y compris les normalisations coréennes. |
 | Adaptateurs STT | STT système, Whisper local quand disponible et ElevenLabs Scribe selon disponibilité. |
 | `SttLabScreen` / `SttCorpusRecorder` | Outils de diagnostic sur appareil : corpus étiqueté et comparaison des moteurs. |
+| `NearMissSessionScreen` (`/stt-lab/near-miss`) | Enregistre des « mots proches » étiquetés (locuteur, pièce, mot attendu) pour le comparatif des moteurs. `DebugRecognizeReceiver` (debug uniquement) rejoue `tool/stt_corpus` dans le recognizer du téléphone. |
 
 ## Flux mains-libres
 

@@ -118,6 +118,45 @@ void main() {
     expect(loaded.single.elevenLabsTranscript, '안녕하세요');
   });
 
+  test('session labels survive saving and every benchmark update', () async {
+    final directory = await tempDirectory();
+    addTearDown(() => directory.delete(recursive: true));
+    final recorder = SttCorpusRecorder(
+      recorder: _FakeRecorder(),
+      documentsDirectory: () async => directory,
+      clock: () => DateTime.utc(2026, 10, 3, 10),
+    );
+    const meta = {
+      'speaker': 'P3',
+      'expected': '딸기',
+      'kind': 'near',
+      'condition': 'calme',
+    };
+    await recorder.start(word: '달기', langCode: 'ko', meta: meta);
+    final saved = await recorder.stop();
+    expect(saved!.meta, meta);
+
+    await recorder.saveWhisperResult(
+        sampleId: saved.id, transcript: '달기', durationMs: 900);
+    await recorder.saveOpenAiResult(
+        sampleId: saved.id, transcript: '딸기', durationMs: 600);
+    await recorder.saveElevenLabsResult(
+        sampleId: saved.id, transcript: '달기', durationMs: 300);
+    expect((await recorder.samples()).single.meta, meta);
+  });
+
+  test('older manifests without labels load with empty meta', () {
+    final sample = SttCorpusSample.fromJson({
+      'id': 'x',
+      'word': '물',
+      'langCode': 'ko',
+      'path': '/x.wav',
+      'recordedAt': '2026-09-16T12:00:00.000Z',
+    });
+    expect(sample.meta, isEmpty);
+    expect(sample.toJson().containsKey('meta'), isFalse);
+  });
+
   test('rejects empty words, denied permission, and overlapping captures',
       () async {
     final directory = await tempDirectory();

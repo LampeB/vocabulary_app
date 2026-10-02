@@ -1,6 +1,5 @@
-import 'dart:typed_data';
-
 import '../../core/languages.dart';
+import '../../core/utils/pcm_segmenter.dart';
 import 'stt_engine.dart';
 import 'whisper_speech_service.dart';
 
@@ -8,11 +7,9 @@ import 'whisper_speech_service.dart';
 /// [SttEngine] contract. It transcribes every studied language with one model
 /// and grades wrong answers as real transcripts.
 ///
-/// Today it owns its own mic capture, so it's a mic owner (a fallback for when
-/// the platform recognizer is unavailable or doesn't support the language).
-/// Converting it to consume coordinator-fed PCM ([SttCapture.sharedPcm]) is
-/// what will let it race in true parallel with other offline engines such as
-/// sherpa-onnx — that refactor is the next step.
+/// It consumes the race's shared capture ([SttCapture.sharedPcm]), so it runs
+/// in parallel with cloud Scribe online and stands alone offline — never as a
+/// slow sequential lane after another engine's window.
 class WhisperSttEngine implements SttEngine {
   WhisperSttEngine(this._service);
 
@@ -22,7 +19,10 @@ class WhisperSttEngine implements SttEngine {
   String get id => 'whisper';
 
   @override
-  SttCapture get capture => SttCapture.ownsMicrophone;
+  SttCapture get capture => SttCapture.sharedPcm;
+
+  @override
+  bool get requiresNetwork => false;
 
   @override
   bool get isReady => _service.isReady;
@@ -57,7 +57,25 @@ class WhisperSttEngine implements SttEngine {
   }
 
   @override
-  void feed(Uint8List pcm16) {} // own capture today; sharedPcm is the next step
+  Future<SttHypothesis?> recognize(
+    PcmSegment segment, {
+    required String langCode,
+    required List<String> promptHints,
+  }) async {
+    final text = await _service.transcribeSegment(
+      pcm16: segment.bytes,
+      langCode: langCode,
+      promptHints: promptHints,
+    );
+    if (text == null) return null;
+    return SttHypothesis(
+      engineId: id,
+      transcript: text,
+      candidates: [text],
+      confidence: 0.7,
+      isFinal: true,
+    );
+  }
 
   @override
   Future<void> stop() => _service.stopListening();
