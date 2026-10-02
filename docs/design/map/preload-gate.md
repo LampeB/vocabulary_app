@@ -6,9 +6,14 @@
 
 `SplashScreen` attend la restauration de l'authentification puis, pour un
 utilisateur connecté, `seedStarterListsProvider` avant d'ouvrir l'accueil. Le
-contrat « ne pas naviguer avant l'état réel » est donc livré. Le visuel reste
-une progression fixe : il ne reflète pas encore chaque sous-étape réelle et le
-retry/hors-ligne explicite reste à concevoir.
+contrat « ne pas naviguer avant l'état réel » est donc livré. Le visuel ne
+reflète pas encore chaque sous-étape réelle et le retry/hors-ligne explicite
+reste à concevoir.
+
+**2026-10-02 — l'écran ne doit jamais paraître figé** (retour utilisateur :
+« rien ne bouge donc on dirait que c'est freeze »). La barre de progression est
+indéterminée (plus de 62 % fixe, on ne connaît pas l'avancement réel) et le
+squelette du plateau « respire » (opacité 0,55 ↔ 1, ~1,1 s).
 
 ## Décidé (utilisateur, 2026-07 puis reconfirmé 2026-08-06)
 - Écran dédié AVANT l'accueil, qui ne disparaît que quand le chargement
