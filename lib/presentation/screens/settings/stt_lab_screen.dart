@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/answer_validator.dart';
@@ -296,6 +297,15 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_activePair == null ? 'Corpus STT' : 'Enregistrer un mot'),
+        actions: [
+          if (_activePair == null)
+            TextButton.icon(
+              key: const ValueKey('open_near_miss_session'),
+              onPressed: () => context.push('/stt-lab/near-miss'),
+              icon: const Icon(Icons.record_voice_over_outlined),
+              label: const Text('Mots proches'),
+            ),
+        ],
         leading: _activePair == null
             ? null
             : IconButton(

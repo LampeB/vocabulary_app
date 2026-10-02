@@ -18,32 +18,45 @@ class SttEngineRegistry {
 
   bool has(String id) => _engines.any((e) => e.id == id);
 
-  /// The mic-compatible racer set for [langCode], respecting the one-mic-owner
-  /// constraint:
+  /// The best available engines for one listen attempt — at most
+  /// [maxEngines] of them (user rule 2026-10-02: "activate the 3 best
+  /// available engines").
   ///
-  ///  * If any ready [SttCapture.sharedPcm] engine supports the language, race
-  ///    the whole shared pool — they run in true parallel on one capture.
-  ///  * Otherwise fall back to a single [SttCapture.ownsMicrophone] engine
-  ///    (the first registered that supports the language), since two mic
-  ///    owners can't run at once.
+  /// Registration order is quality rank, so register stronger engines first.
+  /// An engine is AVAILABLE when it is ready, supports [langCode], and — for
+  /// cloud engines — the device is [online]. The best available engine
+  /// decides the capture mode, because only one component can own the mic:
   ///
-  /// Registration order is priority order, so register stronger engines first.
-  List<SttEngine> racersFor(String langCode) {
-    final ready =
-        _engines.where((e) => e.isReady && e.supportsLanguage(langCode));
-    final shared =
-        ready.where((e) => e.capture == SttCapture.sharedPcm).toList();
-    if (shared.isNotEmpty) return shared;
-    final micOwner = ready
-        .where((e) => e.capture == SttCapture.ownsMicrophone)
-        .cast<SttEngine?>()
-        .firstWhere((_) => true, orElse: () => null);
-    return micOwner == null ? const [] : [micOwner];
+  ///  * a [SttCapture.sharedPcm] engine brings every other available shared
+  ///    engine along — they all hear the same utterance, in parallel;
+  ///  * a [SttCapture.ownsMicrophone] engine runs alone.
+  ///
+  /// [rescue] (the last not-heard attempt) drops the first choice so a
+  /// DIFFERENT engine set gets a chance; with a single candidate it is kept.
+  List<SttEngine> select({
+    required String langCode,
+    required bool online,
+    int maxEngines = 3,
+    bool rescue = false,
+  }) {
+    var available = _engines
+        .where((e) =>
+            e.isReady &&
+            e.supportsLanguage(langCode) &&
+            (online || !e.requiresNetwork))
+        .toList();
+    if (available.isEmpty) return const [];
+    if (rescue && available.length > 1) available = available.sublist(1);
+    final best = available.first;
+    if (best.capture == SttCapture.ownsMicrophone) return [best];
+    return available
+        .where((e) => e.capture == SttCapture.sharedPcm)
+        .take(maxEngines)
+        .toList();
   }
 
   /// Prepares every engine (loads models / inits platforms) concurrently.
-  Future<void> prepareAll() =>
-      Future.wait(_engines.map((e) => e.prepare()));
+  Future<void> prepareAll() => Future.wait(_engines.map((e) => e.prepare()));
 
   void dispose() {
     for (final e in _engines) {

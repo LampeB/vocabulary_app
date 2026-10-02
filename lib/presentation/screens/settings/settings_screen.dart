@@ -207,6 +207,16 @@ class SettingsScreen extends ConsumerWidget {
                               ? SttEngineMode.system
                               : SttEngineMode.race),
                     ),
+                    const SizedBox(height: 12),
+                    // How long a voice quiz listens for the answer (user
+                    // request 2026-10-02) — the listening bar drains over
+                    // exactly this window.
+                    _ListenTimeSlider(
+                      seconds: audioSettings.listenSeconds,
+                      onChanged: (v) => ref
+                          .read(audioSettingsProvider.notifier)
+                          .setListenSeconds(v),
+                    ),
                   ],
                 ),
               ),
@@ -569,6 +579,60 @@ class _AudioSettingRow extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ListenTimeSlider extends StatelessWidget {
+  const _ListenTimeSlider({required this.seconds, required this.onChanged});
+  final int seconds;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: cs.outline.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.timer_outlined, color: muted, size: 18),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text('settings.listen_time_label'.tr(),
+                  style: AppTextStyles.fig(15, FontWeight.w500)
+                      .copyWith(color: cs.onSurface)),
+            ),
+            Text(
+              'settings.listen_time_value'.tr(namedArgs: {'n': '$seconds'}),
+              key: const ValueKey('listen_time_value'),
+              style: AppTextStyles.fig(15, FontWeight.w700)
+                  .copyWith(color: AppColors.teal),
+            ),
+          ],
+        ),
+        Slider(
+          key: const ValueKey('listen_time_slider'),
+          value: seconds.toDouble(),
+          min: AudioSettings.minListenSeconds.toDouble(),
+          max: AudioSettings.maxListenSeconds.toDouble(),
+          divisions:
+              AudioSettings.maxListenSeconds - AudioSettings.minListenSeconds,
+          label: 'settings.listen_time_value'.tr(namedArgs: {'n': '$seconds'}),
+          activeColor: AppColors.teal,
+          onChanged: (v) => onChanged(v.round()),
         ),
       ],
     );

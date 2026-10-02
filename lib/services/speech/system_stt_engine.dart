@@ -1,6 +1,5 @@
-import 'dart:typed_data';
-
 import '../../core/languages.dart';
+import '../../core/utils/pcm_segmenter.dart';
 import '../../core/utils/stt_debug_log.dart';
 import 'speech_recognition_service.dart';
 import 'stt_engine.dart';
@@ -34,6 +33,11 @@ class SystemSttEngine implements SttEngine {
 
   @override
   SttCapture get capture => SttCapture.ownsMicrophone;
+
+  /// Platform recognizers can run on downloaded offline packs; when they
+  /// can't, they fail fast and the turn machine's ladder takes over.
+  @override
+  bool get requiresNetwork => false;
 
   @override
   bool get isReady => _ready;
@@ -81,7 +85,12 @@ class SystemSttEngine implements SttEngine {
   }
 
   @override
-  void feed(Uint8List pcm16) {} // owns its own mic — nothing to feed
+  Future<SttHypothesis?> recognize(
+    PcmSegment segment, {
+    required String langCode,
+    required List<String> promptHints,
+  }) async =>
+      null; // owns its own mic — never fed shared audio
 
   @override
   Future<void> stop() {

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vocab_kr/core/utils/pcm_segmenter.dart';
 import 'package:vocab_kr/services/speech/elevenlabs_stt_engine.dart';
 import 'package:vocab_kr/services/speech/stt_engine.dart';
 
@@ -29,6 +30,21 @@ class _FakeCapture implements CloudSpeechCapture {
   @override
   Future<void> stopListening() async => stopped++;
 
+  String? segmentReply;
+  Object? segmentError;
+  String? segmentExpected;
+
+  @override
+  Future<String?> transcribeSegment({
+    required Uint8List pcm16,
+    required String langCode,
+    required String expectedWord,
+  }) async {
+    segmentExpected = expectedWord;
+    if (segmentError != null) throw segmentError!;
+    return segmentReply;
+  }
+
   @override
   void dispose() => disposed++;
 }
@@ -52,7 +68,8 @@ void main() {
     capture.sessionEnd!();
 
     expect(engine.id, 'elevenlabs');
-    expect(engine.capture, SttCapture.ownsMicrophone);
+    expect(engine.capture, SttCapture.sharedPcm);
+    expect(engine.requiresNetwork, isTrue);
     expect(engine.supportsLanguage('ko'), isTrue);
     expect(engine.supportsLanguage('xx'), isFalse);
     expect(capture.lang, 'ko');
@@ -64,8 +81,7 @@ void main() {
     expect(ended, isTrue);
   });
 
-  test('delegates stop and disposal; PCM feed is intentionally ignored',
-      () async {
+  test('delegates stop and disposal', () async {
     final capture = _FakeCapture()..startResult = false;
     final engine = ElevenLabsSttEngine(capture);
     await engine.prepare();
@@ -74,10 +90,34 @@ void main() {
         await engine.start(
             langCode: 'fr', promptHints: const [], onHypothesis: (_) {}),
         isFalse);
-    engine.feed(Uint8List.fromList([0, 1]));
     await engine.stop();
     engine.dispose();
     expect(capture.stopped, 1);
     expect(capture.disposed, 1);
+  });
+
+  test('sends a shared-capture utterance with the expected word as hint',
+      () async {
+    final capture = _FakeCapture()..segmentReply = '가다';
+    final engine = ElevenLabsSttEngine(capture);
+    final h = await engine.recognize(PcmSegment(Uint8List(32), 1, 0),
+        langCode: 'ko', promptHints: const ['가다', 'aller']);
+    expect(capture.segmentExpected, '가다');
+    expect(h!.transcript, '가다');
+    expect(h.confidence, .95);
+
+    capture.segmentReply = null;
+    expect(
+        await engine.recognize(PcmSegment(Uint8List(32), 1, 0),
+            langCode: 'ko', promptHints: const []),
+        isNull);
+    expect(capture.segmentExpected, '');
+
+    capture.segmentError = Exception('offline');
+    expect(
+        engine.recognize(PcmSegment(Uint8List(32), 1, 0),
+            langCode: 'ko', promptHints: const []),
+        throwsException,
+        reason: 'a transport failure must surface as a failed engine');
   });
 }

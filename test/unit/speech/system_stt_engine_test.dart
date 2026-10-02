@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vocab_kr/core/utils/pcm_segmenter.dart';
 import 'package:vocab_kr/services/speech/speech_recognition_service.dart';
 import 'package:vocab_kr/services/speech/stt_engine.dart';
 import 'package:vocab_kr/services/speech/system_stt_engine.dart';
@@ -118,7 +119,12 @@ void main() {
 
       capture.onListeningDone!();
       expect(latestSessionEnds, 1);
-      engine.feed(Uint8List(8));
+      expect(
+          await engine.recognize(PcmSegment(Uint8List(8), 1, 0),
+              langCode: 'fr', promptHints: const []),
+          isNull,
+          reason: 'a mic owner is never fed shared audio');
+      expect(engine.requiresNetwork, isFalse);
       engine.dispose();
       expect(capture.disposals, 1);
     });

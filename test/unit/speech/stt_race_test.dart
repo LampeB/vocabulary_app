@@ -1,6 +1,5 @@
-import 'dart:typed_data';
-
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vocab_kr/core/utils/pcm_segmenter.dart';
 import 'package:vocab_kr/services/speech/stt_engine.dart';
 import 'package:vocab_kr/services/speech/stt_engine_registry.dart';
 import 'package:vocab_kr/services/speech/stt_race.dart';
@@ -13,6 +12,7 @@ class _FakeEngine implements SttEngine {
     this.capture = SttCapture.ownsMicrophone,
     this.isReady = true,
     this.languages = const {'fr'},
+    this.requiresNetwork = false,
   });
 
   @override
@@ -22,6 +22,8 @@ class _FakeEngine implements SttEngine {
   @override
   bool isReady;
   final Set<String> languages;
+  @override
+  final bool requiresNetwork;
 
   bool started = false;
   bool stopped = false;
@@ -55,7 +57,12 @@ class _FakeEngine implements SttEngine {
   void endSession() => _sessionEnd?.call();
 
   @override
-  void feed(Uint8List pcm16) {}
+  Future<SttHypothesis?> recognize(
+    PcmSegment segment, {
+    required String langCode,
+    required List<String> promptHints,
+  }) async =>
+      null;
 
   @override
   Future<void> stop() async => stopped = true;
@@ -369,43 +376,128 @@ void main() {
     });
   });
 
-  group('SttEngineRegistry', () {
-    test('racersFor prefers the shared-PCM pool over a mic owner', () {
-      final reg = SttEngineRegistry()
-        ..register(_FakeEngine('system'))
-        ..register(_FakeEngine('sherpa', capture: SttCapture.sharedPcm))
-        ..register(_FakeEngine('whisper2', capture: SttCapture.sharedPcm));
+  group('SttRace.cancel — mic-owner path', () {
+    test('cancel resolves without stopping the engine; its timer never fires',
+        () async {
+      final a = _FakeEngine('system');
+      final race = SttRace([a]);
+      final future = race.run(
+        langCode: 'fr',
+        acceptedAnswers: ['thé'],
+        timeout: const Duration(milliseconds: 30),
+      );
+      await _pump();
+      race.cancel();
+      final outcome = await future;
+      expect(outcome.cancelled, isTrue);
+      expect(a.stopped, isFalse,
+          reason: 'the engine now belongs to the superseding race');
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      expect(a.stopped, isFalse, reason: 'the stale timer must not stop it');
+    });
+  });
 
-      final racers = reg.racersFor('fr').map((e) => e.id).toList();
-      expect(racers, ['sherpa', 'whisper2']); // shared pool, not the mic owner
+  group('SttEngineRegistry.select — best available engines (2026-10-02)', () {
+    // Registration order = quality rank: cloud Scribe, then the platform
+    // recognizer, then on-device Whisper — the app's real registration.
+    SttEngineRegistry appRegistry({bool whisperReady = true}) =>
+        SttEngineRegistry()
+          ..register(_FakeEngine('elevenlabs',
+              capture: SttCapture.sharedPcm, requiresNetwork: true))
+          ..register(_FakeEngine('system'))
+          ..register(_FakeEngine('whisper',
+              capture: SttCapture.sharedPcm, isReady: whisperReady));
+
+    List<String> ids(List<SttEngine> engines) =>
+        engines.map((e) => e.id).toList();
+
+    test(
+        'online: the best engine is shared, so every shared engine joins it '
+        'in parallel (a mic owner cannot share the mic)', () {
+      expect(ids(appRegistry().select(langCode: 'fr', online: true)),
+          ['elevenlabs', 'whisper']);
     });
 
-    test('racersFor falls back to a single mic owner (never two)', () {
-      final reg = SttEngineRegistry()
-        ..register(_FakeEngine('system'))
-        ..register(_FakeEngine('whisper'));
-
-      final racers = reg.racersFor('fr');
-      expect(racers.length, 1);
-      expect(racers.single.id, 'system'); // registration order = priority
+    test('offline: cloud engines are never selected', () {
+      expect(
+          ids(appRegistry().select(langCode: 'fr', online: false)), ['system']);
     });
 
-    test('register/unregister add and remove racers', () {
+    test('online but Whisper still downloading: Scribe alone', () {
+      expect(
+          ids(appRegistry(whisperReady: false)
+              .select(langCode: 'fr', online: true)),
+          ['elevenlabs']);
+    });
+
+    test(
+        'the app order with the phone bridge: online, three engines hear the '
+        'same recording; offline, the live phone recognizer alone', () {
+      final reg = SttEngineRegistry()
+        ..register(_FakeEngine('elevenlabs',
+            capture: SttCapture.sharedPcm, requiresNetwork: true))
+        ..register(_FakeEngine('phone',
+            capture: SttCapture.sharedPcm, requiresNetwork: true))
+        ..register(_FakeEngine('system'))
+        ..register(_FakeEngine('whisper', capture: SttCapture.sharedPcm));
+      expect(ids(reg.select(langCode: 'fr', online: true)),
+          ['elevenlabs', 'phone', 'whisper']);
+      expect(ids(reg.select(langCode: 'fr', online: false)), ['system']);
+      expect(ids(reg.select(langCode: 'fr', online: true, rescue: true)),
+          ['phone', 'whisper']);
+    });
+
+    test('at most maxEngines shared engines run, best first', () {
+      final reg = SttEngineRegistry()
+        ..register(_FakeEngine('a', capture: SttCapture.sharedPcm))
+        ..register(_FakeEngine('b', capture: SttCapture.sharedPcm))
+        ..register(_FakeEngine('c', capture: SttCapture.sharedPcm))
+        ..register(_FakeEngine('d', capture: SttCapture.sharedPcm));
+      expect(ids(reg.select(langCode: 'fr', online: true)), ['a', 'b', 'c']);
+      expect(ids(reg.select(langCode: 'fr', online: true, maxEngines: 2)),
+          ['a', 'b']);
+    });
+
+    test('a best-ranked mic owner runs alone (never two mic owners)', () {
+      final reg = SttEngineRegistry()
+        ..register(_FakeEngine('system'))
+        ..register(_FakeEngine('other'))
+        ..register(_FakeEngine('whisper', capture: SttCapture.sharedPcm));
+      expect(ids(reg.select(langCode: 'fr', online: true)), ['system']);
+    });
+
+    test('rescue attempt skips the first choice for the next best set', () {
+      expect(
+          ids(appRegistry().select(langCode: 'fr', online: true, rescue: true)),
+          ['system']);
+      expect(
+          ids(appRegistry()
+              .select(langCode: 'fr', online: false, rescue: true)),
+          ['whisper']);
+    });
+
+    test('rescue with a single candidate keeps it', () {
+      final reg = SttEngineRegistry()..register(_FakeEngine('system'));
+      expect(ids(reg.select(langCode: 'fr', online: false, rescue: true)),
+          ['system']);
+    });
+
+    test('skips engines that do not support the language', () {
+      final reg = SttEngineRegistry()
+        ..register(_FakeEngine('fr-only', languages: {'fr'}))
+        ..register(_FakeEngine('ko-only', languages: {'ko'}));
+      expect(ids(reg.select(langCode: 'ko', online: true)), ['ko-only']);
+      expect(reg.select(langCode: 'it', online: true), isEmpty);
+    });
+
+    test('register/unregister add and remove engines', () {
       final reg = SttEngineRegistry()..register(_FakeEngine('system'));
       expect(reg.has('system'), isTrue);
       reg.register(_FakeEngine('sherpa', capture: SttCapture.sharedPcm));
       expect(reg.all.length, 2);
       reg.unregister('system');
       expect(reg.has('system'), isFalse);
-      expect(reg.racersFor('fr').single.id, 'sherpa');
-    });
-
-    test('racersFor skips engines that do not support the language', () {
-      final reg = SttEngineRegistry()
-        ..register(_FakeEngine('fr-only', languages: {'fr'}))
-        ..register(_FakeEngine('ko-only', languages: {'ko'}));
-      expect(reg.racersFor('ko').single.id, 'ko-only');
-      expect(reg.racersFor('it'), isEmpty);
+      expect(ids(reg.select(langCode: 'fr', online: true)), ['sherpa']);
     });
   });
 }

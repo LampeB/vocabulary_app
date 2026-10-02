@@ -62,5 +62,10 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Package visibility for the phone's speech recognizer, which the
+             PCM bridge (PcmSpeechRecognizer) binds to on Android 11+. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
+        </intent>
     </queries>
 </manifest>

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vocab_kr/core/utils/pcm_segmenter.dart';
 import 'package:vocab_kr/services/speech/stt_engine.dart';
 import 'package:vocab_kr/services/speech/whisper_speech_service.dart';
 import 'package:vocab_kr/services/speech/whisper_stt_engine.dart';
@@ -44,6 +45,23 @@ class _FakeWhisperCapture implements WhisperSpeechCapture {
   Future<void> stopListening({bool keepPendingTranscripts = false}) async {
     stops++;
   }
+
+  String? segmentReply;
+  Uint8List? segmentPcm;
+  String? segmentLang;
+  List<String>? segmentHints;
+
+  @override
+  Future<String?> transcribeSegment({
+    required Uint8List pcm16,
+    required String langCode,
+    required List<String> promptHints,
+  }) async {
+    segmentPcm = pcm16;
+    segmentLang = langCode;
+    segmentHints = promptHints;
+    return segmentReply;
+  }
 }
 
 void main() {
@@ -54,7 +72,8 @@ void main() {
       final hypotheses = <SttHypothesis>[];
 
       expect(engine.id, 'whisper');
-      expect(engine.capture, SttCapture.ownsMicrophone);
+      expect(engine.capture, SttCapture.sharedPcm);
+      expect(engine.requiresNetwork, isFalse);
       expect(engine.isReady, isTrue);
       expect(engine.supportsLanguage('fr'), isTrue);
       expect(engine.supportsLanguage('ko'), isTrue);
@@ -94,11 +113,31 @@ void main() {
         ),
         isFalse,
       );
-      engine.feed(Uint8List(32));
       await engine.stop();
       engine.dispose();
       expect(capture.stops, 1);
       expect(capture.disposals, 1);
+    });
+
+    test('transcribes a shared-capture utterance into a final hypothesis',
+        () async {
+      final capture = _FakeWhisperCapture()..segmentReply = '고양이';
+      final engine = WhisperSttEngine(capture);
+      final pcm = Uint8List(64);
+      final h = await engine.recognize(PcmSegment(pcm, 2, 0),
+          langCode: 'ko', promptHints: const ['고양이']);
+      expect(capture.segmentPcm, same(pcm));
+      expect(capture.segmentLang, 'ko');
+      expect(capture.segmentHints, ['고양이']);
+      expect(h!.engineId, 'whisper');
+      expect(h.transcript, '고양이');
+      expect(h.confidence, .7);
+
+      capture.segmentReply = null;
+      expect(
+          await engine.recognize(PcmSegment(pcm, 2, 0),
+              langCode: 'ko', promptHints: const []),
+          isNull);
     });
   });
 }

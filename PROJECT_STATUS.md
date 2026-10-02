@@ -29,7 +29,9 @@ langues.
 - `VoiceTurnMachine` pilote les tours mains-libres ; `AudioDirector` séquence
   les prompts, réponses et signaux.
 - `SttRace` valide une hypothèse contre la réponse attendue et coordonne les
-  moteurs système, Whisper et ElevenLabs selon leur disponibilité.
+  moteurs système, Whisper et ElevenLabs selon leur disponibilité ; depuis
+  2026-10-02 tous transcrivent la même capture partagée (y compris le
+  recognizer du téléphone via le pont PCM) et l'état est affiché en direct.
 - Les enregistrements de corpus et le laboratoire STT permettent de comparer
   les moteurs sur un appareil.
 - Les audios de quiz sont provisionnés à la création/publication puis téléchargés

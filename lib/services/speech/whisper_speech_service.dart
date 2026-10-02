@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:path_provider/path_provider.dart';
-import 'package:record/record.dart';
 import 'package:whisper_flutter_new/whisper_flutter_new.dart';
 
 import '../../core/utils/answer_validator.dart';
@@ -27,6 +26,15 @@ abstract interface class WhisperSpeechCapture {
     List<String> promptHints,
   });
   Future<void> stopListening({bool keepPendingTranscripts});
+
+  /// Transcribes one utterance captured by someone else's microphone (the
+  /// race's shared capture). Returns the cleaned transcript, or null when
+  /// nothing usable was heard (silence, known hallucination).
+  Future<String?> transcribeSegment({
+    required Uint8List pcm16,
+    required String langCode,
+    required List<String> promptHints,
+  });
   void dispose();
 }
 
@@ -35,38 +43,6 @@ typedef WhisperSegmentTranscriber = Future<String> Function({
   required String langCode,
   required String prompt,
 });
-
-// Platform recorder binding. Its configuration is covered on a device; the
-// capture lifecycle it feeds is covered below with [PcmMicrophone] fakes.
-// coverage:ignore-start
-class _RecordPcmMicrophone implements PcmMicrophone {
-  final _recorder = AudioRecorder();
-
-  @override
-  Future<bool> hasPermission() => _recorder.hasPermission();
-
-  @override
-  Future<Stream<Uint8List>> startVoiceStream() => _recorder.startStream(
-        const RecordConfig(
-          encoder: AudioEncoder.pcm16bits,
-          sampleRate: 16000,
-          numChannels: 1,
-          autoGain: true,
-          echoCancel: true,
-          noiseSuppress: true,
-          androidConfig: AndroidRecordConfig(
-            audioSource: AndroidAudioSource.voiceRecognition,
-          ),
-        ),
-      );
-
-  @override
-  Future<void> stop() => _recorder.stop();
-
-  @override
-  void dispose() => _recorder.dispose();
-}
-// coverage:ignore-end
 
 /// Device-independent recognition: OUR mic capture + OUR endpointing
 /// ([PcmSegmenter]) + on-device Whisper inference (whisper.cpp, ggml-base
@@ -84,7 +60,7 @@ class WhisperSpeechService implements WhisperSpeechCapture {
     PcmMicrophone? microphone,
     WhisperSegmentTranscriber? segmentTranscriber,
     bool modelReady = false,
-  })  : _microphone = microphone ?? _RecordPcmMicrophone(),
+  })  : _microphone = microphone ?? RecordPcmMicrophone(),
         _segmentTranscriber = segmentTranscriber,
         _modelReady = modelReady;
 
@@ -369,6 +345,37 @@ class WhisperSpeechService implements WhisperSpeechCapture {
         sttLog('[WSP] 💥 inference failed: $e');
       }
     });
+  }
+
+  /// One native inference at a time: whisper.cpp contexts are not
+  /// re-entrant, and two parallel calls only make both slower.
+  Future<void> _sharedChain = Future.value();
+
+  @override
+  Future<String?> transcribeSegment({
+    required Uint8List pcm16,
+    required String langCode,
+    required List<String> promptHints,
+  }) {
+    if (!_modelReady) {
+      return Future.error(StateError('whisper model not ready'));
+    }
+    final prompt = {
+      for (final h in promptHints)
+        ...h.split('/').map(AnswerValidator.stripAnnotations),
+    }.where((h) => h.isNotEmpty).join(', ');
+    final result = _sharedChain.then((_) async {
+      final sw = Stopwatch()..start();
+      final raw = await _transcribeSegment(
+          pcm16: pcm16, langCode: langCode, prompt: prompt);
+      final cleaned = cleanTranscript(raw);
+      sttLog('[WSP] 📝 shared ${pcm16.length ~/ 32}ms in '
+          '${sw.elapsedMilliseconds}ms: raw="$raw" '
+          'cleaned="${cleaned ?? "<discarded>"}"');
+      return cleaned;
+    });
+    _sharedChain = result.then((_) {}, onError: (_) {});
+    return result;
   }
 
   Future<String> _transcribeSegment({

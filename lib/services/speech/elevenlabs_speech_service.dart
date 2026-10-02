@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:record/record.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/utils/pcm_segmenter.dart';
@@ -22,36 +21,7 @@ abstract interface class CloudTranscriber {
   });
 }
 
-// Platform and Supabase bindings need device tests.
 // coverage:ignore-start
-class _RecordPcmMicrophone implements PcmMicrophone {
-  final _recorder = AudioRecorder();
-
-  @override
-  Future<bool> hasPermission() => _recorder.hasPermission();
-
-  @override
-  Future<Stream<Uint8List>> startVoiceStream() => _recorder.startStream(
-        const RecordConfig(
-          encoder: AudioEncoder.pcm16bits,
-          sampleRate: 16000,
-          numChannels: 1,
-          autoGain: true,
-          echoCancel: true,
-          noiseSuppress: true,
-          androidConfig: AndroidRecordConfig(
-            audioSource: AndroidAudioSource.voiceRecognition,
-          ),
-        ),
-      );
-
-  @override
-  Future<void> stop() => _recorder.stop();
-
-  @override
-  void dispose() => _recorder.dispose();
-}
-
 class _SupabaseCloudTranscriber implements CloudTranscriber {
   @override
   Future<String?> transcribe({
@@ -90,7 +60,7 @@ class ElevenLabsSpeechService implements CloudSpeechCapture {
   ElevenLabsSpeechService({
     PcmMicrophone? microphone,
     CloudTranscriber? transcriber,
-  })  : _microphone = microphone ?? _RecordPcmMicrophone(),
+  })  : _microphone = microphone ?? RecordPcmMicrophone(),
         _transcriber = transcriber ?? _SupabaseCloudTranscriber();
 
   final PcmMicrophone _microphone;
@@ -185,6 +155,32 @@ class ElevenLabsSpeechService implements CloudSpeechCapture {
         if (serial == _serial) onServiceFailure?.call();
       }
     });
+  }
+
+  @override
+  Future<String?> transcribeSegment({
+    required Uint8List pcm16,
+    required String langCode,
+    required String expectedWord,
+  }) async {
+    final stopwatch = Stopwatch()..start();
+    try {
+      final raw = await _transcriber.transcribe(
+        pcm16: pcm16,
+        langCode: langCode,
+        expectedWord: expectedWord,
+      );
+      final transcript =
+          raw == null ? null : WhisperSpeechService.cleanTranscript(raw);
+      sttLog('[ELS] shared ${pcm16.length ~/ 32}ms, '
+          '${stopwatch.elapsedMilliseconds}ms cloud: '
+          '"${transcript ?? '<empty>'}"');
+      return transcript;
+    } catch (error) {
+      sttLog('[ELS] cloud transcription failed after '
+          '${stopwatch.elapsedMilliseconds}ms: $error');
+      rethrow;
+    }
   }
 
   @override
