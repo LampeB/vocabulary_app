@@ -24,10 +24,13 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const _kTestMode = bool.fromEnvironment('TEST_MODE');
   late final AnimationController _ctrl;
   late final Animation<double> _fade;
+  // Skeleton breathing: the wait can last several seconds (auth + starter
+  // seeding), and a fully static screen reads as a frozen app.
+  late final AnimationController _pulse;
 
   Duration get _authTimeout =>
       widget.authTimeout ??
@@ -40,6 +43,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         vsync: this, duration: const Duration(milliseconds: 800));
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
     _ctrl.forward();
+    _pulse = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1100))
+      ..repeat(reverse: true);
     _navigate();
   }
 
@@ -65,6 +71,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   void dispose() {
     _ctrl.dispose();
+    _pulse.dispose();
     super.dispose();
   }
 
@@ -88,7 +95,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                             color: V3Colors.light)),
                   ),
                   const Spacer(),
-                  const _SplashPlateau(),
+                  FadeTransition(
+                    opacity: Tween(begin: .55, end: 1.0).animate(
+                        CurvedAnimation(
+                            parent: _pulse, curve: Curves.easeInOut)),
+                    child: const _SplashPlateau(),
+                  ),
                   const Spacer(),
                   Text('On prépare tes cartes',
                       style: AppTextStyles.serif(24, FontWeight.w400,
@@ -101,7 +113,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   const SizedBox(height: 17),
                   const LinearProgressIndicator(
                     minHeight: 5,
-                    value: .62,
+                    // Indeterminate: we don't know how far along seeding is.
                     backgroundColor: V3Colors.chip,
                     valueColor: AlwaysStoppedAnimation<Color>(V3Colors.amber),
                   ),
