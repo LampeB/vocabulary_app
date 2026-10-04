@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>단어 읽기 녹음</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: one column, one task per screen — a word, a big record key, a level meter. */
+:root {
+  --bg: #f6f4ef;
+  --surface: #ffffff;
+  --ink: #1d1f24;
+  --muted: #6a6d74;
+  --rule: #dedad1;
+  --rec: #d6342c;
+  --ok: #2f7d4f;
+  --focus: #2b5fd9;
+  --sans: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15161a; --surface: #1f2126; --ink: #f1efe9; --muted: #a3a6ad;
+    --rule: #34363d; --rec: #ff5a4f; --ok: #5cc184; --focus: #7aa2ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15161a; --surface: #1f2126; --ink: #f1efe9; --muted: #a3a6ad;
+  --rule: #34363d; --rec: #ff5a4f; --ok: #5cc184; --focus: #7aa2ff;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans);
+  font-size: 16px; line-height: 1.55;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+}
+main { max-width: 34rem; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; gap: 16px; }
+h1 { font-size: 1.5rem; font-weight: 900; margin: 8px 0 0; text-wrap: balance; }
+p { margin: 0; }
+.muted { color: var(--muted); font-size: .92rem; }
+.fr { color: var(--muted); font-size: .85rem; display: block; }
+label { font-weight: 700; display: grid; gap: 6px; }
+input[type=text] {
+  font: inherit; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--rule);
+  background: var(--surface); color: var(--ink);
+}
+fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
+legend { font-weight: 700; margin-bottom: 6px; }
+.choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice input { position: absolute; opacity: 0; pointer-events: none; }
+.choice span {
+  display: inline-block; padding: 10px 14px; border-radius: 999px; border: 1px solid var(--rule);
+  background: var(--surface); cursor: pointer; font-weight: 500;
+}
+.choice input:checked + span { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.choice input:focus-visible + span, button:focus-visible, input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.consent { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; }
+.consent input { width: 22px; height: 22px; margin-top: 2px; flex: none; }
+button { font: inherit; cursor: pointer; }
+.primary {
+  padding: 16px; border-radius: 14px; border: 0; background: var(--ink); color: var(--bg);
+  font-weight: 700; font-size: 1.1rem;
+}
+.primary:disabled { opacity: .35; cursor: not-allowed; }
+.link { background: none; border: 0; color: var(--muted); text-decoration: underline; padding: 8px; }
+.notice { padding: 12px 14px; border-radius: 10px; background: var(--surface); border: 1px solid var(--rule); }
+.notice.error { border-color: var(--rec); }
+.topline { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-variant-numeric: tabular-nums; }
+.count { font-weight: 700; }
+.sync { font-size: .85rem; color: var(--muted); }
+.sync.pending { color: var(--rec); }
+.stage { flex: 1; display: grid; place-items: center; min-height: 40vh; }
+.word {
+  font-size: clamp(3.5rem, 22vw, 7rem); font-weight: 900; letter-spacing: -.01em; line-height: 1.1;
+  text-align: center; word-break: keep-all;
+}
+.meter { height: 10px; border-radius: 6px; background: var(--rule); overflow: hidden; }
+.meter > div { height: 100%; width: 0; background: var(--ok); transition: width 60ms linear; }
+.record {
+  width: 100%; padding: 22px; border-radius: 18px; border: 0; background: var(--rec); color: #fff;
+  font-weight: 900; font-size: 1.35rem; display: flex; align-items: center; justify-content: center; gap: 12px;
+}
+.record .dot { width: 18px; height: 18px; border-radius: 50%; background: #fff; }
+.record.recording { background: var(--ink); color: var(--bg); }
+.record.recording .dot { background: var(--rec); animation: blink 0.8s steps(2) infinite; }
+.record:disabled:not(.recording) { opacity: .4; }
+.timebar { height: 6px; border-radius: 4px; background: var(--rule); overflow: hidden; }
+.timebar > div { height: 100%; width: 0; background: var(--rec); }
+.row { display: flex; gap: 8px; }
+.row > button { flex: 1; }
+@keyframes blink { to { opacity: .2; } }
+@media (prefers-reduced-motion: reduce) { .record.recording .dot { animation: none; } .meter > div { transition: none; } }
+</style>
+</head>
+<body>
+<main id="app"></main>
+
+<script>
+"use strict";
+// ── Configuration ──────────────────────────────────────────────────────────
+// Publishable key: safe in a public page. The database only lets anonymous
+// visitors ADD takes (no read, no change, no delete), and the bucket only
+// accepts WAV files under near-miss/.
+const SUPABASE_URL = "https://hwzescarembanrjzgjej.supabase.co";
+const SUPABASE_KEY = "sb_publishable_4LkCBSdg9tQHrgZ2L4r5wQ_bXMALrys";
+const BUCKET = "stt-corpus";
+const TAKE_MS = 3000;
+const OUT_RATE = 16000;
+
+// Same sets as the app (lib/core/stt/near_miss_prompts.dart).
+const SETS = {
+  ko: {
+    "딸기": ["달기", "탈기", "딸개", "달걀", "딱지"],
+    "밥": ["밤", "반", "법", "빱"],
+    "물": ["불", "뭘", "말", "무"],
+    "차": ["자", "짜", "사", "초"],
+    "빵": ["방", "팡", "병", "뻥"],
+    "고기": ["거기", "꼬기", "고개", "오기"],
+    "사과": ["사고", "싸과", "자과", "사거"],
+    "우유": ["여유", "우비", "오유", "우요"],
+    "커피": ["코피", "카피", "거피", "커비"],
+    "김치": ["김씨", "김지", "낌치", "김차"],
+    "먹다": ["막다", "묵다", "멋다", "넉다"],
+    "맛있다": ["맛없다", "멋있다", "마시다", "맛이다"],
+  },
+  fr: {
+    "pomme": ["bombe", "homme", "pompe", "comme"],
+    "pain": ["bain", "main", "pont", "banc"],
+    "lait": ["lit", "loup", "nez", "laine"],
+    "eau": ["eux", "ou", "beau", "peau"],
+    "thé": ["dé", "thon", "tu", "tas"],
+    "boire": ["voir", "poire", "bois", "foire"],
+    "manger": ["ranger", "changer", "mangue", "nager"],
+    "fruit": ["frit", "bruit", "fuite", "froid"],
+  },
+};
+
+const T = {
+  ko: {
+    instruction: "버튼을 누르고 단어를 평소처럼 한 번 읽어 주세요. 뜻이 없는 단어도 있어요.",
+    record: "녹음하기", recording: "녹음 중…", redo: "이전 단어 다시", skip: "건너뛰기",
+    pending: (n) => `전송 중 ${n}개`, synced: "모두 저장됨",
+    done: "끝났어요. 정말 감사합니다! 🙏",
+    doneWait: "녹음이 아직 전송 중이에요. 이 페이지를 닫지 말아 주세요.",
+    again: "다른 사람 녹음하기",
+  },
+  fr: {
+    instruction: "Appuie sur le bouton, puis lis le mot une fois, naturellement. Certains mots n'existent pas, c'est voulu.",
+    record: "Enregistrer", recording: "Enregistrement…", redo: "Refaire le précédent", skip: "Passer",
+    pending: (n) => `${n} en cours d'envoi`, synced: "Tout est enregistré",
+    done: "Terminé, merci beaucoup !",
+    doneWait: "Des enregistrements sont encore en cours d'envoi. Ne ferme pas la page.",
+    again: "Faire enregistrer quelqu'un d'autre",
+  },
+};
+
+// ── Small helpers ──────────────────────────────────────────────────────────
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function store(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {} }
+function load(key) { try { return JSON.parse(localStorage.getItem(key)); } catch (_) { return null; } }
+function randomId() {
+  const a = new Uint8Array(8); crypto.getRandomValues(a);
+  return Array.from(a, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Prompts: each expected word once (control) plus its near misses, shuffled
+// per participant so a near miss rarely follows its own target.
+function promptsFor(lang, seedText) {
+  const list = [];
+  for (const [target, nears] of Object.entries(SETS[lang])) {
+    list.push({ spoken: target, expected: target, kind: "target" });
+    for (const n of nears) list.push({ spoken: n, expected: target, kind: "near" });
+  }
+  let h = 17; for (const c of seedText) h = (h * 31 + c.codePointAt(0)) >>> 0;
+  const rand = () => ((h = (h * 1664525 + 1013904223) >>> 0) / 4294967296);
+  for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+  return list;
+}
+
+// ── Audio: one open stream, raw samples, 16 kHz mono WAV ───────────────────
+const audio = { ctx: null, stream: null, node: null, chunks: null, level: 0 };
+
+async function openMic() {
+  audio.stream = await navigator.mediaDevices.getUserMedia({
+    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+  });
+  audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  await audio.ctx.resume();
+  const src = audio.ctx.createMediaStreamSource(audio.stream);
+  audio.node = audio.ctx.createScriptProcessor(4096, 1, 1);
+  audio.node.onaudioprocess = (e) => {
+    const data = e.inputBuffer.getChannelData(0);
+    let sum = 0; for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+    audio.level = Math.sqrt(sum / data.length);
+    if (audio.chunks) audio.chunks.push(new Float32Array(data));
+  };
+  const mute = audio.ctx.createGain(); mute.gain.value = 0;
+  src.connect(audio.node); audio.node.connect(mute); mute.connect(audio.ctx.destination);
+}
+
+function downsample(chunks, inRate, outRate) {
+  const total = chunks.reduce((n, c) => n + c.length, 0);
+  const input = new Float32Array(total);
+  let o = 0; for (const c of chunks) { input.set(c, o); o += c.length; }
+  const ratio = inRate / outRate;
+  const out = new Float32Array(Math.floor(total / ratio));
+  for (let i = 0; i < out.length; i++) {
+    const start = Math.floor(i * ratio), end = Math.min(total, Math.floor((i + 1) * ratio));
+    let sum = 0; for (let j = start; j < end; j++) sum += input[j];
+    out[i] = end > start ? sum / (end - start) : 0;
+  }
+  return out;
+}
+
+function encodeWav(samples, rate) {
+  const buf = new ArrayBuffer(44 + samples.length * 2);
+  const v = new DataView(buf);
+  const str = (off, s) => { for (let i = 0; i < s.length; i++) v.setUint8(off + i, s.charCodeAt(i)); };
+  str(0, "RIFF"); v.setUint32(4, 36 + samples.length * 2, true); str(8, "WAVE");
+  str(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  str(36, "data"); v.setUint32(40, samples.length * 2, true);
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    v.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return new Blob([buf], { type: "audio/wav" });
+}
+
+function recordTake() {
+  return new Promise((resolve) => {
+    audio.chunks = [];
+    setTimeout(() => {
+      const chunks = audio.chunks; audio.chunks = null;
+      resolve(encodeWav(downsample(chunks, audio.ctx.sampleRate, OUT_RATE), OUT_RATE));
+    }, TAKE_MS);
+  });
+}
+
+// ── Upload queue: persisted in IndexedDB so a closed tab loses nothing ─────
+const queue = { db: null, busy: false, count: 0 };
+
+function idb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("near-miss-queue", 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("takes", { keyPath: "path" });
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function tx(mode, fn) {
+  return new Promise((resolve, reject) => {
+    const t = queue.db.transaction("takes", mode);
+    const r = fn(t.objectStore("takes"));
+    t.oncomplete = () => resolve(r && r.result);
+    t.onerror = () => reject(t.error);
+  });
+}
+async function enqueue(item) {
+  if (queue.db) await tx("readwrite", (s) => s.put(item));
+  else queue.memory = [...(queue.memory || []), item];
+  pump();
+}
+async function pendingItems() {
+  if (!queue.db) return queue.memory || [];
+  return (await tx("readonly", (s) => s.getAll())) || [];
+}
+async function removeItem(path) {
+  if (queue.db) await tx("readwrite", (s) => s.delete(path));
+  else queue.memory = (queue.memory || []).filter((i) => i.path !== path);
+}
+
+async function uploadOne(item) {
+  const headers = { apikey: SUPABASE_KEY };
+  if (!item.uploaded) {
+    const r = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${item.path}`, {
+      method: "POST", headers: { ...headers, "Content-Type": "audio/wav" }, body: item.blob,
+    });
+    if (!r.ok && r.status !== 409) throw new Error(`upload ${r.status}`); // 409: already there
+    item.uploaded = true;
+    if (queue.db) await tx("readwrite", (s) => s.put(item));
+  }
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/near_miss_takes`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify(item.row),
+  });
+  if (!r.ok && r.status !== 409) throw new Error(`row ${r.status}`);
+}
+
+async function pump() {
+  if (queue.busy) return;
+  queue.busy = true;
+  try {
+    for (;;) {
+      const items = await pendingItems();
+      queue.count = items.length; renderSync();
+      if (!items.length) break;
+      try {
+        await uploadOne(items[0]);
+        await removeItem(items[0].path);
+      } catch (err) {
+        console.warn("retrying later:", err);
+        await new Promise((r) => setTimeout(r, 4000));
+      }
+    }
+  } finally { queue.busy = false; renderSync(); }
+}
+
+window.addEventListener("beforeunload", (e) => { if (queue.count > 0) { e.preventDefault(); e.returnValue = ""; } });
+window.addEventListener("online", pump);
+
+// ── Session state ──────────────────────────────────────────────────────────
+let S = load("near-miss-session"); // {id, speaker, lang, condition, done:[spoken]}
+let prompts = [], index = 0, recording = false;
+
+function saveSession() { store("near-miss-session", S); }
+
+function renderSync() {
+  const el = $("#sync"); if (!el || !S) return;
+  const t = T[S.lang];
+  el.textContent = queue.count > 0 ? t.pending(queue.count) : t.synced;
+  el.className = "sync" + (queue.count > 0 ? " pending" : "");
+  if (index >= prompts.length && prompts.length) renderDone();
+}
+
+// ── Screens ────────────────────────────────────────────────────────────────
+function renderSetup(error) {
+  const resumable = S && S.done && S.done.length < promptsFor(S.lang, S.id).length;
+  $("#app").innerHTML = `
+    <h1>단어 읽기 녹음 <span class="fr">Lecture de mots — enregistrement</span></h1>
+    <p class="muted">한국어 음성 인식 앱을 테스트하기 위한 녹음이에요. 5분 정도 걸려요.
+      <span class="fr">Pour tester la reconnaissance vocale d'une app d'apprentissage. Environ 5 minutes.</span></p>
+    ${resumable ? `<div class="notice">${esc(S.speaker)} — ${S.done.length} / ${promptsFor(S.lang, S.id).length}
+      <button class="primary" id="resume" style="margin-top:10px;width:100%">이어서 하기 · Reprendre</button></div>` : ""}
+    <label for="speaker">닉네임 <span class="fr">Pseudo (pas besoin du vrai nom)</span>
+      <input type="text" id="speaker" maxlength="40" autocomplete="off" placeholder="예: 민지">
+    </label>
+    <fieldset><legend>언어 · Langue</legend><div class="choices">
+      <label class="choice"><input type="radio" name="lang" value="ko" checked><span>한국어</span></label>
+      <label class="choice"><input type="radio" name="lang" value="fr"><span>Français</span></label>
+    </div></fieldset>
+    <fieldset><legend>지금 있는 곳 · Environnement</legend><div class="choices">
+      <label class="choice"><input type="radio" name="cond" value="calme" checked><span>조용한 곳 · Calme</span></label>
+      <label class="choice"><input type="radio" name="cond" value="bruit"><span>시끄러운 곳 · Bruyant</span></label>
+    </div></fieldset>
+    <label class="consent"><input type="checkbox" id="consent">
+      <span>녹음은 앱의 음성 인식 테스트에만 사용된다는 것에 동의합니다.
+      <span class="fr">J'accepte que mes enregistrements servent uniquement à tester la reconnaissance vocale.</span></span>
+    </label>
+    ${error ? `<div class="notice error">${error}</div>` : ""}
+    <button class="primary" id="start" disabled>시작 · Commencer</button>
+    <p class="muted">카카오톡·인스타그램 안에서 열면 마이크가 안 될 수 있어요. 그럴 땐 Chrome이나 Safari로 열어 주세요.
+      <span class="fr">Depuis KakaoTalk ou Instagram, le micro peut être bloqué : ouvre le lien dans Chrome ou Safari.</span></p>`;
+  const speaker = $("#speaker"), consent = $("#consent"), start = $("#start");
+  const check = () => { start.disabled = !(speaker.value.trim() && consent.checked); };
+  speaker.addEventListener("input", check); consent.addEventListener("change", check);
+  start.addEventListener("click", () => begin({
+    id: randomId(), speaker: speaker.value.trim(),
+    lang: document.querySelector("input[name=lang]:checked").value,
+    condition: document.querySelector("input[name=cond]:checked").value, done: [],
+  }));
+  const resume = $("#resume"); if (resume) resume.addEventListener("click", () => begin(S));
+}
+
+async function begin(session) {
+  try {
+    if (!audio.stream) await openMic();
+  } catch (err) {
+    renderSetup("마이크를 사용할 수 없어요. 브라우저에서 마이크를 허용하거나 Chrome/Safari로 열어 주세요.<br>" +
+      "<span class='fr'>Micro indisponible : autorise-le dans le navigateur ou ouvre la page dans Chrome/Safari.</span>");
+    return;
+  }
+  S = session; saveSession();
+  prompts = promptsFor(S.lang, S.id);
+  const done = new Set(S.done);
+  index = prompts.findIndex((p) => !done.has(p.spoken));
+  if (index < 0) index = prompts.length;
+  renderTake();
+}
+
+function renderTake() {
+  if (index >= prompts.length) { renderDone(); return; }
+  const t = T[S.lang], p = prompts[index];
+  $("#app").innerHTML = `
+    <div class="topline"><span class="count">${index + 1} / ${prompts.length}</span><span id="sync" class="sync"></span></div>
+    <p class="muted">${t.instruction}</p>
+    <div class="stage"><div class="word" lang="${S.lang}">${esc(p.spoken)}</div></div>
+    <div class="meter" aria-hidden="true"><div id="level"></div></div>
+    <div class="timebar" aria-hidden="true"><div id="time"></div></div>
+    <button class="record" id="rec"><span class="dot"></span><span id="recLabel">${t.record}</span></button>
+    <div class="row">
+      <button class="link" id="redo" ${index === 0 ? "disabled" : ""}>${t.redo}</button>
+      <button class="link" id="skip">${t.skip}</button>
+    </div>`;
+  renderSync();
+  $("#rec").addEventListener("click", takeCurrent);
+  $("#redo").addEventListener("click", () => { if (!recording && index > 0) { index--; renderTake(); } });
+  $("#skip").addEventListener("click", () => { if (!recording) { index++; renderTake(); } });
+  animateLevel();
+}
+
+function animateLevel() {
+  const bar = $("#level"); if (!bar) return;
+  bar.style.width = Math.min(100, audio.level * 600) + "%";
+  requestAnimationFrame(animateLevel);
+}
+
+async function takeCurrent() {
+  if (recording) return;
+  recording = true;
+  const t = T[S.lang], p = prompts[index];
+  const btn = $("#rec"); btn.classList.add("recording"); btn.disabled = true;
+  $("#recLabel").textContent = t.recording;
+  const time = $("#time"); time.style.transition = "none"; time.style.width = "0";
+  requestAnimationFrame(() => { time.style.transition = `width ${TAKE_MS}ms linear`; time.style.width = "100%"; });
+  if (navigator.vibrate) navigator.vibrate(30);
+  const blob = await recordTake();
+  if (navigator.vibrate) navigator.vibrate(20);
+  const path = `near-miss/${S.id}/${String(index).padStart(3, "0")}-${randomId()}.wav`;
+  await enqueue({
+    path, blob, uploaded: false,
+    row: {
+      speaker: S.speaker, lang_code: S.lang, condition: S.condition,
+      spoken: p.spoken, expected: p.expected, kind: p.kind,
+      storage_path: path, duration_ms: TAKE_MS,
+      device: navigator.userAgent.slice(0, 300),
+    },
+  });
+  if (!S.done.includes(p.spoken)) S.done.push(p.spoken);
+  saveSession();
+  recording = false;
+  index++;
+  renderTake();
+}
+
+function renderDone() {
+  const t = T[S.lang];
+  const waiting = queue.count > 0;
+  $("#app").innerHTML = `
+    <div class="stage"><div style="text-align:center;display:grid;gap:16px">
+      <h1>${waiting ? t.doneWait : t.done}</h1>
+      <p id="sync" class="sync"></p>
+      ${waiting ? "" : `<button class="primary" id="again">${t.again}</button>`}
+    </div></div>`;
+  const el = $("#sync");
+  el.textContent = waiting ? t.pending(queue.count) : t.synced;
+  el.className = "sync" + (waiting ? " pending" : "");
+  const again = $("#again");
+  if (again) again.addEventListener("click", () => { S = null; store("near-miss-session", null); prompts = []; index = 0; renderSetup(); });
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+(async () => {
+  try { queue.db = await idb(); } catch (_) { queue.db = null; }
+  renderSetup();
+  pump(); // send anything left from a previous visit
+})();
+</script>
+</body>
+</html>
