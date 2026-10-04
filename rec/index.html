@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>단어 읽기 녹음</title>
+<title>Word reading · 단어 읽기</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
@@ -44,7 +44,7 @@ main { max-width: 34rem; margin: 0 auto; min-height: 100%; display: flex; flex-d
 h1 { font-size: 1.5rem; font-weight: 900; margin: 8px 0 0; text-wrap: balance; }
 p { margin: 0; }
 .muted { color: var(--muted); font-size: .92rem; }
-.fr { color: var(--muted); font-size: .85rem; display: block; }
+.hint { color: var(--muted); font-size: .85rem; font-weight: 400; display: block; }
 label { font-weight: 700; display: grid; gap: 6px; }
 input[type=text] {
   font: inherit; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--rule);
@@ -93,13 +93,26 @@ button { font: inherit; cursor: pointer; }
 .timebar { height: 6px; border-radius: 4px; background: var(--rule); overflow: hidden; }
 .timebar > div { height: 100%; width: 0; background: var(--rec); }
 .row { display: flex; gap: 8px; }
+.bar-top { display: flex; justify-content: flex-end; }
+.uilang { display: inline-flex; border: 1px solid var(--rule); border-radius: 999px; overflow: hidden; background: var(--surface); }
+.uilang button { border: 0; background: none; color: var(--muted); padding: 6px 12px; font-weight: 700; font-size: .85rem; }
+.uilang button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
 .row > button { flex: 1; }
 @keyframes blink { to { opacity: .2; } }
 @media (prefers-reduced-motion: reduce) { .record.recording .dot { animation: none; } .meter > div { transition: none; } }
 </style>
 </head>
 <body>
-<main id="app"></main>
+<main>
+  <div class="bar-top">
+    <div class="uilang" role="group" aria-label="Language">
+      <button type="button" data-ui="fr">FR</button>
+      <button type="button" data-ui="en">EN</button>
+      <button type="button" data-ui="ko">한국어</button>
+    </div>
+  </div>
+  <div id="app" style="display:flex;flex-direction:column;gap:16px;flex:1"></div>
+</main>
 
 <script>
 "use strict";
@@ -141,8 +154,20 @@ const SETS = {
   },
 };
 
-const T = {
+// Interface text, chosen with the FR · EN · 한국어 switch (independent of
+// which word list is read).
+const UI = {
   ko: {
+    title: "단어 읽기 녹음",
+    intro: "언어 학습 앱의 음성 인식을 테스트하기 위한 녹음이에요. 5분 정도 걸려요.",
+    resume: "이어서 하기",
+    nickname: "닉네임", nicknameHint: "실명이 아니어도 돼요", nicknamePlaceholder: "예: 민지",
+    words: "읽을 단어", wordsKo: "한국어", wordsFr: "프랑스어",
+    place: "지금 있는 곳", calm: "조용한 곳", noisy: "시끄러운 곳",
+    consent: "녹음은 앱의 음성 인식 테스트에만 사용된다는 것에 동의합니다.",
+    start: "시작",
+    inApp: "카카오톡·인스타그램 안에서 열면 마이크가 안 될 수 있어요. 그럴 땐 Chrome이나 Safari로 열어 주세요.",
+    micError: "마이크를 사용할 수 없어요. 브라우저에서 마이크를 허용하거나 Chrome·Safari로 열어 주세요.",
     instruction: "버튼을 누르고 단어를 평소처럼 한 번 읽어 주세요. 뜻이 없는 단어도 있어요.",
     record: "녹음하기", recording: "녹음 중…", redo: "이전 단어 다시", skip: "건너뛰기",
     pending: (n) => `전송 중 ${n}개`, synced: "모두 저장됨",
@@ -151,6 +176,16 @@ const T = {
     again: "다른 사람 녹음하기",
   },
   fr: {
+    title: "Lecture de mots",
+    intro: "Ces enregistrements servent à tester la reconnaissance vocale d'une app d'apprentissage des langues. Environ 5 minutes.",
+    resume: "Reprendre",
+    nickname: "Pseudo", nicknameHint: "pas besoin du vrai nom", nicknamePlaceholder: "ex. : Léa",
+    words: "Mots à lire", wordsKo: "Coréen", wordsFr: "Français",
+    place: "Environnement", calm: "Calme", noisy: "Bruyant",
+    consent: "J'accepte que mes enregistrements servent uniquement à tester la reconnaissance vocale de l'app.",
+    start: "Commencer",
+    inApp: "Depuis KakaoTalk ou Instagram, le micro peut être bloqué : ouvre le lien dans Chrome ou Safari.",
+    micError: "Micro indisponible : autorise-le dans le navigateur ou ouvre la page dans Chrome ou Safari.",
     instruction: "Appuie sur le bouton, puis lis le mot une fois, naturellement. Certains mots n'existent pas, c'est voulu.",
     record: "Enregistrer", recording: "Enregistrement…", redo: "Refaire le précédent", skip: "Passer",
     pending: (n) => `${n} en cours d'envoi`, synced: "Tout est enregistré",
@@ -158,7 +193,33 @@ const T = {
     doneWait: "Des enregistrements sont encore en cours d'envoi. Ne ferme pas la page.",
     again: "Faire enregistrer quelqu'un d'autre",
   },
+  en: {
+    title: "Word reading",
+    intro: "These recordings help test the speech recognition of a language-learning app. It takes about 5 minutes.",
+    resume: "Resume",
+    nickname: "Nickname", nicknameHint: "no need for your real name", nicknamePlaceholder: "e.g. Sam",
+    words: "Words to read", wordsKo: "Korean", wordsFr: "French",
+    place: "Where are you?", calm: "Quiet", noisy: "Noisy",
+    consent: "I agree that my recordings are used only to test the app's speech recognition.",
+    start: "Start",
+    inApp: "Inside KakaoTalk or Instagram the microphone may be blocked: open the link in Chrome or Safari.",
+    micError: "The microphone is unavailable: allow it in your browser, or open the page in Chrome or Safari.",
+    instruction: "Press the button, then read the word once, naturally. Some words are not real words, on purpose.",
+    record: "Record", recording: "Recording…", redo: "Redo previous", skip: "Skip",
+    pending: (n) => `${n} uploading`, synced: "All saved",
+    done: "All done, thank you so much!",
+    doneWait: "Some recordings are still uploading. Please keep this page open.",
+    again: "Record someone else",
+  },
 };
+
+function detectUi() {
+  try { const saved = localStorage.getItem("near-miss-ui"); if (UI[saved]) return saved; } catch (_) {}
+  const nav = (navigator.language || "en").slice(0, 2);
+  return UI[nav] ? nav : "en";
+}
+let uiLang = detectUi();
+const t = () => UI[uiLang];
 
 // ── Small helpers ──────────────────────────────────────────────────────────
 const $ = (sel) => document.querySelector(sel);
@@ -257,10 +318,10 @@ function idb() {
 }
 function tx(mode, fn) {
   return new Promise((resolve, reject) => {
-    const t = queue.db.transaction("takes", mode);
-    const r = fn(t.objectStore("takes"));
-    t.oncomplete = () => resolve(r && r.result);
-    t.onerror = () => reject(t.error);
+    const trx = queue.db.transaction("takes", mode);
+    const r = fn(trx.objectStore("takes"));
+    trx.oncomplete = () => resolve(r && r.result);
+    trx.onerror = () => reject(trx.error);
   });
 }
 async function enqueue(item) {
@@ -325,48 +386,62 @@ function saveSession() { store("near-miss-session", S); }
 
 function renderSync() {
   const el = $("#sync"); if (!el || !S) return;
-  const t = T[S.lang];
-  el.textContent = queue.count > 0 ? t.pending(queue.count) : t.synced;
+    el.textContent = queue.count > 0 ? t().pending(queue.count) : t().synced;
   el.className = "sync" + (queue.count > 0 ? " pending" : "");
   if (index >= prompts.length && prompts.length) renderDone();
 }
 
 // ── Screens ────────────────────────────────────────────────────────────────
-function renderSetup(error) {
-  const resumable = S && S.done && S.done.length < promptsFor(S.lang, S.id).length;
+// Setup form values survive a language switch.
+let draft = { speaker: "", lang: "ko", cond: "calme", consent: false };
+let setupError = null;
+
+function readDraft() {
+  const sp = $("#speaker"); if (!sp) return;
+  draft = {
+    speaker: sp.value,
+    lang: document.querySelector("input[name=lang]:checked")?.value || "ko",
+    cond: document.querySelector("input[name=cond]:checked")?.value || "calme",
+    consent: $("#consent")?.checked || false,
+  };
+}
+
+function renderSetup(errorKey) {
+  screen = "setup";
+  if (errorKey !== undefined) setupError = errorKey;
+  const total = S ? promptsFor(S.lang, S.id).length : 0;
+  const resumable = S && S.done && S.done.length < total;
+  const radio = (name, value, label) =>
+    `<label class="choice"><input type="radio" name="${name}" value="${value}" ${draft[name] === value ? "checked" : ""}><span>${label}</span></label>`;
   $("#app").innerHTML = `
-    <h1>단어 읽기 녹음 <span class="fr">Lecture de mots — enregistrement</span></h1>
-    <p class="muted">한국어 음성 인식 앱을 테스트하기 위한 녹음이에요. 5분 정도 걸려요.
-      <span class="fr">Pour tester la reconnaissance vocale d'une app d'apprentissage. Environ 5 minutes.</span></p>
-    ${resumable ? `<div class="notice">${esc(S.speaker)} — ${S.done.length} / ${promptsFor(S.lang, S.id).length}
-      <button class="primary" id="resume" style="margin-top:10px;width:100%">이어서 하기 · Reprendre</button></div>` : ""}
-    <label for="speaker">닉네임 <span class="fr">Pseudo (pas besoin du vrai nom)</span>
-      <input type="text" id="speaker" maxlength="40" autocomplete="off" placeholder="예: 민지">
+    <h1>${t().title}</h1>
+    <p class="muted">${t().intro}</p>
+    ${resumable ? `<div class="notice">${esc(S.speaker)} — ${S.done.length} / ${total}
+      <button class="primary" id="resume" style="margin-top:10px;width:100%">${t().resume}</button></div>` : ""}
+    <label for="speaker">${t().nickname} <span class="hint">${t().nicknameHint}</span>
+      <input type="text" id="speaker" maxlength="40" autocomplete="off" placeholder="${esc(t().nicknamePlaceholder)}" value="${esc(draft.speaker)}">
     </label>
-    <fieldset><legend>언어 · Langue</legend><div class="choices">
-      <label class="choice"><input type="radio" name="lang" value="ko" checked><span>한국어</span></label>
-      <label class="choice"><input type="radio" name="lang" value="fr"><span>Français</span></label>
+    <fieldset><legend>${t().words}</legend><div class="choices">
+      ${radio("lang", "ko", "한국어 · " + t().wordsKo)}
+      ${radio("lang", "fr", "Français · " + t().wordsFr)}
     </div></fieldset>
-    <fieldset><legend>지금 있는 곳 · Environnement</legend><div class="choices">
-      <label class="choice"><input type="radio" name="cond" value="calme" checked><span>조용한 곳 · Calme</span></label>
-      <label class="choice"><input type="radio" name="cond" value="bruit"><span>시끄러운 곳 · Bruyant</span></label>
+    <fieldset><legend>${t().place}</legend><div class="choices">
+      ${radio("cond", "calme", t().calm)}
+      ${radio("cond", "bruit", t().noisy)}
     </div></fieldset>
-    <label class="consent"><input type="checkbox" id="consent">
-      <span>녹음은 앱의 음성 인식 테스트에만 사용된다는 것에 동의합니다.
-      <span class="fr">J'accepte que mes enregistrements servent uniquement à tester la reconnaissance vocale.</span></span>
+    <label class="consent"><input type="checkbox" id="consent" ${draft.consent ? "checked" : ""}>
+      <span>${t().consent}</span>
     </label>
-    ${error ? `<div class="notice error">${error}</div>` : ""}
-    <button class="primary" id="start" disabled>시작 · Commencer</button>
-    <p class="muted">카카오톡·인스타그램 안에서 열면 마이크가 안 될 수 있어요. 그럴 땐 Chrome이나 Safari로 열어 주세요.
-      <span class="fr">Depuis KakaoTalk ou Instagram, le micro peut être bloqué : ouvre le lien dans Chrome ou Safari.</span></p>`;
+    ${setupError ? `<div class="notice error">${t()[setupError]}</div>` : ""}
+    <button class="primary" id="start">${t().start}</button>
+    <p class="muted">${t().inApp}</p>`;
   const speaker = $("#speaker"), consent = $("#consent"), start = $("#start");
   const check = () => { start.disabled = !(speaker.value.trim() && consent.checked); };
+  check();
   speaker.addEventListener("input", check); consent.addEventListener("change", check);
-  start.addEventListener("click", () => begin({
-    id: randomId(), speaker: speaker.value.trim(),
-    lang: document.querySelector("input[name=lang]:checked").value,
-    condition: document.querySelector("input[name=cond]:checked").value, done: [],
-  }));
+  start.addEventListener("click", () => { readDraft(); begin({
+    id: randomId(), speaker: draft.speaker.trim(), lang: draft.lang, condition: draft.cond, done: [],
+  }); });
   const resume = $("#resume"); if (resume) resume.addEventListener("click", () => begin(S));
 }
 
@@ -374,10 +449,10 @@ async function begin(session) {
   try {
     if (!audio.stream) await openMic();
   } catch (err) {
-    renderSetup("마이크를 사용할 수 없어요. 브라우저에서 마이크를 허용하거나 Chrome/Safari로 열어 주세요.<br>" +
-      "<span class='fr'>Micro indisponible : autorise-le dans le navigateur ou ouvre la page dans Chrome/Safari.</span>");
+    renderSetup("micError");
     return;
   }
+  setupError = null;
   S = session; saveSession();
   prompts = promptsFor(S.lang, S.id);
   const done = new Set(S.done);
@@ -388,17 +463,18 @@ async function begin(session) {
 
 function renderTake() {
   if (index >= prompts.length) { renderDone(); return; }
-  const t = T[S.lang], p = prompts[index];
+  screen = "take";
+  const p = prompts[index];
   $("#app").innerHTML = `
     <div class="topline"><span class="count">${index + 1} / ${prompts.length}</span><span id="sync" class="sync"></span></div>
-    <p class="muted">${t.instruction}</p>
+    <p class="muted">${t().instruction}</p>
     <div class="stage"><div class="word" lang="${S.lang}">${esc(p.spoken)}</div></div>
     <div class="meter" aria-hidden="true"><div id="level"></div></div>
     <div class="timebar" aria-hidden="true"><div id="time"></div></div>
-    <button class="record" id="rec"><span class="dot"></span><span id="recLabel">${t.record}</span></button>
+    <button class="record" id="rec"><span class="dot"></span><span id="recLabel">${t().record}</span></button>
     <div class="row">
-      <button class="link" id="redo" ${index === 0 ? "disabled" : ""}>${t.redo}</button>
-      <button class="link" id="skip">${t.skip}</button>
+      <button class="link" id="redo" ${index === 0 ? "disabled" : ""}>${t().redo}</button>
+      <button class="link" id="skip">${t().skip}</button>
     </div>`;
   renderSync();
   $("#rec").addEventListener("click", takeCurrent);
@@ -416,9 +492,9 @@ function animateLevel() {
 async function takeCurrent() {
   if (recording) return;
   recording = true;
-  const t = T[S.lang], p = prompts[index];
+  const p = prompts[index];
   const btn = $("#rec"); btn.classList.add("recording"); btn.disabled = true;
-  $("#recLabel").textContent = t.recording;
+  $("#recLabel").textContent = t().recording;
   const time = $("#time"); time.style.transition = "none"; time.style.width = "0";
   requestAnimationFrame(() => { time.style.transition = `width ${TAKE_MS}ms linear`; time.style.width = "100%"; });
   if (navigator.vibrate) navigator.vibrate(30);
@@ -442,24 +518,48 @@ async function takeCurrent() {
 }
 
 function renderDone() {
-  const t = T[S.lang];
-  const waiting = queue.count > 0;
+  screen = "done";
+    const waiting = queue.count > 0;
   $("#app").innerHTML = `
     <div class="stage"><div style="text-align:center;display:grid;gap:16px">
-      <h1>${waiting ? t.doneWait : t.done}</h1>
+      <h1>${waiting ? t().doneWait : t().done}</h1>
       <p id="sync" class="sync"></p>
-      ${waiting ? "" : `<button class="primary" id="again">${t.again}</button>`}
+      ${waiting ? "" : `<button class="primary" id="again">${t().again}</button>`}
     </div></div>`;
   const el = $("#sync");
-  el.textContent = waiting ? t.pending(queue.count) : t.synced;
+  el.textContent = waiting ? t().pending(queue.count) : t().synced;
   el.className = "sync" + (waiting ? " pending" : "");
   const again = $("#again");
-  if (again) again.addEventListener("click", () => { S = null; store("near-miss-session", null); prompts = []; index = 0; renderSetup(); });
+  if (again) again.addEventListener("click", () => { S = null; store("near-miss-session", null); prompts = []; index = 0;
+    draft = { speaker: "", lang: draft.lang, cond: draft.cond, consent: false }; setupError = null; renderSetup(); });
+}
+
+// ── Interface language switch ──────────────────────────────────────────────
+let screen = "setup";
+function applyUi() {
+  document.documentElement.lang = uiLang;
+  document.title = t().title;
+  for (const b of document.querySelectorAll(".uilang button")) {
+    b.setAttribute("aria-pressed", String(b.dataset.ui === uiLang));
+  }
+}
+for (const b of document.querySelectorAll(".uilang button")) {
+  b.addEventListener("click", () => {
+    if (recording || b.dataset.ui === uiLang) return;
+    if (screen === "setup") readDraft();
+    uiLang = b.dataset.ui;
+    try { localStorage.setItem("near-miss-ui", uiLang); } catch (_) {}
+    applyUi();
+    if (screen === "setup") renderSetup();
+    else if (screen === "take") renderTake();
+    else renderDone();
+  });
 }
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 (async () => {
   try { queue.db = await idb(); } catch (_) { queue.db = null; }
+  applyUi();
   renderSetup();
   pump(); // send anything left from a previous visit
 })();
