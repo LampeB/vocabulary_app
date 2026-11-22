@@ -34,6 +34,7 @@ dans [`runbooks/`](runbooks/README.md).
 | Contenu et génération | [content-roadmap.md](content-roadmap.md) · [seed-content-authoring.md](seed-content-authoring.md) |
 | Architecture voix/audio | [stt-improvement-plan.md](stt-improvement-plan.md) |
 | Couverture fonctionnelle | [feature-coverage.md](feature-coverage.md) · [test-scenarios.md](test-scenarios.md) |
+| Validation des pull requests | [pr-validation.md](pr-validation.md) |
 
 ## Règle d'entretien
 

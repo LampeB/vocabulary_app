@@ -12,6 +12,7 @@ tags:
 - [État du projet](../../PROJECT_STATUS.md)
 - [Couverture fonctionnelle](../feature-coverage.md)
 - [Scénarios de test](../test-scenarios.md)
+- [Validation des pull requests](../pr-validation.md)
 - [Documentation et hooks Git](../runbooks/documentation-et-commits.md)
 
 ## Avant de livrer

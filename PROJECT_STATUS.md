@@ -131,6 +131,11 @@ de contenu avant bêta pédagogique.
   de code/configuration sans mise à jour documentaire. Son usage et l'exception
   rare sont documentés dans
   [`docs/runbooks/documentation-et-commits.md`](docs/runbooks/documentation-et-commits.md).
+- Le protocole de validation des PR est décidé : quatre relecteurs agents
+  indépendants doivent converger sur deux passes propres consécutives, sans se
+  substituer à la CI ni à l'approbation humaine. Son orchestration et les
+  protections GitHub restent à implémenter ; voir
+  [`docs/pr-validation.md`](docs/pr-validation.md).
 - Les anciennes maquettes, audits et plans V1/V2 ont été retirés du vault pour
   éviter les sources concurrentes ; leur historique reste récupérable dans Git.
 
