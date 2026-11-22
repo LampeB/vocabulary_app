@@ -18,10 +18,11 @@ constitue pas une preuve suffisante de convergence.
 
 ## Décision
 
-Une PR est revue par quatre profils en lecture seule : contrat/documentation,
-correction/tests, sécurité/livraison, et expérience/contenu. Ils examinent tous
-le même commit avant toute correction. Tous les constats bloquants et
-importants sont traités ensemble avant une nouvelle itération.
+Une PR est revue par quatre profils en lecture seule : produit/contrat/
+expérience, qualité du code/architecture/performance, correction/tests, et
+sécurité/livraison. Ils examinent tous le même commit avant toute correction.
+Tous les constats bloquants et importants sont traités ensemble avant une
+nouvelle itération.
 
 Chaque profil peut participer à vingt itérations au maximum. La convergence
 requiert deux verdicts consécutifs sans constat bloquant ni important pour

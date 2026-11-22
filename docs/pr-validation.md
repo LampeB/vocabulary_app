@@ -13,10 +13,10 @@ structuré. Il ne modifie jamais la branche.
 
 | Relecteur | Mission | Cherche en particulier |
 | --- | --- | --- |
-| Contrat et documentation | Vérifier que le changement respecte les décisions, spécifications et état du projet applicables. | Contrat produit ou technique contredit, documentation manquante ou devenue factuellement fausse, décision non autorisée. |
+| Produit, contrat et expérience | Vérifier que le changement respecte les décisions, spécifications et état du projet applicables, et qu'il reste cohérent pour l'apprenant. | Contrat produit ou technique contredit, documentation manquante ou devenue factuellement fausse, décision non autorisée, localisation, accessibilité, petits écrans, thèmes, parcours visible et cohérence pédagogique des seeds. |
+| Qualité du code, architecture et performance | Relire le code lui-même comme un mainteneur senior, indépendamment des tests. | Duplication d'une capacité existante, mauvaise frontière de couches, API ou abstraction inutile, cycle de vie Flutter incorrect, rebuilds ou I/O évitables, synchronisation coûteuse, dette de lisibilité ou de maintenabilité. |
 | Correction et tests | Relire le comportement Flutter/Dart et les tests comme un propriétaire du code. | Régression, cas limite, effet de bord, erreur de persistance/synchronisation, test manquant ou fragile. |
 | Sécurité et livraison | Examiner les frontières externes et le chemin de livraison. | Secret, permissions ou workflow CI dangereux, dépendance à risque, artefact généré versionné, régression de configuration ou de build. |
-| Expérience et contenu | Contrôler l'expérience réellement proposée à l'apprenant. | Localisation, accessibilité, petits écrans, thèmes, parcours visible et, si le diff touche les seeds, cohérence pédagogique. |
 
 Un relecteur dont la spécialité n'est pas touchée le signale explicitement ;
 il vérifie tout de même que le diff ne franchit pas une frontière relevant de
@@ -34,6 +34,10 @@ reproductible), le risque et la correction attendue.
 
 Les observations de style sans conséquence ne sont pas rapportées : le
 formatage et les règles mécaniques appartiennent à la CI.
+
+Le relecteur de qualité du code ne remplace pas le linter : le linter impose
+formatage, analyse statique et règles mesurables ; ce relecteur juge la qualité
+que ces outils ne peuvent pas inférer du diff.
 
 ## Boucle de revue
 
