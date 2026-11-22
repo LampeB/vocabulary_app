@@ -134,8 +134,9 @@ de contenu avant bêta pédagogique.
 - Le protocole de validation des PR est décidé : quatre relecteurs agents
   indépendants doivent converger sur deux passes propres consécutives, sans se
   substituer à la CI ni à l'approbation humaine. Le skill, les quatre profils,
-  le hook et la CI sont implémentés sur la branche d'intégration ; la
-  protection GitHub de `main` est la dernière activation distante requise ; voir
+  le hook et la CI sont implémentés sur la branche d'intégration ; l'activation
+  du Dependency Graph puis la protection GitHub de `main` restent les dernières
+  étapes distantes requises ; voir
   [`docs/pr-validation.md`](docs/pr-validation.md).
 - Les anciennes maquettes, audits et plans V1/V2 ont été retirés du vault pour
   éviter les sources concurrentes ; leur historique reste récupérable dans Git.

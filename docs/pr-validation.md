@@ -121,6 +121,14 @@ exige :
 - une revue des dépendances, un scan de secrets et `actionlint` ;
 - un audit `zizmor` du nouveau workflow de validation lui-même.
 
+La version Flutter de ce check est figée à **3.44.9**, celle qui correspond à
+la version validée du projet. Toute montée de SDK est une modification séparée
+qui doit rendre la suite verte avant de devenir la nouvelle référence CI.
+
+La revue de dépendances exige que le **Dependency Graph** soit activé dans les
+réglages GitHub du dépôt. Tant que cette activation distante n'est pas faite,
+le check échoue volontairement plutôt que de donner une validation trompeuse.
+
 Les profils des quatre relecteurs sont versionnés dans `.codex/agents/` et le
 skill d'orchestration dans `.agents/skills/pr-validation/`. Ils n'accordent
 jamais eux-mêmes une fusion : l'approbation humaine et les checks GitHub
