@@ -24,6 +24,10 @@ sécurité/livraison. Ils examinent tous le même commit avant toute correction.
 Tous les constats bloquants et importants sont traités ensemble avant une
 nouvelle itération.
 
+Chaque constat est typé obligatoirement `Bloquant`, `Important` ou
+`Suggestion`. Un verdict n'est propre que s'il ne contient aucun Bloquant ni
+Important.
+
 Chaque profil peut participer à vingt itérations au maximum. La convergence
 requiert deux verdicts consécutifs sans constat bloquant ni important pour
 chacun des quatre profils, sur le même commit final, par des instances d'agents

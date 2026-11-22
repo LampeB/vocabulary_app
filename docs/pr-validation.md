@@ -24,13 +24,35 @@ sa mission.
 
 ## Format de verdict
 
-Chaque observation donne sa gravité, la preuve (fichier et ligne ou scénario
-reproductible), le risque et la correction attendue.
+Chaque observation porte obligatoirement **un type unique** : `Bloquant`,
+`Important` ou `Suggestion`. Aucun autre libellé (`mineur`, `nit`, `à voir`,
+etc.) ne remplace ces types. Elle donne aussi la preuve (fichier et ligne ou
+scénario reproductible), le risque et la correction attendue.
 
 - **Bloquant** : défaut à corriger avant fusion.
 - **Important** : défaut ou absence de validation à corriger avant fusion.
 - **Suggestion** : amélioration non bloquante, conservée pour décision humaine.
 - **Aucun constat** : aucun bloquant ni important trouvé.
+
+Chaque rapport utilise ce format, même lorsqu'il n'a aucun constat :
+
+```text
+Relecteur : <profil>
+Commit analysé : <SHA>
+
+- Type : Bloquant | Important | Suggestion
+  Emplacement : <fichier:ligne ou scénario>
+  Preuve et risque : <constat vérifiable>
+  Correction attendue : <action précise>
+
+Verdict final : BLOQUÉ | PROPRE
+```
+
+`BLOQUÉ` est obligatoire dès qu'au moins un **Bloquant** ou **Important** est
+présent. `PROPRE` signifie strictement qu'il n'y a ni Bloquant ni Important ;
+il peut contenir des Suggestions. L'orchestrateur conserve les types à
+l'identique lors de la consolidation et ne peut pas rétrograder un Bloquant ou
+un Important sans décision humaine documentée.
 
 Les observations de style sans conséquence ne sont pas rapportées : le
 formatage et les règles mécaniques appartiennent à la CI.
