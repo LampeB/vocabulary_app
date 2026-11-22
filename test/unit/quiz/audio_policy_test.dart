@@ -11,7 +11,9 @@ void main() {
       expect(shouldSpeakAnswer(QuizMode.flashcard, correct: false), isFalse);
     });
 
-    test('typing NEVER auto-speaks (on-demand speaker button instead, 2026-07-14)', () {
+    test(
+        'typing NEVER auto-speaks (on-demand speaker button instead, 2026-07-14)',
+        () {
       expect(shouldSpeakAnswer(QuizMode.typing, correct: true), isFalse);
       expect(shouldSpeakAnswer(QuizMode.typing, correct: false), isFalse);
     });

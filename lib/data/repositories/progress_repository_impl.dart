@@ -38,8 +38,8 @@ class ProgressRepositoryImpl implements ProgressRepository {
       if (concepts.isEmpty) return const Success([]);
 
       final conceptIds = concepts.map((c) => c.id).toList();
-      final questionVariants = await _conceptDao.getVariantsByConceptIds(
-          conceptIds, questionLang);
+      final questionVariants =
+          await _conceptDao.getVariantsByConceptIds(conceptIds, questionLang);
       if (questionVariants.isEmpty) return const Success([]);
 
       final allVariantIds = questionVariants.map((v) => v.id).toList();
@@ -57,7 +57,8 @@ class ProgressRepositoryImpl implements ProgressRepository {
         userId: userId,
         direction: direction.name,
         variantIds: allVariantIds,
-      )).toSet();
+      ))
+          .toSet();
 
       // New cards (no progress row at all): fill up to limit
       final newVariantIds = allVariantIds
@@ -152,7 +153,8 @@ class ProgressRepositoryImpl implements ProgressRepository {
   }
 
   @override
-  Future<Result<VariantProgress>> updateProgress(VariantProgress progress) async {
+  Future<Result<VariantProgress>> updateProgress(
+      VariantProgress progress) async {
     final local = progress.copyWith(isSynced: false, updatedAt: DateTime.now());
     try {
       await _progressDao.upsert(local.toLocalCompanion());
@@ -218,8 +220,7 @@ class ProgressRepositoryImpl implements ProgressRepository {
   }
 
   @override
-  Future<Result<List<VariantProgress>>> getKnownVariants(
-      String userId) async {
+  Future<Result<List<VariantProgress>>> getKnownVariants(String userId) async {
     try {
       final rows = await _progressDao.getGraduatedProgress(userId: userId);
       return Success(rows.map((r) => r.toDomain()).toList());

@@ -29,8 +29,18 @@ Map<String, dynamic> _sharedPayload() => {
           'example_fr': null,
           'example_ko': null,
           'word_variants': [
-            {'word': 'bonjour', 'lang_code': 'fr', 'is_primary': true, 'position': 0},
-            {'word': '안녕하세요', 'lang_code': 'ko', 'is_primary': true, 'position': 0},
+            {
+              'word': 'bonjour',
+              'lang_code': 'fr',
+              'is_primary': true,
+              'position': 0
+            },
+            {
+              'word': '안녕하세요',
+              'lang_code': 'ko',
+              'is_primary': true,
+              'position': 0
+            },
           ],
         },
       ],
@@ -50,7 +60,8 @@ void main() {
       final repo = repoWith(FakeRemote());
       final list = (await repo.importFromJson({
         'list': {'name': 'My List', 'concepts': []}
-      })).valueOrNull!;
+      }))
+          .valueOrNull!;
 
       final result = await repo.generateShareLink(list.id);
 
@@ -84,7 +95,8 @@ void main() {
       expect(list.name, 'Shared Greetings');
       final concepts = await db.conceptDao.getConceptsByList(list.id);
       expect(concepts.length, 1);
-      final variants = await db.conceptDao.getVariantsByConcept(concepts.first.id);
+      final variants =
+          await db.conceptDao.getVariantsByConcept(concepts.first.id);
       expect(variants.map((v) => v.word), containsAll(['bonjour', '안녕하세요']));
     });
 

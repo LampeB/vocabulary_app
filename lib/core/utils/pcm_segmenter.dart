@@ -76,8 +76,8 @@ class PcmSegmenter {
   bool get inSpeech => _inSpeech;
 
   static double frameRms(Uint8List frame) {
-    final samples = frame.buffer.asInt16List(
-        frame.offsetInBytes, frame.lengthInBytes ~/ 2);
+    final samples =
+        frame.buffer.asInt16List(frame.offsetInBytes, frame.lengthInBytes ~/ 2);
     if (samples.isEmpty) return 0;
     double sum = 0;
     for (final s in samples) {
@@ -141,8 +141,7 @@ class PcmSegmenter {
     // The end threshold needs a floor of its own: in a dead-quiet room the
     // noise floor is ~0 and `rms < 0` would never be true — the utterance
     // would only ever end at maxUtteranceMs.
-    final endThreshold =
-        math.max(_noiseFloor * endFactor, minStartRms / 3);
+    final endThreshold = math.max(_noiseFloor * endFactor, minStartRms / 3);
     if (rms < endThreshold) {
       _silentFrames++;
     } else {

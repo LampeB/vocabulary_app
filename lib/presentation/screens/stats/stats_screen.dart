@@ -35,15 +35,14 @@ class StatsScreen extends ConsumerWidget {
         children: [
           const DottedGround(),
           historyAsync.when(
-            loading: () =>
-                const Center(child: CircularProgressIndicator(color: AppColors.clay, strokeWidth: 2)),
+            loading: () => const Center(
+                child: CircularProgressIndicator(
+                    color: AppColors.clay, strokeWidth: 2)),
             error: (e, _) => Center(child: Text('$e')),
             data: (sessions) {
-              final totalCards =
-                  sessions.fold(0, (s, e) => s + e.cardCount);
-              final currentMastered = sessions.isEmpty
-                  ? 0
-                  : sessions.first.masteredWordCount;
+              final totalCards = sessions.fold(0, (s, e) => s + e.cardCount);
+              final currentMastered =
+                  sessions.isEmpty ? 0 : sessions.first.masteredWordCount;
 
               return ListView(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -137,8 +136,7 @@ class _StatChip extends StatelessWidget {
                     .copyWith(color: color)),
             const SizedBox(height: 2),
             Text(label,
-                style: AppTextStyles.eyebrowSm
-                    .copyWith(color: AppColors.muted),
+                style: AppTextStyles.eyebrowSm.copyWith(color: AppColors.muted),
                 textAlign: TextAlign.center),
           ],
         ),
@@ -155,7 +153,8 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(text, style: AppTextStyles.eyebrowSm.copyWith(color: AppColors.muted));
+    return Text(text,
+        style: AppTextStyles.eyebrowSm.copyWith(color: AppColors.muted));
   }
 }
 
@@ -187,7 +186,8 @@ class _MasteredChart extends StatelessWidget {
     final maxY = points.map((p) => p.$2).reduce((a, b) => a > b ? a : b);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final lineColor = const Color(0xFF7C5CBF);
-    final gridColor = (isDark ? Colors.white : Colors.black).withValues(alpha: 0.07);
+    final gridColor =
+        (isDark ? Colors.white : Colors.black).withValues(alpha: 0.07);
 
     return FrostedBox(
       borderRadius: BorderRadius.circular(16),
@@ -203,7 +203,8 @@ class _MasteredChart extends StatelessWidget {
             gridData: FlGridData(
               show: true,
               drawVerticalLine: false,
-              horizontalInterval: ((maxY / 4).clamp(1, double.infinity)).roundToDouble(),
+              horizontalInterval:
+                  ((maxY / 4).clamp(1, double.infinity)).roundToDouble(),
               getDrawingHorizontalLine: (_) =>
                   FlLine(color: gridColor, strokeWidth: 1),
             ),
@@ -213,7 +214,8 @@ class _MasteredChart extends StatelessWidget {
                 sideTitles: SideTitles(
                   showTitles: true,
                   reservedSize: 32,
-                  interval: ((maxY / 4).clamp(1, double.infinity)).roundToDouble(),
+                  interval:
+                      ((maxY / 4).clamp(1, double.infinity)).roundToDouble(),
                   getTitlesWidget: (v, _) => Text(
                     '${v.toInt()}',
                     style: AppTextStyles.eyebrowSm
@@ -228,7 +230,9 @@ class _MasteredChart extends StatelessWidget {
                   interval: (spots.length / 4).clamp(1, double.infinity),
                   getTitlesWidget: (v, _) {
                     final idx = v.toInt();
-                    if (idx < 0 || idx >= points.length) return const SizedBox.shrink();
+                    if (idx < 0 || idx >= points.length) {
+                      return const SizedBox.shrink();
+                    }
                     final d = points[idx].$1;
                     return Text(
                       '${d.day}/${d.month}',
@@ -238,8 +242,10 @@ class _MasteredChart extends StatelessWidget {
                   },
                 ),
               ),
-              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             ),
             lineBarsData: [
               LineChartBarData(

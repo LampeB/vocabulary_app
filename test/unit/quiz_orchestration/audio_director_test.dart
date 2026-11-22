@@ -37,7 +37,8 @@ class _FakeAudio implements AudioPlayerService {
   }
 
   @override
-  Future<void> prefetch(String text, String langCode, {String? audioPath}) async {
+  Future<void> prefetch(String text, String langCode,
+      {String? audioPath}) async {
     prefetched.add('$text|$langCode');
   }
 
@@ -109,8 +110,8 @@ void main() {
     test('handOffToMic stops app audio and waits the focus beat', () async {
       final audio = _FakeAudio()..speaking = true;
       final sw = Stopwatch()..start();
-      await AudioDirector(audio, sfx: _FakeSfx()).handOffToMic(
-          focusBeat: const Duration(milliseconds: 100));
+      await AudioDirector(audio, sfx: _FakeSfx())
+          .handOffToMic(focusBeat: const Duration(milliseconds: 100));
       expect(audio.speaking, isFalse, reason: 'stop() must have fired');
       expect(sw.elapsedMilliseconds, greaterThanOrEqualTo(95));
     });
@@ -138,7 +139,8 @@ void main() {
       expect(sw.elapsedMilliseconds, lessThan(600));
     });
 
-    test('waits out an utterance that starts inside the window, then the '
+    test(
+        'waits out an utterance that starts inside the window, then the '
         'follow-up check ends the chain', () async {
       final audio = _FakeAudio();
       final director = AudioDirector(audio, sfx: _FakeSfx());
@@ -156,7 +158,8 @@ void main() {
     test('keepGoing=false aborts the wait', () async {
       final audio = _FakeAudio()..speaking = true;
       var alive = true;
-      final future = AudioDirector(audio, sfx: _FakeSfx()).chainQuiet(keepGoing: () => alive);
+      final future = AudioDirector(audio, sfx: _FakeSfx())
+          .chainQuiet(keepGoing: () => alive);
       await Future<void>.delayed(const Duration(milliseconds: 100));
       alive = false; // e.g. screen unmounted
       final sw = Stopwatch()..start();

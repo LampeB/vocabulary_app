@@ -22,5 +22,6 @@ class Concept with _$Concept {
     required DateTime updatedAt,
   }) = _Concept;
 
-  factory Concept.fromJson(Map<String, dynamic> json) => _$ConceptFromJson(json);
+  factory Concept.fromJson(Map<String, dynamic> json) =>
+      _$ConceptFromJson(json);
 }

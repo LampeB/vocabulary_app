@@ -63,7 +63,8 @@ void main() {
   });
   tearDown(() => db.close());
 
-  test('offline writes are drained on the next push: list, concept and both '
+  test(
+      'offline writes are drained on the next push: list, concept and both '
       'variants land remotely and are marked synced', () async {
     remote.failAll = true; // backend down while the user works
     final list = (await repo.createList(name: 'Animaux')).valueOrNull!;
@@ -96,7 +97,8 @@ void main() {
     expect(remote.pushedLists, isEmpty);
   });
 
-  test('a per-table failure keeps ONLY those rows queued; the next drain '
+  test(
+      'a per-table failure keeps ONLY those rows queued; the next drain '
       'retries just them', () async {
     final list = (await repo.createList(name: 'A')).valueOrNull!;
     await repo.addConceptWithVariants(

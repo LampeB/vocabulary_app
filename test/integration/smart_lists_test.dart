@@ -89,8 +89,8 @@ void main() {
     final future = DateTime.now().add(const Duration(days: 30));
 
     final started = await seedWord(l1.id, 'chat', '고양이');
-    await seedProgress(started, state: 'learning',
-        nextReview: _now.subtract(const Duration(days: 1)));
+    await seedProgress(started,
+        state: 'learning', nextReview: _now.subtract(const Duration(days: 1)));
     final scheduled = await seedWord(l1.id, 'maison', '집');
     await seedProgress(scheduled, state: 'review', nextReview: future);
     final newState = await seedWord(l1.id, 'pain', '빵');
@@ -107,10 +107,11 @@ void main() {
   test('the use case routes each QuizSource to the right query', () async {
     final l1 = (await vocabRepo.createList(name: 'A')).valueOrNull!;
     final due = await seedWord(l1.id, 'chat', '고양이');
-    await seedProgress(due, state: 'review',
-        nextReview: _now.subtract(const Duration(days: 1)));
+    await seedProgress(due,
+        state: 'review', nextReview: _now.subtract(const Duration(days: 1)));
     final futureCard = await seedWord(l1.id, 'maison', '집');
-    await seedProgress(futureCard, state: 'review',
+    await seedProgress(futureCard,
+        state: 'review',
         nextReview: DateTime.now().add(const Duration(days: 30)));
 
     final usecase = GetDueCardsUseCase(progressRepo);
@@ -130,9 +131,7 @@ void main() {
 
     // list source still works and includes new cards (existing behaviour).
     final listCards = await usecase.call(
-        userId: _kUserId,
-        listId: l1.id,
-        direction: QuizDirection.frToKo);
+        userId: _kUserId, listId: l1.id, direction: QuizDirection.frToKo);
     expect(listCards.isSuccess, isTrue);
   });
 }

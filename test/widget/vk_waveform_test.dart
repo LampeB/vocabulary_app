@@ -26,7 +26,8 @@ void main() {
     }
   });
 
-  testWidgets('frozen mountain rest keeps the mountain profile (centre tallest)',
+  testWidgets(
+      'frozen mountain rest keeps the mountain profile (centre tallest)',
       (tester) async {
     await pumpWave(
       tester,

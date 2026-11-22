@@ -142,46 +142,45 @@ class _VkWaveformState extends State<VkWaveform>
           return SizedBox(
             height: widget.height,
             child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: List.generate(_heights.length, (i) {
-              // Sine wave: 0.28 at trough, 1.0 at peak.
-              final raw =
-                  math.sin(2 * math.pi * (t + _phases[i])) * 0.5 + 0.5;
-              // [amplitude] scales the dynamic swing only (baseline stays), so a
-              // low amplitude reads as a calm wobble rather than a full ripple.
-              final scale = 0.28 + raw * 0.72 * widget.amplitude;
-              // Flat rest collapses every bar to a uniform short height so the
-              // gadget reads as "off"; otherwise follow the mountain profile.
-              final barH = restFlat
-                  ? widget.barWidth
-                  : widget.height * _heights[i] * scale;
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: List.generate(_heights.length, (i) {
+                // Sine wave: 0.28 at trough, 1.0 at peak.
+                final raw =
+                    math.sin(2 * math.pi * (t + _phases[i])) * 0.5 + 0.5;
+                // [amplitude] scales the dynamic swing only (baseline stays), so a
+                // low amplitude reads as a calm wobble rather than a full ripple.
+                final scale = 0.28 + raw * 0.72 * widget.amplitude;
+                // Flat rest collapses every bar to a uniform short height so the
+                // gadget reads as "off"; otherwise follow the mountain profile.
+                final barH = restFlat
+                    ? widget.barWidth
+                    : widget.height * _heights[i] * scale;
 
-              return Padding(
-                padding: EdgeInsets.only(
-                    left: i == 0 ? 0 : widget.gap / 2,
-                    right: i == _heights.length - 1 ? 0 : widget.gap / 2),
-                child: Container(
-                  width: widget.barWidth,
-                  height: barH.clamp(widget.barWidth, widget.height),
-                  decoration: BoxDecoration(
-                    color: _colors[i],
-                    borderRadius:
-                        BorderRadius.circular(widget.barWidth / 2),
-                    boxShadow: widget.glow
-                        ? [
-                            BoxShadow(
-                              color: _colors[i].withValues(alpha: 0.55),
-                              blurRadius: 8,
-                              spreadRadius: 0.5,
-                            ),
-                          ]
-                        : null,
+                return Padding(
+                  padding: EdgeInsets.only(
+                      left: i == 0 ? 0 : widget.gap / 2,
+                      right: i == _heights.length - 1 ? 0 : widget.gap / 2),
+                  child: Container(
+                    width: widget.barWidth,
+                    height: barH.clamp(widget.barWidth, widget.height),
+                    decoration: BoxDecoration(
+                      color: _colors[i],
+                      borderRadius: BorderRadius.circular(widget.barWidth / 2),
+                      boxShadow: widget.glow
+                          ? [
+                              BoxShadow(
+                                color: _colors[i].withValues(alpha: 0.55),
+                                blurRadius: 8,
+                                spreadRadius: 0.5,
+                              ),
+                            ]
+                          : null,
+                    ),
                   ),
-                ),
-              );
-            }),
-          ),
+                );
+              }),
+            ),
           );
         },
       ),

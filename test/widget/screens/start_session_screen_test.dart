@@ -36,7 +36,10 @@ GrammarRule _rule(String id, String title) => GrammarRule(
       titles: {'fr': title},
       descriptions: const {'fr': ''},
       explanations: const {'fr': 'Une explication.'},
-      workedExamples: const [WorkedExample(target: '저는 학생이에요', translations: {'fr': 'Je suis étudiant'})],
+      workedExamples: const [
+        WorkedExample(
+            target: '저는 학생이에요', translations: {'fr': 'Je suis étudiant'})
+      ],
       prerequisiteLists: const ['Salutations & politesse'],
       appliesToCategories: const ['nom'],
       minKnownWords: const {'nom': 5},
@@ -161,7 +164,8 @@ void main() {
     expect(ctaEnabled(), isTrue);
   });
 
-  testWidgets('picking a language reveals its lists; selecting one advances '
+  testWidgets(
+      'picking a language reveals its lists; selecting one advances '
       'to the quiz-type section', (tester) async {
     await pump(tester);
     expect(find.text('Animaux'), findsNothing);

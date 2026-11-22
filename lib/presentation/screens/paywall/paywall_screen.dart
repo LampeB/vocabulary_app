@@ -43,9 +43,9 @@ class PaywallScreen extends ConsumerWidget {
     });
 
     final isLoading = purchaseState.isLoading;
-    final offering  = offeringsAsync.valueOrNull?.current;
-    final monthly   = offering?.monthly;
-    final annual    = offering?.annual;
+    final offering = offeringsAsync.valueOrNull?.current;
+    final monthly = offering?.monthly;
+    final annual = offering?.annual;
 
     return Scaffold(
       key: const ValueKey(WidgetKeys.screenPaywall),
@@ -116,8 +116,7 @@ class PaywallScreen extends ConsumerWidget {
                             color: AppColors.clay.withValues(alpha: 0.14),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(f.$2,
-                              color: AppColors.clay, size: 17),
+                          child: Icon(f.$2, color: AppColors.clay, size: 17),
                         ),
                         const SizedBox(width: 14),
                         // Expanded: long FR labels overflow 360dp screens otherwise.
@@ -179,8 +178,7 @@ class PaywallScreen extends ConsumerWidget {
           ),
           // Modal loading overlay
           if (isLoading) ...[
-            const ModalBarrier(
-                color: Color(0x88000000), dismissible: false),
+            const ModalBarrier(color: Color(0x88000000), dismissible: false),
             const Center(
                 child: CircularProgressIndicator(color: AppColors.clay)),
           ],
@@ -197,8 +195,7 @@ class PaywallScreen extends ConsumerWidget {
   }
 
   Future<void> _restore(BuildContext context, WidgetRef ref) async {
-    final info =
-        await ref.read(purchaseNotifierProvider.notifier).restore();
+    final info = await ref.read(purchaseNotifierProvider.notifier).restore();
     if (!context.mounted) return;
     if (info == null) return;
     if (PurchaseService.hasPremium(info)) {
@@ -248,8 +245,7 @@ class _AnnualButton extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.stars_rounded,
-                    color: Colors.white, size: 18),
+                const Icon(Icons.stars_rounded, color: Colors.white, size: 18),
                 const SizedBox(width: 8),
                 Text(
                   'paywall.annual_button'.tr(namedArgs: {'price': price}),
@@ -307,8 +303,8 @@ class _MonthlyButton extends StatelessWidget {
         child: Center(
           child: Text(
             'paywall.monthly_button'.tr(namedArgs: {'price': price}),
-            style: AppTextStyles.fig(14, FontWeight.w500)
-                .copyWith(color: muted),
+            style:
+                AppTextStyles.fig(14, FontWeight.w500).copyWith(color: muted),
           ),
         ),
       ),
@@ -325,8 +321,7 @@ class _ButtonSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return const SizedBox(
       height: 56,
-      child: Center(
-          child: CircularProgressIndicator(color: AppColors.clay)),
+      child: Center(child: CircularProgressIndicator(color: AppColors.clay)),
     );
   }
 }

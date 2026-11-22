@@ -48,8 +48,8 @@ void main() {
 
     test('odd limit with halfLimit fetches still fills exactly', () {
       // limit 5 → halfLimit 3 per side → 6 interleaved → capped to 5.
-      final result = interleaveAndCap(
-          ['f1', 'f2', 'f3'], ['k1', 'k2', 'k3'], 5);
+      final result =
+          interleaveAndCap(['f1', 'f2', 'f3'], ['k1', 'k2', 'k3'], 5);
       expect(result.length, 5);
     });
   });
@@ -99,11 +99,10 @@ void main() {
       return best;
     }
 
-    test('adjacent same-concept pair gets ≥2 cards between its directions',
-        () {
+    test('adjacent same-concept pair gets ≥2 cards between its directions', () {
       // Interleaved deal: a1, a2 are the same concept back-to-back.
-      final out = spaceOutDuplicates(
-          ['a1', 'a2', 'b1', 'b2', 'c1', 'c2'], keyOf);
+      final out =
+          spaceOutDuplicates(['a1', 'a2', 'b1', 'b2', 'c1', 'c2'], keyOf);
       expect(out.toSet(), {'a1', 'a2', 'b1', 'b2', 'c1', 'c2'});
       expect(minDistance(out), greaterThanOrEqualTo(3));
     });
@@ -119,8 +118,8 @@ void main() {
     });
 
     test('null keys never conflict', () {
-      final out =
-          spaceOutDuplicates(['a1', 'a2', 'x', 'y'], (s) => s == 'x' || s == 'y' ? null : 'a');
+      final out = spaceOutDuplicates(
+          ['a1', 'a2', 'x', 'y'], (s) => s == 'x' || s == 'y' ? null : 'a');
       expect(out.length, 4);
     });
   });

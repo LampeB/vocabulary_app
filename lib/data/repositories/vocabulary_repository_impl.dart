@@ -35,8 +35,9 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   final AppDatabase _database;
 
   @override
-  Stream<List<VocabularyList>> watchMyLists() =>
-      _listDao.watchByOwner(_userId).map((rows) => rows.map((r) => r.toDomain()).toList());
+  Stream<List<VocabularyList>> watchMyLists() => _listDao
+      .watchByOwner(_userId)
+      .map((rows) => rows.map((r) => r.toDomain()).toList());
 
   @override
   Future<Result<VocabularyList>> createList({
@@ -95,8 +96,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         for (final id in variantIds) {
           await _conceptDao.softDeleteVariant(id);
         }
-        await _database.progressDao.deleteProgressForVariants(
-            userId: _userId, variantIds: variantIds);
+        await _database.progressDao
+            .deleteProgressForVariants(userId: _userId, variantIds: variantIds);
       });
       unawaited(_remote.deleteList(listId));
       return const Success(null);
@@ -249,7 +250,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
 
   @override
   Future<Result<Concept>> updateConcept(Concept concept) async {
-    final updated = concept.copyWith(updatedAt: DateTime.now(), isSynced: false);
+    final updated =
+        concept.copyWith(updatedAt: DateTime.now(), isSynced: false);
     try {
       await _conceptDao.upsert(ConceptsTableCompanion(
         id: Value(updated.id),
@@ -373,7 +375,9 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   Future<Result<Map<String, dynamic>>> exportToJson(String listId) async {
     try {
       final listRow = await _listDao.getById(listId);
-      if (listRow == null) return const Failure(NotFoundException('List not found'));
+      if (listRow == null) {
+        return const Failure(NotFoundException('List not found'));
+      }
 
       final concepts = await _conceptDao.getConceptsByList(listId);
       final conceptsJson = <Map<String, dynamic>>[];
@@ -469,10 +473,9 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
             updatedAt: Value(now),
           ));
 
-          final variants =
-              (_field<List>(cData, 'variants', 'word_variants'))
-                      ?.cast<Map<String, dynamic>>() ??
-                  [];
+          final variants = (_field<List>(cData, 'variants', 'word_variants'))
+                  ?.cast<Map<String, dynamic>>() ??
+              [];
           for (final vData in variants) {
             final variantId = _uuid.v4();
             final word = vData['word'] as String? ?? '';
@@ -496,8 +499,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
               contextTags: Value(jsonEncode(
                   _field<List>(vData, 'contextTags', 'context_tags') ??
                       const [])),
-              isPrimary:
-                  Value(_field<bool>(vData, 'isPrimary', 'is_primary') ?? false),
+              isPrimary: Value(
+                  _field<bool>(vData, 'isPrimary', 'is_primary') ?? false),
               position: Value(vData['position'] as int? ?? 0),
               example: Value(vData['example'] as String?),
               audioPath: Value(audioPath),
@@ -556,23 +559,29 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     final remoteResult = await _remote.fetchPublicListByToken(token);
     if (remoteResult case Failure(:final exception)) return Failure(exception);
     final data = (remoteResult as Success).value;
-    if (data == null) return const Failure(NotFoundException('Shared list not found'));
+    if (data == null) {
+      return const Failure(NotFoundException('Shared list not found'));
+    }
 
-    final remoteConcepts = (data['concepts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final remoteConcepts =
+        (data['concepts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     final conceptsJson = remoteConcepts.map((c) {
-      final variants = (c['word_variants'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final variants =
+          (c['word_variants'] as List?)?.cast<Map<String, dynamic>>() ?? [];
       return {
         'category': c['category'],
         'notes': c['notes'],
         'exampleFr': c['example_fr'],
         'exampleKo': c['example_ko'],
-        'variants': variants.map((v) => {
-          'word': v['word'],
-          'langCode': v['lang_code'],
-          'registerTag': v['register_tag'],
-          'isPrimary': v['is_primary'],
-          'position': v['position'],
-        }).toList(),
+        'variants': variants
+            .map((v) => {
+                  'word': v['word'],
+                  'langCode': v['lang_code'],
+                  'registerTag': v['register_tag'],
+                  'isPrimary': v['is_primary'],
+                  'position': v['position'],
+                })
+            .toList(),
       };
     }).toList();
 
@@ -620,17 +629,16 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
               createdAt: Value(DateTime.parse(c['created_at'] as String)),
               updatedAt: Value(DateTime.parse(c['updated_at'] as String)),
             ));
-            final variants = (c['word_variants'] as List?)
-                    ?.cast<Map<String, dynamic>>() ??
-                [];
+            final variants =
+                (c['word_variants'] as List?)?.cast<Map<String, dynamic>>() ??
+                    [];
             for (final v in variants) {
               await _conceptDao.upsertVariant(WordVariantsTableCompanion(
                 id: Value(v['id'] as String),
                 conceptId: Value(v['concept_id'] as String),
                 word: Value(v['word'] as String? ?? ''),
                 langCode: Value(v['lang_code'] as String? ?? 'fr'),
-                registerTag:
-                    Value(v['register_tag'] as String? ?? 'neutral'),
+                registerTag: Value(v['register_tag'] as String? ?? 'neutral'),
                 contextTags:
                     Value(jsonEncode(v['context_tags'] as List? ?? const [])),
                 isPrimary: Value(v['is_primary'] as bool? ?? false),
@@ -639,10 +647,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
                 audioPath: Value(v['audio_path'] as String?),
                 isDeleted: Value(v['is_deleted'] as bool? ?? false),
                 isSynced: const Value(true),
-                createdAt:
-                    Value(DateTime.parse(v['created_at'] as String)),
-                updatedAt:
-                    Value(DateTime.parse(v['updated_at'] as String)),
+                createdAt: Value(DateTime.parse(v['created_at'] as String)),
+                updatedAt: Value(DateTime.parse(v['updated_at'] as String)),
               ));
             }
           }

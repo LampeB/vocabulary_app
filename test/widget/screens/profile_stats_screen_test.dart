@@ -63,8 +63,8 @@ void main() {
         tester,
         screen: const ProfileScreen(),
         overrides: [
-          currentUserProvider.overrideWithValue(
-              _user(sub: premium ? SubscriptionType.premium : SubscriptionType.free)),
+          currentUserProvider.overrideWithValue(_user(
+              sub: premium ? SubscriptionType.premium : SubscriptionType.free)),
           isPremiumProvider.overrideWithValue(premium),
         ],
         routes: [stub('/stats'), stub('/settings'), stub('/notifications')],
@@ -73,8 +73,8 @@ void main() {
 
     testWidgets('shows the user identity', (tester) async {
       await pump(tester);
-      expect(find.byKey(const ValueKey(WidgetKeys.screenProfile)),
-          findsOneWidget);
+      expect(
+          find.byKey(const ValueKey(WidgetKeys.screenProfile)), findsOneWidget);
       expect(find.text('Thomas'), findsWidgets);
     });
 
@@ -82,8 +82,7 @@ void main() {
       await pump(tester);
       await tester.ensureVisible(
           find.byKey(const ValueKey(WidgetKeys.profileTileStats)));
-      await tester
-          .tap(find.byKey(const ValueKey(WidgetKeys.profileTileStats)));
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.profileTileStats)));
       await tester.pumpAndSettle();
       expect(navigatedTo, '/stats');
     });

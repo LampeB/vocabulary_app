@@ -388,8 +388,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       final rows =
           await conceptDao.getVariantsByConceptIds(allConceptIds, langCode);
       for (final v in rows) {
-        ((answerByConceptAndLang[v.conceptId] ??= {})[langCode] ??= [])
-            .add(v);
+        ((answerByConceptAndLang[v.conceptId] ??= {})[langCode] ??= []).add(v);
       }
     }
 
@@ -416,8 +415,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         questionAudioPath: questionAudioPathMap[p.variantId],
         answerWords: answerVariants.map((v) => v.word).toList(),
         answerAudioPath: answerVariants
-            .firstWhere((v) => v.isPrimary,
-                orElse: () => answerVariants.first)
+            .firstWhere((v) => v.isPrimary, orElse: () => answerVariants.first)
             .audioPath,
       ));
     }
@@ -460,12 +458,12 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     final audio = _audio;
     if (audio == null) return;
     for (final card in cards) {
-      await audio.prefetch(card.questionWord,
-          card.progress.direction.questionLang,
+      await audio.prefetch(
+          card.questionWord, card.progress.direction.questionLang,
           audioPath: card.questionAudioPath);
       if (card.answerWords.isNotEmpty) {
-        await audio.prefetch(card.answerWords.first,
-            card.progress.direction.answerLang,
+        await audio.prefetch(
+            card.answerWords.first, card.progress.direction.answerLang,
             audioPath: card.answerAudioPath);
       }
     }

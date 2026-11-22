@@ -78,8 +78,8 @@ Future<(ProviderContainer, _FakeRepo)> _harness({
   final container = ProviderContainer(overrides: [
     isPremiumProvider.overrideWithValue(premium),
     vocabularyRepositoryProvider.overrideWithValue(repo),
-    myListsProvider.overrideWith((ref) => Stream.value(
-        List.generate(existingLists, (i) => _list(id: 'l$i')))),
+    myListsProvider.overrideWith((ref) =>
+        Stream.value(List.generate(existingLists, (i) => _list(id: 'l$i')))),
   ]);
   addTearDown(container.dispose);
   await container.read(myListsProvider.future); // ensure the stream emitted
@@ -89,8 +89,8 @@ Future<(ProviderContainer, _FakeRepo)> _harness({
 void main() {
   group('createList quota', () {
     test('free user at the list limit is blocked with QuotaExceeded', () async {
-      final (container, repo) =
-          await _harness(premium: false, existingLists: AppConfig.maxFreeVocabLists);
+      final (container, repo) = await _harness(
+          premium: false, existingLists: AppConfig.maxFreeVocabLists);
 
       final result = await container
           .read(listActionsProvider.notifier)
@@ -113,16 +113,14 @@ void main() {
       expect(repo.createListCalls, 1);
     });
 
-    test('seeded starter lists do NOT count against the free quota',
-        () async {
+    test('seeded starter lists do NOT count against the free quota', () async {
       final repo = _FakeRepo();
       final container = ProviderContainer(overrides: [
         isPremiumProvider.overrideWithValue(false),
         vocabularyRepositoryProvider.overrideWithValue(repo),
         myListsProvider.overrideWith((ref) => Stream.value([
               // 6 seeded lists + 2 user lists: still under the 3-user-list cap.
-              for (var i = 0; i < 6; i++)
-                _list(id: 's$i', origin: 'starter'),
+              for (var i = 0; i < 6; i++) _list(id: 's$i', origin: 'starter'),
               _list(id: 'u1'),
               _list(id: 'u2'),
             ])),

@@ -157,7 +157,10 @@ void main() {
       const fr = 2;
       const ko = 3;
       final result = await repo.importFromJson(
-        _makeJson(conceptCount: 4, frVariantsPerConcept: fr, koVariantsPerConcept: ko),
+        _makeJson(
+            conceptCount: 4,
+            frVariantsPerConcept: fr,
+            koVariantsPerConcept: ko),
       );
       final listId = (result as Success<VocabularyList>).value.id;
       final concepts = await db.conceptDao.getConceptsByList(listId);
@@ -187,8 +190,18 @@ void main() {
               'example_fr': 'Bonjour, professeur !',
               'example_ko': '안녕하세요, 선생님!',
               'word_variants': [
-                {'word': 'hello', 'lang_code': 'en', 'is_primary': true, 'position': 0},
-                {'word': 'hallo', 'lang_code': 'de', 'is_primary': true, 'position': 0},
+                {
+                  'word': 'hello',
+                  'lang_code': 'en',
+                  'is_primary': true,
+                  'position': 0
+                },
+                {
+                  'word': 'hallo',
+                  'lang_code': 'de',
+                  'is_primary': true,
+                  'position': 0
+                },
               ],
             },
           ],
@@ -231,7 +244,8 @@ void main() {
       expect(visibleConcepts.length, 3);
     });
 
-    test('stores optional metadata fields (category, notes, examples)', () async {
+    test('stores optional metadata fields (category, notes, examples)',
+        () async {
       final result = await repo.importFromJson(_makeJson(conceptCount: 2));
       final listId = (result as Success<VocabularyList>).value.id;
       final concepts = await db.conceptDao.getConceptsByList(listId);
@@ -278,8 +292,10 @@ void main() {
       expect(result, isA<Failure>());
     });
 
-    test('exported JSON contains list name and correct concept count', () async {
-      final importResult = await repo.importFromJson(_makeJson(conceptCount: 4));
+    test('exported JSON contains list name and correct concept count',
+        () async {
+      final importResult =
+          await repo.importFromJson(_makeJson(conceptCount: 4));
       final listId = (importResult as Success<VocabularyList>).value.id;
 
       final exportResult = await repo.exportToJson(listId);
@@ -312,8 +328,7 @@ void main() {
 
       for (final c in concepts) {
         final variants = await db.conceptDao.getVariantsByConcept(c.id);
-        expect(variants.length, 3,
-            reason: '2 fr + 1 ko variants per concept');
+        expect(variants.length, 3, reason: '2 fr + 1 ko variants per concept');
       }
     });
   });
@@ -349,8 +364,8 @@ void main() {
 
   group('wordCount reflects live concept count', () {
     test('adding 3 words → wordCount is 3', () async {
-      final listId = ((await repo.createList(name: 'Counter', description: null))
-              as Success<VocabularyList>)
+      final listId = ((await repo.createList(
+              name: 'Counter', description: null)) as Success<VocabularyList>)
           .value
           .id;
 
@@ -364,8 +379,8 @@ void main() {
     });
 
     test('deleting 1 of 3 words → wordCount drops to 2', () async {
-      final listId = ((await repo.createList(name: 'Counter', description: null))
-              as Success<VocabularyList>)
+      final listId = ((await repo.createList(
+              name: 'Counter', description: null)) as Success<VocabularyList>)
           .value
           .id;
 
@@ -382,13 +397,15 @@ void main() {
     });
 
     test('deleting all words → wordCount is 0', () async {
-      final listId = ((await repo.createList(name: 'Counter', description: null))
-              as Success<VocabularyList>)
+      final listId = ((await repo.createList(
+              name: 'Counter', description: null)) as Success<VocabularyList>)
           .value
           .id;
 
-      final id1 = ((await repo.createConcept(listId: listId)) as Success).value.id;
-      final id2 = ((await repo.createConcept(listId: listId)) as Success).value.id;
+      final id1 =
+          ((await repo.createConcept(listId: listId)) as Success).value.id;
+      final id2 =
+          ((await repo.createConcept(listId: listId)) as Success).value.id;
 
       await repo.deleteConcept(id1);
       await repo.deleteConcept(id2);

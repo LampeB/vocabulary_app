@@ -67,7 +67,8 @@ class _NoopAudio implements AudioPlayerService {
   @override
   Future<void> warmUp(String langCode) async {}
   @override
-  Future<void> prefetch(String text, String langCode, {String? audioPath}) async {}
+  Future<void> prefetch(String text, String langCode,
+      {String? audioPath}) async {}
   @override
   Future<void> speak(String text, String langCode, {String? audioPath}) async {}
   @override
@@ -201,12 +202,12 @@ void main() {
   final specs = <_ScreenSpec>[
     _ScreenSpec('HomeScreen', () => const HomeScreen(), settle: false),
     _ScreenSpec('ListsScreen', () => const ListsScreen()),
-    _ScreenSpec('ListDetailScreen',
-        () => const ListDetailScreen(listId: 'missing')),
+    _ScreenSpec(
+        'ListDetailScreen', () => const ListDetailScreen(listId: 'missing')),
     _ScreenSpec('StartSessionScreen', () => const StartSessionScreen()),
     _ScreenSpec('SettingsScreen', () => const SettingsScreen()),
-    _ScreenSpec('NotificationSettingsScreen',
-        () => const NotificationSettingsScreen()),
+    _ScreenSpec(
+        'NotificationSettingsScreen', () => const NotificationSettingsScreen()),
     _ScreenSpec('ProfileScreen', () => const ProfileScreen()),
     _ScreenSpec('StatsScreen', () => const StatsScreen()),
     _ScreenSpec('SocialScreen', () => const SocialScreen()),
@@ -249,8 +250,7 @@ void main() {
           final scaffoldFinder = find.byType(Scaffold).first;
           final scaffold = tester.widget<Scaffold>(scaffoldFinder);
           final bg = scaffold.backgroundColor ??
-              Theme.of(tester.element(scaffoldFinder))
-                  .scaffoldBackgroundColor;
+              Theme.of(tester.element(scaffoldFinder)).scaffoldBackgroundColor;
           final luminance = bg.computeLuminance();
           expect(
             isDark ? luminance < 0.5 : luminance > 0.5,

@@ -191,8 +191,8 @@ Progress/FSRS layer over in-memory DB.
 
 ---
 
-**Total: 746 host tests** (`flutter test`, last full local snapshot before the
-V3 documentation refresh), plus the Patrol
+**Total: 822 host tests** (`flutter test`, last full local validation on
+2026-11-22), plus the Patrol
 E2E suite above (run on a device).
 
 ---

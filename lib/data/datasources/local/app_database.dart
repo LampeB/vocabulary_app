@@ -102,7 +102,8 @@ class AppDatabase extends _$AppDatabase {
             // concepts; seed ids give seeded lists/concepts a stable identity
             // for dedup and top-up.
             await m.addColumn(wordVariantsTable, wordVariantsTable.example);
-            await m.addColumn(vocabularyListsTable, vocabularyListsTable.seedId);
+            await m.addColumn(
+                vocabularyListsTable, vocabularyListsTable.seedId);
             await m.addColumn(conceptsTable, conceptsTable.seedId);
             // Backfill: copy the legacy per-concept examples onto the primary
             // fr/ko variants they belong to.
@@ -137,11 +138,9 @@ class AppDatabase extends _$AppDatabase {
         'CREATE INDEX IF NOT EXISTS idx_progress_user_next ON variant_progress(user_id, next_review)');
     await customStatement(
         'CREATE INDEX IF NOT EXISTS idx_progress_unsynced ON variant_progress(is_synced)');
-    await customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_sessions_user '
+    await customStatement('CREATE INDEX IF NOT EXISTS idx_sessions_user '
         'ON quiz_sessions(user_id, completed_at)');
-    await customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_review_events_user '
+    await customStatement('CREATE INDEX IF NOT EXISTS idx_review_events_user '
         'ON review_events(user_id, created_at)');
   }
 

@@ -140,8 +140,7 @@ void main() {
     expect(container.read(authStateProvider).valueOrNull?.currentStreak, 9);
   });
 
-  test('an auth-state event with null signs the user out reactively',
-      () async {
+  test('an auth-state event with null signs the user out reactively', () async {
     repo.current = _user();
     repo.profile = _user();
     await container.read(authStateProvider.future);

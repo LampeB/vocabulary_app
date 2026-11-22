@@ -8,9 +8,7 @@ void main() {
   ValidationResult validate(String user, List<String> accepted,
           {bool driving = false}) =>
       AnswerValidator.validate(
-          userAnswer: user,
-          acceptedAnswers: accepted,
-          isDrivingMode: driving);
+          userAnswer: user, acceptedAnswers: accepted, isDrivingMode: driving);
 
   group('base verdicts', () {
     test('empty transcript → incorrect', () {
@@ -109,8 +107,7 @@ void main() {
   });
 
   group('phonetic pass (field bug 2026-07-10 — whisper garbles sounds)', () {
-    test('"Mauvi" scores close to "mauvais" — same sounds, alien spelling',
-        () {
+    test('"Mauvi" scores close to "mauvais" — same sounds, alien spelling', () {
       final r = validate('Mauvi', ['mauvais'], driving: true);
       // /movi/ vs /move/ — sound-space similarity must beat the near-zero
       // bigram score and clear the lenient (Souple 0.55) bar.
@@ -135,8 +132,8 @@ void main() {
     });
 
     test('unrelated French words remain rejected', () {
-      expect(validate('bonjour', ['mauvais'], driving: true).isCorrect,
-          isFalse);
+      expect(
+          validate('bonjour', ['mauvais'], driving: true).isCorrect, isFalse);
     });
   });
 
@@ -227,8 +224,7 @@ void main() {
       expect(validate('l’eau', ['eau'], driving: true).isCorrect, isTrue);
     });
 
-    test('elision on BOTH sides stays consistent (accepted answer has it)',
-        () {
+    test('elision on BOTH sides stays consistent (accepted answer has it)', () {
       expect(validate("j'aime", ["j'aime"], driving: true).isCorrect, isTrue);
       expect(validate('aime', ["j'aime"], driving: true).isCorrect, isTrue);
     });

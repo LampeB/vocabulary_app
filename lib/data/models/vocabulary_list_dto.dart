@@ -67,7 +67,8 @@ extension VocabularyListFromRemote on Map<String, dynamic> {
         ownerId: this['owner_id'] as String,
         name: this['name'] as String,
         description: this['description'] as String?,
-        visibility: ListVisibility.values.byName(this['visibility'] as String? ?? 'private'),
+        visibility: ListVisibility.values
+            .byName(this['visibility'] as String? ?? 'private'),
         wordCount: this['word_count'] as int? ?? 0,
         shareToken: this['share_token'] as String?,
         langA: this['lang_a'] as String? ?? 'fr',

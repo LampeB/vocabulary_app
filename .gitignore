@@ -27,8 +27,11 @@ migrate_working_dir/
 .env.json
 test*.env.json
 
-# Local Codex desktop configuration (machine-specific paths and connectors)
-/.codex/
+# Local Codex desktop configuration (machine-specific paths and connectors).
+# The project-owned reviewer profiles are intentionally versioned.
+/.codex/*
+!/.codex/agents/
+!/.codex/agents/*.toml
 
 # Obsidian keeps this layout per local machine; the shared vault settings are
 # versioned in .obsidian/app.json.

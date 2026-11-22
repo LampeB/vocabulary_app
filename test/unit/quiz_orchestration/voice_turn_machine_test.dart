@@ -83,7 +83,8 @@ void main() {
   });
 
   group('not-heard ladder (3 attempts, rescue engine last)', () {
-    test('silence retries with the prompt, and the LAST attempt uses the '
+    test(
+        'silence retries with the prompt, and the LAST attempt uses the '
         'rescue engine', () {
       final m = machine();
       toListening(m, 1); // attempt 1
@@ -104,7 +105,8 @@ void main() {
       expect((out.single as OpenMic).useRescueEngine, isTrue);
     });
 
-    test('silence NEVER grades wrong — ladder exhausted skips without '
+    test(
+        'silence NEVER grades wrong — ladder exhausted skips without '
         'grading (user feedback 2026-07-06)', () {
       final m = machine();
       toListening(m, 1);
@@ -150,8 +152,7 @@ void main() {
   });
 
   group('throttle storm (dead 15ms sessions, field 2026-07-19/21)', () {
-    test('instant engine deaths retry via the ladder without ever grading',
-        () {
+    test('instant engine deaths retry via the ladder without ever grading', () {
       final m = machine();
       toListening(m, 1);
       // The mic "opens" then the engine dies instantly, repeatedly:
@@ -197,7 +198,8 @@ void main() {
   });
 
   group('consecutive-silence auto-pause (environment failure)', () {
-    test('two silent-skipped cards in a row pause the session; real speech '
+    test(
+        'two silent-skipped cards in a row pause the session; real speech '
         'resets the streak', () {
       final m = machine();
 

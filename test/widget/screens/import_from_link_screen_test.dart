@@ -33,8 +33,18 @@ class _SharedListRemote extends FakeRemote {
           'example_fr': null,
           'example_ko': null,
           'word_variants': [
-            {'word': 'merci', 'lang_code': 'fr', 'is_primary': true, 'position': 0},
-            {'word': '감사합니다', 'lang_code': 'ko', 'is_primary': true, 'position': 0},
+            {
+              'word': 'merci',
+              'lang_code': 'fr',
+              'is_primary': true,
+              'position': 0
+            },
+            {
+              'word': '감사합니다',
+              'lang_code': 'ko',
+              'is_primary': true,
+              'position': 0
+            },
           ],
         },
       ],
@@ -92,8 +102,8 @@ void main() {
     await pump(tester, token: 'good-token');
 
     expect(navigatedTo, startsWith('/lists/'));
-    final imported = await tester.runAsync(
-        () => db.vocabularyListDao.getByShareToken('good-token'));
+    final imported = await tester
+        .runAsync(() => db.vocabularyListDao.getByShareToken('good-token'));
     expect(imported, isNotNull);
     expect(imported!.name, 'Liste partagée');
   });

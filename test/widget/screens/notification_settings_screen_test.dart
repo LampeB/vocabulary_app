@@ -44,8 +44,8 @@ void main() {
       );
 
   ProviderContainer container(WidgetTester tester) =>
-      ProviderScope.containerOf(tester.element(
-          find.byKey(const ValueKey(WidgetKeys.screenNotifications))));
+      ProviderScope.containerOf(tester
+          .element(find.byKey(const ValueKey(WidgetKeys.screenNotifications))));
 
   testWidgets('renders with both toggles on by default and schedules 09:00',
       (tester) async {
@@ -67,8 +67,11 @@ void main() {
     await tester.tap(find.byType(Switch).first);
     await tester.pumpAndSettle();
 
-    expect(container(tester).read(notificationSettingsProvider)
-        .dailyReminderEnabled, isFalse);
+    expect(
+        container(tester)
+            .read(notificationSettingsProvider)
+            .dailyReminderEnabled,
+        isFalse);
     expect(svc.calls, contains('cancelDaily'));
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool('notif_daily_enabled'), isFalse);
@@ -81,8 +84,11 @@ void main() {
     await tester.tap(find.byType(Switch).last);
     await tester.pumpAndSettle();
 
-    expect(container(tester).read(notificationSettingsProvider)
-        .streakWarningEnabled, isFalse);
+    expect(
+        container(tester)
+            .read(notificationSettingsProvider)
+            .streakWarningEnabled,
+        isFalse);
     expect(svc.calls, contains('cancelStreak'));
   });
 

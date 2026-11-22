@@ -83,7 +83,7 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- La suite compte **752** tests hôte lors de la dernière validation locale
+- La suite compte **822** tests hôte lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - La CI Patrol contient neuf suites Android, lançables manuellement avec des
@@ -97,7 +97,7 @@ de contenu avant bêta pédagogique.
   configuration, puis échoué avant les tests sur une incompatibilité du CLI.
   La CI fixe désormais Patrol CLI 4.4.0 pour Patrol 4.6.1. Le reset refuse
   une identité attribuée à un autre scénario et les relations intercomptes.
-  Les 752 tests hôte, les contrôles Python et les tests SQL sur base jetable
+  Les 822 tests hôte, les contrôles Python et les tests SQL sur base jetable
   passent ; `flutter analyze` ne rapporte aucun problème. Procédure dans le
   [runbook E2E](docs/runbooks/e2e-account.md).
 - Le run parallèle a validé sept suites sur neuf. Le chemin quotidien a
@@ -133,8 +133,9 @@ de contenu avant bêta pédagogique.
   [`docs/runbooks/documentation-et-commits.md`](docs/runbooks/documentation-et-commits.md).
 - Le protocole de validation des PR est décidé : quatre relecteurs agents
   indépendants doivent converger sur deux passes propres consécutives, sans se
-  substituer à la CI ni à l'approbation humaine. Son orchestration et les
-  protections GitHub restent à implémenter ; voir
+  substituer à la CI ni à l'approbation humaine. Le skill, les quatre profils,
+  le hook et la CI sont implémentés sur la branche d'intégration ; la
+  protection GitHub de `main` est la dernière activation distante requise ; voir
   [`docs/pr-validation.md`](docs/pr-validation.md).
 - Les anciennes maquettes, audits et plans V1/V2 ont été retirés du vault pour
   éviter les sources concurrentes ; leur historique reste récupérable dans Git.

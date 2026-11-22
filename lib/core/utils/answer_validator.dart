@@ -74,7 +74,8 @@ abstract final class AnswerValidator {
       for (final a in acceptedAnswers)
         ...a.split('/').map((p) => stripAnnotations(p)),
     }.where((a) => a.trim().isNotEmpty).toList();
-    sttLog('[VAL] validate: transcript="$userAnswer"  accepted=$acceptedAnswers  isDrivingMode=$isDrivingMode');
+    sttLog(
+        '[VAL] validate: transcript="$userAnswer"  accepted=$acceptedAnswers  isDrivingMode=$isDrivingMode');
 
     if (userAnswer.trim().isEmpty) {
       sttLog('[VAL] → empty transcript → incorrect');
@@ -103,7 +104,8 @@ abstract final class AnswerValidator {
         bestMatch = answer;
       }
     }
-    sttLog('[VAL] After main loop: bestScore=${bestScore.toStringAsFixed(3)}  bestMatch="$bestMatch"');
+    sttLog(
+        '[VAL] After main loop: bestScore=${bestScore.toStringAsFixed(3)}  bestMatch="$bestMatch"');
 
     if (bestScore < threshold && normalizedUser.contains(' ')) {
       for (final word in normalizedUser.split(RegExp(r'\s+'))) {
@@ -132,7 +134,8 @@ abstract final class AnswerValidator {
       for (final answer in acceptedAnswers) {
         final normAnswer = _normalize(answer);
         if (normAnswer.length >= 2 && normalizedUser.startsWith(normAnswer)) {
-          sttLog('[VAL]   prefix match: "$normalizedUser" starts with "$normAnswer" → score=1.0');
+          sttLog(
+              '[VAL]   prefix match: "$normalizedUser" starts with "$normAnswer" → score=1.0');
           bestScore = 1.0;
           bestMatch = answer;
           break outer;
@@ -144,14 +147,16 @@ abstract final class AnswerValidator {
               normalizedUser.substring(0, normalizedUser.length - strip);
           final score =
               _scoreAgainst(stripped, normAnswer, spoken: isDrivingMode);
-          sttLog('[VAL]   strip=$strip → "$stripped" vs "$normAnswer" = ${score.toStringAsFixed(3)}');
+          sttLog(
+              '[VAL]   strip=$strip → "$stripped" vs "$normAnswer" = ${score.toStringAsFixed(3)}');
           if (score > bestScore) {
             bestScore = score;
             bestMatch = answer;
           }
         }
       }
-      sttLog('[VAL] After particle-strip pass: bestScore=${bestScore.toStringAsFixed(3)}  bestMatch="$bestMatch"');
+      sttLog(
+          '[VAL] After particle-strip pass: bestScore=${bestScore.toStringAsFixed(3)}  bestMatch="$bestMatch"');
     }
 
     if (bestScore >= 0.98) {
@@ -174,7 +179,8 @@ abstract final class AnswerValidator {
         matchedWord: bestMatch,
       );
     }
-    sttLog('[VAL] ❌ INCORRECT  score=${bestScore.toStringAsFixed(3)}  threshold=$threshold');
+    sttLog(
+        '[VAL] ❌ INCORRECT  score=${bestScore.toStringAsFixed(3)}  threshold=$threshold');
     return ValidationResult(
       isCorrect: false,
       score: bestScore,
@@ -190,10 +196,14 @@ abstract final class AnswerValidator {
   /// collapses the classes before jamo similarity; typed mode never does —
   /// spelling distinctions are the point when typing.
   static const _laxJamo = {
-    'ㅍ': 'ㅂ', 'ㅃ': 'ㅂ',
-    'ㅌ': 'ㄷ', 'ㄸ': 'ㄷ',
-    'ㅋ': 'ㄱ', 'ㄲ': 'ㄱ',
-    'ㅊ': 'ㅈ', 'ㅉ': 'ㅈ',
+    'ㅍ': 'ㅂ',
+    'ㅃ': 'ㅂ',
+    'ㅌ': 'ㄷ',
+    'ㄸ': 'ㄷ',
+    'ㅋ': 'ㄱ',
+    'ㄲ': 'ㄱ',
+    'ㅊ': 'ㅈ',
+    'ㅉ': 'ㅈ',
     'ㅆ': 'ㅅ',
   };
 
@@ -217,9 +227,8 @@ abstract final class AnswerValidator {
       if (jamoScore > best) best = jamoScore;
       if (spoken) {
         // Capped below 1.0 so phonetic equivalence can't claim EXACT.
-        final laxScore = _laxKorean(jamoA)
-            .similarityTo(_laxKorean(jamoB))
-            .clamp(0.0, 0.95);
+        final laxScore =
+            _laxKorean(jamoA).similarityTo(_laxKorean(jamoB)).clamp(0.0, 0.95);
         if (laxScore > best) best = laxScore;
       }
       return best;

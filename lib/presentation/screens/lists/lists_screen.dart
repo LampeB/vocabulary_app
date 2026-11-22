@@ -37,8 +37,8 @@ class ListsScreen extends ConsumerWidget {
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'import',
@@ -63,8 +63,7 @@ class ListsScreen extends ConsumerWidget {
             error: (e, _) => Center(
               child: Text(
                   'lists.error_loading'.tr(namedArgs: {'error': e.toString()}),
-                  style: AppTextStyles.caption
-                      .copyWith(color: AppColors.rose)),
+                  style: AppTextStyles.caption.copyWith(color: AppColors.rose)),
             ),
             data: (lists) => lists.isEmpty
                 ? _EmptyState(
@@ -72,18 +71,16 @@ class ListsScreen extends ConsumerWidget {
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                     itemCount: lists.length,
-                    separatorBuilder: (_, __) =>
-                        const SizedBox(height: 10),
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (ctx, i) => _ListCard(
                       list: lists[i],
-                      accentColor: AppColors.listPalette[
-                          i % AppColors.listPalette.length],
-                      onTap: () =>
-                          context.push('/lists/${lists[i].id}'),
+                      accentColor: AppColors
+                          .listPalette[i % AppColors.listPalette.length],
+                      onTap: () => context.push('/lists/${lists[i].id}'),
                       onRename: () => _showRenameDialog(
                           ctx, ref, lists[i].id, lists[i].name),
-                      onExport: () => _exportList(
-                          ctx, ref, lists[i].id, lists[i].name),
+                      onExport: () =>
+                          _exportList(ctx, ref, lists[i].id, lists[i].name),
                       onShare: () => _generateAndShareLink(
                           ctx, ref, lists[i].id, lists[i].name),
                       onDelete: () =>
@@ -99,8 +96,7 @@ class ListsScreen extends ConsumerWidget {
         backgroundColor: AppColors.clay,
         foregroundColor: Colors.white,
         elevation: 0,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(999)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
         icon: const Icon(Icons.add, size: 20),
         label: Text('lists.fab_new'.tr(),
             style: AppTextStyles.fig(14, FontWeight.w700)),
@@ -123,13 +119,14 @@ class ListsScreen extends ConsumerWidget {
       final list = result.valueOrNull!;
       messenger.showSnackBar(SnackBar(
         content: Text(
-            '"${list.name}" ${'lists.import_snackbar_success'.tr(namedArgs: {'wordCount': list.wordCount.toString()})}'),
+            '"${list.name}" ${'lists.import_snackbar_success'.tr(namedArgs: {
+              'wordCount': list.wordCount.toString()
+            })}'),
       ));
     }
   }
 
-  Future<void> _exportList(
-      BuildContext context, WidgetRef ref, String listId,
+  Future<void> _exportList(BuildContext context, WidgetRef ref, String listId,
       String listName) async {
     final messenger = ScaffoldMessenger.of(context);
     final error = await ref
@@ -148,9 +145,8 @@ class ListsScreen extends ConsumerWidget {
         .generateAndShareLink(listId, listName);
     if (result.isFailure) {
       messenger.showSnackBar(SnackBar(
-        content: Text(
-            result.exceptionOrNull?.message ??
-                'lists.share_link_error_fallback'.tr()),
+        content: Text(result.exceptionOrNull?.message ??
+            'lists.share_link_error_fallback'.tr()),
       ));
     }
   }
@@ -176,8 +172,7 @@ class ListsScreen extends ConsumerWidget {
           // create-list dialog prefills it (user decision 2026-07-21:
           // per-list pair + a global default).
           if (result.isSuccess) {
-            unawaited(
-                ref.read(defaultPairProvider.notifier).set(langA, langB));
+            unawaited(ref.read(defaultPairProvider.notifier).set(langA, langB));
           }
           if (!ctx.mounted) return;
           if (result.isFailure) {
@@ -221,8 +216,8 @@ class ListsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context, WidgetRef ref,
-      String listId, String name) async {
+  Future<void> _confirmDelete(
+      BuildContext context, WidgetRef ref, String listId, String name) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -355,8 +350,8 @@ class _ListCard extends StatelessWidget {
         Icon(icon, size: 18, color: color),
         const SizedBox(width: 10),
         Text(label,
-            style: AppTextStyles.fig(14, FontWeight.w500)
-                .copyWith(color: color)),
+            style:
+                AppTextStyles.fig(14, FontWeight.w500).copyWith(color: color)),
       ]),
     );
   }
@@ -423,8 +418,8 @@ class _EmptyState extends StatelessWidget {
             GestureDetector(
               onTap: onCreateTap,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 decoration: BoxDecoration(
                   color: AppColors.clay,
                   borderRadius: BorderRadius.circular(999),

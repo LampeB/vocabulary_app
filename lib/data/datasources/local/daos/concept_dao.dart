@@ -6,8 +6,7 @@ import '../tables/word_variants_table.dart';
 part 'concept_dao.g.dart';
 
 @DriftAccessor(tables: [ConceptsTable, WordVariantsTable])
-class ConceptDao extends DatabaseAccessor<AppDatabase>
-    with _$ConceptDaoMixin {
+class ConceptDao extends DatabaseAccessor<AppDatabase> with _$ConceptDaoMixin {
   ConceptDao(super.db);
 
   Stream<List<ConceptsTableData>> watchByList(String listId) =>
@@ -22,9 +21,9 @@ class ConceptDao extends DatabaseAccessor<AppDatabase>
   Future<int> upsert(ConceptsTableCompanion companion) =>
       into(conceptsTable).insertOnConflictUpdate(companion);
 
-  Future<int> softDelete(String id) => (update(conceptsTable)
-        ..where((t) => t.id.equals(id)))
-      .write(ConceptsTableCompanion(
+  Future<int> softDelete(String id) =>
+      (update(conceptsTable)..where((t) => t.id.equals(id)))
+          .write(ConceptsTableCompanion(
         isDeleted: const Value(true),
         isSynced: const Value(false),
         updatedAt: Value(DateTime.now()),
@@ -32,8 +31,7 @@ class ConceptDao extends DatabaseAccessor<AppDatabase>
 
   Future<List<ConceptsTableData>> getConceptsByList(String listId) =>
       (select(conceptsTable)
-            ..where((t) =>
-                t.listId.equals(listId) & t.isDeleted.equals(false)))
+            ..where((t) => t.listId.equals(listId) & t.isDeleted.equals(false)))
           .get();
 
   Future<List<WordVariantsTableData>> getVariantsByConcept(String conceptId) =>
@@ -44,7 +42,7 @@ class ConceptDao extends DatabaseAccessor<AppDatabase>
           .get();
 
   Future<List<WordVariantsTableData>> getVariantsByConceptIds(
-      List<String> conceptIds, String langCode) =>
+          List<String> conceptIds, String langCode) =>
       (select(wordVariantsTable)
             ..where((t) =>
                 t.conceptId.isIn(conceptIds) &
@@ -59,9 +57,9 @@ class ConceptDao extends DatabaseAccessor<AppDatabase>
   Future<int> upsertVariant(WordVariantsTableCompanion companion) =>
       into(wordVariantsTable).insertOnConflictUpdate(companion);
 
-  Future<int> softDeleteVariant(String id) => (update(wordVariantsTable)
-        ..where((t) => t.id.equals(id)))
-      .write(WordVariantsTableCompanion(
+  Future<int> softDeleteVariant(String id) =>
+      (update(wordVariantsTable)..where((t) => t.id.equals(id)))
+          .write(WordVariantsTableCompanion(
         isDeleted: const Value(true),
         isSynced: const Value(false),
         updatedAt: Value(DateTime.now()),
@@ -94,8 +92,7 @@ class ConceptDao extends DatabaseAccessor<AppDatabase>
       (select(conceptsTable)..where((t) => t.isSynced.equals(false))).get();
 
   Future<List<WordVariantsTableData>> getUnsyncedVariants() =>
-      (select(wordVariantsTable)..where((t) => t.isSynced.equals(false)))
-          .get();
+      (select(wordVariantsTable)..where((t) => t.isSynced.equals(false))).get();
 
   Future<int> markConceptsSynced(List<String> ids) =>
       (update(conceptsTable)..where((t) => t.id.isIn(ids)))

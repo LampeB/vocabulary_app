@@ -43,9 +43,21 @@ class AppConstants {
   ];
 
   static const conceptCategories = [
-    'daily_life', 'food', 'travel', 'work', 'family',
-    'body', 'nature', 'emotions', 'numbers', 'colors',
-    'time', 'clothes', 'housing', 'technology', 'other',
+    'daily_life',
+    'food',
+    'travel',
+    'work',
+    'family',
+    'body',
+    'nature',
+    'emotions',
+    'numbers',
+    'colors',
+    'time',
+    'clothes',
+    'housing',
+    'technology',
+    'other',
   ];
 
   static const rcPremiumEntitlement = 'premium';

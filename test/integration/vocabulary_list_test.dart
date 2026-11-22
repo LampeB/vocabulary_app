@@ -31,7 +31,8 @@ void main() {
   // ── createList ────────────────────────────────────────────────────────────
 
   group('createList', () {
-    test('list appears in watchMyLists with correct name and ownerId', () async {
+    test('list appears in watchMyLists with correct name and ownerId',
+        () async {
       await repo.createList(name: 'My List', description: null);
       final lists = await repo.watchMyLists().first;
       expect(lists.length, 1);
@@ -128,7 +129,8 @@ void main() {
       expect(row!.isDeleted, isTrue);
     });
 
-    test('deleting a list cascades: its concepts are soft-deleted too '
+    test(
+        'deleting a list cascades: its concepts are soft-deleted too '
         '(mastery-loss decision 2026-07-04)', () async {
       await repo.createConcept(listId: created.id);
       await repo.createConcept(listId: created.id);
@@ -144,10 +146,9 @@ void main() {
 
   group('watchMyLists ordering', () {
     test('most recently updated list appears first (updatedAt DESC)', () async {
-      final r1 =
-          ((await repo.createList(name: 'First', description: null))
-                  as Success<VocabularyList>)
-              .value;
+      final r1 = ((await repo.createList(name: 'First', description: null))
+              as Success<VocabularyList>)
+          .value;
       await Future<void>.delayed(const Duration(milliseconds: 50));
       await repo.createList(name: 'Second', description: null);
 

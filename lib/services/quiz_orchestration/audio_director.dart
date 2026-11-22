@@ -11,7 +11,8 @@ import '../audio/sound_effects_service.dart';
 /// Later steps move earcons/SFX and the mic hand-off here too, then the
 /// VoiceTurnMachine consumes this as its audio command surface.
 class AudioDirector {
-  AudioDirector(this._audio, {SoundEffectsService? sfx, DateTime Function()? clock})
+  AudioDirector(this._audio,
+      {SoundEffectsService? sfx, DateTime Function()? clock})
       : _sfx = sfx ?? SoundEffectsService(),
         _clock = clock ?? DateTime.now;
 

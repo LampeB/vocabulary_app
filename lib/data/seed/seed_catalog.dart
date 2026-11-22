@@ -21,8 +21,8 @@ class SeedCatalog {
   static const registryAsset = 'assets/seed/vocab/registry.json';
 
   static Future<SeedCatalog> load(AssetBundle bundle) async {
-    final raw =
-        jsonDecode(await bundle.loadString(registryAsset)) as Map<String, dynamic>;
+    final raw = jsonDecode(await bundle.loadString(registryAsset))
+        as Map<String, dynamic>;
     final lists = [
       for (final l in (raw['lists'] as List).cast<Map<String, dynamic>>())
         SeedList(
@@ -97,11 +97,13 @@ class SeedLanguageLayer {
             ),
         ],
         example: map['example'] as String?,
-        notes: (map['notes'] as Map<String, dynamic>?)?.cast<String, String>() ??
-            const {},
+        notes:
+            (map['notes'] as Map<String, dynamic>?)?.cast<String, String>() ??
+                const {},
       );
     }
-    return SeedLanguageLayer(lang: raw['lang'] as String? ?? lang, entries: entries);
+    return SeedLanguageLayer(
+        lang: raw['lang'] as String? ?? lang, entries: entries);
   }
 }
 
@@ -161,8 +163,9 @@ class SeedTranslations {
       final code = locale.split('_').first;
       if (!seen.add(code)) continue;
       try {
-        maps.add(jsonDecode(await bundle.loadString(
-            'assets/translations/$code.json')) as Map<String, dynamic>);
+        maps.add(jsonDecode(
+                await bundle.loadString('assets/translations/$code.json'))
+            as Map<String, dynamic>);
       } catch (_) {
         // Not a UI locale (or missing file) — try the next candidate.
       }

@@ -26,8 +26,7 @@ void main() {
     };
   });
 
-  test('registry: list ids unique, concept ids unique and referenced once',
-      () {
+  test('registry: list ids unique, concept ids unique and referenced once', () {
     final listIds = catalog.lists.map((l) => l.id).toList();
     expect(listIds.toSet().length, listIds.length);
 
@@ -60,9 +59,11 @@ void main() {
         expect(entry.example?.trim(), isNot(equals('')),
             reason: '$lang concept "$id": example present but empty');
       }
-      final extra =
-          layer.entries.keys.toSet().difference(catalog.conceptCategories.keys.toSet());
-      expect(extra, isEmpty, reason: '$lang has entries missing from the registry');
+      final extra = layer.entries.keys
+          .toSet()
+          .difference(catalog.conceptCategories.keys.toSet());
+      expect(extra, isEmpty,
+          reason: '$lang has entries missing from the registry');
     }
   });
 
@@ -103,8 +104,7 @@ void main() {
   test('list name/desc keys exist in all 7 translation files', () async {
     const locales = ['fr', 'en', 'es', 'de', 'it', 'ja', 'ko'];
     for (final locale in locales) {
-      final translations =
-          await SeedTranslations.load(rootBundle, [locale]);
+      final translations = await SeedTranslations.load(rootBundle, [locale]);
       for (final l in catalog.lists) {
         expect(translations.resolve(l.nameKey), isNot(equals(l.nameKey)),
             reason: '$locale is missing ${l.nameKey}');
@@ -129,9 +129,8 @@ void main() {
       () async {
     final seenIds = <String>{};
     for (final lang in kGrammarCurricula) {
-      final raw = jsonDecode(await rootBundle
-          .loadString('assets/seed/grammar/$lang/rules.json'))
-          as Map<String, dynamic>;
+      final raw = jsonDecode(await rootBundle.loadString(
+          'assets/seed/grammar/$lang/rules.json')) as Map<String, dynamic>;
       expect(raw['lang'], lang);
       for (final j in (raw['rules'] as List).cast<Map<String, dynamic>>()) {
         final rule = GrammarRule.fromJson(j);
@@ -148,12 +147,10 @@ void main() {
               reason: '${rule.id}: worked example without en translation');
         }
         for (final prereq in rule.prerequisiteLists) {
-          final list =
-              catalog.lists.where((l) => l.id == prereq).firstOrNull;
+          final list = catalog.lists.where((l) => l.id == prereq).firstOrNull;
           expect(list, isNotNull,
               reason: '${rule.id}: unknown prerequisite list "$prereq"');
-          expect(
-              list!.targetLangs == null || list.targetLangs!.contains(lang),
+          expect(list!.targetLangs == null || list.targetLangs!.contains(lang),
               isTrue,
               reason: '${rule.id}: prerequisite "$prereq" never seeds for '
                   'target $lang');

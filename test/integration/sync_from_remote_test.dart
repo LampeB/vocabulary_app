@@ -100,8 +100,7 @@ class _SyncRemote extends FakeRemote {
   int fetchListsCalls = 0;
 
   @override
-  Future<Result<List<Map<String, dynamic>>>> fetchLists(
-      String ownerId) async {
+  Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async {
     fetchListsCalls++;
     return Success(lists);
   }
@@ -151,8 +150,7 @@ void main() {
       expect(list.wordCount, 1);
       final concepts = await db.conceptDao.getConceptsByList('rl1');
       expect(concepts.length, 1);
-      final variants =
-          await db.conceptDao.getVariantsByConcept('rc1');
+      final variants = await db.conceptDao.getVariantsByConcept('rc1');
       expect(variants.map((v) => v.word), containsAll(['bonjour', '안녕']));
       expect(variants.every((v) => v.isSynced), isTrue);
     });
@@ -161,8 +159,7 @@ void main() {
       final repo = repoWith(_SyncRemote(
         lists: [_remoteList('rl1', 'Remote List')],
       ));
-      final local =
-          (await repo.createList(name: 'Local Only')).valueOrNull!;
+      final local = (await repo.createList(name: 'Local Only')).valueOrNull!;
 
       await repo.syncFromRemote();
 
@@ -180,8 +177,8 @@ void main() {
       final remote = _SyncRemote(lists: [live]);
       final repo = repoWith(remote);
       await repo.syncFromRemote();
-      expect((await repo.watchMyLists().first).map((l) => l.id),
-          contains('rl1'));
+      expect(
+          (await repo.watchMyLists().first).map((l) => l.id), contains('rl1'));
 
       // Second sync: the server says it's deleted.
       remote.lists.clear();
@@ -240,8 +237,7 @@ void main() {
 
       await repo.syncFromRemote();
 
-      final restored =
-          await db.progressDao.getById('$_kUserId|rc1-ko|fr>ko');
+      final restored = await db.progressDao.getById('$_kUserId|rc1-ko|fr>ko');
       expect(restored, isNotNull);
       expect(restored!.reps, 7);
       expect(restored.masteryLevel, 0.8);
@@ -254,8 +250,7 @@ void main() {
           isTrue);
       expect(restored.isSynced, isTrue); // restored rows must not re-push
 
-      expect(await db.progressDao.getById('$_kUserId|rc1-fr|ko>fr'),
-          isNotNull);
+      expect(await db.progressDao.getById('$_kUserId|rc1-fr|ko>fr'), isNotNull);
     });
 
     test('legacy direction spellings are normalized on the way in', () async {
@@ -266,14 +261,12 @@ void main() {
       await repo.syncFromRemote();
 
       // The row keeps its remote id but stores the canonical direction form.
-      final restored =
-          await db.progressDao.getById('$_kUserId|rc1-ko|frToKo');
+      final restored = await db.progressDao.getById('$_kUserId|rc1-ko|frToKo');
       expect(restored, isNotNull);
       expect(restored!.direction, 'fr>ko');
     });
 
-    test('a pending local write (isSynced=false) is never clobbered',
-        () async {
+    test('a pending local write (isSynced=false) is never clobbered', () async {
       final repo = repoWith(remoteWithProgress([_remoteProgress('rc1-ko')]));
       final remoteRow = _remoteProgress('rc1-ko');
       // Simulate offline reviews: same row id, more reps, not yet pushed.
@@ -284,21 +277,20 @@ void main() {
 
       await repo.syncFromRemote();
 
-      final kept =
-          await db.progressDao.getById(remoteRow['id'] as String);
+      final kept = await db.progressDao.getById(remoteRow['id'] as String);
       expect(kept!.reps, 9); // local pending write wins
       expect(kept.isSynced, isFalse); // still queued for the next push
     });
 
     test('a malformed row is skipped without aborting the rest', () async {
       final bad = _remoteProgress('rc1-fr')..['state'] = 'not-a-state';
-      final repo = repoWith(remoteWithProgress([bad, _remoteProgress('rc1-ko')]));
+      final repo =
+          repoWith(remoteWithProgress([bad, _remoteProgress('rc1-ko')]));
 
       await repo.syncFromRemote();
 
       expect(await db.progressDao.getById(bad['id'] as String), isNull);
-      expect(await db.progressDao.getById('$_kUserId|rc1-ko|fr>ko'),
-          isNotNull);
+      expect(await db.progressDao.getById('$_kUserId|rc1-ko|fr>ko'), isNotNull);
     });
   });
 

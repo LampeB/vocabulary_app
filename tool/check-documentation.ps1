@@ -1,5 +1,6 @@
 param(
-  [switch]$Staged
+  [switch]$Staged,
+  [string]$BaseRef
 )
 
 $ErrorActionPreference = 'Stop'
@@ -7,6 +8,13 @@ $ErrorActionPreference = 'Stop'
 function Get-TargetFiles {
   if ($Staged) {
     return @(git diff --cached --name-only --diff-filter=ACMR)
+  }
+  if ($BaseRef) {
+    $baseCommit = (git merge-base $BaseRef HEAD).Trim()
+    if (-not $baseCommit) {
+      throw "Unable to find a merge base with '$BaseRef'."
+    }
+    return @(git diff --name-only --diff-filter=ACMR "$baseCommit...HEAD")
   }
   return @(git diff --name-only --diff-filter=ACMR)
 }

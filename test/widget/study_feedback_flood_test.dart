@@ -15,8 +15,8 @@ void main() {
       .color!;
 
   testWidgets('correct → teal flood + check + label', (tester) async {
-    await pump(tester,
-        const StudyFeedbackFlood(isCorrect: true, label: 'Juste !'));
+    await pump(
+        tester, const StudyFeedbackFlood(isCorrect: true, label: 'Juste !'));
     expect(find.byIcon(Icons.check_rounded), findsOneWidget);
     expect(find.text('Juste !'), findsOneWidget);
     expect(floodColor(tester), AppColors.feedbackCorrect);
@@ -35,8 +35,8 @@ void main() {
 
   testWidgets('no Continuer button unless onContinue is provided',
       (tester) async {
-    await pump(tester,
-        const StudyFeedbackFlood(isCorrect: true, label: 'Juste !'));
+    await pump(
+        tester, const StudyFeedbackFlood(isCorrect: true, label: 'Juste !'));
     expect(find.text('Continuer'), findsNothing);
   });
 

@@ -107,8 +107,8 @@ class NotificationSettingsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _pickTime(BuildContext context, WidgetRef ref,
-      StudyNotifSettings settings) async {
+  Future<void> _pickTime(
+      BuildContext context, WidgetRef ref, StudyNotifSettings settings) async {
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(
@@ -136,8 +136,7 @@ class _Eyebrow extends StatelessWidget {
     final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Text(label,
-          style: AppTextStyles.eyebrow.copyWith(color: muted)),
+      child: Text(label, style: AppTextStyles.eyebrow.copyWith(color: muted)),
     );
   }
 }
@@ -180,8 +179,7 @@ class _SwitchTile extends StatelessWidget {
               color: iconBg,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon,
-                color: value ? AppColors.teal : faint, size: 18),
+            child: Icon(icon, color: value ? AppColors.teal : faint, size: 18),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -193,8 +191,7 @@ class _SwitchTile extends StatelessWidget {
                         .copyWith(color: cs.onSurface)),
                 if (subtitle != null)
                   Text(subtitle!,
-                      style: AppTextStyles.caption
-                          .copyWith(color: muted)),
+                      style: AppTextStyles.caption.copyWith(color: muted)),
               ],
             ),
           ),
@@ -203,8 +200,7 @@ class _SwitchTile extends StatelessWidget {
             onChanged: onChanged,
             activeTrackColor: AppColors.teal,
             thumbColor: const WidgetStatePropertyAll(Colors.white),
-            trackOutlineColor:
-                const WidgetStatePropertyAll(Colors.transparent),
+            trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
           ),
         ],
       ),
@@ -261,15 +257,13 @@ class _NavTile extends StatelessWidget {
                           .copyWith(color: cs.onSurface)),
                   if (subtitle != null)
                     Text(subtitle!,
-                        style: AppTextStyles.caption
-                            .copyWith(color: muted)),
+                        style: AppTextStyles.caption.copyWith(color: muted)),
                 ],
               ),
             ),
             const SizedBox(width: 8),
             trailing ??
-                Icon(Icons.chevron_right_rounded,
-                    color: faint, size: 20),
+                Icon(Icons.chevron_right_rounded, color: faint, size: 20),
           ],
         ),
       ),

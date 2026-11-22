@@ -135,8 +135,7 @@ void main() {
   testWidgets(
       'free plan at the list quota: creating another routes to /paywall',
       (tester) async {
-    await pump(tester,
-        seedLists: ['A', 'B', 'C'], premium: false); // quota = 3
+    await pump(tester, seedLists: ['A', 'B', 'C'], premium: false); // quota = 3
 
     await tester.tap(byKey(WidgetKeys.listsFab));
     await tester.pumpAndSettle();

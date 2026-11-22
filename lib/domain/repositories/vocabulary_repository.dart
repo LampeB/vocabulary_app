@@ -6,6 +6,7 @@ import '../../core/errors/failure.dart';
 abstract interface class VocabularyRepository {
   // Lists
   Stream<List<VocabularyList>> watchMyLists();
+
   /// [langA]/[langB] are the list's learning-language pair (generic-language-
   /// pairs epic). Defaults keep pre-multi-language callers on FR↔KO.
   Future<Result<VocabularyList>> createList({
@@ -28,6 +29,7 @@ abstract interface class VocabularyRepository {
     String? exampleFr,
     String? exampleKo,
   });
+
   /// Creates a concept with one variant per side of the list's language pair.
   /// [wordA] is stored in [langA], [wordB] in [langB] — the caller passes the
   /// owning list's pair (generic-language-pairs epic; was fr/ko-hardcoded).

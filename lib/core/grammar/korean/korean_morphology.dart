@@ -36,8 +36,10 @@ abstract final class KoreanMorphology {
   }
 
   static String _compose(int initial, int medial, int fin) =>
-      String.fromCharCode(
-          _base + initial * _medialsCount * _finalsCount + medial * _finalsCount + fin);
+      String.fromCharCode(_base +
+          initial * _medialsCount * _finalsCount +
+          medial * _finalsCount +
+          fin);
 
   /// Attaches a phonologically alternating particle (은/는, 이/가, 을/를 …).
   /// Invariant particles simply pass the same string for both forms.

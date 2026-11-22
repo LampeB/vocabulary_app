@@ -31,8 +31,8 @@ extension WordVariantFromLocal on WordVariantsTableData {
         word: word,
         langCode: langCode,
         registerTag: registerTag,
-        contextTags: List<String>.from(
-            jsonDecode(contextTags) as List<dynamic>),
+        contextTags:
+            List<String>.from(jsonDecode(contextTags) as List<dynamic>),
         isPrimary: isPrimary,
         audioHash: audioHash,
         audioVoiceId: audioVoiceId,

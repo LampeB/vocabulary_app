@@ -29,9 +29,11 @@ class _NoopAudio implements AudioPlayerService {
   @override
   Future<void> warmUp(String langCode) async {}
   @override
-  Future<void> prefetch(String text, String langCode, {String? audioPath}) async {
+  Future<void> prefetch(String text, String langCode,
+      {String? audioPath}) async {
     prefetchedPaths.add(audioPath);
   }
+
   @override
   Future<void> speak(String text, String langCode, {String? audioPath}) async {}
   @override
@@ -217,7 +219,8 @@ void main() {
     expect(state.errorMessage, isNull);
     // 2 KO cards padded cyclically to the limit of 4.
     expect(state.cards.length, 4);
-    expect(state.cards.every((c) => c.progress.direction == QuizDirection.koToFr),
+    expect(
+        state.cards.every((c) => c.progress.direction == QuizDirection.koToFr),
         isTrue);
   });
 
@@ -269,9 +272,7 @@ void main() {
       ]),
     });
 
-    await container
-        .read(quizProvider.notifier)
-        .loadCards(args(cardLimit: 2));
+    await container.read(quizProvider.notifier).loadCards(args(cardLimit: 2));
 
     final state = sub.read();
     expect(state.errorMessage, isNull);
@@ -288,9 +289,7 @@ void main() {
       ]),
     });
 
-    await container
-        .read(quizProvider.notifier)
-        .loadCards(args(cardLimit: 3));
+    await container.read(quizProvider.notifier).loadCards(args(cardLimit: 3));
 
     final state = sub.read();
     expect(state.cards.length, 3);

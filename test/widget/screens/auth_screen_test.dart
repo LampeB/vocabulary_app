@@ -56,8 +56,7 @@ void main() {
 
   String? navigatedTo;
 
-  Future<void> pump(WidgetTester tester, Widget screen,
-      {bool settle = true}) {
+  Future<void> pump(WidgetTester tester, Widget screen, {bool settle = true}) {
     navigatedTo = null;
     _lastAuth = null;
     return pumpScreen(
@@ -85,8 +84,8 @@ void main() {
       // Welcome animates forever -> no pumpAndSettle.
       await pump(tester, const WelcomeScreen(), settle: false);
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byKey(const ValueKey(WidgetKeys.screenWelcome)),
-          findsOneWidget);
+      expect(
+          find.byKey(const ValueKey(WidgetKeys.screenWelcome)), findsOneWidget);
 
       await tester.tap(find.text('J\'ai déjà un compte'));
       await tester.pump(const Duration(milliseconds: 300));
@@ -100,8 +99,7 @@ void main() {
         (tester) async {
       await pump(tester, const AuthScreen(initialMode: 'signin'));
 
-      await tester.enterText(
-          find.byKey(const Key('email_field')), 't@t.fr');
+      await tester.enterText(find.byKey(const Key('email_field')), 't@t.fr');
       await tester.enterText(
           find.byKey(const Key('password_field')), 'secret123');
       await tester.tap(find.byKey(const Key('auth_submit_button')));
@@ -116,8 +114,7 @@ void main() {
       await pump(tester, const AuthScreen(initialMode: 'signin'));
       _lastAuth!.failNext = true;
 
-      await tester.enterText(
-          find.byKey(const Key('email_field')), 't@t.fr');
+      await tester.enterText(find.byKey(const Key('email_field')), 't@t.fr');
       await tester.enterText(
           find.byKey(const Key('password_field')), 'wrongpassword');
       await tester.tap(find.byKey(const Key('auth_submit_button')));
@@ -144,10 +141,8 @@ void main() {
         (tester) async {
       await pump(tester, const AuthScreen(initialMode: 'signup'));
 
-      await tester.enterText(
-          find.byKey(const Key('username_field')), 'thomas');
-      await tester.enterText(
-          find.byKey(const Key('email_field')), 't@t.fr');
+      await tester.enterText(find.byKey(const Key('username_field')), 'thomas');
+      await tester.enterText(find.byKey(const Key('email_field')), 't@t.fr');
       await tester.enterText(
           find.byKey(const Key('password_field')), 'secret123');
       await tester.tap(find.byKey(const Key('auth_submit_button')));
@@ -169,8 +164,8 @@ void main() {
 
       expect(find.byKey(const ValueKey(WidgetKeys.authResetEmail)),
           findsOneWidget);
-      expect(find.byKey(const ValueKey(WidgetKeys.authResetSend)),
-          findsOneWidget);
+      expect(
+          find.byKey(const ValueKey(WidgetKeys.authResetSend)), findsOneWidget);
     });
   });
 }

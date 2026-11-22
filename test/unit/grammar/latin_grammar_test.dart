@@ -29,11 +29,11 @@ void main() {
       late LatinGrammarModule module;
 
       setUpAll(() async {
-        final raw = await rootBundle
-            .loadString('assets/seed/grammar/$lang/rules.json');
+        final raw =
+            await rootBundle.loadString('assets/seed/grammar/$lang/rules.json');
         rules = [
-          for (final j in (jsonDecode(raw) as Map<String, dynamic>)['rules']
-              as List)
+          for (final j
+              in (jsonDecode(raw) as Map<String, dynamic>)['rules'] as List)
             GrammarRule.fromJson(j as Map<String, dynamic>),
         ];
         final irregulars = {
@@ -48,8 +48,7 @@ void main() {
       test('rules parse with supported mechanics and en content', () {
         expect(rules, isNotEmpty);
         for (final r in rules) {
-          expect(r.mechanics, isNot(isA<UnsupportedMechanics>()),
-              reason: r.id);
+          expect(r.mechanics, isNot(isA<UnsupportedMechanics>()), reason: r.id);
           expect(r.title('en'), isNotEmpty, reason: r.id);
           expect(r.explanation('en'), isNotEmpty, reason: r.id);
           expect(r.testVectors.length, greaterThanOrEqualTo(8),
@@ -61,13 +60,12 @@ void main() {
         var checked = 0;
         for (final rule in rules) {
           for (final v in rule.testVectors) {
-            final first =
-                v.context.isEmpty ? '' : v.context.split(' ').first;
+            final first = v.context.isEmpty ? '' : v.context.split(' ').first;
             final variantKey =
                 RegExp(r'^p[123]sg$').hasMatch(first) ? first : null;
             final tags = ['m', 'f', 'n'].contains(first) ? [first] : <String>[];
-            final answer = module.apply(rule, v.input,
-                variantKey: variantKey, tags: tags);
+            final answer =
+                module.apply(rule, v.input, variantKey: variantKey, tags: tags);
             expect(answer.expected, v.expected,
                 reason: '$lang/${rule.id}: ${v.input} (${v.context})');
             expect(answer.accepted, contains(v.expected));

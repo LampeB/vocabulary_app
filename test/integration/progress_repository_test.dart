@@ -46,8 +46,8 @@ void main() {
 
   // Helper: create list + one word → sets frVariantId and koVariantId.
   Future<VocabularyList> setup() async {
-    final list = ((await vocabRepo.createList(name: 'Quiz List', description: null))
-            as Success<VocabularyList>)
+    final list = ((await vocabRepo.createList(
+            name: 'Quiz List', description: null)) as Success<VocabularyList>)
         .value;
     final concept = ((await vocabRepo.addConceptWithVariants(
       listId: list.id,
@@ -141,8 +141,8 @@ void main() {
       )) as Success<VariantProgress>)
           .value;
       await progressRepo.updateProgress(base.copyWith(reps: 1, isSynced: true));
-      final row = await db.progressDao.getByVariantAndDirection(
-          frVariantId, QuizDirection.frToKo.name);
+      final row = await db.progressDao
+          .getByVariantAndDirection(frVariantId, QuizDirection.frToKo.name);
       expect(row!.isSynced, isFalse);
     });
   });
@@ -241,8 +241,8 @@ void main() {
 
     test('respects the limit parameter', () async {
       // Create 3 words in the list.
-      final list = ((await vocabRepo.createList(name: 'Big List', description: null))
-              as Success<VocabularyList>)
+      final list = ((await vocabRepo.createList(
+              name: 'Big List', description: null)) as Success<VocabularyList>)
           .value;
       await vocabRepo.addConceptWithVariants(
           listId: list.id, wordA: 'A', wordB: 'ㄱ');
@@ -361,8 +361,7 @@ void main() {
           nextReview: p.nextReview,
         );
 
-    Future<VariantProgress> apply(
-        VariantProgress p, FsrsRating rating) async {
+    Future<VariantProgress> apply(VariantProgress p, FsrsRating rating) async {
       final now = DateTime.now();
       final scheduled = AppFsrs.schedule(toFsrsCard(p), rating, now);
       final updated = p.copyWith(
@@ -525,8 +524,7 @@ void main() {
     test('results are ordered by scheduledDays descending', () async {
       // Add a second word in its own list.
       final list2 = ((await vocabRepo.createList(
-              name: 'List 2', description: null))
-              as Success<VocabularyList>)
+              name: 'List 2', description: null)) as Success<VocabularyList>)
           .value;
       final c2 = ((await vocabRepo.addConceptWithVariants(
         listId: list2.id,
@@ -535,8 +533,7 @@ void main() {
       )) as Success<Concept>)
           .value;
       final variants2 = await db.conceptDao.getVariantsByConcept(c2.id);
-      final frVariantId2 =
-          variants2.firstWhere((v) => v.langCode == 'fr').id;
+      final frVariantId2 = variants2.firstWhere((v) => v.langCode == 'fr').id;
 
       // First word: scheduledDays=21 (less mastered).
       await setProgress(frVariantId,
@@ -558,8 +555,7 @@ void main() {
           state: CardState.review, scheduledDays: 30);
 
       // Another user's mastered card should not appear.
-      final result =
-          await progressRepo.getMasteredVariants('other-user-id');
+      final result = await progressRepo.getMasteredVariants('other-user-id');
       expect((result as Success<List<VariantProgress>>).value, isEmpty);
     });
   });

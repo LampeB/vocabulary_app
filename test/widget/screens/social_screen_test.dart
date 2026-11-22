@@ -175,8 +175,7 @@ void main() {
   testWidgets('declining a pending request calls the repository',
       (tester) async {
     repo.pending = [
-      FriendRequest(
-          id: 'r2', fromUserId: 'b', toUserId: 'me', createdAt: _now),
+      FriendRequest(id: 'r2', fromUserId: 'b', toUserId: 'me', createdAt: _now),
     ];
     await pump(tester);
 

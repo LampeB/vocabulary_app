@@ -81,8 +81,9 @@ class _SocialScreenState extends ConsumerState<SocialScreen>
                                     color: Colors.white, size: 16),
                                 const SizedBox(width: 6),
                                 Text('social.add_friend_button'.tr(),
-                                    style: AppTextStyles.fig(13, FontWeight.w700)
-                                        .copyWith(color: Colors.white)),
+                                    style:
+                                        AppTextStyles.fig(13, FontWeight.w700)
+                                            .copyWith(color: Colors.white)),
                               ],
                             ),
                           ),
@@ -210,8 +211,7 @@ class _FriendsTab extends ConsumerWidget {
         slivers: [
           // Pending requests
           pendingAsync.when(
-            loading: () =>
-                const SliverToBoxAdapter(child: SizedBox.shrink()),
+            loading: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
             error: (_, __) =>
                 const SliverToBoxAdapter(child: SizedBox.shrink()),
             data: (requests) {
@@ -245,8 +245,8 @@ class _FriendsTab extends ConsumerWidget {
             error: (e, _) => SliverFillRemaining(
               child: Center(
                 child: Text('social.error_loading'.tr(),
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.rose)),
+                    style:
+                        AppTextStyles.caption.copyWith(color: AppColors.rose)),
               ),
             ),
             data: (friends) {
@@ -258,8 +258,7 @@ class _FriendsTab extends ConsumerWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.people_outline,
-                              size: 56, color: faint),
+                          Icon(Icons.people_outline, size: 56, color: faint),
                           const SizedBox(height: 16),
                           Text('social.empty_friends_title'.tr(),
                               style: AppTextStyles.grotesk(20, FontWeight.w700)
@@ -306,8 +305,7 @@ class _RequestCard extends ConsumerWidget {
     final isDark = cs.brightness == Brightness.dark;
     final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
     final senderAsync = ref.watch(userSummaryProvider(request.fromUserId));
-    final isLoading =
-        ref.watch(socialActionsProvider) is AsyncLoading<void>;
+    final isLoading = ref.watch(socialActionsProvider) is AsyncLoading<void>;
     final name = senderAsync.valueOrNull?.displayName ??
         senderAsync.valueOrNull?.username ??
         '…';
@@ -417,8 +415,8 @@ class _FriendCard extends ConsumerWidget {
           ],
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert, color: faint, size: 18),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'remove',
@@ -549,8 +547,7 @@ class _LeaderboardTab extends ConsumerWidget {
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                   itemCount: entries.length,
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(height: 8),
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (ctx, i) => _LeaderboardCard(
                     entry: entries[i],
                     isMe: entries[i].userId == currentUserId,
@@ -649,15 +646,14 @@ class _LeaderboardCard extends StatelessWidget {
                 child: Center(
                   child: Text(
                     rank > 0 ? '#$rank' : '—',
-                    style: AppTextStyles.mono(
-                            rank <= 3 ? 14 : 12, FontWeight.w700)
-                        .copyWith(color: rankColor),
+                    style:
+                        AppTextStyles.mono(rank <= 3 ? 14 : 12, FontWeight.w700)
+                            .copyWith(color: rankColor),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
-              _MiniAvatar(
-                  name: entry.username, url: entry.avatarUrl),
+              _MiniAvatar(name: entry.username, url: entry.avatarUrl),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -673,14 +669,12 @@ class _LeaderboardCard extends StatelessWidget {
                 children: [
                   Text(
                     '${entry.score}',
-                    style: AppTextStyles.grotesk(16, FontWeight.w700)
-                        .copyWith(
+                    style: AppTextStyles.grotesk(16, FontWeight.w700).copyWith(
                       color: isMe ? AppColors.teal : cs.onSurface,
                     ),
                   ),
                   Text('social.leaderboard_score_unit'.tr(),
-                      style: AppTextStyles.caption
-                          .copyWith(color: faint)),
+                      style: AppTextStyles.caption.copyWith(color: faint)),
                 ],
               ),
             ],
@@ -697,12 +691,10 @@ class _UserSearchDialog extends ConsumerStatefulWidget {
   const _UserSearchDialog();
 
   @override
-  ConsumerState<_UserSearchDialog> createState() =>
-      _UserSearchDialogState();
+  ConsumerState<_UserSearchDialog> createState() => _UserSearchDialogState();
 }
 
-class _UserSearchDialogState
-    extends ConsumerState<_UserSearchDialog> {
+class _UserSearchDialogState extends ConsumerState<_UserSearchDialog> {
   final _ctrl = TextEditingController();
   Timer? _debounce;
   String _query = '';
@@ -752,8 +744,7 @@ class _UserSearchDialogState
                   ? _buildResults(context, cs, faint)
                   : Center(
                       child: Text('social.search_min_chars'.tr(),
-                          style: AppTextStyles.caption
-                              .copyWith(color: faint)),
+                          style: AppTextStyles.caption.copyWith(color: faint)),
                     ),
             ),
           ],
@@ -773,13 +764,11 @@ class _UserSearchDialogState
     final async = ref.watch(userSearchProvider(_query));
     return async.when(
       loading: () => const Center(
-        child: CircularProgressIndicator(
-            color: AppColors.clay, strokeWidth: 2),
+        child: CircularProgressIndicator(color: AppColors.clay, strokeWidth: 2),
       ),
       error: (_, __) => Center(
         child: Text('social.search_error'.tr(),
-            style: AppTextStyles.caption
-                .copyWith(color: AppColors.rose)),
+            style: AppTextStyles.caption.copyWith(color: AppColors.rose)),
       ),
       data: (result) {
         final users = result.valueOrNull ?? [];
@@ -808,15 +797,14 @@ class _UserSearchDialogState
                           style: AppTextStyles.fig(14, FontWeight.w600)
                               .copyWith(color: cs.onSurface)),
                       Text('@${user.username}',
-                          style: AppTextStyles.caption
-                              .copyWith(color: faint)),
+                          style: AppTextStyles.caption.copyWith(color: faint)),
                     ],
                   ),
                 ),
                 if (pending)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: cs.outline.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(999),

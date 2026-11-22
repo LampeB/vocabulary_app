@@ -49,8 +49,8 @@ void main() {
 
   Future<void> pump(WidgetTester tester, {bool premium = false}) {
     pushedRoute = null;
-    Page<void> stub(String name) => MaterialPage<void>(
-        child: Scaffold(body: Text('stub:$name')));
+    Page<void> stub(String name) =>
+        MaterialPage<void>(child: Scaffold(body: Text('stub:$name')));
     return pumpScreen(
       tester,
       screen: const SettingsScreen(),
@@ -79,8 +79,8 @@ void main() {
 
   testWidgets('renders with the screen key', (tester) async {
     await pump(tester);
-    expect(find.byKey(const ValueKey(WidgetKeys.screenSettings)),
-        findsOneWidget);
+    expect(
+        find.byKey(const ValueKey(WidgetKeys.screenSettings)), findsOneWidget);
   });
 
   testWidgets('tapping the dark theme pill sets ThemeMode.dark',

@@ -15,8 +15,7 @@ class GrammarProgressDao extends DatabaseAccessor<AppDatabase>
 
   Future<GrammarProgressTableData?> get(String userId, String ruleId) =>
       (select(grammarProgressTable)
-            ..where((t) =>
-                t.userId.equals(userId) & t.ruleId.equals(ruleId)))
+            ..where((t) => t.userId.equals(userId) & t.ruleId.equals(ruleId)))
           .getSingleOrNull();
 
   /// Records one mastery-counting answer (callers must NOT record cartes).

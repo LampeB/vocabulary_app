@@ -19,8 +19,7 @@ import 'package:vocab_kr/core/theme/app_theme.dart';
 Future<void> initTestLocalization() async {
   TestWidgetsFlutterBinding.ensureInitialized();
   final raw = await rootBundle.loadString('assets/translations/fr.json');
-  final translations =
-      Translations(jsonDecode(raw) as Map<String, dynamic>);
+  final translations = Translations(jsonDecode(raw) as Map<String, dynamic>);
   Localization.load(
     const Locale('fr'),
     translations: translations,

@@ -34,15 +34,14 @@ void main() {
     final raw =
         await rootBundle.loadString('assets/seed/grammar/ko/rules.json');
     rules = [
-      for (final j in (jsonDecode(raw) as Map<String, dynamic>)['rules']
-          as List)
+      for (final j
+          in (jsonDecode(raw) as Map<String, dynamic>)['rules'] as List)
         GrammarRule.fromJson(j as Map<String, dynamic>),
     ];
     final conjugation = rules
         .firstWhere((r) => r.mechanics is ConjugationMechanics)
         .mechanics as ConjugationMechanics;
-    module =
-        KoreanGrammarModule(conjugationIrregulars: conjugation.irregulars);
+    module = KoreanGrammarModule(conjugationIrregulars: conjugation.irregulars);
   });
 
   test('the bundled content parses: 5 rules, every one with vectors', () {
@@ -132,8 +131,7 @@ void main() {
   });
 
   test('pedagogical negation override still accepts the mechanical form', () {
-    final negation =
-        rules.firstWhere((r) => r.mechanics is NegationMechanics);
+    final negation = rules.firstWhere((r) => r.mechanics is NegationMechanics);
     final answer = module.apply(negation, '맛있다');
     expect(answer.expected, '맛없어요'); // the antonym, per the authored content
     expect(answer.accepted, contains('안 맛있어요')); // grammatical form accepted

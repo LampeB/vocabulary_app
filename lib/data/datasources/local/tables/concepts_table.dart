@@ -6,7 +6,8 @@ class ConceptsTable extends Table {
   String get tableName => 'concepts';
 
   TextColumn get id => text()();
-  TextColumn get listId => text().named('list_id').references(VocabularyListsTable, #id)();
+  TextColumn get listId =>
+      text().named('list_id').references(VocabularyListsTable, #id)();
   TextColumn get category => text().nullable()();
   TextColumn get notes => text().nullable()();
   TextColumn get imageUrl => text().named('image_url').nullable()();
@@ -16,8 +17,10 @@ class ConceptsTable extends Table {
   // user-created concepts. Lets re-seeding top up missing concepts/variants
   // without touching rows that carry progress.
   TextColumn get seedId => text().named('seed_id').nullable()();
-  BoolColumn get isSynced => boolean().named('is_synced').withDefault(const Constant(false))();
-  BoolColumn get isDeleted => boolean().named('is_deleted').withDefault(const Constant(false))();
+  BoolColumn get isSynced =>
+      boolean().named('is_synced').withDefault(const Constant(false))();
+  BoolColumn get isDeleted =>
+      boolean().named('is_deleted').withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().named('created_at')();
   DateTimeColumn get updatedAt => dateTime().named('updated_at')();
 

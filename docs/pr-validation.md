@@ -101,6 +101,31 @@ fusion exige, sur le commit final :
 3. les conversations de PR résolues ;
 4. l'approbation humaine exigée par la protection de branche.
 
+## Garde-fous exécutables
+
+Le hook local appelle `tool/check-pr-policy.ps1 -Staged`. Pour vérifier une
+branche avant publication, utiliser :
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tool/check-pr-policy.ps1 -BaseRef origin/main
+```
+
+La CI `Pull request validation` est exécutée sur chaque PR vers `main`. Elle
+exige :
+
+- le formatage des seuls fichiers Dart internes modifiés, afin de durcir le
+  dépôt progressivement sans reformater du code hors sujet ;
+- la politique documentaire et l'interdiction des artefacts générés ou de la
+  configuration privée ;
+- `flutter analyze`, les tests hôte et le seuil de couverture ;
+- une revue des dépendances, un scan de secrets et `actionlint` ;
+- un audit `zizmor` du nouveau workflow de validation lui-même.
+
+Les profils des quatre relecteurs sont versionnés dans `.codex/agents/` et le
+skill d'orchestration dans `.agents/skills/pr-validation/`. Ils n'accordent
+jamais eux-mêmes une fusion : l'approbation humaine et les checks GitHub
+obligatoires restent le verrou effectif.
+
 ## Références
 
 - [État actuel](../PROJECT_STATUS.md)

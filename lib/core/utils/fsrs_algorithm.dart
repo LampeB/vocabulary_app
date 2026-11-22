@@ -66,17 +66,31 @@ abstract final class AppFsrs {
   static const initialStability = 1.0;
 
   static const w = [
-    0.4072, 1.1829, 3.1262, 15.4722, 7.2102,
-    0.5316, 1.0651, 0.0589, 1.4684, 0.1544,
-    1.0070, 1.9395, 0.1100, 0.2900, 2.2700,
-    0.1600, 2.9898, 0.5100, 0.4700,
+    0.4072,
+    1.1829,
+    3.1262,
+    15.4722,
+    7.2102,
+    0.5316,
+    1.0651,
+    0.0589,
+    1.4684,
+    0.1544,
+    1.0070,
+    1.9395,
+    0.1100,
+    0.2900,
+    2.2700,
+    0.1600,
+    2.9898,
+    0.5100,
+    0.4700,
   ];
 
   static FsrsCard schedule(FsrsCard rawCard, FsrsRating rating, DateTime now) {
     final card = _sanitize(rawCard);
-    final elapsed = card.lastReview != null
-        ? now.difference(card.lastReview!).inDays
-        : 0;
+    final elapsed =
+        card.lastReview != null ? now.difference(card.lastReview!).inDays : 0;
 
     return switch (card.state) {
       CardState.newCard => _scheduleNew(card, rating, now, elapsed),

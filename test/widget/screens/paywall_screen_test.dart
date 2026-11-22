@@ -59,8 +59,7 @@ void main() {
     expect(find.text('paywall.offerings_unavailable'.tr()), findsOneWidget);
   });
 
-  testWidgets('while offerings load, no fallback is shown yet',
-      (tester) async {
+  testWidgets('while offerings load, no fallback is shown yet', (tester) async {
     final gate = Completer<dynamic>();
     await pump(tester, offerings: () => gate.future);
 

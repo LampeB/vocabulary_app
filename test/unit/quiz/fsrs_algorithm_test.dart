@@ -106,7 +106,8 @@ void main() {
       var c = zeroedCard(CardState.review);
       // Two consecutive reviews — the second consumes the first's output.
       c = AppFsrs.schedule(c, FsrsRating.good, now);
-      c = AppFsrs.schedule(c, FsrsRating.good, now.add(Duration(days: c.scheduledDays)));
+      c = AppFsrs.schedule(
+          c, FsrsRating.good, now.add(Duration(days: c.scheduledDays)));
       expect(c.stability.isFinite, isTrue);
       expect(c.stability, greaterThan(0));
       expect(c.difficulty, inInclusiveRange(1.0, 10.0));

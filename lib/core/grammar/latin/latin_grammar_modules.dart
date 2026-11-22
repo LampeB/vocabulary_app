@@ -45,15 +45,14 @@ abstract class LatinGrammarModule implements GrammarLanguageModule {
         // The negation rule's own irregulars are FULL negated phrases —
         // needed when the pattern's placement breaks down (German separable
         // verbs: 'stehe nicht auf', not 'stehe auf nicht').
-        final direct =
-            irregulars['$word|$negationPerson'] ?? irregulars[word];
+        final direct = irregulars['$word|$negationPerson'] ?? irregulars[word];
         if (direct != null) {
           return GrammarAnswer(expected: direct, accepted: [direct]);
         }
         final base = _irregularOr(conjugationIrregulars, word, negationPerson,
             orElse: () => negationBase(word));
-        final negated =
-            negatePhrase((pattern ?? '{verb}').replaceAll('{verb}', base), base);
+        final negated = negatePhrase(
+            (pattern ?? '{verb}').replaceAll('{verb}', base), base);
         return GrammarAnswer(expected: negated, accepted: [negated]);
 
       case PluralMechanics(:final irregulars):
@@ -94,7 +93,8 @@ abstract class LatinGrammarModule implements GrammarLanguageModule {
   String pluralize(String noun) => noun;
 
   static bool startsWithVowel(String word) =>
-      word.isNotEmpty && 'aeiouáéíóúàèìòùâêîôûäëïöü'.contains(word[0].toLowerCase());
+      word.isNotEmpty &&
+      'aeiouáéíóúàèìòùâêîôûäëïöü'.contains(word[0].toLowerCase());
 }
 
 class SpanishGrammarModule extends LatinGrammarModule {
@@ -147,9 +147,7 @@ class ItalianGrammarModule extends LatinGrammarModule {
       return true;
     }
     // s + consonant (lo studente, lo sport).
-    return w.length > 1 &&
-        w.startsWith('s') &&
-        !'aeiou'.contains(w[1]);
+    return w.length > 1 && w.startsWith('s') && !'aeiou'.contains(w[1]);
   }
 
   @override

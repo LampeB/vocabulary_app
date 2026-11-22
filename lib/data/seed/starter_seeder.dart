@@ -177,9 +177,13 @@ class StarterSeeder {
             for (final conceptId in seedList.conceptIds)
               if (sourceLayer.entries[conceptId] != null &&
                   targetLayer.entries[conceptId] != null)
-                _composeConceptJson(conceptId, catalog,
-                    sourceLayer.entries[conceptId]!, sourceLayer.lang,
-                    targetLayer.entries[conceptId]!, targetLayer.lang),
+                _composeConceptJson(
+                    conceptId,
+                    catalog,
+                    sourceLayer.entries[conceptId]!,
+                    sourceLayer.lang,
+                    targetLayer.entries[conceptId]!,
+                    targetLayer.lang),
           ],
         },
       };
@@ -211,8 +215,7 @@ class StarterSeeder {
             'position': w.position,
             if (w.tags.isNotEmpty) 'context_tags': w.tags,
             // The example sentence belongs to the primary word.
-            if (w.isPrimary && entry.example != null)
-              'example': entry.example,
+            if (w.isPrimary && entry.example != null) 'example': entry.example,
           },
       ];
 
@@ -253,7 +256,10 @@ class StarterSeeder {
           createdAt: Value(now),
           updatedAt: Value(now),
         ));
-        for (final entry in [(sourceEntry, sourceLayer.lang), (targetEntry, targetLayer.lang)]) {
+        for (final entry in [
+          (sourceEntry, sourceLayer.lang),
+          (targetEntry, targetLayer.lang)
+        ]) {
           await _insertVariants(newConceptId, entry.$1, entry.$2, now);
         }
       } else {
@@ -261,11 +267,13 @@ class StarterSeeder {
         final presentLangs = variants.map((v) => v.langCode).toSet();
         if (!presentLangs.contains(sourceLayer.lang)) {
           added = true;
-          await _insertVariants(existing.id, sourceEntry, sourceLayer.lang, now);
+          await _insertVariants(
+              existing.id, sourceEntry, sourceLayer.lang, now);
         }
         if (!presentLangs.contains(targetLayer.lang)) {
           added = true;
-          await _insertVariants(existing.id, targetEntry, targetLayer.lang, now);
+          await _insertVariants(
+              existing.id, targetEntry, targetLayer.lang, now);
         }
       }
     }

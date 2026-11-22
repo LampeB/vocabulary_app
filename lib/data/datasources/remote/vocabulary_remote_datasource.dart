@@ -25,11 +25,8 @@ class VocabularyRemoteDataSource {
   Future<Result<Map<String, dynamic>>> upsertList(
       Map<String, dynamic> data) async {
     try {
-      final result = await _client
-          .from('vocabulary_lists')
-          .upsert(data)
-          .select()
-          .single();
+      final result =
+          await _client.from('vocabulary_lists').upsert(data).select().single();
       return Success(result);
     } catch (e) {
       return Failure(NetworkException(e.toString()));
@@ -38,10 +35,10 @@ class VocabularyRemoteDataSource {
 
   Future<Result<void>> deleteList(String id) async {
     try {
-      await _client
-          .from('vocabulary_lists')
-          .update({'is_deleted': true, 'updated_at': DateTime.now().toIso8601String()})
-          .eq('id', id);
+      await _client.from('vocabulary_lists').update({
+        'is_deleted': true,
+        'updated_at': DateTime.now().toIso8601String()
+      }).eq('id', id);
       return const Success(null);
     } catch (e) {
       return Failure(NetworkException(e.toString()));
@@ -101,10 +98,8 @@ class VocabularyRemoteDataSource {
   Future<Result<List<Map<String, dynamic>>>> fetchProgress(
       String userId) async {
     try {
-      final data = await _client
-          .from('variant_progress')
-          .select()
-          .eq('user_id', userId);
+      final data =
+          await _client.from('variant_progress').select().eq('user_id', userId);
       return Success(List<Map<String, dynamic>>.from(data));
     } catch (e) {
       return Failure(NetworkException(e.toString()));
@@ -114,11 +109,8 @@ class VocabularyRemoteDataSource {
   Future<Result<Map<String, dynamic>>> upsertProgress(
       Map<String, dynamic> data) async {
     try {
-      final result = await _client
-          .from('variant_progress')
-          .upsert(data)
-          .select()
-          .single();
+      final result =
+          await _client.from('variant_progress').upsert(data).select().single();
       return Success(result);
     } catch (e) {
       return Failure(NetworkException(e.toString()));

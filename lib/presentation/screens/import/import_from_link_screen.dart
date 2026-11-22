@@ -20,8 +20,7 @@ class ImportFromLinkScreen extends ConsumerStatefulWidget {
       _ImportFromLinkScreenState();
 }
 
-class _ImportFromLinkScreenState
-    extends ConsumerState<ImportFromLinkScreen> {
+class _ImportFromLinkScreenState extends ConsumerState<ImportFromLinkScreen> {
   @override
   void initState() {
     super.initState();
@@ -46,8 +45,7 @@ class _ImportFromLinkScreenState
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
           ..showSnackBar(SnackBar(
-              content: Text(message),
-              behavior: SnackBarBehavior.floating));
+              content: Text(message), behavior: SnackBarBehavior.floating));
         if (context.canPop()) {
           context.pop();
         } else {

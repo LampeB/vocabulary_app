@@ -19,7 +19,14 @@ Cette commande configure Git pour utiliser les hooks versionnés dans
    lorsqu'une fonctionnalité, une limite ou une priorité change réellement.
 3. Préparer les fichiers puis committer. Le hook vérifie les liens Markdown et
    refuse les changements applicatifs/configuration sans fichier de
-   documentation préparé.
+   documentation préparé. Il refuse aussi les artefacts générés ou la
+   configuration privée et exige le formatage des fichiers Dart préparés.
+
+Pour vérifier une branche entière avant d'ouvrir une PR :
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tool/check-pr-policy.ps1 -BaseRef origin/main
+```
 
 ## Exemption rare
 

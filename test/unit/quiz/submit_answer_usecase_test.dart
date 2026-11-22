@@ -12,21 +12,52 @@ class _FakeProgressRepo implements ProgressRepository {
   VariantProgress? captured;
 
   @override
-  Future<Result<VariantProgress>> updateProgress(VariantProgress progress) async {
+  Future<Result<VariantProgress>> updateProgress(
+      VariantProgress progress) async {
     captured = progress;
     return Success(progress);
   }
 
   // ── unused stubs ──────────────────────────────────────────────────────────
-  @override Future<Result<List<VariantProgress>>> getDueCards({required String userId, required String listId, required QuizDirection direction, int limit = 20}) async => throw UnimplementedError();
-  @override Future<Result<VariantProgress>> getProgress({required String variantId, required QuizDirection direction}) async => throw UnimplementedError();
-  @override Future<Result<Map<String, int>>> getListStats(String listId) async => throw UnimplementedError();
-  @override Future<Result<void>> resetProgress(String listId) async => throw UnimplementedError();
-  @override Stream<int> watchDueCount(String userId) => throw UnimplementedError();
-  @override Future<Result<List<VariantProgress>>> getMasteredVariants(String userId) async => throw UnimplementedError();
-  @override Future<Result<List<VariantProgress>>> getKnownVariants(String userId) async => throw UnimplementedError();
-  @override Future<Result<List<VariantProgress>>> getAllDueCards({required String userId, required QuizDirection direction, int limit = 20}) async => throw UnimplementedError();
-  @override Future<Result<List<VariantProgress>>> getInProgressCards({required String userId, required QuizDirection direction, int limit = 20}) async => throw UnimplementedError();
+  @override
+  Future<Result<List<VariantProgress>>> getDueCards(
+          {required String userId,
+          required String listId,
+          required QuizDirection direction,
+          int limit = 20}) async =>
+      throw UnimplementedError();
+  @override
+  Future<Result<VariantProgress>> getProgress(
+          {required String variantId,
+          required QuizDirection direction}) async =>
+      throw UnimplementedError();
+  @override
+  Future<Result<Map<String, int>>> getListStats(String listId) async =>
+      throw UnimplementedError();
+  @override
+  Future<Result<void>> resetProgress(String listId) async =>
+      throw UnimplementedError();
+  @override
+  Stream<int> watchDueCount(String userId) => throw UnimplementedError();
+  @override
+  Future<Result<List<VariantProgress>>> getMasteredVariants(
+          String userId) async =>
+      throw UnimplementedError();
+  @override
+  Future<Result<List<VariantProgress>>> getKnownVariants(String userId) async =>
+      throw UnimplementedError();
+  @override
+  Future<Result<List<VariantProgress>>> getAllDueCards(
+          {required String userId,
+          required QuizDirection direction,
+          int limit = 20}) async =>
+      throw UnimplementedError();
+  @override
+  Future<Result<List<VariantProgress>>> getInProgressCards(
+          {required String userId,
+          required QuizDirection direction,
+          int limit = 20}) async =>
+      throw UnimplementedError();
 }
 
 // ---------------------------------------------------------------------------
@@ -69,7 +100,8 @@ void main() {
   group('timesShown counter', () {
     for (final rating in FsrsRating.values) {
       test('increments by 1 for ${rating.name}', () async {
-        await useCase.call(progress: _makeProgress(timesShown: 3), rating: rating);
+        await useCase.call(
+            progress: _makeProgress(timesShown: 3), rating: rating);
         expect(fakeRepo.captured!.timesShown, 4);
       });
     }
@@ -108,7 +140,8 @@ void main() {
 
   group('masteryLevel', () {
     test('is 0.0 when reps == 0 (new card), regardless of rating', () async {
-      await useCase.call(progress: _makeProgress(reps: 0), rating: FsrsRating.good);
+      await useCase.call(
+          progress: _makeProgress(reps: 0), rating: FsrsRating.good);
       expect(fakeRepo.captured!.masteryLevel, 0.0);
     });
 

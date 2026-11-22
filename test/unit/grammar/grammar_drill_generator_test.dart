@@ -31,14 +31,12 @@ void main() {
     final raw =
         await rootBundle.loadString('assets/seed/grammar/ko/rules.json');
     rules = [
-      for (final j in (jsonDecode(raw) as Map<String, dynamic>)['rules']
-          as List)
+      for (final j
+          in (jsonDecode(raw) as Map<String, dynamic>)['rules'] as List)
         GrammarRule.fromJson(j as Map<String, dynamic>),
     ];
-    final conjugation = rules
-        .map((r) => r.mechanics)
-        .whereType<ConjugationMechanics>()
-        .first;
+    final conjugation =
+        rules.map((r) => r.mechanics).whereType<ConjugationMechanics>().first;
     generator = GrammarDrillGenerator(
         KoreanGrammarModule(conjugationIrregulars: conjugation.irregulars));
   });
@@ -60,8 +58,7 @@ void main() {
   });
 
   test('multi-variant rules cycle variants and label the hint', () {
-    final exercises = generator.generate(
-        rule('particules-sujet'), mastered,
+    final exercises = generator.generate(rule('particules-sujet'), mastered,
         count: 6, random: Random(2));
 
     final keys = exercises.map((e) => e.variantKey).toSet();
@@ -91,8 +88,7 @@ void main() {
 
   test('no eligible words → no exercises (never crashes)', () {
     final onlyVerbs = [const DrillWord(word: '먹다', category: 'verbe')];
-    expect(
-        generator.generate(rule('particule-theme'), onlyVerbs, count: 5),
+    expect(generator.generate(rule('particule-theme'), onlyVerbs, count: 5),
         isEmpty);
   });
 }

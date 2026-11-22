@@ -13,8 +13,7 @@ class ReviewEventDao extends DatabaseAccessor<AppDatabase>
       into(reviewEventsTable).insert(companion);
 
   Future<List<ReviewEventsTableData>> getUnsynced() =>
-      (select(reviewEventsTable)..where((t) => t.isSynced.equals(false)))
-          .get();
+      (select(reviewEventsTable)..where((t) => t.isSynced.equals(false))).get();
 
   Future<int> markSynced(List<String> ids) =>
       (update(reviewEventsTable)..where((t) => t.id.isIn(ids)))

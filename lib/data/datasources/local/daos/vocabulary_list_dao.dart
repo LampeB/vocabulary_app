@@ -13,12 +13,14 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
 
   Stream<List<VocabularyListsTableData>> watchByOwner(String ownerId) =>
       (select(vocabularyListsTable)
-            ..where((t) => t.ownerId.equals(ownerId) & t.isDeleted.equals(false))
+            ..where(
+                (t) => t.ownerId.equals(ownerId) & t.isDeleted.equals(false))
             ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
           .watch();
 
   Future<VocabularyListsTableData?> getById(String id) =>
-      (select(vocabularyListsTable)..where((t) => t.id.equals(id))).getSingleOrNull();
+      (select(vocabularyListsTable)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
 
   Future<VocabularyListsTableData?> getByShareToken(String token) =>
       (select(vocabularyListsTable)..where((t) => t.shareToken.equals(token)))
@@ -27,16 +29,17 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
   Future<int> upsert(VocabularyListsTableCompanion companion) =>
       into(vocabularyListsTable).insertOnConflictUpdate(companion);
 
-  Future<int> softDelete(String id) => (update(vocabularyListsTable)
-        ..where((t) => t.id.equals(id)))
-      .write(VocabularyListsTableCompanion(
+  Future<int> softDelete(String id) =>
+      (update(vocabularyListsTable)..where((t) => t.id.equals(id)))
+          .write(VocabularyListsTableCompanion(
         isDeleted: const Value(true),
         isSynced: const Value(false),
         updatedAt: Value(DateTime.now()),
       ));
 
   Future<List<VocabularyListsTableData>> getUnsyncedLists() =>
-      (select(vocabularyListsTable)..where((t) => t.isSynced.equals(false))).get();
+      (select(vocabularyListsTable)..where((t) => t.isSynced.equals(false)))
+          .get();
 
   Future<int> updateWordCount(String listId, int newCount) =>
       (update(vocabularyListsTable)..where((t) => t.id.equals(listId))).write(
