@@ -1,16 +1,25 @@
+import 'dart:async' show unawaited;
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../providers/lists/vocabulary_provider.dart';
+import '../../providers/settings/default_pair_provider.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
+import '../../../core/languages.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../../domain/entities/vocabulary_list.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
+
+// Freeze the loading shimmer under test — it animates forever and would keep the
+// widget tree from ever settling.
+const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
 class ListsScreen extends ConsumerWidget {
   const ListsScreen({super.key});
@@ -20,6 +29,7 @@ class ListsScreen extends ConsumerWidget {
     final listsAsync = ref.watch(myListsProvider);
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenLists),
       // Background from AppTheme.scaffoldBackgroundColor.
       appBar: AppBar(
         // AppBarTheme provides title style and icon colors.
@@ -84,6 +94,7 @@ class ListsScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        key: const ValueKey(WidgetKeys.listsFab),
         onPressed: () => _showCreateDialog(context, ref),
         backgroundColor: AppColors.clay,
         foregroundColor: Colors.white,
@@ -148,17 +159,26 @@ class ListsScreen extends ConsumerWidget {
     final nameCtrl = TextEditingController();
     var quotaExceeded = false;
 
+    final defaultPair = ref.read(defaultPairProvider);
     await showDialog<void>(
       context: context,
-      builder: (ctx) => _ListNameDialog(
-        title: 'lists.create_dialog_title'.tr(),
+      builder: (ctx) => _CreateListDialog(
         controller: nameCtrl,
-        confirmLabel: 'lists.create_dialog_confirm'.tr(),
-        onConfirm: () async {
+        initialLangA: defaultPair.$1,
+        initialLangB: defaultPair.$2,
+        onConfirm: (langA, langB) async {
           if (nameCtrl.text.trim().isEmpty) return;
           final result = await ref
               .read(listActionsProvider.notifier)
-              .createList(nameCtrl.text.trim(), null);
+              .createList(nameCtrl.text.trim(), null,
+                  langA: langA, langB: langB);
+          // Remember the chosen pair as the global default — the next
+          // create-list dialog prefills it (user decision 2026-07-21:
+          // per-list pair + a global default).
+          if (result.isSuccess) {
+            unawaited(
+                ref.read(defaultPairProvider.notifier).set(langA, langB));
+          }
           if (!ctx.mounted) return;
           if (result.isFailure) {
             if (result.exceptionOrNull is QuotaExceededException) {
@@ -350,6 +370,7 @@ class _ListsShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
+      enabled: !_kTestMode,
       baseColor: const Color(0xFFE8E0D4),
       highlightColor: const Color(0xFFF4EFE8),
       child: ListView.separated(
@@ -439,6 +460,7 @@ class _ListNameDialog extends StatelessWidget {
     return AlertDialog(
       title: Text(title),
       content: TextField(
+        key: const ValueKey(WidgetKeys.listNameField),
         controller: controller,
         autofocus: true,
         decoration: InputDecoration(labelText: 'lists.name_field_label'.tr()),
@@ -450,7 +472,104 @@ class _ListNameDialog extends StatelessWidget {
             onPressed: () => Navigator.pop(context),
             child: Text('common.cancel'.tr())),
         FilledButton(
-            onPressed: onConfirm, child: Text(confirmLabel)),
+            key: const ValueKey(WidgetKeys.listNameConfirm),
+            onPressed: onConfirm,
+            child: Text(confirmLabel)),
+      ],
+    );
+  }
+}
+
+/// Create-list dialog with a language-pair picker: a name plus "I speak"
+/// (langA) → "I'm learning" (langB). The chosen pair is stored on the list and
+/// drives quiz directions, voices and fonts (generic-language-pairs epic).
+class _CreateListDialog extends StatefulWidget {
+  const _CreateListDialog({
+    required this.controller,
+    required this.onConfirm,
+    required this.initialLangA,
+    required this.initialLangB,
+  });
+  final TextEditingController controller;
+  final Future<void> Function(String langA, String langB) onConfirm;
+
+  /// Seeded from the global default pair (last pair the user created with).
+  final String initialLangA;
+  final String initialLangB;
+
+  @override
+  State<_CreateListDialog> createState() => _CreateListDialogState();
+}
+
+class _CreateListDialogState extends State<_CreateListDialog> {
+  late String _langA = widget.initialLangA;
+  late String _langB = widget.initialLangB;
+
+  Widget _langColumn(
+      String label, String value, ValueChanged<String> onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTextStyles.eyebrowSm),
+        DropdownButton<String>(
+          value: value,
+          isExpanded: true,
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
+          items: [
+            for (final code in Languages.supported)
+              DropdownMenuItem(
+                  value: code, child: Text(Languages.displayName(code))),
+          ],
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('lists.create_dialog_title'.tr()),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            key: const ValueKey(WidgetKeys.listNameField),
+            controller: widget.controller,
+            autofocus: true,
+            decoration:
+                InputDecoration(labelText: 'lists.name_field_label'.tr()),
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: _langColumn('lists.create_lang_source'.tr(), _langA,
+                    (v) => setState(() => _langA = v)),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: Icon(Icons.arrow_forward, size: 18),
+              ),
+              Expanded(
+                child: _langColumn('lists.create_lang_target'.tr(), _langB,
+                    (v) => setState(() => _langB = v)),
+              ),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('common.cancel'.tr())),
+        FilledButton(
+            key: const ValueKey(WidgetKeys.listNameConfirm),
+            onPressed: () => widget.onConfirm(_langA, _langB),
+            child: Text('lists.create_dialog_confirm'.tr())),
       ],
     );
   }

@@ -8,11 +8,13 @@ class VocabularyRemoteDataSource {
 
   Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async {
     try {
+      // Deleted rows are fetched ON PURPOSE: pull-sync must propagate
+      // server-side deletions (tombstones), or a list deleted remotely
+      // stays visible on-device forever.
       final data = await _client
           .from('vocabulary_lists')
           .select()
           .eq('owner_id', ownerId)
-          .eq('is_deleted', false)
           .order('updated_at', ascending: false);
       return Success(List<Map<String, dynamic>>.from(data));
     } catch (e) {
@@ -49,11 +51,12 @@ class VocabularyRemoteDataSource {
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
       String listId) async {
     try {
+      // Includes deleted concepts — same tombstone-propagation rationale
+      // as fetchLists (the local upsert carries the is_deleted flag).
       final data = await _client
           .from('concepts')
           .select('*, word_variants(*)')
           .eq('list_id', listId)
-          .eq('is_deleted', false)
           .order('created_at');
       return Success(List<Map<String, dynamic>>.from(data));
     } catch (e) {
@@ -83,6 +86,18 @@ class VocabularyRemoteDataSource {
     }
   }
 
+  /// Asks the authenticated server to render a newly created/edited custom
+  /// variant once and place it in Storage. Failures are intentionally silent:
+  /// sync retries the content, and device TTS remains the safe fallback.
+  Future<void> provisionAudio(String variantId) async {
+    try {
+      await _client.functions.invoke(
+        'audio-provision',
+        body: {'variant_id': variantId},
+      );
+    } catch (_) {}
+  }
+
   Future<Result<List<Map<String, dynamic>>>> fetchProgress(
       String userId) async {
     try {
@@ -105,6 +120,15 @@ class VocabularyRemoteDataSource {
           .select()
           .single();
       return Success(result);
+    } catch (e) {
+      return Failure(NetworkException(e.toString()));
+    }
+  }
+
+  Future<Result<void>> upsertReviewEvent(Map<String, dynamic> data) async {
+    try {
+      await _client.from('review_events').upsert(data);
+      return const Success(null);
     } catch (e) {
       return Failure(NetworkException(e.toString()));
     }

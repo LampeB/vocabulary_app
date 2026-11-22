@@ -128,13 +128,15 @@ void main() {
       expect(row!.isDeleted, isTrue);
     });
 
-    test('concepts belonging to the list are NOT cascade-deleted', () async {
+    test('deleting a list cascades: its concepts are soft-deleted too '
+        '(mastery-loss decision 2026-07-04)', () async {
       await repo.createConcept(listId: created.id);
       await repo.createConcept(listId: created.id);
       await repo.deleteList(created.id);
       final concepts = await db.conceptDao.getConceptsByList(created.id);
-      expect(concepts.length, 2,
-          reason: 'Soft-delete on list must not delete child concepts');
+      expect(concepts, isEmpty,
+          reason: 'deleting a list must take its words (and their mastery) '
+              'with it');
     });
   });
 

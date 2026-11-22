@@ -1,0 +1,218 @@
+{
+  "lang": "de",
+  "rules": [
+    {
+      "rule": {
+        "id": "de-articles-der-die-das",
+        "title": {
+          "en": "The definite articles der / die / das",
+          "fr": "Les articles définis der / die / das"
+        },
+        "description": {
+          "en": "Every noun has one of three genders: der (m), die (f), das (n).",
+          "fr": "Chaque nom a l'un des trois genres : der (m), die (f), das (n)."
+        },
+        "explanation": {
+          "en": "German nouns have three grammatical genders, shown by the article (nominative case): der for masculine (der Zug), die for feminine (die Schule), das for neuter (das Brot). The gender is rarely predictable from the meaning — always learn the noun WITH its article, as one unit: das Wasser, die Milch, der Apfel. (German nouns are also always capitalized.)",
+          "fr": "Les noms allemands ont trois genres grammaticaux, indiqués par l'article (au nominatif) : der pour le masculin (der Zug), die pour le féminin (die Schule), das pour le neutre (das Brot). Le genre est rarement prévisible d'après le sens — apprends toujours le nom AVEC son article, comme une seule unité : das Wasser, die Milch, der Apfel. (Les noms allemands prennent aussi toujours une majuscule.)"
+        },
+        "prerequisite_lists": ["starter-food"],
+        "min_known_words": { "nom": 5 },
+        "applies_to_categories": ["nom", "lieu"],
+        "mechanics": {
+          "type": "article",
+          "article": {
+            "forms": { "m": "der", "f": "die", "n": "das" }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "der Kaffee",
+            "translations": { "en": "the coffee", "fr": "le café" }
+          },
+          {
+            "target": "die Schule",
+            "translations": { "en": "the school", "fr": "l'école" }
+          },
+          {
+            "target": "das Brot",
+            "translations": { "en": "the bread", "fr": "le pain" }
+          }
+        ],
+        "test_vectors": [
+          { "input": "Kaffee", "context": "m", "expected": "der Kaffee" },
+          { "input": "Zug", "context": "m", "expected": "der Zug" },
+          { "input": "Apfel", "context": "m", "expected": "der Apfel" },
+          { "input": "Schule", "context": "f", "expected": "die Schule" },
+          { "input": "Milch", "context": "f", "expected": "die Milch" },
+          { "input": "U-Bahn", "context": "f", "expected": "die U-Bahn" },
+          { "input": "Brot", "context": "n", "expected": "das Brot" },
+          { "input": "Wasser", "context": "n", "expected": "das Wasser" },
+          { "input": "Buch", "context": "n", "expected": "das Buch" },
+          { "input": "Restaurant", "context": "n", "expected": "das Restaurant" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "de-articles-ein-eine",
+        "title": {
+          "en": "The indefinite articles ein / eine",
+          "fr": "Les articles indéfinis ein / eine"
+        },
+        "description": {
+          "en": "ein for masculine and neuter nouns, eine for feminine nouns.",
+          "fr": "ein pour les noms masculins et neutres, eine pour les noms féminins."
+        },
+        "explanation": {
+          "en": "The indefinite article (\"a / an\") follows the same genders as der/die/das, but masculine and neuter share one form in the nominative: ein Zug (m), ein Buch (n), while feminine takes eine: eine Schule. Tip: if you know the definite article, you know this one — der/das → ein, die → eine.",
+          "fr": "L'article indéfini (« un / une ») suit les mêmes genres que der/die/das, mais le masculin et le neutre partagent une forme au nominatif : ein Zug (m), ein Buch (n), tandis que le féminin prend eine : eine Schule. Astuce : si tu connais l'article défini, tu connais celui-ci — der/das → ein, die → eine."
+        },
+        "prerequisite_lists": ["starter-food"],
+        "min_known_words": { "nom": 5 },
+        "applies_to_categories": ["nom", "lieu"],
+        "mechanics": {
+          "type": "article",
+          "article": {
+            "forms": { "m": "ein", "f": "eine", "n": "ein" }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "ein Buch",
+            "translations": { "en": "a book", "fr": "un livre" }
+          },
+          {
+            "target": "eine Schule",
+            "translations": { "en": "a school", "fr": "une école" }
+          }
+        ],
+        "test_vectors": [
+          { "input": "Zug", "context": "m", "expected": "ein Zug" },
+          { "input": "Apfel", "context": "m", "expected": "ein Apfel" },
+          { "input": "Schule", "context": "f", "expected": "eine Schule" },
+          { "input": "Milch", "context": "f", "expected": "eine Milch" },
+          { "input": "Buch", "context": "n", "expected": "ein Buch" },
+          { "input": "Brot", "context": "n", "expected": "ein Brot" },
+          { "input": "Person", "context": "f", "expected": "eine Person" },
+          { "input": "Taxi", "context": "n", "expected": "ein Taxi" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "de-present-regular",
+        "title": {
+          "en": "The present tense (-e / -st / -t)",
+          "fr": "Le présent (-e / -st / -t)"
+        },
+        "description": {
+          "en": "Drop -en, add -e (ich), -st (du), -t (er/sie); -t/-d stems insert an e.",
+          "fr": "Retirer -en, ajouter -e (ich), -st (du), -t (er/sie) ; les radicaux en -t/-d insèrent un e."
+        },
+        "explanation": {
+          "en": "Drop the infinitive's -en to get the stem, then add -e (ich), -st (du), -t (er/sie/es): ich gehe, du gehst, er geht. Stems ending in -t or -d insert an e for pronunciation: du arbeitest, er arbeitet. Frequent verbs change their stem vowel in du/er forms: schlafen → du schläfst, er schläft; essen → du isst, er isst; lesen → du liest. Separable verbs split: aufstehen → ich stehe auf.",
+          "fr": "Retire le -en de l'infinitif pour obtenir le radical, puis ajoute -e (ich), -st (du), -t (er/sie/es) : ich gehe, du gehst, er geht. Les radicaux en -t ou -d insèrent un e pour la prononciation : du arbeitest, er arbeitet. Des verbes fréquents changent leur voyelle aux formes du/er : schlafen → du schläfst, er schläft ; essen → du isst, er isst ; lesen → du liest. Les verbes à particule séparable se coupent : aufstehen → ich stehe auf."
+        },
+        "prerequisite_lists": ["starter-daily-life"],
+        "min_known_words": { "verbe": 5 },
+        "applies_to_categories": ["verbe"],
+        "mechanics": {
+          "type": "conjugation",
+          "conjugation": {
+            "persons": ["p1sg", "p2sg", "p3sg"],
+            "irregulars": {
+              "schlafen|p2sg": "schläfst", "schlafen|p3sg": "schläft",
+              "essen|p2sg": "isst", "essen|p3sg": "isst",
+              "lesen|p2sg": "liest", "lesen|p3sg": "liest",
+              "helfen|p2sg": "hilfst", "helfen|p3sg": "hilft",
+              "mögen|p1sg": "mag", "mögen|p2sg": "magst", "mögen|p3sg": "mag",
+              "aufstehen|p1sg": "stehe auf", "aufstehen|p2sg": "stehst auf", "aufstehen|p3sg": "steht auf",
+              "ankommen|p1sg": "komme an", "ankommen|p2sg": "kommst an", "ankommen|p3sg": "kommt an",
+              "zu Fuß gehen|p1sg": "gehe zu Fuß", "zu Fuß gehen|p2sg": "gehst zu Fuß", "zu Fuß gehen|p3sg": "geht zu Fuß"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "Ich arbeite morgens.",
+            "translations": { "en": "I work in the mornings.", "fr": "Je travaille le matin." }
+          },
+          {
+            "target": "Du schläfst.",
+            "translations": { "en": "You are sleeping.", "fr": "Tu dors." }
+          },
+          {
+            "target": "Mein Freund kommt morgen.",
+            "translations": { "en": "My friend comes tomorrow.", "fr": "Mon ami vient demain." }
+          }
+        ],
+        "test_vectors": [
+          { "input": "gehen", "context": "p1sg", "expected": "gehe" },
+          { "input": "gehen", "context": "p2sg", "expected": "gehst" },
+          { "input": "gehen", "context": "p3sg", "expected": "geht" },
+          { "input": "kommen", "context": "p3sg", "expected": "kommt" },
+          { "input": "kaufen", "context": "p1sg", "expected": "kaufe" },
+          { "input": "arbeiten", "context": "p2sg linking e", "expected": "arbeitest" },
+          { "input": "arbeiten", "context": "p3sg linking e", "expected": "arbeitet" },
+          { "input": "schlafen", "context": "p2sg vowel change", "expected": "schläfst" },
+          { "input": "essen", "context": "p3sg vowel change", "expected": "isst" },
+          { "input": "lesen", "context": "p2sg vowel change", "expected": "liest" },
+          { "input": "aufstehen", "context": "p1sg separable", "expected": "stehe auf" },
+          { "input": "lernen", "context": "p3sg", "expected": "lernt" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "de-negation-nicht",
+        "title": {
+          "en": "Negation with nicht",
+          "fr": "La négation avec nicht"
+        },
+        "description": {
+          "en": "Put nicht after the conjugated verb.",
+          "fr": "Placer nicht après le verbe conjugué."
+        },
+        "explanation": {
+          "en": "To negate a verb, place nicht after the conjugated form: ich arbeite → ich arbeite nicht, er schläft → er schläft nicht. With separable verbs, nicht goes before the separated particle: ich stehe nicht auf. (To negate a noun with ein, German uses kein instead — that's a later lesson.)",
+          "fr": "Pour nier un verbe, place nicht après la forme conjuguée : ich arbeite → ich arbeite nicht, er schläft → er schläft nicht. Avec les verbes séparables, nicht se place avant la particule détachée : ich stehe nicht auf. (Pour nier un nom avec ein, l'allemand utilise kein — c'est une leçon ultérieure.)"
+        },
+        "prerequisite_lists": ["starter-daily-life"],
+        "min_known_words": { "verbe": 5 },
+        "applies_to_categories": ["verbe"],
+        "mechanics": {
+          "type": "negation",
+          "negation": {
+            "pattern_template": "{verb} nicht",
+            "irregulars": {
+              "aufstehen": "stehe nicht auf",
+              "ankommen": "komme nicht an",
+              "zu Fuß gehen": "gehe nicht zu Fuß"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "Ich arbeite heute nicht.",
+            "translations": { "en": "I'm not working today.", "fr": "Je ne travaille pas aujourd'hui." }
+          },
+          {
+            "target": "Ich trinke keinen Kaffee. / Ich trinke nicht.",
+            "translations": { "en": "I don't drink coffee. / I'm not drinking.", "fr": "Je ne bois pas de café. / Je ne bois pas." }
+          }
+        ],
+        "test_vectors": [
+          { "input": "arbeiten", "context": "p1sg", "expected": "arbeite nicht" },
+          { "input": "gehen", "context": "p1sg", "expected": "gehe nicht" },
+          { "input": "schlafen", "context": "p1sg", "expected": "schlafe nicht" },
+          { "input": "trinken", "context": "p1sg", "expected": "trinke nicht" },
+          { "input": "lernen", "context": "p1sg", "expected": "lerne nicht" },
+          { "input": "aufstehen", "context": "separable", "expected": "stehe nicht auf" },
+          { "input": "ankommen", "context": "separable", "expected": "komme nicht an" },
+          { "input": "kaufen", "context": "p1sg", "expected": "kaufe nicht" }
+        ]
+      }
+    }
+  ]
+}

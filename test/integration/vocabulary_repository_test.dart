@@ -13,6 +13,8 @@ import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
 // ---------------------------------------------------------------------------
 class _FakeRemote implements VocabularyRemoteDataSource {
   @override
+  Future<void> provisionAudio(String variantId) async {}
+  @override
   Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async =>
       const Success([]);
 
@@ -48,6 +50,10 @@ class _FakeRemote implements VocabularyRemoteDataSource {
   Future<Result<Map<String, dynamic>>> upsertProgress(
           Map<String, dynamic> data) async =>
       Success(data);
+
+  @override
+  Future<Result<void>> upsertReviewEvent(Map<String, dynamic> data) async =>
+      const Success(null);
 
   @override
   Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(
@@ -161,6 +167,44 @@ void main() {
         expect(variants.length, fr + ko,
             reason: 'Concept ${concept.id} should have ${fr + ko} variants');
       }
+    });
+
+    test(
+        'accepts snake_case payloads (seed assets / remote rows), including '
+        'the language pair', () async {
+      // Mirrors the exact shape of assets/seed/*.json — the shipped starter
+      // content is snake_case while app exports are camelCase.
+      final result = await repo.importFromJson({
+        'list': {
+          'name': 'Seed Slice',
+          'description': 'desc',
+          'lang_a': 'en',
+          'lang_b': 'de',
+          'concepts': [
+            {
+              'category': 'expression',
+              'notes': 'a note',
+              'example_fr': 'Bonjour, professeur !',
+              'example_ko': '안녕하세요, 선생님!',
+              'word_variants': [
+                {'word': 'hello', 'lang_code': 'en', 'is_primary': true, 'position': 0},
+                {'word': 'hallo', 'lang_code': 'de', 'is_primary': true, 'position': 0},
+              ],
+            },
+          ],
+        },
+      });
+
+      final list = (result as Success<VocabularyList>).value;
+      expect(list.langA, 'en');
+      expect(list.langB, 'de');
+      final concepts = await db.conceptDao.getConceptsByList(list.id);
+      expect(concepts.single.exampleFr, 'Bonjour, professeur !');
+      expect(concepts.single.exampleKo, '안녕하세요, 선생님!');
+      final variants =
+          await db.conceptDao.getVariantsByConcept(concepts.single.id);
+      expect(variants.map((v) => v.langCode).toSet(), {'en', 'de'});
+      expect(variants.every((v) => v.isPrimary), isTrue);
     });
 
     test('watchConcepts streams inserted concepts immediately', () async {

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../../domain/entities/quiz_session.dart';
 import '../../providers/quiz/quiz_history_provider.dart';
 import '../../providers/quiz/quiz_provider.dart';
@@ -22,6 +23,7 @@ class StatsScreen extends ConsumerWidget {
     final streak = ref.watch(currentUserProvider)?.currentStreak ?? 0;
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenStats),
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
@@ -293,12 +295,15 @@ class _SessionTile extends StatelessWidget {
         QuizDirectionChoice.both => 'stats.session_dir_both'.tr(),
       };
 
+  // Localized short date (no intl dependency): month names come from the
+  // active UI language and the {day}/{month} template lets each locale set its
+  // own order (e.g. Korean "1월 5일", Japanese "1月5日").
   String _formatDate(DateTime d) {
-    const months = [
-      'jan', 'fév', 'mar', 'avr', 'mai', 'juin',
-      'juil', 'août', 'sep', 'oct', 'nov', 'déc',
-    ];
-    return '${d.day} ${months[d.month - 1]}';
+    final months = 'date.months_short'.tr().split(',');
+    return 'date.day_month'.tr(namedArgs: {
+      'day': '${d.day}',
+      'month': months[d.month - 1],
+    });
   }
 
   @override

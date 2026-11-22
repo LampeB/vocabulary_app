@@ -7,6 +7,7 @@ import '../../providers/purchases/purchase_provider.dart';
 import '../../../services/purchases/purchase_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
 import '../../widgets/vk_waveform.dart';
@@ -47,6 +48,7 @@ class PaywallScreen extends ConsumerWidget {
     final annual    = offering?.annual;
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenPaywall),
       // Background from AppTheme.scaffoldBackgroundColor.
       appBar: AppBar(
         // AppBarTheme provides transparent bg; override icon to semi-muted.
@@ -118,9 +120,12 @@ class PaywallScreen extends ConsumerWidget {
                               color: AppColors.clay, size: 17),
                         ),
                         const SizedBox(width: 14),
-                        Text(f.$1.tr(),
-                            style: AppTextStyles.fig(15, FontWeight.w500)
-                                .copyWith(color: cs.onSurface)),
+                        // Expanded: long FR labels overflow 360dp screens otherwise.
+                        Expanded(
+                          child: Text(f.$1.tr(),
+                              style: AppTextStyles.fig(15, FontWeight.w500)
+                                  .copyWith(color: cs.onSurface)),
+                        ),
                       ],
                     ),
                   )),

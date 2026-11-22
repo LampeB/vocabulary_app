@@ -1,9 +1,120 @@
-import 'package:flutter/foundation.dart';
+import '../../core/utils/stt_debug_log.dart';
+import '../../core/languages.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:speech_to_text/speech_recognition_error.dart';
 
-class SpeechRecognitionService {
-  final _speech = stt.SpeechToText();
+/// Platform recognizer capabilities consumed by [SystemSttEngine].
+abstract interface class SystemSpeechCapture {
+  void Function()? get onListeningDone;
+  set onListeningDone(void Function()? callback);
+  Future<bool> initialize();
+  Future<bool> startListening({
+    required String langCode,
+    required void Function(String primary, List<String> candidates) onResult,
+    void Function(String primary, List<String> candidates)? onPartial,
+  });
+  Future<void> stopListening();
+  void dispose();
+}
+
+/// A platform-neutral recognition result. It keeps the service testable while
+/// preserving every alternate hypothesis for the answer validator.
+class SystemRecognitionResult {
+  const SystemRecognitionResult({
+    required this.words,
+    required this.isFinal,
+    required this.confidence,
+    this.alternates = const [],
+  });
+
+  final String words;
+  final bool isFinal;
+  final double confidence;
+  final List<({String words, double confidence})> alternates;
+}
+
+/// Port for the Android/iOS recognizer. The production implementation maps
+/// `speech_to_text`; unit tests supply deterministic status/error callbacks.
+abstract interface class SystemSpeechRecognizer {
+  Future<bool> initialize({
+    required void Function(String message, bool permanent) onError,
+    required void Function(String status) onStatus,
+  });
+  Future<void> listen({
+    required void Function(double level) onSoundLevel,
+    required void Function(SystemRecognitionResult result) onResult,
+    required String localeId,
+    required Duration pauseFor,
+    required Duration listenFor,
+  });
+  Future<void> stop();
+}
+
+// coverage:ignore-start
+// Thin device-plugin adapter; the protocol above is exhaustively unit-tested.
+class _SpeechToTextRecognizer implements SystemSpeechRecognizer {
+  _SpeechToTextRecognizer() : _speech = stt.SpeechToText();
+
+  final stt.SpeechToText _speech;
+
+  @override
+  Future<bool> initialize({
+    required void Function(String message, bool permanent) onError,
+    required void Function(String status) onStatus,
+  }) =>
+      _speech.initialize(
+        onError: (error) => onError(error.errorMsg, error.permanent),
+        onStatus: onStatus,
+      );
+
+  @override
+  Future<void> listen({
+    required void Function(double level) onSoundLevel,
+    required void Function(SystemRecognitionResult result) onResult,
+    required String localeId,
+    required Duration pauseFor,
+    required Duration listenFor,
+  }) =>
+      _speech.listen(
+        onSoundLevelChange: onSoundLevel,
+        onResult: (result) => onResult(SystemRecognitionResult(
+          words: result.recognizedWords,
+          isFinal: result.finalResult,
+          confidence: result.confidence,
+          alternates: [
+            for (final alternate in result.alternates)
+              (
+                words: alternate.recognizedWords,
+                confidence: alternate.confidence,
+              ),
+          ],
+        )),
+        listenOptions: stt.SpeechListenOptions(
+          cancelOnError: false,
+          listenMode: stt.ListenMode.search,
+          partialResults: true,
+          localeId: localeId,
+          listenFor: listenFor,
+          pauseFor: pauseFor,
+        ),
+      );
+
+  @override
+  Future<void> stop() => _speech.stop();
+}
+// coverage:ignore-end
+
+class SpeechRecognitionService implements SystemSpeechCapture {
+  SpeechRecognitionService({
+    SystemSpeechRecognizer? recognizer,
+    DateTime Function()? clock,
+    Future<void> Function(Duration duration)? delay,
+  })  : _speech = recognizer ?? _SpeechToTextRecognizer(),
+        _clock = clock ?? DateTime.now,
+        _delay = delay ?? Future<void>.delayed;
+
+  final SystemSpeechRecognizer _speech;
+  final DateTime Function() _clock;
+  final Future<void> Function(Duration duration) _delay;
   bool _initialized = false;
   bool _isListening = false;
   // Guards against duplicate onListeningDone calls within a single session.
@@ -21,119 +132,169 @@ class SpeechRecognitionService {
   // Used by the caller to detect audio-focus races (session stops too fast).
   int get listenElapsedMs => _listenStartTime == null
       ? 0
-      : DateTime.now().difference(_listenStartTime!).inMilliseconds;
+      : _clock().difference(_listenStartTime!).inMilliseconds;
 
-  Function()? onListeningDone;
+  @override
+  void Function()? onListeningDone;
   // Called for genuine hardware/network errors (NOT error_no_match, which is a
   // normal "no speech recognised" result and is handled via onListeningDone).
   void Function(String)? onError;
 
+  @override
   Future<bool> initialize() async {
     if (_initialized) return true;
     _initialized = await _speech.initialize(
-      onError: (SpeechRecognitionError e) {
-        debugPrint('[STT] ❌ onError: "${e.errorMsg}"  permanent=${e.permanent}  elapsed=${listenElapsedMs}ms');
+      onError: (message, permanent) {
+        sttLog(
+            '[STT] ❌ onError: "$message"  permanent=$permanent  elapsed=${listenElapsedMs}ms');
         _isListening = false;
-        lastError = e.errorMsg;
+        lastError = message;
         // error_no_match = STT heard audio but found no matching words.
         // This is the normal "no recognition" outcome — not a real error.
         // Anything else (error_audio, error_network, etc.) is worth reporting.
-        if (e.errorMsg != 'error_no_match') {
-          debugPrint('[STT] ⚠️ Forwarding hardware/network error to caller: ${e.errorMsg}');
-          onError?.call(e.errorMsg);
+        if (message != 'error_no_match') {
+          sttLog(
+              '[STT] ⚠️ Forwarding hardware/network error to caller: $message');
+          onError?.call(message);
         }
         if (!_sessionDone) {
           _sessionDone = true;
-          debugPrint('[STT] → onListeningDone (via onError, elapsed=${listenElapsedMs}ms)');
+          sttLog(
+              '[STT] → onListeningDone (via onError, elapsed=${listenElapsedMs}ms)');
           onListeningDone?.call();
         } else {
-          debugPrint('[STT] onError: sessionDone already set, skipping onListeningDone');
+          sttLog(
+              '[STT] onError: sessionDone already set, skipping onListeningDone');
         }
       },
       onStatus: (status) {
-        debugPrint('[STT] onStatus: "$status"  _isListening=$_isListening  elapsed=${listenElapsedMs}ms');
+        sttLog(
+            '[STT] onStatus: "$status"  _isListening=$_isListening  elapsed=${listenElapsedMs}ms');
         if (status == 'listening') {
           _isListening = true;
           _sessionDone = false;
-          _listenStartTime = DateTime.now();
-          debugPrint('[STT] ✅ STT now listening — timer reset');
+          _listenStartTime = _clock();
+          sttLog('[STT] ✅ STT now listening — timer reset');
         } else if (status == 'notListening' || status == 'done') {
           _isListening = false;
           if (!_sessionDone) {
             _sessionDone = true;
-            debugPrint('[STT] → onListeningDone (via status="$status", elapsed=${listenElapsedMs}ms)');
+            sttLog(
+                '[STT] → onListeningDone (via status="$status", elapsed=${listenElapsedMs}ms)');
             onListeningDone?.call();
           } else {
-            debugPrint('[STT] status="$status" but sessionDone already set, skipping');
+            sttLog(
+                '[STT] status="$status" but sessionDone already set, skipping');
           }
         }
       },
     );
-    debugPrint('[STT] initialize() → $_initialized');
+    sttLog('[STT] initialize() → $_initialized');
     return _initialized;
   }
 
+  @override
   Future<bool> startListening({
     required String langCode,
-    required void Function(String) onResult,
-    void Function(String)? onPartial,
+    required void Function(String primary, List<String> candidates) onResult,
+    void Function(String primary, List<String> candidates)? onPartial,
     Duration pauseFor = const Duration(seconds: 5),
     Duration listenFor = const Duration(seconds: 10),
   }) async {
     if (!_initialized) {
-      debugPrint('[STT] startListening() skipped — not initialised');
+      sttLog('[STT] startListening() skipped — not initialised');
       return false;
     }
     if (_isListening) {
-      debugPrint('[STT] startListening() — stopping stale session first');
-      await _speech.stop();
-      _isListening = false;
-      await Future.delayed(const Duration(milliseconds: 200));
+      sttLog('[STT] startListening() — stopping stale session first');
+      await stopListening();
+      await _delay(const Duration(milliseconds: 200));
     }
 
     _sessionDone = false;
     lastError = null;
-    final localeId = langCode == 'ko' ? 'ko-KR' : 'fr-FR';
-    debugPrint('[STT] startListening() localeId=$localeId');
+    final localeId = Languages.speechLocaleFor(langCode);
+    sttLog('[STT] startListening() localeId=$localeId');
+
+    // Mic energy telemetry: distinguishes "engine ignored real speech"
+    // (level spikes, no hypothesis) from "signal never reached the engine"
+    // (flat level) — field case 2026-07-08: short words in a noisy room
+    // produced zero hypotheses, not even wrong ones.
+    var rmsMin = double.infinity, rmsMax = double.negativeInfinity;
+    var rmsLastLogged = _clock();
 
     try {
       await _speech.listen(
-        onResult: (result) {
-          debugPrint('[STT] onResult: "${result.recognizedWords}"  final=${result.finalResult}  confidence=${result.confidence}  elapsed=${listenElapsedMs}ms');
-          if (result.finalResult) {
-            debugPrint('[STT] ✅ Final result → forwarding "${result.recognizedWords}"');
-            onResult(result.recognizedWords);
-          } else if (result.recognizedWords.isNotEmpty) {
-            debugPrint('[STT] ⏳ Partial: "${result.recognizedWords}"');
-            onPartial?.call(result.recognizedWords);
+        onSoundLevel: (level) {
+          if (level < rmsMin) rmsMin = level;
+          if (level > rmsMax) rmsMax = level;
+          // One line per second keeps the trace readable at 10+ events/s.
+          final now = _clock();
+          if (now.difference(rmsLastLogged).inMilliseconds >= 1000) {
+            rmsLastLogged = now;
+            sttLog(
+                '[STT] 🎚 level=${level.toStringAsFixed(1)}  min=${rmsMin.toStringAsFixed(1)}  max=${rmsMax.toStringAsFixed(1)}  elapsed=${listenElapsedMs}ms');
           }
         },
-        listenOptions: stt.SpeechListenOptions(
-          cancelOnError: false,
-          listenMode: stt.ListenMode.search,
-          partialResults: true,
-          localeId: localeId,
-          listenFor: listenFor,
-          pauseFor: pauseFor,
-        ),
+        onResult: (result) {
+          // Every interpretation the engine considered, with confidence —
+          // the raw evidence for "what did it actually hear". The engine's
+          // top pick is often NOT the right one while an alternate is
+          // (field log 2026-07-06: primary "병환이" 0.87, alternate
+          // "병아리" 1.00 — the user's actual word), so ALL candidates are
+          // forwarded for validation.
+          final alternates = [
+            for (final a in result.alternates)
+              '"${a.words}"(${a.confidence.toStringAsFixed(2)})',
+          ].join(' | ');
+          final candidates = <String>{
+            result.words,
+            for (final a in result.alternates) a.words,
+          }.where((w) => w.trim().isNotEmpty).toList();
+          sttLog(
+              '[STT] onResult: "${result.words}"  final=${result.isFinal}  confidence=${result.confidence.toStringAsFixed(2)}  elapsed=${listenElapsedMs}ms  alternates=[$alternates]');
+          if (result.isFinal) {
+            sttLog(
+                '[STT] ✅ Final result → forwarding ${candidates.length} candidate(s)');
+            onResult(result.words, candidates);
+          } else if (result.words.isNotEmpty) {
+            sttLog('[STT] ⏳ Partial: "${result.words}"');
+            onPartial?.call(result.words, candidates);
+          }
+        },
+        localeId: localeId,
+        listenFor: listenFor,
+        pauseFor: pauseFor,
       );
       _isListening = true;
-      debugPrint('[STT] 🎙️ startListening() → started (locale=$localeId pauseFor=${pauseFor.inSeconds}s listenFor=${listenFor.inSeconds}s)');
+      sttLog(
+          '[STT] 🎙️ startListening() → started (locale=$localeId pauseFor=${pauseFor.inSeconds}s listenFor=${listenFor.inSeconds}s)');
       return true;
     } catch (e) {
-      debugPrint('[STT] 💥 startListening() exception: $e');
+      sttLog('[STT] 💥 startListening() exception: $e');
       return false;
     }
   }
 
+  @override
   Future<void> stopListening() async {
-    debugPrint('[STT] stopListening() _isListening=$_isListening');
-    if (_isListening) {
+    sttLog('[STT] stopListening() _isListening=$_isListening');
+    // Always send the platform stop, even when its callback has already said
+    // `notListening`. Samsung's remote recognizer can still own the audio
+    // session after that callback; skipping this release caused a following
+    // system/Whisper lane to collide with an invisible live microphone.
+    // Swallow the killed session's trailing done/error events so they cannot
+    // be attributed to the lane that starts next.
+    _sessionDone = true;
+    try {
       await _speech.stop();
-      _isListening = false;
+    } catch (error) {
+      sttLog('[STT] stopListening() platform stop failed: $error');
     }
+    _isListening = false;
   }
 
+  @override
   void dispose() {
     _speech.stop();
     _initialized = false;

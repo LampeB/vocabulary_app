@@ -1,4 +1,5 @@
 import 'dart:async' show unawaited;
+import 'dart:convert' show jsonEncode;
 import 'package:uuid/uuid.dart';
 import '../../domain/entities/concept.dart';
 import '../../domain/entities/vocabulary_list.dart';
@@ -10,8 +11,10 @@ import '../datasources/local/daos/vocabulary_list_dao.dart';
 import '../datasources/local/daos/concept_dao.dart';
 import '../datasources/local/app_database.dart';
 import '../datasources/remote/vocabulary_remote_datasource.dart';
+import '../models/variant_progress_dto.dart';
 import '../models/vocabulary_list_dto.dart';
 import '../models/word_variant_dto.dart';
+import '../../services/audio/audio_asset_path.dart';
 import 'package:drift/drift.dart' show Value;
 
 const _uuid = Uuid();
@@ -39,6 +42,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   Future<Result<VocabularyList>> createList({
     required String name,
     String? description,
+    String langA = 'fr',
+    String langB = 'ko',
   }) async {
     final now = DateTime.now();
     final list = VocabularyList(
@@ -46,6 +51,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       ownerId: _userId,
       name: name,
       description: description,
+      langA: langA,
+      langB: langB,
       createdAt: now,
       updatedAt: now,
     );
@@ -73,7 +80,24 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   @override
   Future<Result<void>> deleteList(String listId) async {
     try {
-      await _listDao.softDelete(listId);
+      // Deleting a list frees a quota slot but the user LOSES its mastery
+      // (product decision 2026-07-04): soft-delete the words so they vanish
+      // from smart lists, and delete their progress rows outright.
+      final concepts = await _conceptDao.getConceptsByList(listId);
+      final conceptIds = concepts.map((c) => c.id).toList();
+      final variantIds =
+          await _database.progressDao.getVariantIdsForConcepts(conceptIds);
+      await _database.transaction(() async {
+        await _listDao.softDelete(listId);
+        for (final id in conceptIds) {
+          await _conceptDao.softDelete(id);
+        }
+        for (final id in variantIds) {
+          await _conceptDao.softDeleteVariant(id);
+        }
+        await _database.progressDao.deleteProgressForVariants(
+            userId: _userId, variantIds: variantIds);
+      });
       unawaited(_remote.deleteList(listId));
       return const Success(null);
     } catch (e) {
@@ -151,8 +175,10 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   @override
   Future<Result<Concept>> addConceptWithVariants({
     required String listId,
-    required String frWord,
-    required String koWord,
+    required String wordA,
+    required String wordB,
+    String langA = 'fr',
+    String langB = 'ko',
     String? notes,
     String? category,
   }) async {
@@ -165,21 +191,33 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       createdAt: now,
       updatedAt: now,
     );
+    final frVariantId = _uuid.v4();
     final frVariant = WordVariant(
-      id: _uuid.v4(),
+      id: frVariantId,
       conceptId: concept.id,
-      word: frWord,
-      langCode: 'fr',
+      word: wordA,
+      langCode: langA,
       isPrimary: true,
+      audioPath: AudioAssetPath.user(
+          userId: _userId,
+          variantId: frVariantId,
+          text: wordA,
+          langCode: langA),
       createdAt: now,
       updatedAt: now,
     );
+    final koVariantId = _uuid.v4();
     final koVariant = WordVariant(
-      id: _uuid.v4(),
+      id: koVariantId,
       conceptId: concept.id,
-      word: koWord,
-      langCode: 'ko',
+      word: wordB,
+      langCode: langB,
       isPrimary: true,
+      audioPath: AudioAssetPath.user(
+          userId: _userId,
+          variantId: koVariantId,
+          text: wordB,
+          langCode: langB),
       createdAt: now,
       updatedAt: now,
     );
@@ -201,8 +239,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       });
       await _updateWordCount(listId, 1);
       unawaited(_remote.upsertConcept(_conceptToRemote(concept)));
-      unawaited(_remote.upsertVariant(_variantToRemote(frVariant)));
-      unawaited(_remote.upsertVariant(_variantToRemote(koVariant)));
+      unawaited(_syncVariant(frVariant));
+      unawaited(_syncVariant(koVariant));
       return Success(concept);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -271,19 +309,25 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     bool isPrimary = false,
   }) async {
     final now = DateTime.now();
+    final variantId = _uuid.v4();
     final variant = WordVariant(
-      id: _uuid.v4(),
+      id: variantId,
       conceptId: conceptId,
       word: word,
       langCode: langCode,
       registerTag: registerTag,
       isPrimary: isPrimary,
+      audioPath: AudioAssetPath.user(
+          userId: _userId,
+          variantId: variantId,
+          text: word,
+          langCode: langCode),
       createdAt: now,
       updatedAt: now,
     );
     try {
       await _conceptDao.upsertVariant(variant.toLocalCompanion());
-      unawaited(_remote.upsertVariant(_variantToRemote(variant)));
+      unawaited(_syncVariant(variant));
       return Success(variant);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -292,10 +336,18 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
 
   @override
   Future<Result<WordVariant>> updateVariant(WordVariant variant) async {
-    final updated = variant.copyWith(updatedAt: DateTime.now(), isSynced: false);
+    final updated = variant.copyWith(
+      audioPath: AudioAssetPath.user(
+          userId: _userId,
+          variantId: variant.id,
+          text: variant.word,
+          langCode: variant.langCode),
+      updatedAt: DateTime.now(),
+      isSynced: false,
+    );
     try {
       await _conceptDao.upsertVariant(updated.toLocalCompanion());
-      unawaited(_remote.upsertVariant(_variantToRemote(updated)));
+      unawaited(_syncVariant(updated));
       return Success(updated);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -359,8 +411,15 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     }
   }
 
+  /// Reads [camel] from [map], falling back to its snake_case alias.
+  /// Import payloads come in two shapes: app exports (camelCase) and
+  /// seed/remote rows (snake_case).
+  static T? _field<T>(Map<String, dynamic> map, String camel, String snake) =>
+      (map[camel] ?? map[snake]) as T?;
+
   @override
-  Future<Result<VocabularyList>> importFromJson(Map<String, dynamic> json) async {
+  Future<Result<VocabularyList>> importFromJson(Map<String, dynamic> json,
+      {String origin = 'user'}) async {
     try {
       final listData = json['list'] as Map<String, dynamic>?;
       if (listData == null) {
@@ -371,6 +430,9 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       final listId = _uuid.v4();
       final name = listData['name'] as String? ?? 'Imported List';
       final description = listData['description'] as String?;
+      final langA = _field<String>(listData, 'langA', 'lang_a') ?? 'fr';
+      final langB = _field<String>(listData, 'langB', 'lang_b') ?? 'ko';
+      final listSeedId = _field<String>(listData, 'seedId', 'seed_id');
       final concepts =
           (listData['concepts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
@@ -382,6 +444,10 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
           name: Value(name),
           description: Value(description),
           wordCount: Value(concepts.length),
+          langA: Value(langA),
+          langB: Value(langB),
+          origin: Value(origin),
+          seedId: Value(listSeedId),
           isSynced: const Value(false),
           isDeleted: const Value(false),
           createdAt: Value(now),
@@ -395,24 +461,46 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
             listId: Value(listId),
             category: Value(cData['category'] as String?),
             notes: Value(cData['notes'] as String?),
-            exampleFr: Value(cData['exampleFr'] as String?),
-            exampleKo: Value(cData['exampleKo'] as String?),
+            exampleFr: Value(_field<String>(cData, 'exampleFr', 'example_fr')),
+            exampleKo: Value(_field<String>(cData, 'exampleKo', 'example_ko')),
+            seedId: Value(_field<String>(cData, 'seedId', 'seed_id')),
             isDeleted: const Value(false),
             createdAt: Value(now),
             updatedAt: Value(now),
           ));
 
           final variants =
-              (cData['variants'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+              (_field<List>(cData, 'variants', 'word_variants'))
+                      ?.cast<Map<String, dynamic>>() ??
+                  [];
           for (final vData in variants) {
+            final variantId = _uuid.v4();
+            final word = vData['word'] as String? ?? '';
+            final langCode =
+                _field<String>(vData, 'langCode', 'lang_code') ?? langA;
+            final audioPath = origin == 'starter'
+                ? AudioAssetPath.seed(text: word, langCode: langCode)
+                : AudioAssetPath.user(
+                    userId: _userId,
+                    variantId: variantId,
+                    text: word,
+                    langCode: langCode);
             await _conceptDao.upsertVariant(WordVariantsTableCompanion(
-              id: Value(_uuid.v4()),
+              id: Value(variantId),
               conceptId: Value(conceptId),
-              word: Value(vData['word'] as String? ?? ''),
-              langCode: Value(vData['langCode'] as String? ?? 'fr'),
-              registerTag: Value(vData['registerTag'] as String? ?? 'neutral'),
-              isPrimary: Value(vData['isPrimary'] as bool? ?? false),
+              word: Value(word),
+              langCode: Value(langCode),
+              registerTag: Value(
+                  _field<String>(vData, 'registerTag', 'register_tag') ??
+                      'neutral'),
+              contextTags: Value(jsonEncode(
+                  _field<List>(vData, 'contextTags', 'context_tags') ??
+                      const [])),
+              isPrimary:
+                  Value(_field<bool>(vData, 'isPrimary', 'is_primary') ?? false),
               position: Value(vData['position'] as int? ?? 0),
+              example: Value(vData['example'] as String?),
+              audioPath: Value(audioPath),
               isDeleted: const Value(false),
               createdAt: Value(now),
               updatedAt: Value(now),
@@ -427,6 +515,10 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         name: name,
         description: description,
         wordCount: concepts.length,
+        langA: langA,
+        langB: langB,
+        origin: origin,
+        seedId: listSeedId,
         createdAt: now,
         updatedAt: now,
       );
@@ -507,6 +599,9 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       for (final map in value) {
         final list = map.toVocabularyListDomain();
         await _listDao.upsert(list.toLocalCompanion());
+        // Tombstone: the upsert above marks the local copy deleted; its
+        // contents no longer matter.
+        if (list.isDeleted) continue;
 
         final conceptsResult = await _remote.fetchConcepts(list.id);
         if (conceptsResult case Success(:final value)) {
@@ -519,6 +614,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
               imageUrl: Value(c['image_url'] as String?),
               exampleFr: Value(c['example_fr'] as String?),
               exampleKo: Value(c['example_ko'] as String?),
+              seedId: Value(c['seed_id'] as String?),
               isDeleted: Value(c['is_deleted'] as bool? ?? false),
               isSynced: const Value(true),
               createdAt: Value(DateTime.parse(c['created_at'] as String)),
@@ -535,8 +631,12 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
                 langCode: Value(v['lang_code'] as String? ?? 'fr'),
                 registerTag:
                     Value(v['register_tag'] as String? ?? 'neutral'),
+                contextTags:
+                    Value(jsonEncode(v['context_tags'] as List? ?? const [])),
                 isPrimary: Value(v['is_primary'] as bool? ?? false),
                 position: Value(v['position'] as int? ?? 0),
+                example: Value(v['example'] as String?),
+                audioPath: Value(v['audio_path'] as String?),
                 isDeleted: Value(v['is_deleted'] as bool? ?? false),
                 isSynced: const Value(true),
                 createdAt:
@@ -551,6 +651,23 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         // is always authoritative, regardless of what the remote sent.
         final actualCount = await _conceptDao.countByList(list.id);
         await _listDao.updateWordCount(list.id, actualCount);
+      }
+    }
+
+    // Progress comes down AFTER content so its variant rows exist locally.
+    // A local row still marked unsynced is a pending outbound write — newer
+    // than anything the server has — so the remote copy must not clobber it.
+    // Per-row failures are skipped: one malformed row can't abort restoring
+    // the rest.
+    final progressResult = await _remote.fetchProgress(_userId);
+    if (progressResult case Success(:final value)) {
+      final progressDao = _database.progressDao;
+      for (final map in value) {
+        try {
+          final local = await progressDao.getById(map['id'] as String);
+          if (local != null && !local.isSynced) continue;
+          await progressDao.upsert(variantProgressCompanionFromRemote(map));
+        } catch (_) {}
       }
     }
   }
@@ -575,6 +692,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         'image_url': c.imageUrl,
         'example_fr': c.exampleFr,
         'example_ko': c.exampleKo,
+        'seed_id': c.seedId,
         'is_deleted': c.isDeleted,
         'created_at': c.createdAt.toIso8601String(),
         'updated_at': c.updatedAt.toIso8601String(),
@@ -586,10 +704,27 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         'word': v.word,
         'lang_code': v.langCode,
         'register_tag': v.registerTag,
+        'context_tags': v.contextTags,
         'is_primary': v.isPrimary,
+        'audio_hash': v.audioHash,
+        'audio_voice_id': v.audioVoiceId,
+        'audio_path': v.audioPath,
         'position': v.position,
+        'example': v.example,
         'is_deleted': v.isDeleted,
         'created_at': v.createdAt.toIso8601String(),
         'updated_at': v.updatedAt.toIso8601String(),
       };
+
+  Future<void> _syncVariant(WordVariant variant) async {
+    try {
+      final result = await _remote.upsertVariant(_variantToRemote(variant));
+      if (result.isSuccess && !variant.isDeleted && variant.audioPath != null) {
+        await _remote.provisionAudio(variant.id);
+      }
+    } catch (_) {
+      // The durable isSynced queue retries the row; audio is best-effort until
+      // the content itself has reached the server.
+    }
+  }
 }

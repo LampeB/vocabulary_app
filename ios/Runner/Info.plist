@@ -41,6 +41,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>VocabKR uses the microphone to hear your spoken answers during voice and hands-free quizzes.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>VocabKR uses speech recognition to check your spoken answers against the vocabulary you are learning.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

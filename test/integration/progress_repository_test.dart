@@ -51,8 +51,8 @@ void main() {
         .value;
     final concept = ((await vocabRepo.addConceptWithVariants(
       listId: list.id,
-      frWord: 'Bonjour',
-      koWord: '안녕하세요',
+      wordA: 'Bonjour',
+      wordB: '안녕하세요',
     )) as Success<Concept>)
         .value;
     final variants = await db.conceptDao.getVariantsByConcept(concept.id);
@@ -168,7 +168,7 @@ void main() {
       final list = await setup();
       // Add a second word so the list isn't reduced to only the future card.
       await vocabRepo.addConceptWithVariants(
-          listId: list.id, frWord: 'Merci', koWord: '감사합니다');
+          listId: list.id, wordA: 'Merci', wordB: '감사합니다');
 
       // Push the first word's card to tomorrow → it should not be due.
       final base = ((await progressRepo.getProgress(
@@ -245,11 +245,11 @@ void main() {
               as Success<VocabularyList>)
           .value;
       await vocabRepo.addConceptWithVariants(
-          listId: list.id, frWord: 'A', koWord: 'ㄱ');
+          listId: list.id, wordA: 'A', wordB: 'ㄱ');
       await vocabRepo.addConceptWithVariants(
-          listId: list.id, frWord: 'B', koWord: 'ㄴ');
+          listId: list.id, wordA: 'B', wordB: 'ㄴ');
       await vocabRepo.addConceptWithVariants(
-          listId: list.id, frWord: 'C', koWord: 'ㄷ');
+          listId: list.id, wordA: 'C', wordB: 'ㄷ');
 
       final result = await progressRepo.getDueCards(
         userId: _kUserId,
@@ -530,8 +530,8 @@ void main() {
           .value;
       final c2 = ((await vocabRepo.addConceptWithVariants(
         listId: list2.id,
-        frWord: 'Merci',
-        koWord: '감사합니다',
+        wordA: 'Merci',
+        wordB: '감사합니다',
       )) as Success<Concept>)
           .value;
       final variants2 = await db.conceptDao.getVariantsByConcept(c2.id);

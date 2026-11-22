@@ -12,7 +12,7 @@ _$VariantProgressImpl _$$VariantProgressImplFromJson(
       id: json['id'] as String,
       userId: json['userId'] as String,
       variantId: json['variantId'] as String,
-      direction: $enumDecode(_$QuizDirectionEnumMap, json['direction']),
+      direction: QuizDirection.fromJson(json['direction'] as String),
       stability: (json['stability'] as num?)?.toDouble() ?? 0.0,
       difficulty: (json['difficulty'] as num?)?.toDouble() ?? 5.0,
       elapsedDays: (json['elapsedDays'] as num?)?.toInt() ?? 0,
@@ -41,7 +41,7 @@ Map<String, dynamic> _$$VariantProgressImplToJson(
       'id': instance.id,
       'userId': instance.userId,
       'variantId': instance.variantId,
-      'direction': _$QuizDirectionEnumMap[instance.direction]!,
+      'direction': instance.direction,
       'stability': instance.stability,
       'difficulty': instance.difficulty,
       'elapsedDays': instance.elapsedDays,
@@ -58,11 +58,6 @@ Map<String, dynamic> _$$VariantProgressImplToJson(
       'createdAt': instance.createdAt.toIso8601String(),
       'updatedAt': instance.updatedAt.toIso8601String(),
     };
-
-const _$QuizDirectionEnumMap = {
-  QuizDirection.frToKo: 'frToKo',
-  QuizDirection.koToFr: 'koToFr',
-};
 
 const _$CardStateEnumMap = {
   CardState.newCard: 'newCard',

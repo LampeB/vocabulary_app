@@ -1,4 +1,5 @@
 import 'dart:async' show unawaited;
+import 'package:easy_localization/easy_localization.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_review/in_app_review.dart';
@@ -13,11 +14,17 @@ import '../../../domain/usecases/quiz/submit_answer_usecase.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/utils/answer_validator.dart';
 import '../../../core/utils/fsrs_algorithm.dart';
+import '../../../core/utils/stt_debug_log.dart';
 import '../audio/audio_provider.dart';
+import '../../../services/quiz_orchestration/audio_director.dart';
 import '../lists/vocabulary_provider.dart';
 import '../auth/auth_provider.dart';
 import '../../../services/audio/audio_player_service.dart';
+import '../grammar/grammar_provider.dart';
 import '../notifications/notification_provider.dart';
+import '../../../core/grammar/grammar_drill_generator.dart';
+import '../../../core/grammar/rule_mastery.dart';
+import 'session_assembly.dart';
 
 const _uuid = Uuid();
 
@@ -29,15 +36,28 @@ class QuizCard {
     required this.progress,
     required this.questionWord,
     required this.answerWords,
+    this.questionAudioPath,
+    this.answerAudioPath,
+    this.isRequeue = false,
   });
 
   final VariantProgress progress;
 
+  /// True for the queue-tail copy created by skipCurrentCard — excluded
+  /// from user-facing counts so skips don't inflate the session size.
+  final bool isRequeue;
+
   /// The word shown as the question (French or Korean depending on direction).
   final String questionWord;
 
+  /// Immutable Storage path for the spoken prompt, if it has been published.
+  final String? questionAudioPath;
+
   /// Accepted answer words (used for typing / voice validation).
   final List<String> answerWords;
+
+  /// Immutable Storage path for the primary accepted answer.
+  final String? answerAudioPath;
 
   /// Derived from progress.direction — available as a convenience.
   QuizDirection get direction => progress.direction;
@@ -47,6 +67,15 @@ class QuizCard {
 
 enum QuizMode { flashcard, typing, voice, handsFree }
 
+/// Whether the revealed answer should be auto-spoken, given the mode and whether
+/// the user's answer was correct. Flashcard never speaks (visual-only). Hands-free
+/// speaks only on a wrong answer — the user just said the word aloud correctly, so
+/// only a mistake needs the correct pronunciation. Typing/voice always speak.
+bool shouldSpeakAnswer(QuizMode mode, {required bool correct}) =>
+    mode != QuizMode.flashcard &&
+    mode != QuizMode.typing && // typing: on-demand speaker button instead
+    (mode != QuizMode.handsFree || !correct);
+
 /// UI-level direction choice. `both` means load cards in both FR→KR and KR→FR
 /// directions — each individual card still has a single concrete direction.
 /// Never stored in the DB; only used in QuizArgs.
@@ -54,15 +83,42 @@ enum QuizDirectionChoice { frToKo, koToFr, both }
 
 class QuizArgs {
   const QuizArgs({
-    required this.listId,
+    this.listId,
+    this.source = QuizSource.list,
     required this.mode,
     required this.direction,
     required this.cardLimit,
-  });
-  final String listId;
+    this.langA = 'fr',
+    this.langB = 'ko',
+    this.ruleId,
+    this.ruleTitle,
+  })  : assert(source != QuizSource.list || listId != null,
+            'a list-sourced session needs a listId'),
+        assert(source != QuizSource.grammar || ruleId != null,
+            'a grammar session needs a ruleId');
+
+  /// The list to study — required when [source] is [QuizSource.list],
+  /// ignored for the cross-list smart sources.
+  final String? listId;
+  final QuizSource source;
   final QuizMode mode;
   final QuizDirectionChoice direction;
   final int cardLimit;
+
+  /// The studied language pair (from the selected list; smart sources use the
+  /// fr/ko defaults until multi-pair exists). Directions are RESOLVED from
+  /// this pair — the QuizDirectionChoice names are legacy labels for
+  /// forward/backward/both.
+  final String langA;
+  final String langB;
+
+  /// Grammar sessions: the rule being drilled (+ its title for history).
+  final String? ruleId;
+  final String? ruleTitle;
+
+  QuizDirection get forward =>
+      QuizDirection(questionLang: langA, answerLang: langB);
+  QuizDirection get backward => forward.reversed;
 }
 
 enum QuizAnswerState { idle, correct, incorrect }
@@ -96,15 +152,43 @@ class QuizState {
   final int correctCount;
   final bool isComplete;
   final String? errorMessage;
+
   /// FSRS-computed interval for the last answered card — used by the feedback screen.
   final int scheduledDays;
 
   QuizCard? get currentCard =>
       currentIndex < cards.length ? cards[currentIndex] : null;
 
+  /// The card that will follow — used to pre-warm its TTS voice while the
+  /// user answers the current one. Requeues can still change the actual
+  /// successor; a mis-warm just falls back to the on-demand voice switch.
+  QuizCard? get nextCard =>
+      currentIndex + 1 < cards.length ? cards[currentIndex + 1] : null;
+
+  /// Internal queue length — drives advancement/completion. Requeued
+  /// copies (skipCurrentCard) count here so they actually replay.
   int get total => cards.length;
 
-  double get accuracy => total == 0 ? 0 : correctCount / total;
+  /// User-facing session size: requeued copies excluded, so skips don't
+  /// inflate it ("I chose 10 words but ended up with 12" + a progress bar
+  /// stalling against a growing denominator — field report 2026-07-09).
+  int get displayTotal => cards.where((c) => !c.isRequeue).length;
+
+  /// User-facing position, clamped: while replaying requeued copies past
+  /// the planned count it displays as total/total.
+  int get position =>
+      currentIndex + 1 > displayTotal ? displayTotal : currentIndex + 1;
+
+  double get accuracy => displayTotal == 0 ? 0 : correctCount / displayTotal;
+
+  /// True once the planned cards are done and requeued skips are replaying.
+  bool get inReviewTail => currentIndex + 1 > displayTotal;
+
+  /// 1-based position within the requeue tail (valid when [inReviewTail]).
+  int get reviewPosition => currentIndex + 1 - displayTotal;
+
+  /// Number of requeued cards in the tail.
+  int get reviewTotal => cards.length - displayTotal;
 
   QuizState copyWith({
     List<QuizCard>? cards,
@@ -168,12 +252,15 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   // Not late final: Riverpod re-calls build() when audioPlayerServiceProvider
   // rebuilds (e.g. when audioSettingsProvider loads from SharedPreferences).
   AudioPlayerService? _audio;
+  AudioDirector? _director;
   var _alive = true;
   // Eagerly mirrored in the state setter so build() can restore it after a
   // dependency-triggered rebuild. Riverpod resets internal state to
   // "uninitialized" before firing onDispose, so reading state there throws.
   QuizState _preserved = const QuizState();
   QuizArgs? _lastArgs;
+  // When the current card was shown — for review-event responseTimeMs.
+  DateTime? _cardShownAt;
   DateTime? _sessionStartTime;
 
   @override
@@ -186,67 +273,83 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   QuizState build() {
     _alive = true; // rebuild ≠ disposal; reset so _onSessionComplete can run
     _audio = ref.watch(audioPlayerServiceProvider);
+    _director = ref.watch(audioDirectorProvider);
     ref.onDispose(() => _alive = false);
     return _preserved;
+  }
+
+  /// Clears any prior session's state so a freshly-entered quiz screen never
+  /// flashes the OLD session's summary before loadCards runs (the provider
+  /// isn't autoDispose; field report 2026-07-14). Call before navigating.
+  void reset() {
+    _cardShownAt = null;
+    _requeuedOnce.clear();
+    state = const QuizState();
   }
 
   Future<void> loadCards(QuizArgs args) async {
     _lastArgs = args;
     _sessionStartTime = DateTime.now();
-    state = state.copyWith(isLoading: true, isComplete: false, errorMessage: null);
+    _requeuedOnce.clear();
+    state =
+        state.copyWith(isLoading: true, isComplete: false, errorMessage: null);
 
     final userId = ref.read(currentUserProvider)?.id ?? '';
+
+    if (args.source == QuizSource.grammar) {
+      await _loadGrammarCards(args);
+      return;
+    }
     final getDueCards = ref.read(getDueCardsUseCaseProvider);
 
     // Fetch progress entries — one or two calls depending on direction choice.
     List<VariantProgress> progressList;
     if (args.direction == QuizDirectionChoice.both) {
-      final halfLimit = (args.cardLimit + 1) ~/ 2;
+      final limit = halfLimit(args.cardLimit);
       final frResult = await getDueCards.call(
         userId: userId,
         listId: args.listId,
-        direction: QuizDirection.frToKo,
-        limit: halfLimit,
+        source: args.source,
+        direction: args.forward,
+        limit: limit,
       );
       final koResult = await getDueCards.call(
         userId: userId,
         listId: args.listId,
-        direction: QuizDirection.koToFr,
-        limit: halfLimit,
+        source: args.source,
+        direction: args.backward,
+        limit: limit,
       );
       if (frResult.isFailure && koResult.isFailure) {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: frResult.exceptionOrNull?.message ?? 'Failed to load cards',
+          errorMessage:
+              frResult.exceptionOrNull?.message ?? 'Failed to load cards',
         );
         return;
       }
-      final frCards = frResult.valueOrNull ?? [];
-      final koCards = koResult.valueOrNull ?? [];
-      // Interleave FR and KO cards: FR, KO, FR, KO, …
-      progressList = [];
-      final maxLen = frCards.length > koCards.length ? frCards.length : koCards.length;
-      for (int i = 0; i < maxLen; i++) {
-        if (i < frCards.length) progressList.add(frCards[i]);
-        if (i < koCards.length) progressList.add(koCards[i]);
-      }
-      if (progressList.length > args.cardLimit) {
-        progressList = progressList.take(args.cardLimit).toList();
-      }
+      // Interleave FR and KO cards (FR, KO, FR, KO, …), capped at the limit.
+      progressList = interleaveAndCap(
+        frResult.valueOrNull ?? [],
+        koResult.valueOrNull ?? [],
+        args.cardLimit,
+      );
     } else {
       final direction = args.direction == QuizDirectionChoice.frToKo
-          ? QuizDirection.frToKo
-          : QuizDirection.koToFr;
+          ? args.forward
+          : args.backward;
       final result = await getDueCards.call(
         userId: userId,
         listId: args.listId,
+        source: args.source,
         direction: direction,
         limit: args.cardLimit,
       );
       if (result.isFailure) {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: result.exceptionOrNull?.message ?? 'Failed to load cards',
+          errorMessage:
+              result.exceptionOrNull?.message ?? 'Failed to load cards',
         );
         return;
       }
@@ -260,50 +363,75 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
 
     // Enrich each VariantProgress with question/answer word text.
     final conceptDao = ref.read(conceptDaoProvider);
-    final questionVariantIds = progressList.map((p) => p.variantId).toSet().toList();
+    final questionVariantIds =
+        progressList.map((p) => p.variantId).toSet().toList();
 
     // Look up question variants by ID (deduplicated).
     final questionVariantMap = <String, String>{}; // variantId → word
+    final questionAudioPathMap = <String, String?>{};
     final conceptIdMap = <String, String>{}; // variantId → conceptId
     for (final id in questionVariantIds) {
       final row = await conceptDao.getVariantById(id);
       if (row != null) {
         questionVariantMap[id] = row.word;
+        questionAudioPathMap[id] = row.audioPath;
         conceptIdMap[id] = row.conceptId;
       }
     }
 
-    // Fetch answer variants for both langs — needed for mixed-direction "both" mode.
+    // Fetch answer variants for both languages of the session's pair —
+    // needed for mixed-direction "both" mode.
     final allConceptIds = conceptIdMap.values.toSet().toList();
-    final answerByConceptAndLang = <String, Map<String, List<String>>>{};
-    for (final langCode in ['fr', 'ko']) {
-      final rows = await conceptDao.getVariantsByConceptIds(allConceptIds, langCode);
+    final answerByConceptAndLang =
+        <String, Map<String, List<WordVariantsTableData>>>{};
+    for (final langCode in {args.langA, args.langB}) {
+      final rows =
+          await conceptDao.getVariantsByConceptIds(allConceptIds, langCode);
       for (final v in rows) {
-        ((answerByConceptAndLang[v.conceptId] ??= {})[langCode] ??= []).add(v.word);
+        ((answerByConceptAndLang[v.conceptId] ??= {})[langCode] ??= [])
+            .add(v);
       }
     }
 
     // Assemble QuizCards, dropping any whose variant can't be resolved.
-    final quizCards = <QuizCard>[];
+    var quizCards = <QuizCard>[];
     for (final p in progressList) {
       final q = questionVariantMap[p.variantId];
       final cId = conceptIdMap[p.variantId];
       if (q == null || cId == null) continue;
-      final answerLang = p.direction == QuizDirection.frToKo ? 'ko' : 'fr';
+      final answerLang = p.direction.answerLang;
+      final answerVariants = answerByConceptAndLang[cId]?[answerLang] ?? [];
+      if (answerVariants.isEmpty) {
+        // A concept missing its answer-language variant is UNANSWERABLE —
+        // every attempt would grade wrong no matter what the user says
+        // (field log 2026-07-06: "singe" had no KO word; the user's correct
+        // 원숭이 scored 0 against an empty list). Never deal such a card.
+        sttLog(
+            '[QUIZ] dropping unanswerable card "$q" — no $answerLang variant');
+        continue;
+      }
       quizCards.add(QuizCard(
         progress: p,
         questionWord: q,
-        answerWords: answerByConceptAndLang[cId]?[answerLang] ?? [],
+        questionAudioPath: questionAudioPathMap[p.variantId],
+        answerWords: answerVariants.map((v) => v.word).toList(),
+        answerAudioPath: answerVariants
+            .firstWhere((v) => v.isPrimary,
+                orElse: () => answerVariants.first)
+            .audioPath,
       ));
     }
 
+    // Same concept, languages swapped, back-to-back ("morning" → "matin")
+    // reads as an echo, not a test — keep ≥2 other cards between the two
+    // directions of one concept (user report 2026-07-21).
+    quizCards = spaceOutDuplicates(
+      quizCards,
+      (c) => conceptIdMap[c.progress.variantId],
+    );
+
     // Pad to the requested limit by repeating cards cyclically.
-    if (quizCards.isNotEmpty && quizCards.length < args.cardLimit) {
-      final base = List.of(quizCards);
-      while (quizCards.length < args.cardLimit) {
-        quizCards.add(base[quizCards.length % base.length]);
-      }
-    }
+    quizCards = padCyclically(quizCards, args.cardLimit);
 
     state = state.copyWith(
       cards: quizCards,
@@ -313,31 +441,122 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       correctCount: 0,
     );
 
-    if (quizCards.isNotEmpty && !_kTestMode) {
+    // Fill the on-device cache for the whole session in the background. The
+    // first prompt shares this same request; every later hands-free turn is
+    // therefore a local file read rather than an audio-generation wait.
+    unawaited(_prefetchSessionAudio(quizCards));
+
+    if (quizCards.isNotEmpty &&
+        !_kTestMode &&
+        args.source != QuizSource.grammar) {
       final first = quizCards.first;
-      final firstLang = first.progress.direction == QuizDirection.frToKo ? 'fr' : 'ko';
-      unawaited(_audio?.speak(first.questionWord, firstLang));
+      final firstLang = first.progress.direction.questionLang;
+      unawaited(_audio?.speak(first.questionWord, firstLang,
+          audioPath: first.questionAudioPath));
     }
+  }
+
+  Future<void> _prefetchSessionAudio(List<QuizCard> cards) async {
+    final audio = _audio;
+    if (audio == null) return;
+    for (final card in cards) {
+      await audio.prefetch(card.questionWord,
+          card.progress.direction.questionLang,
+          audioPath: card.questionAudioPath);
+      if (card.answerWords.isNotEmpty) {
+        await audio.prefetch(card.answerWords.first,
+            card.progress.direction.answerLang,
+            audioPath: card.answerAudioPath);
+      }
+    }
+  }
+
+  /// Grammar sessions use deterministic drills from the rule + mastered words.
+  /// The question is the localized prompt;
+  /// the answer is validated against the module's accepted forms; answers
+  /// record grammar progress instead of FSRS.
+  Future<void> _loadGrammarCards(QuizArgs args) async {
+    final rules = await ref.read(grammarRulesProvider(args.langB).future);
+    final rule = rules.firstWhere((r) => r.id == args.ruleId);
+    final module = await ref.read(grammarModuleProvider(args.langB).future);
+    if (module == null) {
+      // No deterministic engine for this language — nothing to drill.
+      state = state.copyWith(isLoading: false, isComplete: true);
+      return;
+    }
+    final words = await ref.read(drillWordsProvider(args.langB).future);
+
+    final exercises = GrammarDrillGenerator(module).generate(
+      rule,
+      words,
+      count: args.cardLimit,
+      // The drill prompt itself is localized to the UI locale (.tr), so the
+      // interpolated rule title must match it.
+      promptLocale: Intl.defaultLocale?.split(RegExp('[_-]')).first ?? 'en',
+    );
+    if (exercises.isEmpty) {
+      state = state.copyWith(isLoading: false, isComplete: true);
+      return;
+    }
+    final now = DateTime.now();
+    final cards = [
+      for (final e in exercises)
+        QuizCard(
+          progress: VariantProgress(
+            id: 'grammar|${e.ruleId}',
+            userId: ref.read(currentUserProvider)?.id ?? '',
+            variantId: 'grammar|${e.ruleId}|${e.variantKey ?? ''}',
+            direction: args.forward,
+            createdAt: now,
+            updatedAt: now,
+          ),
+          questionWord: e.promptKey.tr(namedArgs: {
+            for (final entry in e.promptParams.entries)
+              entry.key: entry.key == 'hint' ? entry.value.tr() : entry.value,
+          }),
+          answerWords: e.accepted,
+        ),
+    ];
+    state = state.copyWith(
+      cards: cards,
+      currentIndex: 0,
+      isLoading: false,
+      isComplete: false,
+      correctCount: 0,
+    );
   }
 
   void flipCard() {
     final flipped = !state.isFlipped;
     state = state.copyWith(isFlipped: flipped);
-    if (flipped) {
+    // TTS muted in TEST_MODE — emulator audio destabilizes the E2E runner.
+    if (flipped && !_kTestMode) {
       final card = state.currentCard;
       if (card != null && card.answerWords.isNotEmpty) {
-        final answerLang = card.progress.direction == QuizDirection.frToKo ? 'ko' : 'fr';
-        unawaited(_audio?.speak(card.answerWords.first, answerLang));
+        final answerLang = card.progress.direction.answerLang;
+        unawaited(_audio?.speak(card.answerWords.first, answerLang,
+            audioPath: card.answerAudioPath));
       }
     }
   }
 
-  void rateCard(FsrsRating rating) {
+  /// Cartes self-grade on the unified study canvas: persist + set the answer
+  /// state (so the full-screen feedback flood shows), then Continuer advances.
+  void gradeFlashcard(FsrsRating rating) {
     final card = state.currentCard;
     if (card == null) return;
-    unawaited(_persistRating(card.progress, rating));
+    // Cartes NEVER advances mastery (product decision 2026-07-04): self-graded
+    // flips are too easy to fake, so no FSRS rating is persisted — the mode is
+    // pure practice. Session score/history still record normally. Applies to
+    // vocab today and to grammar when it lands. scheduledDays stays 0 so the
+    // feedback screen doesn't show an interval that was never scheduled.
     final isCorrect = rating == FsrsRating.good || rating == FsrsRating.easy;
-    _advance(isCorrect: isCorrect);
+    _recordReviewEvent(card, correct: isCorrect, rating: rating);
+    state = state.copyWith(
+      answerState:
+          isCorrect ? QuizAnswerState.correct : QuizAnswerState.incorrect,
+      scheduledDays: 0,
+    );
   }
 
   /// Called by the "Continuer" button on the feedback screen.
@@ -353,13 +572,27 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       acceptedAnswers: card.answerWords,
     );
     final rating = result.isCorrect ? FsrsRating.good : FsrsRating.again;
-    unawaited(_persistRating(card.progress, rating));
+    // Same best-effort rule as submitVoiceAnswer: the verdict always lands.
+    var scheduledDays = 0;
+    try {
+      scheduledDays = _computeScheduledDays(card.progress, rating);
+    } catch (e) {
+      sttLog('[QUIZ] ⚠️ scheduledDays computation failed: $e');
+    }
+    try {
+      unawaited(_persistRating(card.progress, rating).catchError((Object e) {
+        sttLog('[QUIZ] ⚠️ persistRating failed (async): $e');
+      }));
+    } catch (e) {
+      sttLog('[QUIZ] ⚠️ persistRating failed (sync): $e');
+    }
+    _recordReviewEvent(card, correct: result.isCorrect, rating: rating);
     state = state.copyWith(
       userAnswer: answer,
       answerState: result.isCorrect
           ? QuizAnswerState.correct
           : QuizAnswerState.incorrect,
-      scheduledDays: _computeScheduledDays(card.progress, rating),
+      scheduledDays: scheduledDays,
     );
     // Advance is triggered by user tapping "Continuer" on the feedback screen.
   }
@@ -373,25 +606,113 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       isDrivingMode: isDrivingMode,
     );
     final rating = result.isCorrect ? FsrsRating.good : FsrsRating.again;
-    unawaited(_persistRating(card.progress, rating));
+    // GRADING MUST NEVER BE BLOCKED by FSRS math or persistence: a throw
+    // here used to abort before the state change, leaving the card
+    // ungraded while the user repeated the (validated-correct) answer
+    // into a re-listening mic (field log 2026-07-07). Persist and
+    // scheduling are best-effort; the verdict always lands.
+    var scheduledDays = 0;
+    try {
+      scheduledDays = _computeScheduledDays(card.progress, rating);
+    } catch (e) {
+      sttLog('[QUIZ] ⚠️ scheduledDays computation failed: $e');
+    }
+    try {
+      unawaited(_persistRating(card.progress, rating).catchError((Object e) {
+        sttLog('[QUIZ] ⚠️ persistRating failed (async): $e');
+      }));
+    } catch (e) {
+      sttLog('[QUIZ] ⚠️ persistRating failed (sync): $e');
+    }
+    _recordReviewEvent(card, correct: result.isCorrect, rating: rating);
     state = state.copyWith(
       userAnswer: transcript,
       answerState: result.isCorrect
           ? QuizAnswerState.correct
           : QuizAnswerState.incorrect,
       isListening: false,
-      scheduledDays: _computeScheduledDays(card.progress, rating),
+      scheduledDays: scheduledDays,
     );
     if (isDrivingMode) {
-      // Correct: short pause for the flash/sound then move on (no TTS plays).
-      // Wrong: longer pause so the answer TTS has time to finish speaking
-      // before the next card appears and the mic opens.
-      final delay = result.isCorrect
-          ? const Duration(milliseconds: 800)
-          : const Duration(milliseconds: 3000);
-      Future.delayed(delay, () => _advance(isCorrect: result.isCorrect));
+      unawaited(_advanceAfterAudio(isCorrect: result.isCorrect));
     }
     // Otherwise: advance is triggered by "Continuer" on the feedback screen.
+  }
+
+  /// Driving-mode advance, sequenced BEHIND the verdict audio instead of a
+  /// fixed timer. The old fixed 800ms/3000ms raced the audio chain (verdict
+  /// chirp → answer TTS → next question TTS), so when TTS ran long the next
+  /// card started while audio was still queued — late answer audio, delayed
+  /// questions and mistimed earcons (field report 2026-07-20). Waiting for
+  /// quiet gives every card a clean audio slate.
+  Future<void> _advanceAfterAudio({required bool isCorrect}) async {
+    final marker = state.currentIndex;
+    bool sameCard() =>
+        _alive && state.currentIndex == marker && !state.isComplete;
+    // Give the screen's grade reaction a beat to START its audio first.
+    await Future.delayed(const Duration(milliseconds: 250));
+    if (isCorrect) {
+      // Correct plays only the chirp (no TTS) — a quick quiet check suffices.
+      await _director?.quiet(timeout: const Duration(seconds: 4));
+      await Future.delayed(const Duration(milliseconds: 550));
+    } else {
+      // Wrong answers speak the CORRECTION, and its start can lag (an
+      // uncached ElevenLabs render is a network fetch). A quiet check that
+      // ran before the audio began advanced the card mid-correction — the
+      // answer played after its feedback screen was gone (field report
+      // 2026-07-22). Wait for the chain: start (bounded) → end.
+      await _director?.chainQuiet(
+        cycles: 2,
+        firstStartWindow: const Duration(seconds: 2),
+        utteranceCap: const Duration(seconds: 6),
+        keepGoing: sameCard,
+      );
+      await Future.delayed(const Duration(milliseconds: 650));
+    }
+    if (state.currentIndex != marker || state.isComplete) return; // moved on
+    _advance(isCorrect: isCorrect);
+  }
+
+  /// Records one review-event row (observability for the stats dashboard).
+  /// Strictly additive — best-effort, never blocks grading; the isSynced
+  /// flag carries it to Supabase on the next push drain.
+  void _recordReviewEvent(
+    QuizCard card, {
+    required bool correct,
+    required FsrsRating rating,
+    int? retryCount,
+  }) {
+    try {
+      final userId = ref.read(currentUserProvider)?.id ?? '';
+      if (userId.isEmpty) return;
+      final now = DateTime.now();
+      final rt = _cardShownAt == null
+          ? null
+          : now.difference(_cardShownAt!).inMilliseconds;
+      unawaited(ref
+          .read(appDatabaseProvider)
+          .reviewEventDao
+          .insertEvent(ReviewEventsTableCompanion.insert(
+            id: _uuid.v4(),
+            userId: userId,
+            variantId: card.progress.variantId,
+            direction: card.progress.direction.name,
+            listId: Value(_lastArgs?.listId),
+            mode: (_lastArgs?.mode ?? QuizMode.flashcard).name,
+            correct: correct,
+            rating: rating.name,
+            responseTimeMs: Value(rt),
+            retryCount: Value(retryCount),
+            createdAt: now,
+          ))
+          .then((_) => ref.read(pushSyncProvider).pushAll())
+          .catchError((Object e) {
+        sttLog('[QUIZ] ⚠️ review-event record failed: $e');
+        return 0;
+      }));
+    } catch (e) {
+      sttLog('[QUIZ] ⚠️ review-event record failed (sync): $e');
+    }
   }
 
   int _computeScheduledDays(VariantProgress progress, FsrsRating rating) {
@@ -436,16 +757,24 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         ? 0
         : DateTime.now().difference(_sessionStartTime!).inSeconds;
 
-    // Look up list name from the DAO.
-    final listRow = await ref
-        .read(vocabularyListDaoProvider)
-        .getById(args.listId);
-    final listName = listRow?.name ?? '';
+    // List sessions record the list's name; smart sessions their label;
+    // grammar sessions the rule's title.
+    final String listName;
+    if (args.source == QuizSource.grammar) {
+      listName = args.ruleTitle ?? args.ruleId ?? '';
+    } else if (args.source == QuizSource.list) {
+      final listRow =
+          await ref.read(vocabularyListDaoProvider).getById(args.listId!);
+      listName = listRow?.name ?? '';
+    } else {
+      listName = args.source == QuizSource.allDue
+          ? 'start_session.smart_due'.tr()
+          : 'start_session.smart_in_progress'.tr();
+    }
 
     // Snapshot total mastered-word count at session end.
-    final masteredResult = await ref
-        .read(progressRepositoryProvider)
-        .getMasteredVariants(userId);
+    final masteredResult =
+        await ref.read(progressRepositoryProvider).getMasteredVariants(userId);
     final masteredCount = (masteredResult.valueOrNull ?? []).length;
 
     try {
@@ -489,9 +818,55 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
 
   Future<void> _persistRating(
       VariantProgress progress, FsrsRating rating) async {
+    final args = _lastArgs;
+    if (args?.source == QuizSource.grammar) {
+      // Grammar mastery, not FSRS. Only non-cartes paths reach here (cartes
+      // never persists), so every recorded answer counts toward the rule.
+      final userId = ref.read(currentUserProvider)?.id ?? '';
+      if (userId.isEmpty) return;
+      await ref.read(appDatabaseProvider).grammarProgressDao.recordAnswer(
+            userId: userId,
+            ruleId: args!.ruleId!,
+            correct: rating != FsrsRating.again,
+            masteredWhenCorrectReaches: kRuleMasteryTarget,
+          );
+      return;
+    }
     await ref
         .read(submitAnswerUseCaseProvider)
         .call(progress: progress, rating: rating);
+  }
+
+  /// Variant ids already requeued once by [skipCurrentCard] — a card comes
+  /// back at most once, so a persistently silent environment can't loop a
+  /// session forever.
+  final _requeuedOnce = <String>{};
+
+  /// Skips the current card WITHOUT grading: nothing is persisted (no FSRS
+  /// rating, no grammar progress), and the card is requeued at the end of
+  /// the session (once) so the user gets another shot. This is what
+  /// "the mic heard nothing" and the hands-free Passer button do — silence
+  /// or a noisy room is an environment problem, never a wrong answer
+  /// (user feedback 2026-07-06: background noise was failing words the
+  /// user never spoke).
+  void skipCurrentCard() {
+    final card = state.currentCard;
+    if (card == null || state.answerState != QuizAnswerState.idle) return;
+    final requeue = _requeuedOnce.add(card.progress.variantId);
+    if (requeue) {
+      // The copy is flagged: it replays (cards.length grows) but does not
+      // inflate the user-facing displayTotal.
+      state = state.copyWith(cards: [
+        ...state.cards,
+        QuizCard(
+          progress: card.progress,
+          questionWord: card.questionWord,
+          answerWords: card.answerWords,
+          isRequeue: true,
+        ),
+      ]);
+    }
+    _advance(isCorrect: false);
   }
 
   void _advance({required bool isCorrect}) {
@@ -516,11 +891,23 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         correctCount: newCorrect,
         scheduledDays: 0,
       );
+      _cardShownAt = DateTime.now();
       final nextCard = state.currentCard;
-      if (nextCard != null) {
-        final nextLang = nextCard.progress.direction == QuizDirection.frToKo ? 'fr' : 'ko';
-        unawaited(_audio?.speak(nextCard.questionWord, nextLang));
+      if (nextCard != null &&
+          !_kTestMode &&
+          _lastArgs?.source != QuizSource.grammar) {
+        final nextLang = nextCard.progress.direction.questionLang;
+        unawaited(_speakWhenQuiet(nextCard.questionWord, nextLang));
       }
     }
+  }
+
+  /// Speaks after any in-flight utterance finishes: a wrong-answer replay
+  /// can still be playing when the session advances, and starting the next
+  /// question over it produced overlapping audio (field log 2026-07-09,
+  /// TTS active=2 near the end of the session).
+  Future<void> _speakWhenQuiet(String text, String langCode) async {
+    // Wait/speak semantics owned by AudioDirector (refactor step 1).
+    await _director?.speakWhenQuiet(text, langCode);
   }
 }

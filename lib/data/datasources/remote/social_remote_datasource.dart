@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
+import '../../../core/utils/streak.dart';
+import 'social_mappers.dart';
 import '../../../domain/entities/friendship.dart';
 import '../../../domain/entities/leaderboard_entry.dart';
 import '../../../domain/entities/app_user.dart';
@@ -175,19 +177,7 @@ class SocialRemoteDataSource {
                   .select('id, username, avatar_url, total_words_mastered')
                   .order('total_words_mastered', ascending: false)
                   .limit(limit)) as List);
-      return Success(rows
-          .asMap()
-          .entries
-          .map((e) => LeaderboardEntry(
-                userId: e.value['id'] as String,
-                username: e.value['username'] as String? ?? '',
-                avatarUrl: e.value['avatar_url'] as String?,
-                period: period.name,
-                score: e.value['total_words_mastered'] as int? ?? 0,
-                wordsMastered: e.value['total_words_mastered'] as int? ?? 0,
-                rank: e.key + 1,
-              ))
-          .toList());
+      return Success(leaderboardEntriesFromRows(rows, period));
     } catch (e) {
       return Failure(NetworkException(e.toString()));
     }
@@ -229,30 +219,18 @@ class SocialRemoteDataSource {
       if (rows.isEmpty) return const Success(null);
       final profile = rows.first;
 
-      final today = DateTime.now().toLocal();
-      final todayDate =
-          DateTime(today.year, today.month, today.day);
+      final todayDate = DateTime.now().toLocal();
       final lastRaw = profile['last_study_date'] as String?;
-
-      if (lastRaw != null) {
-        final last = DateTime.parse(lastRaw);
-        final lastDay =
-            DateTime(last.year, last.month, last.day);
-        if (lastDay == todayDate) return const Success(null); // already counted
-      }
-
       final current = profile['current_streak'] as int? ?? 0;
       final longest = profile['longest_streak'] as int? ?? 0;
-      final yesterday = todayDate.subtract(const Duration(days: 1));
 
-      int newStreak;
-      if (lastRaw != null) {
-        final last = DateTime.parse(lastRaw);
-        final lastDay = DateTime(last.year, last.month, last.day);
-        newStreak = lastDay == yesterday ? current + 1 : 1;
-      } else {
-        newStreak = 1;
-      }
+      final update = computeStreak(
+        today: todayDate,
+        lastStudyDate: lastRaw != null ? DateTime.parse(lastRaw) : null,
+        currentStreak: current,
+      );
+      if (update.alreadyCountedToday) return const Success(null);
+      final newStreak = update.streak;
 
       String pad2(int n) => n.toString().padLeft(2, '0');
       final dateStr =

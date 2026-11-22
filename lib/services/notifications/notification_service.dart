@@ -2,6 +2,7 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
+import 'notification_schedule.dart';
 
 class NotificationService {
   NotificationService._();
@@ -66,9 +67,9 @@ class NotificationService {
     await cancelDailyReminder();
 
     final now = tz.TZDateTime.now(tz.local);
-    var next = tz.TZDateTime(
-        tz.local, now.year, now.month, now.day, hour, minute);
-    if (next.isBefore(now)) next = next.add(const Duration(days: 1));
+    final target = nextDailyReminder(now, hour, minute);
+    final next = tz.TZDateTime(tz.local, target.year, target.month,
+        target.day, target.hour, target.minute);
 
     try {
       await _plugin.zonedSchedule(
@@ -106,12 +107,12 @@ class NotificationService {
   // and hasn't studied yet. Call after app launch / profile load.
   Future<void> scheduleStreakWarning(int streakDays) async {
     await cancelStreakWarning();
-    if (streakDays == 0) return;
 
     final now = tz.TZDateTime.now(tz.local);
-    final warning =
-        tz.TZDateTime(tz.local, now.year, now.month, now.day, 20, 0);
-    if (warning.isBefore(now)) return; // already past 8 PM — skip today
+    final slot = streakWarningSlot(now, streakDays);
+    if (slot == null) return; // no streak, or already past 8 PM — skip
+    final warning = tz.TZDateTime(
+        tz.local, slot.year, slot.month, slot.day, slot.hour, slot.minute);
 
     try {
       await _plugin.zonedSchedule(

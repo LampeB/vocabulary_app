@@ -7,6 +7,7 @@ import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/domain/entities/concept.dart';
 import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
+import 'package:vocab_kr/services/audio/audio_asset_path.dart';
 
 import '../helpers/fake_remote.dart';
 
@@ -39,8 +40,8 @@ void main() {
     test('concept and both variants are inserted atomically', () async {
       final result = await repo.addConceptWithVariants(
         listId: list.id,
-        frWord: 'Bonjour',
-        koWord: '안녕하세요',
+        wordA: 'Bonjour',
+        wordB: '안녕하세요',
       );
       expect(result.isSuccess, isTrue);
       final conceptId = (result as Success<Concept>).value.id;
@@ -50,25 +51,25 @@ void main() {
 
     test('wordCount on the list increments to 1', () async {
       await repo.addConceptWithVariants(
-          listId: list.id, frWord: 'Bonjour', koWord: '안녕하세요');
+          listId: list.id, wordA: 'Bonjour', wordB: '안녕하세요');
       final lists = await repo.watchMyLists().first;
       expect(lists.first.wordCount, 1);
     });
 
     test('wordCount increments correctly for multiple adds', () async {
       await repo.addConceptWithVariants(
-          listId: list.id, frWord: 'Bonjour', koWord: '안녕하세요');
+          listId: list.id, wordA: 'Bonjour', wordB: '안녕하세요');
       await repo.addConceptWithVariants(
-          listId: list.id, frWord: 'Merci', koWord: '감사합니다');
+          listId: list.id, wordA: 'Merci', wordB: '감사합니다');
       await repo.addConceptWithVariants(
-          listId: list.id, frWord: 'Au revoir', koWord: '안녕히 가세요');
+          listId: list.id, wordA: 'Au revoir', wordB: '안녕히 가세요');
       final lists = await repo.watchMyLists().first;
       expect(lists.first.wordCount, 3);
     });
 
     test('fr variant has langCode=fr and isPrimary=true', () async {
       final result = await repo.addConceptWithVariants(
-          listId: list.id, frWord: 'Bonjour', koWord: '안녕하세요');
+          listId: list.id, wordA: 'Bonjour', wordB: '안녕하세요');
       final conceptId = (result as Success<Concept>).value.id;
       final variants = await db.conceptDao.getVariantsByConcept(conceptId);
       final fr = variants.firstWhere((v) => v.word == 'Bonjour');
@@ -78,12 +79,61 @@ void main() {
 
     test('ko variant has langCode=ko and isPrimary=true', () async {
       final result = await repo.addConceptWithVariants(
-          listId: list.id, frWord: 'Bonjour', koWord: '안녕하세요');
+          listId: list.id, wordA: 'Bonjour', wordB: '안녕하세요');
       final conceptId = (result as Success<Concept>).value.id;
       final variants = await db.conceptDao.getVariantsByConcept(conceptId);
       final ko = variants.firstWhere((v) => v.word == '안녕하세요');
       expect(ko.langCode, 'ko');
       expect(ko.isPrimary, isTrue);
+    });
+
+    test('custom variants receive immutable private audio paths', () async {
+      final result = await repo.addConceptWithVariants(
+          listId: list.id, wordA: 'Bonjour', wordB: '안녕하세요');
+      final variants = await db.conceptDao
+          .getVariantsByConcept((result as Success<Concept>).value.id);
+      final fr = variants.firstWhere((v) => v.langCode == 'fr');
+      final ko = variants.firstWhere((v) => v.langCode == 'ko');
+
+      expect(
+        fr.audioPath,
+        AudioAssetPath.user(
+            userId: _kUserId,
+            variantId: fr.id,
+            text: 'Bonjour',
+            langCode: 'fr'),
+      );
+      expect(
+        ko.audioPath,
+        AudioAssetPath.user(
+            userId: _kUserId,
+            variantId: ko.id,
+            text: '안녕하세요',
+            langCode: 'ko'),
+      );
+    });
+
+    test('a non-FR/KO list tags each variant with the list pair', () async {
+      // Generic-language-pairs epic: createList persists the chosen pair, and
+      // addConceptWithVariants stamps the variants with those codes (not fr/ko).
+      final enIt = ((await repo.createList(
+                  name: 'EN↔IT', description: null, langA: 'en', langB: 'it'))
+              as Success<VocabularyList>)
+          .value;
+      expect(enIt.langA, 'en');
+      expect(enIt.langB, 'it');
+
+      final result = await repo.addConceptWithVariants(
+        listId: enIt.id,
+        wordA: 'water',
+        wordB: 'acqua',
+        langA: enIt.langA,
+        langB: enIt.langB,
+      );
+      final conceptId = (result as Success<Concept>).value.id;
+      final variants = await db.conceptDao.getVariantsByConcept(conceptId);
+      expect(variants.firstWhere((v) => v.word == 'water').langCode, 'en');
+      expect(variants.firstWhere((v) => v.word == 'acqua').langCode, 'it');
     });
   });
 
@@ -128,8 +178,8 @@ void main() {
     setUp(() async {
       concept = ((await repo.addConceptWithVariants(
         listId: list.id,
-        frWord: 'Bonjour',
-        koWord: '안녕하세요',
+        wordA: 'Bonjour',
+        wordB: '안녕하세요',
       )) as Success<Concept>)
           .value;
     });
@@ -220,6 +270,23 @@ void main() {
       await repo.updateVariant(variant.copyWith(word: 'Coucou'));
       final row = await db.conceptDao.getVariantById(variant.id);
       expect(row!.isSynced, isFalse);
+    });
+
+    test('editing a custom word invalidates its old audio object path',
+        () async {
+      final created = (await repo.createVariant(
+        conceptId: concept.id,
+        word: 'Salut',
+        langCode: 'fr',
+      ) as Success).value;
+      final oldPath = created.audioPath;
+
+      await repo.updateVariant(created.copyWith(word: 'Coucou'));
+      final updated = await db.conceptDao.getVariantById(created.id);
+
+      expect(updated!.audioPath, isNot(oldPath));
+      expect(updated.audioPath,
+          contains('/${created.id}/'));
     });
 
     test('deleteVariant disappears from getVariantsByConcept', () async {

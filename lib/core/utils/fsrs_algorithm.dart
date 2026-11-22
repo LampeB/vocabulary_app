@@ -72,7 +72,8 @@ abstract final class AppFsrs {
     0.1600, 2.9898, 0.5100, 0.4700,
   ];
 
-  static FsrsCard schedule(FsrsCard card, FsrsRating rating, DateTime now) {
+  static FsrsCard schedule(FsrsCard rawCard, FsrsRating rating, DateTime now) {
+    final card = _sanitize(rawCard);
     final elapsed = card.lastReview != null
         ? now.difference(card.lastReview!).inDays
         : 0;
@@ -83,6 +84,28 @@ abstract final class AppFsrs {
       CardState.review => _scheduleReview(card, rating, now, elapsed),
       CardState.relearning => _scheduleRelearning(card, rating, now, elapsed),
     };
+  }
+
+  /// Progress rows restored from the server can be in review state while
+  /// carrying zeroed FSRS fields (stability/difficulty 0.0). The power-law
+  /// math then yields 0 × pow(0, -w9) = NaN and `.round()` throws
+  /// "Infinity or NaN toInt" (field log 2026-07-07), silently killing both
+  /// scheduling and persistence. Clamp into the legal domain before
+  /// scheduling; the corrected values are written back on this review, so
+  /// broken rows self-heal.
+  static FsrsCard _sanitize(FsrsCard card) {
+    if (card.state == CardState.newCard) return card;
+    final sOk = card.stability.isFinite && card.stability > 0;
+    final dOk = card.difficulty.isFinite &&
+        card.difficulty >= 1 &&
+        card.difficulty <= 10;
+    if (sOk && dOk) return card;
+    return card.copyWith(
+      stability: sOk ? card.stability : initialStability,
+      difficulty: card.difficulty.isFinite
+          ? card.difficulty.clamp(1.0, 10.0).toDouble()
+          : initialDifficulty,
+    );
   }
 
   static FsrsCard _scheduleNew(
@@ -225,6 +248,7 @@ abstract final class AppFsrs {
   }
 
   static int _nextInterval(double stability) {
+    if (!stability.isFinite) return 1;
     final i =
         (stability / factor * (pow(requestRetention, 1 / decay) - 1)).round();
     return max(i, 1);

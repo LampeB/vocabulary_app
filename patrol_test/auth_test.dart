@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:patrol/patrol.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'helpers/test_helpers.dart';
 
 void main() {
   // ── Sign-in flow ──────────────────────────────────────────────────────────
 
-  patrolTest('sign-in lands on Today screen',
-      timeout: const Timeout(Duration(minutes: 2)), ($) async {
+  isolatedPatrolTest('sign-in lands on Today screen',
+      scenarioId: 'auth.sign_in_lands_on_today_screen',
+      timeout: const Timeout(Duration(minutes: 3)), ($) async {
     await launchAndSignIn($);
 
     // The shell's bottom nav shows 'ACCUEIL' as the first tab.
@@ -26,8 +26,9 @@ void main() {
   // mid-layout Scaffold animation assertions in Flutter's test binding,
   // which fail the test before any assertion can run.
 
-  patrolTest('profile data is loaded after sign-in',
-      timeout: const Timeout(Duration(minutes: 2)), ($) async {
+  isolatedPatrolTest('profile data is loaded after sign-in',
+      scenarioId: 'auth.profile_data_is_loaded_after_sign_in',
+      timeout: const Timeout(Duration(minutes: 3)), ($) async {
     await launchAndSignIn($);
 
     // MaterialApp is a child of ProviderScope, so its element's context can

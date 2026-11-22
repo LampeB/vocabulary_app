@@ -27,6 +27,12 @@ mixin _$VocabularyList {
   ListVisibility get visibility => throw _privateConstructorUsedError;
   int get wordCount => throw _privateConstructorUsedError;
   String? get shareToken => throw _privateConstructorUsedError;
+  String get langA => throw _privateConstructorUsedError;
+  String get langB => throw _privateConstructorUsedError;
+  String get origin => throw _privateConstructorUsedError;
+
+  /// `<curriculumListId>:<langA>><langB>` when seeded from the catalog.
+  String? get seedId => throw _privateConstructorUsedError;
   bool get isSynced => throw _privateConstructorUsedError;
   bool get isDeleted => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
@@ -56,6 +62,10 @@ abstract class $VocabularyListCopyWith<$Res> {
       ListVisibility visibility,
       int wordCount,
       String? shareToken,
+      String langA,
+      String langB,
+      String origin,
+      String? seedId,
       bool isSynced,
       bool isDeleted,
       DateTime createdAt,
@@ -84,6 +94,10 @@ class _$VocabularyListCopyWithImpl<$Res, $Val extends VocabularyList>
     Object? visibility = null,
     Object? wordCount = null,
     Object? shareToken = freezed,
+    Object? langA = null,
+    Object? langB = null,
+    Object? origin = null,
+    Object? seedId = freezed,
     Object? isSynced = null,
     Object? isDeleted = null,
     Object? createdAt = null,
@@ -117,6 +131,22 @@ class _$VocabularyListCopyWithImpl<$Res, $Val extends VocabularyList>
       shareToken: freezed == shareToken
           ? _value.shareToken
           : shareToken // ignore: cast_nullable_to_non_nullable
+              as String?,
+      langA: null == langA
+          ? _value.langA
+          : langA // ignore: cast_nullable_to_non_nullable
+              as String,
+      langB: null == langB
+          ? _value.langB
+          : langB // ignore: cast_nullable_to_non_nullable
+              as String,
+      origin: null == origin
+          ? _value.origin
+          : origin // ignore: cast_nullable_to_non_nullable
+              as String,
+      seedId: freezed == seedId
+          ? _value.seedId
+          : seedId // ignore: cast_nullable_to_non_nullable
               as String?,
       isSynced: null == isSynced
           ? _value.isSynced
@@ -154,6 +184,10 @@ abstract class _$$VocabularyListImplCopyWith<$Res>
       ListVisibility visibility,
       int wordCount,
       String? shareToken,
+      String langA,
+      String langB,
+      String origin,
+      String? seedId,
       bool isSynced,
       bool isDeleted,
       DateTime createdAt,
@@ -180,6 +214,10 @@ class __$$VocabularyListImplCopyWithImpl<$Res>
     Object? visibility = null,
     Object? wordCount = null,
     Object? shareToken = freezed,
+    Object? langA = null,
+    Object? langB = null,
+    Object? origin = null,
+    Object? seedId = freezed,
     Object? isSynced = null,
     Object? isDeleted = null,
     Object? createdAt = null,
@@ -214,6 +252,22 @@ class __$$VocabularyListImplCopyWithImpl<$Res>
           ? _value.shareToken
           : shareToken // ignore: cast_nullable_to_non_nullable
               as String?,
+      langA: null == langA
+          ? _value.langA
+          : langA // ignore: cast_nullable_to_non_nullable
+              as String,
+      langB: null == langB
+          ? _value.langB
+          : langB // ignore: cast_nullable_to_non_nullable
+              as String,
+      origin: null == origin
+          ? _value.origin
+          : origin // ignore: cast_nullable_to_non_nullable
+              as String,
+      seedId: freezed == seedId
+          ? _value.seedId
+          : seedId // ignore: cast_nullable_to_non_nullable
+              as String?,
       isSynced: null == isSynced
           ? _value.isSynced
           : isSynced // ignore: cast_nullable_to_non_nullable
@@ -245,6 +299,10 @@ class _$VocabularyListImpl implements _VocabularyList {
       this.visibility = ListVisibility.private,
       this.wordCount = 0,
       this.shareToken,
+      this.langA = 'fr',
+      this.langB = 'ko',
+      this.origin = 'user',
+      this.seedId,
       this.isSynced = false,
       this.isDeleted = false,
       required this.createdAt,
@@ -271,6 +329,19 @@ class _$VocabularyListImpl implements _VocabularyList {
   final String? shareToken;
   @override
   @JsonKey()
+  final String langA;
+  @override
+  @JsonKey()
+  final String langB;
+  @override
+  @JsonKey()
+  final String origin;
+
+  /// `<curriculumListId>:<langA>><langB>` when seeded from the catalog.
+  @override
+  final String? seedId;
+  @override
+  @JsonKey()
   final bool isSynced;
   @override
   @JsonKey()
@@ -282,7 +353,7 @@ class _$VocabularyListImpl implements _VocabularyList {
 
   @override
   String toString() {
-    return 'VocabularyList(id: $id, ownerId: $ownerId, name: $name, description: $description, visibility: $visibility, wordCount: $wordCount, shareToken: $shareToken, isSynced: $isSynced, isDeleted: $isDeleted, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'VocabularyList(id: $id, ownerId: $ownerId, name: $name, description: $description, visibility: $visibility, wordCount: $wordCount, shareToken: $shareToken, langA: $langA, langB: $langB, origin: $origin, seedId: $seedId, isSynced: $isSynced, isDeleted: $isDeleted, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -301,6 +372,10 @@ class _$VocabularyListImpl implements _VocabularyList {
                 other.wordCount == wordCount) &&
             (identical(other.shareToken, shareToken) ||
                 other.shareToken == shareToken) &&
+            (identical(other.langA, langA) || other.langA == langA) &&
+            (identical(other.langB, langB) || other.langB == langB) &&
+            (identical(other.origin, origin) || other.origin == origin) &&
+            (identical(other.seedId, seedId) || other.seedId == seedId) &&
             (identical(other.isSynced, isSynced) ||
                 other.isSynced == isSynced) &&
             (identical(other.isDeleted, isDeleted) ||
@@ -322,6 +397,10 @@ class _$VocabularyListImpl implements _VocabularyList {
       visibility,
       wordCount,
       shareToken,
+      langA,
+      langB,
+      origin,
+      seedId,
       isSynced,
       isDeleted,
       createdAt,
@@ -353,6 +432,10 @@ abstract class _VocabularyList implements VocabularyList {
       final ListVisibility visibility,
       final int wordCount,
       final String? shareToken,
+      final String langA,
+      final String langB,
+      final String origin,
+      final String? seedId,
       final bool isSynced,
       final bool isDeleted,
       required final DateTime createdAt,
@@ -375,6 +458,16 @@ abstract class _VocabularyList implements VocabularyList {
   int get wordCount;
   @override
   String? get shareToken;
+  @override
+  String get langA;
+  @override
+  String get langB;
+  @override
+  String get origin;
+
+  /// `<curriculumListId>:<langA>><langB>` when seeded from the catalog.
+  @override
+  String? get seedId;
   @override
   bool get isSynced;
   @override

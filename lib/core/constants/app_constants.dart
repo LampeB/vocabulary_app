@@ -1,13 +1,22 @@
+import '../languages.dart';
+
 class AppConstants {
+  // Content-language identity now lives in core/languages.dart (Languages).
+  // These remain only for call sites not yet migrated by the
+  // generic-language-pairs epic; do not add new uses.
   static const langFr = 'fr';
   static const langKo = 'ko';
-  static const supportedLanguages = [langFr, langKo];
+  static List<String> get supportedLanguages => Languages.supported;
 
   static const fsrsDefaultStability = 1.0;
   static const fsrsDefaultDifficulty = 5.0;
   static const newCardsPerDay = 10;
 
-  static const fuzzyThresholdDriving = 0.82;
+  // 0.75 (was 0.82): spoken answers run through Whisper, whose near-miss
+  // transcriptions of CORRECT answers land ~0.75-0.80 ("Restourant" vs
+  // "restaurant" = 0.78, field log 2026-07-10) — 0.82 sent them to the
+  // repeat loop. Typing keeps the stricter bar.
+  static const fuzzyThresholdDriving = 0.75;
   static const fuzzyThresholdTyping = 0.85;
   static const jamoFuzzyThreshold = 0.80;
 

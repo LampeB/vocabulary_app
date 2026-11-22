@@ -1,7 +1,14 @@
+import 'dart:async' show unawaited;
 import 'dart:convert' show jsonDecode, jsonEncode;
 import 'dart:io' show File;
 import 'package:file_picker/file_picker.dart';
+import 'dart:convert';
+
+import 'package:easy_localization/easy_localization.dart' show Intl;
+import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../data/datasources/local/app_database.dart';
@@ -10,6 +17,8 @@ import '../../../data/datasources/local/daos/concept_dao.dart';
 import '../../../data/datasources/local/daos/progress_dao.dart';
 import '../../../data/datasources/remote/vocabulary_remote_datasource.dart';
 import '../../../data/repositories/vocabulary_repository_impl.dart';
+import '../../../data/seed/starter_seeder.dart';
+import '../../../data/sync/push_sync.dart';
 import '../../../domain/entities/vocabulary_list.dart';
 import '../../../domain/entities/concept.dart';
 import '../../../domain/entities/word_variant.dart';
@@ -18,6 +27,7 @@ import '../../../core/config/app_config.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/errors/app_exception.dart';
 import '../auth/auth_provider.dart';
+import '../settings/default_pair_provider.dart';
 import '../purchases/purchase_provider.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
@@ -37,6 +47,15 @@ final conceptDaoProvider = Provider<ConceptDao>(
 final progressDaoProvider = Provider<ProgressDao>(
   (ref) => ref.watch(appDatabaseProvider).progressDao,
 );
+
+/// Emits whenever the signed-in learner's FSRS rows change. This is separate
+/// from [myListsProvider]: completing a card changes list *progress*, not its
+/// metadata, but consumers such as grammar prerequisites must recompute.
+final vocabularyProgressChangesProvider = StreamProvider<void>((ref) {
+  final userId = ref.watch(currentUserProvider)?.id ?? '';
+  if (userId.isEmpty) return Stream<void>.empty();
+  return ref.watch(progressDaoProvider).watchChanges(userId);
+});
 
 final vocabularyRemoteProvider = Provider<VocabularyRemoteDataSource>(
   (ref) => VocabularyRemoteDataSource(ref.watch(supabaseClientProvider)),
@@ -89,6 +108,28 @@ final dueCountProvider = StreamProvider<int>((ref) {
   return ref.watch(progressDaoProvider).watchDueCount(userId);
 });
 
+/// List IDs the user has started studying (≥1 reviewed card). Drives the
+/// "currently studying" vs "not yet studied" split in the quiz setup screen.
+/// A STREAM over the local DB so the split fills in live when the login sync
+/// delivers progress rows on a fresh device (field report 2026-07-19).
+final studiedListIdsProvider = StreamProvider<Set<String>>((ref) {
+  final userId = ref.watch(currentUserProvider)?.id ?? '';
+  if (userId.isEmpty) return Stream.value(<String>{});
+  return ref.watch(progressDaoProvider).watchStudiedListIds(userId);
+});
+
+/// Due-card count for one language pair (record: (langA, langB)) — feeds the
+/// quiz setup's "to study now" badge so it reflects the chosen language, not
+/// every language's due cards. Streamed for the same fresh-device reason.
+final dueCountForPairProvider =
+    StreamProvider.family<int, (String, String)>((ref, pair) {
+  final userId = ref.watch(currentUserProvider)?.id ?? '';
+  if (userId.isEmpty) return Stream.value(0);
+  return ref
+      .watch(progressDaoProvider)
+      .watchDueCountForPair(userId, pair.$1, pair.$2);
+});
+
 const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
 // Pulls the user's lists from Supabase into the local DB on login.
@@ -102,6 +143,58 @@ final syncOnLoginProvider = FutureProvider<void>((ref) async {
   await ref.watch(vocabularyRepositoryProvider).syncFromRemote();
 });
 
+/// The pair-aware starter seeder (assets/seed/vocab/ catalog). Composed here
+/// so both the login path and the create-list path share one instance.
+final starterSeederProvider = Provider<StarterSeeder>((ref) => StarterSeeder(
+      bundle: rootBundle,
+      repo: ref.watch(vocabularyRepositoryProvider),
+      listDao: ref.watch(vocabularyListDaoProvider),
+      conceptDao: ref.watch(conceptDaoProvider),
+      userId: ref.watch(currentUserProvider)?.id ?? '',
+      uiLocale: Intl.defaultLocale,
+    ));
+
+/// Seeds the starter curriculum for the user's current default pair. The
+/// starter lists are also the grammar lessons' prerequisites, so every
+/// studied pair must have them. Runs AFTER the pull sync so an existing
+/// account's lists arrive first; StarterSeeder itself is idempotent (per-pair
+/// flag, dedup by seed_id, per-concept top-up — see its doc comment) and
+/// adopts/heals lists seeded by the old name-keyed fr→ko pipeline.
+/// Re-runs whenever the default pair changes (ref.watch), and
+/// ListActionsNotifier.createList seeds any new pair a list is created with.
+/// Skipped in TEST_MODE — E2E owns its own data.
+final seedStarterListsProvider = FutureProvider<void>((ref) async {
+  if (_kTestMode) return;
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return;
+  // A remote pull improves an existing account, but must not prevent a new
+  // user (or an offline user) from receiving the bundled starter curriculum.
+  try {
+    await ref.watch(syncOnLoginProvider.future);
+  } catch (_) {
+    // The local database remains usable; a later reconnect retries the pull.
+  }
+
+  // Re-read the persisted pair rather than trusting the notifier's state:
+  // its initial ('fr','ko') stands in until the async prefs load lands, and
+  // seeding the wrong pair on a non-French account would be user-visible.
+  ref.watch(defaultPairProvider);
+  final prefs = await SharedPreferences.getInstance();
+  final langA = prefs.getString('settings_default_lang_a') ?? 'fr';
+  final langB = prefs.getString('settings_default_lang_b') ?? 'ko';
+
+  await ref.read(starterSeederProvider).ensureSeededForPair(langA, langB);
+});
+
+/// Outbound sync (the isSynced flags are the queue — see data/sync/push_sync).
+final pushSyncProvider = Provider<PushSync>((ref) => PushSync(
+      ref.watch(vocabularyListDaoProvider),
+      ref.watch(conceptDaoProvider),
+      ref.watch(progressDaoProvider),
+      ref.watch(appDatabaseProvider).reviewEventDao,
+      ref.watch(vocabularyRemoteProvider),
+    ));
+
 final listActionsProvider =
     NotifierProvider<ListActionsNotifier, void>(ListActionsNotifier.new);
 
@@ -111,17 +204,35 @@ class ListActionsNotifier extends Notifier<void> {
 
   VocabularyRepository get _repo => ref.read(vocabularyRepositoryProvider);
 
-  Future<Result<VocabularyList>> createList(
-      String name, String? description) async {
+  Future<Result<VocabularyList>> createList(String name, String? description,
+      {String langA = 'fr', String langB = 'ko'}) async {
     if (!ref.read(isPremiumProvider)) {
-      final count = ref.read(myListsProvider).valueOrNull?.length ?? 0;
+      // Only USER-created lists count against the free quota — seeded starter
+      // lists and premium packs are exempt (product decision 2026-07-04).
+      final count = ref
+              .read(myListsProvider)
+              .valueOrNull
+              ?.where((l) => l.origin == 'user')
+              .length ??
+          0;
       if (count >= AppConfig.maxFreeVocabLists) {
         return const Failure(QuotaExceededException(
           'Free plan includes ${AppConfig.maxFreeVocabLists} lists. Upgrade to create more.',
         ));
       }
     }
-    return _repo.createList(name: name, description: description);
+    final result = await _repo.createList(
+        name: name, description: description, langA: langA, langB: langB);
+    if (result is Success<VocabularyList> && !_kTestMode) {
+      // First list in a new pair → that pair's starter curriculum appears
+      // alongside it (idempotent; no-op for already-seeded pairs). Fire and
+      // forget: a failure here must not break list creation — the login-path
+      // seeder retries on next app open (per-pair flag still unset).
+      unawaited(Future(() =>
+              ref.read(starterSeederProvider).ensureSeededForPair(langA, langB))
+          .catchError((Object e) => debugPrint('pair seeding failed: $e')));
+    }
+    return result;
   }
 
   Future<Result<VocabularyList>> renameList(
@@ -133,30 +244,36 @@ class ListActionsNotifier extends Notifier<void> {
     );
   }
 
-  Future<Result<void>> deleteList(String listId) =>
-      _repo.deleteList(listId);
+  Future<Result<void>> deleteList(String listId) => _repo.deleteList(listId);
 
   Future<Result<Concept>> addConcept({
     required String listId,
-    required String frWord,
-    required String koWord,
+    required String wordA,
+    required String wordB,
     String? notes,
     String? category,
   }) async {
-    if (!ref.read(isPremiumProvider)) {
-      final listResult = await _repo.getListById(listId);
-      if (listResult case Success(:final value)) {
-        if (value.wordCount >= AppConfig.maxFreeWordsPerList) {
-          return const Failure(QuotaExceededException(
-            'Free plan includes ${AppConfig.maxFreeWordsPerList} words per list. Upgrade for unlimited words.',
-          ));
-        }
-      }
+    // Fetch the list once: for the free-tier word quota AND to learn its
+    // language pair, so the two variants get the right lang codes instead of
+    // a hardcoded fr/ko (generic-language-pairs epic).
+    final listResult = await _repo.getListById(listId);
+    final list = switch (listResult) {
+      Success(:final value) => value,
+      _ => null,
+    };
+    if (!ref.read(isPremiumProvider) &&
+        list != null &&
+        list.wordCount >= AppConfig.maxFreeWordsPerList) {
+      return const Failure(QuotaExceededException(
+        'Free plan includes ${AppConfig.maxFreeWordsPerList} words per list. Upgrade for unlimited words.',
+      ));
     }
     return _repo.addConceptWithVariants(
       listId: listId,
-      frWord: frWord,
-      koWord: koWord,
+      wordA: wordA,
+      wordB: wordB,
+      langA: list?.langA ?? 'fr',
+      langB: list?.langB ?? 'ko',
       notes: notes,
       category: category,
     );
@@ -173,6 +290,9 @@ class ListActionsNotifier extends Notifier<void> {
   }) async {
     await _repo.updateVariant(frVariant.copyWith(word: newFrWord));
     await _repo.updateVariant(koVariant.copyWith(word: newKoWord));
+    // variantsProvider is a cached FutureProvider, so the edited words won't
+    // show until it's invalidated (otherwise the tile keeps the stale value).
+    ref.invalidate(variantsProvider(frVariant.conceptId));
   }
 
   // Returns an error message on failure, null on success.

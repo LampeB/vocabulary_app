@@ -1,26 +1,57 @@
+import 'dart:async' show unawaited;
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/network/connectivity_status.dart';
+import '../providers/auth/auth_provider.dart';
+import '../providers/lists/vocabulary_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/widget_keys.dart';
 
 const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
-final _connectivityProvider = StreamProvider<List<ConnectivityResult>>((ref) {
+/// Public so widget tests can override it (the plugin stream doesn't exist on
+/// the host); behavior unchanged.
+final connectivityStreamProvider =
+    StreamProvider<List<ConnectivityResult>>((ref) {
   if (_kTestMode) return Stream.value([ConnectivityResult.wifi]);
   return Connectivity().onConnectivityChanged;
 });
 
-bool _isOffline(List<ConnectivityResult> results) =>
-    results.isEmpty || results.every((r) => r == ConnectivityResult.none);
+/// Drains the outbound sync queue on login and whenever connectivity comes
+/// back. Watched by [AppShell] so it lives exactly as long as the signed-in
+/// shell. Skipped in TEST_MODE (same isolation rationale as syncOnLoginProvider).
+final pushOnReconnectProvider = Provider<void>((ref) {
+  if (_kTestMode) return;
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return;
+  ref.listen(connectivityStreamProvider, (prev, next) {
+    final wasOffline =
+        prev?.valueOrNull != null && isOffline(prev!.valueOrNull!);
+    final nowOnline = next.valueOrNull != null && !isOffline(next.valueOrNull!);
+    if (wasOffline && nowOnline) {
+      unawaited(ref.read(pushSyncProvider).pushAll());
+    }
+  });
+  // Initial drain on login / app start.
+  unawaited(ref.read(pushSyncProvider).pushAll());
+});
 
 class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.child});
   final Widget child;
 
-  static const _routes = ['/home', '/lists', '/social', '/profile'];
+  static const _routes = [
+    '/home',
+    '/lists',
+    '/grammar',
+    '/stats',
+    '/profile',
+  ];
 
   int _selectedIndex(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
@@ -32,14 +63,16 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final connectivityAsync = ref.watch(_connectivityProvider);
+    ref.watch(pushOnReconnectProvider);
+    final connectivityAsync = ref.watch(connectivityStreamProvider);
     final offline = connectivityAsync.valueOrNull != null &&
-        _isOffline(connectivityAsync.valueOrNull!);
+        isOffline(connectivityAsync.valueOrNull!);
     final selected = _selectedIndex(context);
     final safeBottom = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      // Background comes from the theme (paper in light, paperDark in dark) —
+      // hardcoding AppColors.paper here forced a light shell in dark mode.
       body: Stack(
         children: [
           // Content — padded at bottom so nothing hides behind the frosted bar.
@@ -57,12 +90,17 @@ class AppShell extends ConsumerWidget {
                             vertical: 6, horizontal: 16),
                         child: Row(
                           children: [
-                            const Icon(Icons.wifi_off, size: 16, color: Colors.white),
+                            const Icon(Icons.wifi_off,
+                                size: 16, color: Colors.white),
                             const SizedBox(width: 8),
-                            Text(
-                              'shell.offline_banner'.tr(),
-                              style:
-                                  const TextStyle(color: Colors.white, fontSize: 12),
+                            // Expanded: the banner message is wider than any
+                            // phone screen — let it wrap instead of clipping.
+                            Expanded(
+                              child: Text(
+                                'shell.offline_banner'.tr(),
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 12),
+                              ),
                             ),
                           ],
                         ),
@@ -85,10 +123,7 @@ class AppShell extends ConsumerWidget {
             bottom: 0,
             child: _VkBottomNav(
               selectedIndex: selected,
-              onTap: (index) {
-                const dests = ['/home', '/lists', '/social', '/profile'];
-                context.go(dests[index]);
-              },
+              onTap: (index) => context.go(_routes[index]),
             ),
           ),
         ],
@@ -113,11 +148,14 @@ class _VkBottomNav extends StatelessWidget {
   final void Function(int index) onTap;
 
   static const _tabs = [
-    _SlotDef(Icons.home_outlined,          Icons.home_rounded,         'shell.nav_home',    0),
-    _SlotDef(Icons.bookmark_border,        Icons.bookmark,             'shell.nav_lists',   1),
-    _SlotDef(Icons.emoji_events_outlined,  Icons.emoji_events_rounded, 'shell.nav_social',  2),
-    _SlotDef(Icons.person_outline_rounded, Icons.person_rounded,       'shell.nav_profile', 3),
+    _SlotDef(Icons.route_outlined, Icons.route_rounded, 'shell.nav_home'),
+    _SlotDef(Icons.bookmark_border, Icons.bookmark, 'shell.nav_lists'),
+    _SlotDef(Icons.menu_book_outlined, Icons.menu_book, 'shell.nav_lessons'),
+    _SlotDef(Icons.insights_outlined, Icons.insights, 'shell.nav_progress'),
+    _SlotDef(Icons.person_outline_rounded, Icons.person_rounded,
+        'shell.nav_profile'),
   ];
+  static const _tabNames = ['home', 'lists', 'grammar', 'stats', 'profile'];
 
   @override
   Widget build(BuildContext context) {
@@ -126,8 +164,7 @@ class _VkBottomNav extends StatelessWidget {
     final bgColor = isDark
         ? AppColors.paperDark.withValues(alpha: 0.96)
         : const Color(0xFAF6F1EA);
-    final borderColor =
-        isDark ? const Color(0x1AFFFFFF) : AppColors.line;
+    final borderColor = isDark ? const Color(0x1AFFFFFF) : AppColors.line;
 
     return Container(
       height: _kBarHeight + safeBottom,
@@ -138,11 +175,12 @@ class _VkBottomNav extends StatelessWidget {
       padding: EdgeInsets.only(bottom: safeBottom),
       child: Row(
         children: [
-          for (int i = 0; i < _tabs.length; i++)
+          for (var i = 0; i < _tabs.length; i++)
             Expanded(
               child: _NavTile(
+                key: ValueKey(WidgetKeys.navTab(_tabNames[i])),
                 def: _tabs[i],
-                active: _tabs[i].tabIndex == selectedIndex,
+                active: i == selectedIndex,
                 onTap: () => onTap(i),
               ),
             ),
@@ -155,15 +193,15 @@ class _VkBottomNav extends StatelessWidget {
 // ── Data + tiles ───────────────────────────────────────────────────────────────
 
 class _SlotDef {
-  const _SlotDef(this.icon, this.activeIcon, this.labelKey, this.tabIndex);
+  const _SlotDef(this.icon, this.activeIcon, this.labelKey);
   final IconData icon;
   final IconData activeIcon;
   final String labelKey; // i18n key
-  final int tabIndex; // 0–3
 }
 
 class _NavTile extends StatelessWidget {
   const _NavTile({
+    super.key,
     required this.def,
     required this.active,
     required this.onTap,
@@ -188,9 +226,16 @@ class _NavTile extends StatelessWidget {
         children: [
           Icon(active ? def.activeIcon : def.icon, color: color, size: 24),
           const SizedBox(height: 4),
-          Text(
-            def.labelKey.tr(),
-            style: AppTextStyles.eyebrowSm.copyWith(color: color),
+          // Flexible+FittedBox: the fixed-height bar overflows with larger
+          // text (accessibility scales / test font); shrink the label instead.
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                def.labelKey.tr(),
+                style: AppTextStyles.eyebrowSm.copyWith(color: color),
+              ),
+            ),
           ),
         ],
       ),

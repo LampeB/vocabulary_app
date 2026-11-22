@@ -1,0 +1,108 @@
+name: iOS TestFlight
+
+# Manual trigger. Prerequisites (one-time, after Apple Developer enrollment):
+#
+# 1. App Store Connect: create the app record (My Apps → + → New App,
+#    bundle ID com.vocabkr.vocabKr — register the bundle ID at
+#    developer.apple.com → Identifiers first).
+# 2. App Store Connect API key (Users & Access → Integrations → App Store
+#    Connect API → Team Keys → Generate, role "App Manager"). Note the
+#    Key ID and Issuer ID, download the .p8 once.
+# 3. Apple Distribution certificate: generate a CSR (any machine):
+#      openssl req -new -newkey rsa:2048 -nodes \
+#        -keyout dist.key -out dist.csr -subj "/CN=VocabKR Distribution"
+#    Upload dist.csr at developer.apple.com → Certificates → Apple
+#    Distribution, download the .cer, then bundle it as a .p12:
+#      openssl x509 -in distribution.cer -inform DER -out dist.pem
+#      openssl pkcs12 -export -inkey dist.key -in dist.pem \
+#        -out dist.p12 -passout pass:<P12_PASSWORD>
+# 4. Provisioning profile: developer.apple.com → Profiles → App Store
+#    Connect distribution profile for com.vocabkr.vocabKr. NAME IT
+#    exactly "vocabkr-dist" (ExportOptions below references that name),
+#    download the .mobileprovision.
+#
+# Repo secrets to set (Settings → Secrets and variables → Actions):
+#   SUPABASE_URL / SUPABASE_ANON_KEY   (same values as build-apk.yml)
+#   IOS_DIST_P12_BASE64                base64 of dist.p12
+#   IOS_DIST_P12_PASSWORD              the P12_PASSWORD chosen above
+#   IOS_PROVISIONING_PROFILE_BASE64    base64 of the .mobileprovision
+#   ASC_KEY_ID                         App Store Connect API Key ID
+#   ASC_ISSUER_ID                      App Store Connect API Issuer ID
+#   ASC_API_KEY_P8                     raw contents of the .p8 key file
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-upload:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Write build-time secrets to .env.json
+        run: |
+          cat > .env.json <<EOF
+          {
+            "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}",
+            "SUPABASE_ANON_KEY": "${{ secrets.SUPABASE_ANON_KEY }}",
+            "REVENUECAT_API_KEY": "YOUR_REVENUECAT_KEY"
+          }
+          EOF
+
+      - name: Import signing certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.IOS_DIST_P12_BASE64 }}
+          p12-password: ${{ secrets.IOS_DIST_P12_PASSWORD }}
+
+      - name: Install provisioning profile
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | base64 --decode \
+            > ~/Library/MobileDevice/Provisioning\ Profiles/vocabkr-dist.mobileprovision
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build signed IPA
+        run: |
+          cat > ios/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.vocabkr.vocabKr</key>
+              <string>vocabkr-dist</string>
+            </dict>
+          </dict>
+          </plist>
+          EOF
+          flutter build ipa --release \
+            --dart-define-from-file=.env.json \
+            --export-options-plist=ios/ExportOptions.plist
+
+      - name: Upload to TestFlight
+        uses: apple-actions/upload-testflight-build@v3
+        with:
+          app-path: build/ios/ipa/vocab_kr.ipa
+          issuer-id: ${{ secrets.ASC_ISSUER_ID }}
+          api-key-id: ${{ secrets.ASC_KEY_ID }}
+          api-private-key: ${{ secrets.ASC_API_KEY_P8 }}
+
+      - name: Upload IPA artifact (fallback)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vocabkr-ipa
+          path: build/ios/ipa/*.ipa
+          if-no-files-found: ignore

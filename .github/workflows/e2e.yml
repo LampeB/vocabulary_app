@@ -1,17 +1,50 @@
 name: E2E (emulator)
 
-# Runs the Patrol quiz suite on an Android emulator on GitHub's cloud runners —
-# no local machine or phone needed. Manual trigger; dispatch against any branch.
+# Runs the Patrol app E2E suite on an Android emulator on GitHub's cloud runners —
+# no local machine or phone needed. Nightly on the default branch, or manual.
 #
-# Requires repo secrets: SUPABASE_URL, SUPABASE_ANON_KEY, TEST_EMAIL, TEST_PASSWORD.
+# Requires repo secrets: SUPABASE_URL, SUPABASE_ANON_KEY, E2E_ACCOUNTS_JSON.
 on:
   workflow_dispatch:
+    inputs:
+      target:
+        description: 'Patrol target — a single _test.dart file for a quick run; default runs 9 suites with up to 3 parallel jobs'
+        default: 'all'
+        required: false
+
+# Permanent per-scenario accounts: serialize runs of the same scenario across branches.
+concurrency:
+  group: supabase-e2e-account
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  e2e:
+  suites:
     runs-on: ubuntu-latest
-    # Expected ~22 min; emulator boot+build varies (11-16 min observed).
-    timeout-minutes: 35
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: select
+        env:
+          E2E_TARGET: ${{ inputs.target || 'all' }}
+        run: python3 tool/e2e/matrix.py
+
+  e2e:
+    needs: suites
+    name: E2E (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix: ${{ fromJSON(needs.suites.outputs.matrix) }}
+    env:
+      E2E_TARGET: ${{ matrix.target }}
+    # Independent budget per suite, including setup and a cold Android build.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -27,25 +60,15 @@ jobs:
 
       - run: flutter pub get
 
-      # Patrol CLI. If this version mismatches the `patrol` package (4.6.x), pin
-      # it here to the compatible release.
-      - run: dart pub global activate patrol_cli
+      # Patrol 4.6.1 requires CLI 4.4.0; do not install the latest implicitly.
+      - run: dart pub global activate patrol_cli 4.4.0
 
-      - name: Write build-time config (.env.json)
-        run: |
-          cat > .env.json <<EOF
-          {
-            "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}",
-            "SUPABASE_ANON_KEY": "${{ secrets.SUPABASE_ANON_KEY }}",
-            "REVENUECAT_API_KEY": "YOUR_REVENUECAT_KEY",
-            "SIMULATE_SPEECH": "correct",
-            "TEST_LOCALE": "fr",
-            "TEST_MODE": "true",
-            "TEST_CARD_LIMIT": "5",
-            "TEST_EMAIL": "${{ secrets.TEST_EMAIL }}",
-            "TEST_PASSWORD": "${{ secrets.TEST_PASSWORD }}"
-          }
-          EOF
+      - name: Validate distinct scenario accounts and write build-time config
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          E2E_ACCOUNTS_JSON: ${{ secrets.E2E_ACCOUNTS_JSON }}
+        run: python3 tool/e2e/prepare.py
 
       - name: Enable KVM
         run: |
@@ -63,7 +86,21 @@ jobs:
           profile: pixel_6
           ram-size: 4096M
           disable-animations: true
-          script: >
-            patrol test
-            --target patrol_test/quiz_all_test.dart
-            --dart-define-from-file=.env.json
+          # Use a script so manual input is never interpolated into shell code.
+          script: bash tool/e2e/run.sh
+
+      - name: Collect sanitized Android reports
+        if: always()
+        run: python3 tool/e2e/collect_reports.py
+
+      - name: Upload Android reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-reports-${{ strategy.job-index }}
+          path: e2e-reports/
+          retention-days: 7
+
+      - name: Remove generated credentials
+        if: always()
+        run: rm -f .env.json

@@ -49,11 +49,15 @@ jobs:
 
       # Optional: publish to Appetize.io for in-browser manual testing (no phone).
       # Add an APPETIZE_API_TOKEN secret to enable; otherwise this step is skipped.
+      # (The secrets context is not allowed in step `if` expressions — routing
+      # it through env is the supported way to test for a missing secret.)
       - name: Publish to Appetize.io
-        if: ${{ secrets.APPETIZE_API_TOKEN != '' }}
+        env:
+          APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN }}
+        if: ${{ env.APPETIZE_API_TOKEN != '' }}
         run: |
           resp=$(curl -sf https://api.appetize.io/v1/apps \
-            -u "${{ secrets.APPETIZE_API_TOKEN }}:" \
+            -u "${APPETIZE_API_TOKEN}:" \
             -F "file=@build/app/outputs/flutter-apk/app-release.apk" \
             -F "platform=android")
           url=$(echo "$resp" | python3 -c "import sys,json;print(json.load(sys.stdin).get('publicURL',''))")

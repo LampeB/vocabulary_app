@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -10,20 +9,26 @@ import 'core/theme/app_theme.dart';
 import 'presentation/screens/onboarding/splash_screen.dart';
 import 'presentation/screens/onboarding/welcome_screen.dart';
 import 'presentation/screens/onboarding/auth_screen.dart';
-import 'presentation/screens/home/home_screen.dart';
+import 'presentation/screens/home/parcours_screen.dart';
+import 'presentation/screens/home/daily_path_screen.dart';
 import 'presentation/screens/lists/lists_screen.dart';
 import 'presentation/screens/lists/list_detail_screen.dart';
-import 'presentation/screens/quiz/quiz_setup_screen.dart';
 import 'presentation/screens/quiz/quiz_screen.dart';
+import 'presentation/screens/quiz/start_session_screen.dart';
+import 'presentation/screens/grammar/grammar_screen.dart';
+import 'presentation/screens/grammar/grammar_lesson_screen.dart';
 import 'presentation/screens/social/social_screen.dart';
 import 'presentation/screens/profile/profile_screen.dart';
 import 'presentation/screens/paywall/paywall_screen.dart';
 import 'presentation/screens/notifications/notification_settings_screen.dart';
 import 'presentation/screens/import/import_from_link_screen.dart';
 import 'presentation/screens/settings/settings_screen.dart';
+import 'presentation/screens/settings/near_miss_session_screen.dart';
+import 'presentation/screens/settings/stt_lab_screen.dart';
 import 'presentation/screens/stats/stats_screen.dart';
 import 'presentation/providers/quiz/quiz_provider.dart' show QuizArgs;
 import 'presentation/providers/settings/settings_provider.dart';
+import 'presentation/navigation/dive_in_page.dart';
 import 'presentation/widgets/app_shell.dart';
 
 // Set via --dart-define-from-file in integration tests to skip page-transition
@@ -33,8 +38,11 @@ const _kTestMode = bool.fromEnvironment('TEST_MODE');
 class _NoAnimationPageTransitionsBuilder extends PageTransitionsBuilder {
   const _NoAnimationPageTransitionsBuilder();
   @override
-  Widget buildTransitions<T>(PageRoute<T> route, BuildContext context,
-          Animation<double> animation, Animation<double> secondaryAnimation,
+  Widget buildTransitions<T>(
+          PageRoute<T> route,
+          BuildContext context,
+          Animation<double> animation,
+          Animation<double> secondaryAnimation,
           Widget child) =>
       child;
 }
@@ -45,7 +53,6 @@ class VocabKrApp extends ConsumerStatefulWidget {
   @override
   ConsumerState<VocabKrApp> createState() => _VocabKrAppState();
 }
-
 
 class _VocabKrAppState extends ConsumerState<VocabKrApp> {
   late final GoRouter _router;
@@ -97,8 +104,7 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
         initialLocation: '/splash',
         refreshListenable: _authNotifier,
         redirect: (context, state) {
-          final isSignedIn =
-              Supabase.instance.client.auth.currentUser != null;
+          final isSignedIn = Supabase.instance.client.auth.currentUser != null;
           final loc = state.matchedLocation;
           final onPublic =
               loc == '/splash' || loc == '/welcome' || loc == '/auth';
@@ -126,19 +132,25 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
           ShellRoute(
             builder: (_, __, child) => AppShell(child: child),
             routes: [
+              // The signed-in landing page is the learning path. Vocabulary
+              // and lessons remain independent tabs, but the first-use flow
+              // always has one visible next step here.
               GoRoute(
-                  path: '/home', builder: (_, __) => const HomeScreen()),
+                  path: '/home', builder: (_, __) => const ParcoursScreen()),
               GoRoute(
-                  path: '/lists', builder: (_, __) => const ListsScreen()),
+                path: '/daily-path',
+                pageBuilder: (_, state) => DiveInPage<void>(
+                  key: state.pageKey,
+                  origin: Alignment.topCenter,
+                  disableAnimation: _kTestMode,
+                  child: const DailyPathScreen(),
+                ),
+              ),
+              GoRoute(path: '/lists', builder: (_, __) => const ListsScreen()),
               GoRoute(
                 path: '/lists/:listId',
-                builder: (_, state) => ListDetailScreen(
-                    listId: state.pathParameters['listId']!),
-              ),
-              GoRoute(
-                path: '/lists/:listId/quiz-setup',
-                builder: (_, state) => QuizSetupScreen(
-                    listId: state.pathParameters['listId']!),
+                builder: (_, state) =>
+                    ListDetailScreen(listId: state.pathParameters['listId']!),
               ),
               GoRoute(
                 path: '/quiz',
@@ -146,24 +158,48 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
                     QuizScreen(args: state.extra as QuizArgs),
               ),
               GoRoute(
-                  path: '/social',
-                  builder: (_, __) => const SocialScreen()),
+                path: '/start-session',
+                builder: (_, __) => const StartSessionScreen(),
+              ),
+              // Grammar is a separate flow, never mixed into vocab setup.
               GoRoute(
-                  path: '/profile',
-                  builder: (_, __) => const ProfileScreen()),
+                path: '/start-session-grammar',
+                builder: (_, __) => const StartSessionScreen(grammar: true),
+              ),
+              // Grammar hub: every lesson with unlock/mastery progress.
               GoRoute(
-                  path: '/paywall',
-                  builder: (_, __) => const PaywallScreen()),
+                path: '/grammar',
+                builder: (_, __) => const GrammarScreen(),
+              ),
+              GoRoute(
+                path: '/grammar/:ruleId',
+                pageBuilder: (_, state) => DiveInPage<void>(
+                  key: state.pageKey,
+                  origin: Alignment.center,
+                  disableAnimation: _kTestMode,
+                  child: GrammarLessonScreen(
+                    ruleId: state.pathParameters['ruleId']!,
+                  ),
+                ),
+              ),
+              GoRoute(
+                  path: '/social', builder: (_, __) => const SocialScreen()),
+              GoRoute(
+                  path: '/profile', builder: (_, __) => const ProfileScreen()),
+              GoRoute(
+                  path: '/paywall', builder: (_, __) => const PaywallScreen()),
               GoRoute(
                   path: '/notifications',
-                  builder: (_, __) =>
-                      const NotificationSettingsScreen()),
+                  builder: (_, __) => const NotificationSettingsScreen()),
               GoRoute(
                   path: '/settings',
                   builder: (_, __) => const SettingsScreen()),
               GoRoute(
-                  path: '/stats',
-                  builder: (_, __) => const StatsScreen()),
+                  path: '/stt-lab', builder: (_, __) => const SttLabScreen()),
+              GoRoute(
+                  path: '/stt-lab/near-miss',
+                  builder: (_, __) => const NearMissSessionScreen()),
+              GoRoute(path: '/stats', builder: (_, __) => const StatsScreen()),
             ],
           ),
           GoRoute(
@@ -203,8 +239,7 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
 
 class _AuthChangeNotifier extends ChangeNotifier {
   _AuthChangeNotifier(SupabaseClient client) {
-    _sub = client.auth.onAuthStateChange
-        .listen((_) => notifyListeners());
+    _sub = client.auth.onAuthStateChange.listen((_) => notifyListeners());
   }
 
   late final StreamSubscription<AuthState> _sub;

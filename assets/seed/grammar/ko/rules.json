@@ -1,0 +1,724 @@
+{
+  "lang": "ko",
+  "rules": [
+    {
+      "rule": {
+        "id": "particule-theme-eun-neun",
+        "title": {
+          "fr": "La particule de thème 은/는",
+          "en": "The topic particle 은/는"
+        },
+        "description": {
+          "fr": "Marquer le thème de la phrase avec 은 après consonne finale et 는 après voyelle.",
+          "en": "Mark the topic of the sentence with 은 after a final consonant and 는 after a vowel."
+        },
+        "explanation": {
+          "fr": "En coréen, la particule 은/는 s'attache au mot dont on parle : le thème de la phrase. Elle correspond souvent à « quant à… » ou au sujet général en français. Le choix entre les deux formes est purement phonétique : si le mot se termine par une consonne finale (batchim), on ajoute 은 ; s'il se termine par une voyelle, on ajoute 는. Par exemple : 학생 + 은 → 학생은, mais 친구 + 는 → 친구는. Cette particule sert aussi à marquer un contraste entre deux éléments.",
+          "en": "In Korean, the particle 은/는 attaches to the word the sentence is about: its topic. It often corresponds to \"as for…\" or to the general subject in English. The choice between the two forms is purely phonetic: if the word ends in a final consonant (batchim), add 은; if it ends in a vowel, add 는. For example: 학생 + 은 → 학생은, but 친구 + 는 → 친구는. This particle is also used to mark a contrast between two elements."
+        },
+        "prerequisite_lists": [
+          "starter-greetings"
+        ],
+        "min_known_words": {
+          "nom": 5
+        },
+        "applies_to_categories": [
+          "nom",
+          "lieu"
+        ],
+        "mechanics": {
+          "type": "particle",
+          "particle_forms": {
+            "after_consonant": "은",
+            "after_vowel": "는"
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "저는 학생이에요.",
+            "translations": {
+              "fr": "Moi, je suis étudiant.",
+              "en": "I am a student."
+            }
+          },
+          {
+            "target": "선생님은 지금 학교에 있어요.",
+            "translations": {
+              "fr": "Le professeur est à l'école en ce moment.",
+              "en": "The teacher is at school right now."
+            }
+          },
+          {
+            "target": "오늘은 바빠요.",
+            "translations": {
+              "fr": "Aujourd'hui, je suis occupé.",
+              "en": "Today, I am busy."
+            }
+          }
+        ],
+        "test_vectors": [
+          {
+            "input": "학생",
+            "context": "particule de thème",
+            "expected": "학생은"
+          },
+          {
+            "input": "친구",
+            "context": "particule de thème",
+            "expected": "친구는"
+          },
+          {
+            "input": "물",
+            "context": "particule de thème",
+            "expected": "물은"
+          },
+          {
+            "input": "커피",
+            "context": "particule de thème",
+            "expected": "커피는"
+          },
+          {
+            "input": "선생님",
+            "context": "particule de thème",
+            "expected": "선생님은"
+          },
+          {
+            "input": "저",
+            "context": "particule de thème",
+            "expected": "저는"
+          },
+          {
+            "input": "밥",
+            "context": "particule de thème",
+            "expected": "밥은"
+          },
+          {
+            "input": "우유",
+            "context": "particule de thème",
+            "expected": "우유는"
+          },
+          {
+            "input": "집",
+            "context": "particule de thème",
+            "expected": "집은"
+          },
+          {
+            "input": "학교",
+            "context": "particule de thème",
+            "expected": "학교는"
+          },
+          {
+            "input": "빵",
+            "context": "particule de thème",
+            "expected": "빵은"
+          },
+          {
+            "input": "버스",
+            "context": "particule de thème",
+            "expected": "버스는"
+          },
+          {
+            "input": "서울",
+            "context": "particule de thème",
+            "expected": "서울은"
+          },
+          {
+            "input": "사람",
+            "context": "particule de thème",
+            "expected": "사람은"
+          }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "particules-sujet-objet-i-ga-eul-reul",
+        "title": {
+          "fr": "Les particules de sujet 이/가 et d'objet 을/를",
+          "en": "The subject particles 이/가 and object particles 을/를"
+        },
+        "description": {
+          "fr": "Marquer le sujet grammatical avec 이/가 et l'objet direct avec 을/를 selon la finale du mot.",
+          "en": "Mark the grammatical subject with 이/가 and the direct object with 을/를 according to the word ending."
+        },
+        "explanation": {
+          "fr": "La particule 이/가 marque le sujet grammatical (qui fait l'action ou ce qui est décrit) ; la particule 을/를 marque l'objet direct (ce qui subit l'action). Le choix dépend uniquement du son final du mot : après une consonne finale (batchim), on utilise 이 pour le sujet et 을 pour l'objet ; après une voyelle, on utilise 가 et 를. Exemples : 물이 (sujet), 친구가 (sujet), 밥을 (objet), 우유를 (objet). Contrairement à 은/는 qui présente un thème, 이/가 met en avant une information nouvelle ou une réponse à « qui ? / quoi ? ».",
+          "en": "The particle 이/가 marks the grammatical subject (who does the action, or what is being described); the particle 을/를 marks the direct object (what undergoes the action). The choice depends only on the final sound of the word: after a final consonant (batchim), use 이 for the subject and 을 for the object; after a vowel, use 가 and 를. Examples: 물이 (subject), 친구가 (subject), 밥을 (object), 우유를 (object). Unlike 은/는, which presents a topic, 이/가 highlights new information or an answer to \"who? / what?\"."
+        },
+        "prerequisite_lists": [
+          "starter-greetings",
+          "starter-food"
+        ],
+        "min_known_words": {
+          "nom": 5,
+          "verbe": 2
+        },
+        "applies_to_categories": [
+          "nom",
+          "lieu"
+        ],
+        "mechanics": {
+          "type": "particle",
+          "particle_forms": {
+            "subject": {
+              "after_consonant": "이",
+              "after_vowel": "가"
+            },
+            "object": {
+              "after_consonant": "을",
+              "after_vowel": "를"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "친구가 와요.",
+            "translations": {
+              "fr": "Mon ami vient.",
+              "en": "My friend is coming."
+            }
+          },
+          {
+            "target": "물이 맛없어요.",
+            "translations": {
+              "fr": "L'eau n'est pas bonne.",
+              "en": "The water tastes bad."
+            }
+          },
+          {
+            "target": "저는 밥을 먹어요.",
+            "translations": {
+              "fr": "Je mange du riz.",
+              "en": "I eat rice."
+            }
+          },
+          {
+            "target": "저는 우유를 마셔요.",
+            "translations": {
+              "fr": "Je bois du lait.",
+              "en": "I drink milk."
+            }
+          }
+        ],
+        "test_vectors": [
+          {
+            "input": "물",
+            "context": "particule de sujet",
+            "expected": "물이"
+          },
+          {
+            "input": "친구",
+            "context": "particule de sujet",
+            "expected": "친구가"
+          },
+          {
+            "input": "학생",
+            "context": "particule de sujet",
+            "expected": "학생이"
+          },
+          {
+            "input": "커피",
+            "context": "particule de sujet",
+            "expected": "커피가"
+          },
+          {
+            "input": "선생님",
+            "context": "particule de sujet",
+            "expected": "선생님이"
+          },
+          {
+            "input": "버스",
+            "context": "particule de sujet",
+            "expected": "버스가"
+          },
+          {
+            "input": "시간",
+            "context": "particule de sujet",
+            "expected": "시간이"
+          },
+          {
+            "input": "밥",
+            "context": "particule d'objet",
+            "expected": "밥을"
+          },
+          {
+            "input": "우유",
+            "context": "particule d'objet",
+            "expected": "우유를"
+          },
+          {
+            "input": "책",
+            "context": "particule d'objet",
+            "expected": "책을"
+          },
+          {
+            "input": "사과",
+            "context": "particule d'objet",
+            "expected": "사과를"
+          },
+          {
+            "input": "빵",
+            "context": "particule d'objet",
+            "expected": "빵을"
+          },
+          {
+            "input": "김치",
+            "context": "particule d'objet",
+            "expected": "김치를"
+          },
+          {
+            "input": "지하철",
+            "context": "particule d'objet",
+            "expected": "지하철을"
+          }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "present-poli-ayo-eoyo",
+        "title": {
+          "fr": "Le présent poli en 아요/어요",
+          "en": "The polite present in 아요/어요"
+        },
+        "description": {
+          "fr": "Conjuguer verbes et adjectifs au présent poli selon l'harmonie vocalique du radical.",
+          "en": "Conjugate verbs and adjectives in the polite present according to the stem's vowel harmony."
+        },
+        "explanation": {
+          "fr": "Pour conjuguer au présent poli, on retire 다 de la forme du dictionnaire pour obtenir le radical, puis on ajoute une terminaison selon l'harmonie vocalique : si la dernière voyelle du radical est ㅏ ou ㅗ, on ajoute 아요 ; sinon, on ajoute 어요 ; les verbes en 하다 deviennent 해요. Des contractions s'appliquent quand le radical finit par une voyelle : 가 + 아요 → 가요, 오 + 아요 → 와요, 보 + 아요 → 봐요, 마시 + 어요 → 마셔요. Certains verbes sont irréguliers : 듣다 → 들어요, 돕다 → 도와요, 바쁘다 → 바빠요.",
+          "en": "To conjugate in the polite present, remove 다 from the dictionary form to get the stem, then add an ending according to vowel harmony: if the last vowel of the stem is ㅏ or ㅗ, add 아요; otherwise, add 어요; 하다 verbs become 해요. Contractions apply when the stem ends in a vowel: 가 + 아요 → 가요, 오 + 아요 → 와요, 보 + 아요 → 봐요, 마시 + 어요 → 마셔요. Some verbs are irregular: 듣다 → 들어요, 돕다 → 도와요, 바쁘다 → 바빠요."
+        },
+        "prerequisite_lists": [
+          "starter-greetings",
+          "starter-food",
+          "starter-daily-life"
+        ],
+        "min_known_words": {
+          "verbe": 5
+        },
+        "applies_to_categories": [
+          "verbe",
+          "adjectif"
+        ],
+        "mechanics": {
+          "type": "conjugation",
+          "conjugation": {
+            "stem_derivation": "Retirer 다 de la forme du dictionnaire pour obtenir le radical, puis ajouter la terminaison ; appliquer les contractions vocaliques quand le radical se termine par une voyelle (아+아요→아요, 오+아요→와요, 이+어요→여요, 우+어요→워요, ㅡ tombe devant la terminaison).",
+            "classes": [
+              {
+                "when": "la dernière voyelle du radical est ㅏ ou ㅗ",
+                "ending": "아요"
+              },
+              {
+                "when": "la dernière voyelle du radical n'est ni ㅏ ni ㅗ",
+                "ending": "어요"
+              },
+              {
+                "when": "le verbe se termine par 하다",
+                "ending": "해요 (remplace 하다)"
+              }
+            ],
+            "irregulars": {
+              "하다": "해요",
+              "공부하다": "공부해요",
+              "일하다": "일해요",
+              "좋아하다": "좋아해요",
+              "도착하다": "도착해요",
+              "출발하다": "출발해요",
+              "가다": "가요",
+              "자다": "자요",
+              "사다": "사요",
+              "타다": "타요",
+              "오다": "와요",
+              "보다": "봐요",
+              "마시다": "마셔요",
+              "내리다": "내려요",
+              "일어나다": "일어나요",
+              "먹다": "먹어요",
+              "읽다": "읽어요",
+              "듣다": "들어요",
+              "걷다": "걸어요",
+              "돕다": "도와요",
+              "살다": "살아요",
+              "바쁘다": "바빠요",
+              "배고프다": "배고파요",
+              "맛있다": "맛있어요",
+              "맛없다": "맛없어요"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "저는 아침에 커피를 마셔요.",
+            "translations": {
+              "fr": "Je bois un café le matin.",
+              "en": "I drink coffee in the morning."
+            }
+          },
+          {
+            "target": "친구가 지금 와요.",
+            "translations": {
+              "fr": "Mon ami arrive maintenant.",
+              "en": "My friend is arriving now."
+            }
+          },
+          {
+            "target": "저는 서울에 살아요.",
+            "translations": {
+              "fr": "J'habite à Séoul.",
+              "en": "I live in Seoul."
+            }
+          }
+        ],
+        "test_vectors": [
+          {
+            "input": "가다",
+            "context": "présent poli",
+            "expected": "가요"
+          },
+          {
+            "input": "오다",
+            "context": "présent poli",
+            "expected": "와요"
+          },
+          {
+            "input": "보다",
+            "context": "présent poli",
+            "expected": "봐요"
+          },
+          {
+            "input": "하다",
+            "context": "présent poli",
+            "expected": "해요"
+          },
+          {
+            "input": "먹다",
+            "context": "présent poli",
+            "expected": "먹어요"
+          },
+          {
+            "input": "마시다",
+            "context": "présent poli",
+            "expected": "마셔요"
+          },
+          {
+            "input": "읽다",
+            "context": "présent poli",
+            "expected": "읽어요"
+          },
+          {
+            "input": "듣다",
+            "context": "présent poli",
+            "expected": "들어요"
+          },
+          {
+            "input": "돕다",
+            "context": "présent poli",
+            "expected": "도와요"
+          },
+          {
+            "input": "걷다",
+            "context": "présent poli",
+            "expected": "걸어요"
+          },
+          {
+            "input": "살다",
+            "context": "présent poli",
+            "expected": "살아요"
+          },
+          {
+            "input": "자다",
+            "context": "présent poli",
+            "expected": "자요"
+          },
+          {
+            "input": "바쁘다",
+            "context": "présent poli",
+            "expected": "바빠요"
+          },
+          {
+            "input": "공부하다",
+            "context": "présent poli",
+            "expected": "공부해요"
+          },
+          {
+            "input": "일어나다",
+            "context": "présent poli",
+            "expected": "일어나요"
+          }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "particules-lieu-e-eseo",
+        "title": {
+          "fr": "Les particules de lieu 에 et 에서",
+          "en": "The place particles 에 and 에서"
+        },
+        "description": {
+          "fr": "Distinguer 에 (destination, temps) et 에서 (lieu où se déroule une action).",
+          "en": "Distinguish 에 (destination, time) from 에서 (place where an action happens)."
+        },
+        "explanation": {
+          "fr": "La particule 에 marque la destination d'un déplacement (« à, vers ») avec des verbes comme 가다, 오다, 도착하다, ainsi que le moment (« à, le ») avec les mots de temps : 학교에 가요, 아침에 일어나요. La particule 에서 marque le lieu où une action se déroule (« à, dans ») avec les verbes d'action : 식당에서 밥을 먹어요, 회사에서 일해요. Ni 에 ni 에서 ne changent de forme selon la finale du mot : elles s'attachent telles quelles après consonne comme après voyelle. Astuce : déplacement vers → 에 ; activité sur place → 에서.",
+          "en": "The particle 에 marks the destination of movement (\"to, toward\") with verbs like 가다, 오다, 도착하다, and also the moment (\"at, on\") with time words: 학교에 가요, 아침에 일어나요. The particle 에서 marks the place where an action takes place (\"at, in\") with action verbs: 식당에서 밥을 먹어요, 회사에서 일해요. Neither 에 nor 에서 changes form with the word ending: they attach as-is after a consonant or a vowel. Tip: movement toward → 에; activity on the spot → 에서."
+        },
+        "prerequisite_lists": [
+          "starter-food",
+          "starter-daily-life",
+          "starter-getting-around"
+        ],
+        "min_known_words": {
+          "lieu": 4,
+          "verbe": 3
+        },
+        "applies_to_categories": [
+          "lieu"
+        ],
+        "mechanics": {
+          "type": "particle",
+          "particle_forms": {
+            "destination_or_time": {
+              "after_consonant": "에",
+              "after_vowel": "에"
+            },
+            "action_location": {
+              "after_consonant": "에서",
+              "after_vowel": "에서"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "저는 아침에 학교에 가요.",
+            "translations": {
+              "fr": "Le matin, je vais à l'école.",
+              "en": "In the morning, I go to school."
+            }
+          },
+          {
+            "target": "식당에서 밥을 먹어요.",
+            "translations": {
+              "fr": "Je mange au restaurant.",
+              "en": "I eat at the restaurant."
+            }
+          },
+          {
+            "target": "친구가 프랑스에서 와요.",
+            "translations": {
+              "fr": "Mon ami vient de France.",
+              "en": "My friend comes from France."
+            }
+          }
+        ],
+        "test_vectors": [
+          {
+            "input": "학교",
+            "context": "destination (aller à)",
+            "expected": "학교에"
+          },
+          {
+            "input": "집",
+            "context": "destination (aller à)",
+            "expected": "집에"
+          },
+          {
+            "input": "파리",
+            "context": "destination (aller à)",
+            "expected": "파리에"
+          },
+          {
+            "input": "역",
+            "context": "destination (aller à)",
+            "expected": "역에"
+          },
+          {
+            "input": "공항",
+            "context": "destination (arriver à)",
+            "expected": "공항에"
+          },
+          {
+            "input": "한국",
+            "context": "destination (aller à)",
+            "expected": "한국에"
+          },
+          {
+            "input": "식당",
+            "context": "lieu d'action (manger à)",
+            "expected": "식당에서"
+          },
+          {
+            "input": "회사",
+            "context": "lieu d'action (travailler à)",
+            "expected": "회사에서"
+          },
+          {
+            "input": "서울",
+            "context": "lieu d'action (vivre une activité à)",
+            "expected": "서울에서"
+          },
+          {
+            "input": "여기",
+            "context": "lieu d'action (étudier ici)",
+            "expected": "여기에서"
+          },
+          {
+            "input": "프랑스",
+            "context": "lieu d'action (travailler en)",
+            "expected": "프랑스에서"
+          },
+          {
+            "input": "아침",
+            "context": "particule de temps (le matin)",
+            "expected": "아침에"
+          },
+          {
+            "input": "저녁",
+            "context": "particule de temps (le soir)",
+            "expected": "저녁에"
+          }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "negation-an",
+        "title": {
+          "fr": "La négation avec 안",
+          "en": "Negation with 안"
+        },
+        "description": {
+          "fr": "Former la négation en plaçant 안 juste avant le verbe ou l'adjectif conjugué.",
+          "en": "Form the negative by placing 안 right before the conjugated verb or adjective."
+        },
+        "explanation": {
+          "fr": "Pour nier une action ou un état, on place l'adverbe 안 immédiatement avant le verbe ou l'adjectif conjugué : 가요 → 안 가요, 먹어요 → 안 먹어요. Exception importante : pour les verbes composés « nom + 하다 » (공부하다, 일하다…), 안 s'insère entre le nom et 하다 : 공부해요 → 공부 안 해요, et non 안 공부해요. Le verbe 좋아하다 fait exception à l'exception : on dit 안 좋아해요. Pour 맛있다, la langue préfère l'adjectif contraire 맛없어요 plutôt que 안 맛있어요. 안 s'écrit séparé du verbe par une espace.",
+          "en": "To negate an action or a state, place the adverb 안 immediately before the conjugated verb or adjective: 가요 → 안 가요, 먹어요 → 안 먹어요. Important exception: for \"noun + 하다\" compound verbs (공부하다, 일하다…), 안 goes between the noun and 하다: 공부해요 → 공부 안 해요, not 안 공부해요. The verb 좋아하다 is an exception to the exception: say 안 좋아해요. For 맛있다, the language prefers the opposite adjective 맛없어요 rather than 안 맛있어요. 안 is written separated from the verb by a space."
+        },
+        "prerequisite_lists": [
+          "starter-food",
+          "starter-daily-life"
+        ],
+        "min_known_words": {
+          "verbe": 5
+        },
+        "applies_to_categories": [
+          "verbe",
+          "adjectif"
+        ],
+        "mechanics": {
+          "type": "negation",
+          "negation": {
+            "pattern": "안 + forme conjuguée du verbe ou de l'adjectif, séparé par une espace",
+            "hada_compounds": "Pour les verbes « nom + 하다 », insérer 안 entre le nom et 하다 : 공부하다 → 공부 안 해요 ; exception : 좋아하다 → 안 좋아해요",
+            "irregulars": {
+              "공부하다": "공부 안 해요",
+              "일하다": "일 안 해요",
+              "도착하다": "도착 안 해요",
+              "출발하다": "출발 안 해요",
+              "좋아하다": "안 좋아해요",
+              "맛있다": "맛없어요"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "오늘은 학교에 안 가요.",
+            "translations": {
+              "fr": "Aujourd'hui, je ne vais pas à l'école.",
+              "en": "Today I'm not going to school."
+            }
+          },
+          {
+            "target": "저는 커피를 안 마셔요.",
+            "translations": {
+              "fr": "Je ne bois pas de café.",
+              "en": "I don't drink coffee."
+            }
+          },
+          {
+            "target": "내일은 일 안 해요.",
+            "translations": {
+              "fr": "Demain, je ne travaille pas.",
+              "en": "Tomorrow I'm not working."
+            }
+          }
+        ],
+        "test_vectors": [
+          {
+            "input": "가다",
+            "context": "négation au présent poli",
+            "expected": "안 가요"
+          },
+          {
+            "input": "먹다",
+            "context": "négation au présent poli",
+            "expected": "안 먹어요"
+          },
+          {
+            "input": "마시다",
+            "context": "négation au présent poli",
+            "expected": "안 마셔요"
+          },
+          {
+            "input": "자다",
+            "context": "négation au présent poli",
+            "expected": "안 자요"
+          },
+          {
+            "input": "보다",
+            "context": "négation au présent poli",
+            "expected": "안 봐요"
+          },
+          {
+            "input": "오다",
+            "context": "négation au présent poli",
+            "expected": "안 와요"
+          },
+          {
+            "input": "듣다",
+            "context": "négation au présent poli",
+            "expected": "안 들어요"
+          },
+          {
+            "input": "걷다",
+            "context": "négation au présent poli",
+            "expected": "안 걸어요"
+          },
+          {
+            "input": "읽다",
+            "context": "négation au présent poli",
+            "expected": "안 읽어요"
+          },
+          {
+            "input": "공부하다",
+            "context": "négation au présent poli (composé en 하다)",
+            "expected": "공부 안 해요"
+          },
+          {
+            "input": "일하다",
+            "context": "négation au présent poli (composé en 하다)",
+            "expected": "일 안 해요"
+          },
+          {
+            "input": "도착하다",
+            "context": "négation au présent poli (composé en 하다)",
+            "expected": "도착 안 해요"
+          },
+          {
+            "input": "좋아하다",
+            "context": "négation au présent poli (exception)",
+            "expected": "안 좋아해요"
+          },
+          {
+            "input": "바쁘다",
+            "context": "négation au présent poli",
+            "expected": "안 바빠요"
+          }
+        ]
+      }
+    }
+  ]
+}

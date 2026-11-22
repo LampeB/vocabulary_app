@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../../domain/entities/friendship.dart';
 import '../../../domain/entities/leaderboard_entry.dart';
 import '../../providers/auth/auth_provider.dart';
@@ -45,6 +46,7 @@ class _SocialScreenState extends ConsumerState<SocialScreen>
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenSocial),
       // Background from AppTheme.scaffoldBackgroundColor.
       body: Stack(
         children: [

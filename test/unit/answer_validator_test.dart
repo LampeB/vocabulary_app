@@ -138,5 +138,43 @@ void main() {
         expect(correct.score, greaterThan(wrong.score));
       });
     });
+
+    group('firstCorrect (recognizer candidates)', () {
+      test(
+          'accepts the answer when it hides in the alternates behind a '
+          'wrong primary transcript (field log 2026-07-06)', () {
+        // The engine ranked the near-homophone 병환이 first; the user's
+        // actual word 병아리 was an alternate. Grading only the primary
+        // failed the card.
+        final match = AnswerValidator.firstCorrect(
+          candidates: ['병환이', '종환이', '병아리'],
+          acceptedAnswers: ['병아리'],
+          isDrivingMode: true,
+        );
+        expect(match, '병아리');
+      });
+
+      test('returns null when no candidate is correct', () {
+        expect(
+          AnswerValidator.firstCorrect(
+            candidates: ['그림자', '나무'],
+            acceptedAnswers: ['병아리'],
+            isDrivingMode: true,
+          ),
+          isNull,
+        );
+      });
+
+      test('empty candidate list is never correct', () {
+        expect(
+          AnswerValidator.firstCorrect(
+            candidates: const [],
+            acceptedAnswers: ['병아리'],
+            isDrivingMode: true,
+          ),
+          isNull,
+        );
+      });
+    });
   });
 }

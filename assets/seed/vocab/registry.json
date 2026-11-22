@@ -1,0 +1,612 @@
+{
+  "version": 1,
+  "lists": [
+    {
+      "id": "starter-greetings",
+      "name_key": "seed.list.starter-greetings.name",
+      "desc_key": "seed.list.starter-greetings.desc",
+      "target_langs": null,
+      "concepts": [
+        "bonjour",
+        "au-revoir-a-celui-qui-part",
+        "au-revoir-a-celui-qui-reste",
+        "merci",
+        "de-rien",
+        "pardon-excusez-moi",
+        "donnez-moi-s-il-vous-plait",
+        "oui",
+        "non",
+        "enchante-e",
+        "bonne-nuit",
+        "d-accord-compris",
+        "comment-allez-vous",
+        "je-moi-forme-humble",
+        "nom",
+        "ami",
+        "professeur",
+        "personne"
+      ]
+    },
+    {
+      "id": "starter-numbers-time",
+      "name_key": "seed.list.starter-numbers-time.name",
+      "desc_key": "seed.list.starter-numbers-time.desc",
+      "target_langs": null,
+      "concepts": [
+        "un",
+        "deux",
+        "trois",
+        "quatre",
+        "cinq",
+        "six",
+        "sept",
+        "huit",
+        "neuf",
+        "dix",
+        "aujourd-hui",
+        "demain",
+        "hier",
+        "maintenant",
+        "temps-heure-duree",
+        "matin",
+        "soir",
+        "journee"
+      ]
+    },
+    {
+      "id": "starter-food",
+      "name_key": "seed.list.starter-food.name",
+      "desc_key": "seed.list.starter-food.desc",
+      "target_langs": null,
+      "concepts": [
+        "riz-repas",
+        "eau",
+        "kimchi",
+        "viande",
+        "fruit",
+        "pomme",
+        "the",
+        "cafe-boisson",
+        "lait",
+        "pain",
+        "poisson-aliment",
+        "legume",
+        "manger",
+        "boire",
+        "delicieux",
+        "mauvais-au-gout",
+        "avoir-faim",
+        "restaurant"
+      ]
+    },
+    {
+      "id": "starter-daily-life",
+      "name_key": "seed.list.starter-daily-life.name",
+      "desc_key": "seed.list.starter-daily-life.desc",
+      "target_langs": null,
+      "concepts": [
+        "maison",
+        "ecole",
+        "entreprise-bureau",
+        "dormir",
+        "se-lever",
+        "aller",
+        "venir",
+        "voir-regarder",
+        "faire",
+        "etudier",
+        "travailler",
+        "lire",
+        "acheter",
+        "ecouter",
+        "aimer-apprecier",
+        "vivre-habiter",
+        "livre",
+        "telephone-portable",
+        "etudiant",
+        "etre-occupe"
+      ]
+    },
+    {
+      "id": "starter-getting-around",
+      "name_key": "seed.list.starter-getting-around.name",
+      "desc_key": "seed.list.starter-getting-around.desc",
+      "target_langs": null,
+      "concepts": [
+        "metro",
+        "bus",
+        "taxi",
+        "train",
+        "rue-chemin",
+        "gare-station",
+        "aeroport",
+        "coree",
+        "france",
+        "seoul",
+        "paris",
+        "ici",
+        "la-bas",
+        "ou",
+        "marcher",
+        "prendre-un-transport",
+        "descendre-d-un-transport",
+        "arriver",
+        "partir",
+        "aider"
+      ]
+    },
+    {
+      "id": "starter-ko-particles",
+      "name_key": "seed.list.starter-ko-particles.name",
+      "desc_key": "seed.list.starter-ko-particles.desc",
+      "target_langs": [
+        "ko"
+      ],
+      "concepts": [
+        "ko-particule-de-theme-apres-consonne",
+        "ko-particule-de-theme-apres-voyelle",
+        "ko-particule-de-sujet-apres-consonne",
+        "ko-particule-de-sujet-apres-voyelle",
+        "ko-particule-d-objet-apres-consonne",
+        "ko-particule-d-objet-apres-voyelle",
+        "ko-a-vers-destination-temps",
+        "ko-a-dans-lieu-d-action",
+        "ko-aussi",
+        "ko-et-avec-apres-voyelle",
+        "ko-et-avec-apres-consonne",
+        "ko-et-avec-oral",
+        "ko-de-possession",
+        "ko-a-partir-de-depuis",
+        "ko-jusqu-a",
+        "ko-seulement",
+        "ko-ne-pas-negation"
+      ]
+    }
+  ],
+  "concepts": [
+    {
+      "id": "bonjour",
+      "category": "expression"
+    },
+    {
+      "id": "au-revoir-a-celui-qui-part",
+      "category": "expression"
+    },
+    {
+      "id": "au-revoir-a-celui-qui-reste",
+      "category": "expression"
+    },
+    {
+      "id": "merci",
+      "category": "expression"
+    },
+    {
+      "id": "de-rien",
+      "category": "expression"
+    },
+    {
+      "id": "pardon-excusez-moi",
+      "category": "expression"
+    },
+    {
+      "id": "donnez-moi-s-il-vous-plait",
+      "category": "expression"
+    },
+    {
+      "id": "oui",
+      "category": "expression"
+    },
+    {
+      "id": "non",
+      "category": "expression"
+    },
+    {
+      "id": "enchante-e",
+      "category": "expression"
+    },
+    {
+      "id": "bonne-nuit",
+      "category": "expression"
+    },
+    {
+      "id": "d-accord-compris",
+      "category": "expression"
+    },
+    {
+      "id": "comment-allez-vous",
+      "category": "expression"
+    },
+    {
+      "id": "je-moi-forme-humble",
+      "category": "nom"
+    },
+    {
+      "id": "nom",
+      "category": "nom"
+    },
+    {
+      "id": "ami",
+      "category": "nom"
+    },
+    {
+      "id": "professeur",
+      "category": "nom"
+    },
+    {
+      "id": "personne",
+      "category": "nom"
+    },
+    {
+      "id": "un",
+      "category": "nombre"
+    },
+    {
+      "id": "deux",
+      "category": "nombre"
+    },
+    {
+      "id": "trois",
+      "category": "nombre"
+    },
+    {
+      "id": "quatre",
+      "category": "nombre"
+    },
+    {
+      "id": "cinq",
+      "category": "nombre"
+    },
+    {
+      "id": "six",
+      "category": "nombre"
+    },
+    {
+      "id": "sept",
+      "category": "nombre"
+    },
+    {
+      "id": "huit",
+      "category": "nombre"
+    },
+    {
+      "id": "neuf",
+      "category": "nombre"
+    },
+    {
+      "id": "dix",
+      "category": "nombre"
+    },
+    {
+      "id": "aujourd-hui",
+      "category": "nom"
+    },
+    {
+      "id": "demain",
+      "category": "nom"
+    },
+    {
+      "id": "hier",
+      "category": "nom"
+    },
+    {
+      "id": "maintenant",
+      "category": "nom"
+    },
+    {
+      "id": "temps-heure-duree",
+      "category": "nom"
+    },
+    {
+      "id": "matin",
+      "category": "nom"
+    },
+    {
+      "id": "soir",
+      "category": "nom"
+    },
+    {
+      "id": "journee",
+      "category": "nom"
+    },
+    {
+      "id": "riz-repas",
+      "category": "nom"
+    },
+    {
+      "id": "eau",
+      "category": "nom"
+    },
+    {
+      "id": "kimchi",
+      "category": "nom"
+    },
+    {
+      "id": "viande",
+      "category": "nom"
+    },
+    {
+      "id": "fruit",
+      "category": "nom"
+    },
+    {
+      "id": "pomme",
+      "category": "nom"
+    },
+    {
+      "id": "the",
+      "category": "nom"
+    },
+    {
+      "id": "cafe-boisson",
+      "category": "nom"
+    },
+    {
+      "id": "lait",
+      "category": "nom"
+    },
+    {
+      "id": "pain",
+      "category": "nom"
+    },
+    {
+      "id": "poisson-aliment",
+      "category": "nom"
+    },
+    {
+      "id": "legume",
+      "category": "nom"
+    },
+    {
+      "id": "manger",
+      "category": "verbe"
+    },
+    {
+      "id": "boire",
+      "category": "verbe"
+    },
+    {
+      "id": "delicieux",
+      "category": "adjectif"
+    },
+    {
+      "id": "mauvais-au-gout",
+      "category": "adjectif"
+    },
+    {
+      "id": "avoir-faim",
+      "category": "adjectif"
+    },
+    {
+      "id": "restaurant",
+      "category": "lieu"
+    },
+    {
+      "id": "maison",
+      "category": "lieu"
+    },
+    {
+      "id": "ecole",
+      "category": "lieu"
+    },
+    {
+      "id": "entreprise-bureau",
+      "category": "lieu"
+    },
+    {
+      "id": "dormir",
+      "category": "verbe"
+    },
+    {
+      "id": "se-lever",
+      "category": "verbe"
+    },
+    {
+      "id": "aller",
+      "category": "verbe"
+    },
+    {
+      "id": "venir",
+      "category": "verbe"
+    },
+    {
+      "id": "voir-regarder",
+      "category": "verbe"
+    },
+    {
+      "id": "faire",
+      "category": "verbe"
+    },
+    {
+      "id": "etudier",
+      "category": "verbe"
+    },
+    {
+      "id": "travailler",
+      "category": "verbe"
+    },
+    {
+      "id": "lire",
+      "category": "verbe"
+    },
+    {
+      "id": "acheter",
+      "category": "verbe"
+    },
+    {
+      "id": "ecouter",
+      "category": "verbe"
+    },
+    {
+      "id": "aimer-apprecier",
+      "category": "verbe"
+    },
+    {
+      "id": "vivre-habiter",
+      "category": "verbe"
+    },
+    {
+      "id": "livre",
+      "category": "nom"
+    },
+    {
+      "id": "telephone-portable",
+      "category": "nom"
+    },
+    {
+      "id": "etudiant",
+      "category": "nom"
+    },
+    {
+      "id": "etre-occupe",
+      "category": "adjectif"
+    },
+    {
+      "id": "metro",
+      "category": "nom"
+    },
+    {
+      "id": "bus",
+      "category": "nom"
+    },
+    {
+      "id": "taxi",
+      "category": "nom"
+    },
+    {
+      "id": "train",
+      "category": "nom"
+    },
+    {
+      "id": "rue-chemin",
+      "category": "nom"
+    },
+    {
+      "id": "gare-station",
+      "category": "lieu"
+    },
+    {
+      "id": "aeroport",
+      "category": "lieu"
+    },
+    {
+      "id": "coree",
+      "category": "lieu"
+    },
+    {
+      "id": "france",
+      "category": "lieu"
+    },
+    {
+      "id": "seoul",
+      "category": "lieu"
+    },
+    {
+      "id": "paris",
+      "category": "lieu"
+    },
+    {
+      "id": "ici",
+      "category": "lieu"
+    },
+    {
+      "id": "la-bas",
+      "category": "lieu"
+    },
+    {
+      "id": "ou",
+      "category": "expression"
+    },
+    {
+      "id": "marcher",
+      "category": "verbe"
+    },
+    {
+      "id": "prendre-un-transport",
+      "category": "verbe"
+    },
+    {
+      "id": "descendre-d-un-transport",
+      "category": "verbe"
+    },
+    {
+      "id": "arriver",
+      "category": "verbe"
+    },
+    {
+      "id": "partir",
+      "category": "verbe"
+    },
+    {
+      "id": "aider",
+      "category": "verbe"
+    },
+    {
+      "id": "ko-particule-de-theme-apres-consonne",
+      "category": "particule"
+    },
+    {
+      "id": "ko-particule-de-theme-apres-voyelle",
+      "category": "particule"
+    },
+    {
+      "id": "ko-particule-de-sujet-apres-consonne",
+      "category": "particule"
+    },
+    {
+      "id": "ko-particule-de-sujet-apres-voyelle",
+      "category": "particule"
+    },
+    {
+      "id": "ko-particule-d-objet-apres-consonne",
+      "category": "particule"
+    },
+    {
+      "id": "ko-particule-d-objet-apres-voyelle",
+      "category": "particule"
+    },
+    {
+      "id": "ko-a-vers-destination-temps",
+      "category": "particule"
+    },
+    {
+      "id": "ko-a-dans-lieu-d-action",
+      "category": "particule"
+    },
+    {
+      "id": "ko-aussi",
+      "category": "particule"
+    },
+    {
+      "id": "ko-et-avec-apres-voyelle",
+      "category": "particule"
+    },
+    {
+      "id": "ko-et-avec-apres-consonne",
+      "category": "particule"
+    },
+    {
+      "id": "ko-et-avec-oral",
+      "category": "particule"
+    },
+    {
+      "id": "ko-de-possession",
+      "category": "particule"
+    },
+    {
+      "id": "ko-a-partir-de-depuis",
+      "category": "particule"
+    },
+    {
+      "id": "ko-jusqu-a",
+      "category": "particule"
+    },
+    {
+      "id": "ko-seulement",
+      "category": "particule"
+    },
+    {
+      "id": "ko-ne-pas-negation",
+      "category": "particule"
+    }
+  ]
+}

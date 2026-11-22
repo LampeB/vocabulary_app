@@ -10,8 +10,8 @@ abstract final class AppColors {
   // ── Text ──────────────────────────────────────────────────────────────────
   static const ink      = Color(0xFF2B2622); // primary text; also dark hero cards
   static const muted    = Color(0xFF756C62); // secondary text
-  static const muted2   = Color(0xFF8A857C); // eyebrow labels, meta
-  static const faint    = Color(0xFFA99F90); // captions, inactive nav
+  static const muted2   = Color(0xFF6F695F); // eyebrow labels, meta (AA on paper)
+  static const faint    = Color(0xFF8A8073); // captions, inactive nav (AA on paper)
   static const line     = Color(0xFFECE3D7); // borders, progress track, dividers
 
   // ── Accents ───────────────────────────────────────────────────────────────
@@ -24,6 +24,12 @@ abstract final class AppColors {
   static const clayDeep  = Color(0xFFC4703F); // clay text on light (AA contrast)
   /// Destructive — delete, sign-out, error states only.
   static const rose      = Color(0xFFB0556B);
+
+  /// Filled-button variants — darkened so white text meets WCAG AA on the fill
+  /// (clay 2.97:1 → ~4.5:1, teal 3.89:1 → ~4.5:1). Use these for solid CTAs;
+  /// keep [clay]/[teal] for accents, fills, progress, and icons (no white text).
+  static const clayButton = Color(0xFFA85A30); // AA white-on-clay CTA
+  static const tealButton = Color(0xFF3E726D); // AA white-on-teal CTA
 
   // ── On-dark text ──────────────────────────────────────────────────────────
   static const onDark      = Color(0xFFF6F1EA);
@@ -46,9 +52,16 @@ abstract final class AppColors {
     paletteClay, paletteTeal, paletteIndigo, paletteRose, paletteStone,
   ];
 
-  // ── Feedback flashes ──────────────────────────────────────────────────────
+  // ── Feedback flashes (legacy tint overlay — replaced by the floods below) ──
   static const correctFlash   = Color(0x9934C759); // vivid green 60 %
   static const incorrectFlash = Color(0x99FF3B30); // vivid red 60 %
+
+  // ── Full-screen study feedback floods ─────────────────────────────────────
+  // The redesign's grading takeover: a held, full-screen color flood (not a
+  // tint) so it's catchable peripherally. Bright, max-separation, and
+  // **theme-independent** — identical in light and dark. White icon/text on top.
+  static const feedbackCorrect = Color(0xFF2FA98C); // "Juste !"  (bright teal)
+  static const feedbackWrong   = Color(0xFFE8693C); // "À revoir" (bright orange)
 
   // ── Legacy aliases (keep existing code compiling while screens are migrated)
   static const primary        = clay;

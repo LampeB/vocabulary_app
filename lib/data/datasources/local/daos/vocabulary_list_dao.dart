@@ -55,4 +55,22 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
           updatedAt: Value(DateTime.now()),
         ),
       );
+
+  /// Retro-tags a pre-catalog starter list with its stable seed identity
+  /// (legacy adoption — see StarterSeeder).
+  Future<int> stampSeedIdentity(
+          String listId, String seedId, String langA, String langB) =>
+      (update(vocabularyListsTable)..where((t) => t.id.equals(listId))).write(
+        VocabularyListsTableCompanion(
+          seedId: Value(seedId),
+          langA: Value(langA),
+          langB: Value(langB),
+          isSynced: const Value(false),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+
+  Future<int> markListsSynced(List<String> ids) =>
+      (update(vocabularyListsTable)..where((t) => t.id.isIn(ids)))
+          .write(const VocabularyListsTableCompanion(isSynced: Value(true)));
 }

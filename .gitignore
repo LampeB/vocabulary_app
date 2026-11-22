@@ -27,11 +27,24 @@ migrate_working_dir/
 .env.json
 test*.env.json
 
+# Local Codex desktop configuration (machine-specific paths and connectors)
+/.codex/
+
+# Obsidian keeps this layout per local machine; the shared vault settings are
+# versioned in .obsidian/app.json.
+/.obsidian/workspace.json
+/.obsidian/workspace-mobile.json
+/.obsidian/cache/
+
 # Test output
 quiz_test_out.txt
 
-# Pub packages checked out locally
-/packages/
+# Release APKs are CI artifacts, never repository source.
+/ci-apk/
+
+# Pub packages checked out locally — EXCEPT vendored ones we patch
+/packages/*
+!/packages/whisper_flutter_new/
 
 # Android build artifacts (beyond the default /build/ exclusion)
 /android/build/
@@ -45,6 +58,7 @@ quiz_test_out.txt
 .pub/
 /build/
 /coverage/
+
 
 # Symbolication related
 app.*.symbols
@@ -61,3 +75,17 @@ app.*.map.json
 /playwright-report/
 /test-results/
 /test_bundle.dart
+
+# Patrol generates this per --target; never commit it
+patrol_test/test_bundle.dart
+
+# Supabase CLI version marker
+/supabase/.temp/
+/supabase/.env.deploy
+
+# native build artifacts inside the vendored plugin
+/packages/whisper_flutter_new/android/.cxx/
+/packages/whisper_flutter_new/example/
+
+# Private permanent E2E account credentials
+/.e2e/

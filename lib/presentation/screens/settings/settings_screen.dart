@@ -1,4 +1,5 @@
 import 'package:easy_localization/easy_localization.dart';
+import '../../../core/languages.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,9 +7,13 @@ import '../../providers/auth/auth_provider.dart';
 import '../../providers/purchases/purchase_provider.dart';
 import '../../providers/settings/settings_provider.dart';
 import '../../providers/settings/audio_settings_provider.dart';
+import '../../providers/settings/stt_engine_mode_provider.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
+import '../../providers/settings/dev_grammar_unlock_provider.dart';
 import '../../../domain/entities/subscription_type.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
 
@@ -17,9 +22,9 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user          = ref.watch(currentUserProvider);
-    final themeMode     = ref.watch(themeModeProvider);
-    final isPremium     = ref.watch(isPremiumProvider);
+    final user = ref.watch(currentUserProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final isPremium = ref.watch(isPremiumProvider);
     final audioSettings = ref.watch(audioSettingsProvider);
 
     final cs = Theme.of(context).colorScheme;
@@ -28,6 +33,7 @@ class SettingsScreen extends ConsumerWidget {
     final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenSettings),
       // Background from AppTheme.scaffoldBackgroundColor.
       appBar: AppBar(
         // AppBarTheme provides title style and icon colors.
@@ -43,8 +49,8 @@ class SettingsScreen extends ConsumerWidget {
               _EyebrowSection('settings.section_account'.tr()),
               FrostedBox(
                 borderRadius: BorderRadius.circular(18),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Row(
                   children: [
                     _SmallAvatar(
@@ -62,8 +68,8 @@ class SettingsScreen extends ConsumerWidget {
                                 .copyWith(color: cs.onSurface),
                           ),
                           Text('@${user?.username ?? ''}',
-                              style: AppTextStyles.caption
-                                  .copyWith(color: faint)),
+                              style:
+                                  AppTextStyles.caption.copyWith(color: faint)),
                         ],
                       ),
                     ),
@@ -161,6 +167,56 @@ class SettingsScreen extends ConsumerWidget {
                       onSelect: (v) =>
                           ref.read(audioSettingsProvider.notifier).setPitch(v),
                     ),
+                    const SizedBox(height: 12),
+                    _AudioSettingRow(
+                      icon: Icons.hearing_rounded,
+                      label: 'settings.voice_tolerance_label'.tr(),
+                      options: [
+                        'settings.voice_tolerance_lenient'.tr(),
+                        'settings.voice_tolerance_normal'.tr(),
+                        'settings.voice_tolerance_strict'.tr(),
+                      ],
+                      // Acceptance threshold for spoken answers: lower =
+                      // more forgiving of recognition near-misses.
+                      // Souple 0.55: near-misses like "Mauvi" for
+                      // "mauvais" score ~0.60 — 0.65 still bounced them.
+                      values: const [0.55, 0.75, 0.85],
+                      current: audioSettings.voiceStrictness,
+                      onSelect: (v) => ref
+                          .read(audioSettingsProvider.notifier)
+                          .setVoiceStrictness(v),
+                    ),
+                    const SizedBox(height: 12),
+                    // Recognition pipeline A/B toggle (see SttEngineMode):
+                    // Système = platform recognizer only; Course = the
+                    // experimental SttRace pipeline. On-device comparison
+                    // without reinstalling.
+                    _AudioSettingRow(
+                      icon: Icons.mic_external_on_outlined,
+                      label: 'settings.stt_engine_label'.tr(),
+                      options: [
+                        'settings.stt_engine_system'.tr(),
+                        'settings.stt_engine_race'.tr(),
+                      ],
+                      values: const [0, 1],
+                      current:
+                          ref.watch(sttEngineModeProvider).index.toDouble(),
+                      onSelect: (v) => ref
+                          .read(sttEngineModeProvider.notifier)
+                          .set(v == 0
+                              ? SttEngineMode.system
+                              : SttEngineMode.race),
+                    ),
+                    const SizedBox(height: 12),
+                    // How long a voice quiz listens for the answer (user
+                    // request 2026-10-02) — the listening bar drains over
+                    // exactly this window.
+                    _ListenTimeSlider(
+                      seconds: audioSettings.listenSeconds,
+                      onChanged: (v) => ref
+                          .read(audioSettingsProvider.notifier)
+                          .setListenSeconds(v),
+                    ),
                   ],
                 ),
               ),
@@ -207,8 +263,8 @@ class SettingsScreen extends ConsumerWidget {
                               style: AppTextStyles.fig(15, FontWeight.w500)
                                   .copyWith(color: cs.onSurface)),
                           Text(_subscriptionLabel(ref),
-                              style: AppTextStyles.caption
-                                  .copyWith(color: muted)),
+                              style:
+                                  AppTextStyles.caption.copyWith(color: muted)),
                         ],
                       ),
                     ),
@@ -236,9 +292,53 @@ class SettingsScreen extends ConsumerWidget {
               _NavTile(
                 icon: Icons.language_rounded,
                 label: 'settings.language_label'.tr(),
-                subtitle: _languageName(context.locale.languageCode),
+                // Localizations.localeOf == context.locale in the app (MaterialApp
+                // gets its locale from EasyLocalization) but doesn't require the
+                // EasyLocalization ancestor, so the screen stays widget-testable.
+                subtitle:
+                    _languageName(Localizations.localeOf(context).languageCode),
                 onTap: () => _showLanguagePicker(context),
               ),
+              // ── Dev (debug builds only) ──────────────────────────────────
+              if (kDebugMode) ...[
+                const SizedBox(height: 24),
+                _EyebrowSection('DEV'),
+                FrostedBox(
+                  borderRadius: BorderRadius.circular(18),
+                  padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Debug-only tooling — deliberately not localized.
+                            Text('Grammaire : tout débloquer',
+                                style: AppTextStyles.fig(15, FontWeight.w500)
+                                    .copyWith(color: cs.onSurface)),
+                            Text('Ignore les prérequis (test uniquement)',
+                                style: AppTextStyles.caption
+                                    .copyWith(color: muted)),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: ref.watch(devGrammarUnlockProvider),
+                        onChanged: (v) =>
+                            ref.read(devGrammarUnlockProvider.notifier).set(v),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _NavTile(
+                  icon: Icons.mic_external_on_rounded,
+                  label: 'Laboratoire STT',
+                  subtitle:
+                      'Enregistre des mots pour mesurer la reconnaissance',
+                  onTap: () => context.push('/stt-lab'),
+                ),
+              ],
               const SizedBox(height: 24),
               // ── Compte — actions ─────────────────────────────────────────────
               _EyebrowSection('settings.section_actions'.tr()),
@@ -255,8 +355,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmSignOut(
-      BuildContext context, WidgetRef ref) async {
+  Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -283,49 +382,46 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-String _languageName(String code) => switch (code) {
-  'fr' => 'Français',
-  'en' => 'English',
-  'es' => 'Español',
-  'de' => 'Deutsch',
-  'it' => 'Italiano',
-  'ja' => '日本語',
-  'ko' => '한국어',
-  _ => code,
-};
+// The current app language, shown in its own language (autonym).
+String _languageName(String code) => Languages.autonym(code);
 
 void _showLanguagePicker(BuildContext context) {
-  final locales = [
-    const Locale('fr'),
-    const Locale('en'),
-    const Locale('es'),
-    const Locale('de'),
-    const Locale('it'),
-    const Locale('ja'),
-    const Locale('ko'),
-  ];
   showDialog<void>(
     context: context,
-    builder: (_) => SimpleDialog(
-      title: Text('settings.language_label'.tr()),
-      children: locales.map((locale) {
-        final isSelected = context.locale == locale;
-        return SimpleDialogOption(
-          onPressed: () {
-            context.setLocale(locale);
-            Navigator.of(context).pop();
-          },
-          child: Row(
-            children: [
-              Expanded(child: Text(_languageName(locale.languageCode))),
-              if (isSelected)
-                const Icon(Icons.check_rounded, size: 18),
-            ],
-          ),
-        );
-      }).toList(),
-    ),
+    builder: (_) => const _LanguagePickerDialog(),
   );
+}
+
+/// App-language picker. Each option shows the language's autonym (日本語,
+/// Deutsch…). Tapping switches the app language live and KEEPS the dialog open
+/// — the checkmark follows the active locale — so you can try several without
+/// reopening; tap outside to dismiss.
+class _LanguagePickerDialog extends StatelessWidget {
+  const _LanguagePickerDialog();
+
+  static const _codes = ['fr', 'en', 'es', 'de', 'it', 'ja', 'ko'];
+
+  @override
+  Widget build(BuildContext context) {
+    // Reading context.locale makes this rebuild when setLocale fires, so the
+    // checkmark moves without closing the dialog.
+    final current = context.locale.languageCode;
+    return SimpleDialog(
+      title: Text('settings.language_label'.tr()),
+      children: [
+        for (final code in _codes)
+          SimpleDialogOption(
+            onPressed: () => context.setLocale(Locale(code)),
+            child: Row(
+              children: [
+                Expanded(child: Text(Languages.autonym(code))),
+                if (current == code) const Icon(Icons.check_rounded, size: 18),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 String _subscriptionLabel(WidgetRef ref) {
@@ -349,8 +445,7 @@ class _EyebrowSection extends StatelessWidget {
     final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Text(label,
-          style: AppTextStyles.eyebrow.copyWith(color: muted)),
+      child: Text(label, style: AppTextStyles.eyebrow.copyWith(color: muted)),
     );
   }
 }
@@ -408,8 +503,8 @@ class _NavTile extends StatelessWidget {
                             style: AppTextStyles.fig(15, FontWeight.w500)
                                 .copyWith(color: color)),
                         Text(subtitle!,
-                            style: AppTextStyles.caption
-                                .copyWith(color: muted)),
+                            style:
+                                AppTextStyles.caption.copyWith(color: muted)),
                       ],
                     )
                   : Text(label,
@@ -466,17 +561,78 @@ class _AudioSettingRow extends StatelessWidget {
               style: AppTextStyles.fig(15, FontWeight.w500)
                   .copyWith(color: cs.onSurface)),
         ),
+        // Flexible + FittedBox: the three pills exceed the remaining width on
+        // narrow (360dp) screens; scale them down instead of overflowing.
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              children: [
+                for (var i = 0; i < options.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 6),
+                  _AudioPill(
+                    label: options[i],
+                    selected: (current - values[i]).abs() < 0.01,
+                    onTap: () => onSelect(values[i]),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ListenTimeSlider extends StatelessWidget {
+  const _ListenTimeSlider({required this.seconds, required this.onChanged});
+  final int seconds;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         Row(
           children: [
-            for (var i = 0; i < options.length; i++) ...[
-              if (i > 0) const SizedBox(width: 6),
-              _AudioPill(
-                label: options[i],
-                selected: (current - values[i]).abs() < 0.01,
-                onTap: () => onSelect(values[i]),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: cs.outline.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(10),
               ),
-            ],
+              child: Icon(Icons.timer_outlined, color: muted, size: 18),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text('settings.listen_time_label'.tr(),
+                  style: AppTextStyles.fig(15, FontWeight.w500)
+                      .copyWith(color: cs.onSurface)),
+            ),
+            Text(
+              'settings.listen_time_value'.tr(namedArgs: {'n': '$seconds'}),
+              key: const ValueKey('listen_time_value'),
+              style: AppTextStyles.fig(15, FontWeight.w700)
+                  .copyWith(color: AppColors.teal),
+            ),
           ],
+        ),
+        Slider(
+          key: const ValueKey('listen_time_slider'),
+          value: seconds.toDouble(),
+          min: AudioSettings.minListenSeconds.toDouble(),
+          max: AudioSettings.maxListenSeconds.toDouble(),
+          divisions:
+              AudioSettings.maxListenSeconds - AudioSettings.minListenSeconds,
+          label: 'settings.listen_time_value'.tr(namedArgs: {'n': '$seconds'}),
+          activeColor: AppColors.teal,
+          onChanged: (v) => onChanged(v.round()),
         ),
       ],
     );
@@ -552,9 +708,7 @@ class _ThemePill extends StatelessWidget {
             color: selected ? AppColors.teal : cs.outline,
           ),
         ),
-        child: Icon(icon,
-            size: 16,
-            color: selected ? Colors.white : faint),
+        child: Icon(icon, size: 16, color: selected ? Colors.white : faint),
       ),
     );
   }

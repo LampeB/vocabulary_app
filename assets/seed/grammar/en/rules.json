@@ -1,0 +1,212 @@
+{
+  "lang": "en",
+  "rules": [
+    {
+      "rule": {
+        "id": "en-articles-a-an",
+        "title": {
+          "en": "The indefinite articles a / an",
+          "fr": "Les articles indéfinis a / an"
+        },
+        "description": {
+          "en": "Use a before a consonant sound and an before a vowel sound.",
+          "fr": "Utiliser a devant un son consonne et an devant un son voyelle."
+        },
+        "explanation": {
+          "en": "English has no grammatical gender: the choice between a and an depends only on the FIRST SOUND of the next word. Before a consonant sound, use a: a book, a train. Before a vowel sound, use an: an apple, an airport. It's the sound that counts, not the letter: a university (you-), an hour (silent h).",
+          "fr": "L'anglais n'a pas de genre grammatical : le choix entre a et an dépend uniquement du PREMIER SON du mot suivant. Devant un son consonne, utilise a : a book, a train. Devant un son voyelle, utilise an : an apple, an airport. C'est le son qui compte, pas la lettre : a university (son \"you\"), an hour (h muet)."
+        },
+        "prerequisite_lists": ["starter-food"],
+        "min_known_words": { "nom": 5 },
+        "applies_to_categories": ["nom", "lieu"],
+        "mechanics": {
+          "type": "article",
+          "article": {
+            "forms": { "default": "a" }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "a book",
+            "translations": { "en": "a book", "fr": "un livre" }
+          },
+          {
+            "target": "an apple",
+            "translations": { "en": "an apple", "fr": "une pomme" }
+          }
+        ],
+        "test_vectors": [
+          { "input": "book", "context": "consonant", "expected": "a book" },
+          { "input": "train", "context": "consonant", "expected": "a train" },
+          { "input": "person", "context": "consonant", "expected": "a person" },
+          { "input": "friend", "context": "consonant", "expected": "a friend" },
+          { "input": "apple", "context": "vowel", "expected": "an apple" },
+          { "input": "airport", "context": "vowel", "expected": "an airport" },
+          { "input": "school", "context": "consonant", "expected": "a school" },
+          { "input": "teacher", "context": "consonant", "expected": "a teacher" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "en-present-3sg-s",
+        "title": {
+          "en": "The present simple and the third-person -s",
+          "fr": "Le présent simple et le -s de la 3e personne"
+        },
+        "description": {
+          "en": "The verb keeps its base form, except he/she/it which adds -s (-es, -ies).",
+          "fr": "Le verbe garde sa forme de base, sauf he/she/it qui ajoute -s (-es, -ies)."
+        },
+        "explanation": {
+          "en": "In the present simple, the verb is the bare form for I/you/we/they: I work, you eat. Only the third person singular (he/she/it) changes, adding -s: he works. Spelling: verbs in -s, -sh, -ch, -x, -o add -es (he goes, she watches); verbs in consonant + y change to -ies (he studies). The verb be is fully irregular: I am, you are, he is.",
+          "fr": "Au présent simple, le verbe garde sa forme de base pour I/you/we/they : I work, you eat. Seule la troisième personne du singulier (he/she/it) change, en ajoutant -s : he works. Orthographe : les verbes en -s, -sh, -ch, -x, -o ajoutent -es (he goes, she watches) ; les verbes en consonne + y passent à -ies (he studies). Le verbe be est complètement irrégulier : I am, you are, he is."
+        },
+        "prerequisite_lists": ["starter-daily-life"],
+        "min_known_words": { "verbe": 5 },
+        "applies_to_categories": ["verbe"],
+        "mechanics": {
+          "type": "conjugation",
+          "conjugation": {
+            "persons": ["p1sg", "p3sg"],
+            "irregulars": {
+              "to be busy|p1sg": "am busy",
+              "to be busy|p3sg": "is busy"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "I work in the morning.",
+            "translations": { "en": "I work in the morning.", "fr": "Je travaille le matin." }
+          },
+          {
+            "target": "She studies in the morning.",
+            "translations": { "en": "She studies in the morning.", "fr": "Elle étudie le matin." }
+          },
+          {
+            "target": "My friend goes to school.",
+            "translations": { "en": "My friend goes to school.", "fr": "Mon ami va à l'école." }
+          }
+        ],
+        "test_vectors": [
+          { "input": "to work", "context": "p1sg", "expected": "work" },
+          { "input": "to work", "context": "p3sg", "expected": "works" },
+          { "input": "to eat", "context": "p3sg", "expected": "eats" },
+          { "input": "to go", "context": "p3sg -es", "expected": "goes" },
+          { "input": "to study", "context": "p3sg -ies", "expected": "studies" },
+          { "input": "to buy", "context": "p3sg vowel+y", "expected": "buys" },
+          { "input": "to get up", "context": "p3sg phrasal", "expected": "gets up" },
+          { "input": "to be busy", "context": "p1sg irregular", "expected": "am busy" },
+          { "input": "to be busy", "context": "p3sg irregular", "expected": "is busy" },
+          { "input": "to read", "context": "p1sg", "expected": "read" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "en-negation-dont",
+        "title": {
+          "en": "Negation with don't",
+          "fr": "La négation avec don't"
+        },
+        "description": {
+          "en": "Negate with don't (doesn't for he/she/it) + the base verb.",
+          "fr": "Nier avec don't (doesn't pour he/she/it) + la base verbale."
+        },
+        "explanation": {
+          "en": "The present simple negates with the auxiliary do: don't (do not) + base verb: I work → I don't work. For he/she/it, use doesn't — and the main verb LOSES its -s, because doesn't already carries it: she works → she doesn't work. The verb be negates directly, without do: I'm not, he isn't.",
+          "fr": "Le présent simple se nie avec l'auxiliaire do : don't (do not) + base verbale : I work → I don't work. Pour he/she/it, utilise doesn't — et le verbe principal PERD son -s, car doesn't le porte déjà : she works → she doesn't work. Le verbe be se nie directement, sans do : I'm not, he isn't."
+        },
+        "prerequisite_lists": ["starter-daily-life"],
+        "min_known_words": { "verbe": 5 },
+        "applies_to_categories": ["verbe"],
+        "mechanics": {
+          "type": "negation",
+          "negation": {
+            "pattern_template": "don't {verb}",
+            "irregulars": {
+              "to be busy": "am not busy"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "I don't work today.",
+            "translations": { "en": "I don't work today.", "fr": "Je ne travaille pas aujourd'hui." }
+          },
+          {
+            "target": "I don't drink coffee.",
+            "translations": { "en": "I don't drink coffee.", "fr": "Je ne bois pas de café." }
+          }
+        ],
+        "test_vectors": [
+          { "input": "to work", "context": "base", "expected": "don't work" },
+          { "input": "to eat", "context": "base", "expected": "don't eat" },
+          { "input": "to drink", "context": "base", "expected": "don't drink" },
+          { "input": "to sleep", "context": "base", "expected": "don't sleep" },
+          { "input": "to study", "context": "base", "expected": "don't study" },
+          { "input": "to get up", "context": "phrasal", "expected": "don't get up" },
+          { "input": "to be busy", "context": "be irregular", "expected": "am not busy" },
+          { "input": "to walk", "context": "base", "expected": "don't walk" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "en-plural-s-es",
+        "title": {
+          "en": "The plural in -s / -es",
+          "fr": "Le pluriel en -s / -es"
+        },
+        "description": {
+          "en": "Add -s; -es after s/sh/ch/x/o; -ies after consonant + y; some nouns are irregular or uncountable.",
+          "fr": "Ajouter -s ; -es après s/sh/ch/x/o ; -ies après consonne + y ; certains noms sont irréguliers ou indénombrables."
+        },
+        "explanation": {
+          "en": "Most nouns add -s: book → books. Nouns in -s, -sh, -ch, -x, -o add -es: bus → buses. Consonant + y becomes -ies: city → cities. Some plurals are irregular: person → people. And uncountable nouns (water, milk, bread, rice…) normally have no plural at all — they stay the same.",
+          "fr": "La plupart des noms ajoutent -s : book → books. Les noms en -s, -sh, -ch, -x, -o ajoutent -es : bus → buses. Consonne + y devient -ies : city → cities. Certains pluriels sont irréguliers : person → people. Et les indénombrables (water, milk, bread, rice…) n'ont normalement pas de pluriel — ils restent identiques."
+        },
+        "prerequisite_lists": ["starter-food"],
+        "min_known_words": { "nom": 5 },
+        "applies_to_categories": ["nom"],
+        "mechanics": {
+          "type": "plural",
+          "plural": {
+            "irregulars": {
+              "person": "people",
+              "water": "water",
+              "milk": "milk",
+              "bread": "bread",
+              "meat": "meat",
+              "fruit": "fruit",
+              "tea": "tea",
+              "coffee": "coffee",
+              "time": "time"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "two apples",
+            "translations": { "en": "two apples", "fr": "deux pommes" }
+          },
+          {
+            "target": "three people",
+            "translations": { "en": "three people", "fr": "trois personnes" }
+          }
+        ],
+        "test_vectors": [
+          { "input": "book", "context": "-s", "expected": "books" },
+          { "input": "apple", "context": "-s", "expected": "apples" },
+          { "input": "bus", "context": "-es", "expected": "buses" },
+          { "input": "person", "context": "irregular", "expected": "people" },
+          { "input": "cell phone", "context": "compound", "expected": "cell phones" },
+          { "input": "water", "context": "uncountable", "expected": "water" },
+          { "input": "subway", "context": "vowel+y", "expected": "subways" },
+          { "input": "vegetable", "context": "-s", "expected": "vegetables" }
+        ]
+      }
+    }
+  ]
+}

@@ -7,6 +7,7 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/vk_waveform.dart';
 
@@ -63,6 +64,7 @@ class _ImportFromLinkScreenState
     final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenImport),
       body: Stack(
         children: [
           const DottedGround(),

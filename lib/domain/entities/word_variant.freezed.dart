@@ -29,7 +29,11 @@ mixin _$WordVariant {
   bool get isPrimary => throw _privateConstructorUsedError;
   String? get audioHash => throw _privateConstructorUsedError;
   String? get audioVoiceId => throw _privateConstructorUsedError;
+  String? get audioPath => throw _privateConstructorUsedError;
   int get position => throw _privateConstructorUsedError;
+
+  /// Example sentence in this variant's own language.
+  String? get example => throw _privateConstructorUsedError;
   bool get isSynced => throw _privateConstructorUsedError;
   bool get isDeleted => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
@@ -61,7 +65,9 @@ abstract class $WordVariantCopyWith<$Res> {
       bool isPrimary,
       String? audioHash,
       String? audioVoiceId,
+      String? audioPath,
       int position,
+      String? example,
       bool isSynced,
       bool isDeleted,
       DateTime createdAt,
@@ -92,7 +98,9 @@ class _$WordVariantCopyWithImpl<$Res, $Val extends WordVariant>
     Object? isPrimary = null,
     Object? audioHash = freezed,
     Object? audioVoiceId = freezed,
+    Object? audioPath = freezed,
     Object? position = null,
+    Object? example = freezed,
     Object? isSynced = null,
     Object? isDeleted = null,
     Object? createdAt = null,
@@ -135,10 +143,18 @@ class _$WordVariantCopyWithImpl<$Res, $Val extends WordVariant>
           ? _value.audioVoiceId
           : audioVoiceId // ignore: cast_nullable_to_non_nullable
               as String?,
+      audioPath: freezed == audioPath
+          ? _value.audioPath
+          : audioPath // ignore: cast_nullable_to_non_nullable
+              as String?,
       position: null == position
           ? _value.position
           : position // ignore: cast_nullable_to_non_nullable
               as int,
+      example: freezed == example
+          ? _value.example
+          : example // ignore: cast_nullable_to_non_nullable
+              as String?,
       isSynced: null == isSynced
           ? _value.isSynced
           : isSynced // ignore: cast_nullable_to_non_nullable
@@ -177,7 +193,9 @@ abstract class _$$WordVariantImplCopyWith<$Res>
       bool isPrimary,
       String? audioHash,
       String? audioVoiceId,
+      String? audioPath,
       int position,
+      String? example,
       bool isSynced,
       bool isDeleted,
       DateTime createdAt,
@@ -206,7 +224,9 @@ class __$$WordVariantImplCopyWithImpl<$Res>
     Object? isPrimary = null,
     Object? audioHash = freezed,
     Object? audioVoiceId = freezed,
+    Object? audioPath = freezed,
     Object? position = null,
+    Object? example = freezed,
     Object? isSynced = null,
     Object? isDeleted = null,
     Object? createdAt = null,
@@ -249,10 +269,18 @@ class __$$WordVariantImplCopyWithImpl<$Res>
           ? _value.audioVoiceId
           : audioVoiceId // ignore: cast_nullable_to_non_nullable
               as String?,
+      audioPath: freezed == audioPath
+          ? _value.audioPath
+          : audioPath // ignore: cast_nullable_to_non_nullable
+              as String?,
       position: null == position
           ? _value.position
           : position // ignore: cast_nullable_to_non_nullable
               as int,
+      example: freezed == example
+          ? _value.example
+          : example // ignore: cast_nullable_to_non_nullable
+              as String?,
       isSynced: null == isSynced
           ? _value.isSynced
           : isSynced // ignore: cast_nullable_to_non_nullable
@@ -286,7 +314,9 @@ class _$WordVariantImpl implements _WordVariant {
       this.isPrimary = false,
       this.audioHash,
       this.audioVoiceId,
+      this.audioPath,
       this.position = 0,
+      this.example,
       this.isSynced = false,
       this.isDeleted = false,
       required this.createdAt,
@@ -324,8 +354,14 @@ class _$WordVariantImpl implements _WordVariant {
   @override
   final String? audioVoiceId;
   @override
+  final String? audioPath;
+  @override
   @JsonKey()
   final int position;
+
+  /// Example sentence in this variant's own language.
+  @override
+  final String? example;
   @override
   @JsonKey()
   final bool isSynced;
@@ -339,7 +375,7 @@ class _$WordVariantImpl implements _WordVariant {
 
   @override
   String toString() {
-    return 'WordVariant(id: $id, conceptId: $conceptId, word: $word, langCode: $langCode, registerTag: $registerTag, contextTags: $contextTags, isPrimary: $isPrimary, audioHash: $audioHash, audioVoiceId: $audioVoiceId, position: $position, isSynced: $isSynced, isDeleted: $isDeleted, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'WordVariant(id: $id, conceptId: $conceptId, word: $word, langCode: $langCode, registerTag: $registerTag, contextTags: $contextTags, isPrimary: $isPrimary, audioHash: $audioHash, audioVoiceId: $audioVoiceId, audioPath: $audioPath, position: $position, example: $example, isSynced: $isSynced, isDeleted: $isDeleted, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -363,8 +399,11 @@ class _$WordVariantImpl implements _WordVariant {
                 other.audioHash == audioHash) &&
             (identical(other.audioVoiceId, audioVoiceId) ||
                 other.audioVoiceId == audioVoiceId) &&
+            (identical(other.audioPath, audioPath) ||
+                other.audioPath == audioPath) &&
             (identical(other.position, position) ||
                 other.position == position) &&
+            (identical(other.example, example) || other.example == example) &&
             (identical(other.isSynced, isSynced) ||
                 other.isSynced == isSynced) &&
             (identical(other.isDeleted, isDeleted) ||
@@ -388,7 +427,9 @@ class _$WordVariantImpl implements _WordVariant {
       isPrimary,
       audioHash,
       audioVoiceId,
+      audioPath,
       position,
+      example,
       isSynced,
       isDeleted,
       createdAt,
@@ -421,7 +462,9 @@ abstract class _WordVariant implements WordVariant {
       final bool isPrimary,
       final String? audioHash,
       final String? audioVoiceId,
+      final String? audioPath,
       final int position,
+      final String? example,
       final bool isSynced,
       final bool isDeleted,
       required final DateTime createdAt,
@@ -449,7 +492,13 @@ abstract class _WordVariant implements WordVariant {
   @override
   String? get audioVoiceId;
   @override
+  String? get audioPath;
+  @override
   int get position;
+
+  /// Example sentence in this variant's own language.
+  @override
+  String? get example;
   @override
   bool get isSynced;
   @override

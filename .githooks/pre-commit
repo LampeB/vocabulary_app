@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+
+set -eu
+
+if command -v powershell.exe >/dev/null 2>&1; then
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File tool/check-documentation.ps1 -Staged
+elif command -v pwsh >/dev/null 2>&1; then
+  pwsh -NoProfile -File tool/check-documentation.ps1 -Staged
+else
+  echo "Documentation guard needs PowerShell (powershell.exe or pwsh)." >&2
+  exit 1
+fi

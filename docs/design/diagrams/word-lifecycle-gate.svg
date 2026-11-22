@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="440" viewBox="0 0 1060 440" font-family="'Segoe UI',system-ui,sans-serif">
+  <defs>
+    <marker id="d" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M1,1 L8,4.5 L1,8" fill="none" stroke="#756C62" stroke-width="1.6"/>
+    </marker>
+    <marker id="dr" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M1,1 L8,4.5 L1,8" fill="none" stroke="#B0556B" stroke-width="1.6"/>
+    </marker>
+  </defs>
+  <rect width="1060" height="440" fill="#F6F1EA"/>
+  <text x="30" y="42" font-size="21" font-weight="700" fill="#2B2622">Cycle de vie d'un mot (v2 — avec la porte d'introduction)</text>
+  <text x="30" y="64" font-size="13" fill="#756C62">La ligne variant_progress est créée À L'INTRODUCTION (introducedAt) ; les révisions ne piochent que dans les lignes existantes</text>
+
+  <!-- Unseen -->
+  <rect x="30" y="120" width="170" height="96" rx="16" fill="#FFFFFF" stroke="#ECE3D7" stroke-dasharray="6 4"/>
+  <text x="115" y="152" font-size="14" fill="#2B2622" text-anchor="middle" font-weight="600">Dans une liste</text>
+  <text x="115" y="172" font-size="12" fill="#756C62" text-anchor="middle">jamais vu</text>
+  <text x="115" y="196" font-size="11.5" fill="#8A8073" text-anchor="middle">pas de ligne progress</text>
+
+  <line x1="200" y1="168" x2="248" y2="168" stroke="#756C62" stroke-width="1.8" marker-end="url(#d)"/>
+  <text x="224" y="154" font-size="10.5" fill="#756C62" text-anchor="middle">budget</text>
+  <text x="224" y="188" font-size="10.5" fill="#756C62" text-anchor="middle">~8/jour</text>
+
+  <!-- Intro -->
+  <rect x="250" y="108" width="200" height="120" rx="16" fill="#FFFFFF" stroke="#D08358" stroke-width="1.8"/>
+  <text x="350" y="136" font-size="12" fill="#C4703F" text-anchor="middle" font-weight="700" letter-spacing="1.5">DÉCOUVRIR (M4)</text>
+  <text x="350" y="160" font-size="13.5" fill="#2B2622" text-anchor="middle" font-weight="600">Intro par lot de 5-10</text>
+  <text x="350" y="181" font-size="11.5" fill="#756C62" text-anchor="middle">mot + audio + exemple</text>
+  <text x="350" y="198" font-size="11.5" fill="#756C62" text-anchor="middle">puis écho non noté (QCM)</text>
+  <text x="350" y="215" font-size="11.5" fill="#756C62" text-anchor="middle">jamais de note au 1er contact</text>
+
+  <!-- gate -->
+  <line x1="450" y1="168" x2="508" y2="168" stroke="#756C62" stroke-width="1.8" marker-end="url(#d)"/>
+  <rect x="510" y="130" width="76" height="76" rx="16" fill="#2B2622"/>
+  <text x="548" y="162" font-size="20" fill="#F6F1EA" text-anchor="middle">🚪</text>
+  <text x="548" y="186" font-size="10.5" fill="#CFC6BA" text-anchor="middle">introducedAt</text>
+  <line x1="586" y1="168" x2="644" y2="168" stroke="#756C62" stroke-width="1.8" marker-end="url(#d)"/>
+
+  <!-- Review pool -->
+  <rect x="646" y="96" width="384" height="230" rx="18" fill="#FFFFFF" stroke="#4C8C86" stroke-width="1.8"/>
+  <text x="838" y="126" font-size="12.5" fill="#3E726D" text-anchor="middle" font-weight="700" letter-spacing="2">POOL DE RÉVISION (FSRS)</text>
+
+  <rect x="668" y="144" width="106" height="64" rx="12" fill="#F6F1EA" stroke="#ECE3D7"/>
+  <text x="721" y="171" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Nouveau</text>
+  <text x="721" y="190" font-size="11" fill="#756C62" text-anchor="middle">1ᵉ révisions</text>
+  <line x1="774" y1="176" x2="800" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#d)"/>
+  <rect x="802" y="144" width="106" height="64" rx="12" fill="#F6F1EA" stroke="#ECE3D7"/>
+  <text x="855" y="171" font-size="12.5" fill="#2B2622" text-anchor="middle" font-weight="600">Appris</text>
+  <text x="855" y="190" font-size="11" fill="#756C62" text-anchor="middle">intervalles ↗</text>
+  <line x1="908" y1="176" x2="934" y2="176" stroke="#756C62" stroke-width="1.6" marker-end="url(#d)"/>
+  <rect x="936" y="144" width="80" height="64" rx="12" fill="#4C8C86"/>
+  <text x="976" y="171" font-size="12.5" fill="#FFFFFF" text-anchor="middle" font-weight="600">Maîtrisé</text>
+  <text x="976" y="190" font-size="11" fill="#DCEBE9" text-anchor="middle">⭐</text>
+
+  <text x="838" y="240" font-size="11.5" fill="#756C62" text-anchor="middle">Échec ↩ retour à gauche (lapse) · par direction (FR→X, X→FR)</text>
+  <text x="838" y="262" font-size="11.5" fill="#756C62" text-anchor="middle">Servi par : quiz (voix / mains libres / écrit / cartes) · cloze (M6)</text>
+
+  <!-- leech loop -->
+  <path d="M 780 326 Q 780 366 620 366 L 480 366" fill="none" stroke="#B0556B" stroke-width="1.8" marker-end="url(#dr)"/>
+  <rect x="300" y="340" width="180" height="52" rx="14" fill="#FFFFFF" stroke="#B0556B" stroke-width="1.6"/>
+  <text x="390" y="362" font-size="12.5" fill="#B0556B" text-anchor="middle" font-weight="700">Mots difficiles (M1)</text>
+  <text x="390" y="380" font-size="11" fill="#756C62" text-anchor="middle">lapses ≥ 3 ou précision &lt; 50 %</text>
+  <path d="M 420 340 Q 520 292 638 312" fill="none" stroke="#B0556B" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#dr)"/>
+  <text x="516" y="298" font-size="10.5" fill="#B0556B" text-anchor="middle">révision ciblée ⤴</text>
+  <text x="30" y="358" font-size="11" fill="#B0556B">étape « Renforcer »</text>
+  <text x="30" y="374" font-size="11" fill="#B0556B">du chemin quotidien</text>
+  <line x1="140" y1="366" x2="296" y2="366" stroke="#B0556B" stroke-width="1.2" stroke-dasharray="2 3"/>
+
+  <text x="30" y="420" font-size="12.5" fill="#756C62">Règle clé : un quiz ne sert JAMAIS un mot sans ligne de progression — fini les mots inconnus surgissant en révision.</text>
+</svg>

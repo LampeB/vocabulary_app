@@ -155,7 +155,7 @@ abstract final class AppTheme {
       // FilledButton = teal — commit / continue / correct.
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: tealCol,
+          backgroundColor: AppColors.tealButton,
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(
@@ -167,7 +167,7 @@ abstract final class AppTheme {
       // ElevatedButton = clay — primary CTA / mic / live action.
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: clayCol,
+          backgroundColor: AppColors.clayButton,
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(

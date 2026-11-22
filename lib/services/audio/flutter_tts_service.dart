@@ -1,74 +1,129 @@
 import 'package:flutter_tts/flutter_tts.dart';
 import 'audio_service.dart';
+import 'audio_ports.dart';
+import '../../core/languages.dart';
+import '../../core/utils/stt_debug_log.dart';
 
-// Priority-ordered engine IDs per language.
-// The first engine found on the device wins.
-//
-// Korean:  Samsung (best prosody on Galaxy) → Google → system default
-// French:  Google → Samsung (no French pack) → system default
-const _koEnginePreference = [
-  'com.samsung.SMT',        // Galaxy devices — native Korean quality
-  'com.google.android.tts', // All other Android
-];
-const _frEnginePreference = [
-  'com.google.android.tts', // Ships French out of the box
-  'com.samsung.SMT',        // Only if the user installed the French language pack
-];
+// Priority-ordered engine IDs per language — device-quality tuning, the first
+// engine found on the device wins. Languages without an entry fall back to
+// Google's engine (ships the widest language coverage), so a NEW language
+// needs no entry here unless a better engine is known for it.
+const _enginePreferences = <String, List<String>>{
+  // Samsung (best Korean prosody on Galaxy) → Google → system default
+  'ko': ['com.samsung.SMT', 'com.google.android.tts'],
+  // Google ships French out of the box; Samsung only with a language pack
+  'fr': ['com.google.android.tts', 'com.samsung.SMT'],
+};
+const _defaultEnginePreference = ['com.google.android.tts'];
 
-class FlutterTtsService implements AudioService {
+class FlutterTtsService implements AudioService, DeviceSpeech {
   FlutterTtsService({this.speechRate = 0.85, this.pitch = 1.0});
 
   final double speechRate;
   final double pitch;
 
-  // Two separate instances so we never pay the cost of switching engines
-  // mid-session.
-  final _koTts = FlutterTts();
-  final _frTts = FlutterTts();
-  bool _initialized = false;
+  // One instance per language, created lazily — never pay the cost of
+  // switching engines mid-session, and any langCode works (generic-language-
+  // pairs epic; was two hardcoded fr/ko instances).
+  final _ttsByLang = <String, FlutterTts>{};
+  List<dynamic>? _availableEngines;
 
-  Future<void> _init() async {
-    if (_initialized) return;
+  // Overlapping speaks (e.g. KO answer then FR question) each count.
+  int _activeSpeaks = 0;
 
-    List<dynamic> available = [];
-    try {
-      available = (await _koTts.getEngines as List?) ?? [];
-    } catch (_) {}
+  /// Whether any utterance is still in flight — hands-free must not open the
+  /// mic (which stops audio AND hears the speaker) while this is true.
+  @override
+  bool get isSpeaking => _activeSpeaks > 0;
 
-    final koEngine = _koEnginePreference.firstWhere(
-      available.contains,
+  Future<FlutterTts> _ttsFor(String langCode) async {
+    final existing = _ttsByLang[langCode];
+    if (existing != null) return existing;
+
+    final tts = FlutterTts();
+    if (_availableEngines == null) {
+      try {
+        _availableEngines = (await tts.getEngines as List?) ?? [];
+      } catch (_) {
+        _availableEngines = [];
+      }
+    }
+    final preference = _enginePreferences[langCode] ?? _defaultEnginePreference;
+    final engine = preference.firstWhere(
+      _availableEngines!.contains,
       orElse: () => '',
     );
-    final frEngine = _frEnginePreference.firstWhere(
-      available.contains,
-      orElse: () => '',
-    );
-
-    if (koEngine.isNotEmpty) await _koTts.setEngine(koEngine);
-    if (frEngine.isNotEmpty) await _frTts.setEngine(frEngine);
-
-    await _koTts.setVolume(1.0);
-    await _frTts.setVolume(1.0);
-    _initialized = true;
+    if (engine.isNotEmpty) await tts.setEngine(engine);
+    await tts.setVolume(1.0);
+    // speak() resolves when the utterance FINISHES, so callers (and
+    // isSpeaking) can coordinate with real speech, not just its start.
+    await tts.awaitSpeakCompletion(true);
+    _ttsByLang[langCode] = tts;
+    return tts;
   }
 
-  @override
-  Future<void> speak(String text, String langCode, {String? voiceId}) async {
-    await _init();
-    final isKorean = langCode == 'ko';
-    final tts    = isKorean ? _koTts : _frTts;
-    final locale = isKorean ? 'ko-KR' : 'fr-FR';
-    await tts.setLanguage(locale);
+  // flutter_tts shares ONE native TextToSpeech engine across all Dart
+  // instances, and switching its language (fr↔ko) costs 1–3.7s on device
+  // (field log 2026-07-07 22:30: "singe" took 3.7s to become audible after
+  // a Korean utterance). Track what the native engine is configured for so
+  // redundant switches are skipped, and let callers pre-load the next
+  // language during idle windows via [warmUp].
+  String? _nativeLang;
+  Future<void> _nativeOps = Future.value();
+
+  /// Serializes native-engine configuration calls — a warmUp racing a speak
+  /// would interleave setLanguage/setSpeechRate across the shared engine.
+  Future<T> _serialized<T>(Future<T> Function() action) {
+    final result = _nativeOps.then((_) => action());
+    _nativeOps = result.then((_) {}, onError: (_) {});
+    return result;
+  }
+
+  Future<FlutterTts> _configure(String langCode) async {
+    final tts = await _ttsFor(langCode);
+    if (_nativeLang == langCode) return tts;
+    final sw = Stopwatch()..start();
+    await tts.setLanguage(Languages.speechLocaleFor(langCode));
     // Must set rate/pitch AFTER setLanguage — Android TTS resets them on language change.
     await tts.setSpeechRate(speechRate);
     await tts.setPitch(pitch);
-    await tts.speak(text);
+    _nativeLang = langCode;
+    sttLog(
+        '[TTS] 🔥 voice switched to $langCode in ${sw.elapsedMilliseconds}ms');
+    return tts;
+  }
+
+  /// Pre-loads [langCode]'s voice on the shared engine so the next speak()
+  /// in that language starts instantly. Call during idle windows (e.g. while
+  /// the hands-free mic is listening); it produces no audio.
+  @override
+  Future<void> warmUp(String langCode) =>
+      _serialized(() async => _configure(langCode));
+
+  @override
+  Future<void> speak(String text, String langCode, {String? voiceId}) async {
+    final tts = await _serialized(() => _configure(langCode));
+    _activeSpeaks++;
+    sttLog(
+        '[TTS] ▶ speak start lang=$langCode "$text" (active=$_activeSpeaks)');
+    try {
+      await tts.speak(text);
+    } finally {
+      _activeSpeaks--;
+      sttLog(
+          '[TTS] ■ speak done  lang=$langCode "$text" (active=$_activeSpeaks)');
+    }
   }
 
   @override
   Future<void> stop() async {
-    await _koTts.stop();
-    await _frTts.stop();
+    if (_activeSpeaks > 0) {
+      sttLog(
+          '[TTS] ✋ stop() while $_activeSpeaks utterance(s) in flight — speech is being CUT OFF');
+    }
+    for (final tts in _ttsByLang.values) {
+      await tts.stop();
+    }
   }
 
   @override
@@ -76,7 +131,8 @@ class FlutterTtsService implements AudioService {
 
   @override
   void dispose() {
-    _koTts.stop();
-    _frTts.stop();
+    for (final tts in _ttsByLang.values) {
+      tts.stop();
+    }
   }
 }
