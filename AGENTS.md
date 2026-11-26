@@ -1,4 +1,4 @@
-# VocabKR — operating instructions for agents
+# Ponderin — operating instructions for agents
 
 ## Documentation is the contract
 

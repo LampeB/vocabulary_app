@@ -1,4 +1,9 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
+import { acquireProviderPermit } from "../_shared/provider_gate.ts";
+import {
+  decodeSpeechAudio,
+  readSpeechRequest,
+} from "../_shared/speech_audio.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,33 +12,11 @@ const corsHeaders = {
 };
 
 const openAiApiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
-const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-const supabasePublishableKey =
-  Deno.env.get("SUPABASE_ANON_KEY") ??
-  Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ??
-  "";
 
-// Enough for several seconds of mono WAV, deliberately far below a general
-// file-upload endpoint. The mobile client records short vocabulary answers.
-const maxAudioBase64Chars = 1500000;
+// 30 seconds of mono 16 kHz PCM once base64-encoded, deliberately far below
+// a general file-upload endpoint. The mobile client records vocabulary answers.
+const maxAudioBase64Chars = 1_280_128;
 const supportedLanguages = new Set(["fr", "ko", "en"]);
-
-async function authenticatedUser(req: Request): Promise<boolean> {
-  const authorization = req.headers.get("Authorization");
-  if (!authorization?.startsWith("Bearer ")) return false;
-  if (!supabaseUrl || !supabasePublishableKey) return false;
-
-  // This explicit verification is intentional. The function is deployed with
-  // gateway JWT verification disabled so it works with both Supabase's legacy
-  // anon keys and newer publishable keys, but it never trusts a client token.
-  const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
-    headers: {
-      apikey: supabasePublishableKey,
-      Authorization: authorization,
-    },
-  });
-  return userResponse.ok;
-}
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -45,21 +28,36 @@ serve(async (req: Request) => {
       { status: 405, headers: corsHeaders },
     );
   }
-  if (!await authenticatedUser(req)) {
+  const permit = await acquireProviderPermit(req, "cloud_stt");
+  const quota = permit.status;
+  if (quota !== "allowed") {
     return Response.json(
-      { error: "Unauthorized" },
-      { status: 401, headers: corsHeaders },
+      {
+        error: quota === "limited"
+          ? "Speech limit reached"
+          : "Speech service unavailable",
+      },
+      {
+        status: quota === "limited"
+          ? 429
+          : quota === "unauthorized"
+          ? 401
+          : 503,
+        headers: corsHeaders,
+      },
     );
   }
-  if (!openAiApiKey) {
-    return Response.json(
-      { error: "Speech service is not configured" },
-      { status: 503, headers: corsHeaders },
-    );
-  }
-
   try {
-    const { audio_base64, language, expected_word } = await req.json();
+    if (!openAiApiKey) {
+      return Response.json(
+        { error: "Speech service is not configured" },
+        { status: 503, headers: corsHeaders },
+      );
+    }
+
+    const { audio_base64, language, expected_word } = await readSpeechRequest(
+      req,
+    );
     if (typeof audio_base64 !== "string" || audio_base64.length === 0) {
       return Response.json(
         { error: "Missing audio" },
@@ -72,20 +70,18 @@ serve(async (req: Request) => {
         { status: 413, headers: corsHeaders },
       );
     }
-    if (!supportedLanguages.has(language)) {
+    if (typeof language !== "string" || !supportedLanguages.has(language)) {
       return Response.json(
         { error: "Unsupported language" },
         { status: 400, headers: corsHeaders },
       );
     }
 
-    const binary = Uint8Array.from(atob(audio_base64), (char) =>
-      char.charCodeAt(0),
-    );
+    const binary = decodeSpeechAudio(audio_base64);
     const formData = new FormData();
     formData.append(
       "file",
-      new Blob([binary], { type: "audio/wav" }),
+      new Blob([binary.slice().buffer], { type: "audio/wav" }),
       "clip.wav",
     );
     // Benchmark with the high-accuracy model. Its prompt is free text, unlike
@@ -106,6 +102,7 @@ serve(async (req: Request) => {
         method: "POST",
         headers: { Authorization: `Bearer ${openAiApiKey}` },
         body: formData,
+        signal: AbortSignal.timeout(60_000),
       },
     );
     if (!openAiResponse.ok) {
@@ -126,5 +123,7 @@ serve(async (req: Request) => {
       { error: "Invalid transcription request" },
       { status: 400, headers: corsHeaders },
     );
+  } finally {
+    await permit.release();
   }
 });

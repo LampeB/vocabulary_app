@@ -1,4 +1,9 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
+import { acquireProviderPermit } from "../_shared/provider_gate.ts";
+import {
+  decodeSpeechAudio,
+  readSpeechRequest,
+} from "../_shared/speech_audio.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,30 +12,13 @@ const corsHeaders = {
 };
 
 const elevenLabsApiKey = Deno.env.get("ELEVENLABS_API_KEY") ?? "";
-const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-const supabasePublishableKey =
-  Deno.env.get("SUPABASE_ANON_KEY") ??
-  Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ??
-  "";
-const maxAudioBase64Chars = 1_500_000;
+// 30 seconds of mono 16 kHz PCM once base64-encoded.
+const maxAudioBase64Chars = 1_280_128;
 const languageCodes: Record<string, string> = {
   fr: "fra",
   ko: "kor",
   en: "eng",
 };
-
-async function authenticatedUser(req: Request): Promise<boolean> {
-  const authorization = req.headers.get("Authorization");
-  if (!authorization?.startsWith("Bearer ")) return false;
-  if (!supabaseUrl || !supabasePublishableKey) return false;
-  const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
-    headers: {
-      apikey: supabasePublishableKey,
-      Authorization: authorization,
-    },
-  });
-  return userResponse.ok;
-}
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -42,22 +30,35 @@ serve(async (req: Request) => {
       { status: 405, headers: corsHeaders },
     );
   }
-  if (!await authenticatedUser(req)) {
+  const permit = await acquireProviderPermit(req, "cloud_stt");
+  const quota = permit.status;
+  if (quota !== "allowed") {
     return Response.json(
-      { error: "Unauthorized" },
-      { status: 401, headers: corsHeaders },
+      {
+        error: quota === "limited"
+          ? "Speech limit reached"
+          : "Speech service unavailable",
+      },
+      {
+        status: quota === "limited"
+          ? 429
+          : quota === "unauthorized"
+          ? 401
+          : 503,
+        headers: corsHeaders,
+      },
     );
   }
-  if (!elevenLabsApiKey) {
-    return Response.json(
-      { error: "Speech service is not configured" },
-      { status: 503, headers: corsHeaders },
-    );
-  }
-
   try {
+    if (!elevenLabsApiKey) {
+      return Response.json(
+        { error: "Speech service is not configured" },
+        { status: 503, headers: corsHeaders },
+      );
+    }
+
     const { audio_base64, audio_format, language, expected_word } =
-      await req.json();
+      await readSpeechRequest(req);
     if (typeof audio_base64 !== "string" || audio_base64.length === 0) {
       return Response.json(
         { error: "Missing audio" },
@@ -70,7 +71,9 @@ serve(async (req: Request) => {
         { status: 413, headers: corsHeaders },
       );
     }
-    const languageCode = languageCodes[language];
+    const languageCode = typeof language === "string"
+      ? languageCodes[language]
+      : undefined;
     if (!languageCode) {
       return Response.json(
         { error: "Unsupported language" },
@@ -79,13 +82,13 @@ serve(async (req: Request) => {
     }
 
     const rawPcm = audio_format === "pcm_s16le_16";
-    const binary = Uint8Array.from(atob(audio_base64), (char) =>
-      char.charCodeAt(0),
-    );
+    const binary = decodeSpeechAudio(audio_base64, rawPcm);
     const formData = new FormData();
     formData.append(
       "file",
-      new Blob([binary], { type: rawPcm ? "audio/pcm" : "audio/wav" }),
+      new Blob([binary.slice().buffer], {
+        type: rawPcm ? "audio/pcm" : "audio/wav",
+      }),
       rawPcm ? "clip.pcm" : "clip.wav",
     );
     formData.append("model_id", "scribe_v2");
@@ -98,11 +101,15 @@ serve(async (req: Request) => {
       formData.append("keyterms", expected_word.trim());
     }
 
-    const response = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
-      method: "POST",
-      headers: { "xi-api-key": elevenLabsApiKey },
-      body: formData,
-    });
+    const response = await fetch(
+      "https://api.elevenlabs.io/v1/speech-to-text",
+      {
+        method: "POST",
+        headers: { "xi-api-key": elevenLabsApiKey },
+        body: formData,
+        signal: AbortSignal.timeout(60_000),
+      },
+    );
     if (!response.ok) {
       // Provider details can contain subscription information; never relay it.
       return Response.json(
@@ -120,5 +127,7 @@ serve(async (req: Request) => {
       { error: "Invalid transcription request" },
       { status: 400, headers: corsHeaders },
     );
+  } finally {
+    await permit.release();
   }
 });

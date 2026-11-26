@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import 'v3_card_stack.dart';
@@ -36,7 +37,7 @@ class V3StudyScaffold extends StatelessWidget {
                   children: [
                     IconButton(
                       onPressed: onQuit,
-                      tooltip: 'Quitter',
+                      tooltip: 'v3.quit'.tr(),
                       icon: Icon(Icons.close_rounded, color: foreground),
                     ),
                     Expanded(

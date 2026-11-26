@@ -193,7 +193,30 @@ final pushSyncProvider = Provider<PushSync>((ref) => PushSync(
       ref.watch(progressDaoProvider),
       ref.watch(appDatabaseProvider).reviewEventDao,
       ref.watch(vocabularyRemoteProvider),
+      userId: ref.watch(currentUserProvider)?.id ?? '',
     ));
+
+/// A lightweight invalidation signal for the durable outbound queue.
+final pendingWritesProvider = StreamProvider<int>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return db
+      .customSelect(
+        'SELECT (SELECT COUNT(*) FROM vocabulary_lists WHERE is_synced = 0) + '
+        '(SELECT COUNT(*) FROM concepts WHERE is_synced = 0) + '
+        '(SELECT COUNT(*) FROM word_variants WHERE is_synced = 0) + '
+        '(SELECT COUNT(*) FROM variant_progress WHERE is_synced = 0) + '
+        '(SELECT COUNT(*) FROM review_events WHERE is_synced = 0) AS pending',
+        readsFrom: {
+          db.vocabularyListsTable,
+          db.conceptsTable,
+          db.wordVariantsTable,
+          db.variantProgressTable,
+          db.reviewEventsTable
+        },
+      )
+      .watchSingle()
+      .map((row) => row.read<int>('pending'));
+});
 
 final listActionsProvider =
     NotifierProvider<ListActionsNotifier, void>(ListActionsNotifier.new);
@@ -309,7 +332,7 @@ class ListActionsNotifier extends Notifier<void> {
       await file.writeAsString(jsonStr);
       await Share.shareXFiles(
         [XFile(file.path, mimeType: 'application/json')],
-        subject: '$listName — VocabKR Export',
+        subject: '$listName — Ponderin Export',
       );
       return null;
     } catch (e) {
@@ -344,7 +367,24 @@ class ListActionsNotifier extends Notifier<void> {
       String listId, String listName) async {
     final result = await _repo.generateShareLink(listId);
     if (result.isFailure) return result;
-    await Share.share(result.valueOrNull!, subject: '$listName — VocabKR');
+    // Sharing is the one mutation that needs an immediate drain: the token is
+    // useless until the list, concepts and variants are all remotely visible.
+    // The durable queue remains the sole remote writer, avoiding duplicate
+    // fire-and-forget writes from the repository.
+    await ref.read(pushSyncProvider).pushAll();
+    final dao = ref.read(vocabularyListDaoProvider);
+    final list = await dao.getById(listId);
+    final token = Uri.parse(result.valueOrNull!).queryParameters['token'];
+    if (list == null ||
+        list.isDeleted ||
+        !list.isSynced ||
+        list.shareToken != token ||
+        list.visibility != 'public' ||
+        await dao.hasPendingContents(listId)) {
+      return const Failure(NetworkException(
+          'The list must finish syncing before its link can be shared.'));
+    }
+    await Share.share(result.valueOrNull!, subject: '$listName — Ponderin');
     return result;
   }
 

@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import '../../../core/errors/failure.dart';
+import '../../../data/datasources/local/app_database.dart'
+    show WordVariantsTableData;
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -76,15 +78,29 @@ final drillWordsProvider =
 
   final mastered =
       (await progressRepo.getKnownVariants(userId)).valueOrNull ?? [];
+  if (mastered.isEmpty) return const [];
+  // Batch the three dependent lookups instead of doing three SQLite round
+  // trips per mastered word. Keep the confidence order of the progress rows.
+  final variants = await conceptDao
+      .getVariantsByIds(mastered.map((p) => p.variantId).toList());
+  final variantsById = {for (final variant in variants) variant.id: variant};
+  final conceptIds = variants.map((v) => v.conceptId).toSet().toList();
+  final concepts = await conceptDao.getConceptsByIds(conceptIds);
+  final conceptsById = {for (final concept in concepts) concept.id: concept};
+  final targets =
+      await conceptDao.getVariantsByConceptIds(conceptIds, targetLang);
+  final targetsByConcept = <String, WordVariantsTableData>{};
+  for (final target in targets) {
+    targetsByConcept.putIfAbsent(target.conceptId, () => target);
+  }
   final words = <String, DrillWord>{}; // conceptId → word (dedup)
   for (final p in mastered) {
-    final variant = await conceptDao.getVariantById(p.variantId);
+    final variant = variantsById[p.variantId];
     if (variant == null) continue;
     if (words.containsKey(variant.conceptId)) continue;
-    final concept = await conceptDao.getById(variant.conceptId);
+    final concept = conceptsById[variant.conceptId];
     if (concept == null || concept.category == null) continue;
-    final all = await conceptDao.getVariantsByConcept(variant.conceptId);
-    final target = all.where((v) => v.langCode == targetLang).firstOrNull;
+    final target = targetsByConcept[variant.conceptId];
     if (target == null) continue;
     words[variant.conceptId] = DrillWord(
       word: target.word,

@@ -1,4 +1,4 @@
-# Test scenarios — VocabKR
+# Test scenarios — Ponderin
 
 > **Statut : catalogue de travail, mis à jour au fil des campagnes.** Vérifier
 > sa date et son état avant de l'utiliser comme vérité de couverture ;

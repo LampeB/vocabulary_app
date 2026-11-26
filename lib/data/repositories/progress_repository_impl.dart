@@ -1,4 +1,3 @@
-import 'dart:async' show unawaited;
 import 'package:uuid/uuid.dart';
 import '../../domain/entities/variant_progress.dart';
 import '../../domain/repositories/progress_repository.dart';
@@ -15,13 +14,12 @@ class ProgressRepositoryImpl implements ProgressRepository {
   ProgressRepositoryImpl(
     this._progressDao,
     this._conceptDao,
-    this._remote,
+    VocabularyRemoteDataSource remote,
     this._userId,
   );
 
   final ProgressDao _progressDao;
   final ConceptDao _conceptDao;
-  final VocabularyRemoteDataSource _remote;
   final String _userId;
 
   @override
@@ -133,8 +131,8 @@ class ProgressRepositoryImpl implements ProgressRepository {
     required QuizDirection direction,
   }) async {
     try {
-      final row = await _progressDao.getByVariantAndDirection(
-          variantId, direction.name);
+      final row = await _progressDao
+          .getByVariantAndDirection(variantId, direction.name, userId: _userId);
       if (row == null) {
         final now = DateTime.now();
         return Success(VariantProgress(
@@ -158,7 +156,6 @@ class ProgressRepositoryImpl implements ProgressRepository {
     final local = progress.copyWith(isSynced: false, updatedAt: DateTime.now());
     try {
       await _progressDao.upsert(local.toLocalCompanion());
-      unawaited(_remote.upsertProgress(local.toRemoteMap()));
       return Success(local);
     } catch (e) {
       return Failure(StorageException(e.toString()));

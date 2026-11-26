@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth/auth_provider.dart';
+import '../../providers/lists/vocabulary_provider.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -26,6 +27,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _usernameCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _obscure = true;
+  bool _submitting = false;
   String? _errorMsg;
 
   @override
@@ -72,7 +74,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler'),
+            child: Text('common.cancel'.tr()),
           ),
           TextButton(
             key: const ValueKey(WidgetKeys.authResetSend),
@@ -106,29 +108,45 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   Future<void> _submit() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    setState(() => _errorMsg = null);
-    final notifier = ref.read(authStateProvider.notifier);
-    final result = _isSignIn
-        ? await notifier.signIn(_emailCtrl.text.trim(), _passwordCtrl.text)
-        : await notifier.signUp(
-            _emailCtrl.text.trim(),
-            _passwordCtrl.text,
-            _usernameCtrl.text.trim(),
-          );
-    result.fold(
-      onSuccess: (_) {
+    if (_submitting || !(_formKey.currentState?.validate() ?? false)) return;
+    setState(() {
+      _errorMsg = null;
+      _submitting = true;
+    });
+    try {
+      final notifier = ref.read(authStateProvider.notifier);
+      final result = _isSignIn
+          ? await notifier.signIn(_emailCtrl.text.trim(), _passwordCtrl.text)
+          : await notifier.signUp(
+              _emailCtrl.text.trim(),
+              _passwordCtrl.text,
+              _usernameCtrl.text.trim(),
+            );
+      if (!mounted) return;
+      if (result.isSuccess) {
+        // The splash route normally performs the remote pull then starter
+        // seeding. A direct successful auth previously skipped that bootstrap
+        // and could open a fresh device on an empty local database.
+        try {
+          await ref.read(seedStarterListsProvider.future);
+        } catch (_) {
+          // Authentication succeeds independently of an offline bootstrap;
+          // the home route will retry through the same provider.
+        }
         if (!mounted) return;
         TextInput.finishAutofillContext(shouldSave: true);
         context.go('/home');
-      },
-      onFailure: (e) => setState(() => _errorMsg = e.message),
-    );
+      } else {
+        setState(() => _errorMsg = result.exceptionOrNull?.message);
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = ref.watch(authStateProvider).isLoading;
+    final isLoading = ref.watch(authStateProvider).isLoading || _submitting;
     final baseTheme = Theme.of(context);
     final dark = baseTheme.brightness == Brightness.dark;
     final background = dark ? V3Colors.app : V3Colors.paper;
@@ -179,21 +197,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Row(children: [
-                          Material(
-                            color: V3Colors.chip,
-                            shape: const CircleBorder(),
-                            child: InkWell(
-                              onTap: () => context.go('/welcome'),
-                              customBorder: const CircleBorder(),
-                              child: SizedBox(
-                                  width: 32,
-                                  height: 32,
-                                  child: Icon(Icons.arrow_back_rounded,
-                                      size: 18, color: foreground)),
-                            ),
+                          IconButton(
+                            tooltip: 'common.back'.tr(),
+                            onPressed: () => context.go('/welcome'),
+                            icon: Icon(Icons.arrow_back_rounded,
+                                color: foreground),
                           ),
                           const SizedBox(width: 13),
-                          Text(_isSignIn ? 'CONNEXION' : 'CRÉER UN COMPTE',
+                          Text(
+                              _isSignIn
+                                  ? 'v3.signin_label'.tr()
+                                  : 'v3.signup_label'.tr(),
                               style: AppTextStyles.mono(12, FontWeight.w400,
                                   letterSpacing: 1.1, color: muted)),
                         ]),
@@ -255,6 +269,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             labelText: 'auth.field_password'.tr(),
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
+                              tooltip: _obscure
+                                  ? 'v3.show_password'.tr()
+                                  : 'v3.hide_password'.tr(),
                               icon: Icon(_obscure
                                   ? Icons.visibility_off
                                   : Icons.visibility),

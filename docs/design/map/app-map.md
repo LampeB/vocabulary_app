@@ -63,6 +63,7 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 |---|---|---|---|
 | Langage d'interaction (plongée, flashcards, popups, scroll) | [[interaction-language]] | 🟢 | slice V3 partielle ; généralisation et écarts documentés dans la note |
 | Multi-langue (règles transverses) | [[multi-language]] | 🟢 | — |
+| Nom de l'application | [Nom de travail Ponderin](../../decisions/2026-11-23-ponder-working-name.md) | 🟢 | disponibilité de marque, domaine et stores avant diffusion externe |
 | Menu général (avatar) → Paramètres · abonnement · avatar · déconnexion | — | 🟢⚪ | (maquetté 2026-08-21) carte profil + sections, avatar fondu dans le profil ; écrans v1 dessous non redessinés |
 
 Sources actives : `../v3-sentier-de-cartes.md` ·

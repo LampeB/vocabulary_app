@@ -8,6 +8,7 @@
 // the app never ships it. JWT verification is on (Supabase default), so only
 // authenticated users can call this.
 import Anthropic from "npm:@anthropic-ai/sdk";
+import { authorizeAndConsume } from "../_shared/provider_gate.ts";
 
 // What the model must return — enforced via structured outputs, so the
 // client never has to repair malformed JSON.
@@ -102,6 +103,14 @@ Deno.serve(async (req) => {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  const quota = await authorizeAndConsume(req, "grammar_exercises");
+  if (quota !== "allowed") {
+    const status = quota === "unauthorized" ? 401 : quota === "limited" ? 429 : 503;
+    return new Response(JSON.stringify({
+      error: quota === "limited" ? "daily_generation_limit_reached" : "service_unavailable",
+    }), { status, headers: { "Content-Type": "application/json" } });
   }
 
   const client = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY") });

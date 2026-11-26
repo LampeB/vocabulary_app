@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -79,7 +80,7 @@ class StudyScaffold extends StatelessWidget {
                         icon: Icon(Icons.close_rounded,
                             color: cs.onSurface, size: 22),
                         onPressed: onQuit,
-                        tooltip: 'Quitter',
+                        tooltip: 'v3.quit'.tr(),
                       ),
                       if (showProgress) ...[
                         Expanded(

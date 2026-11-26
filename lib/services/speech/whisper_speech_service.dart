@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:path_provider/path_provider.dart';
-import 'package:whisper_flutter_new/whisper_flutter_new.dart';
+import 'package:ponderin_whisper/ponderin_whisper.dart';
 
 import '../../core/utils/answer_validator.dart';
 import '../../core/utils/pcm_segmenter.dart';
@@ -59,21 +59,25 @@ class WhisperSpeechService implements WhisperSpeechCapture {
   WhisperSpeechService({
     PcmMicrophone? microphone,
     WhisperSegmentTranscriber? segmentTranscriber,
+    PonderinWhisper? whisper,
     bool modelReady = false,
   })  : _microphone = microphone ?? RecordPcmMicrophone(),
         _segmentTranscriber = segmentTranscriber,
+        _whisper = whisper,
         _modelReady = modelReady;
 
   /// ggml-base multilingual (~142MB): tiny's French on short words was
   /// garbage ("pomme" → "Bonne", field log 2026-07-10); base was accurate
   /// but slow — until the vendored audio_ctx patch, which cuts the fixed
   /// 30s encoder window down to the actual clip length.
-  static const _model = WhisperModel.base;
+  static const _model = PonderinWhisperModel.base;
   static const _sampleRate = 16000;
+  static int _captureId = 0;
 
-  Whisper? _whisper;
+  PonderinWhisper? _whisper;
   bool _modelReady;
-  bool _preparing = false;
+  Future<void>? _preparing;
+  bool _disposed = false;
 
   final PcmMicrophone _microphone;
   final WhisperSegmentTranscriber? _segmentTranscriber;
@@ -120,19 +124,16 @@ class WhisperSpeechService implements WhisperSpeechCapture {
     try {
       final stopwatch = Stopwatch()..start();
       final response = await _whisper!.transcribe(
-        transcribeRequest: TranscribeRequest(
-          audio: path,
-          language: langCode,
-          isNoTimestamps: true,
-        ),
+        audioPath: path,
+        language: langCode,
         initialPrompt: prompt,
       );
       stopwatch.stop();
-      final cleaned = cleanTranscript(response.text);
+      final cleaned = cleanTranscript(response);
       sttLog('[WSP][CORPUS] $langCode ${stopwatch.elapsedMilliseconds}ms '
-          'raw="${response.text}" cleaned="${cleaned ?? '<discarded>'}"');
+          'raw="$response" cleaned="${cleaned ?? '<discarded>'}"');
       return WhisperFileResult(
-        rawText: response.text,
+        rawText: response,
         cleanedText: cleaned,
         elapsedMs: stopwatch.elapsedMilliseconds,
       );
@@ -146,13 +147,17 @@ class WhisperSpeechService implements WhisperSpeechCapture {
   /// context with a 200ms silent clip so the first real inference isn't
   /// paying initialization costs. Fire-and-forget; gate on [isReady].
   @override
-  Future<void> ensureModel() async {
-    if (_modelReady || _preparing) return;
-    _preparing = true;
+  Future<void> ensureModel() {
+    if (_modelReady || _disposed) return Future.value();
+    if (_whisper == null && !PonderinWhisper.isSupported) return Future.value();
+    return _preparing ??= _prepareModel().whenComplete(() => _preparing = null);
+  }
+
+  Future<void> _prepareModel() async {
     try {
-      _whisper = Whisper(model: _model);
+      _whisper ??= PonderinWhisper(model: _model);
       sttLog(
-          '[WSP] ensureModel — ggml-${_model.modelName} (downloads ~142MB on first run)');
+          '[WSP] ensureModel — ${_model.fileName} (downloads ~142MB on first run)');
       final sw = Stopwatch()..start();
       final silence = pcm16ToWav(
         // 200ms of silence.
@@ -160,21 +165,18 @@ class WhisperSpeechService implements WhisperSpeechCapture {
         sampleRate: _sampleRate,
       );
       final dir = await getTemporaryDirectory();
-      final warmup = File('${dir.path}/wsp_warmup.wav');
+      final warmup = File('${dir.path}/wsp_warmup_${_captureId++}.wav');
       await warmup.writeAsBytes(silence, flush: true);
-      await _whisper!.transcribe(
-        transcribeRequest: TranscribeRequest(
-          audio: warmup.path,
-          language: 'fr',
-          isNoTimestamps: true,
-        ),
-      );
+      try {
+        await _whisper!.transcribe(audioPath: warmup.path, language: 'fr');
+      } finally {
+        await warmup.delete().catchError((_) => warmup);
+      }
+      if (_disposed) return;
       _modelReady = true;
       sttLog('[WSP] ✅ model ready in ${sw.elapsed.inSeconds}s');
     } catch (e) {
       sttLog('[WSP] 💥 ensureModel failed: $e');
-    } finally {
-      _preparing = false;
     }
   }
   // coverage:ignore-end
@@ -403,20 +405,16 @@ class WhisperSpeechService implements WhisperSpeechCapture {
   }) async {
     final dir = await getTemporaryDirectory();
     final file = File(
-        '${dir.path}/wsp_seg_${DateTime.now().millisecondsSinceEpoch}.wav');
+        '${dir.path}/wsp_seg_${DateTime.now().microsecondsSinceEpoch}_${_captureId++}.wav');
     await file.writeAsBytes(pcm16ToWav(pcm16), flush: true);
     try {
-      final result = await _whisper!.transcribe(
-        transcribeRequest: TranscribeRequest(
-          audio: file.path,
-          language: langCode,
-          isNoTimestamps: true,
-        ),
+      return await _whisper!.transcribe(
+        audioPath: file.path,
+        language: langCode,
         initialPrompt: prompt,
       );
-      return result.text;
     } finally {
-      unawaited(file.delete().catchError((_) => file));
+      await file.delete().catchError((_) => file);
     }
   }
   // coverage:ignore-end
@@ -444,6 +442,8 @@ class WhisperSpeechService implements WhisperSpeechCapture {
 
   @override
   void dispose() {
+    _disposed = true;
+    _modelReady = false;
     unawaited(stopListening());
     _microphone.dispose();
   }

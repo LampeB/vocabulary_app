@@ -47,14 +47,14 @@ class _NoAnimationPageTransitionsBuilder extends PageTransitionsBuilder {
       child;
 }
 
-class VocabKrApp extends ConsumerStatefulWidget {
-  const VocabKrApp({super.key});
+class PonderinApp extends ConsumerStatefulWidget {
+  const PonderinApp({super.key});
 
   @override
-  ConsumerState<VocabKrApp> createState() => _VocabKrAppState();
+  ConsumerState<PonderinApp> createState() => _PonderinAppState();
 }
 
-class _VocabKrAppState extends ConsumerState<VocabKrApp> {
+class _PonderinAppState extends ConsumerState<PonderinApp> {
   late final GoRouter _router;
   late final _AuthChangeNotifier _authNotifier;
   late final AppLinks _appLinks;
@@ -220,7 +220,7 @@ class _VocabKrAppState extends ConsumerState<VocabKrApp> {
       TargetPlatform.iOS: _NoAnimationPageTransitionsBuilder(),
     });
     return MaterialApp.router(
-      title: 'VocabKR',
+      title: 'Ponderin',
       theme: _kTestMode
           ? AppTheme.light.copyWith(pageTransitionsTheme: noTransitions)
           : AppTheme.light,

@@ -119,7 +119,10 @@ exige :
   configuration privée ;
 - `flutter analyze`, les tests hôte et le seuil de couverture ;
 - une revue des dépendances, un scan de secrets et `actionlint` ;
-- un audit `zizmor` du nouveau workflow de validation lui-même.
+- un audit `zizmor` de tous les workflows, avec actions épinglées par SHA ;
+- une compilation Android intégrant le moteur natif Whisper épinglé ;
+- un contrôle de la frontière de licence Whisper et des tests des fonctions
+  cloud/quota sur une base PostgreSQL jetable.
 
 La version Flutter de ce check est figée à **3.44.9**, celle qui correspond à
 la version validée du projet. Toute montée de SDK est une modification séparée
@@ -128,6 +131,9 @@ qui doit rendre la suite verte avant de devenir la nouvelle référence CI.
 La revue de dépendances exige que le **Dependency Graph** soit activé dans les
 réglages GitHub du dépôt. Tant que cette activation distante n'est pas faite,
 le check échoue volontairement plutôt que de donner une validation trompeuse.
+L'activation du graphe et des alertes Dependabot a été effectuée le 26 novembre
+2026 via l'API GitHub ; la comparaison de dépendances est alors devenue
+accessible. Le résultat du check reste à revérifier sur chaque commit final.
 
 Les profils des quatre relecteurs sont versionnés dans `.codex/agents/` et le
 skill d'orchestration dans `.agents/skills/pr-validation/`. Ils n'accordent

@@ -8,6 +8,7 @@
 // Same security model as generate-grammar-exercises: ANTHROPIC_API_KEY is a
 // function secret, JWT verification is on, the app never ships a key.
 import Anthropic from "npm:@anthropic-ai/sdk";
+import { authorizeAndConsume } from "../_shared/provider_gate.ts";
 
 const TRANSLATE_SCHEMA = {
   type: "object",
@@ -87,9 +88,26 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
-  const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY") });
-  const body = await req.json();
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return Response.json({ error: "Invalid request" }, { status: 400 });
+  }
   const mode = body.mode as string;
+
+  const quota = await authorizeAndConsume(
+    req,
+    mode === "suggest" ? "suggest" : "translate",
+  );
+  if (quota !== "allowed") {
+    const status = quota === "unauthorized" ? 401 : quota === "limited" ? 429 : 503;
+    return Response.json({ error: quota === "limited" ? "Daily assistant limit reached" : "Assistant unavailable" }, { status });
+  }
+  const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY") });
 
   try {
     if (mode === "translate") {
@@ -133,8 +151,8 @@ Deno.serve(async (req) => {
     }
 
     return Response.json({ error: `unknown mode: ${mode}` }, { status: 400 });
-  } catch (e) {
-    console.error("vocab-assistant failure:", e);
-    return Response.json({ error: String(e) }, { status: 500 });
+  } catch (_) {
+    // Provider exceptions can contain billing/account metadata or request text.
+    return Response.json({ error: "Assistant unavailable" }, { status: 502 });
   }
 });

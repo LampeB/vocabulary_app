@@ -1,10 +1,10 @@
-# VocabKR — état actuel
+# Ponderin — état actuel
 
-**Mis à jour : 22 novembre 2026**
+**Mis à jour : 26 novembre 2026**
 
 ## Produit en une phrase
 
-VocabKR est une application Flutter d'apprentissage de vocabulaire et de
+Ponderin est une application Flutter d'apprentissage de vocabulaire et de
 grammaire, hors ligne d'abord, avec répétition espacée FSRS, listes libres,
 parcours guidé optionnel et révision vocale ou par flashcards.
 
@@ -22,6 +22,10 @@ langues.
   gradués, avec au moins 70 % dans chaque liste requise.
 - Règles de grammaire, lecteur de leçon et drills issus des données seedées.
 - Drift/SQLite local, synchronisation Supabase et opérations hors ligne.
+- Les correctifs d'intégration unifient les envois dans la file durable,
+  protègent les éditions locales, propagent les suppressions et préservent
+  les paires lors des exports/imports. Leur contrat est dans
+  [la spécification de synchronisation](docs/synchronization.md).
 
 ### Voix et audio
 
@@ -62,11 +66,11 @@ de contenu avant bêta pédagogique.
 
 ### Finition V3
 
-- Localiser tous les textes V3 en FR/EN/KO ; des libellés sont encore en
-  français dans le code.
+- Les entrées V3, le plateau, le chemin et les commandes de sortie utilisent
+  FR/EN/KO. L'audit des autres flux de révision reste à compléter.
 - Décider et créer les variantes claires du plateau, du chemin et du splash.
-- Retirer les piles décoratives hors révision, généraliser les plongées et
-  signaler les surfaces scrollables.
+- Les piles décoratives du plateau/chemin sont retirées et leur scroll est
+  signalé ; la généralisation des plongées reste à terminer.
 - Migrer les écrans non inclus : bibliothèque globale, leçons, voix/écrire,
   profil, réglages, shell/navigation, social et paiement.
 
@@ -77,13 +81,21 @@ de contenu avant bêta pédagogique.
 - Tests réels microphone, latence réseau, cache audio, reprise arrière-plan et
   synchronisation sur deux appareils.
 - Audit de la configuration Supabase/Edge Functions, secrets, JWT, limites et
-  coût ; ce point n'est pas vérifiable depuis ce dépôt seul.
+  coût ; les limites bêta sont décidées mais leur configuration opérationnelle
+  dans les tableaux de bord fournisseurs reste à vérifier.
 
 ## Tests et CI
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- La suite compte **822** tests hôte lors de la dernière validation locale
+- Les correctifs du pont Whisper ont été compilés en APK Android arm64 de
+  développement le 26 novembre. L'analyse Flutter est propre ; les **843 tests
+  hôte passent**, avec **65,7 %** de couverture. La CI distante et la convergence
+  des quatre relecteurs restent à confirmer sur le nouveau commit.
+- La CI de PR vérifie également la compilation native Android, les frontières
+  des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
+  sécurité couvre tous les workflows et leurs actions épinglées par SHA.
+- La suite compte **843** tests hôte lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - La CI Patrol contient neuf suites Android, lançables manuellement avec des
@@ -114,10 +126,23 @@ de contenu avant bêta pédagogique.
 - Les comportements audio, microphone réel, rendu et réseau restent à tester
   sur appareil : la simulation rend les E2E déterministes mais ne prouve pas
   l'expérience physique.
+- Whisper local Android utilise désormais un pont Ponderin minimal vers le
+  moteur MIT `whisper.cpp`, avec modèle épinglé et vérifié. Le wrapper GPL
+  historique a été retiré. L'intégration iOS n'est pas livrée : le dossier iOS
+  n'a pas de `Podfile` et doit faire l'objet d'un chantier Xcode/test appareil
+  avant toute promesse de disponibilité locale sur cette plateforme.
 - Les APK de livraison sont publiés comme artefacts GitHub Actions ; aucun APK
   généré ne doit être versionné dans Git.
 
 ## Documentation et gouvernance
+
+- **Ponderin** est le nom de travail interne de l'application. Le renommage
+  visible peut avancer pendant le développement ; la disponibilité de marque,
+  domaine et stores reste à vérifier avant toute diffusion externe, et les
+  identifiants `vocab_kr` restent temporairement stables. Voir la
+  [décision](docs/decisions/2026-11-23-ponder-working-name.md).
+- Le dépôt GitHub sera renommé **PonderIn** après l'intégration dans `main`
+  (décision utilisateur du 26 novembre). Le renommage distant reste à effectuer.
 
 - La racine du dépôt est un vault Obsidian versionné. Son point d'entrée est
   [`docs/knowledge-base/00-Accueil.md`](docs/knowledge-base/00-Accueil.md) ;
@@ -135,8 +160,9 @@ de contenu avant bêta pédagogique.
   indépendants doivent converger sur deux passes propres consécutives, sans se
   substituer à la CI ni à l'approbation humaine. Le skill, les quatre profils,
   le hook et la CI sont implémentés sur la branche d'intégration ; l'activation
-  du Dependency Graph puis la protection GitHub de `main` restent les dernières
-  étapes distantes requises ; voir
+  du Dependency Graph et des alertes Dependabot a été réalisée le 26 novembre
+  (la comparaison des dépendances répond désormais). La protection GitHub de
+  `main` et la convergence des revues restent requises ; voir
   [`docs/pr-validation.md`](docs/pr-validation.md).
 - Les anciennes maquettes, audits et plans V1/V2 ont été retirés du vault pour
   éviter les sources concurrentes ; leur historique reste récupérable dans Git.

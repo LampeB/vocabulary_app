@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import '../app_database.dart';
+import '../sync_snapshot.dart';
 import '../tables/concepts_table.dart';
 import '../tables/word_variants_table.dart';
 
@@ -17,6 +18,16 @@ class ConceptDao extends DatabaseAccessor<AppDatabase> with _$ConceptDaoMixin {
 
   Future<ConceptsTableData?> getById(String id) =>
       (select(conceptsTable)..where((t) => t.id.equals(id))).getSingleOrNull();
+
+  Future<List<ConceptsTableData>> getConceptsByIds(List<String> ids) =>
+      (select(conceptsTable)
+            ..where((t) => t.id.isIn(ids) & t.isDeleted.equals(false)))
+          .get();
+
+  Future<List<WordVariantsTableData>> getVariantsByIds(List<String> ids) =>
+      (select(wordVariantsTable)
+            ..where((t) => t.id.isIn(ids) & t.isDeleted.equals(false)))
+          .get();
 
   Future<int> upsert(ConceptsTableCompanion companion) =>
       into(conceptsTable).insertOnConflictUpdate(companion);
@@ -88,11 +99,35 @@ class ConceptDao extends DatabaseAccessor<AppDatabase> with _$ConceptDaoMixin {
 
   // ── Push-sync support (the isSynced flags are the outbound queue) ──────────
 
-  Future<List<ConceptsTableData>> getUnsyncedConcepts() =>
-      (select(conceptsTable)..where((t) => t.isSynced.equals(false))).get();
+  Future<List<ConceptsTableData>> getUnsyncedConcepts({String? ownerId}) {
+    if (ownerId == null) {
+      return (select(conceptsTable)..where((t) => t.isSynced.equals(false)))
+          .get();
+    }
+    final query = select(conceptsTable).join([
+      innerJoin(db.vocabularyListsTable,
+          db.vocabularyListsTable.id.equalsExp(conceptsTable.listId)),
+    ])
+      ..where(conceptsTable.isSynced.equals(false));
+    query.where(db.vocabularyListsTable.ownerId.equals(ownerId));
+    return query.map((row) => row.readTable(conceptsTable)).get();
+  }
 
-  Future<List<WordVariantsTableData>> getUnsyncedVariants() =>
-      (select(wordVariantsTable)..where((t) => t.isSynced.equals(false))).get();
+  Future<List<WordVariantsTableData>> getUnsyncedVariants({String? ownerId}) {
+    if (ownerId == null) {
+      return (select(wordVariantsTable)..where((t) => t.isSynced.equals(false)))
+          .get();
+    }
+    final query = select(wordVariantsTable).join([
+      innerJoin(conceptsTable,
+          conceptsTable.id.equalsExp(wordVariantsTable.conceptId)),
+      innerJoin(db.vocabularyListsTable,
+          db.vocabularyListsTable.id.equalsExp(conceptsTable.listId)),
+    ])
+      ..where(wordVariantsTable.isSynced.equals(false));
+    query.where(db.vocabularyListsTable.ownerId.equals(ownerId));
+    return query.map((row) => row.readTable(wordVariantsTable)).get();
+  }
 
   Future<int> markConceptsSynced(List<String> ids) =>
       (update(conceptsTable)..where((t) => t.id.isIn(ids)))
@@ -100,5 +135,13 @@ class ConceptDao extends DatabaseAccessor<AppDatabase> with _$ConceptDaoMixin {
 
   Future<int> markVariantsSynced(List<String> ids) =>
       (update(wordVariantsTable)..where((t) => t.id.isIn(ids)))
+          .write(const WordVariantsTableCompanion(isSynced: Value(true)));
+
+  Future<int> acknowledgeConcept(ConceptsTableData row) =>
+      (update(conceptsTable)..where((t) => matchesSyncSnapshot(t, row)))
+          .write(const ConceptsTableCompanion(isSynced: Value(true)));
+
+  Future<int> acknowledgeVariant(WordVariantsTableData row) =>
+      (update(wordVariantsTable)..where((t) => matchesSyncSnapshot(t, row)))
           .write(const WordVariantsTableCompanion(isSynced: Value(true)));
 }

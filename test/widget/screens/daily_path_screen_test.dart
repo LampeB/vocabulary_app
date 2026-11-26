@@ -1,4 +1,11 @@
+import 'dart:convert';
+
+// ignore: implementation_imports
+import 'package:easy_localization/src/localization.dart';
+// ignore: implementation_imports
+import 'package:easy_localization/src/translations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
@@ -18,6 +25,7 @@ void main() {
       tester,
       screen: const DailyPathScreen(),
       overrides: [
+        myListsProvider.overrideWith((ref) => Stream.value([])),
         dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(3)),
       ],
       routes: [
@@ -45,6 +53,7 @@ void main() {
       tester,
       screen: const DailyPathScreen(),
       overrides: [
+        myListsProvider.overrideWith((ref) => Stream.value([])),
         dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(3)),
       ],
       routes: [
@@ -69,4 +78,50 @@ void main() {
     expect(args!.langA, 'fr');
     expect(args!.langB, 'ko');
   });
+
+  for (final locale in ['fr', 'en', 'ko']) {
+    testWidgets('small screen and large text keep the path usable in $locale',
+        (tester) async {
+      final translations = Translations(jsonDecode((await tester.runAsync(() =>
+              rootBundle.loadString('assets/translations/$locale.json')))!)
+          as Map<String, dynamic>);
+      Localization.load(Locale(locale),
+          translations: translations, fallbackTranslations: translations);
+      addTearDown(initTestLocalization);
+
+      var openedLessons = false;
+      await pumpScreen(tester,
+          screen: Builder(
+              builder: (context) => MediaQuery(
+                  data: MediaQuery.of(context)
+                      .copyWith(textScaler: const TextScaler.linear(2)),
+                  child: const DailyPathScreen())),
+          overrides: [
+            myListsProvider.overrideWith((ref) => Stream.value([])),
+            dueCountForPairProvider
+                .overrideWith((ref, pair) => Stream.value(3)),
+          ],
+          routes: [
+            GoRoute(
+                path: '/grammar',
+                builder: (_, __) {
+                  openedLessons = true;
+                  return const SizedBox();
+                })
+          ]);
+      tester.view.physicalSize = const Size(960, 1704); // 320 × 568
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+
+      // The content may scroll but it must neither overlap nor truncate its
+      // primary actions when the system text size is doubled.
+      final lessons = find.byKey(const ValueKey(WidgetKeys.dailyPathLessons));
+      await tester.ensureVisible(lessons);
+      await tester.pumpAndSettle();
+      await tester.tap(lessons);
+      await tester.pumpAndSettle();
+      expect(openedLessons, isTrue);
+      expect(tester.takeException(), isNull);
+    });
+  }
 }

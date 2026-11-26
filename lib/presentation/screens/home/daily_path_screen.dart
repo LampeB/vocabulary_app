@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +13,7 @@ import '../../providers/lists/vocabulary_provider.dart';
 import '../../providers/quiz/quiz_provider.dart';
 import '../../providers/settings/default_pair_provider.dart';
 import '../../widgets/v3_pond.dart';
+import '../../widgets/scroll_affordance.dart';
 
 /// A short ordered V3 trail. It recommends today's next card without
 /// removing independent practice from the rest of the app.
@@ -26,9 +28,10 @@ class DailyPathScreen extends ConsumerWidget {
         ref.watch(myListsProvider).valueOrNull ?? const <VocabularyList>[];
     final matching =
         lists.where((list) => list.langA == pair.$1 && list.langB == pair.$2);
-    final prerequisite = matching.isEmpty
-        ? (lists.isEmpty ? null : lists.first)
-        : matching.first;
+    // The daily path must stay within the learner's selected language pair.
+    // Falling back to an unrelated list sent, for example, an EN→KO learner
+    // into a FR→KO prerequisite and violated the pair shown by the screen.
+    final prerequisite = matching.isEmpty ? null : matching.first;
 
     return Scaffold(
       key: const ValueKey(WidgetKeys.screenDailyPath),
@@ -67,31 +70,27 @@ class _DailyTrail extends StatelessWidget {
     final completed = reviewDone ? 1 : 0;
     final activeTitle = reviewDone
         ? prerequisite == null
-            ? 'Préparer une première liste'
-            : '${prerequisite!.wordCount.clamp(1, 7)} nouveaux mots'
-        : '$dueCount ${dueCount == 1 ? 'mot à revoir' : 'mots à revoir'}';
+            ? 'v3.prepare_list'.tr()
+            : 'v3.new_words'.tr(
+                namedArgs: {'count': '${prerequisite!.wordCount.clamp(1, 7)}'})
+        : 'v3.words_due'.tr(namedArgs: {'count': '$dueCount'});
     final activeSubtitle = reviewDone
         ? prerequisite == null
-            ? 'Quelques mots suffisent pour commencer'
-            : 'Liste «\u202f${prerequisite!.name}\u202f» · environ 4 minutes'
-        : 'Reprends les mots qui t’attendent';
+            ? 'v3.few_words'.tr()
+            : 'v3.list_duration'.tr(namedArgs: {'name': prerequisite!.name})
+        : 'v3.resume_waiting'.tr();
 
-    return LayoutBuilder(builder: (context, constraints) {
-      final compact = constraints.maxHeight < 650;
-      final activeTop = compact ? 160.0 : 180.0;
-      final followTop = compact ? 360.0 : 405.0;
-      final lessonTop = compact ? 455.0 : 515.0;
-      return Stack(children: [
-        const Positioned.fill(child: _TrailLine()),
-        Positioned(
-          left: 16,
-          right: 16,
-          top: 8,
-          child: Row(children: [
+    return ScrollAffordance(
+      hint: 'v3.scroll_hint'.tr(),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
             _BackButton(onTap: () => context.pop()),
             const SizedBox(width: 13),
             Expanded(
-              child: Text('TES CARTES DU JOUR',
+              child: Text('v3.daily_title'.tr(),
                   style: AppTextStyles.mono(12, FontWeight.w400,
                       letterSpacing: 1.1, color: V3Colors.light60)),
             ),
@@ -99,46 +98,39 @@ class _DailyTrail extends StatelessWidget {
                 style: AppTextStyles.mono(12, FontWeight.w400,
                     color: V3Colors.amber)),
           ]),
-        ),
-        Positioned(
-          left: 20,
-          top: 65,
-          width: 182,
-          child: _TrailCard(
+          const SizedBox(height: 24),
+          _TrailCard(
             key: const ValueKey(WidgetKeys.dailyPathReview),
-            label: reviewDone ? '✓ RÉVISER' : 'À TOI · RÉVISER',
+            label: reviewDone
+                ? 'v3.review_done_label'.tr()
+                : 'v3.your_review'.tr(),
             title: reviewDone
-                ? 'Révisions terminées'
-                : '$dueCount ${dueCount == 1 ? 'mot' : 'mots'} à revoir',
+                ? 'v3.review_done'.tr()
+                : 'v3.words_due'.tr(namedArgs: {'count': '$dueCount'}),
             active: !reviewDone,
             done: reviewDone,
             onTap: reviewDone ? null : () => _showModes(context),
           ),
-        ),
-        Positioned(
-          left: 26,
-          right: 20,
-          top: activeTop,
-          child: _ActiveCard(
-            label: reviewDone ? 'À TOI · DÉCOUVRIR' : 'À TOI · RÉVISER',
+          const SizedBox(height: 20),
+          _ActiveCard(
+            label:
+                reviewDone ? 'v3.your_discovery'.tr() : 'v3.your_review'.tr(),
             title: activeTitle,
             subtitle: activeSubtitle,
-            cta: reviewDone ? 'Prendre la carte' : 'Choisir le mode',
+            cta: reviewDone ? 'v3.take_card'.tr() : 'v3.choose_mode'.tr(),
             onTap: reviewDone
                 ? () => prerequisite == null
                     ? context.go('/lists')
                     : context.push('/lists/${prerequisite!.id}')
                 : () => _showModes(context),
           ),
-        ),
-        Positioned(
-          left: 22,
-          top: followTop,
-          width: 212,
-          child: _TrailCard(
+          const SizedBox(height: 20),
+          _TrailCard(
             key: const ValueKey(WidgetKeys.dailyPathPractice),
-            label: reviewDone ? 'À TOI · DÉCOUVRIR' : 'PUIS · DÉCOUVRIR',
-            title: prerequisite?.name ?? 'Ta première liste',
+            label: reviewDone
+                ? 'v3.your_discovery'.tr()
+                : 'v3.next_discovery'.tr(),
+            title: prerequisite?.name ?? 'v3.first_list'.tr(),
             active: reviewDone,
             onTap: reviewDone
                 ? () => prerequisite == null
@@ -146,26 +138,18 @@ class _DailyTrail extends StatelessWidget {
                     : context.push('/lists/${prerequisite!.id}')
                 : null,
           ),
-        ),
-        Positioned(
-          right: 20,
-          top: lessonTop,
-          width: 218,
-          child: _TrailCard(
+          const SizedBox(height: 20),
+          _TrailCard(
             key: const ValueKey(WidgetKeys.dailyPathLessons),
-            label: 'PUIS · LIRE',
-            title: 'Une leçon à découvrir',
+            label: 'v3.next_read'.tr(),
+            title: 'v3.lesson_discover'.tr(),
             onTap: () => context.push('/grammar'),
           ),
-        ),
-        Positioned(
-          left: 16,
-          right: 16,
-          bottom: 16,
-          child: _TrailProgress(completed: completed),
-        ),
-      ]);
-    });
+          const SizedBox(height: 24),
+          _TrailProgress(completed: completed),
+        ],
+      ),
+    );
   }
 
   void _showModes(BuildContext context) {
@@ -192,61 +176,16 @@ class _DailyTrail extends StatelessWidget {
   }
 }
 
-class _TrailLine extends StatelessWidget {
-  const _TrailLine();
-  @override
-  Widget build(BuildContext context) => IgnorePointer(
-        child: CustomPaint(size: Size.infinite, painter: _TrailLinePainter()),
-      );
-}
-
-class _TrailLinePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF64705F)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final path = Path()
-      ..moveTo(size.width * .29, 130)
-      ..lineTo(size.width * .42, 184)
-      ..lineTo(size.width * .36, 362)
-      ..lineTo(size.width * .56, 435)
-      ..lineTo(size.width * .44, 520);
-    _dashed(canvas, path, paint);
-  }
-
-  void _dashed(Canvas canvas, Path path, Paint paint) {
-    for (final metric in path.computeMetrics()) {
-      for (var i = 0.0; i < metric.length; i += 12) {
-        canvas.drawPath(
-            metric.extractPath(i, (i + 6).clamp(0, metric.length)), paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
 class _BackButton extends StatelessWidget {
   const _BackButton({required this.onTap});
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => Material(
-        color: V3Colors.chip,
-        shape: const CircleBorder(),
-        child: InkWell(
-          onTap: onTap,
-          customBorder: const CircleBorder(),
-          child: const SizedBox(
-              width: 32,
-              height: 32,
-              child: Icon(Icons.arrow_back_rounded,
-                  size: 18, color: V3Colors.light)),
-        ),
+  Widget build(BuildContext context) => IconButton(
+        onPressed: onTap,
+        tooltip: 'common.back'.tr(),
+        style: IconButton.styleFrom(backgroundColor: V3Colors.chip),
+        icon: const Icon(Icons.arrow_back_rounded,
+            size: 18, color: V3Colors.light),
       );
 }
 
@@ -262,73 +201,51 @@ class _ActiveCard extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) =>
-      Stack(clipBehavior: Clip.none, children: [
-        for (final (left, top, right, color, angle) in [
-          (10.0, 10.0, -7.0, V3Colors.edgeWarm2, .055),
-          (4.0, 4.0, -3.0, V3Colors.edgeWarm1, -.026),
-        ])
-          Positioned(
-              left: left,
-              top: top,
-              right: right,
-              height: 164,
-              child: Transform.rotate(
-                  angle: angle,
-                  child: DecoratedBox(
-                      decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(16))))),
-        Material(
-          color: V3Colors.paper2,
+  Widget build(BuildContext context) => Material(
+        color: V3Colors.paper2,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(17, 15, 17, 16),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      const DecoratedBox(
-                          decoration: BoxDecoration(
-                              color: V3Colors.terra, shape: BoxShape.circle),
-                          child: SizedBox(width: 8, height: 8)),
-                      const SizedBox(width: 8),
-                      Text(label,
-                          style: AppTextStyles.mono(11.5, FontWeight.w700,
-                              letterSpacing: 1, color: V3Colors.terraInk)),
-                    ]),
-                    const SizedBox(height: 7),
-                    Text(title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.serif(29, FontWeight.w400,
-                            color: V3Colors.ink)),
-                    const SizedBox(height: 3),
-                    Text(subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.fig(14, FontWeight.w400,
-                            color: V3Colors.ink60)),
-                    const SizedBox(height: 13),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                          color: V3Colors.terra,
-                          borderRadius: BorderRadius.circular(11)),
-                      child: Text(cta,
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.fig(15, FontWeight.w700,
-                              color: V3Colors.paper)),
-                    ),
-                  ]),
-            ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(17, 15, 17, 16),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                const DecoratedBox(
+                    decoration: BoxDecoration(
+                        color: V3Colors.terra, shape: BoxShape.circle),
+                    child: SizedBox(width: 8, height: 8)),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Text(label,
+                        style: AppTextStyles.mono(11.5, FontWeight.w700,
+                            letterSpacing: 1, color: V3Colors.terraInk))),
+              ]),
+              const SizedBox(height: 7),
+              Text(title,
+                  style: AppTextStyles.serif(29, FontWeight.w400,
+                      color: V3Colors.ink)),
+              const SizedBox(height: 3),
+              Text(subtitle,
+                  style: AppTextStyles.fig(14, FontWeight.w400,
+                      color: V3Colors.ink60)),
+              const SizedBox(height: 13),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                    color: V3Colors.terra,
+                    borderRadius: BorderRadius.circular(11)),
+                child: Text(cta,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.fig(15, FontWeight.w700,
+                        color: V3Colors.paper)),
+              ),
+            ]),
           ),
         ),
-      ]);
+      );
 }
 
 class _TrailCard extends StatelessWidget {
@@ -371,8 +288,6 @@ class _TrailCard extends StatelessWidget {
                             color: done ? V3Colors.light60 : V3Colors.light70)),
                     const SizedBox(height: 3),
                     Text(title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.serif(18, FontWeight.w400,
                             color: V3Colors.light)),
                   ]),
@@ -411,7 +326,7 @@ class _TrailProgress extends StatelessWidget {
                       color: V3Colors.amber)),
             ]),
             const SizedBox(height: 8),
-            Text('Une carte suffit pour aujourd’hui. Les autres t’attendront.',
+            Text('v3.one_card_enough'.tr(),
                 style: AppTextStyles.fig(13.5, FontWeight.w400,
                     color: V3Colors.light70)),
           ]),
@@ -427,7 +342,8 @@ class _ModeSheet extends StatelessWidget {
         top: false,
         child: Align(
           alignment: Alignment.bottomCenter,
-          child: Container(
+          child: SingleChildScrollView(
+              child: Container(
             margin: const EdgeInsets.all(12),
             padding: const EdgeInsets.fromLTRB(20, 13, 20, 22),
             decoration: BoxDecoration(
@@ -449,16 +365,28 @@ class _ModeSheet extends StatelessWidget {
                       borderRadius: BorderRadius.circular(2))),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Comment veux-tu réviser\u202f?',
+                child: Text('home.review_mode_title'.tr(),
                     style: AppTextStyles.serif(28, FontWeight.w400,
                         color: V3Colors.ink)),
               ),
               const SizedBox(height: 14),
               for (final (mode, icon, label) in [
-                (QuizMode.voice, Icons.mic_rounded, 'Répondre à voix haute'),
-                (QuizMode.handsFree, Icons.headset_mic_rounded, 'Mains libres'),
-                (QuizMode.typing, Icons.keyboard_rounded, 'Écrire la réponse'),
-                (QuizMode.flashcard, Icons.style_rounded, 'Cartes à retourner'),
+                (QuizMode.voice, Icons.mic_rounded, 'v3.mode_voice'.tr()),
+                (
+                  QuizMode.handsFree,
+                  Icons.headset_mic_rounded,
+                  'v3.mode_hands_free'.tr()
+                ),
+                (
+                  QuizMode.typing,
+                  Icons.keyboard_rounded,
+                  'v3.mode_typing'.tr()
+                ),
+                (
+                  QuizMode.flashcard,
+                  Icons.style_rounded,
+                  'v3.mode_flashcard'.tr()
+                ),
               ]) ...[
                 _ModeChoice(
                     mode: mode,
@@ -468,7 +396,7 @@ class _ModeSheet extends StatelessWidget {
                 const SizedBox(height: 7),
               ],
             ]),
-          ),
+          )),
         ),
       );
 }
@@ -499,8 +427,6 @@ class _ModeChoice extends StatelessWidget {
               const SizedBox(width: 11),
               Expanded(
                 child: Text(label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.fig(14.5, FontWeight.w600,
                         color: V3Colors.ink)),
               ),

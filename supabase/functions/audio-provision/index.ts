@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
+import { authorizeAndConsume } from "../_shared/provider_gate.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -87,6 +88,13 @@ serve(async (req) => {
   if (!existingError) {
     await admin.from("word_variants").update({ audio_path: audioPath }).eq("id", variant.id);
     return response({ audio_path: audioPath, status: "ready" });
+  }
+  const quota = await authorizeAndConsume(req, "audio_provision");
+  if (quota !== "allowed") {
+    return response(
+      { error: quota === "limited" ? "Daily audio limit reached" : "Audio unavailable" },
+      quota === "limited" ? 429 : 503,
+    );
   }
   if (!elevenLabsKey) return response({ error: "TTS unavailable" }, 503);
 

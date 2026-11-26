@@ -42,23 +42,25 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
 
 ## Limites connues à corriger avant de qualifier V3 de complète
 
-1. **Localisation.** Plusieurs libellés V3 sont encore français en dur ; ils
-   doivent passer par les traductions FR/EN/KO avant livraison V0.
+1. **Localisation.** Les textes du plateau, chemin, accueil/auth et splash,
+   ainsi que les commandes de sortie, passent par les traductions FR/EN/KO.
+   L'audit des autres flux de révision reste à compléter avant livraison V0.
 2. **Thèmes.** Les entrées, la liste et le canvas de révision supportent les
    deux thèmes, mais le plateau, le chemin quotidien et le splash utilisent
    encore volontairement une surface sombre V3. Il faut soit concevoir leur
    variante claire, soit expliciter que le plateau est toujours sombre.
-3. **Piles hors quiz.** Le plateau et le chemin utilisent encore des effets de
-   feuilles/piles décoratives. La décision produit réserve la pile physique et
-   inclinée aux flashcards : ces ornements doivent être aplatis ou redessinés.
+3. **Piles hors quiz.** Les ornements de feuilles/piles du plateau et du chemin
+   sont retirés. La pile physique inclinée reste réservée aux flashcards.
 4. **Plongée et scroll.** La transition `DiveInPage` couvre le chemin quotidien
-   et le lecteur de grammaire, pas toutes les destinations V3. Le plateau est
-   scrollable sans indicateur explicite. Ces deux écarts sont visibles.
+   et le lecteur de grammaire, pas toutes les destinations V3. Le plateau et
+   le chemin signalent désormais leur scroll. Le chemin utilise des hauteurs
+   intrinsèques : les textes agrandis peuvent défiler sans chevauchement.
 5. **Leçons.** Le lecteur existe, mais la leçon V0 complète (pages validées,
    popup d'exemple, écho non noté, contenu KO→FR relu) n'est pas terminée.
 6. **Tests visuels.** Les tests couvrent les comportements et les routes, pas
    une validation screenshot/golden du rendu V3 sur les deux thèmes et trois
-   locales.
+   locales. Un test de régression vérifie néanmoins le chemin à 320 × 568,
+   texte doublé, en français, anglais et coréen.
 
 ## Sources et code
 

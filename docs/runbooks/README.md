@@ -9,6 +9,8 @@ Elles ne contiennent jamais de secrets.
 | [Démarrage local](../../README.md#Getting-started) | Installer les dépendances, configurer `.env.json`, lancer l'app |
 | [Comptes E2E](e2e-account.md) | Activer le reset par scénario et les E2E du soir |
 | [Tests](../../TESTS.md) | Choisir et lancer la suite pertinente |
+| [Budget fournisseurs IA](provider-budget.md) | Préparer et suivre le plafond bêta des appels cloud |
+| [Distribution Whisper local](whisper-gpl-distribution.md) | Vérifier la frontière de licence avant toute diffusion |
 
 Lorsqu'une procédure échoue ou devient ambiguë, corriger ce runbook dans le
 même lot que le changement qui la rend nécessaire.

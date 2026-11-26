@@ -90,7 +90,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 child: Column(children: [
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('VocabKR',
+                    child: Text('Ponderin',
                         style: AppTextStyles.serif(29, FontWeight.w400,
                             color: V3Colors.light)),
                   ),
@@ -102,11 +102,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     child: const _SplashPlateau(),
                   ),
                   const Spacer(),
-                  Text('On prépare tes cartes',
+                  Text('v3.preparing'.tr(),
                       style: AppTextStyles.serif(24, FontWeight.w400,
                           color: V3Colors.light)),
                   const SizedBox(height: 7),
-                  Text('Quelques secondes, puis tu pourras travailler.',
+                  Text('v3.preparing_hint'.tr(),
                       textAlign: TextAlign.center,
                       style: AppTextStyles.fig(14.5, FontWeight.w400,
                           color: V3Colors.light70)),

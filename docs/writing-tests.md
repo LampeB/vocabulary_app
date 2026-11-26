@@ -1,4 +1,4 @@
-# Writing tests in VocabKR
+# Writing tests in Ponderin
 
 > **Audience:** a developer *or an LLM agent* that turns a feature spec (Notion
 > ticket, design doc) + the codebase into runnable tests. This is the *how-to*.

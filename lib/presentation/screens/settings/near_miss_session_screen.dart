@@ -114,6 +114,7 @@ class _NearMissSessionScreenState extends State<NearMissSessionScreen>
         .map((s) => s.word)
         .toSet();
     final first = prompts.indexWhere((p) => !done.contains(p.spoken));
+    if (!mounted) return;
     setState(() {
       _prompts = prompts;
       _index = first < 0 ? prompts.length : first;
@@ -125,6 +126,7 @@ class _NearMissSessionScreenState extends State<NearMissSessionScreen>
     final prompts = _prompts!;
     if (_recording || _index >= prompts.length) return;
     final p = prompts[_index];
+    setState(() => _recording = true);
     final ok = await _recorder.start(
       word: p.spoken,
       langCode: p.langCode,
@@ -137,8 +139,12 @@ class _NearMissSessionScreenState extends State<NearMissSessionScreen>
         'condition': _condition,
       },
     );
+    if (!mounted) return;
     if (!ok) {
-      setState(() => _error = 'Micro indisponible (permission ?)');
+      setState(() {
+        _recording = false;
+        _error = 'Micro indisponible (permission ?)';
+      });
       return;
     }
     HapticFeedback.selectionClick();
@@ -148,6 +154,7 @@ class _NearMissSessionScreenState extends State<NearMissSessionScreen>
     });
     unawaited(_bar.forward(from: 0)); // visual only
     await Future<void>.delayed(widget.takeDuration);
+    if (!mounted) return;
     final saved = await _recorder.stop();
     HapticFeedback.lightImpact();
     if (!mounted) return;

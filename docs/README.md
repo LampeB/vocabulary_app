@@ -1,4 +1,4 @@
-# Documentation VocabKR
+# Documentation Ponderin
 
 Ce dossier est la base de connaissances active du projet. Chaque note doit
 indiquer une décision applicable, une règle vérifiable ou une procédure
@@ -33,6 +33,7 @@ dans [`runbooks/`](runbooks/README.md).
 | Prérequis de leçons | [flux Leçons](design/map/grammar-flow.md) · [flux vocabulaire](design/map/vocab-flow.md) |
 | Contenu et génération | [content-roadmap.md](content-roadmap.md) · [seed-content-authoring.md](seed-content-authoring.md) |
 | Architecture voix/audio | [stt-improvement-plan.md](stt-improvement-plan.md) |
+| Persistance et synchronisation | [synchronization.md](synchronization.md) |
 | Couverture fonctionnelle | [feature-coverage.md](feature-coverage.md) · [test-scenarios.md](test-scenarios.md) |
 | Validation des pull requests | [pr-validation.md](pr-validation.md) |
 

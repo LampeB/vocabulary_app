@@ -5,7 +5,7 @@ import '../../core/theme/app_colors.dart';
 // Injected by test env files via --dart-define-from-file. False in production.
 const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
-/// The VocabKR signature waveform — symmetric bars that animate in a staggered
+/// The Ponderin signature waveform — symmetric bars that animate in a staggered
 /// sine wave, teal (FR) on the outside fading to clay (KR) at the centre.
 ///
 /// Reuse it for:

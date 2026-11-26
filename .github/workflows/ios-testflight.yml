@@ -32,37 +32,43 @@ name: iOS TestFlight
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-and-upload:
     runs-on: macos-15
+    timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          channel: stable
+          submodules: recursive
+          persist-credentials: false
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: 3.44.9
           cache: true
 
       - name: Write build-time secrets to .env.json
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          cat > .env.json <<EOF
-          {
-            "SUPABASE_URL": "${{ secrets.SUPABASE_URL }}",
-            "SUPABASE_ANON_KEY": "${{ secrets.SUPABASE_ANON_KEY }}",
-            "REVENUECAT_API_KEY": "YOUR_REVENUECAT_KEY"
-          }
-          EOF
+          python3 -c 'import json,os; json.dump({key: os.environ[key] for key in ("SUPABASE_URL", "SUPABASE_ANON_KEY")}, open(".env.json", "w"))'
 
       - name: Import signing certificate
-        uses: apple-actions/import-codesign-certs@v3
+        uses: apple-actions/import-codesign-certs@63fff01cd422d4b7b855d40ca1e9d34d2de9427d # v3
         with:
           p12-file-base64: ${{ secrets.IOS_DIST_P12_BASE64 }}
           p12-password: ${{ secrets.IOS_DIST_P12_PASSWORD }}
 
       - name: Install provisioning profile
+        env:
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
         run: |
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | base64 --decode \
+          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode \
             > ~/Library/MobileDevice/Provisioning\ Profiles/vocabkr-dist.mobileprovision
 
       - name: Install dependencies
@@ -92,7 +98,7 @@ jobs:
             --export-options-plist=ios/ExportOptions.plist
 
       - name: Upload to TestFlight
-        uses: apple-actions/upload-testflight-build@v3
+        uses: apple-actions/upload-testflight-build@33d00b81922028eb085017424fa10e678bc654e7 # v3
         with:
           app-path: build/ios/ipa/vocab_kr.ipa
           issuer-id: ${{ secrets.ASC_ISSUER_ID }}
@@ -101,7 +107,7 @@ jobs:
 
       - name: Upload IPA artifact (fallback)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: vocabkr-ipa
           path: build/ios/ipa/*.ipa

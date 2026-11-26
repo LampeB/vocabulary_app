@@ -144,10 +144,9 @@ void main() {
       expect(list!.name, 'Remote List');
       expect(list.langA, 'en'); // the pair round-trips through sync
       expect(list.langB, 'es');
-      // Word count is recounted from actual local rows, not trusted from the
-      // remote payload. (That recount goes through updateWordCount, which by
-      // design re-flags the list isSynced=false — so no isSynced assertion.)
+      // Recount is derived data, not a fresh outbound mutation.
       expect(list.wordCount, 1);
+      expect(list.isSynced, isTrue);
       final concepts = await db.conceptDao.getConceptsByList('rl1');
       expect(concepts.length, 1);
       final variants = await db.conceptDao.getVariantsByConcept('rc1');
@@ -205,6 +204,52 @@ void main() {
       expect(concepts.length, 1);
       final variants = await db.conceptDao.getVariantsByConcept('rc1');
       expect(variants.length, 2);
+    });
+
+    test(
+        'remote list deletion removes children and cannot restore stale progress',
+        () async {
+      final live = _remoteList('rl1', 'Remote');
+      final remote = _SyncRemote(lists: [
+        live
+      ], conceptsByList: {
+        'rl1': [_remoteConcept('rc1', 'rl1')],
+      }, progress: [
+        _remoteProgress('rc1-fr')
+      ]);
+      final repo = repoWith(remote);
+      await repo.syncFromRemote();
+      expect(await db.progressDao.getById('$_kUserId|rc1-fr|fr>ko'), isNotNull);
+      remote.lists[0] = {...live, 'is_deleted': true};
+      await repo.syncFromRemote();
+      expect((await db.conceptDao.getById('rc1'))!.isDeleted, isTrue);
+      expect((await db.conceptDao.getVariantById('rc1-fr'))!.isDeleted, isTrue);
+      expect(await db.progressDao.getById('$_kUserId|rc1-fr|fr>ko'), isNull);
+      expect(await db.progressDao.watchDueCount(_kUserId).first, 0);
+    });
+
+    test('pending content edits survive pull while other children are restored',
+        () async {
+      final remote = _SyncRemote(lists: [
+        _remoteList('rl1', 'Remote')
+      ], conceptsByList: {
+        'rl1': [_remoteConcept('rc1', 'rl1')],
+      });
+      final repo = repoWith(remote);
+      await repo.syncFromRemote();
+      await (db.update(db.vocabularyListsTable)
+            ..where((t) => t.id.equals('rl1')))
+          .write(const VocabularyListsTableCompanion(
+              name: Value('Local'), isSynced: Value(false)));
+      await (db.update(db.wordVariantsTable)
+            ..where((t) => t.id.equals('rc1-fr')))
+          .write(const WordVariantsTableCompanion(
+              word: Value('salut'), isSynced: Value(false)));
+      remote.conceptsByList['rl1']!.add(_remoteConcept('rc2', 'rl1'));
+      await repo.syncFromRemote();
+      expect((await db.vocabularyListDao.getById('rl1'))!.name, 'Local');
+      expect((await db.conceptDao.getVariantById('rc1-fr'))!.word, 'salut');
+      expect(await db.conceptDao.getById('rc2'), isNotNull);
     });
 
     test('empty userId skips the remote entirely', () async {

@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import '../app_database.dart';
+import '../sync_snapshot.dart';
 import '../tables/variant_progress_table.dart';
 import '../tables/word_variants_table.dart';
 
@@ -143,10 +144,14 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<VariantProgressTableData?> getByVariantAndDirection(
-          String variantId, String direction) =>
+          String variantId, String direction, {String? userId}) =>
       (select(variantProgressTable)
             ..where((t) =>
-                t.variantId.equals(variantId) & t.direction.equals(direction)))
+                t.variantId.equals(variantId) &
+                t.direction.equals(direction) &
+                (userId == null
+                    ? const Constant(true)
+                    : t.userId.equals(userId))))
           .getSingleOrNull();
 
   Future<int> upsert(VariantProgressTableCompanion companion) =>
@@ -230,8 +235,14 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
                 (t) => t.userId.equals(userId) & t.variantId.isIn(variantIds)))
           .go();
 
-  Future<List<VariantProgressTableData>> getUnsyncedProgress() =>
-      (select(variantProgressTable)..where((t) => t.isSynced.equals(false)))
+  Future<List<VariantProgressTableData>> getUnsyncedProgress(
+          {String? userId}) =>
+      (select(variantProgressTable)
+            ..where((t) =>
+                t.isSynced.equals(false) &
+                (userId == null
+                    ? const Constant(true)
+                    : t.userId.equals(userId))))
           .get();
 
   /// Returns all rows the user has mastered: FSRS review state with
@@ -262,5 +273,9 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
 
   Future<int> markProgressSynced(List<String> ids) =>
       (update(variantProgressTable)..where((t) => t.id.isIn(ids)))
+          .write(const VariantProgressTableCompanion(isSynced: Value(true)));
+
+  Future<int> acknowledge(VariantProgressTableData row) =>
+      (update(variantProgressTable)..where((t) => matchesSyncSnapshot(t, row)))
           .write(const VariantProgressTableCompanion(isSynced: Value(true)));
 }

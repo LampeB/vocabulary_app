@@ -331,6 +331,26 @@ void main() {
         expect(variants.length, 3, reason: '2 fr + 1 ko variants per concept');
       }
     });
+
+    test('round-trip preserves the list language pair', () async {
+      final importResult = await repo.importFromJson({
+        'list': {
+          'name': 'English to Korean',
+          'langA': 'en',
+          'langB': 'ko',
+          'concepts': const [],
+        },
+      });
+      final listId = (importResult as Success<VocabularyList>).value.id;
+
+      final exported = await repo.exportToJson(listId);
+      final reimported = await repo
+          .importFromJson((exported as Success<Map<String, dynamic>>).value);
+
+      final list = (reimported as Success<VocabularyList>).value;
+      expect(list.langA, 'en');
+      expect(list.langB, 'ko');
+    });
   });
 
   // ── createConcept / deleteConc ────────────────────────────────────────────

@@ -96,9 +96,8 @@ class _PathBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final matching =
         lists.where((list) => list.langA == pair.$1 && list.langB == pair.$2);
-    final firstList = matching.isEmpty
-        ? (lists.isEmpty ? null : lists.first)
-        : matching.first;
+    // Do not borrow a list from another language pair for this route.
+    final firstList = matching.isEmpty ? null : matching.first;
     final unlocked = statuses
         .where((status) => status.availability != RuleAvailability.locked)
         .length;

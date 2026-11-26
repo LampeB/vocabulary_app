@@ -47,7 +47,8 @@ if ($forbidden.Count -gt 0) {
 
 $dartFiles = @(
   $files | Where-Object {
-    $_ -match '\.dart$' -and (Test-Path $_) -and $_ -notmatch '^packages/'
+    $_ -match '\.dart$' -and (Test-Path $_) -and
+    ($_ -notmatch '^packages/' -or $_ -match '^packages/ponderin_whisper/lib/')
   }
 )
 if ($dartFiles.Count -gt 0) {

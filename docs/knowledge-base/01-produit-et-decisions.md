@@ -24,6 +24,9 @@ tags:
 - Les piles de cartes inclinées sont réservées aux flashcards de quiz. La
   navigation hors quiz est une plongée dans l'élément choisi.
 - Amis et souscription sont hors périmètre V0.
+- **Ponderin** est le nom de travail interne ; les identifiants techniques restent
+  `vocab_kr` jusqu'à la validation du nom de diffusion. Voir la
+  [décision dédiée](../decisions/2026-11-23-ponder-working-name.md).
 
 Pour l'état d'implémentation et les limites de ces choix, suivre les liens
 actifs ci-dessus plutôt que cette synthèse.

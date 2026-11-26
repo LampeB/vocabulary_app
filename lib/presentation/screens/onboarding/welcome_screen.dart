@@ -29,7 +29,7 @@ class WelcomeScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('VocabKR',
+                  Text('Ponderin',
                       style: AppTextStyles.serif(29, FontWeight.w400,
                           color: foreground)),
                   const SizedBox(height: 16),
@@ -48,7 +48,7 @@ class WelcomeScreen extends StatelessWidget {
                                     offset: Offset(0, 18))
                               ]),
                           child: Column(children: [
-                            Text('APPRENDRE, À TON RYTHME',
+                            Text('v3.learn_at_pace'.tr(),
                                 style: AppTextStyles.mono(11, FontWeight.w700,
                                     letterSpacing: 1.1,
                                     color: V3Colors.terraInk)),

@@ -42,10 +42,10 @@ android {
             // without uninstalling either. Note: separate app = separate
             // local data (fresh login); patrol.toml carries the .debug id.
             applicationIdSuffix = ".debug"
-            manifestPlaceholders["appLabel"] = "VocabKR Dev"
+            manifestPlaceholders["appLabel"] = "Ponderin Dev"
         }
         release {
-            manifestPlaceholders["appLabel"] = "VocabKR"
+            manifestPlaceholders["appLabel"] = "Ponderin"
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")

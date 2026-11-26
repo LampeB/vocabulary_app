@@ -35,7 +35,7 @@ livraison et les validations qui manquent sont dans
 | `SttStatusStrip` | Montre à l'apprenant s'il est écouté, entendu, ou si chaque moteur envoie/analyse/échoue. |
 | `hf_cue.dart` | Séquence mains-libres visible : lecture → 3·2·1 → bip « Écoute en cours » + barre qui se vide (durée réglable dans les paramètres). |
 | `answer_validator.dart` | Compare l'hypothèse au mot attendu et à ses variantes, y compris les normalisations coréennes. |
-| Adaptateurs STT | STT système, Whisper local quand disponible et ElevenLabs Scribe selon disponibilité. |
+| Adaptateurs STT | STT système, Whisper local Android quand disponible et ElevenLabs Scribe selon disponibilité. |
 | `SttLabScreen` / `SttCorpusRecorder` | Outils de diagnostic sur appareil : corpus étiqueté et comparaison des moteurs. |
 | `NearMissSessionScreen` (`/stt-lab/near-miss`) | Enregistre des « mots proches » étiquetés (locuteur, pièce, mot attendu) pour le comparatif des moteurs. `DebugRecognizeReceiver` (debug uniquement) rejoue `tool/stt_corpus` dans le recognizer du téléphone. |
 
@@ -61,11 +61,47 @@ tour pour empêcher une réponse de contaminer la carte suivante.
 4. Toute nouvelle stratégie de course ou de capture doit être validée en arrière
    plan, avec permissions, réseau lent et au moins un appareil réel.
 
+## Politique bêta des fournisseurs (décision 2026-11-22)
+
+Whisper local est conservé. Les services cloud ne sont que des secours : une
+limite atteinte ne doit jamais empêcher une session locale avec le moteur du
+téléphone ou Whisper.
+
+| Capacité | Plafond authentifié |
+| --- | --- |
+| Transcription cloud | 300/jour, 80/heure, une requête simultanée ; clip de 30 s maximum |
+| Traduction assistée | 200/jour |
+| Suggestions de vocabulaire | 25/jour |
+| Génération d'exercices | 20/jour |
+| Provision audio | 500 nouveaux clips/jour, exclusivement sur un cache miss |
+
+Le budget de la bêta mono-utilisateur est de **20 EUR par mois**. Le tableau
+de bord fournisseur alerte à 12 EUR, les fonctions cloud sont restreintes à
+16 EUR et désactivées à 20 EUR. Ces seuils sont des garde-fous d'exploitation
+à configurer chez les fournisseurs ; le dépôt applique les limites par
+utilisateur avant chaque appel. Les coûts réels restent vérifiés dans les
+tableaux de bord des fournisseurs, qui font foi.
+
+Whisper local est désormais intégré via `packages/ponderin_whisper`, un pont
+minimal détenu par Ponderin qui appelle le sous-module MIT `whisper.cpp`. Le
+wrapper GPL historique n'est plus distribué. Le modèle `ggml-base.bin` est
+téléchargé depuis une révision figée et vérifié par SHA-256 ; les avis MIT et
+les références exactes sont dans `packages/ponderin_whisper/THIRD_PARTY_NOTICES.md`.
+Le téléchargement du modèle (147 951 465 octets) est partagé entre demandes
+concurrentes et contrôlé avant installation. Le chargement et l'inférence
+native s'exécutent dans un isolate de travail ; le contexte natif reste en
+cache et protégé par un verrou. Le fichier de capture n'est nettoyé qu'après
+la fin de l'inférence, succès comme échec.
+La disponibilité iOS n'est pas livrée : le projet iOS ne contient actuellement
+pas de `Podfile`, et le pont est donc explicitement Android-only jusqu'à une
+intégration Xcode et un test physique séparés. Aucune diffusion externe ne doit
+prétendre offrir Whisper local sur iOS avant cette validation.
+
 ## Décisions encore ouvertes
 
-- Faut-il distribuer/télécharger un modèle Whisper hors ligne, pour quelles
+- Quel jeu de modèles Whisper distribuer/télécharger par défaut, pour quelles
   langues, avec quelle taille et quel fallback UX ?
 - Quels seuils de latence, exactitude, consommation et coût rendent un moteur
   acceptable pour le lancement bêta ?
-- Quelle configuration déployée Supabase/ElevenLabs (authentification, rate
-  limit, quotas et observabilité) garantit ce contrat à l'échelle ?
+- Quelle configuration de monitoring et de révision de budget rend ces seuils
+  bêta adaptés lors de l'ouverture à plusieurs utilisateurs ?

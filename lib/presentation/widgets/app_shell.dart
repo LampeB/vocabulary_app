@@ -1,4 +1,4 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show Timer, unawaited;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -29,6 +29,15 @@ final pushOnReconnectProvider = Provider<void>((ref) {
   if (_kTestMode) return;
   final user = ref.watch(currentUserProvider);
   if (user == null) return;
+  Timer? drainTimer;
+  ref.onDispose(() => drainTimer?.cancel());
+  ref.listen(pendingWritesProvider, (previous, next) {
+    if ((next.valueOrNull ?? 0) == 0) return;
+    drainTimer?.cancel();
+    drainTimer = Timer(const Duration(milliseconds: 300), () {
+      unawaited(ref.read(pushSyncProvider).pushAll());
+    });
+  });
   ref.listen(connectivityStreamProvider, (prev, next) {
     final wasOffline =
         prev?.valueOrNull != null && isOffline(prev!.valueOrNull!);

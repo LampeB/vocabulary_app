@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import '../app_database.dart';
+import '../sync_snapshot.dart';
 import '../tables/vocabulary_lists_table.dart';
 import '../tables/concepts_table.dart';
 import '../tables/word_variants_table.dart';
@@ -22,8 +23,15 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
       (select(vocabularyListsTable)..where((t) => t.id.equals(id)))
           .getSingleOrNull();
 
-  Future<VocabularyListsTableData?> getByShareToken(String token) =>
-      (select(vocabularyListsTable)..where((t) => t.shareToken.equals(token)))
+  Future<VocabularyListsTableData?> getByShareToken(String token,
+          {String? ownerId}) =>
+      (select(vocabularyListsTable)
+            ..where((t) =>
+                t.shareToken.equals(token) &
+                (ownerId == null
+                    ? const Constant(true)
+                    : t.ownerId.equals(ownerId)) &
+                t.isDeleted.equals(false)))
           .getSingleOrNull();
 
   Future<int> upsert(VocabularyListsTableCompanion companion) =>
@@ -37,8 +45,13 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(DateTime.now()),
       ));
 
-  Future<List<VocabularyListsTableData>> getUnsyncedLists() =>
-      (select(vocabularyListsTable)..where((t) => t.isSynced.equals(false)))
+  Future<List<VocabularyListsTableData>> getUnsyncedLists({String? ownerId}) =>
+      (select(vocabularyListsTable)
+            ..where((t) =>
+                t.isSynced.equals(false) &
+                (ownerId == null
+                    ? const Constant(true)
+                    : t.ownerId.equals(ownerId))))
           .get();
 
   Future<int> updateWordCount(String listId, int newCount) =>
@@ -50,14 +63,33 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
         ),
       );
 
-  Future<int> setShareToken(String listId, String token) =>
+  Future<int> setShareToken(String listId, String token,
+          {bool publish = false}) =>
       (update(vocabularyListsTable)..where((t) => t.id.equals(listId))).write(
         VocabularyListsTableCompanion(
           shareToken: Value(token),
+          visibility: publish ? const Value('public') : const Value.absent(),
           isSynced: const Value(false),
           updatedAt: Value(DateTime.now()),
         ),
       );
+
+  /// Sharing requires the complete list payload, not merely an acknowledged
+  /// token. Unrelated pending rows from other lists must not block sharing.
+  Future<bool> hasPendingContents(String listId) async {
+    final row = await customSelect(
+      'SELECT EXISTS(SELECT 1 FROM concepts WHERE list_id = ? AND is_synced = 0) '
+      'OR EXISTS(SELECT 1 FROM word_variants w JOIN concepts c ON c.id = w.concept_id '
+      'WHERE c.list_id = ? AND w.is_synced = 0) AS pending',
+      variables: [Variable<String>(listId), Variable<String>(listId)],
+    ).getSingle();
+    return row.read<int>('pending') != 0;
+  }
+
+  /// Refresh a derived count after pull without manufacturing a local edit.
+  Future<int> refreshWordCount(String listId, int count) =>
+      (update(vocabularyListsTable)..where((t) => t.id.equals(listId)))
+          .write(VocabularyListsTableCompanion(wordCount: Value(count)));
 
   /// Retro-tags a pre-catalog starter list with its stable seed identity
   /// (legacy adoption — see StarterSeeder).
@@ -75,5 +107,9 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
 
   Future<int> markListsSynced(List<String> ids) =>
       (update(vocabularyListsTable)..where((t) => t.id.isIn(ids)))
+          .write(const VocabularyListsTableCompanion(isSynced: Value(true)));
+
+  Future<int> acknowledge(VocabularyListsTableData row) =>
+      (update(vocabularyListsTable)..where((t) => matchesSyncSnapshot(t, row)))
           .write(const VocabularyListsTableCompanion(isSynced: Value(true)));
 }

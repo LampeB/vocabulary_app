@@ -1,0 +1,22 @@
+name: ponderin_whisper
+description: Ponderin's minimal on-device Whisper bridge, backed by MIT-licensed whisper.cpp.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: '>=3.22.0'
+
+dependencies:
+  crypto: ^3.0.6
+  ffi: ^2.1.4
+  flutter:
+    sdk: flutter
+  path: ^1.9.1
+  path_provider: ^2.1.5
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        ffiPlugin: true

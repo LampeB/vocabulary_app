@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Tokens from the VocabKR v3 “Sentier de cartes” design archive.
+/// Tokens from the Ponderin v3 “Sentier de cartes” design archive.
 ///
 /// These values are deliberately scoped to v3 components while legacy screens
 /// are migrated. Do not substitute an existing application colour: the archive

@@ -4,7 +4,7 @@ tags:
   - entrypoint
 ---
 
-# VocabKR — base de connaissances
+# Ponderin — base de connaissances
 
 Cette page est le point d'entrée Obsidian du projet. Le vault est la racine du
 dépôt Git : les Markdown restent donc relus, versionnés et utilisables sans

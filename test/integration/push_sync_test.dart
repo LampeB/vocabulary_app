@@ -14,12 +14,19 @@ import '../helpers/fake_remote.dart';
 
 /// Records every push; can fail everything or a specific table.
 class _RecordingRemote extends FakeRemote {
+  Map<String, dynamic>? publicList;
   bool failAll = false;
   bool failConcepts = false;
   final pushedLists = <Map<String, dynamic>>[];
   final pushedConcepts = <Map<String, dynamic>>[];
   final pushedVariants = <Map<String, dynamic>>[];
   final pushedProgress = <Map<String, dynamic>>[];
+  Future<void> Function(Map<String, dynamic>)? onList;
+
+  @override
+  Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(
+          String token) async =>
+      Success(publicList);
 
   Result<Map<String, dynamic>> _record(
       List<Map<String, dynamic>> sink, Map<String, dynamic> data,
@@ -31,8 +38,11 @@ class _RecordingRemote extends FakeRemote {
 
   @override
   Future<Result<Map<String, dynamic>>> upsertList(
-          Map<String, dynamic> data) async =>
-      _record(pushedLists, data);
+      Map<String, dynamic> data) async {
+    await onList?.call(data);
+    return _record(pushedLists, data);
+  }
+
   @override
   Future<Result<Map<String, dynamic>>> upsertConcept(
           Map<String, dynamic> data) async =>
@@ -62,6 +72,68 @@ void main() {
         db.reviewEventDao, remote);
   });
   tearDown(() => db.close());
+
+  test('sharing publishes explicitly; importing a token preserves privacy',
+      () async {
+    final list = (await repo.createList(name: 'Share me')).valueOrNull!;
+    await repo.generateShareLink(list.id);
+    expect((await db.vocabularyListDao.getById(list.id))!.visibility, 'public');
+
+    remote.publicList = {
+      'id': 'source',
+      'name': 'Imported',
+      'lang_a': 'en',
+      'lang_b': 'ko',
+      'concepts': const [],
+    };
+    final imported =
+        (await repo.importFromShareToken('original-token')).valueOrNull!;
+    final row = (await db.vocabularyListDao.getById(imported.id))!;
+    expect(row.shareToken, 'original-token');
+    expect(row.visibility, 'private');
+  });
+
+  test('a user-scoped drain excludes another cached account and its content',
+      () async {
+    final own = (await repo.createList(name: 'Mine')).valueOrNull!;
+    await repo.addConceptWithVariants(
+        listId: own.id, wordA: 'chat', wordB: '고양이');
+    final otherRepo = VocabularyRepositoryImpl(
+        db.vocabularyListDao, db.conceptDao, remote, 'other-user', db);
+    final other = (await otherRepo.createList(name: 'Other')).valueOrNull!;
+    await otherRepo.addConceptWithVariants(
+        listId: other.id, wordA: 'chien', wordB: '개');
+
+    final ownSync = PushSync(db.vocabularyListDao, db.conceptDao,
+        db.progressDao, db.reviewEventDao, remote,
+        userId: 'u');
+    await ownSync.pushAll();
+
+    expect(remote.pushedLists.map((row) => row['id']), [own.id]);
+    expect(remote.pushedConcepts.map((row) => row['list_id']), [own.id]);
+    expect(remote.pushedVariants, hasLength(2));
+    expect(await db.vocabularyListDao.getUnsyncedLists(ownerId: 'other-user'),
+        hasLength(1));
+    expect(await db.conceptDao.getUnsyncedConcepts(ownerId: 'other-user'),
+        hasLength(1));
+    expect(await db.conceptDao.getUnsyncedVariants(ownerId: 'other-user'),
+        hasLength(2));
+  });
+
+  test('share readiness is list-specific and detects failed child uploads',
+      () async {
+    final own = (await repo.createList(name: 'Incomplete')).valueOrNull!;
+    await repo.addConceptWithVariants(
+        listId: own.id, wordA: 'chat', wordB: '고양이');
+    remote.failConcepts = true;
+    await sync.pushAll();
+    expect(await db.vocabularyListDao.hasPendingContents(own.id), isTrue);
+
+    remote.failConcepts = false;
+    await sync.pushAll();
+    await repo.createList(name: 'Unrelated pending list');
+    expect(await db.vocabularyListDao.hasPendingContents(own.id), isFalse);
+  });
 
   test(
       'offline writes are drained on the next push: list, concept and both '
@@ -95,6 +167,32 @@ void main() {
 
     expect(pushed, 0);
     expect(remote.pushedLists, isEmpty);
+  });
+
+  test(
+      'an edit during a remote write stays queued until its own acknowledgement',
+      () async {
+    final list = (await repo.createList(name: 'First')).valueOrNull!;
+    remote.onList = (_) async {
+      remote.onList = null;
+      await repo.updateList(list.copyWith(name: 'Edited'));
+    };
+
+    await sync.pushAll();
+
+    expect(remote.pushedLists.map((row) => row['name']), ['First', 'Edited']);
+    expect((await db.vocabularyListDao.getById(list.id))!.isSynced, isTrue);
+  });
+
+  test('sharing persists public visibility for the single durable writer',
+      () async {
+    final list = (await repo.createList(name: 'Shared')).valueOrNull!;
+    final link = await repo.generateShareLink(list.id);
+    expect(link.isSuccess, isTrue);
+    expect(remote.pushedLists, isEmpty);
+    await sync.pushAll();
+    expect(remote.pushedLists.single['visibility'], 'public');
+    expect(remote.pushedLists.single['share_token'], isNotEmpty);
   });
 
   test(

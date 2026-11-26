@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +15,7 @@ import '../../providers/grammar/grammar_provider.dart';
 import '../../providers/lists/vocabulary_provider.dart';
 import '../../providers/settings/default_pair_provider.dart';
 import '../../widgets/v3_pond.dart';
+import '../../widgets/scroll_affordance.dart';
 
 /// V3's signed-in landing surface: a dark-water plateau of independent
 /// choices. The visual stack is a daily-work object; the curriculum itself is
@@ -92,10 +94,10 @@ class V3HomeScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const _SheetHandle(),
-            Text('Ta langue du moment',
+            Text('v3.current_pair'.tr(),
                 style: AppTextStyles.serif(29, FontWeight.w400)),
             const SizedBox(height: 6),
-            Text('Chaque paire garde son propre parcours.',
+            Text('v3.pair_path'.tr(),
                 style: AppTextStyles.fig(15, FontWeight.w400,
                     color: V3Colors.ink60)),
             const SizedBox(height: 16),
@@ -149,17 +151,20 @@ class _V3HomeBody extends StatelessWidget {
         .length;
     final lessonsRemaining = math.max(0, rules.length - lessonsRead);
     final nextTitle = dueCount > 0
-        ? '$dueCount ${dueCount == 1 ? 'mot à revoir' : 'mots à revoir'}'
+        ? 'v3.words_due'.tr(namedArgs: {'count': '$dueCount'})
         : firstList == null
-            ? 'Préparer ta première liste'
-            : '${math.min(7, math.max(1, firstList.wordCount))} mots à découvrir';
+            ? 'v3.prepare_list'.tr()
+            : 'v3.new_words'.tr(namedArgs: {
+                'count': '${math.min(7, math.max(1, firstList.wordCount))}'
+              });
     final nextSubtitle = dueCount > 0
-        ? 'Reprendre ce que tu as déjà rencontré'
+        ? 'v3.resume_known'.tr()
         : firstList == null
-            ? 'Quelques mots suffisent pour commencer'
-            : 'Liste «\u202f${firstList.name}\u202f» · environ 4 minutes';
+            ? 'v3.few_words'.tr()
+            : 'v3.list_duration'.tr(namedArgs: {'name': firstList.name});
 
-    return SingleChildScrollView(
+    return ScrollAffordance(
+      hint: 'v3.scroll_hint'.tr(),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -170,9 +175,10 @@ class _V3HomeBody extends StatelessWidget {
               initial: userInitial,
               onPairTap: onPairTap),
           const SizedBox(height: 16),
-          _DailyStack(
-            countLabel:
-                dueCount > 0 ? '$dueCount MOTS À REVOIR' : '1 ACTIVITÉ À FAIRE',
+          _DailyEntry(
+            countLabel: dueCount > 0
+                ? 'v3.words_due'.tr(namedArgs: {'count': '$dueCount'})
+                : 'v3.one_activity'.tr(),
             title: nextTitle,
             subtitle: nextSubtitle,
             onTap: () => context.push('/daily-path'),
@@ -195,8 +201,8 @@ class _V3HomeBody extends StatelessWidget {
             children: [
               Expanded(
                 child: _SmallEntry(
-                  title: 'Mes listes',
-                  meta: 'VOIR MES MOTS',
+                  title: 'v3.my_lists'.tr(),
+                  meta: 'v3.see_words'.tr(),
                   accent: true,
                   onTap: () => context.go('/lists'),
                 ),
@@ -204,8 +210,8 @@ class _V3HomeBody extends StatelessWidget {
               const SizedBox(width: 9),
               Expanded(
                 child: _SmallEntry(
-                  title: 'Choisir une activité',
-                  meta: 'EN DEHORS DU PARCOURS',
+                  title: 'v3.choose_activity'.tr(),
+                  meta: 'v3.outside_path'.tr(),
                   onTap: () => _showActivitySheet(context),
                 ),
               ),
@@ -213,9 +219,7 @@ class _V3HomeBody extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           Text(
-            dueCount > 0
-                ? 'À reprendre quand tu veux'
-                : 'Rien à rattraper aujourd’hui',
+            dueCount > 0 ? 'v3.resume_anytime'.tr() : 'v3.nothing_due'.tr(),
             textAlign: TextAlign.center,
             style: AppTextStyles.mono(11, FontWeight.w400,
                 letterSpacing: 1.1, color: V3Colors.light60),
@@ -236,34 +240,33 @@ class _V3HomeBody extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const _SheetHandle(),
-            Text('Que veux-tu faire\u202f?',
+            Text('v3.activity_title'.tr(),
                 style: AppTextStyles.serif(29, FontWeight.w400)),
             const SizedBox(height: 6),
-            Text(
-                'Choisis ce que tu veux travailler. Ton parcours reste tel quel.',
+            Text('v3.activity_body'.tr(),
                 style: AppTextStyles.fig(15, FontWeight.w400,
                     color: V3Colors.ink60)),
             const SizedBox(height: 17),
-            Text('CHOISIR UNE ACTIVITÉ',
+            Text('v3.activity_label'.tr(),
                 style: AppTextStyles.mono(12, FontWeight.w700,
                     letterSpacing: 1.2, color: V3Colors.ink60)),
             const SizedBox(height: 9),
             _SheetChoice(
-                label: 'Une liste',
+                label: 'v3.a_list'.tr(),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   context.go('/lists');
                 }),
             const SizedBox(height: 7),
             _SheetChoice(
-                label: 'Une leçon',
+                label: 'v3.a_lesson'.tr(),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   context.go('/grammar');
                 }),
             const SizedBox(height: 7),
             _SheetChoice(
-                label: 'Choisir un quiz',
+                label: 'v3.choose_quiz'.tr(),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   context.go('/start-session');
@@ -287,40 +290,46 @@ class _TopBar extends StatelessWidget {
   final VoidCallback onPairTap;
 
   @override
-  Widget build(BuildContext context) => Row(children: [
-        TextButton(
-          key: const ValueKey(WidgetKeys.homePairPicker),
-          onPressed: onPairTap,
-          style: TextButton.styleFrom(
-              padding: EdgeInsets.zero, foregroundColor: V3Colors.light60),
-          child: Text('${pair.$1.toUpperCase()} → ${pair.$2.toUpperCase()}',
-              style:
-                  AppTextStyles.mono(12, FontWeight.w400, letterSpacing: 1.2)),
-        ),
-        const Spacer(),
-        Text('$streak JOUR${streak == 1 ? '' : 'S'}',
-            style: AppTextStyles.mono(12, FontWeight.w400,
-                letterSpacing: .7, color: V3Colors.amber)),
-        const SizedBox(width: 12),
-        InkWell(
-          onTap: () => context.go('/profile'),
-          borderRadius: BorderRadius.circular(99),
-          child: Ink(
-            width: 32,
-            height: 32,
-            decoration: const BoxDecoration(
-                shape: BoxShape.circle, color: V3Colors.chip),
-            child: Center(
-                child: Text(initial,
-                    style: AppTextStyles.fig(12, FontWeight.w700,
-                        color: V3Colors.light))),
-          ),
-        ),
-      ]);
+  Widget build(BuildContext context) => Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
+          children: [
+            TextButton(
+              key: const ValueKey(WidgetKeys.homePairPicker),
+              onPressed: onPairTap,
+              style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero, foregroundColor: V3Colors.light60),
+              child: Text('${pair.$1.toUpperCase()} → ${pair.$2.toUpperCase()}',
+                  style: AppTextStyles.mono(12, FontWeight.w400,
+                      letterSpacing: 1.2)),
+            ),
+            Text('v3.streak_days'.tr(namedArgs: {'count': '$streak'}),
+                style: AppTextStyles.mono(12, FontWeight.w400,
+                    letterSpacing: .7, color: V3Colors.amber)),
+            Semantics(
+                button: true,
+                label: 'v3.profile'.tr(),
+                child: InkWell(
+                  onTap: () => context.go('/profile'),
+                  borderRadius: BorderRadius.circular(99),
+                  child: Ink(
+                    width: 32,
+                    height: 32,
+                    decoration: const BoxDecoration(
+                        shape: BoxShape.circle, color: V3Colors.chip),
+                    child: Center(
+                        child: Text(initial,
+                            style: AppTextStyles.fig(12, FontWeight.w700,
+                                color: V3Colors.light))),
+                  ),
+                )),
+          ]);
 }
 
-class _DailyStack extends StatelessWidget {
-  const _DailyStack(
+class _DailyEntry extends StatelessWidget {
+  const _DailyEntry(
       {required this.countLabel,
       required this.title,
       required this.subtitle,
@@ -331,77 +340,47 @@ class _DailyStack extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-              left: 7,
-              right: 7,
-              top: -7,
-              height: 30,
-              child: DecoratedBox(
+  Widget build(BuildContext context) => Material(
+        color: V3Colors.paper2,
+        borderRadius: BorderRadius.circular(15),
+        child: InkWell(
+          key: const ValueKey(WidgetKeys.homeDailyPath),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(15),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(17, 15, 17, 16),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('v3.today_label'.tr(),
+                    style: AppTextStyles.mono(12, FontWeight.w700,
+                        letterSpacing: 1.1, color: V3Colors.terraInk)),
+                Text(countLabel,
+                    style: AppTextStyles.mono(11, FontWeight.w400,
+                        color: V3Colors.ink60)),
+              ]),
+              const SizedBox(height: 8),
+              Text(title,
+                  style: AppTextStyles.serif(30, FontWeight.w400,
+                      color: V3Colors.ink)),
+              const SizedBox(height: 4),
+              Text(subtitle,
+                  style: AppTextStyles.fig(14.5, FontWeight.w400,
+                      color: V3Colors.ink60)),
+              const SizedBox(height: 13),
+              Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(
-                      color: V3Colors.edgeWarm2,
-                      borderRadius: BorderRadius.circular(12)))),
-          Positioned(
-              left: 3,
-              right: 3,
-              top: -3,
-              height: 30,
-              child: DecoratedBox(
-                  decoration: BoxDecoration(
-                      color: V3Colors.edgeWarm1,
-                      borderRadius: BorderRadius.circular(13)))),
-          Material(
-            color: V3Colors.paper2,
-            borderRadius: BorderRadius.circular(15),
-            child: InkWell(
-              key: const ValueKey(WidgetKeys.homeDailyPath),
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(15),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(17, 15, 17, 16),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('À FAIRE AUJOURD’HUI',
-                                style: AppTextStyles.mono(12, FontWeight.w700,
-                                    letterSpacing: 1.1,
-                                    color: V3Colors.terraInk)),
-                            Flexible(
-                                child: Text(countLabel,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: AppTextStyles.mono(
-                                        11, FontWeight.w400,
-                                        color: V3Colors.ink60))),
-                          ]),
-                      const SizedBox(height: 8),
-                      Text(title,
-                          style: AppTextStyles.serif(30, FontWeight.w400,
-                              color: V3Colors.ink)),
-                      const SizedBox(height: 4),
-                      Text(subtitle,
-                          style: AppTextStyles.fig(14.5, FontWeight.w400,
-                              color: V3Colors.ink60)),
-                      const SizedBox(height: 13),
-                      Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          decoration: BoxDecoration(
-                              color: V3Colors.terra,
-                              borderRadius: BorderRadius.circular(11)),
-                          child: Text('Commencer',
-                              textAlign: TextAlign.center,
-                              style: AppTextStyles.fig(15.5, FontWeight.w700,
-                                  color: V3Colors.paper))),
-                    ]),
-              ),
-            ),
+                      color: V3Colors.terra,
+                      borderRadius: BorderRadius.circular(11)),
+                  child: Text('v3.start'.tr(),
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.fig(15.5, FontWeight.w700,
+                          color: V3Colors.paper))),
+            ]),
           ),
-        ],
+        ),
       );
 }
 
@@ -427,15 +406,16 @@ class _PathEntry extends StatelessWidget {
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                Text('MON PARCOURS',
-                    style: AppTextStyles.mono(12, FontWeight.w400,
-                        letterSpacing: 1.1, color: V3Colors.light60)),
+                Expanded(
+                    child: Text('v3.path_label'.tr(),
+                        style: AppTextStyles.mono(12, FontWeight.w400,
+                            letterSpacing: 1.1, color: V3Colors.light60))),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text('$remainingLessons LEÇONS À DÉCOUVRIR',
+                  child: Text(
+                      'v3.lessons_remaining'
+                          .tr(namedArgs: {'count': '$remainingLessons'}),
                       textAlign: TextAlign.end,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.mono(11, FontWeight.w400,
                           color: V3Colors.light60)),
                 ),
@@ -446,18 +426,19 @@ class _PathEntry extends StatelessWidget {
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      Text('Niveau 1',
+                      Text('course.level_one'.tr(),
                           style: AppTextStyles.serif(21, FontWeight.w400,
                               color: V3Colors.light)),
                       const SizedBox(height: 2),
                       Text(
                           firstList == null
-                              ? 'Prépare tes premiers mots'
-                              : 'En ce moment · ${firstList!.name}',
+                              ? 'v3.prepare_words'.tr()
+                              : 'v3.current_list'
+                                  .tr(namedArgs: {'name': firstList!.name}),
                           style: AppTextStyles.fig(13, FontWeight.w400,
                               color: V3Colors.light70)),
                     ])),
-                Text('Voir ›',
+                Text('v3.see'.tr(),
                     style: AppTextStyles.fig(15, FontWeight.w700,
                         color: V3Colors.amber)),
               ]),
@@ -477,18 +458,18 @@ class _PathEntry extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const _SheetHandle(),
-              Text('Mon parcours',
+              Text('v3.path_title'.tr(),
                   style: AppTextStyles.serif(29, FontWeight.w400)),
               const SizedBox(height: 6),
-              Text(
-                  'Tu avances à ton rythme. Les leçons se débloquent avec les mots dont elles ont besoin.',
+              Text('v3.path_body'.tr(),
                   style: AppTextStyles.fig(15, FontWeight.w400,
                       color: V3Colors.ink60)),
               const SizedBox(height: 17),
               _SheetChoice(
                   label: firstList == null
-                      ? 'Créer une première liste'
-                      : 'Reprendre «\u202f${firstList!.name}\u202f»',
+                      ? 'v3.create_list'.tr()
+                      : 'v3.resume_list'
+                          .tr(namedArgs: {'name': firstList!.name}),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     firstList == null
@@ -498,8 +479,9 @@ class _PathEntry extends StatelessWidget {
               const SizedBox(height: 7),
               _SheetChoice(
                   label: rules.isEmpty
-                      ? 'Voir les leçons'
-                      : 'Voir les ${rules.length} leçons',
+                      ? 'v3.see_lessons'.tr()
+                      : 'v3.see_lessons_count'
+                          .tr(namedArgs: {'count': '${rules.length}'}),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     context.go('/grammar');
@@ -522,32 +504,42 @@ class _MetricGrid extends StatelessWidget {
   final int totalWords;
 
   @override
-  Widget build(BuildContext context) => GridView.count(
-        crossAxisCount: 2,
-        crossAxisSpacing: 9,
-        mainAxisSpacing: 9,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: 1.3,
-        children: [
-          _Metric(
-              value: '$due',
-              title: 'Mots à revoir',
-              meta: due > 0 ? 'À REPRENDRE' : 'RIEN À REVOIR',
-              amber: due > 0),
-          _Metric(
-              value: '$readLessons',
-              title: 'Leçons lues',
-              meta: '$remainingLessons À DÉCOUVRIR'),
-          _Metric(
-              value: '$totalWords',
-              title: 'Mots dans tes listes',
-              meta: 'À TON RYTHME'),
-          _Metric(
-              value: '${readLessons + totalWords}',
-              title: 'Ce que tu connais',
-              meta: 'ÇA SE CONSTRUIT'),
-        ],
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final largeText = MediaQuery.textScalerOf(context).scale(14) > 20;
+          final width =
+              largeText ? constraints.maxWidth : (constraints.maxWidth - 9) / 2;
+          final metrics = [
+            _Metric(
+                value: '$due',
+                title: 'v3.words_due_title'.tr(),
+                meta: due > 0
+                    ? 'v3.resume_label'.tr()
+                    : 'v3.nothing_due_label'.tr(),
+                amber: due > 0),
+            _Metric(
+                value: '$readLessons',
+                title: 'v3.lessons_read'.tr(),
+                meta: 'v3.to_discover'
+                    .tr(namedArgs: {'count': '$remainingLessons'})),
+            _Metric(
+                value: '$totalWords',
+                title: 'v3.words_in_lists'.tr(),
+                meta: 'v3.at_your_pace'.tr()),
+            _Metric(
+                value: '${readLessons + totalWords}',
+                title: 'v3.known_title'.tr(),
+                meta: 'v3.building'.tr()),
+          ];
+          return Wrap(
+            spacing: 9,
+            runSpacing: 9,
+            children: [
+              for (final metric in metrics)
+                SizedBox(width: width, child: metric),
+            ],
+          );
+        },
       );
 }
 
@@ -577,14 +569,10 @@ class _Metric extends StatelessWidget {
                         color: V3Colors.light)),
                 const SizedBox(height: 3),
                 Text(title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.fig(13.5, FontWeight.w600,
                         color: V3Colors.light)),
                 const SizedBox(height: 2),
                 Text(meta,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.mono(10.5, FontWeight.w400,
                         letterSpacing: .5,
                         color: amber ? V3Colors.amber : V3Colors.light60)),
@@ -619,14 +607,10 @@ class _SmallEntry extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                     Text(title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.fig(13.5, FontWeight.w600,
                             color: V3Colors.light)),
                     const SizedBox(height: 3),
                     Text(meta,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.mono(9.5, FontWeight.w400,
                             letterSpacing: .35,
                             color: accent ? V3Colors.amber : V3Colors.light60)),
@@ -650,7 +634,8 @@ class _V3Sheet extends StatelessWidget {
         top: false,
         child: Align(
           alignment: Alignment.bottomCenter,
-          child: Container(
+          child: SingleChildScrollView(
+              child: Container(
             margin: const EdgeInsets.all(12),
             padding: const EdgeInsets.fromLTRB(20, 13, 20, 22),
             decoration: BoxDecoration(
@@ -663,7 +648,7 @@ class _V3Sheet extends StatelessWidget {
                       offset: Offset(0, -12))
                 ]),
             child: child,
-          ),
+          )),
         ),
       );
 }

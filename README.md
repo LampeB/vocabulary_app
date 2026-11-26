@@ -1,4 +1,4 @@
-# VocabKR (vocab_kr)
+# Ponderin (vocab_kr)
 
 Multi-language vocabulary & grammar learning app (Flutter). Originally
 French↔Korean, now generalized: any ordered pair among **fr · en · it ·

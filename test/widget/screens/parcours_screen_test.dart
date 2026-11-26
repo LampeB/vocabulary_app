@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -70,7 +71,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey(WidgetKeys.homeGrammar)));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
-    final resumeList = find.text('Reprendre «\u202fLa nourriture\u202f»');
+    final resumeList =
+        find.text('v3.resume_list'.tr(namedArgs: {'name': prerequisite.name}));
     expect(resumeList, findsOneWidget);
 
     await tester.tap(resumeList);

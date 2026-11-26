@@ -87,7 +87,7 @@ Future<void> main() async {
         notificationServiceProvider
             .overrideWithValue(NotificationService.instance),
       ],
-      child: const VocabKrApp(),
+      child: const PonderinApp(),
     ),
   ));
 }

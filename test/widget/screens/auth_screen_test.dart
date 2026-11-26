@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +9,7 @@ import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
 import 'package:vocab_kr/domain/entities/subscription_type.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
+import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/screens/onboarding/auth_screen.dart';
 import 'package:vocab_kr/presentation/screens/onboarding/welcome_screen.dart';
 import '../../helpers/pump_screen.dart';
@@ -56,14 +59,19 @@ void main() {
 
   String? navigatedTo;
 
-  Future<void> pump(WidgetTester tester, Widget screen, {bool settle = true}) {
+  Future<void> pump(WidgetTester tester, Widget screen,
+      {bool settle = true, Future<void>? bootstrap}) {
     navigatedTo = null;
     _lastAuth = null;
     return pumpScreen(
       tester,
       screen: screen,
       settle: settle,
-      overrides: [authStateProvider.overrideWith(_ScriptedAuthNotifier.new)],
+      overrides: [
+        authStateProvider.overrideWith(_ScriptedAuthNotifier.new),
+        seedStarterListsProvider
+            .overrideWith((ref) => bootstrap ?? Future.value()),
+      ],
       routes: [
         for (final r in ['/home', '/auth', '/welcome'])
           GoRoute(
@@ -95,6 +103,21 @@ void main() {
   });
 
   group('auth screen — sign in', () {
+    testWidgets('waits for the login bootstrap before opening home',
+        (tester) async {
+      final bootstrap = Completer<void>();
+      await pump(tester, const AuthScreen(), bootstrap: bootstrap.future);
+      await tester.enterText(find.byKey(const Key('email_field')), 't@t.fr');
+      await tester.enterText(
+          find.byKey(const Key('password_field')), 'secret123');
+      await tester.tap(find.byKey(const Key('auth_submit_button')));
+      await tester.pump();
+      expect(navigatedTo, isNull);
+      bootstrap.complete();
+      await tester.pumpAndSettle();
+      expect(navigatedTo, '/home');
+    });
+
     testWidgets('valid credentials call signIn and land on /home',
         (tester) async {
       await pump(tester, const AuthScreen(initialMode: 'signin'));

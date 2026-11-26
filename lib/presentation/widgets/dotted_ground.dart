@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 
-/// The VocabKR brand watermark — a subtle dot grid that sits behind all content
+/// The Ponderin brand watermark — a subtle dot grid that sits behind all content
 /// on every screen. It is purely decorative (IgnorePointer).
 ///
 /// Usage: wrap any Scaffold body or Stack with this as the first child.
@@ -88,7 +88,7 @@ class _DotPainter extends CustomPainter {
 
   // Dot grid: 1 px radius, 11 px pitch (matching the CSS spec).
   static const double _radius = 1.0;
-  static const double _pitch  = 11.0;
+  static const double _pitch = 11.0;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -100,7 +100,7 @@ class _DotPainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.fill;
 
-    final cols = (size.width  / _pitch).ceil() + 1;
+    final cols = (size.width / _pitch).ceil() + 1;
     final rows = (size.height / _pitch).ceil() + 1;
 
     for (var r = 0; r < rows; r++) {

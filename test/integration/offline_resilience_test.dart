@@ -5,12 +5,13 @@ import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
+import 'package:vocab_kr/data/sync/push_sync.dart';
 import '../helpers/fake_remote.dart';
 
 const _kUserId = 'test-user-offline';
 
 /// Simulates a dead backend: every write to the remote fails. The repository is
-/// local-first (awaits the local DAO, fire-and-forgets the remote), so user
+/// local-first (awaits the local DAO, defers remote writes to PushSync), so user
 /// actions must still succeed and persist while offline.
 class _OfflineRemote extends FakeRemote {
   int writeAttempts = 0;
@@ -74,15 +75,19 @@ void main() {
     expect(variants.map((v) => v.word), containsAll(['bonjour', '안녕']));
   });
 
-  test('the repo actually tried (and swallowed) the failing remote writes',
+  test('offline edits stay queued after the single writer fails to send them',
       () async {
     final list = (await repo.createList(name: 'Offline List')).valueOrNull!;
     await repo.addConceptWithVariants(
         listId: list.id, wordA: 'bonjour', wordB: '안녕');
-    // Let the fire-and-forget (unawaited) remote calls run.
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-
-    // 1 list + 1 concept + 2 variants were all attempted against the remote.
-    expect(remote.writeAttempts, greaterThanOrEqualTo(4));
+    expect(remote.writeAttempts, 0);
+    final sync = PushSync(db.vocabularyListDao, db.conceptDao, db.progressDao,
+        db.reviewEventDao, remote,
+        userId: _kUserId);
+    expect(await sync.pushAll(), 0);
+    expect(remote.writeAttempts, greaterThanOrEqualTo(1));
+    expect(await db.vocabularyListDao.getUnsyncedLists(), hasLength(1));
+    expect(await db.conceptDao.getUnsyncedConcepts(), hasLength(1));
+    expect(await db.conceptDao.getUnsyncedVariants(), hasLength(2));
   });
 }
