@@ -23,7 +23,9 @@ apply plugin: 'com.android.library'
 android {
     namespace 'app.ponderin.whisper'
     compileSdk 34
-    ndkVersion '27.0.11902837'
+    // Match Flutter 3.44.9 / the host application instead of provisioning a
+    // second, older NDK with a different license requirement on CI runners.
+    ndkVersion '28.2.13676358'
 
     defaultConfig {
         minSdkVersion 21

@@ -92,6 +92,9 @@ concurrentes et contrôlé avant installation. Le chargement et l'inférence
 native s'exécutent dans un isolate de travail ; le contexte natif reste en
 cache et protégé par un verrou. Le fichier de capture n'est nettoyé qu'après
 la fin de l'inférence, succès comme échec.
+Le pont Android utilise le NDK `28.2.13676358`, aligné sur Flutter 3.44.9 et
+le module application ; les builds CI ne doivent pas installer un ancien NDK
+distinct pour le plugin.
 La disponibilité iOS n'est pas livrée : le projet iOS ne contient actuellement
 pas de `Podfile`, et le pont est donc explicitement Android-only jusqu'à une
 intégration Xcode et un test physique séparés. Aucune diffusion externe ne doit

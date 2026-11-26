@@ -92,6 +92,11 @@ de contenu avant bêta pédagogique.
   développement le 26 novembre. L'analyse Flutter est propre ; les **843 tests
   hôte passent**, avec **65,7 %** de couverture. La CI distante et la convergence
   des quatre relecteurs restent à confirmer sur le nouveau commit.
+- Sur le commit d'intégration du 26 novembre, tous les checks distants hors
+  compilation Android passent. Ce build demandait encore l'ancien NDK 27 et
+  échouait sur sa licence ; le pont est aligné sur le NDK 28.2 de l'application.
+  Les premières tentatives de relecture indépendante n'ont rendu aucun verdict
+  à cause d'une limite d'usage du service ; aucun compteur propre n'est acquis.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
