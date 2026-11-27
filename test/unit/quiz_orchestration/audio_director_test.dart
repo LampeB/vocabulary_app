@@ -26,6 +26,7 @@ class _FakeSfx implements SoundEffectsService {
 class _FakeAudio implements AudioPlayerService {
   bool speaking = false;
   final spoken = <String>[];
+  final spokenPaths = <String?>[];
   final prefetched = <String>[];
 
   @override
@@ -34,6 +35,7 @@ class _FakeAudio implements AudioPlayerService {
   @override
   Future<void> speak(String text, String langCode, {String? audioPath}) async {
     spoken.add('$text|$langCode');
+    spokenPaths.add(audioPath);
   }
 
   @override
@@ -86,6 +88,27 @@ void main() {
   });
 
   group('speakWhenQuiet', () {
+    test('keeps the immutable clip path when playing a queued prompt',
+        () async {
+      final audio = _FakeAudio();
+      await AudioDirector(audio, sfx: _FakeSfx())
+          .speakWhenQuiet('bonjour', 'fr', audioPath: 'seed/v1/fr/bonjour.mp3');
+      expect(audio.spokenPaths, ['seed/v1/fr/bonjour.mp3']);
+    });
+
+    test('does not start a queued prompt after lifecycle cancellation',
+        () async {
+      final audio = _FakeAudio()..speaking = true;
+      var active = true;
+      final future = AudioDirector(audio, sfx: _FakeSfx())
+          .speakWhenQuiet('bonjour', 'fr', keepGoing: () => active);
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      active = false;
+      audio.speaking = false;
+      await future;
+      expect(audio.spoken, isEmpty);
+    });
+
     test('speaks only after the channel is free', () async {
       final audio = _FakeAudio()..speaking = true;
       final director = AudioDirector(audio, sfx: _FakeSfx());

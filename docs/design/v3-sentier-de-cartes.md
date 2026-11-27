@@ -40,6 +40,20 @@ Les points d'entrée fonctionnels de cette slice sont donc continus. Cela ne
 signifie pas que la définition de sortie de la boucle V0 complète est atteinte
 (voir `../v0-daily-loop-plan.md`).
 
+### Corrections d'intégration — 27 novembre 2026
+
+- Le détail d'une liste affiche et modifie les deux langues dans leur ordre
+  `langA` → `langB`. Les suggestions thématiques utilisent cette même paire
+  pour leur contexte, leur requête et l'ajout des variantes.
+- Le bouton de pratique d'une leçon transmet sa règle exacte et sa paire au
+  configurateur, qui les conserve dans le quiz. Une leçon française ne doit
+  jamais basculer dans le curriculum coréen.
+- Les flashcards gardent le glissement et proposent aussi deux boutons de
+  notation localisés, accessibles au clavier et aux lecteurs d'écran.
+- Le plateau distingue mots/listes disponibles et acquis. L'absence de cartes
+  dues ne prouve aucune activité terminée : le chemin montre une recommandation
+  sans faux compteur de complétion ni estimation de mots inédits.
+
 ## Limites connues à corriger avant de qualifier V3 de complète
 
 1. **Localisation.** Les textes du plateau, chemin, accueil/auth et splash,

@@ -37,6 +37,15 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
   Future<int> upsert(VocabularyListsTableCompanion companion) =>
       into(vocabularyListsTable).insertOnConflictUpdate(companion);
 
+  Future<VocabularyListsTableData?> getImportedCopy(
+          String token, String ownerId) =>
+      (select(vocabularyListsTable)
+            ..where((t) =>
+                t.ownerId.equals(ownerId) &
+                t.importedFromShareToken.equals(token) &
+                t.isDeleted.equals(false)))
+          .getSingleOrNull();
+
   Future<int> softDelete(String id) =>
       (update(vocabularyListsTable)..where((t) => t.id.equals(id)))
           .write(VocabularyListsTableCompanion(

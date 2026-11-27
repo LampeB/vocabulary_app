@@ -9,15 +9,15 @@ How to order a unit: invoke the `seed-content` skill (or the
 parameters, e.g. *"U3: backfill examples for the 71 concepts without one"*
 or *"U5: generate the A2 grammar group for Spanish"*.
 
-## Current state (2026-08-08; delivery status superseded by `PROJECT_STATUS.md`)
+## Current content inventory (2026-11-27; delivery status in `PROJECT_STATUS.md`)
 
 | Asset | Have | Missing |
 |---|---|---|
 | Vocab lists | 5 universal A1 lists + 1 ko particles list (111 concepts) | Everything A2→C2 |
 | Language layers | 6 (fr en it de es ko), 111/111 entries each | New languages; native review of en/it/de/es (LLM-drafted) |
-| Example sentences | 40/111 concepts, aligned across all 6 layers | 71 concepts bare |
+| Example sentences | 55/111 concepts across all 6 layers, including all 18 starter-greetings entries | 56 concepts bare; native review of added examples remains pending |
 | Teaching notes | ko: 111/111 (fr+en) | de/en/es/fr/it: 0 notes |
-| Grammar rules | A1: 4/lang (latin), 5 (ko), texts fr+en | A2→C2 groups; texts in other UI locales; latin A1 staging is flat |
+| Grammar rules | A1: 4/lang (latin), 5 (ko), texts fr+en; four French A1 rule cards also have Korean teaching text | A2→C2 groups; native review of Korean French-rule text; other locale coverage; latin A1 staging is flat |
 | Lesson texts (viewer) | none (🔴 in map) | All levels, all languages |
 | Level tests | design only | Generated at runtime from vocab+rules — no seed content needed, but rules/lists must be level-tagged |
 
@@ -30,16 +30,15 @@ for Korean-speaking French learners.
 Before broadening A1 or adding A2, make one small, teacher-reviewed unit
 usable from first contact through review for all three pairs:
 
-- Start from `starter-greetings` (18 concepts), but do not claim it is
-  lesson-ready yet: only 3 of its Korean entries currently have an example.
-- Backfill aligned, practical examples for all 18 concepts in fr/en/ko.
+- Start from `starter-greetings` (18 concepts). Its example backfill is
+  integrated in all six layers; it is not teacher-approved or lesson-ready yet.
 - **En cours de relecture native (2026-09-12)** : les 18 exemples de
   starter-greetings sont désormais présents et alignés dans les six couches
   de langue. Les formulations KO/DE/ES/IT ajoutées doivent être validées par
   l'enseignante avant la bêta.
-- Add a compact introductory lesson and its cards in **fr, en, and ko**. The
-  current grammar rule cards have fr/en text only, so they cannot serve a
-  Korean-base learner without a Korean fallback being authored.
+- Add authored introductory `lesson_pages` in **fr, en, and ko**. Korean
+  teaching text already exists on the four French A1 rule cards, but this
+  does not replace the reviewed, sequenced V0 lesson pages.
 - **En cours de relecture native (2026-09-12)** : les quatre cartes A1 de
   grammaire française ont désormais leurs titres, descriptions, explications
   et exemples de travail en coréen. L'enseignante doit valider ces formulations
@@ -93,7 +92,7 @@ Each unit = one agent run, one reviewable diff, gate green
   ~8–10 runs.
 
 ### U3 — Examples backfill (A1)
-- **Input**: the 71 example-less concept ids.
+- **Input**: the 56 remaining example-less concept ids (inventory above).
 - **Output**: aligned `example` in all 6 layers per concept. Do in 2–3
   batches. Should ship **before** the intro screens (they lean on
   examples for first contact).

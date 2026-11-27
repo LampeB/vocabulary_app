@@ -1,10 +1,16 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { authorizeAndConsume } from "../_shared/provider_gate.ts";
+import {
+  audioPathForUser,
+  boundedJson,
+  boundedText,
+} from "../_shared/request_limits.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 const bucket = "vocab-audio";
@@ -34,7 +40,9 @@ async function hash(text: string, lang: string) {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
-  if (req.method !== "POST") return response({ error: "Method not allowed" }, 405);
+  if (req.method !== "POST") {
+    return response({ error: "Method not allowed" }, 405);
+  }
   if (!supabaseUrl || !anonKey || !serviceRoleKey) {
     return response({ error: "Server is not configured" }, 503);
   }
@@ -50,7 +58,7 @@ serve(async (req) => {
 
   let variantId: string;
   try {
-    variantId = (await req.json()).variant_id;
+    variantId = (await boundedJson(req, 1_024)).variant_id as string;
   } catch (_) {
     return response({ error: "Invalid JSON" }, 400);
   }
@@ -61,7 +69,9 @@ serve(async (req) => {
   const admin = createClient(supabaseUrl, serviceRoleKey);
   const { data: variant, error: variantError } = await admin
     .from("word_variants")
-    .select("id, word, lang_code, is_deleted, concept:concepts!inner(list:vocabulary_lists!inner(owner_id, origin))")
+    .select(
+      "id, word, lang_code, is_deleted, concept:concepts!inner(is_deleted, list:vocabulary_lists!inner(owner_id, is_deleted))",
+    )
     .eq("id", variantId)
     .maybeSingle();
   if (variantError || !variant || variant.is_deleted) {
@@ -69,73 +79,137 @@ serve(async (req) => {
   }
 
   const concept = variant.concept as unknown as {
-    list: { owner_id: string; origin: string };
+    is_deleted: boolean;
+    list: { owner_id: string; is_deleted: boolean };
   };
   const list = concept?.list;
-  if (!list || list.owner_id !== user.id) {
+  if (
+    !list || list.owner_id !== user.id || list.is_deleted || concept.is_deleted
+  ) {
     return response({ error: "Forbidden" }, 403);
   }
 
   const lang = variant.lang_code as string;
   const text = variant.word as string;
+  if (!boundedText(text, 256) || !boundedText(lang, 8)) {
+    return response({ error: "Invalid or oversized vocabulary text" }, 400);
+  }
   const textHash = await hash(text, lang);
-  const isSeed = list.origin === "starter";
-  const audioPath = isSeed
-    ? `seed/${seedVersion}/${lang}/${textHash}.mp3`
-    : `users/${user.id}/${variant.id}/${textHash}.mp3`;
+  // A client-controlled origin is never permission to publish shared audio.
+  // Only seed-audio-publish can write seed/. Existing published assets may be
+  // reused by content hash; private edits always render below users/<owner>/.
+  const publishedPath = `seed/${seedVersion}/${lang}/${textHash}.mp3`;
+  const { data: published } = await admin.from("published_audio_assets")
+    .select("path").eq("path", publishedPath).maybeSingle();
+  const { error: publishedError } = published
+    ? await admin.storage.from(bucket).download(publishedPath)
+    : { error: true };
+  if (published && !publishedError) {
+    await admin.from("word_variants").update({ audio_path: publishedPath }).eq(
+      "id",
+      variant.id,
+    );
+    return response({ audio_path: publishedPath, status: "ready" });
+  }
+  const audioPath = audioPathForUser(user.id, variant.id, textHash);
 
-  const { error: existingError } = await admin.storage.from(bucket).download(audioPath);
+  const { error: existingError } = await admin.storage.from(bucket).download(
+    audioPath,
+  );
   if (!existingError) {
-    await admin.from("word_variants").update({ audio_path: audioPath }).eq("id", variant.id);
+    await admin.from("word_variants").update({ audio_path: audioPath }).eq(
+      "id",
+      variant.id,
+    );
     return response({ audio_path: audioPath, status: "ready" });
   }
-  const quota = await authorizeAndConsume(req, "audio_provision");
-  if (quota !== "allowed") {
-    return response(
-      { error: quota === "limited" ? "Daily audio limit reached" : "Audio unavailable" },
-      quota === "limited" ? 429 : 503,
-    );
-  }
-  if (!elevenLabsKey) return response({ error: "TTS unavailable" }, 503);
-
-  const voice = voiceByLanguage[lang] ?? voiceByLanguage.fr;
-  const tts = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voice.id}?output_format=mp3_22050_32`,
+  const { data: lease, error: leaseError } = await admin.rpc(
+    "acquire_audio_generation",
     {
-      method: "POST",
-      headers: {
-        "xi-api-key": elevenLabsKey,
-        "Content-Type": "application/json",
-        Accept: "audio/mpeg",
-      },
-      body: JSON.stringify({
-        text,
-        model_id: "eleven_multilingual_v2",
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.8,
-          style: 0,
-          use_speaker_boost: true,
-        },
-      }),
+      p_user_id: user.id,
+      p_path: audioPath,
     },
   );
-  if (!tts.ok) return response({ error: "TTS generation failed" }, 502);
-
-  const { error: uploadError } = await admin.storage.from(bucket).upload(
-    audioPath,
-    new Uint8Array(await tts.arrayBuffer()),
-    { contentType: "audio/mpeg", cacheControl: "31536000", upsert: false },
-  );
-  // A concurrent request may have won the immutable upload race; either way,
-  // the object now exists and the variant can safely reference it.
-  if (uploadError && !/already exists/i.test(uploadError.message)) {
-    return response({ error: "Audio storage failed" }, 502);
+  if (leaseError) return response({ error: "Audio unavailable" }, 503);
+  if (!lease) {
+    return response({ error: "Audio generation already in progress" }, 429);
   }
+  try {
+    // Recheck after acquisition: another request may have completed between
+    // this request's first cache check and acquiring the now-released lease.
+    const { error: cachedAfterLock } = await admin.storage.from(bucket)
+      .download(audioPath);
+    if (!cachedAfterLock) {
+      await admin.from("word_variants").update({ audio_path: audioPath }).eq(
+        "id",
+        variant.id,
+      );
+      return response({ audio_path: audioPath, status: "ready" });
+    }
+    const quota = await authorizeAndConsume(req, "audio_provision");
+    if (quota !== "allowed") {
+      return response(
+        {
+          error: quota === "limited"
+            ? "Daily audio limit reached"
+            : "Audio unavailable",
+        },
+        quota === "limited" ? 429 : 503,
+      );
+    }
+    if (!elevenLabsKey) return response({ error: "TTS unavailable" }, 503);
 
-  await admin
-    .from("word_variants")
-    .update({ audio_path: audioPath, audio_hash: textHash, audio_voice_id: voice.label })
-    .eq("id", variant.id);
-  return response({ audio_path: audioPath, status: "ready" });
+    const voice = voiceByLanguage[lang] ?? voiceByLanguage.fr;
+    const tts = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voice.id}?output_format=mp3_22050_32`,
+      {
+        method: "POST",
+        signal: AbortSignal.timeout(60_000),
+        headers: {
+          "xi-api-key": elevenLabsKey,
+          "Content-Type": "application/json",
+          Accept: "audio/mpeg",
+        },
+        body: JSON.stringify({
+          text,
+          model_id: "eleven_multilingual_v2",
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.8,
+            style: 0,
+            use_speaker_boost: true,
+          },
+        }),
+      },
+    );
+    if (!tts.ok) return response({ error: "TTS generation failed" }, 502);
+
+    const { error: uploadError } = await admin.storage.from(bucket).upload(
+      audioPath,
+      new Uint8Array(await tts.arrayBuffer()),
+      { contentType: "audio/mpeg", cacheControl: "31536000", upsert: false },
+    );
+    // A concurrent request may have won the immutable upload race; either way,
+    // the object now exists and the variant can safely reference it.
+    if (uploadError && !/already exists/i.test(uploadError.message)) {
+      return response({ error: "Audio storage failed" }, 502);
+    }
+
+    await admin
+      .from("word_variants")
+      .update({
+        audio_path: audioPath,
+        audio_hash: textHash,
+        audio_voice_id: voice.label,
+      })
+      .eq("id", variant.id);
+    return response({ audio_path: audioPath, status: "ready" });
+  } catch (_) {
+    return response({ error: "Audio unavailable" }, 502);
+  } finally {
+    await admin.rpc("release_audio_generation", {
+      p_path: audioPath,
+      p_token: lease,
+    });
+  }
 });

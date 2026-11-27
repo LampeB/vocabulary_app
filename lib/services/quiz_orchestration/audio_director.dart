@@ -54,9 +54,13 @@ class AudioDirector {
   /// Speaks [text] after the current audio finishes (bounded by [timeout]) —
   /// the provider's historical `_speakWhenQuiet`.
   Future<void> speakWhenQuiet(String text, String langCode,
-      {Duration timeout = const Duration(seconds: 5)}) async {
+      {Duration timeout = const Duration(seconds: 5),
+      String? audioPath,
+      bool Function()? keepGoing}) async {
+    if (!(keepGoing?.call() ?? true)) return;
     await quiet(timeout: timeout);
-    await _audio.speak(text, langCode);
+    if (!(keepGoing?.call() ?? true)) return;
+    await _audio.speak(text, langCode, audioPath: audioPath);
   }
 
   /// Waits out a speech CHAIN — utterances queuing behind each other (a

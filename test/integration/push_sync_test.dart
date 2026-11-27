@@ -89,7 +89,8 @@ void main() {
     final imported =
         (await repo.importFromShareToken('original-token')).valueOrNull!;
     final row = (await db.vocabularyListDao.getById(imported.id))!;
-    expect(row.shareToken, 'original-token');
+    expect(row.shareToken, isNull);
+    expect(row.importedFromShareToken, 'original-token');
     expect(row.visibility, 'private');
   });
 

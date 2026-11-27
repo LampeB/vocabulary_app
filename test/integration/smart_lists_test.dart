@@ -134,4 +134,66 @@ void main() {
         userId: _kUserId, listId: l1.id, direction: QuizDirection.frToKo);
     expect(listCards.isSuccess, isTrue);
   });
+
+  test(
+      'repository concept deletion removes due and in-progress cards and counts',
+      () async {
+    final list =
+        (await vocabRepo.createList(name: 'Deleted word')).valueOrNull!;
+    final variantId = await seedWord(list.id, 'chat', '고양이');
+    await seedProgress(variantId, state: 'review', nextReview: _now);
+    final variant = await db.conceptDao.getVariantById(variantId);
+    await vocabRepo.deleteConcept(variant!.conceptId);
+    expect(
+        (await progressRepo.getAllDueCards(
+                userId: _kUserId, direction: QuizDirection.frToKo))
+            .valueOrNull,
+        isEmpty);
+    expect(
+        (await progressRepo.getInProgressCards(
+                userId: _kUserId, direction: QuizDirection.frToKo))
+            .valueOrNull,
+        isEmpty);
+    expect(
+        await db.progressDao.watchDueCountForPair(_kUserId, 'fr', 'ko').first,
+        0);
+  });
+
+  test('opposite ordered language pairs do not share smart-list cards',
+      () async {
+    final a = (await vocabRepo.createList(name: 'FRKO')).valueOrNull!;
+    final b =
+        (await vocabRepo.createList(name: 'KOFR', langA: 'ko', langB: 'fr'))
+            .valueOrNull!;
+    final first = await seedWord(a.id, 'chat', '고양이');
+    final second = await seedWord(b.id, 'chien', '개');
+    await seedProgress(first, state: 'review', nextReview: _now);
+    await seedProgress(second, state: 'review', nextReview: _now);
+    final result = await GetDueCardsUseCase(progressRepo).call(
+        userId: _kUserId,
+        source: QuizSource.allDue,
+        direction: QuizDirection.frToKo,
+        langA: 'ko',
+        langB: 'fr');
+    expect(result.valueOrNull!.map((row) => row.variantId), [second]);
+    expect(
+        await db.progressDao.watchDueCountForPair(_kUserId, 'ko', 'fr').first,
+        1);
+  });
+
+  test('an open daily counter observes a due time without a database write',
+      () async {
+    final list = (await vocabRepo.createList(name: 'Due soon')).valueOrNull!;
+    final variant = await seedWord(list.id, 'chat', '고양이');
+    await seedProgress(variant,
+        state: 'review',
+        nextReview: DateTime.now().add(const Duration(seconds: 2)));
+    final counts = db.progressDao
+        .watchDueCountForPair(_kUserId, 'fr', 'ko',
+            refreshEvery: const Duration(milliseconds: 40))
+        .asBroadcastStream(onCancel: (subscription) => subscription.cancel());
+    final due = counts.firstWhere((count) => count == 1);
+    expect(await counts.first, 0);
+    expect(await due.timeout(const Duration(seconds: 5)), 1);
+  });
 }

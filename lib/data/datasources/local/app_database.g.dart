@@ -53,6 +53,12 @@ class $VocabularyListsTableTable extends VocabularyListsTable
   late final GeneratedColumn<String> shareToken = GeneratedColumn<String>(
       'share_token', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _importedFromShareTokenMeta =
+      const VerificationMeta('importedFromShareToken');
+  @override
+  late final GeneratedColumn<String> importedFromShareToken =
+      GeneratedColumn<String>('imported_from_share_token', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _langAMeta = const VerificationMeta('langA');
   @override
   late final GeneratedColumn<String> langA = GeneratedColumn<String>(
@@ -120,6 +126,7 @@ class $VocabularyListsTableTable extends VocabularyListsTable
         visibility,
         wordCount,
         shareToken,
+        importedFromShareToken,
         langA,
         langB,
         origin,
@@ -178,6 +185,12 @@ class $VocabularyListsTableTable extends VocabularyListsTable
           _shareTokenMeta,
           shareToken.isAcceptableOrUnknown(
               data['share_token']!, _shareTokenMeta));
+    }
+    if (data.containsKey('imported_from_share_token')) {
+      context.handle(
+          _importedFromShareTokenMeta,
+          importedFromShareToken.isAcceptableOrUnknown(
+              data['imported_from_share_token']!, _importedFromShareTokenMeta));
     }
     if (data.containsKey('lang_a')) {
       context.handle(
@@ -239,6 +252,9 @@ class $VocabularyListsTableTable extends VocabularyListsTable
           .read(DriftSqlType.int, data['${effectivePrefix}word_count'])!,
       shareToken: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}share_token']),
+      importedFromShareToken: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}imported_from_share_token']),
       langA: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}lang_a'])!,
       langB: attachedDatabase.typeMapping
@@ -273,6 +289,7 @@ class VocabularyListsTableData extends DataClass
   final String visibility;
   final int wordCount;
   final String? shareToken;
+  final String? importedFromShareToken;
   final String langA;
   final String langB;
   final String origin;
@@ -289,6 +306,7 @@ class VocabularyListsTableData extends DataClass
       required this.visibility,
       required this.wordCount,
       this.shareToken,
+      this.importedFromShareToken,
       required this.langA,
       required this.langB,
       required this.origin,
@@ -310,6 +328,10 @@ class VocabularyListsTableData extends DataClass
     map['word_count'] = Variable<int>(wordCount);
     if (!nullToAbsent || shareToken != null) {
       map['share_token'] = Variable<String>(shareToken);
+    }
+    if (!nullToAbsent || importedFromShareToken != null) {
+      map['imported_from_share_token'] =
+          Variable<String>(importedFromShareToken);
     }
     map['lang_a'] = Variable<String>(langA);
     map['lang_b'] = Variable<String>(langB);
@@ -337,6 +359,9 @@ class VocabularyListsTableData extends DataClass
       shareToken: shareToken == null && nullToAbsent
           ? const Value.absent()
           : Value(shareToken),
+      importedFromShareToken: importedFromShareToken == null && nullToAbsent
+          ? const Value.absent()
+          : Value(importedFromShareToken),
       langA: Value(langA),
       langB: Value(langB),
       origin: Value(origin),
@@ -360,6 +385,8 @@ class VocabularyListsTableData extends DataClass
       visibility: serializer.fromJson<String>(json['visibility']),
       wordCount: serializer.fromJson<int>(json['wordCount']),
       shareToken: serializer.fromJson<String?>(json['shareToken']),
+      importedFromShareToken:
+          serializer.fromJson<String?>(json['importedFromShareToken']),
       langA: serializer.fromJson<String>(json['langA']),
       langB: serializer.fromJson<String>(json['langB']),
       origin: serializer.fromJson<String>(json['origin']),
@@ -381,6 +408,8 @@ class VocabularyListsTableData extends DataClass
       'visibility': serializer.toJson<String>(visibility),
       'wordCount': serializer.toJson<int>(wordCount),
       'shareToken': serializer.toJson<String?>(shareToken),
+      'importedFromShareToken':
+          serializer.toJson<String?>(importedFromShareToken),
       'langA': serializer.toJson<String>(langA),
       'langB': serializer.toJson<String>(langB),
       'origin': serializer.toJson<String>(origin),
@@ -400,6 +429,7 @@ class VocabularyListsTableData extends DataClass
           String? visibility,
           int? wordCount,
           Value<String?> shareToken = const Value.absent(),
+          Value<String?> importedFromShareToken = const Value.absent(),
           String? langA,
           String? langB,
           String? origin,
@@ -416,6 +446,9 @@ class VocabularyListsTableData extends DataClass
         visibility: visibility ?? this.visibility,
         wordCount: wordCount ?? this.wordCount,
         shareToken: shareToken.present ? shareToken.value : this.shareToken,
+        importedFromShareToken: importedFromShareToken.present
+            ? importedFromShareToken.value
+            : this.importedFromShareToken,
         langA: langA ?? this.langA,
         langB: langB ?? this.langB,
         origin: origin ?? this.origin,
@@ -438,6 +471,9 @@ class VocabularyListsTableData extends DataClass
       wordCount: data.wordCount.present ? data.wordCount.value : this.wordCount,
       shareToken:
           data.shareToken.present ? data.shareToken.value : this.shareToken,
+      importedFromShareToken: data.importedFromShareToken.present
+          ? data.importedFromShareToken.value
+          : this.importedFromShareToken,
       langA: data.langA.present ? data.langA.value : this.langA,
       langB: data.langB.present ? data.langB.value : this.langB,
       origin: data.origin.present ? data.origin.value : this.origin,
@@ -459,6 +495,7 @@ class VocabularyListsTableData extends DataClass
           ..write('visibility: $visibility, ')
           ..write('wordCount: $wordCount, ')
           ..write('shareToken: $shareToken, ')
+          ..write('importedFromShareToken: $importedFromShareToken, ')
           ..write('langA: $langA, ')
           ..write('langB: $langB, ')
           ..write('origin: $origin, ')
@@ -480,6 +517,7 @@ class VocabularyListsTableData extends DataClass
       visibility,
       wordCount,
       shareToken,
+      importedFromShareToken,
       langA,
       langB,
       origin,
@@ -499,6 +537,7 @@ class VocabularyListsTableData extends DataClass
           other.visibility == this.visibility &&
           other.wordCount == this.wordCount &&
           other.shareToken == this.shareToken &&
+          other.importedFromShareToken == this.importedFromShareToken &&
           other.langA == this.langA &&
           other.langB == this.langB &&
           other.origin == this.origin &&
@@ -518,6 +557,7 @@ class VocabularyListsTableCompanion
   final Value<String> visibility;
   final Value<int> wordCount;
   final Value<String?> shareToken;
+  final Value<String?> importedFromShareToken;
   final Value<String> langA;
   final Value<String> langB;
   final Value<String> origin;
@@ -535,6 +575,7 @@ class VocabularyListsTableCompanion
     this.visibility = const Value.absent(),
     this.wordCount = const Value.absent(),
     this.shareToken = const Value.absent(),
+    this.importedFromShareToken = const Value.absent(),
     this.langA = const Value.absent(),
     this.langB = const Value.absent(),
     this.origin = const Value.absent(),
@@ -553,6 +594,7 @@ class VocabularyListsTableCompanion
     this.visibility = const Value.absent(),
     this.wordCount = const Value.absent(),
     this.shareToken = const Value.absent(),
+    this.importedFromShareToken = const Value.absent(),
     this.langA = const Value.absent(),
     this.langB = const Value.absent(),
     this.origin = const Value.absent(),
@@ -575,6 +617,7 @@ class VocabularyListsTableCompanion
     Expression<String>? visibility,
     Expression<int>? wordCount,
     Expression<String>? shareToken,
+    Expression<String>? importedFromShareToken,
     Expression<String>? langA,
     Expression<String>? langB,
     Expression<String>? origin,
@@ -593,6 +636,8 @@ class VocabularyListsTableCompanion
       if (visibility != null) 'visibility': visibility,
       if (wordCount != null) 'word_count': wordCount,
       if (shareToken != null) 'share_token': shareToken,
+      if (importedFromShareToken != null)
+        'imported_from_share_token': importedFromShareToken,
       if (langA != null) 'lang_a': langA,
       if (langB != null) 'lang_b': langB,
       if (origin != null) 'origin': origin,
@@ -613,6 +658,7 @@ class VocabularyListsTableCompanion
       Value<String>? visibility,
       Value<int>? wordCount,
       Value<String?>? shareToken,
+      Value<String?>? importedFromShareToken,
       Value<String>? langA,
       Value<String>? langB,
       Value<String>? origin,
@@ -630,6 +676,8 @@ class VocabularyListsTableCompanion
       visibility: visibility ?? this.visibility,
       wordCount: wordCount ?? this.wordCount,
       shareToken: shareToken ?? this.shareToken,
+      importedFromShareToken:
+          importedFromShareToken ?? this.importedFromShareToken,
       langA: langA ?? this.langA,
       langB: langB ?? this.langB,
       origin: origin ?? this.origin,
@@ -665,6 +713,10 @@ class VocabularyListsTableCompanion
     }
     if (shareToken.present) {
       map['share_token'] = Variable<String>(shareToken.value);
+    }
+    if (importedFromShareToken.present) {
+      map['imported_from_share_token'] =
+          Variable<String>(importedFromShareToken.value);
     }
     if (langA.present) {
       map['lang_a'] = Variable<String>(langA.value);
@@ -706,6 +758,7 @@ class VocabularyListsTableCompanion
           ..write('visibility: $visibility, ')
           ..write('wordCount: $wordCount, ')
           ..write('shareToken: $shareToken, ')
+          ..write('importedFromShareToken: $importedFromShareToken, ')
           ..write('langA: $langA, ')
           ..write('langB: $langB, ')
           ..write('origin: $origin, ')
@@ -4649,6 +4702,7 @@ typedef $$VocabularyListsTableTableCreateCompanionBuilder
   Value<String> visibility,
   Value<int> wordCount,
   Value<String?> shareToken,
+  Value<String?> importedFromShareToken,
   Value<String> langA,
   Value<String> langB,
   Value<String> origin,
@@ -4668,6 +4722,7 @@ typedef $$VocabularyListsTableTableUpdateCompanionBuilder
   Value<String> visibility,
   Value<int> wordCount,
   Value<String?> shareToken,
+  Value<String?> importedFromShareToken,
   Value<String> langA,
   Value<String> langB,
   Value<String> origin,
@@ -4729,6 +4784,10 @@ class $$VocabularyListsTableTableFilterComposer
 
   ColumnFilters<String> get shareToken => $composableBuilder(
       column: $table.shareToken, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get importedFromShareToken => $composableBuilder(
+      column: $table.importedFromShareToken,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get langA => $composableBuilder(
       column: $table.langA, builder: (column) => ColumnFilters(column));
@@ -4806,6 +4865,10 @@ class $$VocabularyListsTableTableOrderingComposer
   ColumnOrderings<String> get shareToken => $composableBuilder(
       column: $table.shareToken, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get importedFromShareToken => $composableBuilder(
+      column: $table.importedFromShareToken,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get langA => $composableBuilder(
       column: $table.langA, builder: (column) => ColumnOrderings(column));
 
@@ -4860,6 +4923,9 @@ class $$VocabularyListsTableTableAnnotationComposer
 
   GeneratedColumn<String> get shareToken => $composableBuilder(
       column: $table.shareToken, builder: (column) => column);
+
+  GeneratedColumn<String> get importedFromShareToken => $composableBuilder(
+      column: $table.importedFromShareToken, builder: (column) => column);
 
   GeneratedColumn<String> get langA =>
       $composableBuilder(column: $table.langA, builder: (column) => column);
@@ -4940,6 +5006,7 @@ class $$VocabularyListsTableTableTableManager extends RootTableManager<
             Value<String> visibility = const Value.absent(),
             Value<int> wordCount = const Value.absent(),
             Value<String?> shareToken = const Value.absent(),
+            Value<String?> importedFromShareToken = const Value.absent(),
             Value<String> langA = const Value.absent(),
             Value<String> langB = const Value.absent(),
             Value<String> origin = const Value.absent(),
@@ -4958,6 +5025,7 @@ class $$VocabularyListsTableTableTableManager extends RootTableManager<
             visibility: visibility,
             wordCount: wordCount,
             shareToken: shareToken,
+            importedFromShareToken: importedFromShareToken,
             langA: langA,
             langB: langB,
             origin: origin,
@@ -4976,6 +5044,7 @@ class $$VocabularyListsTableTableTableManager extends RootTableManager<
             Value<String> visibility = const Value.absent(),
             Value<int> wordCount = const Value.absent(),
             Value<String?> shareToken = const Value.absent(),
+            Value<String?> importedFromShareToken = const Value.absent(),
             Value<String> langA = const Value.absent(),
             Value<String> langB = const Value.absent(),
             Value<String> origin = const Value.absent(),
@@ -4994,6 +5063,7 @@ class $$VocabularyListsTableTableTableManager extends RootTableManager<
             visibility: visibility,
             wordCount: wordCount,
             shareToken: shareToken,
+            importedFromShareToken: importedFromShareToken,
             langA: langA,
             langB: langB,
             origin: origin,

@@ -16,6 +16,8 @@ class GetDueCardsUseCase {
     String? listId,
     QuizSource source = QuizSource.list,
     required QuizDirection direction,
+    String? langA,
+    String? langB,
     int limit = 20,
   }) =>
       switch (source) {
@@ -30,11 +32,15 @@ class GetDueCardsUseCase {
         QuizSource.allDue => _repo.getAllDueCards(
             userId: userId,
             direction: direction,
+            langA: langA,
+            langB: langB,
             limit: limit,
           ),
         QuizSource.inProgress => _repo.getInProgressCards(
             userId: userId,
             direction: direction,
+            langA: langA,
+            langB: langB,
             limit: limit,
           ),
       };

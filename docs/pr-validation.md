@@ -123,6 +123,11 @@ exige :
 - une compilation Android intégrant le moteur natif Whisper épinglé ;
 - un contrôle de la frontière de licence Whisper et des tests des fonctions
   cloud/quota sur une base PostgreSQL jetable.
+Ce dernier contrôle applique aussi les migrations de production de sécurité
+et vérifie les lectures publiques, la confidentialité des clips et l'historique
+des réponses. Le reset E2E est exercé avec deux connexions PostgreSQL pour
+vérifier qu'une écriture intercompte ne peut pas se glisser entre contrôle et
+suppression.
 
 La version Flutter de ce check est figée à **3.44.9**, celle qui correspond à
 la version validée du projet. Toute montée de SDK est une modification séparée
@@ -146,3 +151,4 @@ obligatoires restent le verrou effectif.
 - [Tests et stratégie](../TESTS.md)
 - [Documentation et commits](runbooks/documentation-et-commits.md)
 - [Décision de convergence](decisions/2026-11-22-pr-validation-convergence.md)
+- [Lot de correction de la revue d'intégration du 27 novembre](reviews/2026-11-27-integration.md)

@@ -58,6 +58,9 @@ La fonction sans argument est privée ; le client ne peut cibler un autre UUID.
 Une erreur annule le reset et fait échouer uniquement le scénario concerné.
 Les autres suites continuent même après un échec. Les processus Android sont renouvelés par Test Orchestrator avec
 `clearPackageData=true`. `TEST_SESSION` est interdit.
+La migration 012 étend le verrou transactionnel aux tables de relations et de
+contenu avant le précontrôle : une écriture intercompte arrivant pendant le
+reset attend sa fin au lieu d'être supprimée après un contrôle déjà passé.
 
 Le reset efface listes, concepts, variantes, progression, abonnements Supabase,
 notifications et classement du compte. Il recrée son profil gratuit avec le
@@ -122,6 +125,18 @@ Le trafic ne garantit pas contractuellement l'absence de pause Supabase.
   Ils vérifient les permissions, le refus de réaffectation, le rollback et
   l'absence de modification du compte B lorsque A est réinitialisé.
 - Un passage Patrol réel reste nécessaire après activation de la base hébergée.
+- `supabase/tests/reset_concurrency.sh`, sur un PostgreSQL jetable dont le nom
+  se termine par `_test`, vérifie avec deux connexions qu'une relation créée
+  pendant le reset est bloquée puis conservée après celui-ci.
+
+## Diagnostic vocal local
+
+Les transcriptions brutes ne sont écrites ni sur disque ni dans les journaux
+système par un build de livraison. Un build debug doit être lancé explicitement
+avec `--dart-define=STT_DIAGNOSTICS=true` pour activer les diagnostics persistants.
+Le récepteur de corpus debug exige la permission système `DUMP` détenue par
+`adb shell`, refuse les applications ordinaires, et limite ses fichiers WAV
+PCM16 mono 16 kHz de 30 secondes au répertoire externe `files/corpus/` du build.
 
 Les jobs conservent pendant 7 jours les rapports Android HTML/XML/textuels,
 même en cas d’échec. Les identifiants configurés et JWT sont masqués avant

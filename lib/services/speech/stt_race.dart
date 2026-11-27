@@ -50,8 +50,8 @@ class SttRaceOutcome {
 /// Runs several [SttEngine]s against the same turn and resolves as soon as ANY
 /// of them produces a guess that validates against the known answer — then
 /// cancels the losers. Because the quiz answer is known, this is a race with
-/// early-accept, not transcript fusion: the fastest correct engine wins, so
-/// latency is the best engine's, not the sum of sequential fallbacks.
+/// early-accept, not transcript fusion. Local engines run together; network
+/// engines receive audio only as a rescue after the local window fails.
 ///
 /// Adding/removing racers is done through [SttEngineRegistry]; this coordinator
 /// is engine-agnostic and never names a concrete engine.
@@ -357,9 +357,8 @@ class SttRace {
     return completer.future;
   }
 
-  /// Parallel race on ONE shared microphone. Every utterance the capture
-  /// detects is transcribed by every engine at once; the first validating
-  /// transcript wins.
+  /// ONE shared microphone feeds local decoders in parallel. Network engines
+  /// are a serial fallback when local decoding cannot validate the turn.
   ///
   /// The window is speech-aware (field log 2026-10-02, 7 of 20 right
   /// answers lost to the guillotine):
@@ -396,13 +395,24 @@ class SttRace {
     Timer? overrun;
     var micOpen = false;
     var micClosed = false;
+    var micClosing = false;
     var speaking = false;
     var inFlight = 0;
     var finished = false;
+    final localRacers = racers.where((e) => !e.requiresNetwork).toList();
+    final cloudRacers = racers.where((e) => e.requiresNetwork).toList();
+    final captured = <PcmSegment>[];
+    var fallbackStarted = false;
+    var fallbackRunning = false;
+    Future<void> cloudChain = Future.value();
+    var queuedCloud = 0;
+    late Future<void> Function(SttEngine, PcmSegment) analyze;
 
     SttPhase phase() {
       if (finished) return SttPhase.done;
-      if (inFlight > 0) return SttPhase.analyzing;
+      if (inFlight > 0 || queuedCloud > 0 || fallbackRunning) {
+        return SttPhase.analyzing;
+      }
       if (micClosed) return SttPhase.done;
       if (speaking) return SttPhase.speaking;
       return micOpen ? SttPhase.listening : SttPhase.starting;
@@ -428,7 +438,39 @@ class SttRace {
     }
 
     void finishIfSettled() {
-      if (finished || !micClosed || inFlight > 0) return;
+      if (finished ||
+          !micClosed ||
+          micClosing ||
+          inFlight > 0 ||
+          queuedCloud > 0 ||
+          fallbackRunning) {
+        return;
+      }
+      if (!fallbackStarted &&
+          localRacers.isNotEmpty &&
+          cloudRacers.isNotEmpty &&
+          captured.isNotEmpty) {
+        fallbackStarted = true;
+        fallbackRunning = true;
+        onMicClosedPending?.call();
+        emit();
+        // Keep voice on-device until every local hypothesis and the flushed
+        // tail have failed. Cloud is a serial rescue, never a parallel upload.
+        unawaited(Future<void>(() async {
+          try {
+            for (final segment in captured.reversed) {
+              for (final engine in cloudRacers) {
+                if (finished) return;
+                await analyze(engine, segment);
+              }
+            }
+          } finally {
+            fallbackRunning = false;
+            finishIfSettled();
+          }
+        }));
+        return;
+      }
       sttLog('[RACE] ⏱ window over — no engine validated '
           '(${seen.length} hypotheses)');
       finish(SttRaceOutcome(
@@ -439,66 +481,97 @@ class SttRace {
       ));
     }
 
-    void dispatch(PcmSegment segment) {
+    analyze = (engine, segment) async {
       if (finished) return;
-      for (final engine in racers) {
-        inFlight++;
-        chips[engine.id] =
-            chips[engine.id]!.copyWith(state: SttEngineState.working);
-        unawaited(engine
+      inFlight++;
+      chips[engine.id] =
+          chips[engine.id]!.copyWith(state: SttEngineState.working);
+      emit();
+      try {
+        final h = await engine
             .recognize(segment, langCode: langCode, promptHints: promptHints)
-            .timeout(analysisTimeout)
-            .then<void>((h) {
-          if (finished) return;
-          if (h == null) {
-            chips[engine.id] =
-                chips[engine.id]!.copyWith(state: SttEngineState.empty);
-            return;
-          }
-          seen.add(h);
-          final match = AnswerValidator.firstCorrect(
-            candidates: h.candidates.isEmpty ? [h.transcript] : h.candidates,
-            acceptedAnswers: acceptedAnswers,
-            isDrivingMode: isDrivingMode,
-          );
-          chips[engine.id] = chips[engine.id]!.copyWith(
-            state: SttEngineState.heard,
-            transcript: h.transcript,
-            matched: match != null,
-          );
-          if (match != null) {
-            sttLog('[RACE] 🏁 "${engine.id}" wins with "$match"');
-            finish(SttRaceOutcome(
-              matched: true,
-              winnerEngineId: engine.id,
-              matchedCandidate: match,
-              bestTranscript: h.transcript,
-              hypotheses: List.of(seen),
-              hadRealSession: true,
-            ));
-          }
-        }, onError: (Object error) {
-          if (finished) return;
-          sttLog('[RACE] "${engine.id}" failed: $error');
+            .timeout(analysisTimeout);
+        if (finished) return;
+        if (h == null) {
           chips[engine.id] =
-              chips[engine.id]!.copyWith(state: SttEngineState.failed);
-        }).whenComplete(() {
-          inFlight--;
-          if (finished) return;
+              chips[engine.id]!.copyWith(state: SttEngineState.empty);
+          return;
+        }
+        seen.add(h);
+        final match = AnswerValidator.firstCorrect(
+          candidates: h.candidates.isEmpty ? [h.transcript] : h.candidates,
+          acceptedAnswers: acceptedAnswers,
+          isDrivingMode: isDrivingMode,
+        );
+        chips[engine.id] = chips[engine.id]!.copyWith(
+          state: SttEngineState.heard,
+          transcript: h.transcript,
+          matched: match != null,
+        );
+        if (match != null) {
+          sttLog('[RACE] 🏁 "${engine.id}" wins with "$match"');
+          finish(SttRaceOutcome(
+            matched: true,
+            winnerEngineId: engine.id,
+            matchedCandidate: match,
+            bestTranscript: h.transcript,
+            hypotheses: List.of(seen),
+            hadRealSession: true,
+          ));
+        }
+      } catch (error) {
+        if (finished) return;
+        sttLog('[RACE] "${engine.id}" failed: $error');
+        chips[engine.id] =
+            chips[engine.id]!.copyWith(state: SttEngineState.failed);
+      } finally {
+        inFlight--;
+        if (!finished) {
           emit();
           finishIfSettled();
-        }));
+        }
+      }
+    };
+
+    void dispatch(PcmSegment segment) {
+      if (finished) return;
+      captured.add(segment);
+      if (localRacers.isEmpty) {
+        // If local engines are unavailable, cloud can start immediately but
+        // still gets at most one request at a time across segments/engines.
+        queuedCloud++;
+        cloudChain = cloudChain.then((_) async {
+          try {
+            for (final engine in cloudRacers) {
+              if (finished) return;
+              await analyze(engine, segment);
+            }
+          } finally {
+            queuedCloud--;
+            finishIfSettled();
+          }
+        });
+      }
+      for (final engine in localRacers) {
+        unawaited(analyze(engine, segment));
       }
       emit();
     }
 
     Future<void> closeMic() async {
-      if (micClosed || finished) return;
-      micClosed = true;
+      if (micClosed || micClosing || finished) return;
+      micClosing = true;
       overrun?.cancel();
       speaking = false;
-      final tail = await session?.close(flush: true);
+      PcmSegment? tail;
+      try {
+        tail = await session?.close(flush: true);
+      } catch (error) {
+        sttLog('[RACE] microphone close failed: $error');
+      }
       if (tail != null) dispatch(tail);
+      micClosing = false;
+      micClosed = true;
       if (finished) return;
       if (inFlight > 0) {
         sttLog('[RACE] 🎙️ mic closed — awaiting $inFlight analyses');

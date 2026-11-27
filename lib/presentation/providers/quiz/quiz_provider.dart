@@ -76,6 +76,19 @@ bool shouldSpeakAnswer(QuizMode mode, {required bool correct}) =>
     mode != QuizMode.typing && // typing: on-demand speaker button instead
     (mode != QuizMode.handsFree || !correct);
 
+/// A written grammar exercise tests the form itself. Vocabulary's phonetic,
+/// article and elision tolerance would erase the distinction being taught.
+bool isWrittenGrammarAnswer(String answer, List<String> acceptedAnswers) {
+  String normalize(String text) => text
+      .trim()
+      .toLowerCase()
+      .replaceAll('’', "'")
+      .replaceAll(RegExp(r'\s+'), ' ');
+  final input = normalize(answer);
+  return input.isNotEmpty &&
+      acceptedAnswers.any((word) => normalize(word) == input);
+}
+
 /// UI-level direction choice. `both` means load cards in both FR→KR and KR→FR
 /// directions — each individual card still has a single concrete direction.
 /// Never stored in the DB; only used in QuizArgs.
@@ -254,6 +267,9 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   AudioPlayerService? _audio;
   AudioDirector? _director;
   var _alive = true;
+  var _foreground = true;
+  var _lifecycleEpoch = 0;
+  ({int index, bool correct})? _pendingAutoAdvance;
   // Eagerly mirrored in the state setter so build() can restore it after a
   // dependency-triggered rebuild. Riverpod resets internal state to
   // "uninitialized" before firing onDispose, so reading state there throws.
@@ -282,6 +298,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   /// flashes the OLD session's summary before loadCards runs (the provider
   /// isn't autoDispose; field report 2026-07-14). Call before navigating.
   void reset() {
+    _pendingAutoAdvance = null;
+    _lifecycleEpoch++;
     _cardShownAt = null;
     _requeuedOnce.clear();
     state = const QuizState();
@@ -311,6 +329,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         listId: args.listId,
         source: args.source,
         direction: args.forward,
+        langA: args.langA,
+        langB: args.langB,
         limit: limit,
       );
       final koResult = await getDueCards.call(
@@ -318,6 +338,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         listId: args.listId,
         source: args.source,
         direction: args.backward,
+        langA: args.langA,
+        langB: args.langB,
         limit: limit,
       );
       if (frResult.isFailure && koResult.isFailure) {
@@ -343,6 +365,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         listId: args.listId,
         source: args.source,
         direction: direction,
+        langA: args.langA,
+        langB: args.langB,
         limit: args.cardLimit,
       );
       if (result.isFailure) {
@@ -445,6 +469,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     unawaited(_prefetchSessionAudio(quizCards));
 
     if (quizCards.isNotEmpty &&
+        _foreground &&
         !_kTestMode &&
         args.source != QuizSource.grammar) {
       final first = quizCards.first;
@@ -542,7 +567,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   /// state (so the full-screen feedback flood shows), then Continuer advances.
   void gradeFlashcard(FsrsRating rating) {
     final card = state.currentCard;
-    if (card == null) return;
+    if (card == null || state.answerState != QuizAnswerState.idle) return;
     // Cartes NEVER advances mastery (product decision 2026-07-04): self-graded
     // flips are too easy to fake, so no FSRS rating is persisted — the mode is
     // pure practice. Session score/history still record normally. Applies to
@@ -564,12 +589,14 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
 
   void submitTextAnswer(String answer) {
     final card = state.currentCard;
-    if (card == null) return;
-    final result = AnswerValidator.validate(
-      userAnswer: answer,
-      acceptedAnswers: card.answerWords,
-    );
-    final rating = result.isCorrect ? FsrsRating.good : FsrsRating.again;
+    if (card == null || state.answerState != QuizAnswerState.idle) return;
+    final correct = _lastArgs?.source == QuizSource.grammar
+        ? isWrittenGrammarAnswer(answer, card.answerWords)
+        : AnswerValidator.validate(
+            userAnswer: answer,
+            acceptedAnswers: card.answerWords,
+          ).isCorrect;
+    final rating = correct ? FsrsRating.good : FsrsRating.again;
     // Same best-effort rule as submitVoiceAnswer: the verdict always lands.
     var scheduledDays = 0;
     try {
@@ -584,20 +611,20 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     } catch (e) {
       sttLog('[QUIZ] ⚠️ persistRating failed (sync): $e');
     }
-    _recordReviewEvent(card, correct: result.isCorrect, rating: rating);
+    _recordReviewEvent(card, correct: correct, rating: rating);
     state = state.copyWith(
       userAnswer: answer,
-      answerState: result.isCorrect
-          ? QuizAnswerState.correct
-          : QuizAnswerState.incorrect,
+      answerState:
+          correct ? QuizAnswerState.correct : QuizAnswerState.incorrect,
       scheduledDays: scheduledDays,
     );
     // Advance is triggered by user tapping "Continuer" on the feedback screen.
   }
 
   void submitVoiceAnswer(String transcript, {bool isDrivingMode = false}) {
+    if (!_foreground) return;
     final card = state.currentCard;
-    if (card == null) return;
+    if (card == null || state.answerState != QuizAnswerState.idle) return;
     final result = AnswerValidator.validate(
       userAnswer: transcript,
       acceptedAnswers: card.answerWords,
@@ -632,6 +659,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       scheduledDays: scheduledDays,
     );
     if (isDrivingMode) {
+      _pendingAutoAdvance =
+          (index: state.currentIndex, correct: result.isCorrect);
       unawaited(_advanceAfterAudio(isCorrect: result.isCorrect));
     }
     // Otherwise: advance is triggered by "Continuer" on the feedback screen.
@@ -645,8 +674,13 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   /// quiet gives every card a clean audio slate.
   Future<void> _advanceAfterAudio({required bool isCorrect}) async {
     final marker = state.currentIndex;
+    final epoch = _lifecycleEpoch;
     bool sameCard() =>
-        _alive && state.currentIndex == marker && !state.isComplete;
+        _alive &&
+        _foreground &&
+        _lifecycleEpoch == epoch &&
+        state.currentIndex == marker &&
+        !state.isComplete;
     // Give the screen's grade reaction a beat to START its audio first.
     await Future.delayed(const Duration(milliseconds: 250));
     if (isCorrect) {
@@ -667,8 +701,23 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       );
       await Future.delayed(const Duration(milliseconds: 650));
     }
-    if (state.currentIndex != marker || state.isComplete) return; // moved on
+    if (!sameCard()) return;
     _advance(isCorrect: isCorrect);
+  }
+
+  /// Invalidate delayed feedback/advance work before the screen stops audio.
+  /// A graded card stays graded while backgrounded and advances once on resume.
+  void setForeground(bool foreground) {
+    if (_foreground == foreground) return;
+    _foreground = foreground;
+    _lifecycleEpoch++;
+    if (!foreground) return;
+    final pending = _pendingAutoAdvance;
+    if (pending != null &&
+        state.currentIndex == pending.index &&
+        !state.isComplete) {
+      unawaited(_advanceAfterAudio(isCorrect: pending.correct));
+    }
   }
 
   /// Records one review-event row (observability for the stats dashboard).
@@ -860,6 +909,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
           progress: card.progress,
           questionWord: card.questionWord,
           answerWords: card.answerWords,
+          questionAudioPath: card.questionAudioPath,
+          answerAudioPath: card.answerAudioPath,
           isRequeue: true,
         ),
       ]);
@@ -868,6 +919,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   }
 
   void _advance({required bool isCorrect}) {
+    _pendingAutoAdvance = null;
     final next = state.currentIndex + 1;
     final newCorrect = state.correctCount + (isCorrect ? 1 : 0);
     if (next >= state.total) {
@@ -895,7 +947,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
           !_kTestMode &&
           _lastArgs?.source != QuizSource.grammar) {
         final nextLang = nextCard.progress.direction.questionLang;
-        unawaited(_speakWhenQuiet(nextCard.questionWord, nextLang));
+        unawaited(_speakWhenQuiet(nextCard.questionWord, nextLang,
+            audioPath: nextCard.questionAudioPath));
       }
     }
   }
@@ -904,8 +957,17 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   /// can still be playing when the session advances, and starting the next
   /// question over it produced overlapping audio (field log 2026-07-09,
   /// TTS active=2 near the end of the session).
-  Future<void> _speakWhenQuiet(String text, String langCode) async {
+  Future<void> _speakWhenQuiet(String text, String langCode,
+      {String? audioPath}) async {
+    final epoch = _lifecycleEpoch;
+    final index = state.currentIndex;
     // Wait/speak semantics owned by AudioDirector (refactor step 1).
-    await _director?.speakWhenQuiet(text, langCode);
+    await _director?.speakWhenQuiet(text, langCode,
+        audioPath: audioPath,
+        keepGoing: () =>
+            _alive &&
+            _foreground &&
+            epoch == _lifecycleEpoch &&
+            state.currentIndex == index);
   }
 }

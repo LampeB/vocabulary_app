@@ -25,7 +25,8 @@ class GrammarLessonScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final targetLang = ref.watch(defaultPairProvider).$2;
+    final pair = ref.watch(defaultPairProvider);
+    final targetLang = pair.$2;
     final rulesAsync = ref.watch(grammarRulesProvider(targetLang));
     return Scaffold(
       key: const ValueKey(WidgetKeys.screenGrammarLesson),
@@ -51,7 +52,7 @@ class GrammarLessonScreen extends ConsumerWidget {
                 final matches = rules.where((rule) => rule.id == ruleId);
                 return matches.isEmpty
                     ? _UnavailableLesson()
-                    : _LessonReader(rule: matches.first);
+                    : _LessonReader(rule: matches.first, pair: pair);
               },
             ),
           ),
@@ -76,9 +77,10 @@ class _UnavailableLesson extends StatelessWidget {
 }
 
 class _LessonReader extends StatefulWidget {
-  const _LessonReader({required this.rule});
+  const _LessonReader({required this.rule, required this.pair});
 
   final GrammarRule rule;
+  final (String, String) pair;
 
   @override
   State<_LessonReader> createState() => _LessonReaderState();
@@ -157,7 +159,13 @@ class _LessonReaderState extends State<_LessonReader> {
                             ? const ValueKey(WidgetKeys.grammarLessonPractice)
                             : null,
                         onPressed: atLastPage
-                            ? () => context.push('/start-session-grammar')
+                            ? () => context.push(Uri(
+                                    path: '/start-session-grammar',
+                                    queryParameters: {
+                                      'rule': widget.rule.id,
+                                      'langA': widget.pair.$1,
+                                      'langB': widget.pair.$2
+                                    }).toString())
                             : () => _controller.nextPage(
                                   duration: const Duration(milliseconds: 180),
                                   curve: Curves.easeOutCubic,

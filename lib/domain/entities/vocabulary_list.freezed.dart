@@ -27,6 +27,9 @@ mixin _$VocabularyList {
   ListVisibility get visibility => throw _privateConstructorUsedError;
   int get wordCount => throw _privateConstructorUsedError;
   String? get shareToken => throw _privateConstructorUsedError;
+
+  /// Token of the source list, never republished as this copy's public token.
+  String? get importedFromShareToken => throw _privateConstructorUsedError;
   String get langA => throw _privateConstructorUsedError;
   String get langB => throw _privateConstructorUsedError;
   String get origin => throw _privateConstructorUsedError;
@@ -62,6 +65,7 @@ abstract class $VocabularyListCopyWith<$Res> {
       ListVisibility visibility,
       int wordCount,
       String? shareToken,
+      String? importedFromShareToken,
       String langA,
       String langB,
       String origin,
@@ -94,6 +98,7 @@ class _$VocabularyListCopyWithImpl<$Res, $Val extends VocabularyList>
     Object? visibility = null,
     Object? wordCount = null,
     Object? shareToken = freezed,
+    Object? importedFromShareToken = freezed,
     Object? langA = null,
     Object? langB = null,
     Object? origin = null,
@@ -131,6 +136,10 @@ class _$VocabularyListCopyWithImpl<$Res, $Val extends VocabularyList>
       shareToken: freezed == shareToken
           ? _value.shareToken
           : shareToken // ignore: cast_nullable_to_non_nullable
+              as String?,
+      importedFromShareToken: freezed == importedFromShareToken
+          ? _value.importedFromShareToken
+          : importedFromShareToken // ignore: cast_nullable_to_non_nullable
               as String?,
       langA: null == langA
           ? _value.langA
@@ -184,6 +193,7 @@ abstract class _$$VocabularyListImplCopyWith<$Res>
       ListVisibility visibility,
       int wordCount,
       String? shareToken,
+      String? importedFromShareToken,
       String langA,
       String langB,
       String origin,
@@ -214,6 +224,7 @@ class __$$VocabularyListImplCopyWithImpl<$Res>
     Object? visibility = null,
     Object? wordCount = null,
     Object? shareToken = freezed,
+    Object? importedFromShareToken = freezed,
     Object? langA = null,
     Object? langB = null,
     Object? origin = null,
@@ -251,6 +262,10 @@ class __$$VocabularyListImplCopyWithImpl<$Res>
       shareToken: freezed == shareToken
           ? _value.shareToken
           : shareToken // ignore: cast_nullable_to_non_nullable
+              as String?,
+      importedFromShareToken: freezed == importedFromShareToken
+          ? _value.importedFromShareToken
+          : importedFromShareToken // ignore: cast_nullable_to_non_nullable
               as String?,
       langA: null == langA
           ? _value.langA
@@ -299,6 +314,7 @@ class _$VocabularyListImpl implements _VocabularyList {
       this.visibility = ListVisibility.private,
       this.wordCount = 0,
       this.shareToken,
+      this.importedFromShareToken,
       this.langA = 'fr',
       this.langB = 'ko',
       this.origin = 'user',
@@ -327,6 +343,10 @@ class _$VocabularyListImpl implements _VocabularyList {
   final int wordCount;
   @override
   final String? shareToken;
+
+  /// Token of the source list, never republished as this copy's public token.
+  @override
+  final String? importedFromShareToken;
   @override
   @JsonKey()
   final String langA;
@@ -353,7 +373,7 @@ class _$VocabularyListImpl implements _VocabularyList {
 
   @override
   String toString() {
-    return 'VocabularyList(id: $id, ownerId: $ownerId, name: $name, description: $description, visibility: $visibility, wordCount: $wordCount, shareToken: $shareToken, langA: $langA, langB: $langB, origin: $origin, seedId: $seedId, isSynced: $isSynced, isDeleted: $isDeleted, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'VocabularyList(id: $id, ownerId: $ownerId, name: $name, description: $description, visibility: $visibility, wordCount: $wordCount, shareToken: $shareToken, importedFromShareToken: $importedFromShareToken, langA: $langA, langB: $langB, origin: $origin, seedId: $seedId, isSynced: $isSynced, isDeleted: $isDeleted, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -372,6 +392,8 @@ class _$VocabularyListImpl implements _VocabularyList {
                 other.wordCount == wordCount) &&
             (identical(other.shareToken, shareToken) ||
                 other.shareToken == shareToken) &&
+            (identical(other.importedFromShareToken, importedFromShareToken) ||
+                other.importedFromShareToken == importedFromShareToken) &&
             (identical(other.langA, langA) || other.langA == langA) &&
             (identical(other.langB, langB) || other.langB == langB) &&
             (identical(other.origin, origin) || other.origin == origin) &&
@@ -397,6 +419,7 @@ class _$VocabularyListImpl implements _VocabularyList {
       visibility,
       wordCount,
       shareToken,
+      importedFromShareToken,
       langA,
       langB,
       origin,
@@ -432,6 +455,7 @@ abstract class _VocabularyList implements VocabularyList {
       final ListVisibility visibility,
       final int wordCount,
       final String? shareToken,
+      final String? importedFromShareToken,
       final String langA,
       final String langB,
       final String origin,
@@ -458,6 +482,10 @@ abstract class _VocabularyList implements VocabularyList {
   int get wordCount;
   @override
   String? get shareToken;
+
+  /// Token of the source list, never republished as this copy's public token.
+  @override
+  String? get importedFromShareToken;
   @override
   String get langA;
   @override

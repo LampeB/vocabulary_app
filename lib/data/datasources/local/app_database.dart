@@ -41,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -126,10 +126,28 @@ class AppDatabase extends _$AppDatabase {
             // file directly, without a per-card TTS request.
             await m.addColumn(wordVariantsTable, wordVariantsTable.audioPath);
           }
+          if (from < 11) {
+            await m.addColumn(vocabularyListsTable,
+                vocabularyListsTable.importedFromShareToken);
+            await customStatement(
+                "UPDATE vocabulary_lists SET imported_from_share_token = share_token, share_token = NULL, is_synced = 0 WHERE visibility = 'private' AND share_token IS NOT NULL");
+            // Keep the latest pending local version of a business key. Older
+            // duplicate UUIDs arose when two devices first reviewed offline.
+            await customStatement(
+                '''DELETE FROM variant_progress WHERE id NOT IN (
+              SELECT id FROM (SELECT id, ROW_NUMBER() OVER (
+                PARTITION BY user_id, variant_id, direction
+                ORDER BY is_synced ASC, updated_at DESC, reps DESC, id) AS rank
+                FROM variant_progress) WHERE rank = 1)''');
+            await customStatement(
+                'CREATE UNIQUE INDEX IF NOT EXISTS idx_progress_identity ON variant_progress(user_id, variant_id, direction)');
+          }
         },
       );
 
   Future<void> _createIndexes() async {
+    await customStatement(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_progress_identity ON variant_progress(user_id, variant_id, direction)');
     await customStatement(
         'CREATE INDEX IF NOT EXISTS idx_concepts_list_id ON concepts(list_id)');
     await customStatement(

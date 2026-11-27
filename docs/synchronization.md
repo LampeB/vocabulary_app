@@ -22,6 +22,13 @@ L'application utilise SQLite comme source de lecture et les colonnes
   tous ses mots avant d'ouvrir le partage système. Son token et sa visibilité
   publique sont conservés localement ; importer un lien conserve la copie
   privée tant que l'utilisateur ne la partage pas lui-même.
+- La provenance d'import (`imported_from_share_token`) est distincte du jeton
+  public unique. Elle est écrite atomiquement avec la copie et sert à la
+  déduplication par compte. La migration locale 11 répare les anciennes copies.
+- Une progression est identifiée par `(user_id, variant_id, direction)` : les
+  nouvelles cartes utilisent un UUID déterministe et l'envoi distant fait un
+  upsert sur cette clé métier. La récupération préserve une édition locale en
+  attente et ne crée pas un doublon lorsqu'un autre appareil a un ancien UUID.
 
 ## Récupération distante
 
@@ -35,12 +42,19 @@ L'application utilise SQLite comme source de lecture et les colonnes
 - L'authentification, y compris une connexion depuis l'écran d'accueil,
   déclenche la récupération puis le seeding idempotent avant le plateau.
   Une panne réseau autorise toujours le travail local.
+- Les créations de listes starter partagent une exécution en cours par
+  compte/paire. Un import échoué ne positionne jamais le marqueur de complétion.
 
 ## Paires de langues
 
 Les exports JSON et les liens partagés préservent `langA` et `langB`. Le chemin
 quotidien recommande uniquement une liste de la paire active ; sans liste
 correspondante, il propose d'en préparer une.
+Les compteurs et les sessions intelligentes utilisent la paire **ordonnée**
+de la liste et excluent les concepts/listes supprimés. Un compteur ouvert
+réévalue l'heure au moins une fois par minute. Les exercices observent une
+projection dédupliquée des états pédagogiques et du vocabulaire ; un accusé de
+synchronisation sans changement pédagogique ne recharge pas leur pool.
 
 Les tests d'intégration de récupération, d'envoi et d'export/import servent de
 preuves exécutables. La validation sur deux appareils reste nécessaire avant

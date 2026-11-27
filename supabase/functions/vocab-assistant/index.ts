@@ -9,6 +9,7 @@
 // function secret, JWT verification is on, the app never ships a key.
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { authorizeAndConsume } from "../_shared/provider_gate.ts";
+import { boundedJson, boundedText } from "../_shared/request_limits.ts";
 
 const TRANSLATE_SCHEMA = {
   type: "object",
@@ -18,7 +19,10 @@ const TRANSLATE_SCHEMA = {
       items: {
         type: "object",
         properties: {
-          text: { type: "string", description: "Translation in the target language" },
+          text: {
+            type: "string",
+            description: "Translation in the target language",
+          },
           note: {
             type: "string",
             description:
@@ -35,8 +39,15 @@ const TRANSLATE_SCHEMA = {
       items: {
         type: "object",
         properties: {
-          source: { type: "string", description: "Voice-friendly form of the SOURCE word" },
-          target: { type: "string", description: "Matching voice-friendly form of the FIRST translation" },
+          source: {
+            type: "string",
+            description: "Voice-friendly form of the SOURCE word",
+          },
+          target: {
+            type: "string",
+            description:
+              "Matching voice-friendly form of the FIRST translation",
+          },
         },
         required: ["source", "target"],
         additionalProperties: false,
@@ -90,7 +101,7 @@ Deno.serve(async (req) => {
   }
   let body;
   try {
-    body = await req.json();
+    body = await boundedJson(req);
   } catch {
     return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
@@ -98,16 +109,52 @@ Deno.serve(async (req) => {
     return Response.json({ error: "Invalid request" }, { status: 400 });
   }
   const mode = body.mode as string;
+  if (
+    !["translate", "suggest"].includes(mode) ||
+    !boundedText(body.sourceLang, 8) || !boundedText(body.targetLang, 8) ||
+    !LANG_NAMES[body.sourceLang] || !LANG_NAMES[body.targetLang] ||
+    (mode === "translate" && !boundedText(body.word, 256)) ||
+    (body.theme !== undefined && !boundedText(body.theme, 256, false)) ||
+    (body.existingWords !== undefined && (!Array.isArray(body.existingWords) ||
+      body.existingWords.length > 80 ||
+      !body.existingWords.every((v: unknown) => boundedText(v, 256)))) ||
+    (body.existingPairs !== undefined && (!Array.isArray(body.existingPairs) ||
+      body.existingPairs.length > 80 ||
+      !body.existingPairs.every((v: unknown) => {
+        const pair = v as { source?: unknown; target?: unknown } | null;
+        return pair && boundedText(pair.source, 256) &&
+          boundedText(pair.target, 256);
+      }))) ||
+    (body.count !== undefined &&
+      (!Number.isInteger(body.count) || Number(body.count) < 1 ||
+        Number(body.count) > 20))
+  ) {
+    return Response.json({ error: "Invalid or oversized assistant input" }, {
+      status: 400,
+    });
+  }
 
   const quota = await authorizeAndConsume(
     req,
     mode === "suggest" ? "suggest" : "translate",
   );
   if (quota !== "allowed") {
-    const status = quota === "unauthorized" ? 401 : quota === "limited" ? 429 : 503;
-    return Response.json({ error: quota === "limited" ? "Daily assistant limit reached" : "Assistant unavailable" }, { status });
+    const status = quota === "unauthorized"
+      ? 401
+      : quota === "limited"
+      ? 429
+      : 503;
+    return Response.json({
+      error: quota === "limited"
+        ? "Daily assistant limit reached"
+        : "Assistant unavailable",
+    }, { status });
   }
-  const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY") });
+  const anthropic = new Anthropic({
+    apiKey: Deno.env.get("ANTHROPIC_API_KEY"),
+    timeout: 60_000,
+    maxRetries: 0,
+  });
 
   try {
     if (mode === "translate") {
@@ -116,19 +163,35 @@ Deno.serve(async (req) => {
         model: "claude-haiku-4-5",
         max_tokens: 1024,
         system:
-          `You are a vocabulary assistant for a ${LANG_NAMES[sourceLang] ?? sourceLang} ↔ ${LANG_NAMES[targetLang] ?? targetLang} learning app. ` +
-          `Given a word in ${LANG_NAMES[sourceLang] ?? sourceLang}, provide its translation(s) in ${LANG_NAMES[targetLang] ?? targetLang}. ` +
-          `Most common/useful translation first. Add a short disambiguation note (in ${LANG_NAMES[sourceLang] ?? sourceLang}) only when the word is ambiguous. ` +
+          `You are a vocabulary assistant for a ${
+            LANG_NAMES[sourceLang] ?? sourceLang
+          } ↔ ${LANG_NAMES[targetLang] ?? targetLang} learning app. ` +
+          `Given a word in ${
+            LANG_NAMES[sourceLang] ?? sourceLang
+          }, provide its translation(s) in ${
+            LANG_NAMES[targetLang] ?? targetLang
+          }. ` +
+          `Most common/useful translation first. Add a short disambiguation note (in ${
+            LANG_NAMES[sourceLang] ?? sourceLang
+          }) only when the word is ambiguous. ` +
           `If the list theme is provided, prefer the meaning that fits the theme. ` +
           `If either the word or its main translation is very short (one syllable or <=3 letters), also provide 1-2 voiceFriendly longer forms ` +
           `(e.g. article+noun "le riz", noun+particle+verb "밥을 먹다") — matched pairs, same core word, natural everyday language.`,
         messages: [{
           role: "user",
-          content: JSON.stringify({ word, theme: theme ?? "", existing_words: existingWords ?? [] }),
+          content: JSON.stringify({
+            word,
+            theme: theme ?? "",
+            existing_words: existingWords ?? [],
+          }),
         }],
-        output_config: { format: { type: "json_schema", schema: TRANSLATE_SCHEMA } },
+        output_config: {
+          format: { type: "json_schema", schema: TRANSLATE_SCHEMA },
+        },
       });
-      return Response.json(JSON.parse((msg.content[0] as { text: string }).text));
+      return Response.json(
+        JSON.parse((msg.content[0] as { text: string }).text),
+      );
     }
 
     if (mode === "suggest") {
@@ -137,17 +200,27 @@ Deno.serve(async (req) => {
         model: "claude-haiku-4-5",
         max_tokens: 2048,
         system:
-          `You are a vocabulary assistant for a ${LANG_NAMES[sourceLang] ?? sourceLang} ↔ ${LANG_NAMES[targetLang] ?? targetLang} learning app. ` +
-          `From the existing word pairs, infer the list's THEME, then suggest ${count ?? 8} NEW useful word pairs on that theme. ` +
+          `You are a vocabulary assistant for a ${
+            LANG_NAMES[sourceLang] ?? sourceLang
+          } ↔ ${LANG_NAMES[targetLang] ?? targetLang} learning app. ` +
+          `From the existing word pairs, infer the list's THEME, then suggest ${
+            count ?? 8
+          } NEW useful word pairs on that theme. ` +
           `Never repeat a word already in the list. Everyday, high-frequency words first. ` +
-          `source = ${LANG_NAMES[sourceLang] ?? sourceLang}, target = ${LANG_NAMES[targetLang] ?? targetLang}.`,
+          `source = ${LANG_NAMES[sourceLang] ?? sourceLang}, target = ${
+            LANG_NAMES[targetLang] ?? targetLang
+          }.`,
         messages: [{
           role: "user",
           content: JSON.stringify({ existing_pairs: existingPairs ?? [] }),
         }],
-        output_config: { format: { type: "json_schema", schema: SUGGEST_SCHEMA } },
+        output_config: {
+          format: { type: "json_schema", schema: SUGGEST_SCHEMA },
+        },
       });
-      return Response.json(JSON.parse((msg.content[0] as { text: string }).text));
+      return Response.json(
+        JSON.parse((msg.content[0] as { text: string }).text),
+      );
     }
 
     return Response.json({ error: `unknown mode: ${mode}` }, { status: 400 });

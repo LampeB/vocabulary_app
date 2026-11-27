@@ -105,8 +105,8 @@ void main() {
       final repo = repoWith(_SharedListRemote(_sharedPayload()));
 
       final first = (await repo.importFromShareToken('abc123')).valueOrNull!;
-      // The share token is tagged asynchronously after import; let it settle.
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(first.shareToken, isNull);
+      expect(first.importedFromShareToken, 'abc123');
       final second = (await repo.importFromShareToken('abc123')).valueOrNull!;
 
       expect(second.id, first.id);

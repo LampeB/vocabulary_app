@@ -1,6 +1,6 @@
 # Ponderin — état actuel
 
-**Mis à jour : 26 novembre 2026**
+**Mis à jour : 27 novembre 2026**
 
 ## Produit en une phrase
 
@@ -88,19 +88,18 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- Les correctifs du pont Whisper ont été compilés en APK Android arm64 de
-  développement le 26 novembre. L'analyse Flutter est propre ; les **843 tests
-  hôte passent**, avec **65,7 %** de couverture. La CI distante et la convergence
-  des quatre relecteurs restent à confirmer sur le nouveau commit.
-- Sur le commit d'intégration du 26 novembre, tous les checks distants hors
-  compilation Android passent. Ce build demandait encore l'ancien NDK 27 et
-  échouait sur sa licence ; le pont est aligné sur le NDK 28.2 de l'application.
-  Les premières tentatives de relecture indépendante n'ont rendu aucun verdict
-  à cause d'une limite d'usage du service ; aucun compteur propre n'est acquis.
+- L'analyse Flutter est propre ; les **871 tests hôte passent**, avec **66,5 %**
+  de couverture sur le lot du 27 novembre. La compilation Kotlin de debug
+  passe ; la CI distante doit encore confirmer le nouveau commit.
+- Les sept checks distants, compilation Android comprise, passent sur
+  `ec6fc5c`. Le pont utilise désormais le NDK 28.2 de l'application. Les quatre
+  relecteurs ont ensuite rendu des constats bloquants/importants, traités dans
+  [le lot du 27 novembre](docs/reviews/2026-11-27-integration.md). Aucun compteur
+  propre n'est acquis : le nouveau commit nécessite deux revues propres.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **843** tests hôte lors de la dernière validation locale
+- La suite compte **871** tests hôte lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - La CI Patrol contient neuf suites Android, lançables manuellement avec des

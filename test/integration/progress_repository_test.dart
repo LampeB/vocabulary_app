@@ -1,5 +1,7 @@
 // ignore_for_file: invalid_use_of_internal_member
 
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
@@ -62,6 +64,54 @@ void main() {
   }
 
   // ── getProgress ───────────────────────────────────────────────────────────
+
+  test('independent first reviews use the same business identity', () async {
+    final list = await setup();
+    final other = ProgressRepositoryImpl(
+        db.progressDao, db.conceptDao, FakeRemote(), _kUserId);
+    final a = (await progressRepo.getDueCards(
+            userId: _kUserId, listId: list.id, direction: QuizDirection.frToKo))
+        .valueOrNull!
+        .single;
+    final b = (await other.getDueCards(
+            userId: _kUserId, listId: list.id, direction: QuizDirection.frToKo))
+        .valueOrNull!
+        .single;
+    expect(a.id, b.id);
+    await progressRepo.updateProgress(a.copyWith(reps: 1));
+    await other.updateProgress(b.copyWith(id: 'legacy-device-id', reps: 2));
+    final rows = await db.progressDao.getUnsyncedProgress(userId: _kUserId);
+    expect(rows, hasLength(1));
+    expect(rows.single.reps, 2);
+  });
+
+  test('a sync acknowledgement does not invalidate pedagogical progress',
+      () async {
+    await setup();
+    final card = (await progressRepo.getProgress(
+            variantId: frVariantId, direction: QuizDirection.frToKo))
+        .valueOrNull!;
+    await progressRepo
+        .updateProgress(card.copyWith(state: CardState.review, reps: 1));
+    final initial = Completer<void>();
+    final changed = Completer<void>();
+    var events = 0;
+    final subscription = db.progressDao.watchChanges(_kUserId).listen((_) {
+      events++;
+      if (!initial.isCompleted)
+        initial.complete();
+      else if (!changed.isCompleted) changed.complete();
+    });
+    addTearDown(subscription.cancel);
+    await initial.future;
+    await db.progressDao.markProgressSynced([card.id]);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(events, 1);
+    await progressRepo
+        .updateProgress(card.copyWith(state: CardState.review, reps: 2));
+    await changed.future.timeout(const Duration(seconds: 2));
+    expect(events, 2);
+  });
 
   group('getProgress', () {
     test('returns new-card defaults when no record exists', () async {

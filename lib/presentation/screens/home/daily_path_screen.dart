@@ -67,12 +67,12 @@ class _DailyTrail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final reviewDone = dueCount == 0;
-    final completed = reviewDone ? 1 : 0;
     final activeTitle = reviewDone
         ? prerequisite == null
             ? 'v3.prepare_list'.tr()
-            : 'v3.new_words'.tr(
-                namedArgs: {'count': '${prerequisite!.wordCount.clamp(1, 7)}'})
+            : prerequisite!.wordCount == 0
+                ? 'v3.add_words'.tr()
+                : prerequisite!.name
         : 'v3.words_due'.tr(namedArgs: {'count': '$dueCount'});
     final activeSubtitle = reviewDone
         ? prerequisite == null
@@ -94,21 +94,18 @@ class _DailyTrail extends StatelessWidget {
                   style: AppTextStyles.mono(12, FontWeight.w400,
                       letterSpacing: 1.1, color: V3Colors.light60)),
             ),
-            Text('$completed / 4',
-                style: AppTextStyles.mono(12, FontWeight.w400,
-                    color: V3Colors.amber)),
           ]),
           const SizedBox(height: 24),
           _TrailCard(
             key: const ValueKey(WidgetKeys.dailyPathReview),
             label: reviewDone
-                ? 'v3.review_done_label'.tr()
+                ? 'v3.nothing_due_label'.tr()
                 : 'v3.your_review'.tr(),
             title: reviewDone
-                ? 'v3.review_done'.tr()
+                ? 'v3.no_reviews_due'.tr()
                 : 'v3.words_due'.tr(namedArgs: {'count': '$dueCount'}),
             active: !reviewDone,
-            done: reviewDone,
+            done: false,
             onTap: reviewDone ? null : () => _showModes(context),
           ),
           const SizedBox(height: 20),
@@ -146,7 +143,7 @@ class _DailyTrail extends StatelessWidget {
             onTap: () => context.push('/grammar'),
           ),
           const SizedBox(height: 24),
-          _TrailProgress(completed: completed),
+          const _TrailProgress(),
         ],
       ),
     );
@@ -298,8 +295,7 @@ class _TrailCard extends StatelessWidget {
 }
 
 class _TrailProgress extends StatelessWidget {
-  const _TrailProgress({required this.completed});
-  final int completed;
+  const _TrailProgress();
   @override
   Widget build(BuildContext context) => DecoratedBox(
         decoration: BoxDecoration(
@@ -307,26 +303,7 @@ class _TrailProgress extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Row(children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: completed / 4,
-                    minHeight: 6,
-                    backgroundColor: V3Colors.chip,
-                    valueColor:
-                        const AlwaysStoppedAnimation<Color>(V3Colors.amber),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 11),
-              Text('$completed / 4',
-                  style: AppTextStyles.mono(11.5, FontWeight.w400,
-                      color: V3Colors.amber)),
-            ]),
-            const SizedBox(height: 8),
-            Text('v3.one_card_enough'.tr(),
+            Text('v3.daily_recommendation'.tr(),
                 style: AppTextStyles.fig(13.5, FontWeight.w400,
                     color: V3Colors.light70)),
           ]),

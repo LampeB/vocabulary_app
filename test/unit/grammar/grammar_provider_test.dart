@@ -9,6 +9,8 @@ import 'package:vocab_kr/core/grammar/grammar_drill_generator.dart';
 import 'package:vocab_kr/core/grammar/grammar_language_module.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
+import 'package:vocab_kr/data/repositories/progress_repository_impl.dart';
+import 'package:vocab_kr/core/utils/fsrs_algorithm.dart' show CardState;
 import 'package:vocab_kr/domain/entities/app_user.dart';
 import 'package:vocab_kr/domain/entities/grammar_rule.dart';
 import 'package:vocab_kr/domain/entities/subscription_type.dart';
@@ -182,6 +184,66 @@ void main() {
     addTearDown(container.dispose);
 
     expect(await container.read(drillWordsProvider('ko').future), isEmpty);
+  });
+
+  test(
+      'real FSRS graduation refreshes cached words and makes the rule playable',
+      () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final vocab = VocabularyRepositoryImpl(
+        db.vocabularyListDao, db.conceptDao, FakeRemote(), 'u', db);
+    final progress = ProgressRepositoryImpl(
+        db.progressDao, db.conceptDao, FakeRemote(), 'u');
+    final list = (await vocab.createList(name: 'Words')).valueOrNull!;
+    final ids = <String>[];
+    for (final word in ['학생', '선생님']) {
+      final concept = (await vocab.addConceptWithVariants(
+              listId: list.id, wordA: 'person', wordB: word, category: 'nom'))
+          .valueOrNull!;
+      ids.add((await db.conceptDao.getVariantsByConcept(concept.id))
+          .firstWhere((variant) => variant.langCode == 'ko')
+          .id);
+    }
+    final container = ProviderContainer(overrides: [
+      appDatabaseProvider.overrideWithValue(db),
+      currentUserProvider.overrideWithValue(_user()),
+      progressRepositoryProvider.overrideWithValue(progress),
+      myListsProvider.overrideWith((ref) => vocab.watchMyLists()),
+      grammarRulesProvider.overrideWith(
+          (ref, lang) async => [_rule('reactive', minKnownWords: 2)]),
+      grammarModuleProvider
+          .overrideWith((ref, lang) async => const KoreanGrammarModule()),
+      grammarProgressProvider.overrideWith((ref) => Stream.value({})),
+    ]);
+    addTearDown(container.dispose);
+    final playable = Completer<void>();
+    final subscription =
+        container.listen(ruleStatusesProvider('ko'), (_, next) {
+      if (next.valueOrNull?.single.enoughWords == true &&
+          !playable.isCompleted) {
+        playable.complete();
+      }
+    });
+    addTearDown(subscription.close);
+    expect(
+        (await container.read(ruleStatusesProvider('ko').future))
+            .single
+            .enoughWords,
+        isFalse);
+    for (final id in ids) {
+      await progress.updateProgress(VariantProgress(
+          id: 'progress-$id',
+          userId: 'u',
+          variantId: id,
+          direction: QuizDirection.koToFr,
+          state: CardState.review,
+          reps: 4,
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026)));
+    }
+    await playable.future.timeout(const Duration(seconds: 5));
+    expect(await container.read(drillWordsProvider('ko').future), hasLength(2));
   });
 
   test('streams persisted grammar progress for the signed-in learner',

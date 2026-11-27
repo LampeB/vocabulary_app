@@ -29,6 +29,7 @@ import 'presentation/screens/stats/stats_screen.dart';
 import 'presentation/providers/quiz/quiz_provider.dart' show QuizArgs;
 import 'presentation/providers/settings/settings_provider.dart';
 import 'presentation/navigation/dive_in_page.dart';
+import 'presentation/navigation/auth_redirect.dart';
 import 'presentation/widgets/app_shell.dart';
 
 // Set via --dart-define-from-file in integration tests to skip page-transition
@@ -106,14 +107,7 @@ class _PonderinAppState extends ConsumerState<PonderinApp> {
         redirect: (context, state) {
           final isSignedIn = Supabase.instance.client.auth.currentUser != null;
           final loc = state.matchedLocation;
-          final onPublic =
-              loc == '/splash' || loc == '/welcome' || loc == '/auth';
-
-          if (!isSignedIn && !onPublic) return '/welcome';
-          if (isSignedIn && (loc == '/welcome' || loc == '/auth')) {
-            return '/home';
-          }
-          return null;
+          return authRedirect(isSignedIn: isSignedIn, location: loc);
         },
         errorBuilder: (_, state) => Scaffold(
           appBar: AppBar(),
@@ -164,7 +158,11 @@ class _PonderinAppState extends ConsumerState<PonderinApp> {
               // Grammar is a separate flow, never mixed into vocab setup.
               GoRoute(
                 path: '/start-session-grammar',
-                builder: (_, __) => const StartSessionScreen(grammar: true),
+                builder: (_, state) => StartSessionScreen(
+                    grammar: true,
+                    initialRuleId: state.uri.queryParameters['rule'],
+                    initialLangA: state.uri.queryParameters['langA'],
+                    initialLangB: state.uri.queryParameters['langB']),
               ),
               // Grammar hub: every lesson with unlock/mastery progress.
               GoRoute(

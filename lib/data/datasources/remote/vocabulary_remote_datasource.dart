@@ -109,8 +109,11 @@ class VocabularyRemoteDataSource {
   Future<Result<Map<String, dynamic>>> upsertProgress(
       Map<String, dynamic> data) async {
     try {
-      final result =
-          await _client.from('variant_progress').upsert(data).select().single();
+      final result = await _client
+          .from('variant_progress')
+          .upsert(data, onConflict: 'user_id,variant_id,direction')
+          .select()
+          .single();
       return Success(result);
     } catch (e) {
       return Failure(NetworkException(e.toString()));
@@ -136,6 +139,9 @@ class VocabularyRemoteDataSource {
           .select('*, concepts(*, word_variants(*))')
           .eq('share_token', token)
           .eq('visibility', 'public')
+          .eq('is_deleted', false)
+          .eq('concepts.is_deleted', false)
+          .eq('concepts.word_variants.is_deleted', false)
           .maybeSingle();
       return Success(data != null ? Map<String, dynamic>.from(data) : null);
     } catch (e) {

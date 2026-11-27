@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../domain/repositories/vocabulary_repository.dart';
+import '../../core/errors/failure.dart';
 import '../datasources/local/app_database.dart';
 import '../datasources/local/daos/concept_dao.dart';
 import '../datasources/local/daos/vocabulary_list_dao.dart';
@@ -45,6 +46,7 @@ class StarterSeeder {
   final String _userId;
   final String? _uiLocale;
   final _uuid = const Uuid();
+  static final _executions = Expando<Map<String, Future<void>>>();
 
   /// Canonical French names of the pre-catalog fr→ko starter lists, for
   /// adopting rows created before seed ids existed.
@@ -60,7 +62,17 @@ class StarterSeeder {
   static String flagKeyFor(String userId, String source, String target) =>
       'seeded_starter_v3_${userId}_$source>$target';
 
-  Future<void> ensureSeededForPair(String source, String target) async {
+  Future<void> ensureSeededForPair(String source, String target) {
+    final runs = _executions[_listDao] ??= <String, Future<void>>{};
+    final key = flagKeyFor(_userId, source, target);
+    final running = runs[key];
+    if (running != null) return running;
+    final run = _seedPair(source, target);
+    runs[key] = run;
+    return run.whenComplete(() => runs.remove(key));
+  }
+
+  Future<void> _seedPair(String source, String target) async {
     if (source == target || _userId.isEmpty) return;
 
     final prefs = await SharedPreferences.getInstance();
@@ -96,11 +108,15 @@ class StarterSeeder {
       final seedId = seedList.seedIdFor(source, target);
       final existing = bySeedId[seedId];
       if (existing == null) {
-        await _repo.importFromJson(
+        final imported = await _repo.importFromJson(
           _composeListJson(
               seedList, seedId, catalog, sourceLayer, targetLayer, names),
           origin: 'starter',
         );
+        if (imported.isFailure) {
+          throw StateError(
+              'Starter import failed: ${imported.exceptionOrNull?.message}');
+        }
       } else {
         await _topUp(existing.id, seedList, catalog, sourceLayer, targetLayer);
       }

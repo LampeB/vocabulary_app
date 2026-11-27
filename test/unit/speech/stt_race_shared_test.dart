@@ -17,6 +17,7 @@ class _FakeSession implements PcmCaptureSession {
   bool speaking = false;
   bool closed = false;
   bool flushed = false;
+  Completer<PcmSegment?>? delayedClose;
 
   void startSpeaking() {
     speaking = true;
@@ -36,6 +37,7 @@ class _FakeSession implements PcmCaptureSession {
   Future<PcmSegment?> close({bool flush = false}) async {
     if (closed) return null;
     closed = true;
+    if (delayedClose != null) return delayedClose!.future;
     if (flush && speaking) {
       flushed = true;
       speaking = false;
@@ -124,9 +126,8 @@ Future<void> _pump() => Future<void>.delayed(Duration.zero);
 Future<void> _wait(int ms) => Future<void>.delayed(Duration(milliseconds: ms));
 
 void main() {
-  group('SttRace — shared capture (parallel engines)', () {
-    test('every shared engine hears the same utterance; first correct wins',
-        () async {
+  group('SttRace — shared capture (local before cloud)', () {
+    test('a locally valid answer never uploads the capture to cloud', () async {
       final source = _FakeSource();
       final scribe = _SharedEngine('elevenlabs', requiresNetwork: true);
       final whisper = _SharedEngine('whisper');
@@ -137,17 +138,79 @@ void main() {
       source.session!.startSpeaking();
       source.session!.finishUtterance();
       await _pump();
-      expect(scribe.segments.length, 1);
+      expect(scribe.segments, isEmpty);
       expect(whisper.segments.length, 1);
-      expect(
-          identical(scribe.segments.single, whisper.segments.single), isTrue);
-
-      scribe.answer('가다');
+      whisper.answer('가다');
       final outcome = await future;
       expect(outcome.matched, isTrue);
-      expect(outcome.winnerEngineId, 'elevenlabs');
+      expect(outcome.winnerEngineId, 'whisper');
       expect(source.session!.closed, isTrue);
       expect(source.opens, 1, reason: 'one mic for all engines');
+      expect(scribe.segments, isEmpty);
+    });
+
+    test('cloud receives the same capture only after local failure', () async {
+      final source = _FakeSource();
+      final local = _SharedEngine('local');
+      final cloud = _SharedEngine('cloud', requiresNetwork: true);
+      final future = SttRace([cloud, local], capture: source).run(
+          langCode: 'fr',
+          acceptedAnswers: ['livre'],
+          timeout: const Duration(milliseconds: 30));
+      await _pump();
+      source.session!.finishUtterance();
+      await _pump();
+      expect(cloud.calls, isEmpty);
+      local.answer(null);
+      await _wait(70);
+      expect(source.session!.closed, isTrue);
+      expect(identical(local.segments.single, cloud.segments.single), isTrue);
+      cloud.answer('livre');
+      expect((await future).winnerEngineId, 'cloud');
+    });
+
+    test('cloud-only rescue serializes successive utterances', () async {
+      final source = _FakeSource();
+      final cloud = _SharedEngine('cloud', requiresNetwork: true);
+      final future = SttRace([cloud], capture: source)
+          .run(langCode: 'fr', acceptedAnswers: ['livre']);
+      await _pump();
+      source.session!.finishUtterance();
+      source.session!.finishUtterance();
+      await _pump();
+      expect(cloud.calls, hasLength(1));
+      cloud.answer(null);
+      await _pump();
+      expect(cloud.calls, hasLength(2));
+      cloud.answer('livre');
+      expect((await future).matched, isTrue);
+    });
+
+    test('a completed prior miss cannot discard the delayed flushed tail',
+        () async {
+      final source = _FakeSource();
+      final local = _SharedEngine('local');
+      var resolved = false;
+      final future = SttRace([local], capture: source).run(
+          langCode: 'fr',
+          acceptedAnswers: ['livre'],
+          timeout: const Duration(milliseconds: 30),
+          maxSpeechOverrun: const Duration(milliseconds: 20))
+        ..then((_) => resolved = true);
+      await _pump();
+      source.session!.finishUtterance();
+      final closing = Completer<PcmSegment?>();
+      source.session!.delayedClose = closing;
+      source.session!.startSpeaking();
+      await _wait(80);
+      local.answer('autre', call: 0);
+      await _pump();
+      expect(resolved, isFalse);
+      closing.complete(_seg(1200));
+      await _pump();
+      expect(local.calls, hasLength(2));
+      local.answer('livre', call: 1);
+      expect((await future).matched, isTrue);
     });
 
     test(

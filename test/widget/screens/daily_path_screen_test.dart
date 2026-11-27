@@ -79,6 +79,18 @@ void main() {
     expect(args!.langB, 'ko');
   });
 
+  testWidgets('no due cards do not imply a completed daily activity',
+      (tester) async {
+    await pumpScreen(tester, screen: const DailyPathScreen(), overrides: [
+      myListsProvider.overrideWith((ref) => Stream.value([])),
+      dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(0)),
+    ]);
+    expect(find.text('Aucune révision à échéance'), findsOneWidget);
+    expect(find.text('1 / 4'), findsNothing);
+    expect(find.text('Révisions terminées'), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+  });
+
   for (final locale in ['fr', 'en', 'ko']) {
     testWidgets('small screen and large text keep the path usable in $locale',
         (tester) async {

@@ -18,6 +18,7 @@ import java.io.File
 class DebugRecognizeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val locale = intent.getStringExtra("locale") ?: "fr-FR"
+        if (!Regex("^[a-z]{2,3}(-[A-Za-z]{2,4})?$").matches(locale)) return
         val onDevice = intent.getBooleanExtra("ondevice", false)
         val offline = intent.getBooleanExtra("offline", false)
         if (intent.getBooleanExtra("download", false)) {
@@ -26,11 +27,21 @@ class DebugRecognizeReceiver : BroadcastReceiver() {
         }
         val ttsText = intent.getStringExtra("tts")
         if (ttsText != null) {
+            if (ttsText.length > 256) return
             synthesizeThenRecognize(context.applicationContext, ttsText, locale, onDevice, goAsync())
             return
         }
         val path = intent.getStringExtra("path") ?: return
-        val bytes = File(path).readBytes()
+        val corpus = File(context.getExternalFilesDir(null), "corpus").canonicalFile
+        val capture = File(path).canonicalFile
+        if (!capture.path.startsWith(corpus.path + File.separator) || !capture.isFile ||
+            capture.length() !in 46L..960044L) return
+        val bytes = try { capture.readBytes() } catch (_: Exception) { return }
+        if (String(bytes, 0, 4) != "RIFF" || String(bytes, 8, 4) != "WAVE") return
+        val wav = java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        if (wav.getShort(20).toInt() != 1 || wav.getShort(22).toInt() != 1 ||
+            wav.getInt(24) != 16000 || wav.getShort(34).toInt() != 16 ||
+            String(bytes, 36, 4) != "data" || wav.getInt(40) != bytes.size - 44) return
         // Skip the canonical 44-byte WAV header (16kHz mono PCM16 corpus).
         var pcm = bytes.copyOfRange(44, bytes.size)
         var rate = 16000
@@ -40,15 +51,19 @@ class DebugRecognizeReceiver : BroadcastReceiver() {
             }
         }
         val resample = intent.getIntExtra("resample", 0)
+        if (resample != 0 && resample !in 8000..48000) return
         if (resample > 0) {
             pcm = resampleLinear(pcm, 16000, resample)
             rate = resample
         }
         rate = intent.getIntExtra("rate", rate)
+        if (rate !in 8000..48000) return
         val leadMs = intent.getIntExtra("lead", 0) // extra, on top of the bridge's own 500ms
+        if (leadMs !in 0..1000) return
         if (leadMs > 0) pcm = ByteArray(rate * 2 * leadMs / 1000) + pcm
         val pace = intent.getBooleanExtra("pace", true)
         val gain = intent.getFloatExtra("gain", 1f)
+        if (!gain.isFinite() || gain !in 0.1f..8f) return
         val pending = goAsync()
         PcmSpeechRecognizer(context.applicationContext)
             .recognize(pcm, locale, rate, 8000, pace, gain, offline, onDevice, intent.getIntExtra("sleep", 5).toLong()) { o ->

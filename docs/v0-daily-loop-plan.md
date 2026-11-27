@@ -2,7 +2,7 @@
 
 **Status:** target V0; the visual/interaction slice is delivered, the complete
 learning loop is not.
-**Last updated:** 2026-09-29
+**Last updated:** 2026-11-27
 
 ## Implementation status — 29 September 2026
 
@@ -51,13 +51,13 @@ present and support in V0; it does not restrict future pairs.
 
 | Area | Current state | V0 implication |
 |---|---|---|
-| App locales | FR, EN and KO are registered; each has 381 translation keys | Localised UI foundation exists; every new key must be added to all three. |
+| App locales | FR, EN and KO are registered; active V3 entry/path copy is translated | Localised UI foundation exists; every new key must be added to all three. |
 | Pair model and seeding | Ordered base/target pairs; seed layers compose by language | The three V0 paths do not require a pair-specific data model. |
 | Starter vocab | 111 aligned concepts in each of FR/EN/KO | Enough material for a focused first loop. |
-| `starter-greetings` | 18 concepts; only 3 currently have Korean examples | Not ready to be the first lesson without an example backfill. |
+| `starter-greetings` | 18 concepts, with examples present in all six language layers | Example backfill is integrated; native/teacher review remains pending before beta use. |
 | Notes | KO: 111 entries with FR/EN notes; FR/EN: none | Helpful for learning Korean; Korean-base French needs Korean teaching copy. |
-| Grammar | FR: 4 rules; EN: 4; KO: 5; rule cards are FR/EN only | Korean cards are a content prerequisite for Korean → French lessons. |
-| Lesson viewer texts | None | First unit needs an authored compact lesson, not a placeholder. |
+| Grammar | FR: 4 rules; EN: 4; KO: 5; French A1 rule cards also contain Korean teaching text | The Korean French-rule cards are integrated but still require teacher review for Korean → French. |
+| Lesson viewer texts | No authored `lesson_pages`; legacy explanations/examples can be read | First unit still needs an authored, reviewed compact lesson. |
 
 ## Learner flow and acceptance conditions
 

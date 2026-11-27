@@ -12,6 +12,8 @@ class VocabularyListsTable extends Table {
   IntColumn get wordCount =>
       integer().named('word_count').withDefault(const Constant(0))();
   TextColumn get shareToken => text().named('share_token').nullable()();
+  TextColumn get importedFromShareToken =>
+      text().named('imported_from_share_token').nullable()();
   // The list's studied language pair (generic-language-pairs epic). Existing
   // lists predate the columns, hence the fr/ko defaults.
   TextColumn get langA =>

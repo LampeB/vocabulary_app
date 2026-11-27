@@ -224,6 +224,35 @@ void main() {
     }
   });
 
+  testWidgets('flashcard grades are available as focusable buttons',
+      (tester) async {
+    await pump(tester,
+        mode: QuizMode.flashcard, words: [('chat', '고양이'), ('chien', '개')]);
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.cartesCard)));
+    await tick(tester, times: 4);
+    expect(
+        tester
+            .widget<OutlinedButton>(
+                find.byKey(const ValueKey(WidgetKeys.gradeAgain)))
+            .onPressed,
+        isNotNull);
+    expect(
+        tester
+            .widget<FilledButton>(
+                find.byKey(const ValueKey(WidgetKeys.gradeKnew)))
+            .onPressed,
+        isNotNull);
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.gradeAgain)));
+    await tick(tester, times: 4);
+    expect(find.text('chien'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.cartesCard)));
+    await tick(tester, times: 4);
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.gradeKnew)));
+    await tick(tester, times: 6);
+    expect(progressRepo.saved, isEmpty);
+    expect(find.text('chien'), findsNothing);
+  });
+
   testWidgets(
       'typing: a correct answer shows the correct verdict and '
       'completes at 100%', (tester) async {

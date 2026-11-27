@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
+import { boundedJson, boundedText } from "../_shared/request_limits.ts";
 
 // This endpoint is a publishing tool, never an app endpoint. It accepts only
 // Supabase's server key, so the ElevenLabs key remains solely in Supabase
@@ -37,16 +38,22 @@ serve(async (req) => {
   // Accept either Supabase's legacy service_role JWT or a modern secret key.
   // GoTrue verifies the credential and only permits this admin route to a
   // service-level key; no locally duplicated comparison secret is needed.
-  const callerCheck = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=1&per_page=1`, {
-    headers: { apikey: anonKey, Authorization: authorization },
-  });
+  const callerCheck = await fetch(
+    `${supabaseUrl}/auth/v1/admin/users?page=1&per_page=1`,
+    {
+      signal: AbortSignal.timeout(10_000),
+      headers: { apikey: anonKey, Authorization: authorization },
+    },
+  );
   if (!callerCheck.ok) {
     return json({ error: "Forbidden" }, 403);
   }
 
   let items: Array<{ text: string; lang: string }>;
   try {
-    items = (await req.json()).items;
+    items = (await boundedJson(req)).items as Array<
+      { text: string; lang: string }
+    >;
   } catch (_) {
     return json({ error: "Invalid JSON" }, 400);
   }
@@ -59,14 +66,23 @@ serve(async (req) => {
   var existing = 0;
   const failed: string[] = [];
   for (const item of items) {
-    if (typeof item?.text !== "string" || !voiceByLanguage[item.lang]) {
+    if (!boundedText(item?.text, 256) || !voiceByLanguage[item.lang]) {
       failed.push("invalid item");
       continue;
     }
     const hash = await contentHash(item.text, item.lang);
     const path = `seed/${seedVersion}/${item.lang}/${hash}.mp3`;
-    const { error: existingError } = await admin.storage.from(bucket).download(path);
+    const { error: existingError } = await admin.storage.from(bucket).download(
+      path,
+    );
     if (!existingError) {
+      const { error: manifestError } = await admin.from(
+        "published_audio_assets",
+      ).upsert({ path });
+      if (manifestError) {
+        failed.push(`${item.lang}:manifest`);
+        continue;
+      }
       existing++;
       continue;
     }
@@ -76,12 +92,16 @@ serve(async (req) => {
         `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_22050_32`,
         {
           method: "POST",
+          signal: AbortSignal.timeout(60_000),
           headers: {
             "xi-api-key": elevenLabsKey,
             "Content-Type": "application/json",
             Accept: "audio/mpeg",
           },
-          body: JSON.stringify({ text: item.text, model_id: "eleven_multilingual_v2" }),
+          body: JSON.stringify({
+            text: item.text,
+            model_id: "eleven_multilingual_v2",
+          }),
         },
       );
       if (!tts.ok) throw new Error(`TTS ${tts.status}`);
@@ -93,6 +113,10 @@ serve(async (req) => {
       if (uploadError && !/already exists/i.test(uploadError.message)) {
         throw uploadError;
       }
+      const { error: manifestError } = await admin.from(
+        "published_audio_assets",
+      ).upsert({ path });
+      if (manifestError) throw manifestError;
       generated++;
     } catch (_) {
       failed.push(`${item.lang}:${item.text}`);

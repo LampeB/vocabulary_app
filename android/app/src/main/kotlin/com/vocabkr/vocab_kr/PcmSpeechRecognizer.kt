@@ -173,7 +173,8 @@ class PcmSpeechRecognizer(private val context: Context) {
                 if (!texts.isNullOrEmpty()) lastPartial = texts
             }
             override fun onSegmentResults(segmentResults: Bundle) {
-                Log.d(TAG, "onSegmentResults ${segmentResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)}")
+                // Do not put recognized speech in release logcat.
+                Log.d(TAG, "onSegmentResults received")
             }
             override fun onEndOfSegmentedSession() {
                 Log.d(TAG, "onEndOfSegmentedSession")

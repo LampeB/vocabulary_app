@@ -1,5 +1,6 @@
 // ignore_for_file: invalid_use_of_internal_member
 import 'package:drift/native.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +8,8 @@ import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
+import 'package:vocab_kr/data/datasources/remote/vocab_assistant_datasource.dart';
+import 'package:vocab_kr/presentation/providers/lists/vocab_assistant_provider.dart';
 import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart'
     show QuizSource;
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
@@ -15,6 +18,27 @@ import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
 import 'package:vocab_kr/presentation/screens/lists/list_detail_screen.dart';
 import '../../helpers/fake_remote.dart';
 import '../../helpers/pump_screen.dart';
+
+class _PairAssistant implements VocabAssistantDataSource {
+  String? source, target;
+  List<WordPairSuggestion> examples = [];
+  @override
+  Future<Result<ThemedSuggestions>> suggest(
+      {required String sourceLang,
+      required String targetLang,
+      required List<WordPairSuggestion> existingPairs,
+      int count = 8}) async {
+    source = sourceLang;
+    target = targetLang;
+    examples = existingPairs;
+    return const Success(ThemedSuggestions(theme: 'Test', pairs: [
+      WordPairSuggestion(source: 'new-source', target: 'new-target'),
+    ]));
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 /// List-detail screen wired to a REAL repository on in-memory drift: word
 /// tiles render from the live stream, add/edit/delete flow through
@@ -36,7 +60,13 @@ void main() {
   QuizArgs? launchedQuiz;
 
   Future<void> pump(WidgetTester tester,
-      {bool premium = true, int? forceWordCount}) async {
+      {bool premium = true,
+      int? forceWordCount,
+      String langA = 'fr',
+      String langB = 'ko',
+      String wordA = 'chat',
+      String wordB = '고양이',
+      _PairAssistant? assistant}) async {
     pushedRoute = null;
     launchedQuiz = null;
     await tester.runAsync(() async {
@@ -44,12 +74,22 @@ void main() {
       addTearDown(db.close);
       repo = VocabularyRepositoryImpl(
           db.vocabularyListDao, db.conceptDao, FakeRemote(), 'u', db);
-      final list = (await repo.createList(name: 'Animaux')).valueOrNull!;
+      final list =
+          (await repo.createList(name: 'Animaux', langA: langA, langB: langB))
+              .valueOrNull!;
       listId = list.id;
       await repo.addConceptWithVariants(
-          listId: listId, wordA: 'chat', wordB: '고양이');
+          listId: listId,
+          wordA: wordA,
+          wordB: wordB,
+          langA: langA,
+          langB: langB);
       await repo.addConceptWithVariants(
-          listId: listId, wordA: 'chien', wordB: '개');
+          listId: listId,
+          wordA: 'chien',
+          wordB: '개',
+          langA: langA,
+          langB: langB);
       if (forceWordCount != null) {
         // Simulate a list at the free-plan word quota without 50 inserts.
         await db.vocabularyListDao.updateWordCount(listId, forceWordCount);
@@ -61,6 +101,8 @@ void main() {
       overrides: [
         vocabularyRepositoryProvider.overrideWithValue(repo),
         isPremiumProvider.overrideWithValue(premium),
+        if (assistant != null)
+          vocabAssistantProvider.overrideWithValue(assistant),
       ],
       routes: [
         GoRoute(
@@ -100,6 +142,74 @@ void main() {
     expect(find.text('chien'), findsOneWidget);
     await unmountScreen(tester);
   });
+
+  for (final pair in [
+    ('en', 'ko', 'cat', '고양이'),
+    ('ko', 'fr', '고양이', 'chat')
+  ]) {
+    testWidgets(
+        'suggestions preserve ${pair.$1} to ${pair.$2} through insertion',
+        (tester) async {
+      final assistant = _PairAssistant();
+      await pump(tester,
+          langA: pair.$1,
+          langB: pair.$2,
+          wordA: pair.$3,
+          wordB: pair.$4,
+          assistant: assistant);
+      await tester.tap(byKey(WidgetKeys.listDetailMenu));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('list_detail.menu_ai_suggest'.tr()));
+      await tester.pumpAndSettle();
+      expect(assistant.source, pair.$1);
+      expect(assistant.target, pair.$2);
+      expect(assistant.examples.first.source, pair.$3);
+      expect(assistant.examples.first.target, pair.$4);
+      await tester.tap(
+          find.text('list_detail.ai_add_selected'.tr(namedArgs: {'n': '1'})));
+      await tester.pumpAndSettle();
+      final added = await tester.runAsync(() async {
+        final concepts = await db.conceptDao.getConceptsByList(listId);
+        for (final concept in concepts) {
+          final variants = await db.conceptDao.getVariantsByConcept(concept.id);
+          if (variants.any((v) => v.word == 'new-source')) return variants;
+        }
+        return null;
+      });
+      expect(
+          added!.singleWhere((v) => v.word == 'new-source').langCode, pair.$1);
+      expect(
+          added.singleWhere((v) => v.word == 'new-target').langCode, pair.$2);
+      await unmountScreen(tester);
+    });
+    testWidgets('displays and edits ordered ${pair.$1} to ${pair.$2} variants',
+        (tester) async {
+      await pump(tester,
+          langA: pair.$1, langB: pair.$2, wordA: pair.$3, wordB: pair.$4);
+      expect(find.text(pair.$3), findsOneWidget);
+      expect(find.text(pair.$4), findsOneWidget);
+      await enterEditMode(tester);
+      await tester.tap(byKey(WidgetKeys.conceptEditIcon(pair.$3)));
+      await tester.pumpAndSettle();
+      expect(
+          tester
+              .widget<TextFormField>(byKey(WidgetKeys.editWordFr))
+              .controller!
+              .text,
+          pair.$3);
+      expect(
+          tester
+              .widget<TextFormField>(byKey(WidgetKeys.editWordKo))
+              .controller!
+              .text,
+          pair.$4);
+      await tester.enterText(byKey(WidgetKeys.editWordFr), '${pair.$3} edited');
+      await tester.tap(byKey(WidgetKeys.editWordConfirm));
+      await tester.pumpAndSettle();
+      expect(find.text('${pair.$3} edited'), findsOneWidget);
+      await unmountScreen(tester);
+    });
+  }
 
   testWidgets('hands-free quick action starts a hands-free list quiz',
       (tester) async {

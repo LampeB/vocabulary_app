@@ -22,13 +22,15 @@ class SttEngineRegistry {
   /// [maxEngines] of them (user rule 2026-10-02: "activate the 3 best
   /// available engines").
   ///
-  /// Registration order is quality rank, so register stronger engines first.
+  /// Registration order is quality rank within the local and network groups;
+  /// ready local engines take priority over network-dependent engines.
   /// An engine is AVAILABLE when it is ready, supports [langCode], and — for
-  /// cloud engines — the device is [online]. The best available engine
+  /// network engines — the device is [online]. The best available engine
   /// decides the capture mode, because only one component can own the mic:
   ///
   ///  * a [SttCapture.sharedPcm] engine brings every other available shared
-  ///    engine along — they all hear the same utterance, in parallel;
+  ///    engine along. Local engines decode in parallel; `SttRace` defers
+  ///    network engines until local recognition fails, using the same capture;
   ///  * a [SttCapture.ownsMicrophone] engine runs alone.
   ///
   /// [rescue] (the last not-heard attempt) drops the first choice so a
@@ -45,6 +47,12 @@ class SttEngineRegistry {
             e.supportsLanguage(langCode) &&
             (online || !e.requiresNetwork))
         .toList();
+    // Prefer local capture whenever one is ready. Compatible cloud decoders
+    // remain in the set only as a rescue used by SttRace after local failure.
+    available = [
+      ...available.where((engine) => !engine.requiresNetwork),
+      ...available.where((engine) => engine.requiresNetwork),
+    ];
     if (available.isEmpty) return const [];
     if (rescue && available.length > 1) available = available.sublist(1);
     final best = available.first;

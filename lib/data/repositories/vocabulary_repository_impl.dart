@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../../domain/entities/concept.dart';
 import '../../domain/entities/vocabulary_list.dart';
 import '../../domain/entities/word_variant.dart';
+import '../../domain/entities/variant_progress.dart' show QuizDirection;
 import '../../domain/repositories/vocabulary_repository.dart';
 import '../../core/errors/failure.dart';
 import '../../core/errors/app_exception.dart';
@@ -528,7 +529,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   @override
   Future<Result<VocabularyList>> importFromShareToken(String token) async {
     // Return existing local copy if already imported (dedup by share token).
-    final existing = await _listDao.getByShareToken(token, ownerId: _userId);
+    final existing = await _listDao.getImportedCopy(token, _userId) ??
+        await _listDao.getByShareToken(token, ownerId: _userId);
     if (existing != null) return Success(existing.toDomain());
 
     final remoteResult = await _remote.fetchPublicListByToken(token);
@@ -540,7 +542,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
 
     final remoteConcepts =
         (data['concepts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-    final conceptsJson = remoteConcepts.map((c) {
+    final conceptsJson =
+        remoteConcepts.where((c) => c['is_deleted'] != true).map((c) {
       final variants =
           (c['word_variants'] as List?)?.cast<Map<String, dynamic>>() ?? [];
       return {
@@ -549,6 +552,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         'exampleFr': c['example_fr'],
         'exampleKo': c['example_ko'],
         'variants': variants
+            .where((v) => v['is_deleted'] != true)
             .map((v) => {
                   'word': v['word'],
                   'langCode': v['lang_code'],
@@ -560,22 +564,27 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       };
     }).toList();
 
-    final importResult = await importFromJson({
-      'list': {
-        'name': data['name'],
-        'description': data['description'],
-        'lang_a': data['lang_a'],
-        'lang_b': data['lang_b'],
-        'seed_id': data['seed_id'],
-        'concepts': conceptsJson,
-      },
-    });
+    return _database.transaction(() async {
+      final copy = await _listDao.getImportedCopy(token, _userId);
+      if (copy != null) return Success(copy.toDomain());
+      final importResult = await importFromJson({
+        'list': {
+          'name': data['name'],
+          'description': data['description'],
+          'lang_a': data['lang_a'],
+          'lang_b': data['lang_b'],
+          'seed_id': data['seed_id'],
+          'concepts': conceptsJson,
+        },
+      });
 
-    if (importResult case Success(:final value)) {
-      // Tag the imported list with the share token for future dedup.
-      await _listDao.setShareToken(value.id, token);
-    }
-    return importResult;
+      if (importResult case Success(:final value)) {
+        await _listDao.upsert(
+            value.copyWith(importedFromShareToken: token).toLocalCompanion());
+        return Success(value.copyWith(importedFromShareToken: token));
+      }
+      return importResult;
+    });
   }
 
   @override
@@ -677,7 +686,10 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       final progressDao = _database.progressDao;
       for (final map in value) {
         try {
-          final local = await progressDao.getById(map['id'] as String);
+          final local = await progressDao.getByVariantAndDirection(
+              map['variant_id'] as String,
+              QuizDirection.parse(map['direction'] as String).name,
+              userId: _userId);
           if (local != null && !local.isSynced) continue;
           final variant =
               await _conceptDao.getVariantById(map['variant_id'] as String);

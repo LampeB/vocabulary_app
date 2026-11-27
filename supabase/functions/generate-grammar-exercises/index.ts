@@ -9,6 +9,7 @@
 // authenticated users can call this.
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { authorizeAndConsume } from "../_shared/provider_gate.ts";
+import { boundedJson, boundedText } from "../_shared/request_limits.ts";
 
 // What the model must return — enforced via structured outputs, so the
 // client never has to repair malformed JSON.
@@ -27,7 +28,8 @@ const EXERCISE_SCHEMA = {
           },
           expected: {
             type: "string",
-            description: "The canonical full-sentence answer in the target language",
+            description:
+              "The canonical full-sentence answer in the target language",
           },
           accepted: {
             type: "array",
@@ -45,7 +47,8 @@ const EXERCISE_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-const SYSTEM_PROMPT = `You generate language-learning exercises for a vocabulary app.
+const SYSTEM_PROMPT =
+  `You generate language-learning exercises for a vocabulary app.
 
 You receive:
 - target_rule: the grammar rule the learner is currently practising (with its mechanics and examples)
@@ -80,7 +83,7 @@ Deno.serve(async (req) => {
     count?: number;
   };
   try {
-    body = await req.json();
+    body = await boundedJson(req);
   } catch {
     return new Response(JSON.stringify({ error: "invalid_json" }), {
       status: 400,
@@ -88,7 +91,22 @@ Deno.serve(async (req) => {
     });
   }
 
-  const words = Array.isArray(body.words) ? body.words.slice(0, 80) : [];
+  if (
+    !Array.isArray(body.words) || body.words.length > 80 ||
+    !body.words.every((v) =>
+      v && boundedText(v.word, 256) && boundedText(v.category, 80)
+    ) ||
+    JSON.stringify(body.target_rule ?? "").length > 8_192 ||
+    !Array.isArray(body.mastered_rules ?? []) ||
+    JSON.stringify(body.mastered_rules ?? []).length > 12_288 ||
+    !boundedText(body.target_language, 8) ||
+    !boundedText(body.prompt_language ?? "en", 8)
+  ) {
+    return Response.json({ error: "invalid_or_oversized_input" }, {
+      status: 400,
+    });
+  }
+  const words = body.words;
   const count = Math.min(Math.max(Number(body.count) || 10, 1), 30);
   if (!body.target_rule || words.length === 0) {
     return new Response(JSON.stringify({ error: "missing_rule_or_words" }), {
@@ -107,13 +125,26 @@ Deno.serve(async (req) => {
 
   const quota = await authorizeAndConsume(req, "grammar_exercises");
   if (quota !== "allowed") {
-    const status = quota === "unauthorized" ? 401 : quota === "limited" ? 429 : 503;
-    return new Response(JSON.stringify({
-      error: quota === "limited" ? "daily_generation_limit_reached" : "service_unavailable",
-    }), { status, headers: { "Content-Type": "application/json" } });
+    const status = quota === "unauthorized"
+      ? 401
+      : quota === "limited"
+      ? 429
+      : 503;
+    return new Response(
+      JSON.stringify({
+        error: quota === "limited"
+          ? "daily_generation_limit_reached"
+          : "service_unavailable",
+      }),
+      { status, headers: { "Content-Type": "application/json" } },
+    );
   }
 
-  const client = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY") });
+  const client = new Anthropic({
+    apiKey: Deno.env.get("ANTHROPIC_API_KEY"),
+    timeout: 60_000,
+    maxRetries: 0,
+  });
 
   const response = await client.messages.create({
     model: "claude-haiku-4-5",

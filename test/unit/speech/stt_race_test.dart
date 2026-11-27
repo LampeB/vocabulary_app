@@ -411,11 +411,9 @@ void main() {
     List<String> ids(List<SttEngine> engines) =>
         engines.map((e) => e.id).toList();
 
-    test(
-        'online: the best engine is shared, so every shared engine joins it '
-        'in parallel (a mic owner cannot share the mic)', () {
-      expect(ids(appRegistry().select(langCode: 'fr', online: true)),
-          ['elevenlabs', 'whisper']);
+    test('online: a ready local mic owner is preferred to paid cloud', () {
+      expect(
+          ids(appRegistry().select(langCode: 'fr', online: true)), ['system']);
     });
 
     test('offline: cloud engines are never selected', () {
@@ -423,16 +421,17 @@ void main() {
           ids(appRegistry().select(langCode: 'fr', online: false)), ['system']);
     });
 
-    test('online but Whisper still downloading: Scribe alone', () {
+    test('online but Whisper still downloading: local system remains available',
+        () {
       expect(
           ids(appRegistry(whisperReady: false)
               .select(langCode: 'fr', online: true)),
-          ['elevenlabs']);
+          ['system']);
     });
 
     test(
-        'the app order with the phone bridge: online, three engines hear the '
-        'same recording; offline, the live phone recognizer alone', () {
+        'local phone is preferred and rescue uses Whisper before online engines',
+        () {
       final reg = SttEngineRegistry()
         ..register(_FakeEngine('elevenlabs',
             capture: SttCapture.sharedPcm, requiresNetwork: true))
@@ -440,11 +439,10 @@ void main() {
             capture: SttCapture.sharedPcm, requiresNetwork: true))
         ..register(_FakeEngine('system'))
         ..register(_FakeEngine('whisper', capture: SttCapture.sharedPcm));
-      expect(ids(reg.select(langCode: 'fr', online: true)),
-          ['elevenlabs', 'phone', 'whisper']);
+      expect(ids(reg.select(langCode: 'fr', online: true)), ['system']);
       expect(ids(reg.select(langCode: 'fr', online: false)), ['system']);
       expect(ids(reg.select(langCode: 'fr', online: true, rescue: true)),
-          ['phone', 'whisper']);
+          ['whisper', 'elevenlabs', 'phone']);
     });
 
     test('at most maxEngines shared engines run, best first', () {
@@ -469,7 +467,7 @@ void main() {
     test('rescue attempt skips the first choice for the next best set', () {
       expect(
           ids(appRegistry().select(langCode: 'fr', online: true, rescue: true)),
-          ['system']);
+          ['whisper', 'elevenlabs']);
       expect(
           ids(appRegistry()
               .select(langCode: 'fr', online: false, rescue: true)),

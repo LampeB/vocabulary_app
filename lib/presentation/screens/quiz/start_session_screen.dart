@@ -15,6 +15,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/v3_colors.dart';
 import '../../../core/widget_keys.dart';
 import '../../widgets/v3_pond.dart';
+import '../../providers/settings/default_pair_provider.dart';
 
 /// Session setup (start-session-screen.md). An accordion: one section open
 /// at a time; selecting a value auto-advances to the next.
@@ -24,9 +25,15 @@ import '../../widgets/v3_pond.dart';
 /// count, no grammar anywhere. `grammar: true` (its own route, entered from
 /// the Home grammar card) swaps the flow to rule + quiz type + count.
 class StartSessionScreen extends ConsumerStatefulWidget {
-  const StartSessionScreen({super.key, this.grammar = false});
+  const StartSessionScreen(
+      {super.key,
+      this.grammar = false,
+      this.initialRuleId,
+      this.initialLangA,
+      this.initialLangB});
 
   final bool grammar;
+  final String? initialRuleId, initialLangA, initialLangB;
 
   @override
   ConsumerState<StartSessionScreen> createState() => _StartSessionScreenState();
@@ -63,11 +70,33 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
 
   static const _limits = [10, 20, 50, 100];
 
+  @override
+  void initState() {
+    super.initState();
+    if (_grammar) {
+      final pair = ref.read(defaultPairProvider);
+      _langA = widget.initialLangA ?? pair.$1;
+      _langB = widget.initialLangB ?? pair.$2;
+      _ruleId = widget.initialRuleId;
+      if (_ruleId != null) _open = 1;
+    }
+  }
+
   void _select(int next) => setState(() => _open = next);
 
   @override
   Widget build(BuildContext context) {
     final listsAsync = ref.watch(myListsProvider);
+    if (_grammar) {
+      final selected = ref
+          .watch(ruleStatusesProvider(_langB))
+          .valueOrNull
+          ?.where((status) => status.rule.id == _ruleId)
+          .firstOrNull;
+      if (selected != null) {
+        _ruleTitle = selected.rule.title(uiLocaleCode(context));
+      }
+    }
     final dark = Theme.of(context).brightness == Brightness.dark;
     final foreground = dark ? V3Colors.light : V3Colors.ink;
     final muted = dark ? V3Colors.light70 : V3Colors.ink60;
@@ -571,7 +600,16 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   // No field has a default, so every one must be chosen before starting.
   bool get _canStart {
     if (_mode == null || _count == null) return false;
-    if (_grammar) return _ruleId != null;
+    if (_grammar) {
+      final selected = ref
+          .read(ruleStatusesProvider(_langB))
+          .valueOrNull
+          ?.where((status) => status.rule.id == _ruleId)
+          .firstOrNull;
+      return selected != null &&
+          selected.availability != RuleAvailability.locked &&
+          selected.enoughWords;
+    }
     if (!_langChosen) return false; // vocab: language is the first choice
     if (_dir == null) return false;
     return _source != QuizSource.list || _listId != null;
@@ -591,6 +629,8 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
               mode: _mode!,
               direction: QuizDirectionChoice.frToKo,
               cardLimit: _count!,
+              langA: _langA,
+              langB: _langB,
             )
           : QuizArgs(
               listId: _listId,

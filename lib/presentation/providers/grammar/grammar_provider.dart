@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:drift/drift.dart' show Variable;
 
 import '../../../core/errors/failure.dart';
 import '../../../data/datasources/local/app_database.dart'
@@ -73,6 +74,8 @@ final drillWordsProvider =
     FutureProvider.family<List<DrillWord>, String>((ref, targetLang) async {
   final userId = ref.watch(currentUserProvider)?.id ?? '';
   if (userId.isEmpty) return const [];
+  await ref.watch(vocabularyProgressChangesProvider.future);
+  await ref.watch(drillVocabularyChangesProvider(targetLang).future);
   final progressRepo = ref.watch(progressRepositoryProvider);
   final conceptDao = ref.watch(conceptDaoProvider);
 
@@ -109,6 +112,22 @@ final drillWordsProvider =
     );
   }
   return words.values.toList();
+});
+
+/// Only content useful to drill generation invalidates its pool. Sync
+/// acknowledgements change neither this projection nor the FSRS projection.
+final drillVocabularyChangesProvider =
+    StreamProvider.family<String, String>((ref, lang) {
+  final db = ref.watch(appDatabaseProvider);
+  return db
+      .customSelect(
+        "SELECT COALESCE(GROUP_CONCAT(id || ':' || concept_id || ':' || word || ':' || context_tags || ':' || COALESCE(category,'')), '') AS signature FROM (SELECT w.id, w.concept_id, w.word, w.context_tags, c.category FROM word_variants w JOIN concepts c ON c.id=w.concept_id WHERE w.lang_code=? AND w.is_deleted=0 AND c.is_deleted=0 ORDER BY w.id)",
+        variables: [Variable<String>(lang)],
+        readsFrom: {db.wordVariantsTable, db.conceptsTable},
+      )
+      .watchSingle()
+      .map((row) => row.read<String>('signature'))
+      .distinct();
 });
 
 /// Per-rule grammar progress, keyed by rule id. (Rule ids are globally unique

@@ -102,8 +102,8 @@ void main() {
     await pump(tester, token: 'good-token');
 
     expect(navigatedTo, startsWith('/lists/'));
-    final imported = await tester
-        .runAsync(() => db.vocabularyListDao.getByShareToken('good-token'));
+    final imported = await tester.runAsync(
+        () => db.vocabularyListDao.getImportedCopy('good-token', 'u'));
     expect(imported, isNotNull);
     expect(imported!.name, 'Liste partagée');
   });

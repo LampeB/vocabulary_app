@@ -11,15 +11,42 @@ cloud à 20 EUR.
    alerte à 12 EUR équivalent et un plafond mensuel à 20 EUR lorsqu'il est
    proposé. Les fournisseurs facturent parfois en USD : convertir ce seuil
    prudemment et conserver une marge.
-2. Déployer la migration `010_provider_quota_buckets.sql` avant les Edge
+2. Déployer les migrations, dont `010_provider_quota_buckets.sql` et
+   `012_security_boundaries.sql`, avant les Edge
    Functions. Sans elle, les fonctions échouent fermées (`503`) plutôt que
    d'appeler un fournisseur sans limite.
    L'API de quotas n'est exécutable que par `service_role` : les fonctions
    valident la session avec Auth, puis transmettent l'identité vérifiée au
    serveur. Les seuils sont définis dans SQL, jamais dans le client.
+   Le bail de génération audio et les nouvelles règles Storage sont requis
+   avant le nouveau provisionnement.
 3. Vérifier qu'aucune clé fournisseur n'est présente dans `.env.json`, les
    journaux ou l'application. Elles restent exclusivement dans les secrets
    Supabase.
+4. Déployer le tombstone HTTP 410 de `elevenlabs-proxy` ou supprimer cette
+   fonction du projet hébergé. Le client actuel ne l'appelle plus ; conserver
+   son ancienne version déployée laisserait un contournement des quotas.
+
+## Frontières des contenus et des audios
+
+- Les corps JSON des assistants sont lus en flux, avec un maximum de 32 Kio
+  et 5 secondes. Un mot facturé est limité à 256 caractères ; les contextes,
+  listes et règles ont aussi des bornes avant tout débit de quota.
+- Les appels IA et TTS ont un délai de 60 secondes sans retry automatique
+  Anthropic. Deux demandes du même clip manquant partagent une réservation
+  SQL exclusive de 90 secondes ; le cache est revérifié après réservation.
+- Le provisionnement utilisateur écrit exclusivement sous `users/<UUID>/`.
+  Le champ `origin` d'une liste n'autorise jamais une publication sous `seed/`.
+  Seul `seed-audio-publish`, administrateur, publie le catalogue partagé.
+  La lecture partagée exige aussi une entrée dans `published_audio_assets`,
+  écrite uniquement par ce publieur. Après migration, republier le catalogue
+  pour établir ce manifeste : les anciens objets sous `seed/` non attestés
+  cessent d'être publics, y compris ceux qui auraient contenu un texte privé.
+- Storage vérifie le propriétaire dans le chemin privé généré côté serveur,
+  indépendamment du champ `audio_path` modifiable dans une variante. Les
+  audios publiés du catalogue restent lisibles aux utilisateurs authentifiés.
+- La migration 012 crée également `review_events` et sa politique limitée au
+  propriétaire ; un historique ne peut pas être écrit ou lu pour un autre compte.
 
 ## Pendant la bêta
 
@@ -45,9 +72,10 @@ cloud à 20 EUR.
 
 ## Contrôles reproductibles
 
-La CI `PR / Provider boundaries` type-check les cinq fonctions, vérifie les
+La CI `PR / Provider boundaries` vérifie les fonctions, les
 frontières Auth/audio via les tests Deno et exécute
-`supabase/tests/provider_quota.sql` sur un PostgreSQL jetable. Les tests SQL
+`supabase/tests/provider_quota.sql` et les frontières multi-comptes dans
+`supabase/tests/security_boundaries.sql` sur un PostgreSQL jetable. Les tests SQL
 ne doivent jamais être lancés sur la base réelle. Les migrations ne sont pas
 déployées automatiquement par ce contrôle.
 

@@ -15,6 +15,9 @@ class VocabularyList with _$VocabularyList {
     @Default(ListVisibility.private) ListVisibility visibility,
     @Default(0) int wordCount,
     String? shareToken,
+
+    /// Token of the source list, never republished as this copy's public token.
+    String? importedFromShareToken,
     @Default('fr') String langA,
     @Default('ko') String langB,
     @Default('user') String origin,

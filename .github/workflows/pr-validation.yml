@@ -68,15 +68,24 @@ jobs:
           deno-version: v2.9.6
       - name: Check Edge Functions and test request boundaries
         run: |
-          deno check supabase/functions/{audio-provision,elevenlabs-stt-proxy,generate-grammar-exercises,vocab-assistant,whisper-proxy}/index.ts
+          deno check supabase/functions/{audio-provision,elevenlabs-proxy,elevenlabs-stt-proxy,generate-grammar-exercises,seed-audio-publish,vocab-assistant,whisper-proxy}/index.ts
           deno test --allow-env supabase/functions/_shared
-      - name: Test paid-provider quotas on disposable PostgreSQL
+      - name: Test quotas, RLS and concurrent reset on disposable PostgreSQL
         env:
           PGPASSWORD: postgres-test-only
+          PGUSER: postgres
+          PGHOST: localhost
+          PGDATABASE: ponderin_security_test
         run: |
-          psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role; CREATE SCHEMA auth; CREATE TABLE auth.users (id uuid PRIMARY KEY);"
-          psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f supabase/migrations/010_provider_quota_buckets.sql
-          psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f supabase/tests/provider_quota.sql
+          psql -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE ponderin_security_test'
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/security_bootstrap.sql
+          for migration in 000_complete_setup 004_generic_language_pairs 005_list_origin 006_variant_examples_and_seed_ids 007_audio_storage 008_e2e_reset 009_e2e_scenario_accounts 010_provider_quota_buckets 011_sync_identity 012_security_boundaries add_subscription_type; do
+            psql -v ON_ERROR_STOP=1 -f "supabase/migrations/${migration}.sql"
+          done
+          for test in provider_quota security_boundaries reset_e2e_account e2e_scenario_accounts; do
+            psql -v ON_ERROR_STOP=1 -f "supabase/tests/${test}.sql"
+          done
+          bash supabase/tests/reset_concurrency.sh
 
   android-build:
     name: PR / Android native build

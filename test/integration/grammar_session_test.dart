@@ -165,6 +165,35 @@ void main() {
     expect(progress.correct, 0);
   });
 
+  for (final example in [('eau', 'l’eau'), ('pomme', 'pommes')]) {
+    test(
+        'written grammar preserves the taught form: ${example.$1} != ${example.$2}',
+        () async {
+      final sub = container.listen(quizProvider, (_, __) {});
+      final notifier = container.read(quizProvider.notifier);
+      await notifier.loadCards(args());
+      final generated = sub.read().currentCard!;
+      notifier.state = QuizState(cards: [
+        QuizCard(
+            progress: generated.progress,
+            questionWord: 'Complete the grammatical form',
+            answerWords: [example.$2])
+      ]);
+      notifier.submitTextAnswer(example.$1);
+      expect(sub.read().answerState, QuizAnswerState.incorrect);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      final progress =
+          await db.grammarProgressDao.get('u', 'particule-theme-eun-neun');
+      expect(progress!.correct, 0);
+    });
+  }
+
+  test('grammar accepts typographic apostrophes without dropping the article',
+      () {
+    expect(isWrittenGrammarAnswer("l'eau", ['l’eau']), isTrue);
+    expect(isWrittenGrammarAnswer('EAU', ['l’eau']), isFalse);
+  });
+
   test('a voice answer grades, stops listening, and records grammar progress',
       () async {
     final sub = container.listen(quizProvider, (_, __) {});
@@ -211,6 +240,28 @@ void main() {
 
     expect(await db.grammarProgressDao.get('u', 'particule-theme-eun-neun'),
         isNull);
+  });
+
+  test(
+      'backgrounding feedback holds the graded card until one foreground advance',
+      () async {
+    final sub = container.listen(quizProvider, (_, __) {});
+    final notifier = container.read(quizProvider.notifier);
+    await notifier.loadCards(args(cardLimit: 3));
+    notifier.submitVoiceAnswer(sub.read().currentCard!.answerWords.first,
+        isDrivingMode: true);
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    notifier.setForeground(false);
+    await Future<void>.delayed(const Duration(milliseconds: 1000));
+    expect(sub.read().currentIndex, 0);
+    expect(sub.read().answerState, QuizAnswerState.correct);
+    notifier.setForeground(true);
+    await Future<void>.delayed(const Duration(milliseconds: 1000));
+    expect(sub.read().currentIndex, 1);
+    expect(
+        (await db.grammarProgressDao.get('u', 'particule-theme-eun-neun'))!
+            .shown,
+        1);
   });
 
   test(

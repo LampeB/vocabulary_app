@@ -8,6 +8,7 @@
         <!-- Debug-only: replays tool/stt_corpus through PcmSpeechRecognizer. -->
         <receiver
             android:name="com.vocabkr.vocab_kr.DebugRecognizeReceiver"
+            android:permission="android.permission.DUMP"
             android:exported="true" />
     </application>
 </manifest>

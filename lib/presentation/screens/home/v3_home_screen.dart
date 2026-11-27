@@ -154,9 +154,9 @@ class _V3HomeBody extends StatelessWidget {
         ? 'v3.words_due'.tr(namedArgs: {'count': '$dueCount'})
         : firstList == null
             ? 'v3.prepare_list'.tr()
-            : 'v3.new_words'.tr(namedArgs: {
-                'count': '${math.min(7, math.max(1, firstList.wordCount))}'
-              });
+            : firstList.wordCount == 0
+                ? 'v3.add_words'.tr()
+                : firstList.name;
     final nextSubtitle = dueCount > 0
         ? 'v3.resume_known'.tr()
         : firstList == null
@@ -195,6 +195,7 @@ class _V3HomeBody extends StatelessWidget {
             readLessons: lessonsRead,
             remainingLessons: lessonsRemaining,
             totalWords: totalWords,
+            listCount: pairLists.length,
           ),
           const SizedBox(height: 10),
           Row(
@@ -497,11 +498,13 @@ class _MetricGrid extends StatelessWidget {
       {required this.due,
       required this.readLessons,
       required this.remainingLessons,
-      required this.totalWords});
+      required this.totalWords,
+      required this.listCount});
   final int due;
   final int readLessons;
   final int remainingLessons;
   final int totalWords;
+  final int listCount;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -527,8 +530,8 @@ class _MetricGrid extends StatelessWidget {
                 title: 'v3.words_in_lists'.tr(),
                 meta: 'v3.at_your_pace'.tr()),
             _Metric(
-                value: '${readLessons + totalWords}',
-                title: 'v3.known_title'.tr(),
+                value: '$listCount',
+                title: 'v3.available_lists'.tr(),
                 meta: 'v3.building'.tr()),
           ];
           return Wrap(

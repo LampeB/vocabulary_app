@@ -14,6 +14,8 @@ abstract interface class ProgressRepository {
   Future<Result<List<VariantProgress>>> getAllDueCards({
     required String userId,
     required QuizDirection direction,
+    String? langA,
+    String? langB,
     int limit = 20,
   });
 
@@ -22,6 +24,8 @@ abstract interface class ProgressRepository {
   Future<Result<List<VariantProgress>>> getInProgressCards({
     required String userId,
     required QuizDirection direction,
+    String? langA,
+    String? langB,
     int limit = 20,
   });
 

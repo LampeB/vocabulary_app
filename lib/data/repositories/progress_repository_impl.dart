@@ -68,7 +68,8 @@ class ProgressRepositoryImpl implements ProgressRepository {
       final dueCards = dueRows.map((r) => r.toDomain()).toList();
       final newCards = newVariantIds
           .map((variantId) => VariantProgress(
-                id: _uuid.v4(),
+                id: _uuid.v5(Namespace.url.value,
+                    'ponderin:progress:$userId:$variantId:${direction.name}'),
                 userId: userId,
                 variantId: variantId,
                 direction: direction,
@@ -99,11 +100,17 @@ class ProgressRepositoryImpl implements ProgressRepository {
   Future<Result<List<VariantProgress>>> getAllDueCards({
     required String userId,
     required QuizDirection direction,
+    String? langA,
+    String? langB,
     int limit = 20,
   }) async {
     try {
       final rows = await _progressDao.getDueAcrossLists(
-          userId: userId, direction: direction.name, limit: limit);
+          userId: userId,
+          direction: direction.name,
+          limit: limit,
+          langA: langA,
+          langB: langB);
       return Success(rows.map((r) => r.toDomain()).toList());
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -114,11 +121,17 @@ class ProgressRepositoryImpl implements ProgressRepository {
   Future<Result<List<VariantProgress>>> getInProgressCards({
     required String userId,
     required QuizDirection direction,
+    String? langA,
+    String? langB,
     int limit = 20,
   }) async {
     try {
       final rows = await _progressDao.getInProgressAcrossLists(
-          userId: userId, direction: direction.name, limit: limit);
+          userId: userId,
+          direction: direction.name,
+          limit: limit,
+          langA: langA,
+          langB: langB);
       return Success(rows.map((r) => r.toDomain()).toList());
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -136,7 +149,8 @@ class ProgressRepositoryImpl implements ProgressRepository {
       if (row == null) {
         final now = DateTime.now();
         return Success(VariantProgress(
-          id: _uuid.v4(),
+          id: _uuid.v5(Namespace.url.value,
+              'ponderin:progress:$_userId:$variantId:${direction.name}'),
           userId: _userId,
           variantId: variantId,
           direction: direction,

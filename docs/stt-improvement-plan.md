@@ -49,6 +49,15 @@ audio du prompt → signal de fin → remise micro → hypothèses STT
 `AudioDirector` doit terminer ou annuler l'audio précédent avant l'écoute.
 `SttRace` et `VoiceTurnMachine` ignorent les résultats arrivés après la fin du
 tour pour empêcher une réponse de contaminer la carte suivante.
+La fermeture de la capture attend sa dernière portion audio et l'inscrit dans
+les analyses en cours avant de permettre un verdict d'absence de réponse.
+La mise en arrière-plan ou en pause invalide également l'avance différée et
+le prompt suivant ; à la reprise, une réponse déjà notée n'est pas renotée.
+Les cartes suivantes et reportées conservent leurs chemins de clips en cache.
+
+La notation **écrite de grammaire** préserve les formes attendues par le module :
+ni élision supprimée, ni rapprochement phonétique ne peut masquer un article
+ou un pluriel manquant. La tolérance du vocabulaire ne s'y applique pas.
 
 ## Règles de modification
 
@@ -66,6 +75,16 @@ tour pour empêcher une réponse de contaminer la carte suivante.
 Whisper local est conservé. Les services cloud ne sont que des secours : une
 limite atteinte ne doit jamais empêcher une session locale avec le moteur du
 téléphone ou Whisper.
+Le cloud n'analyse la capture qu'après la fin de la tentative locale et de
+ses segments en attente, sans réponse locale validée. Les demandes cloud
+d'un même tour sont sérialisées. Une validation locale n'envoie ni audio ni
+réponse attendue au fournisseur.
+
+Les transcriptions brutes ne sont journalisées que dans un build de debug
+avec l'option explicite `STT_DIAGNOSTICS=true`. Elles ne sont ni écrites dans
+un fichier ni imprimées dans les journaux du build de livraison. Le récepteur
+Android de corpus est limité au shell de test, au dossier de corpus et aux
+captures WAV bornées ; il n'est pas présent dans la livraison.
 
 | Capacité | Plafond authentifié |
 | --- | --- |

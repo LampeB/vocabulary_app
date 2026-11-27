@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vocab_kr/presentation/navigation/auth_redirect.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
 import 'package:vocab_kr/domain/entities/subscription_type.dart';
@@ -64,6 +66,51 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(find.text('Home ready'), findsOneWidget);
+  });
+
+  testWidgets(
+      'early Supabase session redirects through bootstrap while profile is pending',
+      (tester) async {
+    final session = ValueNotifier(false);
+    addTearDown(session.dispose);
+    final profile = Completer<AppUser?>();
+    final seed = Completer<void>();
+    final router = GoRouter(
+        initialLocation: '/auth',
+        refreshListenable: session,
+        redirect: (_, state) => authRedirect(
+            isSignedIn: session.value, location: state.matchedLocation),
+        routes: [
+          GoRoute(
+              path: '/auth', builder: (_, __) => const Text('Authentication')),
+          GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
+          GoRoute(
+              path: '/home', builder: (_, __) => const Text('Prepared home')),
+          GoRoute(path: '/welcome', builder: (_, __) => const Text('Welcome')),
+        ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(ProviderScope(overrides: [
+      authStateProvider
+          .overrideWith(() => _DelayedAuthNotifier(profile.future)),
+      seedStarterListsProvider.overrideWith((ref) => seed.future),
+    ], child: MaterialApp.router(routerConfig: router)));
+    session.value = true;
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Prepared home'), findsNothing);
+    profile.complete(AppUser(
+        id: 'user',
+        email: 'u@test.example',
+        username: 'learner',
+        subscriptionType: SubscriptionType.free,
+        createdAt: DateTime(2026)));
+    await tester.pump();
+    expect(find.text('Prepared home'), findsNothing);
+    seed.complete();
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Prepared home'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('opens welcome only after anonymous auth state resolves',

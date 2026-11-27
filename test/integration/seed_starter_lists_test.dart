@@ -11,6 +11,25 @@ import 'package:vocab_kr/domain/entities/subscription_type.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import '../helpers/fake_remote.dart';
+import 'package:vocab_kr/core/errors/failure.dart';
+import 'package:vocab_kr/core/errors/app_exception.dart';
+import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
+
+class _FailOnceSeedRepository extends VocabularyRepositoryImpl {
+  _FailOnceSeedRepository(AppDatabase db)
+      : super(db.vocabularyListDao, db.conceptDao, FakeRemote(), 'u1', db);
+  bool fail = true;
+  @override
+  Future<Result<VocabularyList>> importFromJson(Map<String, dynamic> json,
+      {String origin = 'user'}) {
+    if (fail) {
+      fail = false;
+      return Future.value(
+          const Failure(StorageException('temporary disk failure')));
+    }
+    return super.importFromJson(json, origin: origin);
+  }
+}
 
 /// Pair-aware starter seeding from the catalog (assets/seed/vocab/ — the REAL
 /// assets, so this also validates the shipped content): composing fr>ko must
@@ -117,6 +136,27 @@ void main() {
     await seed();
     await seed();
     expect((await repo.watchMyLists().first).length, 6);
+  });
+
+  test('concurrent seed calls share a single complete catalogue import',
+      () async {
+    await Future.wait(List.generate(4, (_) => seed()));
+    final lists = await repo.watchMyLists().first;
+    expect(lists, hasLength(6));
+    expect(lists.map((list) => list.seedId).toSet(), hasLength(6));
+  });
+
+  test('an import failure does not mark the pair complete and retry heals it',
+      () async {
+    repo = _FailOnceSeedRepository(db);
+    await expectLater(seed(), throwsStateError);
+    final preferences = await SharedPreferences.getInstance();
+    expect(preferences.getBool(StarterSeeder.flagKeyFor('u1', 'fr', 'ko')),
+        isNot(true));
+    await seed();
+    expect(await repo.watchMyLists().first, hasLength(6));
+    expect(preferences.getBool(StarterSeeder.flagKeyFor('u1', 'fr', 'ko')),
+        isTrue);
   });
 
   test('a user with pre-existing lists still receives the starter lists',

@@ -57,11 +57,18 @@ void main() {
   Future<void> pump(WidgetTester tester,
       {List<VocabularyList>? lists,
       Set<String> studied = const {},
-      bool grammar = false}) {
+      bool grammar = false,
+      String? initialRuleId,
+      String? langA,
+      String? langB}) {
     capturedArgs = null;
     return pumpScreen(
       tester,
-      screen: StartSessionScreen(grammar: grammar),
+      screen: StartSessionScreen(
+          grammar: grammar,
+          initialRuleId: initialRuleId,
+          initialLangA: langA,
+          initialLangB: langB),
       overrides: [
         myListsProvider.overrideWith(
             (ref) => Stream.value(lists ?? [_list('l1', 'Animaux')])),
@@ -70,7 +77,8 @@ void main() {
         studiedListIdsProvider.overrideWith((ref) => Stream.value(studied)),
         ruleStatusesProvider.overrideWith((ref, lang) async => [
               RuleStatus(
-                rule: _rule('regle-debloquee', 'La particule de thème'),
+                rule: _rule(initialRuleId ?? 'regle-debloquee',
+                    'La particule de thème'),
                 availability: RuleAvailability.unlocked,
                 missingLists: const [],
                 enoughWords: true,
@@ -302,6 +310,23 @@ void main() {
     expect(capturedArgs!.source, QuizSource.grammar);
     expect(capturedArgs!.ruleId, 'regle-debloquee');
     expect(capturedArgs!.mode, QuizMode.typing);
+  });
+
+  testWidgets(
+      'French lesson keeps its exact rule and Korean base through setup',
+      (tester) async {
+    await pump(tester,
+        grammar: true,
+        initialRuleId: 'fr-articles-le-la',
+        langA: 'ko',
+        langB: 'fr');
+    await tapKey(tester, WidgetKeys.startQuizType('typing'));
+    await tapKey(tester, WidgetKeys.startCount(10));
+    await tapKey(tester, WidgetKeys.startSessionStart);
+    expect(capturedArgs!.source, QuizSource.grammar);
+    expect(capturedArgs!.ruleId, 'fr-articles-le-la');
+    expect(capturedArgs!.langA, 'ko');
+    expect(capturedArgs!.langB, 'fr');
   });
 
   testWidgets('the CTA label shows the selected card count', (tester) async {

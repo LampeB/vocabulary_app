@@ -62,7 +62,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       user = null;
     }
     if (user != null) {
-      await ref.read(seedStarterListsProvider.future);
+      try {
+        await ref
+            .read(seedStarterListsProvider.future)
+            .timeout(const Duration(seconds: 20));
+      } catch (_) {
+        // A failed bootstrap keeps its retry flag unset; existing local
+        // lists remain usable rather than leaving the learner on a spinner.
+      }
     }
     if (!mounted) return;
     if (mounted) context.go(user != null ? '/home' : '/welcome');

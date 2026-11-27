@@ -26,6 +26,7 @@ final _now = DateTime(2026, 7, 3);
 
 class _NoopAudio implements AudioPlayerService {
   final prefetchedPaths = <String?>[];
+  final spokenPaths = <String?>[];
   @override
   Future<void> warmUp(String langCode) async {}
   @override
@@ -35,7 +36,10 @@ class _NoopAudio implements AudioPlayerService {
   }
 
   @override
-  Future<void> speak(String text, String langCode, {String? audioPath}) async {}
+  Future<void> speak(String text, String langCode, {String? audioPath}) async {
+    spokenPaths.add(audioPath);
+  }
+
   @override
   Future<void> stop() async {}
   @override
@@ -170,6 +174,26 @@ void main() {
 
     expect(audio.prefetchedPaths, hasLength(6));
     expect(audio.prefetchedPaths, everyElement(startsWith('users/u/')));
+  });
+
+  test('subsequent and postponed cards retain the published audio clip',
+      () async {
+    final (container, sub) = harness({
+      QuizDirection.frToKo: Success([
+        _due(frVariantId['chat']!, QuizDirection.frToKo),
+        _due(frVariantId['chien']!, QuizDirection.frToKo),
+      ])
+    });
+    final notifier = container.read(quizProvider.notifier);
+    await notifier.loadCards(args(cardLimit: 2));
+    final first = sub.read().currentCard!;
+    expect(audio.spokenPaths.single, first.questionAudioPath);
+    notifier.skipCurrentCard();
+    await Future<void>.delayed(Duration.zero);
+    final next = sub.read().currentCard!;
+    expect(audio.spokenPaths.last, next.questionAudioPath);
+    expect(sub.read().cards.last.questionAudioPath, first.questionAudioPath);
+    expect(sub.read().cards.last.answerAudioPath, first.answerAudioPath);
   });
 
   test(

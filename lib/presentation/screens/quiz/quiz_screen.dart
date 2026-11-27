@@ -194,12 +194,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _appForeground = true;
+      ref.read(quizProvider.notifier).setForeground(!_hfPaused);
       return;
     }
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       _appForeground = false;
+      ref.read(quizProvider.notifier).setForeground(false);
       unawaited(_pauseForBackground());
     }
   }
@@ -239,13 +241,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // semantics (and their field-log history) live in AudioDirector.
     final director = ref.read(audioDirectorProvider);
     final waitStart = DateTime.now();
-    await director.chainQuiet(keepGoing: () => mounted && _appForeground);
+    await director.chainQuiet(
+        keepGoing: () => mounted && _appForeground && !_hfPaused);
     final speechWaitMs = DateTime.now().difference(waitStart).inMilliseconds;
     sttLog(
         '[HF] waited ${speechWaitMs}ms for TTS chain (isSpeaking=${director.isSpeaking}) — starting 250ms echo tail');
     // Echo tail: let the room go quiet before the mic opens.
     await Future.delayed(const Duration(milliseconds: 250));
-    if (!mounted || !_appForeground) return;
+    if (!mounted || !_appForeground || _hfPaused) return;
     if (_stt.isListening || _whisper.isListening || _elevenLabs.isListening) {
       // A stale session must not swallow this card's window (it would hear
       // our TTS and validate against the wrong card) — stop it, then start
@@ -332,9 +335,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (_sttStatus != null && mounted) setState(() => _sttStatus = null);
   }
 
-  /// Parallel pipeline: the registry activates the best available engines
-  /// (online: ElevenLabs Scribe + on-device Whisper on one shared mic;
-  /// offline: the phone recognizer, Whisper on the rescue attempt). Every
+  /// Local-first pipeline: the registry prefers the ready phone recognizer
+  /// or local decoders. Shared decoders consume the same recorded utterance;
+  /// network decoders receive it only after local recognition fails. Every
   /// guess is validated inside [SttRace] against the card's accepted
   /// answers, the first match wins, and the card is graded EXACTLY once —
   /// the race returns a single outcome (this also structurally prevents the
@@ -351,11 +354,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _raceElevenLabsEngine ??= ElevenLabsSttEngine(_elevenLabs);
     _racePhoneEngine ??=
         PhoneSttEngine(const MethodChannelPhonePcmRecognizer());
-    // Registration order = quality rank (field logs + the corpora): cloud
-    // Scribe, the phone recognizer on our recording, the live phone
-    // recognizer (a mic owner — only used when no shared engine is
-    // available, e.g. offline), then on-device Whisper. Online, the three
-    // shared engines transcribe the same recording in parallel.
+    // Preserve ranking within the local and network groups. The registry
+    // selects local capture first; a mic owner runs alone. Compatible shared
+    // decoders use one recording, with the cloud lane deferred by SttRace
+    // until local decoding and the final captured tail have failed.
     _sttRegistry ??= SttEngineRegistry()
       ..register(_raceElevenLabsEngine!)
       ..register(_racePhoneEngine!)
@@ -363,8 +365,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       ..register(_raceWhisperEngine!);
     await _raceSystemEngine!.prepare(); // idempotent — already initialised
     await _racePhoneEngine!.prepare();
-    // Whisper joins the parallel race once its model is ready; kick the
-    // download in the background on first use. This is intentionally enabled
+    // Whisper becomes available for local decoding once its model is ready;
+    // kick the download in the background on first use. This is enabled
     // for debug APKs too: field tests must exercise the same hybrid pipeline
     // as the version we plan to ship.
     final courseMode = ref.read(sttEngineModeProvider) == SttEngineMode.race;
@@ -602,7 +604,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   Future<void> _startListeningInner(QuizCard card,
       {required bool isRetry}) async {
-    if (!_appForeground) return;
+    if (!_appForeground || _hfPaused) return;
     // Fresh listens reset the banner to "speak now"; retry listens KEEP the
     // "try x/3" / "répète" prompts visible — they already say what to do.
     if ((_hfNotHeard && !isRetry) || _hfAnalyzing) {
@@ -865,6 +867,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _hfPaused = !_hfPaused;
       _hfAutoPausedSilence = false;
     });
+    ref.read(quizProvider.notifier).setForeground(_appForeground && !_hfPaused);
     if (_hfPaused) {
       _cancelActiveRace();
       _stt.stopListening();
@@ -876,7 +879,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       // Manual resume = the user says the environment is OK again.
       _turnMachine?.resetSilenceStreak();
       final card = ref.read(quizProvider).currentCard;
-      if (card != null) unawaited(_startListening(card));
+      if (card != null &&
+          ref.read(quizProvider).answerState == QuizAnswerState.idle) {
+        unawaited(_startListening(card));
+      }
     }
   }
 
@@ -1222,7 +1228,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(back ? 'RÉPONSE' : 'PRENDS LA CARTE',
+                Text(back ? 'v3.card_answer'.tr() : 'v3.card_take'.tr(),
                     style: V3Text.mono(12)),
                 const SizedBox(height: 26),
                 Flexible(
@@ -1238,9 +1244,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  back
-                      ? '← PAS ENCORE     JE SAVAIS →'
-                      : 'quiz.card_flip_hint'.tr(),
+                  back ? 'v3.card_grade_hint'.tr() : 'quiz.card_flip_hint'.tr(),
                   textAlign: TextAlign.center,
                   style: V3Text.body(14, color: V3Colors.ink60),
                 ),
@@ -1318,6 +1322,28 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 ),
               ),
             ),
+            if (showBack) ...[
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(
+                    child: OutlinedButton(
+                  key: const ValueKey(WidgetKeys.gradeAgain),
+                  onPressed: _flashcardExiting
+                      ? null
+                      : () => unawaited(_dismissFlashcard(knew: false)),
+                  child: Text('v3.card_again'.tr()),
+                )),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: FilledButton(
+                  key: const ValueKey(WidgetKeys.gradeKnew),
+                  onPressed: _flashcardExiting
+                      ? null
+                      : () => unawaited(_dismissFlashcard(knew: true)),
+                  child: Text('v3.card_knew'.tr()),
+                )),
+              ]),
+            ],
           ],
         ),
       ),

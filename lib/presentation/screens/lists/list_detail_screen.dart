@@ -166,6 +166,8 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                       key: Key(concepts[i].id),
                       concept: concepts[i],
                       listId: widget.listId,
+                      langA: listAsync.valueOrNull?.langA ?? 'fr',
+                      langB: listAsync.valueOrNull?.langB ?? 'ko',
                       editMode: _editMode,
                     ),
                   ),
@@ -365,6 +367,8 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
   /// Themed AI suggestions: infer the list's theme from its pairs, propose
   /// new words, add the checked ones (user request 2026-07-11).
   Future<void> _showAiSuggestionsSheet(BuildContext context) async {
+    final list = ref.read(listInfoProvider(widget.listId)).valueOrNull;
+    if (list == null) return;
     final concepts =
         ref.read(listDetailProvider(widget.listId)).valueOrNull ?? [];
     final pairs = <WordPairSuggestion>[];
@@ -372,8 +376,10 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
       final variants = await ref
           .read(variantsProvider(c.id).future)
           .catchError((_) => <WordVariant>[]);
-      final fr = variants.where((v) => v.langCode == 'fr' && !v.isDeleted);
-      final ko = variants.where((v) => v.langCode == 'ko' && !v.isDeleted);
+      final fr =
+          variants.where((v) => v.langCode == list.langA && !v.isDeleted);
+      final ko =
+          variants.where((v) => v.langCode == list.langB && !v.isDeleted);
       if (fr.isNotEmpty && ko.isNotEmpty) {
         pairs.add(
             WordPairSuggestion(source: fr.first.word, target: ko.first.word));
@@ -385,6 +391,8 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
       isScrollControlled: true,
       showDragHandle: true,
       builder: (ctx) => _AiSuggestionsSheet(
+        langA: list.langA,
+        langB: list.langB,
         existingPairs: pairs,
         onAdd: (selected) async {
           for (final p in selected) {
@@ -620,7 +628,12 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
 
 /// Bottom sheet: AI-inferred theme + checkable new word pairs.
 class _AiSuggestionsSheet extends ConsumerStatefulWidget {
-  const _AiSuggestionsSheet({required this.existingPairs, required this.onAdd});
+  const _AiSuggestionsSheet(
+      {required this.langA,
+      required this.langB,
+      required this.existingPairs,
+      required this.onAdd});
+  final String langA, langB;
   final List<WordPairSuggestion> existingPairs;
   final Future<void> Function(List<WordPairSuggestion> selected) onAdd;
 
@@ -643,8 +656,8 @@ class _AiSuggestionsSheetState extends ConsumerState<_AiSuggestionsSheet> {
 
   Future<void> _fetch() async {
     final result = await ref.read(vocabAssistantProvider).suggest(
-          sourceLang: 'fr',
-          targetLang: 'ko',
+          sourceLang: widget.langA,
+          targetLang: widget.langB,
           existingPairs: widget.existingPairs,
         );
     if (!mounted) return;
@@ -745,10 +758,13 @@ class _ConceptTile extends ConsumerWidget {
     super.key,
     required this.concept,
     required this.listId,
+    required this.langA,
+    required this.langB,
     required this.editMode,
   });
   final dynamic concept;
   final String listId;
+  final String langA, langB;
   final bool editMode;
 
   @override
@@ -771,9 +787,9 @@ class _ConceptTile extends ConsumerWidget {
       error: (_, __) => const SizedBox.shrink(),
       data: (variants) {
         final fr =
-            variants.where((v) => v.langCode == 'fr' && !v.isDeleted).toList();
+            variants.where((v) => v.langCode == langA && !v.isDeleted).toList();
         final ko =
-            variants.where((v) => v.langCode == 'ko' && !v.isDeleted).toList();
+            variants.where((v) => v.langCode == langB && !v.isDeleted).toList();
         final frWord = fr.isNotEmpty ? fr.first.word : '—';
         final koWord = ko.isNotEmpty ? ko.first.word : '—';
 
@@ -796,8 +812,8 @@ class _ConceptTile extends ConsumerWidget {
                       controller: frCtrl,
                       autofocus: true,
                       decoration: InputDecoration(
-                          labelText: 'list_detail.field_french'.tr(),
-                          prefixText: '🇫🇷  '),
+                          labelText: Languages.displayName(langA),
+                          prefixText: '${Languages.flagFor(langA)}  '),
                       textInputAction: TextInputAction.next,
                       validator: (v) =>
                           (v?.trim().isEmpty ?? true) ? 'Requis' : null,
@@ -807,8 +823,8 @@ class _ConceptTile extends ConsumerWidget {
                       key: const ValueKey(WidgetKeys.editWordKo),
                       controller: koCtrl,
                       decoration: InputDecoration(
-                          labelText: 'list_detail.field_korean'.tr(),
-                          prefixText: '🇰🇷  '),
+                          labelText: Languages.displayName(langB),
+                          prefixText: '${Languages.flagFor(langB)}  '),
                       validator: (v) =>
                           (v?.trim().isEmpty ?? true) ? 'Requis' : null,
                     ),
@@ -881,12 +897,14 @@ class _ConceptTile extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('list_detail.lang_fr'.tr(),
+                    Text(Languages.displayName(langA),
                         style: AppTextStyles.eyebrowSm
                             .copyWith(color: AppColors.teal)),
                     const SizedBox(height: 2),
                     Text(frWord,
-                        style: AppTextStyles.fig(15, FontWeight.w600)
+                        style: (Languages.usesHangul(langA)
+                                ? AppTextStyles.kr(15, FontWeight.w600)
+                                : AppTextStyles.fig(15, FontWeight.w600))
                             .copyWith(color: ink),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis),
@@ -905,12 +923,14 @@ class _ConceptTile extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('list_detail.lang_kr'.tr(),
+                    Text(Languages.displayName(langB),
                         style: AppTextStyles.eyebrowSm
                             .copyWith(color: AppColors.clay)),
                     const SizedBox(height: 2),
                     Text(koWord,
-                        style: AppTextStyles.kr(16, FontWeight.w500)
+                        style: (Languages.usesHangul(langB)
+                                ? AppTextStyles.kr(16, FontWeight.w500)
+                                : AppTextStyles.fig(16, FontWeight.w500))
                             .copyWith(color: ink),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis),
