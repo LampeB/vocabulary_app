@@ -1,6 +1,5 @@
 // ignore_for_file: invalid_use_of_internal_member
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
 import 'package:drift/native.dart';
@@ -254,25 +253,32 @@ class _VoiceHarness {
     Completer<bool>? preparePhone,
     AudioPlayerService? promptAudio,
     FutureOr<List<String>> Function()? checkConnectivity,
-    Future<void> Function()? stopSystem,
+    bool Function()? acceptSystemStop,
+    Future<void>? systemRelease,
   }) : director = _TestDirector(promptAudio) {
     SttSimulator.mode = '';
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     const phone = MethodChannel('vocab_kr/pcm_speech');
-    const localCapability = MethodChannel('vocab_kr/system_speech');
     const connectivity = MethodChannel(
       'dev.fluttercommunity.plus/connectivity',
     );
+    messenger.setMockMethodCallHandler(_permissionsChannel, (_) async => true);
     messenger.setMockMethodCallHandler(_speech, (call) async {
-      if (call.method == 'initialize') return true;
+      if (call.method == 'supportsOnDeviceRecognition') return false;
       if (call.method == 'listen') {
+        systemSession = call.arguments['session'] as int;
         systemListens++;
         return true;
       }
       if (call.method == 'stop') {
         systemStops++;
-        await stopSystem?.call();
+        if (!(acceptSystemStop?.call() ?? true)) return false;
+        final session = call.arguments['session'] as int;
+        unawaited(() async {
+          await systemRelease;
+          await systemEvent('released', const {}, session: session);
+        }());
         return true;
       }
       return null;
@@ -281,41 +287,47 @@ class _VoiceHarness {
       phonePrepares++;
       return preparePhone == null ? false : await preparePhone.future;
     });
-    messenger.setMockMethodCallHandler(localCapability, (_) async => false);
     messenger.setMockMethodCallHandler(connectivity, (_) async {
       return checkConnectivity == null ? ['none'] : await checkConnectivity();
     });
     addTearDown(() {
       messenger.setMockMethodCallHandler(_speech, null);
+      messenger.setMockMethodCallHandler(_permissionsChannel, null);
       messenger.setMockMethodCallHandler(phone, null);
-      messenger.setMockMethodCallHandler(localCapability, null);
       messenger.setMockMethodCallHandler(connectivity, null);
     });
   }
 
-  static const _speech = MethodChannel('plugin.csdcorp.com/speech_to_text');
+  static const _speech = MethodChannel('vocab_kr/system_speech');
+  static const _permissionsChannel = MethodChannel(
+    'plugin.csdcorp.com/speech_to_text',
+  );
   final capture = _FakeCapture();
   final whisper = _FakeWhisper();
   final _TestDirector director;
   int systemListens = 0;
   int systemStops = 0;
+  int? systemSession;
   int phonePrepares = 0;
 
-  Future<void> systemFinalResult(String transcript) {
+  Future<void> systemFinalResult(String transcript) => systemEvent('result', {
+    'isFinal': true,
+    'alternates': [
+      {'words': transcript, 'confidence': .95},
+    ],
+  });
+
+  Future<void> systemEvent(
+    String method,
+    Map<String, Object?> arguments, {
+    int? session,
+  }) {
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     return messenger.handlePlatformMessage(
       _speech.name,
       _speech.codec.encodeMethodCall(
-        MethodCall(
-          'textRecognition',
-          jsonEncode({
-            'resultType': 2,
-            'alternates': [
-              {'recognizedWords': transcript, 'confidence': .95},
-            ],
-          }),
-        ),
+        MethodCall(method, {'session': session ?? systemSession, ...arguments}),
       ),
       null,
     );
@@ -1416,10 +1428,8 @@ void main() {
         var reject = !hangs;
         final nativeStop = Completer<void>();
         final voice = _VoiceHarness(
-          stopSystem: () async {
-            if (reject) throw PlatformException(code: 'release_failed');
-            if (hangs) await nativeStop.future;
-          },
+          acceptSystemStop: () => !reject,
+          systemRelease: hangs ? nativeStop.future : null,
         );
         SharedPreferences.setMockInitialValues({
           'settings_stt_engine_mode': 'system',
@@ -1441,6 +1451,13 @@ void main() {
         expect(voice.director.endCues, 0);
         expect(progressRepo.saved, isEmpty);
         expect(find.text('quiz.mic_release_failed_hf'.tr()), findsOneWidget);
+        if (hangs) {
+          await voice.systemEvent(
+            'released',
+            const {},
+            session: voice.systemSession! - 1,
+          );
+        }
 
         final providers = ProviderScope.containerOf(
           tester.element(find.byType(QuizScreen)),
@@ -1647,14 +1664,7 @@ void main() {
     expect(voice.systemListens, 1);
     expect(voice.phonePrepares, 0);
     expect(voice.capture.opens, 0);
-    const speech = MethodChannel('plugin.csdcorp.com/speech_to_text');
-    await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
-      speech.name,
-      speech.codec.encodeMethodCall(
-        const MethodCall('notifyStatus', 'doneNoResult'),
-      ),
-      null,
-    );
+    await voice.systemEvent('status', const {'status': 'done'});
     await tester.pump();
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 3600)),
@@ -1748,6 +1758,69 @@ void main() {
       },
     );
   }
+
+  testWidgets('grammar Repeat recovers from a missing setLanguage reply', (
+    tester,
+  ) async {
+    const channel = MethodChannel('flutter_tts');
+    final messenger = tester.binding.defaultBinaryMessenger;
+    final missingReply = Completer<void>();
+    final spokenLocales = <String>[];
+    var configuredLocale = '';
+    var languageCalls = 0;
+    var stopCalls = 0;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      switch (call.method) {
+        case 'getEngines':
+          return <Object>[];
+        case 'setLanguage':
+          configuredLocale = call.arguments as String;
+          if (++languageCalls == 1) await missingReply.future;
+        case 'speak':
+          spokenLocales.add(configuredLocale);
+        case 'stop':
+          stopCalls++;
+      }
+      return 1;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    final tts = FlutterTtsService();
+    final voice = _VoiceHarness(
+      promptAudio: AudioPlayerService(
+        usePremium: false,
+        filePlayer: _SilentFilePlayer(),
+        tts: tts,
+      ),
+    );
+    await pump(
+      tester,
+      mode: QuizMode.handsFree,
+      words: [],
+      grammar: true,
+      cardLimit: 1,
+      voice: voice,
+    );
+    expect(languageCalls, 1);
+    final instructionLocale = configuredLocale;
+    await tester.pump(const Duration(seconds: 16));
+    await tester.pump();
+    expect(find.text('quiz.grammar_prompt_failed'.tr()), findsOneWidget);
+    expect(stopCalls, 1);
+    expect(voice.director.cues, 0);
+    expect(voice.capture.opens, 0);
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfRepeat)));
+    await tick(tester, times: 10);
+    expect(spokenLocales, [instructionLocale, 'ko-KR']);
+    expect(voice.director.cues, 1);
+    expect(voice.capture.opens, 1);
+    missingReply.complete();
+    await tester.pump();
+    expect(languageCalls, 3);
+    expect(spokenLocales, [instructionLocale, 'ko-KR']);
+    expect(configuredLocale, 'ko-KR');
+    await unmountScreen(tester);
+    await tester.pump(const Duration(seconds: 8));
+  });
 
   testWidgets(
     'a hands-free verdict advances once after background and resume',

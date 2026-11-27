@@ -42,8 +42,9 @@ class _SharedListRemote extends FakeRemote {
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
-    String listId,
-  ) async => Success([
+    String listId, {
+    required String ownerId,
+  }) async => Success([
     for (final row in storedConcepts.values.where(
       (row) => row['list_id'] == listId,
     ))

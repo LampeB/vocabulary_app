@@ -128,8 +128,9 @@ class _SyncRemote extends FakeRemote {
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
-    String listId,
-  ) async => listId == unavailableList
+    String listId, {
+    required String ownerId,
+  }) async => listId == unavailableList
       ? const Failure(NetworkException('unavailable list contents'))
       : Success(conceptsByList[listId] ?? []);
 

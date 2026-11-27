@@ -362,7 +362,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     // Fetch progress entries — one or two calls depending on direction choice.
     List<VariantProgress> progressList;
     if (args.direction == QuizDirectionChoice.both) {
-      final limit = halfLimit(args.cardLimit);
+      final onlyDue = args.source == QuizSource.allDue;
+      final limit = onlyDue ? args.cardLimit : halfLimit(args.cardLimit);
       final frResult = await getDueCards.call(
         userId: ownerId,
         listId: args.listId,
@@ -391,11 +392,12 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         );
         return;
       }
-      // Interleave FR and KO cards (FR, KO, FR, KO, …), capped at the limit.
+      // Due-only sessions can fill unused places from either direction.
+      // Keep both pools through enrichment so an unanswerable entry can be skipped.
       progressList = interleaveAndCap(
         frResult.valueOrNull ?? [],
         koResult.valueOrNull ?? [],
-        args.cardLimit,
+        onlyDue ? limit * 2 : args.cardLimit,
       );
     } else {
       final direction = args.direction == QuizDirectionChoice.frToKo
@@ -462,7 +464,12 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
 
     // Assemble QuizCards, dropping any whose variant can't be resolved.
     var quizCards = <QuizCard>[];
+    final seen = <(String, QuizDirection)>{};
     for (final p in progressList) {
+      if (args.source == QuizSource.allDue &&
+          !seen.add((p.variantId, p.direction))) {
+        continue;
+      }
       final question = questionById[p.variantId];
       if (question == null) continue;
       final answerLang = p.direction.answerLang;
@@ -478,20 +485,27 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         );
         continue;
       }
+      final primary = answerVariants.firstWhere(
+        (variant) => variant.isPrimary,
+        orElse: () => answerVariants.first,
+      );
       quizCards.add(
         QuizCard(
           progress: p,
           questionWord: question.word,
           questionAudioPath: question.audioPath,
-          answerWords: answerVariants.map((v) => v.word).toList(),
-          answerAudioPath: answerVariants
-              .firstWhere(
-                (v) => v.isPrimary,
-                orElse: () => answerVariants.first,
-              )
-              .audioPath,
+          answerWords: [
+            primary.word,
+            for (final variant in answerVariants)
+              if (variant.id != primary.id) variant.word,
+          ],
+          answerAudioPath: primary.audioPath,
         ),
       );
+    }
+
+    if (args.source == QuizSource.allDue) {
+      quizCards = quizCards.take(args.cardLimit).toList();
     }
 
     // Same concept, languages swapped, back-to-back ("morning" → "matin")
@@ -502,9 +516,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       (c) => questionById[c.progress.variantId]?.conceptId,
     );
 
-    if (args.source == QuizSource.allDue) {
-      quizCards = quizCards.take(args.cardLimit).toList();
-    } else {
+    if (args.source != QuizSource.allDue) {
       quizCards = padCyclically(quizCards, args.cardLimit);
     }
 
@@ -710,6 +722,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     final correct = AnswerValidator.validate(
       userAnswer: answer,
       acceptedAnswers: card.answerWords,
+      langCode: card.progress.direction.answerLang,
       preserveGrammar: _lastArgs?.source == QuizSource.grammar,
     ).isCorrect;
     final rating = correct ? FsrsRating.good : FsrsRating.again;
@@ -735,6 +748,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     final result = AnswerValidator.validate(
       userAnswer: transcript,
       acceptedAnswers: card.answerWords,
+      langCode: card.progress.direction.answerLang,
       isDrivingMode: isDrivingMode,
       preserveGrammar: _lastArgs?.source == QuizSource.grammar,
     );

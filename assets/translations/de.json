@@ -1,4 +1,5 @@
 {
+  "free_practice.source": "Inhalt",
   "common.cancel": "Abbrechen",
   "common.save": "Speichern",
   "common.delete": "Löschen",
@@ -306,9 +307,9 @@
   "stats.section_recent_sessions": "LETZTE SITZUNGEN",
   "stats.chart_empty": "Daten erscheinen nach deiner ersten Sitzung.",
   "stats.sessions_empty": "Noch keine Sitzungen.\nStarte ein Quiz!",
-  "stats.session_dir_fr_to_kr": "FR → KR",
-  "stats.session_dir_kr_to_fr": "KR → FR",
-  "stats.session_dir_both": "FR ↔ KR",
+  "stats.session_dir_fr_to_kr": "Listenrichtung",
+  "stats.session_dir_kr_to_fr": "Umgekehrte Richtung",
+  "stats.session_dir_both": "Beide Richtungen",
   "stats.session_cards_unit": "Karten",
   "quiz.voice_reveal": "Antwort zeigen",
   "quiz.voice_keyboard": "Tastatur",

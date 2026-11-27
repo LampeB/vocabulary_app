@@ -21,6 +21,16 @@ L'application utilise SQLite comme source de lecture et les colonnes
 - Les envois de production sont filtrés par utilisateur connecté, y compris
   les concepts et variantes reliés à leurs listes. Les recherches de token de
   partage et de progression sont également isolées par compte.
+- La migration PostgreSQL 015 qualifie les identifiants de listes, concepts et
+  variantes par propriétaire. Les clés parentes, les accusés, la visibilité
+  publique et l'attachement audio utilisent ce même propriétaire. Elle
+  conserve les identifiants déjà enregistrés et étend la clé de progression
+  à l'identité du propriétaire de la variante. Elle accompagne la version du
+  client et de la fonction audio qui transmettent ces clés.
+- Si deux comptes partagent le même fichier SQLite et reçoivent un même
+  identifiant distant, SQLite attribue un identifiant local distinct au
+  second compte. La correspondance persiste pour le pull, les écrits,
+  la progression, les événements et l'audio.
 - La file envoie chaque liste avant ses concepts et variantes, puis envoie
   la progression et les événements. Après l'accusé d'une variante, le
   provisionnement audio s'exécute en arrière-plan, à raison d'une requête à
@@ -99,7 +109,8 @@ L'application utilise SQLite comme source de lecture et les colonnes
   enrichissement du profil conserve la même tentative. Une récupération
   incomplète conserve les données reçues et reste en attente de nouvelle
   tentative. Le seeding local et l'ouverture du plateau restent disponibles
-  hors ligne. Au retour du réseau, le shell relance la récupération en
+  hors ligne. Chaque page distante expire après 15 secondes et laisse la
+  récupération en attente. Au retour du réseau, le shell relance la récupération en
   attente avant d'envoyer les modifications locales. Un retour réseau
   pendant un pull est retenu et ouvre une tentative si le pull échoue.
   En cas d'indisponibilité du profil distant, une session déjà signée fournit
@@ -147,6 +158,9 @@ réévalue l'heure au moins une fois par minute et arrête son écoute quand le
 dernier abonné ferme le compteur de la paire. Les exercices observent une
 projection dédupliquée des états pédagogiques et du vocabulaire ; un accusé de
 synchronisation sans changement pédagogique ne recharge pas leur pool.
+Une session de cartes dues dans les deux sens complète son plafond depuis
+le sens disponible. La variante principale fournit ensemble le mot prononcé
+et son extrait audio. Les autres variantes restent acceptées.
 
 Les tests d'intégration de récupération, d'envoi et d'export/import servent de
 preuves exécutables. La validation sur deux appareils reste nécessaire avant

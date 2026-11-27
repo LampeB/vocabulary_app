@@ -316,10 +316,11 @@ void main() {
       addTearDown(client.dispose);
       final datasource = VocabularyRemoteDataSource(client);
 
-      final outage = await datasource.upsertList({'id': 'list'});
+      const list = {'id': 'list', 'owner_id': 'u'};
+      final outage = await datasource.upsertList(list);
       expect(outage.exceptionOrNull, isA<NetworkException>());
       connected = true;
-      final rejected = await datasource.upsertList({'id': 'list'});
+      final rejected = await datasource.upsertList(list);
       expect(rejected.exceptionOrNull, isA<StorageException>());
     },
   );

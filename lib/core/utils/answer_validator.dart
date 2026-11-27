@@ -37,6 +37,7 @@ abstract final class AnswerValidator {
   static String? firstCorrect({
     required List<String> candidates,
     required List<String> acceptedAnswers,
+    String? langCode,
     bool isDrivingMode = false,
     bool preserveGrammar = false,
   }) {
@@ -44,6 +45,7 @@ abstract final class AnswerValidator {
       final v = validate(
         userAnswer: candidate,
         acceptedAnswers: acceptedAnswers,
+        langCode: langCode,
         isDrivingMode: isDrivingMode,
         preserveGrammar: preserveGrammar,
       );
@@ -65,6 +67,7 @@ abstract final class AnswerValidator {
   static ValidationResult validate({
     required String userAnswer,
     required List<String> acceptedAnswers,
+    String? langCode,
     bool isDrivingMode = false,
     bool preserveGrammar = false,
   }) {
@@ -101,7 +104,8 @@ abstract final class AnswerValidator {
         ? drivingThreshold
         : AppConstants.fuzzyThresholdTyping;
 
-    final normalizedUser = _normalize(userAnswer);
+    final french = langCode == 'fr';
+    final normalizedUser = _normalize(userAnswer, french: french);
     sttLog('[VAL] normalized: "$normalizedUser"  threshold=$threshold');
 
     double bestScore = 0;
@@ -110,8 +114,9 @@ abstract final class AnswerValidator {
     for (final answer in acceptedAnswers) {
       final score = _scoreAgainst(
         normalizedUser,
-        _normalize(answer),
+        _normalize(answer, french: french),
         spoken: isDrivingMode,
+        french: french,
       );
       sttLog('[VAL]   vs "$answer" → score=${score.toStringAsFixed(3)}');
       if (score > bestScore) {
@@ -129,8 +134,9 @@ abstract final class AnswerValidator {
         for (final answer in acceptedAnswers) {
           final score = _scoreAgainst(
             word,
-            _normalize(answer),
+            _normalize(answer, french: french),
             spoken: isDrivingMode,
+            french: french,
           );
           if (score > bestScore) {
             bestScore = score;
@@ -151,7 +157,7 @@ abstract final class AnswerValidator {
       sttLog('[VAL] Below threshold — running Korean particle-strip pass');
       outer:
       for (final answer in acceptedAnswers) {
-        final normAnswer = _normalize(answer);
+        final normAnswer = _normalize(answer, french: french);
         if (normAnswer.length >= 2 && normalizedUser.startsWith(normAnswer)) {
           sttLog(
             '[VAL]   prefix match: "$normalizedUser" starts with "$normAnswer" → score=1.0',
@@ -173,6 +179,7 @@ abstract final class AnswerValidator {
             stripped,
             normAnswer,
             spoken: isDrivingMode,
+            french: french,
           );
           sttLog(
             '[VAL]   strip=$strip → "$stripped" vs "$normAnswer" = ${score.toStringAsFixed(3)}',
@@ -279,7 +286,12 @@ abstract final class AnswerValidator {
   static String _laxKorean(String jamo) =>
       jamo.split('').map((c) => _laxJamo[c] ?? c).join();
 
-  static double _scoreAgainst(String a, String b, {bool spoken = false}) {
+  static double _scoreAgainst(
+    String a,
+    String b, {
+    required bool spoken,
+    required bool french,
+  }) {
     if (a == b) return 1.0;
 
     final isKorean =
@@ -304,7 +316,9 @@ abstract final class AnswerValidator {
       return best;
     }
 
-    // Latin text: also score in sound-space — STT errors are phonetic
+    if (!french) return directScore;
+
+    // French: also score in sound-space — STT errors are phonetic
     // ("Mauvi" for "mauvais" shares no bigrams but the same sounds).
     // Capped at 0.97 so only orthographic identity reaches the EXACT tier.
     final phoneticScore = FrenchPhonetics.encode(
@@ -313,15 +327,14 @@ abstract final class AnswerValidator {
     return directScore > phoneticScore ? directScore : phoneticScore;
   }
 
-  static String _normalize(String text) {
+  static String _normalize(String text, {required bool french}) {
     // French elisions collapse the article into the word — "l'eau", "d'eau",
     // "j'aime". STT (and users) answer with the article glued on, which
     // scored "l'eau" vs "eau" at 0.67 and failed the card over and over
     // (field log 2026-07-19: the water card was unanswerable). Stripping the
     // elided prefix makes the word-split pass see the bare word.
-    return text.trim().toLowerCase().removeAccents().replaceAll(
-      RegExp(r"\b(?:l|d|j|m|n|s|t|c|qu)['’]"),
-      '',
-    );
+    final normalized = text.trim().toLowerCase().removeAccents();
+    if (!french) return normalized;
+    return normalized.replaceAll(RegExp(r"\b(?:l|d|j|m|n|s|t|c|qu)['’]"), '');
   }
 }

@@ -9,28 +9,11 @@ if (-not $Staged -and -not $BaseRef) {
   throw 'Pass -Staged for a pre-commit check or -BaseRef <commit-or-ref> for a PR check.'
 }
 
-function Get-TargetFiles {
-  if ($Staged) {
-    return @(git diff --cached --name-only --diff-filter=ACMR)
-  }
-
-  $baseCommit = (git merge-base $BaseRef HEAD).Trim()
-  if (-not $baseCommit) {
-    throw "Unable to find a merge base with '$BaseRef'."
-  }
-  return @(git diff --name-only --diff-filter=ACMR "$baseCommit...HEAD")
-}
-
-$files = @(Get-TargetFiles | Where-Object { $_ })
+. "$PSScriptRoot/git-changed-paths.ps1"
+$files = @(Get-GitChangedPaths -Staged:$Staged -BaseRef $BaseRef)
 if ($files.Count -eq 0) {
   Write-Host 'PR policy guard passed (no relevant files).'
   exit 0
-}
-
-if ($Staged) {
-  & "$PSScriptRoot/check-documentation.ps1" -Staged
-} else {
-  & "$PSScriptRoot/check-documentation.ps1" -BaseRef $BaseRef
 }
 
 $forbidden = @(
@@ -43,12 +26,19 @@ $forbidden = @(
   }
 )
 if ($forbidden.Count -gt 0) {
-  throw "Generated artifacts or private configuration cannot be committed:`n$($forbidden -join "`n")"
+  $displayPaths = ConvertTo-Json -InputObject $forbidden -Compress
+  throw "Generated artifacts or private configuration cannot be committed: $displayPaths"
+}
+
+if ($Staged) {
+  & "$PSScriptRoot/check-documentation.ps1" -Staged
+} else {
+  & "$PSScriptRoot/check-documentation.ps1" -BaseRef $BaseRef
 }
 
 $dartFiles = @(
   $files | Where-Object {
-    $_ -match '\.dart$' -and (Test-Path $_) -and
+    $_ -match '\.dart$' -and (Test-Path -LiteralPath $_) -and
     ($_ -notmatch '^packages/' -or $_ -match '^packages/ponderin_whisper/lib/')
   }
 )

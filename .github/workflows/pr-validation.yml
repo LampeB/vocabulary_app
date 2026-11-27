@@ -86,6 +86,8 @@ jobs:
         run: python3 -m unittest discover -s tool/e2e -p 'test_*.py'
       - name: Test validated PR approval gates
         run: python3 -m unittest discover -s tool -p 'test_approve_validated_pr.py'
+      - name: Test path guards and the installed Unix Git hook
+        run: python3 -m unittest discover -s tool -p 'test_check_pr_policy.py'
       - name: Test quotas, RLS and concurrent reset on disposable PostgreSQL
         env:
           PGPASSWORD: postgres-test-only
@@ -99,13 +101,13 @@ jobs:
             psql -v ON_ERROR_STOP=1 -f "supabase/migrations/${migration}.sql"
           done
           psql -v ON_ERROR_STOP=1 -f supabase/tests/audio_storage_before_activation.sql
-          for migration in 008_e2e_reset 009_e2e_scenario_accounts 010_provider_quota_buckets 011_sync_identity 012_security_boundaries 013_e2e_isolation 014_vocabulary_tombstones add_subscription_type; do
+          for migration in 008_e2e_reset 009_e2e_scenario_accounts 010_provider_quota_buckets 011_sync_identity 012_security_boundaries 013_e2e_isolation 014_vocabulary_tombstones 015_vocabulary_owner_namespace add_subscription_type; do
             psql -v ON_ERROR_STOP=1 -f "supabase/migrations/${migration}.sql"
             case "$migration" in
               009_*|012_*) psql -v ON_ERROR_STOP=1 -f supabase/tests/e2e_reset_before_activation.sql ;;
             esac
           done
-          for test in provider_quota security_boundaries reset_e2e_account e2e_scenario_accounts e2e_isolation vocabulary_tombstones; do
+          for test in provider_quota security_boundaries reset_e2e_account e2e_scenario_accounts e2e_isolation vocabulary_tombstones vocabulary_owner_namespace; do
             psql -v ON_ERROR_STOP=1 -f "supabase/tests/${test}.sql"
           done
           bash supabase/tests/reset_concurrency.sh
@@ -131,6 +133,23 @@ jobs:
       # No credentials or deployment: exercise Dart, Gradle, CMake and native
       # linking on every proposed merge, including the pinned Whisper engine.
       - run: flutter build apk --debug
+
+  ios-simulator-build:
+    name: PR / iOS simulator build
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: 3.44.9
+          cache: true
+      - run: flutter pub get
+      - name: Compile the iOS simulator app without signing
+        run: flutter build ios --simulator --debug --no-codesign
 
   dependency-review:
     name: PR / Dependency review

@@ -11,6 +11,7 @@ import '../../providers/grammar/grammar_provider.dart';
 import '../../providers/settings/default_pair_provider.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
+import '../../widgets/grammar_prerequisite_label.dart';
 
 /// Dedicated grammar hub (user decision 2026-07-21): every lesson with its
 /// unlock/mastery progress. Locked rules show HOW to unlock them — an overall
@@ -153,9 +154,11 @@ class _RuleCard extends StatelessWidget {
             for (final name in status.rule.prerequisiteLists) ...[
               _Bar(
                 key: ValueKey(WidgetKeys.grammarPrerequisiteList(name)),
-                label:
-                    status.prereqNames[name] ??
-                    (catalogNames[name] ?? 'list_detail.appbar_fallback').tr(),
+                label: grammarPrerequisiteLabel(
+                  name,
+                  status.prereqNames,
+                  catalogNames,
+                ),
                 fraction: (status.prereqProgress[name] ?? 0).clamp(0.0, 1.0),
                 color: AppColors.clay,
                 dense: true,

@@ -223,6 +223,7 @@ class SttRace {
           : AnswerValidator.firstCorrect(
               candidates: h.candidates.isEmpty ? [h.transcript] : h.candidates,
               acceptedAnswers: acceptedAnswers,
+              langCode: langCode,
               isDrivingMode: isDrivingMode,
               preserveGrammar: preserveGrammar,
             );
@@ -595,6 +596,7 @@ class SttRace {
                     ? [h.transcript]
                     : h.candidates,
                 acceptedAnswers: acceptedAnswers,
+                langCode: langCode,
                 isDrivingMode: isDrivingMode,
                 preserveGrammar: preserveGrammar,
               );

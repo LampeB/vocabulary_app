@@ -193,7 +193,7 @@ class RuleStatus {
   final GrammarRule rule;
   final RuleAvailability availability;
 
-  /// Display names of the least-complete prerequisite lists when their
+  /// Tokens of the least-complete prerequisite lists when their
   /// weighted progress has not reached 80%, or one list is below 70%.
   final List<String> missingLists;
 
@@ -368,7 +368,7 @@ final ruleStatusesProvider = FutureProvider.family<List<RuleStatus>, String>((
                 ((prereqCounts[token]?.total ?? 0) <= 0 ||
                     (prereqProgress[token] ?? 0) <
                         kPrerequisiteUnlockThreshold))
-              displayName[token] ?? token,
+              token,
         ];
         final p = progress[rule.id];
         final mastered = p?.mastered ?? false;

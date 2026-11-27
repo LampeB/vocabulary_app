@@ -1,4 +1,5 @@
 {
+  "free_practice.source": "학습할 내용",
   "v3.card_answer": "정답",
   "v3.card_take": "카드를 확인하세요",
   "v3.card_grade_hint": "← 아직 몰라요 · 알고 있었어요 →",
@@ -321,9 +322,9 @@
   "stats.section_recent_sessions": "최근 세션",
   "stats.chart_empty": "첫 번째 세션 후 데이터가 표시됩니다.",
   "stats.sessions_empty": "아직 세션이 없습니다.\n퀴즈를 시작하세요!",
-  "stats.session_dir_fr_to_kr": "FR → KR",
-  "stats.session_dir_kr_to_fr": "KR → FR",
-  "stats.session_dir_both": "FR ↔ KR",
+  "stats.session_dir_fr_to_kr": "목록의 기본 방향",
+  "stats.session_dir_kr_to_fr": "반대 방향",
+  "stats.session_dir_both": "양방향",
   "stats.session_cards_unit": "카드",
   "quiz.voice_reveal": "정답 보기",
   "quiz.voice_keyboard": "키보드",

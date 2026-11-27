@@ -1,4 +1,5 @@
 {
+  "free_practice.source": "Quoi",
   "v3.card_answer": "RÉPONSE",
   "v3.card_take": "PRENDS LA CARTE",
   "v3.card_grade_hint": "← Pas encore · Je savais →",
@@ -321,9 +322,9 @@
   "stats.section_recent_sessions": "SESSIONS RÉCENTES",
   "stats.chart_empty": "Les données apparaîtront après ta première session.",
   "stats.sessions_empty": "Aucune session pour l'instant.\nCommence un quiz !",
-  "stats.session_dir_fr_to_kr": "FR → KR",
-  "stats.session_dir_kr_to_fr": "KR → FR",
-  "stats.session_dir_both": "FR ↔ KR",
+  "stats.session_dir_fr_to_kr": "Sens de la liste",
+  "stats.session_dir_kr_to_fr": "Sens inverse",
+  "stats.session_dir_both": "Les deux sens",
   "stats.session_cards_unit": "cartes",
   "quiz.voice_reveal": "Voir la réponse",
   "quiz.voice_keyboard": "Clavier",

@@ -17,7 +17,7 @@ or *"U5: generate the A2 grammar group for Spanish"*.
 | Language layers | 6 (fr en it de es ko), 111/111 entries each | New languages; native review of en/it/de/es (LLM-drafted) |
 | Example sentences | 55/111 concepts across all 6 layers, including all 18 starter-greetings entries | 56 concepts bare; native review of added examples remains pending |
 | Teaching notes | ko: 111/111 (fr+en) | de/en/es/fr/it: 0 notes |
-| Grammar rules | A1: 4/lang (latin), 5 (ko), texts fr+en; four French A1 rule cards also have Korean teaching text | A2→C2 groups; native review of Korean French-rule text; other locale coverage; latin A1 staging is flat |
+| Grammar rules | A1: 4/lang (latin), 5 (ko), texts fr+en; four French A1 rule cards also have Korean teaching text | A2→C2 groups; native review of Korean French-rule text; other locale coverage |
 | Lesson texts (viewer) | none (🔴 in map) | All levels, all languages |
 | Level tests | design only | Generated at runtime from vocab+rules — no seed content needed, but rules/lists must be level-tagged |
 
@@ -112,25 +112,26 @@ Each unit = one agent run, one reviewable diff, gate green
   a mechanic the engine lacks, that's a code ticket first, not a content
   run.
 
-### U6 — Restage latin A1 prerequisites (quick win, pure JSON)
+### U6 — Audit latin A1 cluster prerequisites (pure JSON)
 
 > **Obsolète dans sa forme d'origine (2026-08-09)** : le déverrouillage
 > par CLUSTERS (ordre libre dans le groupe, voir
 > `design/map/grammar-flow.md`) supprime l'échelonnement un-par-un.
 > U6 devient : vérifier que les prérequis du cluster A1 latin pointent
 > sur les bonnes listes — diff minime, plus de staging par règle.
-- Today all 4 rules per latin language gate on the same 2 lists
-  (`starter-food`, `starter-daily-life`) — flat, and learners doing lists
-  in order see no grammar for weeks. Restage like Korean: first rule on
-  `starter-greetings`, then ramp 1→3 lists so rules unlock one at a time.
-  One run, all 5 languages. **Note**: the 80 %-weighted gate, with a 70 %
-  floor per list, is less brittle than 90 % per list, but staging still
-  sequences the unlocks.
+- Verify each cluster against the exact prerequisites and eligible words
+  already taught. Do not introduce a rule-by-rule sequence or replace the
+  prerequisites uniformly across languages. The 2026-11-27 decision for
+  `en-articles-a-an` is `starter-food` + `starter-greetings`, with five
+  eligible nouns minimum; keep the usual 80 %-weighted gate and 70 % floor
+  per list. See [the article contract](seed-content-authoring.md#grammar-article-overrides).
 
-### U7 — Lesson texts (blocked on P3)
+### U7 — Lesson texts (schema available; reviewed writing remains open)
 - **Input**: rule/group ids for a language × level.
 - **Output**: short lesson pages (locale cards) per the lesson-viewer
   design — « moins un quiz, plus une leçon ».
+- P3's optional `lesson_pages` slot is delivered. U7 can author one reviewed
+  unit now; teacher/native review and the V0 scope above still apply.
 
 ### U8 — Grammar texts in more UI locales
 - Rule titles/descriptions/explanations exist in fr+en only; de/es/it/ja/ko
@@ -159,12 +160,12 @@ Each unit = one agent run, one reviewable diff, gate green
 
 ## Suggested order
 
-1. **U6** (restage latin A1) + **U3** (examples backfill) — content-only,
+1. **U6** (audit cluster prerequisites) + **U3** (examples backfill) — content-only,
    immediate pedagogy wins on what's already shipped.
 2. **P1/P2** schema tags, then **U2 × A2** for the launch languages and
    **U5 × A2** groups — kills the ~2-week content cliff.
 3. **U4** notes + **U8** locales + **U9** native review — polish.
-4. **P3 + U7** lessons when the viewer design lands.
+4. **U7** reviewed lesson writing using the available P3 schema.
 5. A3/B1… repeat U2+U5 per level; **U1** whenever a new language is
    wanted.
 

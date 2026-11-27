@@ -4,9 +4,13 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show SupabaseClient;
 import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
+import 'package:vocab_kr/data/datasources/remote/vocabulary_remote_datasource.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/data/sync/push_sync.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
@@ -329,4 +333,87 @@ void main() {
       expect(sync.calls, 1);
     },
   );
+
+  test('a silent HTTP page expires and the queued reconnect restores '
+      'before pushing', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    final network = StreamController<List<ConnectivityResult>>.broadcast();
+    final started = Completer<void>();
+    final neverReplied = Completer<http.Response>();
+    final requests = <http.Request>[];
+    var listCalls = 0;
+    final client = SupabaseClient(
+      'https://restore.example.invalid',
+      'anon',
+      httpClient: MockClient((request) async {
+        requests.add(request);
+        var result = '[]';
+        if (request.url.path.endsWith('/vocabulary_lists')) {
+          if (++listCalls == 1) {
+            started.complete();
+            return neverReplied.future;
+          }
+          result =
+              '[{"id":"restored-list","owner_id":"u","name":"Recovered",'
+              '"created_at":"2026-11-27T00:00:00Z",'
+              '"updated_at":"2026-11-27T00:00:00Z"}]';
+        }
+        return http.Response(
+          result,
+          200,
+          headers: {'content-type': 'application/json'},
+          request: request,
+        );
+      }),
+    );
+    final remote = VocabularyRemoteDataSource(
+      client,
+      pageTimeout: const Duration(milliseconds: 150),
+    );
+    final sync = _CountingPushSync();
+    final container = ProviderContainer(
+      overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+        vocabularyRemoteProvider.overrideWithValue(remote),
+        currentUserProvider.overrideWithValue(_user('u')),
+        connectivityStreamProvider.overrideWith((ref) => network.stream),
+        pushSyncProvider.overrideWithValue(sync),
+      ],
+    );
+    addTearDown(db.close);
+    addTearDown(network.close);
+    addTearDown(client.dispose);
+    addTearDown(container.dispose);
+
+    container.read(pushOnReconnectProvider);
+    network.add([ConnectivityResult.wifi]);
+    await started.future;
+    network.add([ConnectivityResult.none]);
+    await Future<void>.delayed(Duration.zero);
+    network.add([ConnectivityResult.wifi]);
+    await Future<void>.delayed(Duration.zero);
+    expect(listCalls, 1);
+    expect(sync.calls, 0);
+
+    await sync.first.future.timeout(const Duration(seconds: 3));
+    expect(neverReplied.isCompleted, isFalse);
+    expect(listCalls, 2);
+    expect(sync.calls, 1);
+    final restoration = container.read(syncOnLoginProvider);
+    final error = restoration.error;
+    expect(
+      restoration.hasValue,
+      isTrue,
+      reason: error is AppException ? error.message : error.toString(),
+    );
+    expect(await db.vocabularyListDao.getById('restored-list'), isNotNull);
+    final conceptRequest = requests.singleWhere(
+      (r) => r.url.path.endsWith('/concepts'),
+    );
+    expect(conceptRequest.url.queryParameters['owner_id'], 'eq.u');
+    final progressRequest = requests.singleWhere(
+      (r) => r.url.path.endsWith('/variant_progress'),
+    );
+    expect(progressRequest.url.queryParameters['variant_owner_id'], 'eq.u');
+  });
 }

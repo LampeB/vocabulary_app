@@ -8,6 +8,7 @@ import '../datasources/local/daos/concept_dao.dart';
 import '../datasources/local/daos/vocabulary_list_dao.dart';
 import '../datasources/remote/vocabulary_remote_datasource.dart';
 import '../models/variant_progress_dto.dart';
+import '../sync/vocabulary_sync_ids.dart';
 
 const _uuid = Uuid();
 
@@ -177,8 +178,9 @@ class ProgressRepositoryImpl implements ProgressRepository {
 
   Future<VariantProgress> _currentProgress(
     String variantId,
-    QuizDirection direction,
-  ) async {
+    QuizDirection direction, {
+    bool forUpdate = false,
+  }) async {
     final row = await _progressDao.getByVariantAndDirection(
       variantId,
       direction.name,
@@ -186,11 +188,21 @@ class ProgressRepositoryImpl implements ProgressRepository {
     );
     if (row != null) return row.toDomain();
     final now = DateTime.now();
+    final ids = await VocabularySyncIds.load(
+      _progressDao.attachedDatabase,
+      _userId,
+    );
+    final wireVariantId = ids.wireId(SyncedVocabularyRow.variant, variantId);
+    final wireProgressId = _uuid.v5(
+      Namespace.url.value,
+      'ponderin:progress:$_userId:$wireVariantId:${direction.name}',
+    );
+    final id = forUpdate
+        ? await ids.reserve(SyncedVocabularyRow.progress, wireProgressId)
+        : ids.localId(SyncedVocabularyRow.progress, wireProgressId);
+    if (forUpdate) await ids.save();
     return VariantProgress(
-      id: _uuid.v5(
-        Namespace.url.value,
-        'ponderin:progress:$_userId:$variantId:${direction.name}',
-      ),
+      id: id,
       userId: _userId,
       variantId: variantId,
       direction: direction,
@@ -215,7 +227,11 @@ class ProgressRepositoryImpl implements ProgressRepository {
         if (!await _progressDao.isLiveVariant(_userId, canonicalId)) {
           return const Failure(NotFoundException('Card not found'));
         }
-        final current = await _currentProgress(canonicalId, direction);
+        final current = await _currentProgress(
+          canonicalId,
+          direction,
+          forUpdate: true,
+        );
         final local = mutate(current).copyWith(
           id: current.id,
           userId: _userId,

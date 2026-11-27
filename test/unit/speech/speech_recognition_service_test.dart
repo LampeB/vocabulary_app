@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -250,21 +249,28 @@ void main() {
   });
 
   testWidgets(
-    'Android requests on-device speech and keeps partials provisional',
+    'mobile requests on-device speech and keeps partials provisional',
     (tester) async {
       final messenger =
           TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
       const system = MethodChannel('vocab_kr/system_speech');
       const speech = MethodChannel('plugin.csdcorp.com/speech_to_text');
       var installed = false;
-      messenger.setMockMethodCallHandler(system, (call) async {
-        expect(call.method, 'supportsOnDeviceRecognition');
-        return installed;
-      });
       final listenOptions = <Map<Object?, Object?>>[];
-      messenger.setMockMethodCallHandler(speech, (call) async {
+      messenger.setMockMethodCallHandler(speech, (_) async => true);
+      messenger.setMockMethodCallHandler(system, (call) async {
+        if (call.method == 'supportsOnDeviceRecognition') return installed;
         if (call.method == 'listen') {
           listenOptions.add(call.arguments as Map<Object?, Object?>);
+        }
+        if (call.method == 'stop') {
+          await messenger.handlePlatformMessage(
+            system.name,
+            system.codec.encodeMethodCall(
+              MethodCall('released', {'session': call.arguments['session']}),
+            ),
+            null,
+          );
         }
         return true;
       });
@@ -303,17 +309,15 @@ void main() {
       expect(listenOptions.single['onDevice'], isTrue);
       expect(listenOptions.single['pauseFor'], isNull);
       await messenger.handlePlatformMessage(
-        speech.name,
-        speech.codec.encodeMethodCall(
-          MethodCall(
-            'textRecognition',
-            jsonEncode({
-              'resultType': 0,
-              'alternates': [
-                {'recognizedWords': '사과가', 'confidence': .8},
-              ],
-            }),
-          ),
+        system.name,
+        system.codec.encodeMethodCall(
+          MethodCall('result', {
+            'session': listenOptions.single['session'],
+            'isFinal': false,
+            'alternates': [
+              {'words': '사과가', 'confidence': .8},
+            ],
+          }),
         ),
         null,
       );
@@ -326,6 +330,9 @@ void main() {
         reason: 'the plugin must not promote the last partial to final',
       );
     },
-    variant: TargetPlatformVariant.only(TargetPlatform.android),
+    variant: const TargetPlatformVariant({
+      TargetPlatform.android,
+      TargetPlatform.iOS,
+    }),
   );
 }

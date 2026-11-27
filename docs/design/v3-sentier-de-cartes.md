@@ -34,6 +34,7 @@ La règle détaillée demeure [interaction-language.md](map/interaction-language
 | Chemin du jour | `DailyPathScreen` | révisions dues, entrée de liste et entrée Leçons ; le chemin reste optionnel |
 | Liste/prérequis | `ListDetailScreen` | liste, pratique flashcards, mains-libres et ajout de mot |
 | Configuration | `StartSessionScreen` | langue → liste/source → mode → sens → quantité |
+| Pratique libre du plateau | `FreePracticeSheet` | feuille Quoi → Sens → Mode, paire de l'en-tête et lancement direct |
 | Révision | `QuizScreen` en flashcards ou mains-libres | pile, flip, swipe, mains-libres et bilan |
 
 Les points d'entrée fonctionnels de cette slice sont donc continus. Cela ne
@@ -42,9 +43,17 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
 
 ### Corrections d'intégration — 27 novembre 2026
 
+- Après comparaison, l'utilisateur confirme la feuille à trois choix pour
+  la pratique libre du plateau. Son contrat est dans
+  [pratique-libre.md](map/pratique-libre.md). Le configurateur complet demeure
+  celui des leçons et des autres entrées existantes.
+
 - Le détail d'une liste affiche et modifie les deux langues dans leur ordre
   `langA` → `langB`. Les suggestions thématiques utilisent cette même paire
   pour leur contexte, leur requête et l'ajout des variantes.
+- Le choix bidirectionnel utilise « Les deux sens » pour toute paire. Les
+  anciens bilans, qui ne conservent pas les deux codes de langue, affichent
+  le sens relatif de la liste au lieu d'affirmer FR/KR.
 - Le contexte des suggestions est chargé par une requête groupée et borné
   aux limites du service. Un ajout multiple conserve les mots refusés dans
   la sélection, indique les ajouts réussis et propose l'écran d'abonnement

@@ -449,3 +449,56 @@ PostgreSQL 16.11 valide les refus E2E après 009 et 012, le sas Storage après
 d'un déclencheur d'isolation, deux connexions de reset et le bundle d'activation.
 Actionlint, zizmor et la frontière de licence passent. Aucune variable
 d'activation ni modification hébergée n'est appliquée.
+
+## Dixième itération — `9735b9c`
+
+Les quatre profils ont rendu `BLOQUÉ` sur
+`9735b9cc41145daf28385d292f33739d0a54e4a5` avant toute correction.
+Leurs 17 observations Important correspondent à **16 constats distincts** :
+l'acquittement système prématuré est signalé par qualité et correction.
+Aucun Bloquant ni Suggestion n'est remonté. Les compteurs propres restent
+à zéro ; le prochain commit sera relu à l'itération **11**, sur vingt au maximum.
+
+| Type | Constat regroupé | Correction et preuve ciblée |
+| --- | --- | --- |
+| Important | Feuille validée contredite par le configurateur complet | Comparaison des deux maquettes puis choix utilisateur 2/2 : feuille Quoi/Sens/Mode depuis le plateau |
+| Important | Libellé bidirectionnel FR/KR pour d'autres paires | Libellé neutre localisé, arguments de lancement et trois paires vérifiés |
+| Important | Motif de verrouillage du configurateur montrant des IDs | Résolution partagée avec le hub, nom renommé et repli catalogue en FR/EN/KO |
+| Important | Navigation sans clavier/état sélectionné et texte réduit | Boutons focalisables, sémantique et barre à hauteur intrinsèque à 320 px/texte doublé |
+| Important | Procédure U6 obsolète et U7 encore annoncée bloquée par P3 | Audit de clusters, décision anglaise conservée et rédaction U7 distinguée du schéma livré |
+| Important | Acquittement du plugin système avant arrêt natif | Pont de session avec événement de libération distinct, réponse canal anticipée et mauvaise session testées |
+| Important | Page réseau pendante bloquant restauration et reprise | Échéance à la frontière distante et état incomplet récupérable |
+| Important | Configuration TTS pendante bloquant chaque Répéter | Barrière d'arrêt et nouvelle génération indépendante d'un ancien retour |
+| Important | Réservation malveillante d'IDs déterministes d'un autre compte | Namespace serveur par propriétaire et parents qualifiés, isolation locale lors du changement de compte |
+| Important | Statuts audio différents révélant une variante privée | Recherche active par propriétaire, même 404 sans quota ni fournisseur |
+| Important | Chemins Git accentués échappant au garde de corpus | Lecture NUL commune, index/diff avec accents et saut de ligne testés |
+| Important | Hook ignoré sur Unix faute de bit exécutable | Mode 100755, LF et vrai commit de contrôle sous Windows et en CI Unix |
+| Important | Phonétique française validant cat/cap en anglais | Langue de réponse explicite en écrit et dans les deux voies STT |
+| Important | Session due bidirectionnelle arrêtée à la moitié disponible | Remplissage depuis le sens disponible sans doublon, vingt cartes dues testées |
+| Important | Notifications comparant des fuseaux différents | Fuseau effectif et jours calendaires, Paris/UTC et deux transitions DST testés |
+| Important | Synonyme parlé ne correspondant pas au clip principal | Même variante pour texte et chemin audio, synonymes toujours acceptés |
+
+Le choix de feuille est confirmé par l'utilisateur le 27 novembre, après
+prévisualisation interactive. La nouvelle capture système iOS est compilée
+par un job macOS simulateur sans signature, secret ni publication ; ce
+check rejoint les validations obligatoires du bot et de la protection main.
+Les sept anciens checks GitHub sont verts sur `9735b9c` ; la nouvelle CI
+et la convergence restent à obtenir sur le prochain commit complet.
+
+Validation locale du lot : **1 075 tests hôte réussis**, huit diagnostics
+positifs exclus sans opt-in, couverture **72,9 %** (13 386 / 18 358 lignes).
+Analyse Flutter propre ; les 21 diagnostics ciblés passent avec opt-in et
+la sonde AOT refuse les diagnostics en mode produit. Les 183 tests data
+ciblés et les régressions de feuille/clavier/prérequis passent. La passe
+voix/audio compte 331 réussites ; son seul échec initial venait du fixture
+de notifications, dont les 17 tests passent après correction. Kotlin compile.
+Les 36 tests Python, 29 tests Deno et sept bundles figés passent.
+
+PostgreSQL 16.11 valide les sept suites finales, les sas intermédiaires,
+le reset sur deux connexions et le bundle d'activation avec rejet de
+réapplication. Une base historique garde ses tombstones, ses 14 révisions
+FSRS intercompte et son défi après 015 ; une base orpheline est refusée
+atomiquement. Le test SQLite ouvre successivement deux comptes dans le
+même fichier puis rouvre le repository : les objets locaux restent isolés,
+les écritures, événements et chemins audio gardent les bonnes clés distantes.
+L'exécution Unix du hook et la compilation iOS restent à confirmer en CI.

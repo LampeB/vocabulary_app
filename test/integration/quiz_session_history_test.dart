@@ -137,8 +137,9 @@ class _StarterRestoreRemote extends FakeRemote {
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
-    String listId,
-  ) async => Success([concept]);
+    String listId, {
+    required String ownerId,
+  }) async => Success([concept]);
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchProgress(

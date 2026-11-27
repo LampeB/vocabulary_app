@@ -77,7 +77,7 @@
 
 | Behavior | Status | Verified by |
 |---|---|---|
-| Daily-reminder & streak-warning scheduling rules | ✅ | unit `notification_schedule` |
+| Daily-reminder & streak-warning scheduling rules | ✅ | unit `notification_schedule`; device time zone and calendar-day rollover across daylight-saving changes |
 | Settings screen (toggles persist, cancel/reschedule service calls, time picker) | ✅ | widget with real notifier + recording fake service |
 | Streak warning armed from Home when streak > 0 | ✅ | widget |
 | Actual notification delivery | 📵 | native plugin |

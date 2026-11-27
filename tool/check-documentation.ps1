@@ -5,21 +5,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-function Get-TargetFiles {
-  if ($Staged) {
-    return @(git diff --cached --name-only --diff-filter=ACMR)
-  }
-  if ($BaseRef) {
-    $baseCommit = (git merge-base $BaseRef HEAD).Trim()
-    if (-not $baseCommit) {
-      throw "Unable to find a merge base with '$BaseRef'."
-    }
-    return @(git diff --name-only --diff-filter=ACMR "$baseCommit...HEAD")
-  }
-  return @(git diff --name-only --diff-filter=ACMR)
-}
-
-$files = @(Get-TargetFiles | Where-Object { $_ })
+. "$PSScriptRoot/git-changed-paths.ps1"
+$files = @(Get-GitChangedPaths -Staged:$Staged -BaseRef $BaseRef)
 if ($files.Count -eq 0) {
   exit 0
 }
@@ -33,17 +20,17 @@ if ($contractFiles.Count -gt 0 -and -not $hasDocumentation -and $env:DOCS_EXEMPT
   Write-Error "Documentation update required for this commit. Changed contract files: $($contractFiles -join ', ')`nUpdate the canonical document (and PROJECT_STATUS.md when delivery status changes), or use DOCS_EXEMPT=1 only for a truly mechanical change with a reason in the commit body."
 }
 
-$markdownFiles = @($files | Where-Object { $_ -match '\.md$' -and (Test-Path $_) })
+$markdownFiles = @($files | Where-Object { $_ -match '\.md$' -and (Test-Path -LiteralPath $_) })
 $brokenLinks = @()
 foreach ($file in $markdownFiles) {
-  $base = Split-Path -Parent (Resolve-Path $file)
-  $text = Get-Content -Raw $file
+  $base = Split-Path -Parent (Resolve-Path -LiteralPath $file)
+  $text = Get-Content -Raw -LiteralPath $file
   $matches = [regex]::Matches($text, '\[[^\]]*\]\(([^)#]+)(?:#[^)]+)?\)')
   foreach ($match in $matches) {
     $target = $match.Groups[1].Value.Trim('<>')
     if ($target -and $target -notmatch '^(https?:|mailto:|#)') {
       $resolved = Join-Path $base $target
-      if (-not (Test-Path $resolved)) {
+      if (-not (Test-Path -LiteralPath $resolved)) {
         $brokenLinks += "$file -> $target"
       }
     }

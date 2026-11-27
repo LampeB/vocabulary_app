@@ -120,76 +120,58 @@ class AppShell extends ConsumerWidget {
         isOffline(connectivityAsync.valueOrNull!);
     final selected = _selectedIndex(context);
     final inSession = GoRouterState.of(context).uri.path == '/quiz';
-    final safeBottom = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
       // Background comes from the theme (paper in light, paperDark in dark) —
       // hardcoding AppColors.paper here forced a light shell in dark mode.
-      body: Stack(
+      body: Column(
         children: [
-          // Content — padded at bottom so nothing hides behind the frosted bar.
-          Column(
-            children: [
-              if (offline && !inSession)
-                Material(
-                  color: Colors.orange,
-                  child: SafeArea(
-                    bottom: false,
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 6,
-                          horizontal: 16,
+          if (offline && !inSession)
+            Material(
+              color: Colors.orange,
+              child: SafeArea(
+                bottom: false,
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 6,
+                      horizontal: 16,
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.wifi_off,
+                          size: 16,
+                          color: Colors.white,
                         ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.wifi_off,
-                              size: 16,
+                        const SizedBox(width: 8),
+                        // Expanded: the banner message is wider than any
+                        // phone screen — let it wrap instead of clipping.
+                        Expanded(
+                          child: Text(
+                            'shell.offline_banner'.tr(),
+                            style: const TextStyle(
                               color: Colors.white,
+                              fontSize: 12,
                             ),
-                            const SizedBox(width: 8),
-                            // Expanded: the banner message is wider than any
-                            // phone screen — let it wrap instead of clipping.
-                            Expanded(
-                              child: Text(
-                                'shell.offline_banner'.tr(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                 ),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    bottom: inSession ? 0 : _kBarHeight + safeBottom,
-                  ),
-                  child: child,
-                ),
-              ),
-            ],
-          ),
-          // Frosted bottom nav.
-          if (!inSession)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: _VkBottomNav(
-                selectedIndex: selected,
-                onTap: (index) => context.go(_routes[index]),
               ),
             ),
+          Expanded(child: child),
         ],
       ),
+      bottomNavigationBar: inSession
+          ? null
+          : _VkBottomNav(
+              selectedIndex: selected,
+              onTap: (index) => context.go(_routes[index]),
+            ),
     );
   }
 }
@@ -229,24 +211,27 @@ class _VkBottomNav extends StatelessWidget {
     final borderColor = isDark ? const Color(0x1AFFFFFF) : AppColors.line;
 
     return Container(
-      height: _kBarHeight + safeBottom,
+      constraints: const BoxConstraints(minHeight: _kBarHeight),
       decoration: BoxDecoration(
         color: bgColor,
         border: Border(top: BorderSide(color: borderColor, width: 1)),
       ),
       padding: EdgeInsets.only(bottom: safeBottom),
-      child: Row(
-        children: [
-          for (var i = 0; i < _tabs.length; i++)
-            Expanded(
-              child: _NavTile(
-                key: ValueKey(WidgetKeys.navTab(_tabNames[i])),
-                def: _tabs[i],
-                active: i == selectedIndex,
-                onTap: () => onTap(i),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < _tabs.length; i++)
+              Expanded(
+                child: _NavTile(
+                  key: ValueKey(WidgetKeys.navTab(_tabNames[i])),
+                  def: _tabs[i],
+                  active: i == selectedIndex,
+                  onTap: () => onTap(i),
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -279,27 +264,29 @@ class _NavTile extends StatelessWidget {
     final color = active
         ? (isDark ? AppColors.onDark : AppColors.ink)
         : (isDark ? AppColors.onDarkFaint : AppColors.faint);
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(active ? def.activeIcon : def.icon, color: color, size: 24),
-          const SizedBox(height: 4),
-          // Flexible+FittedBox: the fixed-height bar overflows with larger
-          // text (accessibility scales / test font); shrink the label instead.
-          Flexible(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                def.labelKey.tr(),
-                style: AppTextStyles.eyebrowSm.copyWith(color: color),
-              ),
+    return Semantics(
+      selected: active,
+      child: TextButton(
+        onPressed: onTap,
+        style: TextButton.styleFrom(
+          foregroundColor: color,
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+          minimumSize: const Size(48, _kBarHeight),
+          shape: const RoundedRectangleBorder(),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(active ? def.activeIcon : def.icon, color: color, size: 24),
+            const SizedBox(height: 4),
+            Text(
+              def.labelKey.tr(),
+              textAlign: TextAlign.center,
+              style: AppTextStyles.eyebrowSm.copyWith(color: color),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

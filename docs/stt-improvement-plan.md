@@ -54,6 +54,9 @@ Si la lecture échoue ou dépasse son délai, le tour reste disponible via le
 bouton Répéter. Le microphone reste fermé. Un refus explicite du moteur
 vocal de l'appareil, lors du réglage de la langue ou du lancement de la
 lecture, suit le même chemin.
+Un arrêt TTS confirmé permet de rejouer la consigne quand une réponse de
+configuration de langue est perdue. La réponse tardive d'un ancien tour
+ne remet pas sa voix en service.
 `SttRace` et `VoiceTurnMachine` ignorent les résultats arrivés après la fin du
 tour pour empêcher une réponse de contaminer la carte suivante.
 La fermeture de la capture attend sa dernière portion audio et l'inscrit dans
@@ -66,8 +69,10 @@ et le reconnaisseur système exclusif. Répéter relance le tour après
 confirmation de la fermeture. Un arrêt qui attend toujours sa réponse
 native bloque toute nouvelle ouverture, même si le mode ou la route du
 quiz change. Le retour système demande aussi la fermeture et journalise
-les échecs. Pour le mode Système, le délai du quiz appartient à la course
-STT. Le minuteur Dart du plugin ne lance pas un arrêt concurrent.
+les échecs. Sur Android et iOS, le pont système associe la capture et
+sa libération à un identifiant de session. Le retour de la commande
+d'arrêt n'autorise pas à ouvrir un autre micro : la course attend
+l'événement de libération de cette session après le nettoyage natif.
 Chaque tour attend la restauration du mode STT et garde ce mode pour les
 nouvelles tentatives. Le premier essai et chaque relance attendent la
 sélection des moteurs disponibles et la vérification du microphone avant
@@ -107,6 +112,8 @@ orale peut ajouter de la ponctuation finale. Le vocabulaire conserve ses
 normalisations tolérantes et peut valider une hypothèse partielle. Le pont
 PCM préserve le caractère provisoire d'un texte conservé après une erreur
 ou un résultat final vide.
+En vocabulaire, la phonétique et les élisions françaises s'appliquent
+aux réponses attendues en français, à l'écrit et dans les deux voies vocales.
 Les réponses de grammaire alimentent la maîtrise de la règle. Le feedback de
 vocabulaire annonce l'intervalle renvoyé par la notation FSRS enregistrée
 pour cette réponse. Les verdicts s'affichent dès la validation.
@@ -131,7 +138,7 @@ En mode Course, un décodeur PCM local prêt pour la langue fait utiliser la
 capture partagée, y compris lors de la dernière tentative. Sans décodeur PCM
 local compatible, le reconnaisseur système peut ouvrir le micro seul en
 mode embarqué. Sur Android, il faut un service embarqué détecté par l'API
-système (Android 12+) et une écoute du plugin avec l'option `onDevice`.
+système (Android 12+) et un reconnaisseur dédié créé dans le pont natif.
 Sur iOS, la requête exige la reconnaissance embarquée pour la langue.
 Les moteurs réseau servent de secours si aucun moteur local n'est disponible
 ou après les tentatives infructueuses du système. Le mode Système utilise

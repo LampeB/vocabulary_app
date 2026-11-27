@@ -28,6 +28,9 @@
 - **V0 (2026-09-12)** : Amis est reporté. Son slot est temporairement occupé
   par **Profil** ; le footer V0 conserve donc cinq slots égaux :
   Parcours · Vocabulaire · Leçons · Progrès · Profil.
+- Les cinq onglets sont accessibles au clavier et exposent leur état
+  sélectionné. Leur hauteur suit les libellés et le texte agrandi ; ils
+  conservent cinq largeurs égales sans réduire la taille du texte.
 
 ## Proposé — pas encore vetté (Claude)
 - Header `sub` (détails + S18) : retour · titre · une action

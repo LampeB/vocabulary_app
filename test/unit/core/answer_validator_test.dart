@@ -9,10 +9,12 @@ void main() {
     String user,
     List<String> accepted, {
     bool driving = false,
+    String langCode = 'fr',
   }) => AnswerValidator.validate(
     userAnswer: user,
     acceptedAnswers: accepted,
     isDrivingMode: driving,
+    langCode: langCode,
   );
 
   group('base verdicts', () {
@@ -113,6 +115,15 @@ void main() {
   });
 
   group('phonetic pass (field bug 2026-07-10 — whisper garbles sounds)', () {
+    for (final spoken in [false, true]) {
+      test('English cat and cap stay distinct (spoken: $spoken)', () {
+        expect(
+          validate('cap', ['cat'], langCode: 'en', driving: spoken).isCorrect,
+          isFalse,
+        );
+      });
+    }
+
     test('"Mauvi" scores close to "mauvais" — same sounds, alien spelling', () {
       final r = validate('Mauvi', ['mauvais'], driving: true);
       // /movi/ vs /move/ — sound-space similarity must beat the near-zero

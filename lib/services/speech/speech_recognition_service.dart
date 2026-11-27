@@ -8,6 +8,8 @@ import '../../core/utils/stt_debug_log.dart';
 import '../../core/languages.dart';
 import 'stt_engine.dart';
 
+part 'native_system_speech_recognizer.dart';
+
 /// Platform recognizer capabilities consumed by [SystemSttEngine].
 abstract interface class SystemSpeechCapture {
   void Function()? get onListeningDone;
@@ -67,23 +69,7 @@ class _SpeechToTextRecognizer implements SystemSpeechRecognizer {
   final stt.SpeechToText _speech;
 
   @override
-  Future<bool> supportsOnDeviceRecognition() async {
-    if (kIsWeb) return false;
-    // On iOS the plugin checks each locale and requires a local request.
-    if (defaultTargetPlatform == TargetPlatform.iOS) return true;
-    if (defaultTargetPlatform != TargetPlatform.android) return false;
-    // Without a guaranteed Android on-device service, speech_to_text 7.4
-    // silently uses the default recognizer, even with onDevice enabled.
-    const channel = MethodChannel('vocab_kr/system_speech');
-    try {
-      return await channel.invokeMethod<bool>('supportsOnDeviceRecognition') ??
-          false;
-    } on MissingPluginException {
-      return false;
-    } on PlatformException {
-      return false;
-    }
-  }
+  Future<bool> supportsOnDeviceRecognition() async => false;
 
   @override
   Future<bool> initialize({
@@ -148,9 +134,16 @@ class SpeechRecognitionService implements SystemSpeechCapture {
     DateTime Function()? clock,
     Future<void> Function(Duration duration)? delay,
     this.releaseTimeout = sttMicReleaseTimeout,
-  }) : _speech = recognizer ?? _SpeechToTextRecognizer(),
+  }) : _speech = recognizer ?? _platformRecognizer(),
        _clock = clock ?? DateTime.now,
        _delay = delay ?? Future<void>.delayed;
+
+  static SystemSpeechRecognizer _platformRecognizer() =>
+      !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.iOS)
+      ? _NativeSystemSpeechRecognizer()
+      : _SpeechToTextRecognizer();
 
   final SystemSpeechRecognizer _speech;
   final DateTime Function() _clock;

@@ -149,6 +149,7 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
           AnswerValidator.validate(
             userAnswer: transcript,
             acceptedAnswers: [sample.word],
+            langCode: sample.langCode,
             isDrivingMode: true,
           ).isCorrect;
       if (accepted) correct++;
@@ -216,6 +217,7 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
             AnswerValidator.validate(
               userAnswer: transcript,
               acceptedAnswers: [sample.word],
+              langCode: sample.langCode,
               isDrivingMode: true,
             ).isCorrect;
         if (accepted) correct++;
@@ -285,6 +287,7 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
             AnswerValidator.validate(
               userAnswer: transcript,
               acceptedAnswers: [sample.word],
+              langCode: sample.langCode,
               isDrivingMode: true,
             ).isCorrect;
         if (accepted) correct++;

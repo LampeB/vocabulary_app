@@ -1,6 +1,7 @@
 import { handleAudioProvision } from "../audio-provision/handler.ts";
 
 const owner = "10000000-0000-4000-8000-000000000001";
+const otherOwner = "10000000-0000-4000-8000-000000000002";
 const variantId = "20000000-0000-4000-8000-000000000001";
 const projectUrl = "https://supabase.invalid";
 const request = () =>
@@ -20,6 +21,12 @@ class AudioServer {
   attached: string | null = null;
   published = false;
   parentDeletedDuringUpdate = false;
+  missingVariant = false;
+  variantOwner = owner;
+  variantDeleted = false;
+  conceptDeleted = false;
+  listDeleted = false;
+  scopedReads = 0;
   quotaCalls = 0;
   storageCalls = 0;
   ambiguousMissingAt = 0;
@@ -50,23 +57,36 @@ class AudioServer {
     }
     if (path === "/auth/v1/user") return Response.json({ id: owner });
     if (path === "/rest/v1/word_variants" && method === "GET") {
+      const { searchParams } = url;
+      expect(
+        searchParams.get("select")?.includes(
+          "concept:concepts!inner(list:vocabulary_lists!inner())",
+        ) && searchParams.get("id") === `eq.${variantId}` &&
+          searchParams.get("owner_id") === `eq.${owner}` &&
+          searchParams.get("concept.list.owner_id") === `eq.${owner}` &&
+          searchParams.get("is_deleted") === "eq.false" &&
+          searchParams.get("concept.is_deleted") === "not.is.true" &&
+          searchParams.get("concept.list.is_deleted") === "not.is.true",
+        "Variant query lost owner or active-content filters",
+      );
+      this.scopedReads++;
+      if (
+        this.missingVariant || this.variantOwner !== owner ||
+        this.variantDeleted || this.conceptDeleted || this.listDeleted
+      ) return Response.json([]);
       return Response.json([{
         id: variantId,
         word: this.word,
         lang_code: this.lang,
-        is_deleted: false,
-        concept: {
-          is_deleted: false,
-          list: { owner_id: owner, is_deleted: false },
-        },
       }]);
     }
     if (path === "/rest/v1/word_variants" && method === "PATCH") {
       this.beforeAttach();
       const { searchParams } = url;
       expect(
-        searchParams.get("id") === `eq.${variantId}`,
-        "Update lost variant filter",
+        searchParams.get("id") === `eq.${variantId}` &&
+          searchParams.get("owner_id") === `eq.${owner}`,
+        "Update lost variant/owner filters",
       );
       expect(
         searchParams.get("is_deleted") === "eq.false",
@@ -171,6 +191,44 @@ async function withAudioServer(test: (server: AudioServer) => Promise<void>) {
     }
   }
 }
+
+Deno.test("unavailable variants return an identical response before any paid or Storage work", () =>
+  withAudioServer(async (server) => {
+    const baseline = {
+      missingVariant: false,
+      variantOwner: owner,
+      variantDeleted: false,
+      conceptDeleted: false,
+      listDeleted: false,
+    };
+    for (
+      const change of [
+        { missingVariant: true },
+        { variantOwner: otherOwner },
+        { variantDeleted: true },
+        { conceptDeleted: true },
+        { listDeleted: true },
+      ]
+    ) {
+      Object.assign(server, baseline, change);
+      const requestsBefore = server.signals.length;
+      const result = await handleAudioProvision(request());
+      expect(
+        result.status === 404 &&
+          await result.text() === '{"error":"Variant not found"}',
+        "Variant availability changed the status or body",
+      );
+      expect(
+        server.signals.slice(requestsBefore).map(({ path }) => path).join() ===
+          "/auth/v1/user,/rest/v1/word_variants",
+        "An unavailable variant reached a downstream service",
+      );
+    }
+    expect(
+      server.scopedReads === 5,
+      "An unavailable variant was looked up without all filters",
+    );
+  }));
 
 Deno.test("an older generation finishing last cannot replace the current clip", () =>
   withAudioServer(async (server) => {

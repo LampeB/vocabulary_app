@@ -16,6 +16,7 @@ import '../../providers/lists/vocabulary_provider.dart';
 import '../../providers/settings/default_pair_provider.dart';
 import '../../widgets/v3_pond.dart';
 import '../../widgets/scroll_affordance.dart';
+import '../../widgets/free_practice_sheet.dart';
 
 /// V3's signed-in landing surface: a dark-water plateau of independent
 /// choices. The visual stack is a daily-work object; the curriculum itself is
@@ -248,73 +249,8 @@ class _V3HomeBody extends StatelessWidget {
     );
   }
 
-  void _showActivitySheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.transparent,
-      builder: (sheetContext) => _V3Sheet(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const _SheetHandle(),
-            Text(
-              'v3.activity_title'.tr(),
-              style: AppTextStyles.serif(
-                29,
-                FontWeight.w400,
-                color: V3Colors.ink,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'v3.activity_body'.tr(),
-              style: AppTextStyles.fig(
-                15,
-                FontWeight.w400,
-                color: V3Colors.ink60,
-              ),
-            ),
-            const SizedBox(height: 17),
-            Text(
-              'v3.activity_label'.tr(),
-              style: AppTextStyles.mono(
-                12,
-                FontWeight.w700,
-                letterSpacing: 1.2,
-                color: V3Colors.ink60,
-              ),
-            ),
-            const SizedBox(height: 9),
-            _SheetChoice(
-              label: 'v3.a_list'.tr(),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                context.go('/lists');
-              },
-            ),
-            const SizedBox(height: 7),
-            _SheetChoice(
-              label: 'v3.a_lesson'.tr(),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                context.push('/grammar');
-              },
-            ),
-            const SizedBox(height: 7),
-            _SheetChoice(
-              label: 'v3.choose_quiz'.tr(),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                context.push('/start-session');
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Future<void> _showActivitySheet(BuildContext context) =>
+      showFreePracticeSheet(context, pair: pair);
 }
 
 class _TopBar extends StatelessWidget {

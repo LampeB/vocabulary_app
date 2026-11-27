@@ -100,6 +100,7 @@ void main() {
     String? langA,
     String? langB,
     GrammarRule? rule,
+    List<RuleStatus>? statuses,
   }) {
     capturedArgs = null;
     return pumpScreen(
@@ -117,28 +118,37 @@ void main() {
         dueCountProvider.overrideWith((ref) => Stream.value(4)),
         dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(4)),
         studiedListIdsProvider.overrideWith((ref) => Stream.value(studied)),
+        grammarPrerequisiteNameKeysProvider.overrideWith(
+          (ref) async => {
+            'starter-food': 'seed.list.starter-food.name',
+            'starter-daily-life': 'seed.list.starter-daily-life.name',
+          },
+        ),
         ruleStatusesProvider.overrideWith(
-          (ref, lang) async => [
-            RuleStatus(
-              rule:
-                  rule ??
-                  _rule(
-                    initialRuleId ?? 'regle-debloquee',
-                    'La particule de thème',
-                  ),
-              availability: RuleAvailability.unlocked,
-              missingLists: const [],
-              enoughWords: true,
-              correct: 3,
-            ),
-            RuleStatus(
-              rule: _rule('regle-verrouillee', 'Le présent poli'),
-              availability: RuleAvailability.locked,
-              missingLists: const ['La nourriture'],
-              enoughWords: true,
-              correct: 0,
-            ),
-          ],
+          (ref, lang) async =>
+              statuses ??
+              [
+                RuleStatus(
+                  rule:
+                      rule ??
+                      _rule(
+                        initialRuleId ?? 'regle-debloquee',
+                        'La particule de thème',
+                      ),
+                  availability: RuleAvailability.unlocked,
+                  missingLists: const [],
+                  enoughWords: true,
+                  correct: 3,
+                ),
+                RuleStatus(
+                  rule: _rule('regle-verrouillee', 'Le présent poli'),
+                  availability: RuleAvailability.locked,
+                  missingLists: const ['La nourriture'],
+                  prereqNames: const {'La nourriture': 'La nourriture'},
+                  enoughWords: true,
+                  correct: 0,
+                ),
+              ],
         ),
       ],
       routes: [
@@ -322,31 +332,19 @@ void main() {
     semantics.dispose();
   }
 
-  testWidgets('quiz preserves setup and the plateau below it', (tester) async {
+  testWidgets('free practice opens its sheet and returns to the plateau', (
+    tester,
+  ) async {
     await pumpTrail(tester);
     final activity = find.text('v3.choose_activity'.tr());
     await tester.ensureVisible(activity);
     await tester.tap(activity);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('v3.choose_quiz'.tr()));
-    await tester.pumpAndSettle();
-    expect(byKey(WidgetKeys.screenStartSession), findsOneWidget);
-
-    await pickLanguage(tester);
-    await tapKey(tester, WidgetKeys.startSmart('due'));
-    await tapKey(tester, WidgetKeys.startQuizType('typing'));
-    await tapKey(tester, WidgetKeys.startDirection('frToKo'));
-    await tapKey(tester, WidgetKeys.startCount(20));
-    await tapKey(tester, WidgetKeys.startSessionStart);
+    expect(find.text('course.free_practice'.tr()), findsOneWidget);
+    expect(byKey(WidgetKeys.screenStartSession), findsNothing);
+    await tapKey(tester, 'free-practice-mode-typing');
+    await tapKey(tester, 'free-practice-start');
     await tapKey(tester, 'quiz-back');
-    expect(byKey(WidgetKeys.screenStartSession), findsOneWidget);
-    expect(
-      tester
-          .widget<ElevatedButton>(byKey(WidgetKeys.startSessionStart))
-          .onPressed,
-      isNotNull,
-    );
-    await appBarBack(tester);
     expect(byKey(WidgetKeys.screenHome), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -590,6 +588,13 @@ void main() {
 
       expect(find.text('Français → Espagnol'), findsOneWidget);
       expect(find.text('Espagnol → Français'), findsOneWidget);
+      expect(find.text('quiz_setup.dir_both_sub'.tr()), findsOneWidget);
+      expect(find.text('FR ↔ KR'), findsNothing);
+      await tapKey(tester, WidgetKeys.startDirection('both'));
+      await tapKey(tester, WidgetKeys.startCount(20));
+      await tapKey(tester, WidgetKeys.startSessionStart);
+      expect(capturedArgs!.direction, QuizDirectionChoice.both);
+      expect((capturedArgs!.langA, capturedArgs!.langB), ('fr', 'es'));
     },
   );
 
@@ -623,6 +628,56 @@ void main() {
       expect(capturedArgs!.mode, QuizMode.typing);
     },
   );
+
+  for (final locale in ['fr', 'en', 'ko']) {
+    testWidgets('setup resolves missing prerequisite labels in $locale', (
+      tester,
+    ) async {
+      final raw = (await tester.runAsync(
+        () => rootBundle.loadString('assets/translations/$locale.json'),
+      ))!;
+      final translations = Translations(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+      Localization.load(
+        Locale(locale),
+        translations: translations,
+        fallbackTranslations: translations,
+      );
+      addTearDown(initTestLocalization);
+      await pump(
+        tester,
+        grammar: true,
+        initialRuleId: 'available',
+        statuses: [
+          RuleStatus(
+            rule: _rule('available', 'Available'),
+            availability: RuleAvailability.unlocked,
+            missingLists: const [],
+            enoughWords: true,
+            correct: 0,
+          ),
+          RuleStatus(
+            rule: _rule('locked', 'Locked'),
+            availability: RuleAvailability.locked,
+            missingLists: const ['starter-food', 'starter-daily-life'],
+            prereqNames: const {'starter-food': 'Cuisine personnelle'},
+            enoughWords: false,
+            correct: 0,
+          ),
+        ],
+      );
+      await tapKey(tester, WidgetKeys.startSection(0));
+      expect(find.textContaining('Cuisine personnelle'), findsOneWidget);
+      expect(
+        find.textContaining('seed.list.starter-daily-life.name'.tr()),
+        findsOneWidget,
+      );
+      expect(find.textContaining('starter-daily-life'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await unmountScreen(tester);
+    });
+  }
 
   testWidgets(
     'French lesson keeps its exact rule and Korean base through setup',

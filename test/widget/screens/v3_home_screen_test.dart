@@ -87,7 +87,7 @@ void main() {
           'Ta langue du moment',
         ),
         (find.byKey(const ValueKey(WidgetKeys.homeGrammar)), 'Mon parcours'),
-        (find.text('Choisir une activité'), 'Que veux-tu faire ?'),
+        (find.text('Choisir une activité'), 'Pratique libre'),
       ];
       for (final (entry, title) in sheets) {
         await tester.ensureVisible(entry);
@@ -97,10 +97,18 @@ void main() {
         expect(titleFinder, findsOneWidget);
         final text = tester.widget<Text>(titleFinder);
         final foreground = text.style!.color!;
-        final background = V3Colors.paper2;
+        final background = title == 'Pratique libre'
+            ? Theme.of(
+                    tester.element(titleFinder),
+                  ).bottomSheetTheme.backgroundColor ??
+                  Theme.of(tester.element(titleFinder)).colorScheme.surface
+            : V3Colors.paper2;
         final a = foreground.computeLuminance();
         final b = background.computeLuminance();
-        expect((b + 0.05) / (a + 0.05), greaterThanOrEqualTo(4.5));
+        expect(
+          a > b ? (a + 0.05) / (b + 0.05) : (b + 0.05) / (a + 0.05),
+          greaterThanOrEqualTo(4.5),
+        );
         Navigator.of(tester.element(titleFinder)).pop();
         await tester.pump(const Duration(milliseconds: 400));
       }

@@ -17,6 +17,7 @@ import '../models/vocabulary_list_dto.dart';
 import '../models/word_variant_dto.dart';
 import '../seed/starter_draft_reconciliation.dart';
 import '../seed/starter_identity.dart';
+import '../sync/vocabulary_sync_ids.dart';
 import '../../services/audio/audio_asset_path.dart';
 import 'package:drift/drift.dart' show Value, innerJoin;
 
@@ -524,7 +525,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       final langB = _field<String>(listData, 'langB', 'lang_b') ?? 'ko';
       final listSeedId = _field<String>(listData, 'seedId', 'seed_id');
       final starter = origin == 'starter' && listSeedId != null;
-      final listId =
+      final wireListId =
           sharedListId ??
           (starter
               ? _uuid.v5(
@@ -544,7 +545,9 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
           (listData['concepts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
       // Atomic: if any concept/variant insert fails the whole import rolls back.
-      await _database.writeOutbound(_userId, () async {
+      final listId = await _database.writeOutbound(_userId, () async {
+        final ids = await VocabularySyncIds.load(_database, _userId);
+        final listId = await ids.reserve(SyncedVocabularyRow.list, wireListId);
         await _listDao.upsert(
           VocabularyListsTableCompanion(
             id: Value(listId),
@@ -575,11 +578,18 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
 
         for (final (index, cData) in concepts.indexed) {
           final seedId = _field<String>(cData, 'seedId', 'seed_id');
-          final conceptId = starter
-              ? starterConceptId(listId, seedId ?? index)
+          final wireConceptId = starter
+              ? starterConceptId(wireListId, seedId ?? index)
               : sharedListId != null
-              ? _uuid.v5(listId, jsonEncode(['concept', cData['id'] ?? index]))
+              ? _uuid.v5(
+                  wireListId,
+                  jsonEncode(['concept', cData['id'] ?? index]),
+                )
               : _uuid.v4();
+          final conceptId = await ids.reserve(
+            SyncedVocabularyRow.concept,
+            wireConceptId,
+          );
           await _conceptDao.upsert(
             ConceptsTableCompanion(
               id: Value(conceptId),
@@ -624,14 +634,23 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
               (n) => n + 1,
               ifAbsent: () => 0,
             );
-            final variantId = starter
-                ? starterVariantId(conceptId, langCode, position, occurrence)
+            final wireVariantId = starter
+                ? starterVariantId(
+                    wireConceptId,
+                    langCode,
+                    position,
+                    occurrence,
+                  )
                 : sharedListId != null
                 ? _uuid.v5(
-                    conceptId,
+                    wireConceptId,
                     jsonEncode(['variant', vData['id'] ?? index]),
                   )
                 : _uuid.v4();
+            final variantId = await ids.reserve(
+              SyncedVocabularyRow.variant,
+              wireVariantId,
+            );
             final audioPath = origin == 'starter'
                 ? AudioAssetPath.seed(text: word, langCode: langCode)
                 : AudioAssetPath.user(
@@ -675,6 +694,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
             }
           }
         }
+        await ids.save();
+        return listId;
       });
 
       final imported = VocabularyList(
@@ -770,7 +791,11 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         jsonEncode(['ponderin', 'share-import', _userId, token, generation]),
       );
       var listId = idForGeneration();
-      while (await _listDao.getById(listId) != null) {
+      final ids = await VocabularySyncIds.load(_database, _userId);
+      while ((await _listDao.getById(
+            ids.localId(SyncedVocabularyRow.list, listId),
+          ))?.ownerId ==
+          _userId) {
         generation++;
         listId = idForGeneration();
       }
@@ -823,7 +848,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       if (list.ownerId != _userId) continue;
       lists.add(list);
       if (list.isDeleted) continue;
-      switch (await _remote.fetchConcepts(list.id)) {
+      switch (await _remote.fetchConcepts(list.id, ownerId: _userId)) {
         case Success(:final value):
           contents[list.id] = value;
         case Failure(:final exception):
@@ -836,7 +861,13 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     await _database.transaction(() async {
       final current = await _snapshotForPull();
       final changed = _PullChanges(before, current);
-      for (final list in lists) {
+      final ids = await VocabularySyncIds.load(_database, _userId);
+      final restoredLists = <VocabularyList>[];
+      for (final remoteList in lists) {
+        final list = remoteList.copyWith(
+          id: await ids.reserve(SyncedVocabularyRow.list, remoteList.id),
+        );
+        restoredLists.add(list);
         final localList = current.lists[list.id];
         final keepLocalList =
             localList != before.lists[list.id] ||
@@ -847,7 +878,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         }
         if (!keepLocalList) {
           final missingContents =
-              !list.isDeleted && !contents.containsKey(list.id);
+              !list.isDeleted && !contents.containsKey(remoteList.id);
           final metadata = missingContents && localList != null
               ? list.copyWith(wordCount: localList.wordCount)
               : list;
@@ -861,8 +892,13 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
           continue;
         }
 
-        for (final c in contents[list.id] ?? const <Map<String, dynamic>>[]) {
-          final conceptId = c['id'] as String;
+        for (final raw
+            in contents[remoteList.id] ?? const <Map<String, dynamic>>[]) {
+          final conceptId = await ids.reserve(
+            SyncedVocabularyRow.concept,
+            raw['id'] as String,
+          );
+          final c = ids.decode(SyncedVocabularyRow.concept, raw);
           final localConcept = current.concepts[conceptId];
           final remoteConceptDeleted = c['is_deleted'] as bool? ?? false;
           final keepLocalConcept =
@@ -888,8 +924,12 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
           }
           final variants =
               (c['word_variants'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-          for (final v in variants) {
-            final variantId = v['id'] as String;
+          for (final rawVariant in variants) {
+            final variantId = await ids.reserve(
+              SyncedVocabularyRow.variant,
+              rawVariant['id'] as String,
+            );
+            final v = ids.decode(SyncedVocabularyRow.variant, rawVariant);
             final localVariant = current.variants[variantId];
             final remoteVariantDeleted = v['is_deleted'] as bool? ?? false;
             if (remoteVariantDeleted && changed.variants.contains(variantId)) {
@@ -914,7 +954,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         }
         // The count follows the surviving concepts even when a pending rename
         // or other local edit prevents replacing the list metadata.
-        if (contents.containsKey(list.id)) {
+        if (contents.containsKey(remoteList.id)) {
           await _conceptDao.refreshListWordCount(list.id);
         }
       }
@@ -927,11 +967,22 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         final changedRows = <(String, String), VariantProgressTableData>{};
         for (final map in value) {
           try {
-            final row = variantProgressFromRemote(map);
-            if (row.userId != _userId ||
-                !liveVariantIds.contains(row.variantId)) {
+            if (map['user_id'] != _userId ||
+                !liveVariantIds.contains(
+                  ids.localId(
+                    SyncedVocabularyRow.variant,
+                    map['variant_id'] as String,
+                  ),
+                )) {
               continue;
             }
+            await ids.reserve(
+              SyncedVocabularyRow.progress,
+              map['id'] as String,
+            );
+            final row = variantProgressFromRemote(
+              ids.decode(SyncedVocabularyRow.progress, map),
+            );
             final key = (row.variantId, row.direction);
             final local = current.progress[key];
             if (local != null &&
@@ -953,10 +1004,11 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       if (incomplete == null) {
         await StarterDraftReconciliation(_database).reconcile(
           _userId,
-          lists,
+          restoredLists,
           conflictingProgressVariantIds: conflictingProgressVariantIds,
         );
       }
+      await ids.save();
     });
     if (incomplete case final error?) throw error;
     _starterIdentityReady = true;

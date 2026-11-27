@@ -1,4 +1,5 @@
 {
+  "free_practice.source": "What",
   "v3.card_answer": "ANSWER",
   "v3.card_take": "TAKE THE CARD",
   "v3.card_grade_hint": "← Not yet · I knew it →",
@@ -321,9 +322,9 @@
   "stats.section_recent_sessions": "RECENT SESSIONS",
   "stats.chart_empty": "Data will appear after your first session.",
   "stats.sessions_empty": "No sessions yet.\nStart a quiz!",
-  "stats.session_dir_fr_to_kr": "FR → KR",
-  "stats.session_dir_kr_to_fr": "KR → FR",
-  "stats.session_dir_both": "FR ↔ KR",
+  "stats.session_dir_fr_to_kr": "List direction",
+  "stats.session_dir_kr_to_fr": "Reverse direction",
+  "stats.session_dir_both": "Both directions",
   "stats.session_cards_unit": "cards",
   "quiz.voice_reveal": "Show answer",
   "quiz.voice_keyboard": "Keyboard",

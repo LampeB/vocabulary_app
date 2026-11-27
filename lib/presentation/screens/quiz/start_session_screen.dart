@@ -17,6 +17,9 @@ import '../../../core/theme/v3_colors.dart';
 import '../../../core/widget_keys.dart';
 import '../../widgets/v3_pond.dart';
 import '../../widgets/scroll_affordance.dart';
+import '../../widgets/list_preview_sheet.dart';
+import '../../widgets/grammar_prerequisite_label.dart';
+import '../../widgets/quiz_mode_label.dart';
 import '../../providers/settings/default_pair_provider.dart';
 
 /// Session setup (start-session-screen.md). An accordion: one section open
@@ -481,6 +484,9 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
 
   Widget _ruleOptions() {
     final statusesAsync = ref.watch(ruleStatusesProvider(_langB));
+    final catalogNames =
+        ref.watch(grammarPrerequisiteNameKeysProvider).valueOrNull ??
+        const <String, String>{};
     return statusesAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.all(16),
@@ -511,7 +517,17 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                   'start_session.rule_not_enough_words'.tr(),
                 RuleAvailability.unlocked => '${st.correct}/$ruleMasteryTarget',
                 RuleAvailability.locked => 'start_session.rule_locked'.tr(
-                  namedArgs: {'lists': st.missingLists.join(', ')},
+                  namedArgs: {
+                    'lists': st.missingLists
+                        .map(
+                          (token) => grammarPrerequisiteLabel(
+                            token,
+                            st.prereqNames,
+                            catalogNames,
+                          ),
+                        )
+                        .join(', '),
+                  },
                 ),
               },
               onTap: () => _showLessonSheet(st.rule),
@@ -609,21 +625,10 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
 
   /// Peek at a list's words without leaving the quiz setup — the "what's in it"
   /// bottom sheet (user request 2026-07-19).
-  void _showListPreview(BuildContext context, VocabularyList list) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => _ListPreviewSheet(list: list),
-    );
-  }
+  Future<void> _showListPreview(BuildContext context, VocabularyList list) =>
+      showListPreviewSheet(context, list);
 
-  String _modeLabel(QuizMode m) => switch (m) {
-    QuizMode.voice => 'quiz_setup.mode_voice_label'.tr(),
-    QuizMode.flashcard => 'quiz_setup.mode_flashcard_label'.tr(),
-    QuizMode.typing => 'quiz_setup.mode_typing_label'.tr(),
-    QuizMode.handsFree => 'quiz_setup.mode_hands_free_label'.tr(),
-  };
+  String _modeLabel(QuizMode mode) => quizModeLabel(mode);
 
   // Direction labels are DERIVED from the selected list's language pair —
   // never hardcoded (generic-language-pairs epic). The enum values keep their
@@ -634,7 +639,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
     return switch (d) {
       QuizDirectionChoice.frToKo => '$a → $b',
       QuizDirectionChoice.koToFr => '$b → $a',
-      QuizDirectionChoice.both => 'quiz_setup.dir_both'.tr(),
+      QuizDirectionChoice.both => 'quiz_setup.dir_both_sub'.tr(),
     };
   }
 
@@ -955,141 +960,6 @@ class _CountChip extends StatelessWidget {
             ).copyWith(color: selected ? Colors.white : muted),
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ── List preview sheet ────────────────────────────────────────────────────────
-
-/// Read-only peek at a list's word pairs, opened from the peek icon on a list
-/// tile so the user can see "what's in it" before choosing it.
-class _ListPreviewSheet extends ConsumerWidget {
-  const _ListPreviewSheet({required this.list});
-  final VocabularyList list;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final conceptsAsync = ref.watch(listDetailProvider(list.id));
-    return SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      list.name,
-                      style: AppTextStyles.grotesk(20, FontWeight.w700),
-                    ),
-                  ),
-                  Text(
-                    '${Languages.flagFor(list.langA)} → '
-                    '${Languages.flagFor(list.langB)}',
-                    style: AppTextStyles.body,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Flexible(
-                child: conceptsAsync.when(
-                  loading: () => const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: CircularProgressIndicator(
-                        color: AppColors.clay,
-                        strokeWidth: 2,
-                      ),
-                    ),
-                  ),
-                  error: (_, _) => Text('common.error'.tr()),
-                  data: (concepts) {
-                    final visible = concepts
-                        .where((c) => !c.isDeleted)
-                        .toList();
-                    if (visible.isEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24),
-                        child: Text(
-                          'start_session.empty_lists'.tr(),
-                          style: AppTextStyles.body.copyWith(
-                            color: AppColors.muted,
-                          ),
-                        ),
-                      );
-                    }
-                    return ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: visible.length,
-                      separatorBuilder: (_, _) => Divider(
-                        height: 1,
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
-                      itemBuilder: (_, i) => _PreviewRow(
-                        conceptId: visible[i].id,
-                        langA: list.langA,
-                        langB: list.langB,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PreviewRow extends ConsumerWidget {
-  const _PreviewRow({
-    required this.conceptId,
-    required this.langA,
-    required this.langB,
-  });
-  final String conceptId;
-  final String langA;
-  final String langB;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final words = ref.watch(variantsProvider(conceptId)).valueOrNull ?? [];
-    String wordFor(String lang) {
-      for (final v in words) {
-        if (v.langCode == lang && !v.isDeleted) return v.word;
-      }
-      return '—';
-    }
-
-    TextStyle styleFor(String lang, {Color? color}) =>
-        Languages.usesHangul(lang)
-        ? AppTextStyles.koreanBody.copyWith(color: color)
-        : AppTextStyles.fig(15, FontWeight.w600).copyWith(color: color);
-
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: Text(wordFor(langA), style: styleFor(langA))),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              wordFor(langB),
-              textAlign: TextAlign.end,
-              style: styleFor(langB, color: muted),
-            ),
-          ),
-        ],
       ),
     );
   }

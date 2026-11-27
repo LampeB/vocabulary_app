@@ -42,8 +42,9 @@ class _HistoricalStarterRemote extends FakeRemote {
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
-    String listId,
-  ) async =>
+    String listId, {
+    required String ownerId,
+  }) async =>
       Success(concepts.where((row) => row['list_id'] == listId).toList());
 
   @override

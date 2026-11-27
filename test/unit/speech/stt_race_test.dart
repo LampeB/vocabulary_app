@@ -116,6 +116,21 @@ Future<void> _pump() => Future<void>.delayed(Duration.zero);
 
 void main() {
   group('SttRace', () {
+    test('English cap cannot win the exclusive race for cat', () async {
+      final engine = _FakeEngine('system', languages: {'en'});
+      final result = SttRace([engine]).run(
+        langCode: 'en',
+        acceptedAnswers: ['cat'],
+        restartOnSessionEnd: false,
+      );
+      await _pump();
+      engine.emit('cap');
+      engine.endSession();
+      final outcome = await result;
+      expect(outcome.matched, isFalse);
+      expect(outcome.bestTranscript, 'cap');
+    });
+
     test(
       'first engine to emit a validating guess wins; losers are stopped',
       () async {

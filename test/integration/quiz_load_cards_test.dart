@@ -2,13 +2,17 @@
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
+import 'package:vocab_kr/data/models/variant_progress_dto.dart';
+import 'package:vocab_kr/data/repositories/progress_repository_impl.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
+import 'package:vocab_kr/domain/entities/app_user.dart';
 import 'package:vocab_kr/domain/entities/variant_progress.dart';
 import 'package:vocab_kr/domain/repositories/progress_repository.dart';
 import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart';
@@ -29,6 +33,8 @@ final _now = DateTime(2026, 7, 3);
 class _NoopAudio implements AudioPlayerService {
   final prefetchedPaths = <String?>[];
   final spokenPaths = <String?>[];
+  final prefetchedWords = <String>[];
+  final spokenWords = <String>[];
   @override
   Future<void> warmUp(String langCode) async {}
   @override
@@ -38,6 +44,7 @@ class _NoopAudio implements AudioPlayerService {
     String? audioPath,
   }) async {
     prefetchedPaths.add(audioPath);
+    prefetchedWords.add(text);
   }
 
   @override
@@ -48,6 +55,7 @@ class _NoopAudio implements AudioPlayerService {
     bool requirePlayback = false,
   }) async {
     spokenPaths.add(audioPath);
+    spokenWords.add(text);
   }
 
   @override
@@ -138,6 +146,8 @@ void main() {
         getDueCardsUseCaseProvider.overrideWithValue(
           GetDueCardsUseCase(_FakeProgressRepo(responses, delayed: delayed)),
         ),
+        appDatabaseProvider.overrideWithValue(db),
+        vocabularyRemoteProvider.overrideWithValue(FakeRemote()),
         conceptDaoProvider.overrideWithValue(db.conceptDao),
         currentUserProvider.overrideWithValue(null),
         audioPlayerServiceProvider.overrideWithValue(audio = _NoopAudio()),
@@ -247,6 +257,128 @@ void main() {
       expect(audio.prefetchedPaths, everyElement(startsWith('users/u/')));
     },
   );
+
+  for (final cached in [true, false]) {
+    test('the primary synonym supplies the spoken word and audio lookup '
+        '(cached path: $cached) while other synonyms are accepted', () async {
+      final oldId = frVariantId['chat']!;
+      final old = (await db.conceptDao.getVariantById(oldId))!;
+      await db.conceptDao.upsertVariant(
+        old.copyWith(word: 'minou', isPrimary: false).toCompanion(false),
+      );
+      final primaryPath = cached ? 'seed/chat.mp3' : null;
+      await db.conceptDao.upsertVariant(
+        WordVariantsTableCompanion.insert(
+          id: 'primary-chat',
+          conceptId: old.conceptId,
+          word: 'chat',
+          langCode: 'fr',
+          isPrimary: const Value(true),
+          audioPath: Value(primaryPath),
+          position: const Value(1),
+          createdAt: _now,
+          updatedAt: _now,
+        ),
+      );
+      expect(
+        (await db.conceptDao.getVariantsByConceptIds([
+          old.conceptId,
+        ], 'fr')).map((variant) => variant.word),
+        ['minou', 'chat'],
+      );
+      final (container, sub) = harness({
+        QuizDirection.koToFr: Success([
+          _due(koVariantId['고양이']!, QuizDirection.koToFr),
+        ]),
+      });
+      final quiz = container.read(quizProvider.notifier);
+      await quiz.loadCards(
+        args(direction: QuizDirectionChoice.koToFr, cardLimit: 1),
+      );
+      await Future<void>.delayed(Duration.zero);
+      final card = sub.read().currentCard!;
+      expect(card.answerWords, ['chat', 'minou']);
+      expect(audio.prefetchedWords.last, 'chat');
+      expect(audio.prefetchedPaths.last, primaryPath);
+      quiz.flipCard();
+      expect(audio.spokenWords.last, 'chat');
+      expect(audio.spokenPaths.last, primaryPath);
+      quiz.submitTextAnswer('minou');
+      expect(sub.read().answerState, QuizAnswerState.correct);
+    });
+  }
+
+  test('both directions fill a due-only limit with 20 distinct real '
+      'SQLite cards when only one direction is due', () async {
+    final remote = FakeRemote();
+    final repo = VocabularyRepositoryImpl(
+      db.vocabularyListDao,
+      db.conceptDao,
+      remote,
+      'u',
+      db,
+    );
+    final progressRepo = ProgressRepositoryImpl(
+      db.progressDao,
+      db.conceptDao,
+      remote,
+      'u',
+    );
+    final list = (await repo.createList(name: 'Due-only')).valueOrNull!;
+    final variants = <String>{};
+    for (var i = 0; i < 20; i++) {
+      final concept = (await repo.addConceptWithVariants(
+        listId: list.id,
+        wordA: 'mot $i',
+        wordB: '단어 $i',
+      )).valueOrNull!;
+      final question = (await db.conceptDao.getVariantsByConcept(
+        concept.id,
+      )).singleWhere((variant) => variant.langCode == 'fr');
+      variants.add(question.id);
+      await db.progressDao.upsertLocal(
+        _due(question.id, QuizDirection.frToKo).toLocalCompanion(),
+      );
+    }
+    final container = ProviderContainer(
+      overrides: [
+        getDueCardsUseCaseProvider.overrideWithValue(
+          GetDueCardsUseCase(progressRepo),
+        ),
+        conceptDaoProvider.overrideWithValue(db.conceptDao),
+        currentUserProvider.overrideWithValue(
+          AppUser(
+            id: 'u',
+            username: 'learner',
+            email: 'u@example.invalid',
+            createdAt: _now,
+          ),
+        ),
+        audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
+      ],
+    );
+    addTearDown(container.dispose);
+    final sub = container.listen(quizProvider, (_, _) {});
+    await container
+        .read(quizProvider.notifier)
+        .loadCards(
+          const QuizArgs(
+            mode: QuizMode.flashcard,
+            source: QuizSource.allDue,
+            direction: QuizDirectionChoice.both,
+            cardLimit: 20,
+          ),
+        );
+    final cards = sub.read().cards;
+    expect(cards, hasLength(20));
+    expect(
+      cards.map((card) => card.progress.variantId),
+      unorderedEquals(variants),
+    );
+    expect(cards.map((card) => card.progress.direction).toSet(), {
+      QuizDirection.frToKo,
+    });
+  });
 
   test(
     'subsequent and postponed cards retain the published audio clip',

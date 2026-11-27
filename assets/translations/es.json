@@ -1,4 +1,5 @@
 {
+  "free_practice.source": "Qué",
   "common.cancel": "Cancelar",
   "common.save": "Guardar",
   "common.delete": "Eliminar",
@@ -306,9 +307,9 @@
   "stats.section_recent_sessions": "SESIONES RECIENTES",
   "stats.chart_empty": "Los datos aparecerán tras tu primera sesión.",
   "stats.sessions_empty": "Aún no hay sesiones.\n¡Empieza un quiz!",
-  "stats.session_dir_fr_to_kr": "FR → KR",
-  "stats.session_dir_kr_to_fr": "KR → FR",
-  "stats.session_dir_both": "FR ↔ KR",
+  "stats.session_dir_fr_to_kr": "Sentido de la lista",
+  "stats.session_dir_kr_to_fr": "Sentido inverso",
+  "stats.session_dir_both": "Ambos sentidos",
   "stats.session_cards_unit": "tarjetas",
   "quiz.voice_reveal": "Ver respuesta",
   "quiz.voice_keyboard": "Teclado",

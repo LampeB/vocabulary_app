@@ -9,8 +9,12 @@ import '../../../core/errors/failure.dart';
 typedef ProvisionedAudio = ({String path, String word, String langCode});
 
 class VocabularyRemoteDataSource {
-  VocabularyRemoteDataSource(this._client);
+  VocabularyRemoteDataSource(
+    this._client, {
+    this._pageTimeout = const Duration(seconds: 15),
+  });
   final SupabaseClient _client;
+  final Duration _pageTimeout;
 
   static const deletedListKey = '_sync_deleted_list';
   static const deletedConceptKey = '_sync_deleted_concept';
@@ -54,8 +58,9 @@ class VocabularyRemoteDataSource {
   }
 
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
-    String listId,
-  ) async {
+    String listId, {
+    required String ownerId,
+  }) async {
     try {
       // Includes deleted concepts — same tombstone-propagation rationale
       // as fetchLists (the local upsert carries the is_deleted flag).
@@ -64,6 +69,7 @@ class VocabularyRemoteDataSource {
           () => _client
               .from('concepts')
               .select('*, word_variants(*)')
+              .eq('owner_id', ownerId)
               .eq('list_id', listId),
         ),
       );
@@ -93,18 +99,21 @@ class VocabularyRemoteDataSource {
     Map<String, dynamic>? changes,
   ) async {
     try {
+      final ownerId = data['owner_id'] as String;
       final write = _client
           .from(table)
-          .upsert(data, ignoreDuplicates: insertOnly)
+          .upsert(data, onConflict: 'owner_id,id', ignoreDuplicates: insertOnly)
           .select();
       if (!insertOnly) {
         return Success(
-          await _withAncestorTombstones(table, await write.single()),
+          await _withAncestorTombstones(table, ownerId, await write.single()),
         );
       }
       final inserted = await write;
       if (inserted.isNotEmpty) {
-        return Success(await _withAncestorTombstones(table, inserted.single));
+        return Success(
+          await _withAncestorTombstones(table, ownerId, inserted.single),
+        );
       }
 
       final id = data['id'] as String;
@@ -116,20 +125,24 @@ class VocabularyRemoteDataSource {
             .from(table)
             .update(changes)
             .eq('id', id)
+            .eq('owner_id', ownerId)
             .eq(parentColumn, parent)
             .eq('is_deleted', false)
             .select();
         if (updated.isNotEmpty) {
-          return Success(await _withAncestorTombstones(table, updated.single));
+          return Success(
+            await _withAncestorTombstones(table, ownerId, updated.single),
+          );
         }
       }
       final existing = await _client
           .from(table)
           .select()
           .eq('id', id)
+          .eq('owner_id', ownerId)
           .eq(parentColumn, parent)
           .single();
-      return Success(await _withAncestorTombstones(table, existing));
+      return Success(await _withAncestorTombstones(table, ownerId, existing));
     } catch (e) {
       return Failure(_writeFailure(e));
     }
@@ -139,6 +152,7 @@ class VocabularyRemoteDataSource {
   /// ancestors only in the tombstone case so the device can hide the subtree.
   Future<Map<String, dynamic>> _withAncestorTombstones(
     String table,
+    String ownerId,
     Map<String, dynamic> row,
   ) async {
     if (row['is_deleted'] != true || table == 'vocabulary_lists') return row;
@@ -146,6 +160,7 @@ class VocabularyRemoteDataSource {
       final list = await _client
           .from('vocabulary_lists')
           .select()
+          .eq('owner_id', ownerId)
           .eq('id', row['list_id'] as String)
           .single();
       return list['is_deleted'] == true ? {...row, deletedListKey: list} : row;
@@ -154,6 +169,7 @@ class VocabularyRemoteDataSource {
     final concept = await _client
         .from('concepts')
         .select('*, vocabulary_lists(*)')
+        .eq('owner_id', ownerId)
         .eq('id', row['concept_id'] as String)
         .single();
     final list = concept.remove('vocabulary_lists') as Map<String, dynamic>?;
@@ -212,7 +228,11 @@ class VocabularyRemoteDataSource {
     try {
       return Success(
         await _fetchPages(
-          () => _client.from('variant_progress').select().eq('user_id', userId),
+          () => _client
+              .from('variant_progress')
+              .select()
+              .eq('user_id', userId)
+              .eq('variant_owner_id', userId),
         ),
       );
     } catch (e) {
@@ -231,7 +251,10 @@ class VocabularyRemoteDataSource {
     while (true) {
       var filter = query();
       if (lastId != null) filter = filter.gt('id', lastId);
-      final page = await filter.order('id').limit(pageSize);
+      final page = await filter
+          .order('id')
+          .limit(pageSize)
+          .timeout(_pageTimeout);
       rows.addAll(page);
       if (page.length < pageSize) return rows;
       lastId = page.last['id'] as String;
@@ -244,7 +267,10 @@ class VocabularyRemoteDataSource {
     try {
       final result = await _client
           .from('variant_progress')
-          .upsert(data, onConflict: 'user_id,variant_id,direction')
+          .upsert({
+            ...data,
+            'variant_owner_id': data['user_id'],
+          }, onConflict: 'user_id,variant_owner_id,variant_id,direction')
           .select()
           .single();
       return Success(result);

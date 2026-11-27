@@ -1,4 +1,5 @@
-import 'package:flutter/services.dart' show PlatformException;
+import 'package:flutter/services.dart'
+    show MethodChannel, MissingPluginException, PlatformException;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
@@ -18,6 +19,22 @@ class NotificationService {
 
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+
+  Future<tz.TZDateTime> _nowForScheduling() async {
+    const channel = MethodChannel('vocab_kr/device_time_zone');
+    var location = tz.local;
+    try {
+      final name = await channel.invokeMethod<String>('get');
+      if (name != null) location = tz.getLocation(name);
+    } on MissingPluginException {
+      // Hosts without mobile scheduling use the configured fallback.
+    } on PlatformException {
+      // The configured fallback remains available.
+    } on tz.LocationNotFoundException {
+      // The bundled zone database may lag a newly added platform zone.
+    }
+    return tz.TZDateTime.now(location);
+  }
 
   Future<void> init() async {
     if (_initialized) return;
@@ -73,16 +90,7 @@ class NotificationService {
   Future<void> scheduleDailyReminder({int hour = 9, int minute = 0}) async {
     await cancelDailyReminder();
 
-    final now = tz.TZDateTime.now(tz.local);
-    final target = nextDailyReminder(now, hour, minute);
-    final next = tz.TZDateTime(
-      tz.local,
-      target.year,
-      target.month,
-      target.day,
-      target.hour,
-      target.minute,
-    );
+    final next = nextDailyReminder(await _nowForScheduling(), hour, minute);
 
     try {
       await _plugin.zonedSchedule(
@@ -121,17 +129,8 @@ class NotificationService {
   Future<void> scheduleStreakWarning(int streakDays) async {
     await cancelStreakWarning();
 
-    final now = tz.TZDateTime.now(tz.local);
-    final slot = streakWarningSlot(now, streakDays);
-    if (slot == null) return; // no streak, or already past 8 PM — skip
-    final warning = tz.TZDateTime(
-      tz.local,
-      slot.year,
-      slot.month,
-      slot.day,
-      slot.hour,
-      slot.minute,
-    );
+    final warning = streakWarningSlot(await _nowForScheduling(), streakDays);
+    if (warning == null) return;
 
     try {
       await _plugin.zonedSchedule(

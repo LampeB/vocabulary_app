@@ -18,6 +18,7 @@ REQUIRED_CHECKS = (
     "PR / Flutter quality",
     "PR / Provider boundaries",
     "PR / Android native build",
+    "PR / iOS simulator build",
     "PR / Dependency review",
     "PR / Secret scan",
     "PR / Workflow security",

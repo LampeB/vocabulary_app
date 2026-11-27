@@ -156,6 +156,22 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('SttRace — shared capture (local before cloud)', () {
+    test('English cap cannot win the shared race for cat', () async {
+      final source = _FakeSource();
+      final decoder = _SharedEngine('whisper');
+      final result = SttRace([decoder], capture: source).run(
+        langCode: 'en',
+        acceptedAnswers: ['cat'],
+        timeout: const Duration(milliseconds: 70),
+      );
+      await _pump();
+      source.session!.finishUtterance();
+      decoder.answer('cap');
+      final outcome = await result;
+      expect(outcome.matched, isFalse);
+      expect(outcome.bestTranscript, 'cap');
+    });
+
     test('a locally valid answer never uploads the capture to cloud', () async {
       final source = _FakeSource();
       final scribe = _SharedEngine('elevenlabs', requiresNetwork: true);

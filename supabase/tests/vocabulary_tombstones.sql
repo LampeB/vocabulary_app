@@ -36,7 +36,7 @@ BEGIN
 
   INSERT INTO public.vocabulary_lists(id, owner_id, name, is_deleted)
     VALUES (deleted_list, owner, 'Stale rename', false)
-    ON CONFLICT(id) DO UPDATE SET name = excluded.name, is_deleted = excluded.is_deleted
+    ON CONFLICT(owner_id,id) DO UPDATE SET name = excluded.name, is_deleted = excluded.is_deleted
     RETURNING * INTO list_ack;
   IF list_ack.is_deleted IS DISTINCT FROM true OR list_ack.name <> 'First' THEN
     RAISE EXCEPTION 'Stale list upsert overrode its tombstone';
@@ -44,7 +44,7 @@ BEGIN
 
   INSERT INTO public.concepts(id, list_id, notes, is_deleted)
     VALUES (deleted_concept, live_list, 'Stale note', false)
-    ON CONFLICT(id) DO UPDATE SET notes = excluded.notes, is_deleted = excluded.is_deleted
+    ON CONFLICT(owner_id,id) DO UPDATE SET notes = excluded.notes, is_deleted = excluded.is_deleted
     RETURNING * INTO concept_ack;
   IF concept_ack.is_deleted IS DISTINCT FROM true OR concept_ack.notes <> 'Original' THEN
     RAISE EXCEPTION 'Stale concept upsert overrode its tombstone';
@@ -65,7 +65,7 @@ BEGIN
     INSERT INTO public.word_variants(id, concept_id, word, lang_code, is_deleted)
       VALUES (list_word, list_child, 'stale', 'en', false), (concept_word, deleted_concept, 'stale', 'en', false),
              (deleted_word, live_concept, 'stale', 'en', false)
-      ON CONFLICT(id) DO UPDATE SET word = excluded.word, is_deleted = excluded.is_deleted
+      ON CONFLICT(owner_id,id) DO UPDATE SET word = excluded.word, is_deleted = excluded.is_deleted
       RETURNING *
   LOOP
     IF word_ack.is_deleted IS DISTINCT FROM true OR word_ack.word = 'stale' THEN

@@ -11,8 +11,9 @@ cloud à 20 EUR.
    alerte à 12 EUR équivalent et un plafond mensuel à 20 EUR lorsqu'il est
    proposé. Les fournisseurs facturent parfois en USD : convertir ce seuil
    prudemment et conserver une marge.
-2. Déployer les migrations, dont `010_provider_quota_buckets.sql` et
-   `012_security_boundaries.sql`, avant les Edge Functions. Un contrôle de
+2. Déployer les migrations `010_provider_quota_buckets.sql`,
+   `012_security_boundaries.sql` et `015_vocabulary_owner_namespace.sql`
+   avant les Edge Functions. Un contrôle de
    quota indisponible interrompt la demande au fournisseur et renvoie `503`.
    Entre 007 et 012, le bucket `vocab-audio` reste fermé aux rôles client.
    Sur un projet historique qui attend encore 012, appliquer d'abord la
@@ -92,6 +93,10 @@ Relire le diff du verrou et repasser le script sans projet avant de commiter.
   correspondent au clip. Une édition ou une suppression concurrente renvoie
   `409` sans chemin. Le résultat `ready` indique le chemin, le mot et la langue
   de la variante confirmée.
+- Le provisionnement ne lit que les variantes actives du compte vérifié et
+  de ses listes et concepts actifs. Une variante absente, supprimée ou hors
+  de ce périmètre donne la même réponse `404` avant le cache, le quota et le
+  rendu.
 - Le provisionnement utilisateur écrit exclusivement sous `users/<UUID>/`.
   Le champ `origin` d'une liste n'autorise jamais une publication sous `seed/`.
   Seul `seed-audio-publish`, administrateur, publie le catalogue partagé.

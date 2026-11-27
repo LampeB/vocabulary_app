@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:ui' show Tristate;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +17,88 @@ import '../../helpers/pump_screen.dart';
 
 void main() {
   setUpAll(initTestLocalization);
+
+  testWidgets(
+    'tabs keep readable labels and selected keyboard navigation at 320px double text',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final router = GoRouter(
+        initialLocation: '/home',
+        routes: [
+          ShellRoute(
+            builder: (_, _, child) => AppShell(child: child),
+            routes: [
+              for (final path in [
+                '/home',
+                '/lists',
+                '/grammar',
+                '/stats',
+                '/profile',
+              ])
+                GoRoute(path: path, builder: (_, _) => const Text('Content')),
+            ],
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            connectivityStreamProvider.overrideWith(
+              (ref) => Stream.value([ConnectivityResult.wifi]),
+            ),
+            pushOnReconnectProvider.overrideWith((ref) {}),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final home = find.byKey(ValueKey(WidgetKeys.navTab('home')));
+      expect(
+        tester.getSemantics(home).getSemanticsData().flagsCollection.isSelected,
+        Tristate.isTrue,
+      );
+      final label = find.descendant(of: home, matching: find.byType(Text));
+      Focus.of(tester.element(label)).requestFocus();
+      await tester.pump();
+      for (var i = 0; i < 3; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+      }
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(router.routeInformationProvider.value.uri.path, '/stats');
+      final active = find.byKey(ValueKey(WidgetKeys.navTab('stats')));
+      expect(
+        tester
+            .getSemantics(active)
+            .getSemanticsData()
+            .flagsCollection
+            .isSelected,
+        Tristate.isTrue,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(ValueKey(WidgetKeys.navTab('lists'))),
+          matching: find.byType(FittedBox),
+        ),
+        findsNothing,
+      );
+      for (final tab in ['home', 'lists', 'grammar', 'stats', 'profile']) {
+        expect(
+          tester.getSize(find.byKey(ValueKey(WidgetKeys.navTab(tab)))).width,
+          closeTo(64, .1),
+        );
+      }
+      expect(tester.takeException(), isNull);
+      semantics.dispose();
+    },
+  );
 
   String? navigatedTo;
 

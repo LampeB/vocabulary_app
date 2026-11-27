@@ -14,6 +14,7 @@ import '../models/concept_dto.dart';
 import '../models/variant_progress_dto.dart';
 import '../models/vocabulary_list_dto.dart';
 import '../models/word_variant_dto.dart';
+import 'vocabulary_sync_ids.dart';
 
 /// Outbound sync: pushes every row still marked `isSynced=false` to the
 /// remote and flips the flag on success.
@@ -50,7 +51,7 @@ class PushSync {
   final _listsToRetry = <String>{};
 
   static const _maxPendingAudio = 256;
-  final _pendingAudio = <String>{};
+  final _pendingAudio = <(String localId, String wireId)>{};
   bool _provisioningAudio = false;
 
   /// Pushes all unsynced rows in FK order (lists → concepts → variants →
@@ -93,34 +94,53 @@ class PushSync {
     // Read eligible reviews after the network writes above. Draft creation
     // and adoption both change eligibility in the transaction that changes IDs.
     final (progress, events) = await _pendingReviews();
+    final idsByOwner = <String, Future<VocabularySyncIds>>{};
+    Future<VocabularySyncIds> idsFor(String owner) => idsByOwner.putIfAbsent(
+      owner,
+      () => VocabularySyncIds.load(_listDao.attachedDatabase, owner),
+    );
     await _drain(
       run,
       rows: () async => progress,
-      push: (r) => _sendThenAcknowledge(
-        _remote.upsertProgress(r.toDomain().toRemoteMap()),
-        () => _progressDao.acknowledge(r),
-      ),
+      push: (r) async {
+        final ids = await idsFor(r.userId);
+        return _sendThenAcknowledge(
+          _remote.upsertProgress(
+            ids.encode(
+              SyncedVocabularyRow.progress,
+              r.toDomain().toRemoteMap(),
+            ),
+          ),
+          () => _progressDao.acknowledge(r),
+        );
+      },
       onChanged: () => _drainAgain = true,
     );
     await _drain(
       run,
       rows: () async => events,
-      push: (r) => _sendThenAcknowledge(
-        _remote.upsertReviewEvent({
-          'id': r.id,
-          'user_id': r.userId,
-          'variant_id': r.variantId,
-          'direction': r.direction,
-          'list_id': r.listId,
-          'mode': r.mode,
-          'correct': r.correct,
-          'rating': r.rating,
-          'response_time_ms': r.responseTimeMs,
-          'retry_count': r.retryCount,
-          'created_at': r.createdAt.toUtc().toIso8601String(),
-        }),
-        () => _reviewEventDao.acknowledge(r),
-      ),
+      push: (r) async {
+        final ids = await idsFor(r.userId);
+        final listId = r.listId;
+        return _sendThenAcknowledge(
+          _remote.upsertReviewEvent({
+            'id': r.id,
+            'user_id': r.userId,
+            'variant_id': ids.wireId(SyncedVocabularyRow.variant, r.variantId),
+            'direction': r.direction,
+            'list_id': listId == null
+                ? null
+                : ids.wireId(SyncedVocabularyRow.list, listId),
+            'mode': r.mode,
+            'correct': r.correct,
+            'rating': r.rating,
+            'response_time_ms': r.responseTimeMs,
+            'retry_count': r.retryCount,
+            'created_at': r.createdAt.toUtc().toIso8601String(),
+          }),
+          () => _reviewEventDao.acknowledge(r),
+        );
+      },
       onChanged: () => _drainAgain = true,
     );
     return run;
@@ -180,6 +200,10 @@ class PushSync {
           await _listDao.isStarterDraftHeld(listId)) {
         break;
       }
+      final ids = await VocabularySyncIds.load(
+        _listDao.attachedDatabase,
+        list.ownerId,
+      );
 
       if (!list.isSynced) {
         await _drain(
@@ -187,6 +211,8 @@ class PushSync {
           rows: () async => [list],
           push: (r) => _pushMetadata(
             r,
+            ids: ids,
+            kind: SyncedVocabularyRow.list,
             id: r.id,
             fromLocalJson: VocabularyListsTableData.fromJson,
             toRemote: (row) => row.toDomain().toRemoteMap(),
@@ -210,9 +236,11 @@ class PushSync {
         rows: () => _conceptDao.getUnsyncedConcepts(listId: listId),
         push: (r) => _pushMetadata(
           r,
+          ids: ids,
+          kind: SyncedVocabularyRow.concept,
           id: r.id,
           fromLocalJson: ConceptsTableData.fromJson,
-          toRemote: (row) => row.toRemoteMap(),
+          toRemote: (row) => {...row.toRemoteMap(), 'owner_id': list.ownerId},
           push: _remote.upsertConcept,
           acknowledge: _conceptDao.acknowledgeConcept,
           load: _conceptDao.getById,
@@ -238,9 +266,11 @@ class PushSync {
         rows: () => _conceptDao.getUnsyncedVariants(listId: listId),
         push: (r) => _pushMetadata(
           r,
+          ids: ids,
+          kind: SyncedVocabularyRow.variant,
           id: r.id,
           fromLocalJson: WordVariantsTableData.fromJson,
-          toRemote: (row) => row.toRemoteMap(),
+          toRemote: (row) => {...row.toRemoteMap(), 'owner_id': list.ownerId},
           push: _remote.upsertVariant,
           acknowledge: _conceptDao.acknowledgeVariant,
           load: _conceptDao.getVariantById,
@@ -253,7 +283,7 @@ class PushSync {
           ),
           afterAck: (row) {
             if (row['is_deleted'] != true && row['audio_path'] != null) {
-              _queueAudio(r.id);
+              _queueAudio(r.id, ids.wireId(SyncedVocabularyRow.variant, r.id));
             }
           },
         ),
@@ -265,6 +295,8 @@ class PushSync {
 
   Future<Result<int>> _pushMetadata<R extends DataClass>(
     R submitted, {
+    required VocabularySyncIds ids,
+    required SyncedVocabularyRow kind,
     required String id,
     required R Function(Map<String, dynamic>) fromLocalJson,
     required Map<String, dynamic> Function(R) toRemote,
@@ -281,17 +313,18 @@ class PushSync {
     Future<void> Function()? onAuthoredTombstone,
     void Function(Map<String, dynamic>)? afterAck,
   }) async {
-    final payload = toRemote(submitted);
+    Map<String, dynamic> wire(R row) => ids.encode(kind, toRemote(row));
+    final payload = wire(submitted);
     final base = await _listDao.getSharedImportBase(id);
     final response = base == null
         ? await push(payload)
         : await push(
             payload,
             insertOnly: true,
-            changes: _changedFields(toRemote(fromLocalJson(base)), payload),
+            changes: _changedFields(wire(fromLocalJson(base)), payload),
           );
     if (response case Failure(:final exception)) return Failure(exception);
-    final server = response.valueOrNull!;
+    final server = ids.decode(kind, response.valueOrNull!);
     final deleted = server['is_deleted'] == true;
     final ancestorDeleted =
         server.containsKey(VocabularyRemoteDataSource.deletedListKey) ||
@@ -333,7 +366,7 @@ class PushSync {
         return 0;
       }
 
-      final remaining = _changedFields(payload, toRemote(current));
+      final remaining = _changedFields(payload, wire(current));
       await save(server, true);
       if (remaining.isEmpty) {
         await _listDao.forgetSharedImportBases([id]);
@@ -409,22 +442,23 @@ class PushSync {
     };
   }
 
-  void _queueAudio(String variantId) {
+  void _queueAudio(String localId, String wireId) {
     if (_pendingAudio.length >= _maxPendingAudio) return;
-    _pendingAudio.add(variantId);
+    _pendingAudio.add((localId, wireId));
     if (!_provisioningAudio) unawaited(_provisionAudio());
   }
 
   Future<void> _provisionAudio() async {
     _provisioningAudio = true;
     while (_pendingAudio.isNotEmpty) {
-      final id = _pendingAudio.first;
-      _pendingAudio.remove(id);
+      final request = _pendingAudio.first;
+      _pendingAudio.remove(request);
+      final (localId, wireId) = request;
       try {
-        final audio = await _remote.provisionAudio(id);
+        final audio = await _remote.provisionAudio(wireId);
         if (audio != null) {
           await _conceptDao.applyProvisionedAudio(
-            variantId: id,
+            variantId: localId,
             ownerId: _userId,
             word: audio.word,
             langCode: audio.langCode,

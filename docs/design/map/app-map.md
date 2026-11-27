@@ -45,7 +45,7 @@ Légende : 🟢 décidé (utilisateur) · 🟠 proposé — à vetter (Claude) �
 | Zone | Note | Statut | Reste à trancher |
 |---|---|---|---|
 | Quiz canvas, voix, cloze, leeches | [[quiz-canvas]] | ⚪🟠 | flashcard/écrit confirmés 2026-08-21 ; cloze/voix/leeches jamais maquettés |
-| Pratique libre (entrée dans Parcours) | [[pratique-libre]] | 🟢 | (confirmé 2026-08-21 — bottom sheet validé tel quel) |
+| Pratique libre (entrée dans Parcours) | [[pratique-libre]] | 🟢 | Feuille Quoi/Sens/Mode confirmée le 2026-08-21 et retenue après comparaison le 2026-11-27 |
 
 ## Contenu & suivi
 

@@ -87,23 +87,17 @@ export async function handleAudioProvision(
   const { data: variant, error: variantError } = await admin
     .from("word_variants")
     .select(
-      "id, word, lang_code, is_deleted, concept:concepts!inner(is_deleted, list:vocabulary_lists!inner(owner_id, is_deleted))",
+      "id, word, lang_code, concept:concepts!inner(list:vocabulary_lists!inner())",
     )
     .eq("id", variantId)
+    .eq("owner_id", user.id)
+    .eq("is_deleted", false)
+    .eq("concept.list.owner_id", user.id)
+    .not("concept.is_deleted", "is", true)
+    .not("concept.list.is_deleted", "is", true)
     .maybeSingle();
-  if (variantError || !variant || variant.is_deleted) {
+  if (variantError || !variant) {
     return response({ error: "Variant not found" }, 404);
-  }
-
-  const concept = variant.concept as unknown as {
-    is_deleted: boolean;
-    list: { owner_id: string; is_deleted: boolean };
-  };
-  const list = concept?.list;
-  if (
-    !list || list.owner_id !== user.id || list.is_deleted || concept.is_deleted
-  ) {
-    return response({ error: "Forbidden" }, 403);
   }
 
   const lang = variant.lang_code as string;
@@ -136,6 +130,7 @@ export async function handleAudioProvision(
         audio_voice_id: voice.label,
       })
       .eq("id", variant.id)
+      .eq("owner_id", user.id)
       .eq("word", text)
       .eq("lang_code", lang)
       .eq("is_deleted", false)

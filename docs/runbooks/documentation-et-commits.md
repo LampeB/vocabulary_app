@@ -2,15 +2,24 @@
 
 ## Première installation sur un poste
 
-Depuis la racine du dépôt :
+Sous Windows, depuis la racine du dépôt.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tool/install-git-hooks.ps1
 ```
 
-Cette commande configure Git pour utiliser les hooks versionnés dans
-`.githooks/`. Refaire l'opération après un nouveau clone ou si
-`git config --get core.hooksPath` ne renvoie pas `.githooks`.
+Sous Linux ou macOS, utiliser PowerShell 7.
+
+```bash
+pwsh -NoProfile -File tool/install-git-hooks.ps1
+```
+
+Le script configure Git pour utiliser les hooks versionnés dans `.githooks/`
+et rend le hook exécutable sur Unix. Git conserve le mode `100755` du hook
+et ses fins de ligne LF à chaque checkout. Refaire l'installation après un
+nouveau clone ou si `git config --get core.hooksPath` renvoie une autre valeur.
+La CI Ubuntu installe le hook dans un dépôt jetable et vérifie qu'un vrai
+`git commit` contenant un chemin interdit est refusé.
 
 ## Avant un commit
 
@@ -21,6 +30,8 @@ Cette commande configure Git pour utiliser les hooks versionnés dans
    refuse les changements applicatifs/configuration sans fichier de
    documentation préparé. Il refuse aussi les artefacts générés ou la
    configuration privée et exige le formatage des fichiers Dart préparés.
+   Les chemins Git sont lus avec leur séparateur NUL. Les accents et les sauts
+   de ligne restent attachés à leur nom de fichier pendant le contrôle.
 
 Pour vérifier une branche entière avant d'ouvrir une PR :
 

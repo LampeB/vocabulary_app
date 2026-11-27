@@ -9,6 +9,7 @@ import '../../core/errors/failure.dart';
 import '../datasources/local/app_database.dart';
 import '../datasources/local/daos/concept_dao.dart';
 import '../datasources/local/daos/vocabulary_list_dao.dart';
+import '../sync/vocabulary_sync_ids.dart';
 import 'seed_catalog.dart';
 import 'starter_identity.dart';
 import '../../services/audio/audio_asset_path.dart';
@@ -274,6 +275,10 @@ class StarterSeeder {
     );
     final list = await _listDao.getById(resolved);
     if (list == null || list.isDeleted || list.ownerId != _userId) return;
+    final ids = await VocabularySyncIds.load(
+      _listDao.attachedDatabase,
+      _userId,
+    );
     final now = DateTime.now();
     final concepts = await _conceptDao.getConceptsByList(
       list.id,
@@ -296,7 +301,13 @@ class StarterSeeder {
       if (existing?.isDeleted == true) continue;
       if (existing == null) {
         added = true;
-        final newConceptId = starterConceptId(list.id, conceptId);
+        final newConceptId = await ids.reserve(
+          SyncedVocabularyRow.concept,
+          starterConceptId(
+            ids.wireId(SyncedVocabularyRow.list, list.id),
+            conceptId,
+          ),
+        );
         await _conceptDao.upsert(
           ConceptsTableCompanion(
             id: Value(newConceptId),
@@ -317,7 +328,7 @@ class StarterSeeder {
           (sourceEntry, sourceLayer.lang),
           (targetEntry, targetLayer.lang),
         ]) {
-          await _insertVariants(newConceptId, entry.$1, entry.$2, now);
+          await _insertVariants(ids, newConceptId, entry.$1, entry.$2, now);
         }
       } else {
         final variants = await _conceptDao.getVariantsByConcept(
@@ -328,6 +339,7 @@ class StarterSeeder {
         if (!presentLangs.contains(sourceLayer.lang)) {
           added = true;
           await _insertVariants(
+            ids,
             existing.id,
             sourceEntry,
             sourceLayer.lang,
@@ -337,6 +349,7 @@ class StarterSeeder {
         if (!presentLangs.contains(targetLayer.lang)) {
           added = true;
           await _insertVariants(
+            ids,
             existing.id,
             targetEntry,
             targetLayer.lang,
@@ -347,6 +360,7 @@ class StarterSeeder {
     }
 
     if (added) {
+      await ids.save();
       final count = await _conceptDao.countByList(list.id);
       await _listDao.updateWordCount(list.id, count);
       _listDao.attachedDatabase.notifyOutboundMutation(_userId);
@@ -354,6 +368,7 @@ class StarterSeeder {
   });
 
   Future<void> _insertVariants(
+    VocabularySyncIds ids,
     String conceptId,
     SeedEntry entry,
     String lang,
@@ -366,7 +381,15 @@ class StarterSeeder {
         (n) => n + 1,
         ifAbsent: () => 0,
       );
-      final id = starterVariantId(conceptId, lang, w.position, occurrence);
+      final id = await ids.reserve(
+        SyncedVocabularyRow.variant,
+        starterVariantId(
+          ids.wireId(SyncedVocabularyRow.concept, conceptId),
+          lang,
+          w.position,
+          occurrence,
+        ),
+      );
       await _conceptDao.upsertVariant(
         WordVariantsTableCompanion(
           id: Value(id),

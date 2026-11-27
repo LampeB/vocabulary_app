@@ -1,24 +1,42 @@
 package com.vocabkr.vocab_kr
 
-import android.os.Build
-import android.speech.SpeechRecognizer
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.util.TimeZone
 
 class MainActivity : FlutterActivity() {
+    private var systemSpeech: SystemSpeechCapture? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "vocab_kr/system_speech")
-            .setMethodCallHandler { call, result ->
+        val systemChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "vocab_kr/system_speech")
+        val system = SystemSpeechCapture(applicationContext) { method, payload ->
+            systemChannel.invokeMethod(method, payload)
+        }
+        systemSpeech = system
+        systemChannel.setMethodCallHandler { call, result ->
+            try {
                 when (call.method) {
-                    "supportsOnDeviceRecognition" -> result.success(
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-                            SpeechRecognizer.isOnDeviceRecognitionAvailable(applicationContext)
-                    )
+                    "supportsOnDeviceRecognition" -> result.success(system.supportsOnDevice())
+                    "listen" -> result.success(system.start(
+                        call.argument<Int>("session") ?: error("Missing session ID"),
+                        call.argument<String>("locale") ?: error("Missing speech locale"),
+                        call.argument<Boolean>("onDevice") ?: false,
+                    ))
+                    "stop" -> result.success(system.stop(
+                        call.argument<Int>("session") ?: error("Missing session ID")
+                    ))
                     else -> result.notImplemented()
                 }
+            } catch (error: Exception) {
+                result.error("system_speech", error.message, null)
+            }
+        }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "vocab_kr/device_time_zone")
+            .setMethodCallHandler { call, result ->
+                if (call.method == "get") result.success(TimeZone.getDefault().id)
+                else result.notImplemented()
             }
         val recognizer = PcmSpeechRecognizer(applicationContext)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "vocab_kr/pcm_speech")
@@ -61,5 +79,15 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        try {
+            systemSpeech?.dispose()
+        } catch (error: Exception) {
+            android.util.Log.w("SystemSpeechCapture", "Engine cleanup failed", error)
+        }
+        systemSpeech = null
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 }

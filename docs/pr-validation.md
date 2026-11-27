@@ -106,7 +106,7 @@ l'approbation formelle après les quatre profils indépendants et la CI. Il ne
 fait pas de nouvelle analyse de code et ne prétend pas être Copilot. Le compte
 utilisé n'est actuellement pas éligible à la revue Copilot ; aucune licence
 n'est achetée et aucune approbation Copilot n'est simulée. Le bot vérifie le
-SHA, la preuve de convergence attestée par le propriétaire et les sept checks
+SHA, la preuve de convergence attestée par le propriétaire et les huit checks
 CI avant de publier une review `APPROVED`. Les approbations périmées sont
 annulées au push ; le bot ne fusionne pas et ne modifie pas le code.
 
@@ -114,7 +114,7 @@ L'orchestrateur publie le statut requis `PR / Independent agent reviews` sur
 le SHA de tête courant. Il reste `pending` pendant les revues/corrections et
 ne passe à `success` qu'après deux verdicts propres consécutifs des quatre
 profils sur ce même SHA. Les compteurs et rapports sont consignés dans la PR.
-Tout nouveau SHA repart en attente. Ce statut s'ajoute aux sept checks CI :
+Tout nouveau SHA repart en attente. Ce statut s'ajoute aux huit checks CI :
 une CI verte et une approbation externe seules ne satisfont pas la convergence.
 
 ### Preuve vérifiée par le bot
@@ -132,7 +132,7 @@ description est `reviews-v1:` suivi du SHA-256 du JSON canonique (clés triées,
 séparateurs `,`/`:`, `ensure_ascii=True`, encodage UTF-8). Le bot refuse une
 preuve altérée, un statut d'un autre auteur, une CI périmée ou issue d'une
 autre application, un fork, un brouillon ou une nouvelle tête/base. Il relie
-les six checks de PR au workflow `.github/workflows/pr-validation.yml`, à
+les sept checks de PR au workflow `.github/workflows/pr-validation.yml`, à
 l'événement `pull_request`, au numéro de la PR et aux SHA exacts de tête et de
 base. Le check `test` doit provenir d'un `push` sur la même tête dans
 `.github/workflows/test.yml`. Le bot vérifie aussi que chaque check provient
@@ -188,13 +188,17 @@ exige :
 - le formatage des seuls fichiers Dart internes modifiés, afin de durcir le
   dépôt progressivement sans reformater du code hors sujet ;
 - la politique documentaire et l'interdiction des artefacts générés ou de la
-  configuration privée ;
+  configuration privée, y compris les chemins accentués et les chemins avec
+  retour à la ligne. La CI vérifie aussi que Git lance le hook après son
+  installation sous Ubuntu ;
 - `flutter analyze`, les tests hôte et le seuil de couverture ;
 - les diagnostics STT testés en debug avec et sans opt-in et une sonde Dart
   compilée en mode produit avec l'opt-in actif pour vérifier le refus ;
 - une revue des dépendances, un scan de secrets et `actionlint` ;
 - un audit `zizmor` de tous les workflows, avec actions épinglées par SHA ;
 - une compilation Android intégrant le moteur natif Whisper épinglé ;
+- une compilation debug pour le simulateur iOS sur macOS, sans signature, sans
+  secrets de projet et sans publication de binaire ;
 - un contrôle de la frontière de licence Whisper et des tests des fonctions
   cloud/quota sur une base PostgreSQL jetable.
 Ce dernier contrôle applique aussi les migrations de production de sécurité.

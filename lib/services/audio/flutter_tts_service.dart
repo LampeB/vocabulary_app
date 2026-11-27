@@ -38,6 +38,8 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
   // switching engines mid-session, and any langCode works (generic-language-
   // pairs epic; was two hardcoded fr/ko instances).
   final _ttsByLang = <String, FlutterTts>{};
+  FlutterTts? _lastNativeVoice;
+  Future<dynamic>? _engineSwitch;
   List<dynamic>? _availableEngines;
   int _playbackGeneration = 0;
   bool _disposed = false;
@@ -57,13 +59,16 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
     final existing = _ttsByLang[langCode];
     if (existing != null) return existing;
 
-    final tts = FlutterTts();
+    final tts = _lastNativeVoice = FlutterTts();
     if (_availableEngines == null) {
+      List<dynamic> available;
       try {
-        _availableEngines = (await tts.getEngines as List?) ?? [];
+        available = (await tts.getEngines as List?) ?? [];
       } catch (_) {
-        _availableEngines = [];
+        available = [];
       }
+      if (!_current(generation)) return null;
+      _availableEngines = available;
     }
     if (!_current(generation)) return null;
     final preference = _enginePreferences[langCode] ?? _defaultEnginePreference;
@@ -74,7 +79,12 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
     if (engine.isNotEmpty) {
       // Selecting a different Android engine can reset its language.
       _nativeLang = null;
-      await tts.setEngine(engine);
+      final switching = _engineSwitch = tts.setEngine(engine);
+      try {
+        await switching;
+      } finally {
+        if (identical(_engineSwitch, switching)) _engineSwitch = null;
+      }
       if (!_current(generation)) return null;
     }
     await tts.setVolume(1.0);
@@ -174,11 +184,30 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
         '[TTS] ✋ stop() while $_activeSpeaks utterance(s) in flight — speech is being CUT OFF',
       );
     }
-    await _stopVoices();
+    final prior = _nativeOps;
+    final engineSwitchPending = _engineSwitch != null;
+    final stopping = _stopVoices();
+    // The pinned plugin applies setLanguage before sending its reply. Android
+    // drains early native requests in order when the engine becomes ready.
+    // A later acknowledged stop therefore fences those synchronous mutations
+    // even if their Dart replies never arrive. Engine initialization has its
+    // own asynchronous callback and must still settle before a new voice.
+    _nativeOps = stopping.then<void>((_) async {
+      if (engineSwitchPending) await prior;
+    }, onError: (Object _, StackTrace _) => prior);
+    await stopping;
   }
 
   Future<void> _stopVoices() async {
-    await Future.wait(_ttsByLang.values.map((tts) => tts.stop()));
+    final voices = [
+      ..._ttsByLang.values,
+      if (_ttsByLang.isEmpty && _lastNativeVoice != null) _lastNativeVoice!,
+    ];
+    await Future.wait(
+      voices.map((voice) async {
+        if (await voice.stop() == 0) throw const TtsRejected('stop', '');
+      }),
+    );
   }
 
   @override
@@ -189,6 +218,10 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
     if (_disposed) return;
     _disposed = true;
     _playbackGeneration++;
-    unawaited(_stopVoices());
+    unawaited(
+      _stopVoices().catchError((Object error) {
+        sttLog('[TTS] disposal could not stop device speech: $error');
+      }),
+    );
   }
 }
