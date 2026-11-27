@@ -113,6 +113,13 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   confirmation, fréquence, réseau). Un message brut du fournisseur n'est pas
   affiché. Les compteurs de révision indiquent des cartes jouables : un concept
   dû dans les deux sens représente deux cartes, pas deux mots.
+- Un échec technique de lecture des cartes affiche un message générique
+  FR/EN/KO ; son détail reste réservé au diagnostic debug. Le bouton Retour
+  est focalisable et retrouve l'écran d'origine avec Tab puis Entrée. Les
+  messages dédiés de changement de compte et de grammaire écrite restent distincts.
+- Les aides de détail de leçon et les traductions d'aperçu du configurateur
+  atteignent au moins 4,5:1 sur leur surface effectivement rendue, dans les
+  deux thèmes ; le contraste tient compte de l'encre et du fond teinté.
 - La série compare des dates civiles, y compris lors des journées de 23 ou
   25 heures. La fin de quiz et le suivi social utilisent le même calcul.
 - Au bilan, le quiz capture le compte, les résultats et le jour civil. Son

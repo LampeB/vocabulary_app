@@ -222,13 +222,18 @@ class AudioDirector {
   Future<void> listenCue({
     Duration clearance = const Duration(milliseconds: 100),
   }) async {
-    final generation = _cueGeneration;
+    final generation = ++_cueGeneration;
     await _sfx.playListenCue().timeout(
       _openingCueTimeout,
       onTimeout: () {
+        if (generation != _cueGeneration) throw const AudioPlaybackCancelled();
         // Invalidate and stop the old signal before the next attempt. A
         // pending or refused native stop remains a barrier to a new signal.
-        unawaited(_sfx.stop());
+        unawaited(
+          Future<void>.sync(_sfx.stop).catchError((Object error) {
+            sttLog('[SFX] timed-out cue stop failed: $error');
+          }),
+        );
         throw TimeoutException(
           'Opening cue did not finish',
           _openingCueTimeout,

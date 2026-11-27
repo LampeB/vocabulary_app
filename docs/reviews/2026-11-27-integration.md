@@ -928,3 +928,52 @@ Les migrations, fonctions Edge, outils et workflows restent inchangés depuis
 leurs dix-sept suites SQL, 31 tests Deno, sept bundles et 43 tests Python
 validés dans le lot précédent. Le garde documentaire, le formatage et le
 contrôle de tout l'historique de PR restent requis avant la revue 18.
+
+## Dix-huitième itération — `b6ec398`
+
+Les quatre verdicts finaux ont été réunis sur
+`b6ec398da7081efe0ba186083fb7de66d35997b3` avant toute correction. Le profil
+sécurité rend `PROPRE` avec une Suggestion ; les trois autres rendent
+`BLOQUÉ`. Les **5 Important sont distincts**, sans Bloquant. La convergence
+collective reste **0/2**. Prochaines passes **19**, puis **20** si nécessaire,
+dans la limite décidée par l'utilisateur.
+
+| Profil / instance | Verdict | Important | Suggestion |
+| --- | --- | --- | --- |
+| Produit — `/root/r18_product` | BLOQUÉ | 3 | 0 |
+| Qualité — `/root/r18_quality` | BLOQUÉ | 1 | 0 |
+| Correction — `/root/r18_correctness` | BLOQUÉ | 1 | 0 |
+| Sécurité — `/root/r18_security` | PROPRE | 0 | 1 |
+
+| Type | Constat distinct | Correction et preuve ciblée |
+| --- | --- | --- |
+| Important | Consigne anglaise d'indénombrable partagée avec le français | Clé de pluriel spécifique au module anglais, consigne générique restaurée ailleurs ; vrai catalogue `eau`/`eaux` dans les interfaces FR/KO et parcours anglais préservés |
+| Important | Deux aides pédagogiques sous 4,5:1 | Texte du détail de leçon et traduction d'aperçu adaptés à leur surface dans les deux thèmes |
+| Important | Échec de chargement du quiz brut et Retour sans focus | Message générique FR/EN/KO, détail technique réservé au diagnostic, bouton Material de retour vers l'origine |
+| Important | Ancienne expiration interrompant un nouveau signal | Attente de préparation invalidée à l'arrêt, expiration limitée à son propriétaire ; premier réglage natif retenu au-delà de l'ancienne échéance |
+| Important | Fin du son précédent validant le signal courant | Identité native distincte pour une lecture dont la fin autorise le micro et arrêt du son précédent confirmé ; événement tardif isolé de la lecture courante |
+
+Le rapport qualité a été finalisé sur son constat Important confirmé après
+arrêt de ses investigations supplémentaires. Aucun verdict propre n'est
+déduit d'une interruption et aucun code n'avait changé pendant sa lecture.
+
+La Suggestion de reproductibilité CocoaPods est conservée pour décision
+ultérieure : versionner un `ios/Podfile.lock` produit par un build macOS vert
+et contrôler sa stabilité. Elle ne devient pas un bloquant ni une étape
+supplémentaire de cette intégration. Les huit checks CI sont verts sur
+`b6ec398`. Les 46 tests ciblés de grammaire passent.
+
+Les huit tests UI ciblés passent : quatre contrastes mesurés par pixels du
+fond réellement rendu dans les deux thèmes, trois erreurs SQLite injectées
+en FR/EN/KO avec retour à l'origine visible par Tab/Entrée, et maintien du
+message dédié de changement de compte. Les treize régressions audio ciblées
+passent : préparation retenue au-delà de son ancienne échéance, reprise non
+interrompue, son précédent arrêté avant préparation, fin ancienne ignorée et
+identité distincte aussi pour le clip de prompt strict.
+
+La suite finale passe : **1 227 tests hôte**, douze diagnostics positifs
+exclus sans opt-in, couverture **75,9 %** (14 493 / 19 098 lignes). L'analyse
+complète est propre ; les 25 diagnostics ciblés passent avec opt-in. Les
+migrations, fonctions Edge, outils, workflows et versions de dépendances
+restent inchangés depuis leurs contrôles précédents. Le garde documentaire,
+le formatage et le contrôle d'historique restent requis avant la revue 19.

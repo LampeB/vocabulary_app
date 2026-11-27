@@ -1,15 +1,21 @@
 // ignore_for_file: invalid_use_of_internal_member
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
 import 'package:drift/native.dart';
 import 'package:easy_localization/easy_localization.dart';
+// ignore: implementation_imports
+import 'package:easy_localization/src/localization.dart';
+// ignore: implementation_imports
+import 'package:easy_localization/src/translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/core/grammar/grammar_drill_generator.dart';
 import 'package:vocab_kr/core/stt_simulator.dart';
@@ -394,8 +400,9 @@ class _RetryFilePlayer extends _SilentFilePlayer {
 }
 
 class _FakeProgressRepo implements ProgressRepository {
-  _FakeProgressRepo(this.due);
+  _FakeProgressRepo(this.due, {this.loadFailure});
   final List<VariantProgress> due;
+  final AppException? loadFailure;
   final saved = <VariantProgress>[];
   int? committedDays;
   Completer<void>? pendingCommit;
@@ -409,6 +416,7 @@ class _FakeProgressRepo implements ProgressRepository {
     int limit = 20,
     bool includeScheduled = false,
   }) async {
+    if (loadFailure case final failure?) return Failure(failure);
     final imported = importedDue;
     final cards = imported != null && listId != 'l'
         ? await imported(listId, direction)
@@ -643,6 +651,7 @@ void main() {
     SttEngineModeNotifier? sttMode,
     VoiceTurnMachine Function()? machineFactory,
     ThemeMode themeMode = ThemeMode.light,
+    AppException? loadFailure,
   }) async {
     navigatedTo = null;
     final dueCards = <VariantProgress>[];
@@ -677,7 +686,7 @@ void main() {
         }
       }
     });
-    progressRepo = _FakeProgressRepo(dueCards);
+    progressRepo = _FakeProgressRepo(dueCards, loadFailure: loadFailure);
     if (importRemote != null) {
       progressRepo.importedDue = (listId, direction) async {
         final concepts = await db.conceptDao.getConceptsByList(listId);
@@ -1550,6 +1559,52 @@ void main() {
     expect(navigatedTo, isNull);
   });
 
+  for (final locale in ['fr', 'en', 'ko']) {
+    testWidgets(
+      'a failed card read is localized and returns by keyboard ($locale)',
+      (tester) async {
+        final raw = (await tester.runAsync(
+          () => rootBundle.loadString('assets/translations/$locale.json'),
+        ))!;
+        final strings = jsonDecode(raw) as Map<String, dynamic>;
+        final translations = Translations(strings);
+        Localization.load(
+          Locale(locale),
+          translations: translations,
+          fallbackTranslations: translations,
+        );
+        addTearDown(initTestLocalization);
+        const details = 'SQLite SELECT variant_progress: missing table';
+        await pump(
+          tester,
+          mode: QuizMode.flashcard,
+          words: [('chat', '고양이')],
+          entry: '/start-session',
+          loadFailure: const StorageException(details),
+        );
+
+        expect(
+          find.text(strings['quiz.load_failed'] as String),
+          findsOneWidget,
+        );
+        expect(find.textContaining(details), findsNothing);
+        expect(find.textContaining('Failed to load cards'), findsNothing);
+        expect(
+          find.widgetWithText(FilledButton, strings['common.back'] as String),
+          findsOneWidget,
+        );
+        expect(find.byKey(const ValueKey('open-quiz')), findsNothing);
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tick(tester, times: 4);
+        expect(find.byKey(const ValueKey('open-quiz')), findsOneWidget);
+        expect(find.byType(QuizScreen), findsNothing);
+        expect(navigatedTo, isNull);
+        await unmountScreen(tester);
+      },
+    );
+  }
+
   testWidgets('an empty session returns to the daily path', (tester) async {
     await pump(
       tester,
@@ -1999,6 +2054,20 @@ void main() {
       var playbackCalls = 0;
       var successfulCues = 0;
       String? lastCuePlayer;
+      String? preparingPlayer;
+      Completer<void>? preparing;
+      String? loadingBytesPlayer;
+      Completer<void>? loadingBytes;
+      String? stoppingPlayer;
+      Completer<void>? stopping;
+      final stopRequests = <String>[];
+      Future<void> until(bool Function() ready) async {
+        for (var attempt = 0; attempt < 300 && !ready(); attempt++) {
+          await tester.pump(const Duration(milliseconds: 10));
+        }
+        expect(ready(), isTrue);
+      }
+
       Future<void> finishCue(String id) => messenger.handlePlatformMessage(
         events[id]!.name,
         codec.encodeSuccessEnvelope({'event': 'audio.onComplete'}),
@@ -2013,12 +2082,24 @@ void main() {
             if (++preparationCalls == 1) {
               throw PlatformException(code: 'NativeCuePreparationRefused');
             }
+            final initializing = preparing;
+            if (initializing != null) {
+              preparingPlayer = id;
+              preparing = null;
+              await initializing.future;
+            }
           case 'create':
             final channel = events[id] = MethodChannel(
               'xyz.luan/audioplayers/events/$id',
             );
             messenger.setMockMethodCallHandler(channel, (_) async => null);
           case 'setSourceBytes':
+            final loading = loadingBytes;
+            if (loading != null) {
+              loadingBytesPlayer = id;
+              loadingBytes = null;
+              await loading.future;
+            }
             await messenger.handlePlatformMessage(
               events[id]!.name,
               codec.encodeSuccessEnvelope({
@@ -2035,6 +2116,9 @@ void main() {
             }
             successfulCues++;
             lastCuePlayer = id;
+          case 'stop':
+            stopRequests.add(id);
+            if (id == stoppingPlayer) await stopping?.future;
         }
         return null;
       });
@@ -2107,6 +2191,57 @@ void main() {
       await finishCue(lastCuePlayer!);
       await tick(tester, times: 2);
       expect(voice.capture.opens, 1);
+
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfPause)));
+      await tester.pump();
+      final nativePreparation = preparing = Completer<void>();
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfResume)));
+      await until(() => preparingPlayer != null);
+      final blockedPlayer = preparingPlayer!;
+      final preparedAt = tester.binding.clock.now();
+      expect(successfulCues, 3);
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfRepeat)));
+      await until(() => successfulCues == 4);
+      final replacement = lastCuePlayer!;
+      expect(replacement, isNot(blockedPlayer));
+      expect(stopRequests, contains(blockedPlayer));
+      final elapsed = tester.binding.clock.now().difference(preparedAt);
+      expect(elapsed, lessThan(const Duration(seconds: 2)));
+      await tester.pump(const Duration(milliseconds: 2100) - elapsed);
+      expect(stopRequests, isNot(contains(replacement)));
+      expect(voice.capture.opens, 1);
+      await finishCue(replacement);
+      await tick(tester, times: 2);
+      expect(voice.capture.opens, 2);
+      nativePreparation.complete();
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfPause)));
+      await tester.pump();
+      unawaited(director.playListenDone());
+      await until(() => successfulCues == 5);
+      final optional = stoppingPlayer = lastCuePlayer!;
+      final oldStop = stopping = Completer<void>();
+      final nativeBytes = loadingBytes = Completer<void>();
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfResume)));
+      await until(() => stopRequests.contains(optional));
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(loadingBytesPlayer, isNull);
+      expect(voice.capture.opens, 2);
+
+      oldStop.complete();
+      await until(() => loadingBytesPlayer != null);
+      final current = loadingBytesPlayer!;
+      expect(current, isNot(optional));
+      await finishCue(optional);
+      nativeBytes.complete();
+      await until(() => successfulCues == 6);
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(lastCuePlayer, current);
+      expect(voice.capture.opens, 2);
+      await finishCue(current);
+      await tick(tester, times: 2);
+      expect(voice.capture.opens, 3);
       await unmountScreen(tester);
       director.dispose();
       await tester.pump(const Duration(seconds: 8));

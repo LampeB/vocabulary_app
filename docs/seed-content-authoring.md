@@ -88,8 +88,10 @@ drill. Keep the `coffee` → `coffees` override and the ordering example
 The revised English negation and plural teaching text and the Korean
 negation prompt are pending native review.
 
-The plural exercise instruction explicitly asks for the plural **when one
-exists**, and otherwise asks the learner to repeat the uncountable form.
+The English module's plural exercise instruction explicitly asks for the
+plural **when one exists**, and otherwise asks the learner to repeat the
+uncountable form. It uses `grammar.drill.plural_en_uncountable`; the shared
+`grammar.drill.plural` instruction stays generic for the other languages.
 In `starter-food`, `water` and `kimchi` stay eligible for the plural drill
 and keep their form. The example “Kimchi is delicious!” uses the name of the
 food in general. The catalog serving sense of `coffee` requires `coffees`.

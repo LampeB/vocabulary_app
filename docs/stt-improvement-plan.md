@@ -53,8 +53,10 @@ y compris si l'apprenant réessaie pendant une demande d'arrêt déjà en cours.
 Le microphone attend l'événement natif de fin du signal d'ouverture. Une
 erreur native pendant la lecture ou une attente de plus de deux secondes
 rend Répéter disponible sur la carte. L'arrêt invalide le signal en cours.
-Une nouvelle tentative utilise un nouveau lecteur après confirmation de
-l'arrêt, pour isoler les événements natifs de l'ancien signal.
+L'attente de préparation est aussi annulée. L'échéance peut arrêter seulement
+le signal auquel elle appartient. Chaque signal utilise un lecteur natif
+dédié après confirmation de l'arrêt du son précédent. Un clip dont la fin
+est requise avant le micro utilise également un lecteur dédié.
 En mains-libres, le compte à rebours, le signal et le micro suivent la fin
 confirmée du prompt de la carte courante. Le tour attend aussi la configuration
 de la voix ou la lecture complète de l'enregistrement local. En grammaire,

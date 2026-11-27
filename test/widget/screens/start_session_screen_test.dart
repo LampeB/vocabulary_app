@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
 import 'package:vocab_kr/domain/entities/grammar_rule.dart';
@@ -26,6 +27,7 @@ import 'package:vocab_kr/presentation/screens/home/v3_home_screen.dart';
 import 'package:vocab_kr/presentation/screens/quiz/start_session_screen.dart';
 import 'package:vocab_kr/presentation/design/v3/v3_card_stack.dart';
 import '../../helpers/pump_screen.dart';
+import '../../helpers/rendered_text_contrast.dart';
 
 /// Start-session screen: a language-first accordion. Pick the language, then a
 /// list (split into currently-studying / not-yet-studied), then mode /
@@ -102,10 +104,12 @@ void main() {
     String? langB,
     GrammarRule? rule,
     List<RuleStatus>? statuses,
+    ThemeMode themeMode = ThemeMode.light,
   }) {
     capturedArgs = null;
     return pumpScreen(
       tester,
+      themeMode: themeMode,
       screen: StartSessionScreen(
         grammar: grammar,
         initialRuleId: initialRuleId,
@@ -705,6 +709,24 @@ void main() {
       expect(capturedArgs!.langB, 'fr');
     },
   );
+
+  for (final theme in [ThemeMode.light, ThemeMode.dark]) {
+    testWidgets('preview translation has readable contrast in ${theme.name}', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      useFallbackFontsForContrast();
+      await pump(tester, grammar: true, themeMode: theme);
+      await tapKey(tester, WidgetKeys.startSection(0));
+      await tapKey(tester, WidgetKeys.startRule('regle-debloquee'));
+      final label = find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.text('Je suis étudiant'),
+      );
+      final contrast = await renderedTextContrast(tester, label);
+      expect(contrast, inInclusiveRange(4.5, 21.0));
+    });
+  }
 
   testWidgets('French plural preview teaches in Korean and starts in writing', (
     tester,

@@ -164,7 +164,7 @@ class GrammarDrillGenerator {
           'grammar.drill.article',
           {'word': word.word, 'rule': rule.title(promptLocale)},
         ),
-        PluralMechanics() => ('grammar.drill.plural', {'word': word.word}),
+        PluralMechanics() => (_module.pluralPromptKey, {'word': word.word}),
         UnsupportedMechanics() => throw StateError('unreachable'),
       };
 

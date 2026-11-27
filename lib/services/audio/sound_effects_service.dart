@@ -1,4 +1,4 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show Completer, unawaited;
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
@@ -79,6 +79,8 @@ class SoundEffectsService {
   Future<void>? _stopping;
   bool _stopFailed = false;
   int _playbackGeneration = 0;
+  Completer<void> _interrupted = Completer<void>();
+  int? _cueGeneration;
   bool _disposed = false;
 
   SoundEffectPlayer get _player =>
@@ -200,7 +202,10 @@ class SoundEffectsService {
     final generation = _playbackGeneration;
     try {
       if (_disposed) throw const AudioPlaybackCancelled();
-      final stopping = _stopping;
+      if (!requirePlayback && _cueGeneration != null) return;
+      // The native callback identifies a player, not a playback. Every cue
+      // needs its own player, even after a best-effort earcon played normally.
+      final stopping = requirePlayback ? _stopCurrentPlayer() : _stopping;
       if (stopping != null) {
         await stopping;
         if (generation != _playbackGeneration) {
@@ -208,12 +213,13 @@ class SoundEffectsService {
         }
         if (identical(stopping, _stopping)) _stopping = null;
       }
+      final player = _player;
       await _ready;
       if (generation != _playbackGeneration) {
         throw const AudioPlaybackCancelled();
       }
       sttLog('[SFX] 🎵 $label');
-      await _player.play(bytes(), waitForCompletion: requirePlayback);
+      await player.play(bytes(), waitForCompletion: requirePlayback);
       if (generation != _playbackGeneration) {
         throw const AudioPlaybackCancelled();
       }
@@ -235,11 +241,23 @@ class SoundEffectsService {
 
   /// Short soft cue marking the start of listening — the hands-free "your turn"
   /// earcon (paired with a haptic so it's catchable eyes-off).
-  Future<void> playListenCue() => _play(
-    'playListenCue (soft tick)',
-    () => _cueBytes ??= _makeBeep(620, 0.07, volume: 0.4),
-    requirePlayback: true,
-  );
+  Future<void> playListenCue() async {
+    _invalidatePlayback();
+    final generation = _cueGeneration = _playbackGeneration;
+    final interrupted = _interrupted.future;
+    try {
+      await Future.any<void>([
+        _play(
+          'playListenCue (soft tick)',
+          () => _cueBytes ??= _makeBeep(620, 0.07, volume: 0.4),
+          requirePlayback: true,
+        ),
+        interrupted.then<void>((_) => throw const AudioPlaybackCancelled()),
+      ]);
+    } finally {
+      if (_cueGeneration == generation) _cueGeneration = null;
+    }
+  }
 
   /// Mirror of [playListenCue]: lower soft tick marking that the mic has
   /// CLOSED and the answer is being analyzed — the eyes-off signal to stop
@@ -249,22 +267,30 @@ class SoundEffectsService {
     () => _doneBytes ??= _makeBeep(440, 0.07, volume: 0.4),
   );
 
-  /// Stops an in-flight earcon without disposing the player. Used when the
-  /// app backgrounds: a cue must never keep playing after the quiz is paused.
+  /// Invalidates active preparation or playback, then confirms native stop.
   Future<void> stop() async {
-    _playbackGeneration++;
+    _invalidatePlayback();
     if (_disposed) return;
-    final player = _playerInstance;
-    if (player == null) return;
-    if (_stopping == null || _stopFailed) {
-      _stopFailed = false;
-      _stopping = _stopPlayer(player);
-    }
     try {
-      await _stopping;
+      await _stopCurrentPlayer();
     } catch (error) {
       sttLog('[SFX] stop failed: $error');
     }
+  }
+
+  void _invalidatePlayback() {
+    _playbackGeneration++;
+    _interrupted.complete();
+    _interrupted = Completer<void>();
+  }
+
+  Future<void>? _stopCurrentPlayer() {
+    final player = _playerInstance;
+    if (player != null && (_stopping == null || _stopFailed)) {
+      _stopFailed = false;
+      _stopping = _stopPlayer(player);
+    }
+    return _stopping;
   }
 
   Future<void> _stopPlayer(SoundEffectPlayer player) async {

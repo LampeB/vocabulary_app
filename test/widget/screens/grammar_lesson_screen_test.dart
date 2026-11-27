@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/core/theme/app_theme.dart';
 import 'package:vocab_kr/domain/entities/grammar_rule.dart';
@@ -20,6 +21,7 @@ import 'package:vocab_kr/presentation/screens/grammar/grammar_lesson_screen.dart
 import 'package:vocab_kr/presentation/widgets/app_shell.dart';
 import 'package:vocab_kr/presentation/widgets/scroll_affordance.dart';
 import '../../helpers/pump_screen.dart';
+import '../../helpers/rendered_text_contrast.dart';
 
 class _KoreanToFrenchPair extends DefaultPairNotifier {
   @override
@@ -321,6 +323,28 @@ void main() {
         await unmountScreen(tester);
       },
     );
+  }
+
+  for (final theme in [ThemeMode.light, ThemeMode.dark]) {
+    testWidgets('example detail has readable contrast in ${theme.name}', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      useFallbackFontsForContrast();
+      await pumpScreen(
+        tester,
+        screen: const GrammarLessonScreen(ruleId: 'ko-topic'),
+        overrides: [
+          grammarRulesProvider.overrideWith((ref, lang) async => [_rule]),
+        ],
+        themeMode: theme,
+      );
+      final contrast = await renderedTextContrast(
+        tester,
+        find.text('lesson.example_open'.tr()),
+      );
+      expect(contrast, inInclusiveRange(4.5, 21.0));
+    });
   }
 
   testWidgets('opens contextual example details without leaving the lesson', (

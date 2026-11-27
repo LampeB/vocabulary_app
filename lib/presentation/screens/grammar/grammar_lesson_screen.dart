@@ -293,14 +293,14 @@ class _TappableExample extends StatelessWidget {
                   Icon(
                     Icons.open_in_new_rounded,
                     size: 15,
-                    color: AppColors.clay,
+                    color: cs.onSurface,
                   ),
                   const SizedBox(width: 5),
                   Flexible(
                     child: Text(
                       'lesson.example_open'.tr(),
                       style: AppTextStyles.caption.copyWith(
-                        color: AppColors.clay,
+                        color: cs.onSurface,
                       ),
                     ),
                   ),

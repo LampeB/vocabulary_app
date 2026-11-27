@@ -568,7 +568,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                 const SizedBox(height: 16),
                 Text(
                   'grammar.lesson.examples'.tr(),
-                  style: AppTextStyles.eyebrow.copyWith(color: AppColors.muted),
+                  style: AppTextStyles.eyebrow.copyWith(color: cs.onSurface),
                 ),
                 const SizedBox(height: 8),
                 for (final e in rule.workedExamples) ...[
@@ -583,7 +583,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                   Text(
                     e.translation(_langA),
                     style: AppTextStyles.caption.copyWith(
-                      color: AppColors.muted,
+                      color: cs.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 8),

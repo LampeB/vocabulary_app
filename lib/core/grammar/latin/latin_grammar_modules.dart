@@ -263,6 +263,9 @@ class EnglishGrammarModule extends LatinGrammarModule {
   String get negationPromptKey => 'grammar.drill.negate_en_first_person';
 
   @override
+  String get pluralPromptKey => 'grammar.drill.plural_en_uncountable';
+
+  @override
   String articlePhrase(String article, String word) =>
       article == 'a' && LatinGrammarModule.startsWithVowel(word)
       ? 'an $word'

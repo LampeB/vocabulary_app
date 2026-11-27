@@ -1,11 +1,16 @@
 // ignore_for_file: invalid_use_of_internal_member
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' show Locale;
 
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/native.dart';
 import 'package:easy_localization/easy_localization.dart';
+// ignore: implementation_imports
+import 'package:easy_localization/src/localization.dart';
+// ignore: implementation_imports
+import 'package:easy_localization/src/translations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -108,6 +113,8 @@ class _CountingPushSync implements PushSync {
 
 void main() {
   late DrillWord catalogKimchi;
+  late DrillWord catalogFrenchWater;
+  final pluralCopies = <String, Map<String, dynamic>>{};
   setUpAll(() async {
     await initTestLocalization();
     final layer =
@@ -137,6 +144,32 @@ void main() {
       word: primary['word'] as String,
       category: concept['category'] as String,
     );
+    final frenchLayer =
+        jsonDecode(
+              await rootBundle.loadString('assets/seed/vocab/lang/fr.json'),
+            )
+            as Map<String, dynamic>;
+    final water =
+        (frenchLayer['entries'] as Map<String, dynamic>)['eau']
+            as Map<String, dynamic>;
+    final waterPrimary = (water['words'] as List)
+        .cast<Map<String, dynamic>>()
+        .singleWhere((word) => word['is_primary'] == true);
+    final waterMetadata = (registry['concepts'] as List)
+        .cast<Map<String, dynamic>>()
+        .singleWhere((concept) => concept['id'] == 'eau');
+    expect(food['concepts'] as List, contains('eau'));
+    catalogFrenchWater = DrillWord(
+      word: waterPrimary['word'] as String,
+      category: waterMetadata['category'] as String,
+    );
+    for (final locale in ['fr', 'ko']) {
+      pluralCopies[locale] =
+          jsonDecode(
+                await rootBundle.loadString('assets/translations/$locale.json'),
+              )
+              as Map<String, dynamic>;
+    }
   });
 
   late AppDatabase db;
@@ -289,6 +322,59 @@ void main() {
     expect(sub.read().answerState, QuizAnswerState.correct);
     expect((await afterAnswers(2)).correct, 1);
   });
+
+  for (final locale in ['fr', 'ko']) {
+    test(
+      'French catalog water keeps the generic plural instruction in $locale',
+      () async {
+        final copy = Translations(pluralCopies[locale]!);
+        Localization.load(
+          Locale(locale),
+          translations: copy,
+          fallbackTranslations: copy,
+        );
+        addTearDown(initTestLocalization);
+        final session = makeContainer(
+          overrides: [
+            ruleDrillWordsProvider.overrideWith(
+              (ref, key) async => [catalogFrenchWater],
+            ),
+          ],
+        );
+        final sub = session.listen(_quiz, (_, _) {});
+        final notifier = session.read(_quiz.notifier);
+        await notifier.loadCards(
+          const QuizArgs(
+            source: QuizSource.grammar,
+            ruleId: 'fr-plural-s',
+            mode: QuizMode.typing,
+            direction: QuizDirectionChoice.frToKo,
+            cardLimit: 1,
+            langA: 'ko',
+            langB: 'fr',
+          ),
+          promptLocale: locale,
+        );
+        final card = sub.read().currentCard!;
+        expect(
+          card.questionWord,
+          (pluralCopies[locale]!['grammar.drill.plural'] as String).replaceAll(
+            '{word}',
+            catalogFrenchWater.word,
+          ),
+        );
+        expect(card.answerWords, ['eaux']);
+        notifier.submitTextAnswer('eaux');
+        expect(sub.read().answerState, QuizAnswerState.correct);
+        final progress = await db.grammarProgressDao
+            .watchByUser('u')
+            .expand((rows) => rows)
+            .firstWhere((row) => row.ruleId == 'fr-plural-s' && row.shown == 1)
+            .timeout(const Duration(seconds: 2));
+        expect(progress.correct, 1);
+      },
+    );
+  }
 
   for (final voice in [false, true]) {
     test(

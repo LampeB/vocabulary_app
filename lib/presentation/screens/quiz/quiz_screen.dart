@@ -2,6 +2,7 @@ import 'dart:async' show unawaited;
 import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1039,6 +1040,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       }
     });
 
+    ref.listen(_quiz.select((state) => state.errorMessage), (_, error) {
+      if (kDebugMode && error != null) debugPrint('[QUIZ] Unavailable: $error');
+    });
     if (!_sessionStarted || quizState.isLoading) {
       return const Scaffold(
         body: Center(
@@ -1050,47 +1054,40 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       );
     }
 
-    if (quizState.errorMessage != null) {
+    if (quizState.errorMessage case final error?) {
+      final key = switch (error) {
+        _ when error == 'quiz.account_changed'.tr() => 'quiz.account_changed',
+        _ when error == 'grammar.written_only'.tr() => 'grammar.written_only',
+        _ => 'quiz.load_failed',
+      };
       return Scaffold(
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.error_outline,
-                  size: 48,
-                  color: AppColors.rose,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  quizState.errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.body.copyWith(color: AppColors.muted),
-                ),
-                const SizedBox(height: 24),
-                GestureDetector(
-                  onTap: _quit,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 14,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.teal,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      'quiz.go_home_button'.tr(),
-                      style: AppTextStyles.fig(
-                        15,
-                        FontWeight.w700,
-                      ).copyWith(color: Colors.white),
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: AppColors.rose,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    key.tr(),
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.body.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: _quit,
+                    child: Text('common.back'.tr()),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

@@ -11,33 +11,92 @@ import 'native_playback_player.dart';
 // Thin third-party adapter; behavior is exercised through [FileAudioPlayer]
 // fakes in AudioPlayerService tests. Native plugin calls need device coverage.
 class _AudioplayersFilePlayer implements FileAudioPlayer {
-  final _player = NativePlaybackPlayer();
+  NativePlaybackPlayer? _player;
+  Future<void>? _retiring;
+  bool _needsReplacement = false;
+  bool _waitingForCompletion = false;
+  int _generation = 0;
+  double _rate = 1;
 
   @override
-  Future<void> setPlaybackRate(double rate) => _player.setPlaybackRate(rate);
+  Future<void> setPlaybackRate(double rate) async => _rate = rate;
 
   @override
-  Future<void> playFile(String path, {bool waitForCompletion = false}) {
-    final source = DeviceFileSource(path);
-    return waitForCompletion ? _player.playToEnd(source) : _player.play(source);
+  Future<void> playFile(String path, {bool waitForCompletion = false}) async {
+    if (_waitingForCompletion && !waitForCompletion) return;
+    final generation = ++_generation;
+    _waitingForCompletion = waitForCompletion;
+    bool stillCurrent() {
+      if (generation == _generation) return true;
+      if (waitForCompletion) throw const AudioPlaybackCancelled();
+      return false;
+    }
+
+    try {
+      if (waitForCompletion || _needsReplacement) await _replacePlayer();
+      if (!stillCurrent()) return;
+      final player = _player ??= NativePlaybackPlayer();
+      await player.setPlaybackRate(_rate);
+      if (!stillCurrent()) return;
+      final source = DeviceFileSource(path);
+      if (waitForCompletion) {
+        await player.playToEnd(source);
+      } else {
+        await player.play(source);
+      }
+    } finally {
+      if (generation == _generation) _waitingForCompletion = false;
+    }
   }
 
   @override
-  Future<void> stop() => _player.stop();
+  Future<void> stop() async {
+    _generation++;
+    _waitingForCompletion = false;
+    if (_needsReplacement) {
+      await _replacePlayer();
+    } else {
+      await _player?.stop();
+    }
+  }
 
   @override
-  Future<PlayerState> get state async => _player.state;
+  Future<PlayerState> get state async => _player?.state ?? PlayerState.stopped;
 
   @override
-  bool get isPlaying => _player.state == PlayerState.playing;
+  bool get isPlaying => _player?.state == PlayerState.playing;
 
   @override
-  Future<void> release() => _player.releaseForDisposal();
+  Future<void> release() async {
+    _generation++;
+    await _retiring;
+    await _player?.releaseForDisposal();
+  }
 
   @override
-  Future<void> dispose() => _player.dispose();
+  Future<void> dispose() async => _player?.dispose();
+
+  Future<void> _replacePlayer() async {
+    final player = _player;
+    if (player == null) return;
+    await (_retiring ??= _releasePlayer(
+      player,
+    ).whenComplete(() => _retiring = null));
+  }
+
+  Future<void> _releasePlayer(NativePlaybackPlayer player) async {
+    _needsReplacement = true;
+    await player.releaseForDisposal();
+    _player = null;
+    _needsReplacement = false;
+    unawaited(player.dispose().catchError(_logFileCleanupError));
+  }
 }
 // coverage:ignore-end
+
+void _logFileCleanupError(Object error) {
+  sttLog('[TTS] released file player cleanup failed: $error');
+}
 
 class AudioPlayerService {
   AudioPlayerService({
@@ -192,9 +251,7 @@ class AudioPlayerService {
   Future<void> _releaseFilePlayer() async {
     await _player.release();
     unawaited(
-      Future<void>.sync(_player.dispose).catchError((Object error) {
-        sttLog('[TTS] released file player cleanup failed: $error');
-      }),
+      Future<void>.sync(_player.dispose).catchError(_logFileCleanupError),
     );
   }
 

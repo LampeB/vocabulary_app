@@ -20,6 +20,8 @@ abstract class GrammarLanguageModule {
   /// Localized instruction for the form expected by this module.
   String get negationPromptKey => 'grammar.drill.negate';
 
+  String get pluralPromptKey => 'grammar.drill.plural';
+
   /// Applies [rule] to a single [word] and returns the expected answer plus
   /// accepted alternatives. [variantKey] selects among a rule's variants
   /// (particle 'subject'/'object', conjugation persons 'p1sg'…); [tags]
