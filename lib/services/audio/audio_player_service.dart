@@ -23,12 +23,20 @@ class _AudioplayersFilePlayer implements FileAudioPlayer {
       return;
     }
     final completion = _completion = Completer<void>();
-    final subscription = _player.onPlayerComplete.listen((_) {
-      if (!completion.isCompleted) completion.complete();
-    });
+    final subscription = _player.onPlayerComplete.listen(
+      (_) {
+        if (!completion.isCompleted) completion.complete();
+      },
+      onError: (Object error, StackTrace stack) {
+        if (!completion.isCompleted) completion.completeError(error, stack);
+      },
+      onDone: () => _cancelCompletion(completion),
+    );
     try {
-      await _player.play(DeviceFileSource(path));
-      await completion.future;
+      await Future.wait<void>([
+        _player.play(DeviceFileSource(path)),
+        completion.future,
+      ], eagerError: true);
     } finally {
       if (identical(_completion, completion)) _completion = null;
       await subscription.cancel();
@@ -39,7 +47,13 @@ class _AudioplayersFilePlayer implements FileAudioPlayer {
   Future<void> stop() async {
     final completion = _completion;
     await _player.stop();
-    if (completion != null && !completion.isCompleted) completion.complete();
+    _cancelCompletion(completion);
+  }
+
+  void _cancelCompletion(Completer<void>? completion) {
+    if (completion != null && !completion.isCompleted) {
+      completion.completeError(const AudioPlaybackCancelled());
+    }
   }
 
   @override
@@ -49,10 +63,9 @@ class _AudioplayersFilePlayer implements FileAudioPlayer {
   bool get isPlaying => _player.state == PlayerState.playing;
 
   @override
-  void dispose() {
-    final completion = _completion;
-    if (completion != null && !completion.isCompleted) completion.complete();
-    unawaited(_player.dispose());
+  Future<void> dispose() {
+    _cancelCompletion(_completion);
+    return _player.dispose();
   }
 }
 // coverage:ignore-end
@@ -82,7 +95,8 @@ class AudioPlayerService {
   final bool _usePremium;
   final FileAudioPlayer _player;
   int _playbackEpoch = 0;
-  bool _disposed = false;
+  Completer<void> _interrupted = Completer<void>();
+  Future<void>? _disposal;
 
   // A visible silent gap is worse than a temporary device-TTS voice. Storage
   // downloads keep filling the cache after this budget expires, so following
@@ -95,8 +109,27 @@ class AudioPlayerService {
     String? audioPath,
     bool requirePlayback = false,
   }) async {
-    if (_disposed) return;
+    if (_disposal != null) {
+      if (requirePlayback) throw const AudioPlaybackCancelled();
+      return;
+    }
     final epoch = _playbackEpoch;
+    final interrupted = _interrupted.future;
+    final playing = _play(text, langCode, audioPath, requirePlayback, epoch);
+    if (!requirePlayback) return playing;
+    return Future.any<void>([
+      playing,
+      interrupted.then<void>((_) => throw const AudioPlaybackCancelled()),
+    ]);
+  }
+
+  Future<void> _play(
+    String text,
+    String langCode,
+    String? audioPath,
+    bool requirePlayback,
+    int epoch,
+  ) async {
     if (!_usePremium || audioPath == null) {
       await _speakOnDevice(text, langCode, requirePlayback);
       return;
@@ -147,9 +180,16 @@ class AudioPlayerService {
   }
 
   Future<void> stop() async {
-    _playbackEpoch++;
-    if (_disposed) return;
+    final disposal = _disposal;
+    if (disposal != null) return disposal;
+    _invalidatePlayback();
     await Future.wait([_player.stop(), _tts.stop()]);
+  }
+
+  void _invalidatePlayback() {
+    _playbackEpoch++;
+    _interrupted.complete();
+    _interrupted = Completer<void>();
   }
 
   /// Korean synthesized voices keep a much denser natural cadence than French
@@ -166,10 +206,16 @@ class AudioPlayerService {
   bool get isSpeaking => _tts.isSpeaking || _player.isPlaying;
 
   void dispose() {
-    if (_disposed) return;
-    _disposed = true;
-    _playbackEpoch++;
-    _player.dispose();
-    _tts.dispose();
+    if (_disposal != null) return;
+    _invalidatePlayback();
+    final disposal = _disposal = Future.wait<void>([
+      Future.sync(_player.dispose),
+      Future.sync(_tts.dispose),
+    ]).then((_) {});
+    unawaited(
+      disposal.catchError((Object error) {
+        sttLog('[TTS] disposal could not release playback: $error');
+      }),
+    );
   }
 }

@@ -312,12 +312,12 @@ GRANT EXECUTE ON FUNCTION public.e2e_patrol_contract() TO anon, authenticated;
 CREATE OR REPLACE FUNCTION public.reset_e2e_account(p_scenario_id text)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
-  IF public.e2e_patrol_contract() IS DISTINCT FROM 'challenge-boundaries-v1' THEN
+  IF public.e2e_patrol_contract() IS DISTINCT FROM 'friend-consent-v1' THEN
     RAISE EXCEPTION 'Patrol schema is unavailable; reset refused' USING ERRCODE = '55000';
   END IF;
   RETURN e2e_private.reset_e2e_account(p_scenario_id);
 END $$;
--- Migration 019 enables execution once the full Patrol schema is ready.
+-- The final Patrol schema migration enables client execution.
 REVOKE ALL ON FUNCTION public.reset_e2e_account(text) FROM PUBLIC, anon, authenticated;
 
 NOTIFY pgrst, 'reload schema';

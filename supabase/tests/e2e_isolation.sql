@@ -1,4 +1,4 @@
--- Disposable database only, after migration 019. All fixtures roll back.
+-- Disposable database only, after migration 021. All fixtures roll back.
 BEGIN;
 INSERT INTO auth.users(id,email,raw_user_meta_data,raw_app_meta_data) VALUES
  ('51000000-0000-0000-0000-000000000001','isolated@example.invalid','{"username":"isolated"}',
@@ -26,7 +26,7 @@ END $$;
 
 SET LOCAL ROLE anon;
 DO $$ BEGIN
-  IF public.e2e_patrol_contract() IS DISTINCT FROM 'challenge-boundaries-v1' THEN
+  IF public.e2e_patrol_contract() IS DISTINCT FROM 'friend-consent-v1' THEN
     RAISE EXCEPTION 'CI cannot verify the installed Patrol schema';
   END IF;
 END $$;
@@ -95,6 +95,17 @@ DO $$ BEGIN
 END $$;
 RESET ROLE;
 ALTER TABLE public.challenges ENABLE TRIGGER check_challenge_list_access;
+GRANT UPDATE ON public.friend_requests TO authenticated;
+SET LOCAL ROLE authenticated;
+DO $$ BEGIN
+  IF public.e2e_patrol_contract() IS NOT NULL THEN RAISE EXCEPTION 'Unchecked friend updates reported ready'; END IF;
+  BEGIN
+    PERFORM public.reset_e2e_account('isolation.a');
+    RAISE EXCEPTION 'Reset accepted with a broad friend request grant';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+END $$;
+RESET ROLE;
+REVOKE UPDATE ON public.friend_requests FROM authenticated;
 
 SELECT set_config('request.jwt.claim.sub','51000000-0000-0000-0000-000000000002',true);
 SET LOCAL ROLE authenticated;
@@ -108,14 +119,12 @@ DECLARE
   statement text;
 BEGIN
   -- The same writes must remain available to ordinary accounts.
-  INSERT INTO public.friend_requests(from_user_id,to_user_id) VALUES (auth.uid(),ordinary);
-  INSERT INTO public.friendships(user_a_id,user_b_id) VALUES (auth.uid(),ordinary);
+  PERFORM public.send_friend_request(ordinary);
   INSERT INTO public.challenges(challenger_id,challenged_id) VALUES (auth.uid(),ordinary);
   INSERT INTO public.variant_progress(user_id,variant_id,direction) VALUES (auth.uid(),ordinary_variant,'en>fr');
 
   FOREACH statement IN ARRAY ARRAY[
-    format('INSERT INTO public.friend_requests(from_user_id,to_user_id) VALUES (%L,%L)', auth.uid(), target),
-    format('INSERT INTO public.friendships(user_a_id,user_b_id) VALUES (%L,%L)', auth.uid(), target),
+    format('SELECT public.send_friend_request(%L)', target),
     format('INSERT INTO public.challenges(challenger_id,challenged_id) VALUES (%L,%L)', auth.uid(), target),
     format('INSERT INTO public.challenges(challenger_id,challenged_id,list_id) VALUES (%L,%L,%L)', auth.uid(), ordinary, target_list),
     format('INSERT INTO public.variant_progress(user_id,variant_id,direction) VALUES (%L,%L,%L)', auth.uid(), target_variant, 'en>fr'),
@@ -137,10 +146,8 @@ DO $$ BEGIN
     UPDATE public.friend_requests SET from_user_id='51000000-0000-0000-0000-000000000001'
       WHERE to_user_id=auth.uid();
     RAISE EXCEPTION 'Friend request could be retargeted to an E2E account';
-  EXCEPTION WHEN insufficient_privilege THEN
-    IF SQLERRM <> 'E2E scenario accounts cannot share relationships or progress' THEN RAISE; END IF;
-  END;
-  UPDATE public.friend_requests SET status='accepted' WHERE to_user_id=auth.uid();
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM public.respond_friend_request(id,true) FROM public.friend_requests WHERE to_user_id=auth.uid();
 END $$;
 
 SELECT set_config('request.jwt.claim.sub','51000000-0000-0000-0000-000000000001',true);
@@ -157,12 +164,23 @@ DO $$ BEGIN
 END $$;
 SELECT public.reset_e2e_account('isolation.a');
 RESET ROLE;
-DO $$ BEGIN
-  IF (SELECT count(*) FROM public.vocabulary_lists) <> 1
-    OR (SELECT count(*) FROM public.friend_requests WHERE status='accepted') <> 1
-    OR (SELECT count(*) FROM public.friendships) <> 1
-    OR (SELECT count(*) FROM public.challenges) <> 1
-    OR (SELECT count(*) FROM public.variant_progress) <> 1 THEN
+DO $$
+DECLARE
+  isolated uuid := '51000000-0000-0000-0000-000000000001';
+  requester uuid := '51000000-0000-0000-0000-000000000002';
+  recipient uuid := '51000000-0000-0000-0000-000000000003';
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.vocabulary_lists WHERE owner_id=isolated)
+    OR EXISTS (SELECT 1 FROM public.variant_progress WHERE user_id=isolated)
+    OR NOT EXISTS (SELECT 1 FROM public.vocabulary_lists WHERE owner_id=recipient
+      AND id='52000000-0000-0000-0000-000000000002')
+    OR NOT EXISTS (SELECT 1 FROM public.friend_requests
+      WHERE from_user_id=requester AND to_user_id=recipient AND status='accepted' AND sender_verified)
+    OR NOT EXISTS (SELECT 1 FROM public.friendships
+      WHERE user_a_id=requester AND user_b_id=recipient AND consent_verified)
+    OR NOT EXISTS (SELECT 1 FROM public.challenges WHERE challenger_id=requester AND challenged_id=recipient)
+    OR NOT EXISTS (SELECT 1 FROM public.variant_progress WHERE user_id=requester AND variant_owner_id=recipient
+      AND variant_id='54000000-0000-0000-0000-000000000002') THEN
     RAISE EXCEPTION 'Isolation or reset modified ordinary account data';
   END IF;
 END $$;

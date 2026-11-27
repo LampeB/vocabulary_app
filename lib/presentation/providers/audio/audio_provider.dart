@@ -7,11 +7,15 @@ import '../settings/audio_settings_provider.dart';
 final audioPlayerServiceProvider = Provider.autoDispose<AudioPlayerService>((
   ref,
 ) {
-  final settings = ref.watch(audioSettingsProvider);
+  final (speechRate, pitch) = ref.watch(
+    audioSettingsProvider.select(
+      (settings) => (settings.speechRate, settings.pitch),
+    ),
+  );
   final service = AudioPlayerService(
     usePremium: AppConfig.enableElevenLabsTTS,
-    speechRate: settings.speechRate,
-    pitch: settings.pitch,
+    speechRate: speechRate,
+    pitch: pitch,
   );
   ref.onDispose(service.dispose);
   return service;

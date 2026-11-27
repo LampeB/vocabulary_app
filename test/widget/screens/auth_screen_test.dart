@@ -9,10 +9,12 @@ import 'package:easy_localization/src/translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
+import 'package:vocab_kr/core/theme/app_theme.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
 import 'package:vocab_kr/domain/entities/subscription_type.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
@@ -43,13 +45,16 @@ class _ScriptedAuthNotifier extends AuthNotifier {
   AppException? resetFailure;
   String? signedInEmail;
   String? signedUpUsername;
+  String? resetEmail;
 
   @override
   Future<AppUser?> build() async => null;
 
   @override
-  Future<Result<void>> sendPasswordReset(String email) async =>
-      resetFailure == null ? const Success(null) : Failure(resetFailure!);
+  Future<Result<void>> sendPasswordReset(String email) async {
+    resetEmail = email;
+    return resetFailure == null ? const Success(null) : Failure(resetFailure!);
+  }
 
   @override
   Future<Result<AppUser>> signIn(String email, String password) async {
@@ -346,6 +351,82 @@ void main() {
   }
 
   group('auth screen — password reset', () {
+    for (final locale in ['fr', 'en', 'ko']) {
+      testWidgets('reset stays reachable above a compact keyboard in $locale', (
+        tester,
+      ) async {
+        final raw = (await tester.runAsync(
+          () => rootBundle.loadString('assets/translations/$locale.json'),
+        ))!;
+        final copy = jsonDecode(raw) as Map<String, dynamic>;
+        final translations = Translations(copy);
+        Localization.load(
+          Locale(locale),
+          translations: translations,
+          fallbackTranslations: translations,
+        );
+        addTearDown(initTestLocalization);
+        tester.view.physicalSize = const Size(568, 320);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        _lastAuth = null;
+        final router = GoRouter(
+          routes: [GoRoute(path: '/', builder: (_, _) => const AuthScreen())],
+        );
+        addTearDown(router.dispose);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authStateProvider.overrideWith(_ScriptedAuthNotifier.new),
+            ],
+            child: MaterialApp.router(
+              theme: AppTheme.light,
+              routerConfig: router,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: const TextScaler.linear(2),
+                  disableAnimations: true,
+                ),
+                child: child!,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final opener = find.byKey(
+          const ValueKey(WidgetKeys.authForgotPassword),
+        );
+        await tester.ensureVisible(opener);
+        await tester.tap(opener);
+        tester.view.viewInsets = const FakeViewPadding(bottom: 180);
+        await tester.pumpAndSettle();
+        final dialog = find.byType(Dialog);
+        final cue = find.descendant(
+          of: dialog,
+          matching: find.text(copy['v3.scroll_hint'] as String),
+        );
+        expect(cue, findsOneWidget);
+        final opacity = find
+            .ancestor(of: cue, matching: find.byType(AnimatedOpacity))
+            .first;
+        expect(tester.widget<AnimatedOpacity>(opacity).opacity, 1);
+        final email = find.byKey(const ValueKey(WidgetKeys.authResetEmail));
+        await tester.ensureVisible(email);
+        await tester.pumpAndSettle();
+        await tester.enterText(email, 'compact@example.test');
+        await tester.pumpAndSettle();
+        final send = find.byKey(const ValueKey(WidgetKeys.authResetSend));
+        await tester.ensureVisible(send);
+        await tester.pumpAndSettle();
+        expect(send.hitTestable(), findsOneWidget);
+        await tester.tap(send);
+        await tester.pumpAndSettle();
+        expect(_lastAuth!.resetEmail, 'compact@example.test');
+        expect(find.byType(Dialog), findsNothing);
+        expect(tester.takeException(), isNull);
+        await unmountScreen(tester);
+      });
+    }
     for (final locale in ['fr', 'en', 'ko']) {
       for (final scenario in [
         (const NetworkException(), 'auth.error_network'),

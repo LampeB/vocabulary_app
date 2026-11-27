@@ -105,6 +105,7 @@ class QuizScreen extends ConsumerStatefulWidget {
 
 class _QuizScreenState extends ConsumerState<QuizScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  final _quiz = quizProvider(Object());
   late final SpeechRecognitionService _stt;
   late final bool _usesRealStt;
   // Whisper engine (own capture + own endpointing) — app-lifetime via
@@ -159,9 +160,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       (_quizRoute?.isCurrent ?? true) &&
       (_shellRoute?.isCurrent ?? true);
   bool _quitting = false;
+  bool _quitReady = false;
   bool _sessionStarted = false;
   Future<void>? _interruption;
   Future<void>? _hfCorrection;
+  AudioDirector? _replacedPromptDirector;
   // Display-only: attempts consumed on the current card, fed by the
   // machine's ShowNotHeard command (the "essai x/3" banner).
   int _notHeardRetries = 0;
@@ -212,9 +215,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       if (!mounted) return;
       await _loadSession();
       if (!mounted || _quitting) return;
-      if (_usesRealStt &&
-          _canInteract &&
-          ref.read(quizProvider).currentCard != null) {
+      if (_usesRealStt && _canInteract && ref.read(_quiz).currentCard != null) {
         final ok = await _stt.initialize();
         if (!mounted || _quitting) return;
         if (!ok && _canInteract) {
@@ -245,7 +246,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _flashcardExiting = false;
     _flashcardDragProgress = 0;
     _foregroundApplied = _canInteract;
-    final quiz = ref.read(quizProvider.notifier);
+    final quiz = ref.read(_quiz.notifier);
     final loading = quiz.loadCards(
       widget.args,
       promptLocale: uiLocaleCode(context),
@@ -260,7 +261,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _listenToken++;
     _listenBarCtrl.dispose();
     _activeRace?.cancel();
-    if (!_quitting) {
+    if (_sessionStarted && _foregroundApplied && !_quitting) {
       unawaited(_stopTurnResources(_sessionDirector));
     }
     _answerCtrl.dispose();
@@ -288,11 +289,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   void _syncForeground() {
-    if (_quitting || !_sessionStarted || _canInteract == _foregroundApplied) {
+    if (_quitting) {
+      _finishQuitIfVisible();
+      return;
+    }
+    if (!_sessionStarted || _canInteract == _foregroundApplied) {
       return;
     }
     _foregroundApplied = _canInteract;
-    ref.read(quizProvider.notifier).setForeground(_foregroundApplied);
+    ref.read(_quiz.notifier).setForeground(_foregroundApplied);
     if (!_foregroundApplied) {
       unawaited(_interruptTurn());
     } else if (widget.args.mode == QuizMode.handsFree && !_hfPaused) {
@@ -311,7 +316,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _hfNotHeard = false;
       _hfCountdown = null;
     });
-    ref.read(quizProvider.notifier).setListening(false);
+    ref.read(_quiz.notifier).setListening(false);
     return _interruption = _stopTurnResources(
       ref.read(audioDirectorProvider),
       pending: _interruption,
@@ -352,7 +357,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   Future<void> _resumeHandsFree() async {
-    final card = ref.read(quizProvider).currentCard;
+    final card = ref.read(_quiz).currentCard;
     if (card == null) return;
     final token = _listenToken;
     final pending = _interruption;
@@ -368,11 +373,36 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     bool stale() => _turnStale(token, card);
     if (stale()) return;
     if (!_kTestMode) {
+      if (!await _playCurrentPrompt(card, stale)) return;
+    }
+    if (stale()) return;
+    // Echo tail: let the room go quiet before the mic opens.
+    await Future.delayed(const Duration(milliseconds: 250));
+    if (stale()) return;
+    sttLog('[HF] speech finished — calling _startListening');
+    unawaited(_startListening(card));
+  }
+
+  Future<bool> _playCurrentPrompt(QuizCard card, bool Function() stale) async {
+    var previousSpeech = _hfCorrection;
+    _hfCorrection = null;
+    while (!stale()) {
+      final replaced = _replacedPromptDirector;
+      if (replaced != null) {
+        try {
+          await replaced.waitForPlayerRelease();
+        } catch (error) {
+          sttLog('[QUIZ] replaced prompt player release failed: $error');
+          if (!stale()) _showReleaseFailure(audio: true);
+          return false;
+        }
+        if (stale()) return false;
+        _replacedPromptDirector = null;
+      }
+
       final director = ref.read(audioDirectorProvider);
-      final previousSpeech = _hfCorrection;
-      _hfCorrection = null;
       final grammarPrompt = card.grammarAudioPrompt;
-      final played = await (grammarPrompt == null
+      final result = await (grammarPrompt == null
           ? director.speakVocabularyPrompt(
               word: card.questionWord,
               wordLang: card.direction.questionLang,
@@ -388,17 +418,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               previousSpeech: previousSpeech,
               keepGoing: () => !stale(),
             ));
-      if (!played && !stale()) {
-        setState(() => _hfFailureKey = 'quiz.grammar_prompt_failed');
-        return;
+      if (stale()) return false;
+      if (result == StudyPromptResult.completed) return true;
+      if (result == StudyPromptResult.cancelled &&
+          !identical(director, ref.read(audioDirectorProvider))) {
+        _replacedPromptDirector = director;
+        previousSpeech = null;
+        continue;
       }
+      setState(() => _hfFailureKey = 'quiz.grammar_prompt_failed');
+      return false;
     }
-    if (stale()) return;
-    // Echo tail: let the room go quiet before the mic opens.
-    await Future.delayed(const Duration(milliseconds: 250));
-    if (stale()) return;
-    sttLog('[HF] speech finished — calling _startListening');
-    unawaited(_startListening(card));
+    return false;
   }
 
   /// Serializes mic starts: multiple recovery paths (not-heard, stopped-too-
@@ -528,7 +559,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   void _showReleaseFailure({bool audio = false}) {
     _listenBarCtrl.stop();
-    ref.read(quizProvider.notifier).setListening(false);
+    ref.read(_quiz.notifier).setListening(false);
     if (widget.args.mode == QuizMode.handsFree) {
       setState(() {
         _hfAnalyzing = false;
@@ -560,7 +591,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         turn != _listenToken) {
       return true;
     }
-    final quiz = ref.read(quizProvider);
+    final quiz = ref.read(_quiz);
     return !identical(quiz.currentCard, card) ||
         quiz.isComplete ||
         (widget.args.mode == QuizMode.voice &&
@@ -593,7 +624,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           _enterAnalyzing();
         case ShowNotHeard(:final attempt, :final maxAttempts):
           sttLog('[RACE][HF] 🔇 pas entendu — attempt $attempt/$maxAttempts');
-          ref.read(quizProvider.notifier).setListening(false);
+          ref.read(_quiz.notifier).setListening(false);
           if (widget.args.mode == QuizMode.handsFree) {
             if (mounted) {
               setState(() {
@@ -625,26 +656,26 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           _listenBarCtrl.stop();
           sttLog('[RACE][HF] ✅ "$candidate" validated — grading correct');
           ref
-              .read(quizProvider.notifier)
+              .read(_quiz.notifier)
               .submitVoiceAnswer(candidate, isDrivingMode: true);
         case GradeWrong(:final transcript):
           _listenBarCtrl.stop();
           sttLog('[RACE][HF] ❌ "$transcript" never validated — grading wrong');
           ref
-              .read(quizProvider.notifier)
+              .read(_quiz.notifier)
               .submitVoiceAnswer(transcript, isDrivingMode: true);
         case SkipCard():
           _listenBarCtrl.stop();
           sttLog('[RACE][HF] ⏭ silence — skipping WITHOUT grading');
-          ref.read(quizProvider.notifier).setListening(false);
-          ref.read(quizProvider.notifier).skipCurrentCard();
+          ref.read(_quiz.notifier).setListening(false);
+          ref.read(_quiz.notifier).skipCurrentCard();
         case PauseSession():
           sttLog('[RACE][HF] 🔇🔇 consecutive silent cards — auto-pausing');
           setState(() {
             _hfAutoPausedSilence = true;
             _hfPaused = true;
           });
-          ref.read(quizProvider.notifier).setPaused(true);
+          ref.read(_quiz.notifier).setPaused(true);
           unawaited(_interruptTurn());
       }
     }
@@ -707,10 +738,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
 
     m.on(MicOpened(turn));
-    ref.read(quizProvider.notifier).setListening(true);
+    ref.read(_quiz.notifier).setListening(true);
 
     if (m.attempt == 0) {
-      _prefetchFollowingCard(ref.read(quizProvider).nextCard);
+      _prefetchFollowingCard(ref.read(_quiz).nextCard);
     }
     void runBar() {
       if (!_kTestMode) {
@@ -775,7 +806,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       },
       onPartial: (h) {
         if (!_turnStale(turn, card)) {
-          ref.read(quizProvider.notifier).setPartialTranscript(h.transcript);
+          ref.read(_quiz.notifier).setPartialTranscript(h.transcript);
         }
       },
     );
@@ -811,7 +842,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       '[HF] _startListening  token=$token  question="${card.questionWord}"  answerWords=${card.answerWords}',
     );
     if (SttSimulator.isOn) {
-      ref.read(quizProvider.notifier).setListening(true);
+      ref.read(_quiz.notifier).setListening(true);
       await Future.delayed(const Duration(milliseconds: 800));
       if (stale()) return;
       final answer = switch (SttSimulator.mode) {
@@ -820,7 +851,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         _ => '',
       };
       ref
-          .read(quizProvider.notifier)
+          .read(_quiz.notifier)
           .submitVoiceAnswer(
             answer,
             isDrivingMode:
@@ -878,13 +909,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   @override
   Widget build(BuildContext context) {
-    final quizState = ref.watch(quizProvider);
+    final quizState = ref.watch(_quiz);
     _sessionDirector = ref.watch(audioDirectorProvider);
 
     ref.listen(currentUserProvider.select((user) => user?.id), (_, _) {
-      if (!_quitting) unawaited(_interruptTurn());
+      if (!_quitting && _foregroundApplied) unawaited(_interruptTurn());
     });
-    ref.listen<QuizState>(quizProvider, (prev, next) {
+    ref.listen<QuizState>(_quiz, (prev, next) {
       if (_canInteract &&
           prev?.answerState == QuizAnswerState.idle &&
           next.answerState != QuizAnswerState.idle) {
@@ -1113,7 +1144,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _hfPaused = !_hfPaused;
       _hfAutoPausedSilence = false;
     });
-    ref.read(quizProvider.notifier).setPaused(_hfPaused);
+    ref.read(_quiz.notifier).setPaused(_hfPaused);
     if (_hfPaused) {
       unawaited(_interruptTurn());
     } else {
@@ -1131,13 +1162,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   Future<void> _hfSkip() async {
     // A deliberate skip is not a wrong answer: nothing is graded, the card
     // returns later in the session.
-    final card = ref.read(quizProvider).currentCard;
+    final card = ref.read(_quiz).currentCard;
     if (card == null) return;
     final stopped = _interruptTurn();
     final token = _listenToken;
     await stopped;
     if (_turnStale(token, card)) return;
-    ref.read(quizProvider.notifier).skipCurrentCard();
+    ref.read(_quiz.notifier).skipCurrentCard();
   }
 
   /// Hands-free (Mains libres) — eyes-off canvas: word in the wave with the
@@ -1392,11 +1423,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   );
 
   Future<void> _quit() async {
-    if (_quitting) return;
+    if (_quitting || !_canInteract) return;
     _quitting = true;
-    ref.read(quizProvider.notifier).setForeground(false);
+    ref.read(_quiz.notifier).setForeground(false);
     await _interruptTurn();
     if (!mounted) return;
+    _quitReady = true;
+    _finishQuitIfVisible();
+  }
+
+  void _finishQuitIfVisible() {
+    if (!_quitReady || !_canInteract) return;
+    _quitReady = false;
     if (context.canPop()) {
       context.pop();
     } else {
@@ -1433,7 +1471,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   };
 
   Future<void> _dismissFlashcard({required bool knew}) async {
-    final quiz = ref.read(quizProvider);
+    final quiz = ref.read(_quiz);
     if (_flashcardExiting ||
         _quitting ||
         !quiz.isFlipped ||
@@ -1446,14 +1484,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     });
     HapticFeedback.selectionClick();
     ref
-        .read(quizProvider.notifier)
+        .read(_quiz.notifier)
         .gradeFlashcard(knew ? FsrsRating.good : FsrsRating.again);
     await Future<void>.delayed(const Duration(milliseconds: 460));
     if (!mounted || _quitting) return;
-    final current = ref.read(quizProvider);
+    final current = ref.read(_quiz);
     if (identical(current.currentCard, quiz.currentCard) &&
         current.currentIndex == quiz.currentIndex) {
-      ref.read(quizProvider.notifier).advance();
+      ref.read(_quiz.notifier).advance();
     }
     setState(() {
       _flashcardExiting = false;
@@ -1487,7 +1525,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         child: InkWell(
           onTap: back || _flashcardExiting
               ? null
-              : () => ref.read(quizProvider.notifier).flipCard(),
+              : () => ref.read(_quiz.notifier).flipCard(),
           borderRadius: const BorderRadius.all(V3Radii.card),
           child: LayoutBuilder(
             builder: (context, constraints) => Scrollbar(
@@ -1683,7 +1721,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         answerIsKorean: answerIsHangul,
         detail: _nextReviewText(s.scheduledDays),
         continueLabel: 'quiz.continue_button'.tr(),
-        onContinue: () => ref.read(quizProvider.notifier).advance(),
+        onContinue: () => ref.read(_quiz.notifier).advance(),
       );
     }
 
@@ -1695,7 +1733,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final cueColor = isDark ? AppColors.clayLight : AppColors.clayDeep;
 
     void submit() {
-      ref.read(quizProvider.notifier).submitTextAnswer(_answerCtrl.text);
+      ref.read(_quiz.notifier).submitTextAnswer(_answerCtrl.text);
       _answerCtrl.clear();
     }
 
@@ -1779,7 +1817,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         answerIsKorean: answerIsHangul, // answer is Korean when FR→KO
         detail: _nextReviewText(s.scheduledDays),
         continueLabel: 'quiz.continue_button'.tr(),
-        onContinue: () => ref.read(quizProvider.notifier).advance(),
+        onContinue: () => ref.read(_quiz.notifier).advance(),
       );
     }
 
@@ -1798,7 +1836,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       waveActive: s.isListening,
     );
     void submit() {
-      ref.read(quizProvider.notifier).submitTextAnswer(_answerCtrl.text);
+      ref.read(_quiz.notifier).submitTextAnswer(_answerCtrl.text);
       _answerCtrl.clear();
     }
 
@@ -1901,7 +1939,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final token = _listenToken;
     await stopped;
     if (_turnStale(token, card)) return;
-    ref.read(quizProvider.notifier).submitVoiceAnswer('');
+    ref.read(_quiz.notifier).submitVoiceAnswer('');
   }
 }
 
@@ -2186,7 +2224,8 @@ class _SummaryScreen extends StatelessWidget {
       body: V3Pond(
         child: SafeArea(
           child: Center(
-            child: SingleChildScrollView(
+            child: ScrollAffordance(
+              hint: 'v3.scroll_hint'.tr(),
               padding: const EdgeInsets.all(32),
               child: Column(
                 mainAxisSize: MainAxisSize.min,

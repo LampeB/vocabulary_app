@@ -9,14 +9,16 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
 
 1. Réactiver le projet si nécessaire. Appliquer les migrations manquantes dans
    l'ordre de [la CI PostgreSQL](../../.github/workflows/pr-validation.yml),
-   jusqu'à [019](../../supabase/migrations/019_challenge_list_boundaries.sql).
+   jusqu'à [021](../../supabase/migrations/021_friendship_consent.sql).
    Patrol exige les gardes de [013](../../supabase/migrations/013_e2e_isolation.sql),
    les suppressions persistantes de [014](../../supabase/migrations/014_vocabulary_tombstones.sql),
    les identifiants qualifiés par propriétaire de [015](../../supabase/migrations/015_vocabulary_owner_namespace.sql),
    le contrôle des écritures de [016](../../supabase/migrations/016_vocabulary_write_order.sql),
    l'inventaire et le rattrapage de [017](../../supabase/migrations/017_vocabulary_pull_catchup.sql),
-   les protections de la progression et des tombstones de [018](../../supabase/migrations/018_vocabulary_progress_boundaries.sql)
-   et le contrôle des références de défi de 019. La version actuelle de
+   les protections de la progression et des tombstones de [018](../../supabase/migrations/018_vocabulary_progress_boundaries.sql),
+   les références de défi contrôlées par [019](../../supabase/migrations/019_challenge_list_boundaries.sql),
+   la convergence après purge physique de [020](../../supabase/migrations/020_vocabulary_physical_purges.sql)
+   et l'autorisation d'amitié de 021. La version actuelle de
    [007](../../supabase/migrations/007_audio_storage.sql) ferme les lectures
    client de `vocab-audio` jusqu'aux règles définitives de
    [012](../../supabase/migrations/012_security_boundaries.sql).
@@ -24,17 +26,16 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
    012, rejouer la version actuelle de 007 avant les autres étapes. Si la
    version actuelle de 012 est déjà appliquée, passer aux migrations manquantes.
 
-   Si 008, 009 et 012 à 019 restent à appliquer et que les migrations 000,
+   Si 008, 009 et 012 à 021 restent à appliquer et que les migrations 000,
    004 à 007, 010, 011 et `add_subscription_type.sql` sont déjà présentes,
    le générateur
    `python3 tool/e2e/build_activation.py > /tmp/activer-vocab-e2e.sql` regroupe
-   008, 009 et 012 à 019 dans une transaction. Si une ancienne version de 015
-   à 018 est déjà présente, fermer d'abord la RPC de reset aux rôles client
+   008, 009 et 012 à 021 dans une transaction. Si une ancienne version de 015
+   à 019 est déjà présente, fermer d'abord la RPC de reset aux rôles client
    avec `REVOKE EXECUTE ON FUNCTION public.reset_e2e_account(text) FROM PUBLIC, anon, authenticated;`.
-   Appliquer les migrations manquantes. Un ancien 017 qui ne fournit pas
-   `vocabulary_pull_inventory(uuid,uuid)` doit aussi recevoir la mise à jour
-   de l'inventaire et du rattrapage avant activation. Vérifier cette mise à
-   niveau sur une base jetable. Seule 019 rouvre le reset avec le contrat complet.
+   Appliquer les migrations manquantes. La migration 020 met à jour un ancien
+   017 sans rejouer les migrations appliquées. Seule 021 rouvre le reset avec
+   le contrat complet.
 2. Avant toute publication du secret CI, créer l'environnement GitHub Actions
    `patrol-e2e`. Dans *Deployment branches and tags*, sélectionner les branches
    et tags explicitement autorisés et ajouter uniquement la branche `main`.
@@ -62,7 +63,7 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
    ```
 
    Lorsque le contrôle réussit, définir la variable de dépôt GitHub
-   `PATROL_E2E_ACTIVATION` à `challenge-boundaries-v1` pour autoriser le CI manuel et
+   `PATROL_E2E_ACTIVATION` à `friend-consent-v1` pour autoriser le CI manuel et
    planifié. Une valeur absente ou différente garde le CI désactivé. Retirer
    la variable pour suspendre les lancements. Lancer ensuite une suite et
    vérifier son résultat réel.
@@ -108,14 +109,15 @@ La migration 013 refuse dès l'écriture les amitiés, demandes, défis et
 progressions intercomptes impliquant un compte attribué à un scénario. Elle
 contrôle aussi le propriétaire de la liste du défi ou de la variante étudiée.
 La progression d'un compte E2E sur ses propres listes reste autorisée.
-Le prévol CI, le helper Patrol et le reset exigent tous `challenge-boundaries-v1`
+Le prévol CI, le helper Patrol et le reset exigent tous `friend-consent-v1`
 depuis `e2e_patrol_contract()`. Cette réponse confirme les prérequis de 012,
 les déclencheurs d'isolation de 013, les gardes de suppression de 014, les
 clés qualifiées par propriétaire de 015, le contrôle des écritures de 016,
-l'inventaire et les déclencheurs de rattrapage de 017 ainsi que les protections
-de 018 et 019. Le prévol et le helper refusent les versions antérieures.
+l'inventaire et les déclencheurs de rattrapage de 017, les protections
+de 018 et 019, la prise en compte des purges de 020 et les droits
+sociaux et d'historique de 021. Le prévol et le helper refusent les versions antérieures.
 Les étapes de migration gardent l'exécution du reset inaccessible
-aux rôles client jusqu'à 019. Le reset vérifie ensuite le contrat à chaque appel.
+aux rôles client jusqu'à 021. Le reset vérifie ensuite le contrat à chaque appel.
 
 Le reset efface listes, concepts, variantes, progression, abonnements Supabase,
 notifications et classement du compte. Il recrée son profil gratuit avec le
@@ -195,9 +197,11 @@ Le trafic ne garantit pas contractuellement l'absence de pause Supabase.
   d'[isolation en écriture](../../supabase/tests/e2e_isolation.sql) vérifient
   les permissions, le rollback, les refus et la préservation des autres comptes.
 - La CI appelle le reset avec un compte inscrit après 009 et à chaque étape
-  de 012 à 018, vérifie le refus et contrôle que ses données sont intactes.
-  Après 019 elle vérifie les [références de défi](../../supabase/tests/challenge_list_boundaries.sql)
-  et les [références de progression et la suppression physique](../../supabase/tests/vocabulary_progress_boundaries.sql).
+  de 012 à 020, vérifie le refus et contrôle que ses données sont intactes.
+  Après 021 elle vérifie les [références de défi](../../supabase/tests/challenge_list_boundaries.sql),
+  les [références de progression](../../supabase/tests/vocabulary_progress_boundaries.sql)
+  et le [consentement d'amitié](../../supabase/tests/friendship_consent.sql).
+  Une seconde base teste la mise à niveau depuis le 017 historique.
 - Un passage Patrol réel reste nécessaire après activation de la base hébergée.
 - `supabase/tests/reset_concurrency.sh`, sur un PostgreSQL jetable dont le nom
   se termine par `_test`, vérifie avec deux connexions qu'une demande d'amitié

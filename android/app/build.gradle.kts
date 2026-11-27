@@ -26,6 +26,8 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Flutter creates profile before the application's build-type DSL.
+        manifestPlaceholders["appLabel"] = "Ponderin"
         testInstrumentationRunner = "pl.leancode.patrol.PatrolJUnitRunner"
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
     }
@@ -45,7 +47,6 @@ android {
             manifestPlaceholders["appLabel"] = "Ponderin Dev"
         }
         release {
-            manifestPlaceholders["appLabel"] = "Ponderin"
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")

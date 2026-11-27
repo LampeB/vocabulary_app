@@ -388,6 +388,7 @@
   "grammar.drill.particle_variant": "「{word}」에 {hint} 조사를 붙이세요",
   "grammar.drill.conjugate": "「{word}」를 해요체 현재형으로 활용하세요",
   "grammar.drill.negate": "「{word}」를 부정형으로 만드세요",
+  "grammar.drill.negate_en_first_person": "「{word}」를 1인칭 단수(‘나’)의 현재 부정형으로 바꾸세요. 주어 I는 생략해도 됩니다. don't 또는 do not을 쓰세요. be 동사에는 am not 또는 I'm not을 쓰세요.",
   "grammar.drill.negate_fr_first_person": "「{word}」의 1인칭 단수 현재 부정형을 말하거나 쓰세요. 주어 「je」는 생략해도 됩니다.",
   "grammar.drill.spoken_word": "다음 단어",
   "grammar.hint.subject": "주격",

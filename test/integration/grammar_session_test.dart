@@ -30,6 +30,8 @@ import 'package:vocab_kr/services/notifications/notification_service.dart';
 import '../helpers/fake_remote.dart';
 import '../helpers/pump_screen.dart' show initTestLocalization;
 
+final _quiz = quizProvider(Object());
+
 /// Grammar drill sessions through the REAL quiz flow: cards generated from
 /// the rule + mastered words, answers recording rule progress (never FSRS),
 /// cartes never counting, mastery reached at the target.
@@ -130,6 +132,9 @@ void main() {
             (ruleId: 'fr-negation-ne-pas', targetLang: 'fr') => const [
               DrillWord(word: 'travailler', category: 'verbe'),
             ],
+            (ruleId: 'en-negation-dont', targetLang: 'en') => const [
+              DrillWord(word: 'to work', category: 'verbe'),
+            ],
             (ruleId: _, targetLang: 'fr') => const [
               DrillWord(word: 'pomme', category: 'nom'),
             ],
@@ -179,8 +184,8 @@ void main() {
   test(
     'loadCards generates localized drill cards from mastered words',
     () async {
-      final sub = container.listen(quizProvider, (_, _) {});
-      await container.read(quizProvider.notifier).loadCards(args());
+      final sub = container.listen(_quiz, (_, _) {});
+      await container.read(_quiz.notifier).loadCards(args());
 
       final state = sub.read();
       expect(state.cards, hasLength(3));
@@ -192,8 +197,8 @@ void main() {
   );
 
   test('direct voice entry cannot grade an isolated French plural', () async {
-    final sub = container.listen(quizProvider, (_, _) {});
-    final notifier = container.read(quizProvider.notifier);
+    final sub = container.listen(_quiz, (_, _) {});
+    final notifier = container.read(_quiz.notifier);
     for (final mode in [QuizMode.voice, QuizMode.handsFree]) {
       await notifier.loadCards(
         QuizArgs(
@@ -215,8 +220,8 @@ void main() {
   });
 
   test('the French plural drill requires the written s', () async {
-    final sub = container.listen(quizProvider, (_, _) {});
-    final notifier = container.read(quizProvider.notifier);
+    final sub = container.listen(_quiz, (_, _) {});
+    final notifier = container.read(_quiz.notifier);
     await notifier.loadCards(
       const QuizArgs(
         source: QuizSource.grammar,
@@ -255,8 +260,8 @@ void main() {
       );
       final accounts = StateProvider<AppUser?>((_) => user('u'));
       final session = makeContainer(account: accounts);
-      final sub = session.listen(quizProvider, (_, _) {});
-      final quiz = session.read(quizProvider.notifier);
+      final sub = session.listen(_quiz, (_, _) {});
+      final quiz = session.read(_quiz.notifier);
       await quiz.loadCards(args());
       final oldAnswer = sub.read().currentCard!.answerWords.first;
       session.read(accounts.notifier).state = user('b');
@@ -277,8 +282,8 @@ void main() {
 
   test('French negation accepts the full first-person answer', () async {
     const ruleId = 'fr-negation-ne-pas';
-    final sub = container.listen(quizProvider, (_, _) {});
-    final notifier = container.read(quizProvider.notifier);
+    final sub = container.listen(_quiz, (_, _) {});
+    final notifier = container.read(_quiz.notifier);
     await notifier.loadCards(
       const QuizArgs(
         source: QuizSource.grammar,
@@ -309,9 +314,53 @@ void main() {
     expect(progress.correct, 1);
   });
 
+  for (final voice in [false, true]) {
+    for (final answer in [
+      "don't work",
+      'do not work',
+      "I don't work",
+      'I do not work',
+    ]) {
+      test(
+        'English negation accepts $answer by ${voice ? 'voice' : 'typing'}',
+        () async {
+          const ruleId = 'en-negation-dont';
+          final sub = container.listen(_quiz, (_, _) {});
+          final notifier = container.read(_quiz.notifier);
+          await notifier.loadCards(
+            QuizArgs(
+              source: QuizSource.grammar,
+              ruleId: ruleId,
+              mode: voice ? QuizMode.voice : QuizMode.typing,
+              direction: QuizDirectionChoice.frToKo,
+              cardLimit: 1,
+              langA: 'fr',
+              langB: 'en',
+            ),
+            promptLocale: 'fr',
+          );
+          expect(sub.read().currentCard!.answerWords, contains(answer));
+          if (voice) {
+            notifier.submitVoiceAnswer(answer);
+          } else {
+            notifier.submitTextAnswer(answer);
+          }
+          expect(sub.read().answerState, QuizAnswerState.correct);
+          final progress = await db.grammarProgressDao
+              .watchByUser('u')
+              .expand((rows) => rows)
+              .firstWhere((row) => row.ruleId == ruleId && row.shown == 1)
+              .timeout(const Duration(seconds: 2));
+          expect(progress.correct, 1);
+          expect(await db.progressDao.getUnsyncedProgress(), isEmpty);
+        },
+      );
+    }
+  }
+
   test('a correct typed answer records rule progress — never FSRS', () async {
-    final sub = container.listen(quizProvider, (_, _) {});
-    final notifier = container.read(quizProvider.notifier);
+    final sub = container.listen(_quiz, (_, _) {});
+    final notifier = container.read(_quiz.notifier);
     await notifier.loadCards(args());
 
     final card = sub.read().currentCard!;
@@ -345,8 +394,8 @@ void main() {
       connectivity.add([ConnectivityResult.none]);
       await session.read(connectivityStreamProvider.future);
 
-      final quiz = session.listen(quizProvider, (_, _) {});
-      final notifier = session.read(quizProvider.notifier);
+      final quiz = session.listen(_quiz, (_, _) {});
+      final notifier = session.read(_quiz.notifier);
       await notifier.loadCards(args(cardLimit: 3));
       while (!quiz.read().isComplete) {
         notifier.submitTextAnswer(quiz.read().currentCard!.answerWords.first);
@@ -365,8 +414,8 @@ void main() {
   );
 
   test('a wrong answer counts shown but not correct', () async {
-    final sub = container.listen(quizProvider, (_, _) {});
-    final notifier = container.read(quizProvider.notifier);
+    final sub = container.listen(_quiz, (_, _) {});
+    final notifier = container.read(_quiz.notifier);
     await notifier.loadCards(args());
     expect(sub.read().cards, isNotEmpty);
 
@@ -384,8 +433,8 @@ void main() {
   for (final mode in [QuizMode.typing, QuizMode.voice]) {
     test('KO→FR ${mode.name} grading requires the elided article', () async {
       const articleRule = 'fr-articles-le-la';
-      final sub = container.listen(quizProvider, (_, _) {});
-      final notifier = container.read(quizProvider.notifier);
+      final sub = container.listen(_quiz, (_, _) {});
+      final notifier = container.read(_quiz.notifier);
       await notifier.loadCards(
         QuizArgs(
           source: QuizSource.grammar,
@@ -427,8 +476,8 @@ void main() {
   test(
     'a voice answer grades, stops listening, and records grammar progress',
     () async {
-      final sub = container.listen(quizProvider, (_, _) {});
-      final notifier = container.read(quizProvider.notifier);
+      final sub = container.listen(_quiz, (_, _) {});
+      final notifier = container.read(_quiz.notifier);
       await notifier.loadCards(args());
       final card = sub.read().currentCard!;
 
@@ -452,8 +501,8 @@ void main() {
   test(
     'a hands-free correct answer advances only after its audio window',
     () async {
-      final sub = container.listen(quizProvider, (_, _) {});
-      final notifier = container.read(quizProvider.notifier);
+      final sub = container.listen(_quiz, (_, _) {});
+      final notifier = container.read(_quiz.notifier);
       await notifier.loadCards(args(cardLimit: 2));
       final answer = sub.read().currentCard!.answerWords.first;
 
@@ -467,8 +516,8 @@ void main() {
   );
 
   test('cartes NEVER records grammar progress (practice only)', () async {
-    final sub = container.listen(quizProvider, (_, _) {});
-    final notifier = container.read(quizProvider.notifier);
+    final sub = container.listen(_quiz, (_, _) {});
+    final notifier = container.read(_quiz.notifier);
     await notifier.loadCards(args(mode: QuizMode.flashcard));
     expect(sub.read().cards, isNotEmpty);
 
@@ -485,8 +534,8 @@ void main() {
   test(
     'backgrounding feedback holds the graded card until one foreground advance',
     () async {
-      final sub = container.listen(quizProvider, (_, _) {});
-      final notifier = container.read(quizProvider.notifier);
+      final sub = container.listen(_quiz, (_, _) {});
+      final notifier = container.read(_quiz.notifier);
       await notifier.loadCards(args(cardLimit: 3));
       notifier.submitVoiceAnswer(
         sub.read().currentCard!.answerWords.first,
@@ -512,8 +561,8 @@ void main() {
 
   test('skipCurrentCard grades NOTHING and requeues the card once — silence '
       'is never a wrong answer', () async {
-    final sub = container.listen(quizProvider, (_, _) {});
-    final notifier = container.read(quizProvider.notifier);
+    final sub = container.listen(_quiz, (_, _) {});
+    final notifier = container.read(_quiz.notifier);
     await notifier.loadCards(args());
     final initialTotal = sub.read().total;
     final skipped = sub.read().currentCard!;

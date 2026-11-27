@@ -261,13 +261,12 @@ final submitAnswerUseCaseProvider = Provider<SubmitAnswerUseCase>(
   (ref) => SubmitAnswerUseCase(ref.watch(progressRepositoryProvider)),
 );
 
-final quizProvider = NotifierProvider.autoDispose<QuizNotifier, QuizState>(
-  QuizNotifier.new,
-);
+final quizProvider = NotifierProvider.autoDispose
+    .family<QuizNotifier, QuizState, Object>(QuizNotifier.new);
 
 // ─── Notifier ─────────────────────────────────────────────────────────────────
 
-class QuizNotifier extends AutoDisposeNotifier<QuizState> {
+class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
   // Not late final: Riverpod re-calls build() when audioPlayerServiceProvider
   // rebuilds (e.g. when audioSettingsProvider loads from SharedPreferences).
   AudioPlayerService? _audio;
@@ -300,7 +299,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   }
 
   @override
-  QuizState build() {
+  QuizState build(Object routeSession) {
     _alive = true; // rebuild ≠ disposal
     _audio = ref.watch(audioPlayerServiceProvider);
     _director = ref.watch(audioDirectorProvider);
@@ -319,10 +318,6 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     if (_lastArgs == null || _sessionUserId == userId) return null;
     return _newSessionState(errorMessage: 'quiz.account_changed'.tr());
   }
-
-  /// Clears any prior session's state so a freshly-entered quiz screen never
-  /// flashes the old session's summary before loadCards runs.
-  void reset() => state = _newSessionState();
 
   QuizState _newSessionState({
     QuizArgs? args,

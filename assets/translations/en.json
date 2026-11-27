@@ -388,6 +388,7 @@
   "grammar.drill.particle_variant": "Add the {hint} particle to “{word}”",
   "grammar.drill.conjugate": "Conjugate “{word}” in the polite present",
   "grammar.drill.negate": "Make “{word}” negative",
+  "grammar.drill.negate_en_first_person": "Give the present negative of “{word}” for “I”. You may leave out “I”. Use don't or do not. With be, use am not or I'm not.",
   "grammar.drill.negate_fr_first_person": "Give the first-person singular present negative of “{word}”, with or without “je”.",
   "grammar.drill.spoken_word": "the next word",
   "grammar.hint.subject": "subject",

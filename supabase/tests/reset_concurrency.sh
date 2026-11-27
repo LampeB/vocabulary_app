@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Disposable PostgreSQL only, after bootstrap + migrations through 013.
+# Disposable PostgreSQL only, after bootstrap + migrations through 021.
 set -euo pipefail
 if [[ "${PGDATABASE:-}" != *_test ]]; then
   echo 'Refusing concurrency test outside an explicitly named *_test database' >&2
@@ -44,8 +44,7 @@ SELECT set_config('request.jwt.claim.sub','50000000-0000-0000-0000-000000000002'
 SET ROLE authenticated;
 DO $$ BEGIN
   BEGIN
-    INSERT INTO public.friend_requests(from_user_id,to_user_id) VALUES
-      (auth.uid(),'50000000-0000-0000-0000-000000000001');
+    PERFORM public.send_friend_request('50000000-0000-0000-0000-000000000001');
     RAISE EXCEPTION 'Cross-account request accepted after reset';
   EXCEPTION WHEN insufficient_privilege THEN
     IF SQLERRM <> 'E2E scenario accounts cannot share relationships or progress' THEN RAISE; END IF;

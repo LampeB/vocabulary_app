@@ -31,6 +31,7 @@ import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/notifications/notification_provider.dart';
 import 'package:vocab_kr/presentation/providers/purchases/purchase_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
+import 'package:vocab_kr/presentation/providers/settings/audio_settings_provider.dart';
 import 'package:vocab_kr/presentation/providers/settings/stt_engine_mode_provider.dart';
 import 'package:vocab_kr/presentation/providers/speech/elevenlabs_speech_provider.dart';
 import 'package:vocab_kr/presentation/providers/speech/shared_pcm_capture_provider.dart';
@@ -38,6 +39,7 @@ import 'package:vocab_kr/presentation/providers/speech/whisper_speech_provider.d
 import 'package:vocab_kr/presentation/screens/quiz/quiz_screen.dart';
 import 'package:vocab_kr/presentation/screens/home/daily_path_screen.dart';
 import 'package:vocab_kr/presentation/screens/import/import_from_link_screen.dart';
+import 'package:vocab_kr/presentation/screens/lists/list_detail_screen.dart';
 import 'package:vocab_kr/presentation/widgets/study/study_feedback_flood.dart';
 import 'package:vocab_kr/presentation/widgets/study/stt_status_strip.dart';
 import 'package:vocab_kr/presentation/widgets/study/word_in_wave.dart';
@@ -371,7 +373,20 @@ class _SilentFilePlayer implements FileAudioPlayer {
   @override
   bool get isPlaying => false;
   @override
-  void dispose() {}
+  Future<void> dispose() async {}
+}
+
+class _RetryFilePlayer extends _SilentFilePlayer {
+  int starts = 0;
+  final finished = Completer<void>();
+
+  @override
+  Future<void> playFile(String path, {bool waitForCompletion = false}) {
+    if (++starts == 1) {
+      return Future.error(PlatformException(code: 'AndroidAudioError'));
+    }
+    return finished.future;
+  }
 }
 
 class _FakeProgressRepo implements ProgressRepository {
@@ -380,6 +395,7 @@ class _FakeProgressRepo implements ProgressRepository {
   final saved = <VariantProgress>[];
   int? committedDays;
   Completer<void>? pendingCommit;
+  Future<List<VariantProgress>> Function(String, QuizDirection)? importedDue;
 
   @override
   Future<Result<List<VariantProgress>>> getDueCards({
@@ -388,8 +404,15 @@ class _FakeProgressRepo implements ProgressRepository {
     required QuizDirection direction,
     int limit = 20,
     bool includeScheduled = false,
-  }) async =>
-      Success(due.where((p) => p.direction == direction).take(limit).toList());
+  }) async {
+    final imported = importedDue;
+    final cards = imported != null && listId != 'l'
+        ? await imported(listId, direction)
+        : due;
+    return Success(
+      cards.where((p) => p.direction == direction).take(limit).toList(),
+    );
+  }
 
   @override
   Future<Result<List<VariantProgress>>> getAllDueCards({
@@ -479,6 +502,70 @@ class _PendingImportRemote extends FakeRemote {
       pending.future;
 }
 
+const _sharedImport = Success<Map<String, dynamic>?>({
+  'name': 'Liste partagée',
+  'description': null,
+  'concepts': [
+    {
+      'word_variants': [
+        {'word': 'merci', 'lang_code': 'fr', 'is_primary': true, 'position': 0},
+        {'word': '감사합니다', 'lang_code': 'ko', 'is_primary': true, 'position': 0},
+      ],
+    },
+  ],
+});
+
+AppUser _importAccount() =>
+    AppUser(id: 'u', email: 'u@example.test', username: 'u', createdAt: _now);
+
+class _CachedPrompt implements AudioAssetCache {
+  @override
+  Future<String?> downloadAndCache(String audioPath) async =>
+      '/cache/prompt.mp3';
+
+  @override
+  void scheduleIdleCacheCleanup() {}
+}
+
+class _PendingDeviceSpeech implements DeviceSpeech {
+  final playback = Completer<void>();
+  final released = Completer<void>();
+  int speaks = 0;
+  int disposals = 0;
+
+  @override
+  Future<void> speak(String text, String langCode) {
+    speaks++;
+    return playback.future;
+  }
+
+  @override
+  Future<void> warmUp(String langCode) async {}
+  @override
+  Future<void> stop() async {}
+  @override
+  bool get isSpeaking => speaks > 0 && !playback.isCompleted;
+  @override
+  Future<void> dispose() {
+    disposals++;
+    return released.future;
+  }
+}
+
+class _RestoringAudioSettings extends AudioSettingsNotifier {
+  final restored = Completer<double>();
+
+  @override
+  AudioSettings build() {
+    unawaited(
+      restored.future.then((rate) {
+        state = AudioSettings(speechRate: rate);
+      }),
+    );
+    return const AudioSettings();
+  }
+}
+
 class _FakeNotifService implements NotificationService {
   int cancelledStreaks = 0;
   final scheduledStreaks = <int>[];
@@ -545,6 +632,10 @@ void main() {
     _FakeAuthRepo? authRepo,
     _FakeNotifService? reminders,
     _PendingImportRemote? importRemote,
+    String? questionAudioPath,
+    AudioPlayerService Function(Ref)? audioFactory,
+    AudioDirector Function(AudioPlayerService)? directorFactory,
+    AudioSettingsNotifier? audioSettings,
     SttEngineModeNotifier? sttMode,
     VoiceTurnMachine Function()? machineFactory,
     ThemeMode themeMode = ThemeMode.light,
@@ -569,10 +660,37 @@ void main() {
           wordB: ko,
         )).valueOrNull!;
         final variants = await db.conceptDao.getVariantsByConcept(concept.id);
-        dueCards.add(due(variants.firstWhere((v) => v.langCode == 'fr').id));
+        final variant = variants.firstWhere((v) => v.langCode == 'fr');
+        dueCards.add(due(variant.id));
+        if (questionAudioPath != null) {
+          await db.conceptDao.applyProvisionedAudio(
+            variantId: variant.id,
+            ownerId: 'u',
+            word: variant.word,
+            langCode: variant.langCode,
+            path: questionAudioPath,
+          );
+        }
       }
     });
     progressRepo = _FakeProgressRepo(dueCards);
+    if (importRemote != null) {
+      progressRepo.importedDue = (listId, direction) async {
+        final concepts = await db.conceptDao.getConceptsByList(listId);
+        final cards = <VariantProgress>[];
+        for (final concept in concepts) {
+          final variants = await db.conceptDao.getVariantsByConcept(concept.id);
+          cards.addAll(
+            variants
+                .where((variant) => variant.langCode == direction.questionLang)
+                .map(
+                  (variant) => due(variant.id).copyWith(direction: direction),
+                ),
+          );
+        }
+        return cards;
+      };
+    }
     final quiz = QuizScreen(
       args: QuizArgs(
         listId: grammar ? null : 'l',
@@ -636,15 +754,25 @@ void main() {
             ],
           ),
         ],
-        audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
+        if (audioFactory != null)
+          audioPlayerServiceProvider.overrideWith(audioFactory)
+        else
+          audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
+        if (audioSettings != null)
+          audioSettingsProvider.overrideWith(() => audioSettings),
         if (voice != null) ...[
           sharedPcmCaptureProvider.overrideWithValue(voice.capture),
           whisperSpeechProvider.overrideWithValue(voice.whisper),
           elevenLabsSpeechProvider.overrideWithValue(_FakeScribe()),
         ],
-        audioDirectorProvider.overrideWithValue(
-          director ?? voice?.director ?? _TestDirector(),
-        ),
+        if (directorFactory != null)
+          audioDirectorProvider.overrideWith(
+            (ref) => directorFactory(ref.watch(audioPlayerServiceProvider)),
+          )
+        else
+          audioDirectorProvider.overrideWithValue(
+            director ?? voice?.director ?? _TestDirector(),
+          ),
         if (fromDailyReview) ...[
           myListsProvider.overrideWith((ref) => Stream.value([])),
           dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(1)),
@@ -667,10 +795,16 @@ void main() {
           ShellRoute(
             builder: (_, _, child) => QuizRouteVisibility(child: child),
             routes: [
-              GoRoute(path: '/quiz', builder: (_, _) => quiz),
+              GoRoute(
+                path: '/quiz',
+                builder: (_, state) => state.extra == null
+                    ? quiz
+                    : QuizScreen(args: state.extra! as QuizArgs),
+              ),
               GoRoute(
                 path: '/lists/:id',
-                builder: (_, _) => const Scaffold(body: Text('Imported list')),
+                builder: (_, state) =>
+                    ListDetailScreen(listId: state.pathParameters['id']!),
               ),
             ],
           ),
@@ -1202,26 +1336,30 @@ void main() {
     'compact voice scrolls status, transcript and both alternatives',
     (tester) async {
       final voice = _VoiceHarness();
+      final mode = _DelayedSttMode()..preference.complete(SttEngineMode.system);
       await pump(
         tester,
         mode: QuizMode.voice,
         words: [('chat', '고양이')],
         voice: voice,
+        sttMode: mode,
       );
       await tester.tap(find.byKey(const ValueKey(WidgetKeys.micButton)));
-      await tester.pump();
-      expect(voice.capture.opens, 1);
+      await tick(tester);
+      expect(voice.systemListens, 1);
       tester.view.physicalSize = const Size(1704, 960);
       tester.platformDispatcher.textScaleFactorTestValue = 2;
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-      final providers = ProviderScope.containerOf(
-        tester.element(find.byType(QuizScreen)),
-      );
       final transcript = List.filled(
         18,
         'Un exemple de transcription',
       ).join(' ');
-      providers.read(quizProvider.notifier).setPartialTranscript(transcript);
+      await voice.systemEvent('result', {
+        'isFinal': false,
+        'alternates': [
+          {'words': transcript, 'confidence': .95},
+        ],
+      });
       await tester.pump();
       await tester.pump();
       final surface = find.byKey(const ValueKey(WidgetKeys.quizPrompt));
@@ -1341,6 +1479,39 @@ void main() {
       },
     );
   }
+
+  testWidgets('compact summary announces scroll and exposes both actions', (
+    tester,
+  ) async {
+    await pump(tester, mode: QuizMode.flashcard, words: [('chat', '고양이')]);
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.cartesCard)));
+    await tick(tester, times: 2);
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.gradeAgain)));
+    await tick(tester, times: 4);
+    tester.view.physicalSize = const Size(1704, 960);
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await tick(tester, times: 4);
+    final summary = find.byKey(const ValueKey(WidgetKeys.summary));
+    expect(summary, findsOneWidget);
+    final cue = find.descendant(
+      of: summary,
+      matching: find.text('v3.scroll_hint'.tr()),
+    );
+    expect(cue, findsOneWidget);
+    final opacity = find
+        .ancestor(of: cue, matching: find.byType(AnimatedOpacity))
+        .first;
+    expect(tester.widget<AnimatedOpacity>(opacity).opacity, 1);
+    for (final key in [WidgetKeys.summaryRestart, WidgetKeys.summaryDone]) {
+      final action = find.byKey(ValueKey(key));
+      await tester.ensureVisible(action);
+      await tick(tester);
+      expect(action.hitTestable(), findsOneWidget);
+    }
+    expect(tester.takeException(), isNull);
+    await unmountScreen(tester);
+  });
 
   testWidgets('summary actions can restart and return to setup by keyboard', (
     tester,
@@ -1712,6 +1883,104 @@ void main() {
       },
     );
   }
+
+  testWidgets('file playback error offers an immediate prompt retry', (
+    tester,
+  ) async {
+    final file = _RetryFilePlayer();
+    final audio = AudioPlayerService(
+      usePremium: true,
+      assetCache: _CachedPrompt(),
+      filePlayer: file,
+    );
+    final voice = _VoiceHarness(promptAudio: audio);
+    await pump(
+      tester,
+      mode: QuizMode.handsFree,
+      words: [('chat', '고양이')],
+      voice: voice,
+      questionAudioPath: 'seed/v1/fr/chat.mp3',
+    );
+    expect(file.starts, 1);
+    expect(find.text('quiz.grammar_prompt_failed'.tr()), findsOneWidget);
+    expect(voice.director.cues, 0);
+    expect(voice.capture.opens, 0);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfRepeat)));
+    await tester.pump();
+    expect(file.starts, 2);
+    expect(voice.capture.opens, 0);
+    file.finished.complete();
+    await tick(tester, times: 8);
+    expect(voice.director.cues, 1);
+    expect(voice.capture.opens, 1);
+    await unmountScreen(tester);
+    audio.dispose();
+    await audio.stop();
+    await tester.pump(const Duration(seconds: 8));
+  });
+
+  testWidgets(
+    'restored speech rate replaces a held prompt and waits for replay',
+    (tester) async {
+      final voice = _VoiceHarness();
+      final settings = _RestoringAudioSettings();
+      final voices = <_PendingDeviceSpeech>[];
+      final directors = <_TestDirector>[];
+      await pump(
+        tester,
+        mode: QuizMode.handsFree,
+        words: [('chat', '고양이')],
+        voice: voice,
+        audioSettings: settings,
+        audioFactory: (ref) {
+          final rate = ref.watch(
+            audioSettingsProvider.select((state) => state.speechRate),
+          );
+          final tts = _PendingDeviceSpeech();
+          voices.add(tts);
+          final audio = AudioPlayerService(
+            usePremium: false,
+            speechRate: rate,
+            tts: tts,
+            filePlayer: _SilentFilePlayer(),
+          );
+          ref.onDispose(audio.dispose);
+          return audio;
+        },
+        directorFactory: (audio) {
+          final director = _TestDirector(audio);
+          directors.add(director);
+          return director;
+        },
+      );
+      final oldVoice = voices.single;
+      expect(oldVoice.speaks, 1);
+      settings.restored.complete(.7);
+      await tester.pump();
+      expect(oldVoice.disposals, 1);
+      expect(voices, hasLength(2));
+      expect(voices.last.speaks, 0);
+      oldVoice.playback.complete();
+      await tester.pump();
+      expect(voice.capture.opens, 0);
+      expect(directors.every((director) => director.cues == 0), isTrue);
+
+      oldVoice.released.complete();
+      await tick(tester, times: 10);
+      expect(voices.last.speaks, 1);
+      expect(voice.capture.opens, 0);
+      expect(directors.every((director) => director.cues == 0), isTrue);
+      voices.last.playback.complete();
+      await tick(tester, times: 8);
+      expect(voice.capture.opens, 1);
+      expect(directors.map((director) => director.cues), [0, 1]);
+      voices.last.released.complete();
+      await unmountScreen(tester);
+      await tester.pump(const Duration(seconds: 8));
+    },
+  );
 
   testWidgets('daily review shortcut rates its one due card once', (
     tester,
@@ -2367,14 +2636,7 @@ void main() {
     final voice = _VoiceHarness();
     final decoding = voice.whisper.pendingDecode = Completer<String?>();
     final sharedList = _PendingImportRemote();
-    final account = StateProvider<AppUser?>(
-      (_) => AppUser(
-        id: 'u',
-        email: 'u@example.test',
-        username: 'u',
-        createdAt: _now,
-      ),
-    );
+    final account = StateProvider<AppUser?>((_) => _importAccount());
     await pump(
       tester,
       mode: QuizMode.handsFree,
@@ -2402,32 +2664,9 @@ void main() {
     expect(progressRepo.saved, isEmpty);
     expect(voice.capture.opens, 1);
 
-    sharedList.pending.complete(
-      const Success({
-        'name': 'Liste partagée',
-        'description': null,
-        'concepts': [
-          {
-            'word_variants': [
-              {
-                'word': 'merci',
-                'lang_code': 'fr',
-                'is_primary': true,
-                'position': 0,
-              },
-              {
-                'word': '감사합니다',
-                'lang_code': 'ko',
-                'is_primary': true,
-                'position': 0,
-              },
-            ],
-          },
-        ],
-      }),
-    );
+    sharedList.pending.complete(_sharedImport);
     await tick(tester, times: 8);
-    expect(find.text('Imported list'), findsOneWidget);
+    expect(find.byType(ListDetailScreen), findsOneWidget);
     expect(voice.capture.opens, 1);
     expect(voice.director.cues, 1);
     expect(progressRepo.saved, isEmpty);
@@ -2439,6 +2678,102 @@ void main() {
     voice.capture.session!.answer();
     await tick(tester, times: 6);
     expect(progressRepo.saved.single.timesCorrect, 1);
+    await unmountScreen(tester);
+    await tester.pump(const Duration(seconds: 8));
+  });
+
+  testWidgets(
+    'a quiz opened by imported list detail keeps the covered quiz intact',
+    (tester) async {
+      final voice = _VoiceHarness();
+      final sharedList = _PendingImportRemote();
+      await pump(
+        tester,
+        mode: QuizMode.handsFree,
+        words: [('chat', '고양이'), ('félin', '고양이')],
+        voice: voice,
+        account: StateProvider<AppUser?>((_) => _importAccount()),
+        importRemote: sharedList,
+      );
+      await tick(tester, times: 8);
+      voice.capture.session!.answer();
+      await tick(tester, times: 7);
+      expect(find.text('félin'), findsOneWidget);
+      expect(progressRepo.saved.single.timesCorrect, 1);
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfPause)));
+      await tester.pump();
+
+      final router = GoRouter.of(tester.element(find.byType(QuizScreen)));
+      unawaited(router.push('/import?token=warm-link'));
+      await tick(tester, times: 3);
+      sharedList.pending.complete(_sharedImport);
+      await tick(tester, times: 6);
+      expect(find.byType(ListDetailScreen), findsOneWidget);
+      await tester.tap(find.text('course.free_practice'.tr()));
+      await tick(tester, times: 6);
+      expect(find.byType(QuizScreen, skipOffstage: false), findsNWidgets(2));
+      expect(find.byKey(const ValueKey(WidgetKeys.cartesCard)), findsOneWidget);
+      expect(
+        find.text('merci').evaluate().isNotEmpty ||
+            find.text('감사합니다').evaluate().isNotEmpty,
+        isTrue,
+      );
+      expect(voice.capture.opens, 1);
+      await tester.tap(find.byIcon(Icons.close_rounded));
+      await tick(tester, times: 4);
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.listDetailBack)));
+      await tick(tester, times: 4);
+
+      expect(find.byKey(const ValueKey(WidgetKeys.hfResume)), findsOneWidget);
+      expect(voice.capture.opens, 1);
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfResume)));
+      await tick(tester, times: 8);
+      expect(find.text('félin'), findsOneWidget);
+      expect(voice.capture.opens, 2);
+      voice.capture.session!.answer();
+      await tick(tester, times: 7);
+      expect(find.text('2 / 2 corrects'), findsOneWidget);
+      expect(progressRepo.saved, hasLength(2));
+      await unmountScreen(tester);
+      await tester.pump(const Duration(seconds: 8));
+    },
+  );
+
+  testWidgets('a quiz close waits for the route above it to dismiss', (
+    tester,
+  ) async {
+    final voice = _VoiceHarness();
+    final sharedList = _PendingImportRemote();
+    await pump(
+      tester,
+      mode: QuizMode.handsFree,
+      words: [('chat', '고양이')],
+      voice: voice,
+      account: StateProvider<AppUser?>((_) => _importAccount()),
+      importRemote: sharedList,
+    );
+    await tick(tester, times: 8);
+    final router = GoRouter.of(tester.element(find.byType(QuizScreen)));
+    final stopping = voice.director.pendingStop = Completer<void>();
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pump();
+    expect(voice.director.stops, 1);
+    unawaited(router.push('/import?token=warm-link'));
+    await tick(tester, times: 3);
+
+    stopping.complete();
+    await tick(tester, times: 3);
+    expect(find.byType(ImportFromLinkScreen), findsOneWidget);
+    expect(find.byType(QuizScreen, skipOffstage: false), findsOneWidget);
+
+    sharedList.pending.complete(_sharedImport);
+    await tick(tester, times: 6);
+    expect(find.byType(ListDetailScreen), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.listDetailBack)));
+    await tick(tester, times: 5);
+    expect(find.byType(QuizScreen, skipOffstage: false), findsNothing);
+    expect(find.byKey(const ValueKey('open-quiz')), findsOneWidget);
+    expect(voice.capture.opens, 1);
     await unmountScreen(tester);
     await tester.pump(const Duration(seconds: 8));
   });

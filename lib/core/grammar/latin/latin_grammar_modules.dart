@@ -260,6 +260,9 @@ class EnglishGrammarModule extends LatinGrammarModule {
   String get langCode => 'en';
 
   @override
+  String get negationPromptKey => 'grammar.drill.negate_en_first_person';
+
+  @override
   String articlePhrase(String article, String word) =>
       article == 'a' && LatinGrammarModule.startsWithVowel(word)
       ? 'an $word'
@@ -289,6 +292,23 @@ class EnglishGrammarModule extends LatinGrammarModule {
 
   @override
   String negationBase(String infinitive) => _bare(infinitive); // don't + bare form
+
+  @override
+  GrammarAnswer _negationAnswer(String negated) {
+    final forms = <String>{negated};
+    if (negated.startsWith("don't ")) {
+      forms.add(negated.replaceFirst("don't ", 'do not '));
+    }
+    return GrammarAnswer(
+      expected: negated,
+      accepted: [
+        ...forms,
+        for (final form in forms) 'I $form',
+        if (negated.startsWith('am not '))
+          negated.replaceFirst('am not ', "I'm not "),
+      ],
+    );
+  }
 
   @override
   String pluralize(String noun) {

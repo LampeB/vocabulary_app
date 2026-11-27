@@ -35,6 +35,8 @@ import 'package:vocab_kr/services/audio/audio_player_service.dart';
 import 'package:vocab_kr/services/notifications/notification_service.dart';
 import '../helpers/fake_remote.dart';
 
+final _quiz = quizProvider(Object());
+
 /// The studying → stats bridge: completing a session records a quiz_sessions
 /// row (name, score, mode), and quizHistoryProvider maps it back for the
 /// stats screen. This was the top gap in docs/feature-coverage.md — nothing
@@ -209,8 +211,8 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    final session = container.listen(quizProvider, (_, _) {});
-    final quiz = container.read(quizProvider.notifier);
+    final session = container.listen(_quiz, (_, _) {});
+    final quiz = container.read(_quiz.notifier);
     await quiz.loadCards(
       QuizArgs(
         listId: draft.id,
@@ -361,10 +363,10 @@ void main() {
           ],
         );
         addTearDown(container.dispose);
-        final sub = container.listen(quizProvider, (_, _) {});
+        final sub = container.listen(_quiz, (_, _) {});
 
         // Play the whole (1-card) session.
-        final notifier = container.read(quizProvider.notifier);
+        final notifier = container.read(_quiz.notifier);
         final args = QuizArgs(
           listId: list.id,
           mode: QuizMode.flashcard,
@@ -387,7 +389,7 @@ void main() {
         if (leaveQuiz) {
           sub.close();
           await container.pump();
-          expect(container.exists(quizProvider), isFalse);
+          expect(container.exists(_quiz), isFalse);
         } else {
           await notifier.loadCards(
             QuizArgs(

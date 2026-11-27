@@ -95,6 +95,13 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   doublé en paysage. Les erreurs de reset distinguent réseau et fréquence ;
   les autres échecs utilisent un texte neutre, sans conclure que l'adresse
   n'existe pas.
+- Le dialogue de reset place son titre, son champ et ses actions dans une
+  surface défilante signalée. Les actions restent atteignables à 568 × 320,
+  texte doublé et clavier de 180 pixels, dans les trois locales V0.
+- Chaque route de quiz possède sa séance : ouvrir un quiz depuis le détail
+  d'un import ne remplace ni les cartes, ni le score, ni la pause du quiz
+  recouvert. Seule la route visible peut écouter. Une fermeture en attente
+  d'arrêt audio attend de retrouver sa propre route avant de la dépiler.
 - Les actions d'inscription et de connexion de l'accueil, puis la validation
   du formulaire, sont des boutons accessibles par Tab et Entrée.
 - Les erreurs d'authentification sont traduites dans l'interface à partir de
@@ -109,7 +116,11 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   relance un quiz pendant la lecture du nom de la liste ou de la maîtrise.
   Si le compte est encore connecté, la série utilise le jour de fin du quiz,
   même lorsque la lecture du profil traverse minuit. Une date de profil
-  déjà plus récente est préservée.
+  déjà plus récente est préservée. Une écriture concurrente invalide la
+  comparaison du profil : le client relit et recalcule la série, avec trois
+  tentatives maximum, sans écraser la série ou son record calculés entre-temps.
+- Le bilan signale son défilement avant le premier geste lorsque son contenu
+  dépasse l'écran ; Recommencer et Retour restent atteignables à texte doublé.
 - Le squelette du splash s'adapte au paysage. Le splash et le verdict peuvent
   défiler lorsque la hauteur ou le texte agrandi l'exigent, avec un signal de
   défilement ; Continuer reste atteignable à 320 × 568, texte doublé.

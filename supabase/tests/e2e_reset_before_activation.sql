@@ -1,9 +1,9 @@
--- Disposable database only, after 009 and 012–018.
+-- Disposable database only, after 009 and 012–020.
 BEGIN;
 SET LOCAL ROLE anon;
 DO $$ BEGIN
   IF to_regprocedure('public.e2e_patrol_contract()') IS NOT NULL THEN
-    IF public.e2e_patrol_contract() IS NOT DISTINCT FROM 'challenge-boundaries-v1' THEN
+    IF public.e2e_patrol_contract() IS NOT DISTINCT FROM 'friend-consent-v1' THEN
       RAISE EXCEPTION 'A partial schema advertises the current Patrol contract';
     END IF;
   END IF;

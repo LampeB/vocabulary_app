@@ -752,3 +752,61 @@ positifs, soit 28 tests ciblés avec opt-in. La sonde AOT refuse les diagnostics
 en mode produit. Les 30 tests Python des outils et les dix tests E2E passent,
 soit **40 tests Python**. Le garde documentaire et le formatage restent
 obligatoires avant le commit commun et la relecture 15.
+
+## Quinzième itération — `2626f20`
+
+Les quatre instances ont rendu `BLOQUÉ` sur
+`2626f2080a49981052b153be08f985d61c2a0bb6` avant toute correction.
+Les **19 Important bruts donnent 16 constats distincts** : la séance partagée
+entre deux routes, la fermeture de la mauvaise route et la série concurrente
+sont chacun communs aux rapports qualité et correction. Aucun Bloquant ni
+Suggestion. Compteurs propres **0/2**, prochaine passe **16**, plafond vingt.
+
+| Profil / instance | Important | Suggestion |
+| --- | --- | --- |
+| Produit — `/root/r15_product` | 4 | 0 |
+| Qualité — `/root/r15_quality` | 5 | 0 |
+| Correction — `/root/r15_correctness` | 5 | 0 |
+| Sécurité — `/root/r15_security` | 5 | 0 |
+
+| Type | Constat distinct | Correction et preuve ciblée |
+| --- | --- | --- |
+| Important | Manifeste Android Profile sans libellé | Libellé par défaut, suffixe développement en debug ; vraie tâche Gradle Profile réussie et ajoutée à la CI |
+| Important | Série calculée sur un profil modifié entre lecture et écriture | Comparaison exacte des trois champs, relecture/recalcul bornés ; deux journées concurrentes produisent une série et un record de sept |
+| Important | Dialogue de reset inaccessible avec clavier en paysage | Titre, formulaire et actions dans le défilement signalé ; envoi réel de formulaire FR/EN/KO à 568 × 320, texte doublé, inset 180 |
+| Important | Bilan défilant sans indication | Affordance commune ; signal avant geste et deux actions atteignables en paysage à texte doublé |
+| Important | Purges physiques de concepts/variantes ignorées par les caches | Identités minimales de purge exposées à l'inventaire initial et au delta ; cache et re-seeding ne réactivent pas leurs tombstones |
+| Important | INSERT périmé recréant un identifiant purgé | Identités de purge durables, garde sérialisée avec suppression ; vrai rejeu concurrent bloqué puis refusé, ACK local convergent |
+| Important | Installation ayant déjà appliqué l'ancien 017 non mise à niveau | Migration additive 020 ; fixture exacte de l'ancien 017 avec journal et données, puis 018–021 vérifiés |
+| Important | Droit TRUNCATE survivant aux GRANT de review_events | Révocation exhaustive dès 012 et réparation en 021 ; droits effectifs du rôle authentifié vérifiés, sans prétendre à une route REST TRUNCATE |
+| Important | Relation d'amitié forgeable ouvrant des listes privées aux amis | RPC authentifiés et consentement du destinataire ; anciennes relations visibles, nouvelle acceptation exigée pour l'accès, rejeu après retrait refusé |
+| Important | Bail fournisseur libéré après une réponse STT incertaine | Bail conservé jusqu'au TTL après transport incertain ; nouveau départ refusé, réponse fournisseur définitive libérant le bail testée |
+| Important | Quiz B remplaçant le quiz A recouvert | Séance par route ; vrai import puis détail puis quiz B puis retour A avec carte, score et pause conservés |
+| Important | Quitter dépilant un import au lieu du quiz | Fermeture attachée à la visibilité de sa route ; arrêt suspendu puis import et retour testés |
+| Important | Erreur native de lecture non traitée | Erreur propagée à l'attente, abonnement libéré ; vrai canal natif simulé et widget de reprise sans microphone vérifiés |
+| Important | Remplacement du lecteur validant un prompt inachevé | Annulation distincte du succès et prompt rejoué sur le nouveau service ; aucun signal ni micro avant fin réelle |
+| Important | Négation anglaise refusant les formes enseignées | Consigne première personne FR/EN/KO, formes avec/sans I et don't/do not acceptées en saisie et en voix ; variantes de be couvertes |
+| Important | Pluriel coffee incohérent avec le sens commandable du catalogue | Exception lexicale et exemple explicites pour les portions commandées ; seuil/prérequis de a/an conservés |
+
+Les huit checks CI sont verts sur `2626f20`. La tâche Profile réelle termine
+en 35 secondes. Les 15 tests HTTP/date d'authentification, 66 tests auth/grammaire
+et le bilan compact passent. Les 134 tests data et 152 tests voix/quiz passent ;
+ces périmètres se recouvrent et ne sont pas additionnés.
+
+PostgreSQL 16.11 valide quinze suites, les dix refus de reset intermédiaires
+avec données conservées, le contrat `friend-consent-v1` en 021, le reset et la
+purge concurrents à deux connexions, ainsi que l'activation atomique et son
+refus de réapplication. La mise à niveau depuis le vrai 017 historique garde
+le journal et ses données. Le journal des purges enfants commence en 020 ;
+aucune reconstitution des suppressions enfants antérieures n'est revendiquée.
+Les 31 tests Deno et sept bundles Edge passent. Aucun service hébergé n'est
+activé.
+
+La suite finale du lot passe : **1 197 tests hôte**, douze diagnostics positifs
+exclus sans opt-in, couverture **75,6 %** (14 368 / 18 995 lignes). L'analyse
+complète est propre. Les 28 tests diagnostics/micro passent avec opt-in et la
+sonde AOT refuse les diagnostics en mode produit. Les 30 tests Python des
+outils et dix tests E2E passent ; actionlint et zizmor ne signalent aucun
+défaut. La gate élargie de contenu réussit 113 tests et les quatre JSON sont
+valides ; les textes anglais révisés et la consigne coréenne restent à relire
+nativement. La règle a/an et ses prérequis ne sont pas modifiés.

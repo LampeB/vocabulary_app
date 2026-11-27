@@ -40,8 +40,153 @@ Future<void> _setIdentity(sb.SupabaseClient client, String id) =>
       }),
     );
 
+http.Response _jsonReply(http.Request request, Object body) => http.Response(
+  jsonEncode(body),
+  200,
+  request: request,
+  headers: {'content-type': 'application/json'},
+);
+
 void main() {
   setUpAll(tzdata.initializeTimeZones);
+
+  test(
+    'interleaved consecutive study days recompute after a profile conflict',
+    () async {
+      final profile = <String, dynamic>{
+        'current_streak': 5,
+        'longest_streak': 5,
+        'last_study_date': '2026-11-24',
+      };
+      final bothRead = Completer<void>();
+      final earlierWritten = Completer<void>();
+      var gets = 0;
+      var patches = 0;
+      final client = sb.SupabaseClient(
+        'https://fixture.supabase.co',
+        'fixture-anon-key',
+        httpClient: MockClient((request) async {
+          if (request.method == 'GET') {
+            final snapshot = Map<String, dynamic>.of(profile);
+            gets++;
+            if (gets <= 2) {
+              if (gets == 2) bothRead.complete();
+              await bothRead.future;
+            }
+            return _jsonReply(request, [snapshot]);
+          }
+          patches++;
+          final change = jsonDecode(request.body) as Map<String, dynamic>;
+          if (change['last_study_date'] == '2026-11-26') {
+            await earlierWritten.future;
+          }
+          final matches =
+              ['current_streak', 'longest_streak', 'last_study_date'].every(
+                (field) =>
+                    request.url.queryParameters[field] ==
+                    'eq.${profile[field]}',
+              );
+          if (!matches) return _jsonReply(request, <Object>[]);
+          profile.addAll(change);
+          if (!earlierWritten.isCompleted) earlierWritten.complete();
+          return _jsonReply(request, [
+            {'id': 'u'},
+          ]);
+        }),
+      );
+      addTearDown(client.dispose);
+      await _setIdentity(client, 'u');
+      final remote = AuthRemoteDataSource(client);
+      final results = await Future.wait([
+        remote.updateStreak(userId: 'u', studyDate: DateTime.utc(2026, 11, 25)),
+        remote.updateStreak(userId: 'u', studyDate: DateTime.utc(2026, 11, 26)),
+      ]);
+      expect(results.every((result) => result.isSuccess), isTrue);
+      expect(gets, 3);
+      expect(patches, 3);
+      expect(profile['current_streak'], 7);
+      expect(profile['longest_streak'], 7);
+      expect(profile['last_study_date'], '2026-11-26');
+    },
+  );
+
+  test(
+    'a legacy null profile uses null comparisons for its first study',
+    () async {
+      Map<String, dynamic>? saved;
+      final client = sb.SupabaseClient(
+        'https://fixture.supabase.co',
+        'fixture-anon-key',
+        httpClient: MockClient((request) async {
+          if (request.method == 'GET') {
+            return _jsonReply(request, [
+              {
+                'current_streak': null,
+                'longest_streak': null,
+                'last_study_date': null,
+              },
+            ]);
+          }
+          for (final field in [
+            'current_streak',
+            'longest_streak',
+            'last_study_date',
+          ]) {
+            expect(request.url.queryParameters[field], 'is.null');
+          }
+          saved = jsonDecode(request.body) as Map<String, dynamic>;
+          return _jsonReply(request, [
+            {'id': 'u'},
+          ]);
+        }),
+      );
+      addTearDown(client.dispose);
+      await _setIdentity(client, 'u');
+      expect(
+        (await AuthRemoteDataSource(client).updateStreak(
+          userId: 'u',
+          studyDate: DateTime.utc(2026, 11, 25),
+        )).isSuccess,
+        isTrue,
+      );
+      expect(saved!['current_streak'], 1);
+      expect(saved!['longest_streak'], 1);
+    },
+  );
+
+  test(
+    'repeated profile conflicts stay bounded and report a failure',
+    () async {
+      var patches = 0;
+      final client = sb.SupabaseClient(
+        'https://fixture.supabase.co',
+        'fixture-anon-key',
+        httpClient: MockClient((request) async {
+          if (request.method == 'GET') {
+            return _jsonReply(request, [
+              {
+                'current_streak': 5,
+                'longest_streak': 5,
+                'last_study_date': '2026-11-24',
+              },
+            ]);
+          }
+          patches++;
+          return _jsonReply(request, <Object>[]);
+        }),
+      );
+      addTearDown(client.dispose);
+      await _setIdentity(client, 'u');
+      expect(
+        (await AuthRemoteDataSource(client).updateStreak(
+          userId: 'u',
+          studyDate: DateTime.utc(2026, 11, 25),
+        )).isFailure,
+        isTrue,
+      );
+      expect(patches, 3);
+    },
+  );
 
   for (final offline in [false, true]) {
     test(
@@ -152,7 +297,9 @@ void main() {
             }
             expect(request.method, 'PATCH');
             saved = jsonDecode(request.body) as Map<String, dynamic>;
-            return http.Response('', 204, request: request);
+            return _jsonReply(request, [
+              {'id': 'u'},
+            ]);
           }),
         );
         addTearDown(client.dispose);
@@ -216,11 +363,13 @@ void main() {
           }
           expect(request.method, 'PATCH');
           expect(
-            request.url.queryParameters['or'],
-            '(last_study_date.is.null,last_study_date.lt.2026-11-27)',
+            request.url.queryParameters['last_study_date'],
+            'eq.$lastStudyDate',
           );
           saved = jsonDecode(request.body) as Map<String, dynamic>;
-          return http.Response('', 204, request: request);
+          return _jsonReply(request, [
+            {'id': 'u'},
+          ]);
         }),
       );
       addTearDown(client.dispose);

@@ -197,7 +197,8 @@ exige :
   compilée en mode produit avec l'opt-in actif pour vérifier le refus ;
 - une revue des dépendances, un scan de secrets et `actionlint` ;
 - un audit `zizmor` de tous les workflows, avec actions épinglées par SHA ;
-- une compilation Android intégrant le moteur natif Whisper épinglé ;
+- une compilation Android intégrant le moteur natif Whisper épinglé et la
+  résolution du manifeste Profile, dont le libellé est défini par défaut ;
 - une compilation debug pour le simulateur iOS sur macOS, sans signature, sans
   secrets de projet et sans publication de binaire ;
 - un contrôle de la frontière de licence Whisper et des tests des fonctions
@@ -207,13 +208,19 @@ Il vérifie que `vocab-audio` reste fermé aux clients entre 007 et 012, puis
 exerce les lectures publiques, la confidentialité et l'immuabilité des clips
 malgré une règle Storage permissive préexistante. Les tests des outils admin
 vérifient le refus de HTTP et des redirections avec des clés factices. Le
-prévol Patrol et le reset exigent le contrat `challenge-boundaries-v1` de 019.
+prévol Patrol et le reset exigent le contrat `friend-consent-v1` de 021.
 Les suites SQL vérifient les vrais refus de reset avec données conservées
-jusqu'à 018, puis l'acceptation après 019
+à 009 et de 012 à 020, puis l'acceptation après 021
 et le refus quand un garde d'isolation, de suppression, de référence privée ou
 d'écriture est désactivé. Les tests d'isolation E2E couvrent les écritures de
 relations et de progression par le rôle authentifié. Deux connexions PostgreSQL vérifient qu'une
 demande d'amitié concurrente attend la fin du reset, puis est refusée.
+Elles vérifient aussi les droits effectifs de `review_events` dès 012, les
+purges physiques et leurs rejeux concurrents, ainsi qu'une mise à niveau
+depuis l'ancienne migration 017 contenant déjà un journal et des données.
+Les relations d'amitié n'autorisent les listes réservées aux amis qu'après
+un consentement authentifié du destinataire ; les anciens liens non prouvés
+restent affichés mais exigent une nouvelle demande acceptée pour cet accès.
 
 La version Flutter de ce check est figée à **3.44.9**, celle qui correspond à
 la version validée du projet. Toute montée de SDK est une modification séparée

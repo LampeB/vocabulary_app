@@ -70,7 +70,10 @@ WordVariantsTableCompanion wordVariantCompanionFromRemote(
   id: Value(row['id'] as String),
   conceptId: Value(row['concept_id'] as String),
   word: Value(row['word'] as String? ?? ''),
-  langCode: Value(row['lang_code'] as String? ?? 'fr'),
+  // A physical tombstone may have no language. It still reserves its UUID.
+  langCode: Value(
+    row['lang_code'] as String? ?? (row['is_deleted'] == true ? '' : 'fr'),
+  ),
   registerTag: Value(row['register_tag'] as String? ?? 'neutral'),
   contextTags: Value(jsonEncode(row['context_tags'] as List? ?? const [])),
   isPrimary: Value(row['is_primary'] as bool? ?? false),

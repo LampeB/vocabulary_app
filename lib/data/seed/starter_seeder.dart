@@ -294,6 +294,7 @@ class StarterSeeder {
       includeDeleted: true,
     );
     final bySeedId = <String, ConceptsTableData>{};
+    final byId = {for (final concept in concepts) concept.id: concept};
     for (final concept in concepts) {
       final seedId = concept.seedId;
       if (seedId == null) continue;
@@ -306,16 +307,20 @@ class StarterSeeder {
       final targetEntry = targetLayer.entries[conceptId];
       if (sourceEntry == null || targetEntry == null) continue;
 
-      final existing = bySeedId[conceptId];
+      final wireId = starterConceptId(
+        ids.wireId(SyncedVocabularyRow.list, list.id),
+        conceptId,
+      );
+      // A physical purge preserves the UUID but has no catalog metadata.
+      final existing =
+          bySeedId[conceptId] ??
+          byId[ids.localId(SyncedVocabularyRow.concept, wireId)];
       if (existing?.isDeleted == true) continue;
       if (existing == null) {
         added = true;
         final newConceptId = await ids.reserve(
           SyncedVocabularyRow.concept,
-          starterConceptId(
-            ids.wireId(SyncedVocabularyRow.list, list.id),
-            conceptId,
-          ),
+          wireId,
         );
         await _conceptDao.upsert(
           ConceptsTableCompanion(
@@ -345,25 +350,28 @@ class StarterSeeder {
           includeDeleted: true,
         );
         final presentLangs = variants.map((v) => v.langCode).toSet();
+        final presentIds = variants.map((v) => v.id).toSet();
         if (!presentLangs.contains(sourceLayer.lang)) {
-          added = true;
-          await _insertVariants(
+          final inserted = await _insertVariants(
             ids,
             existing.id,
             sourceEntry,
             sourceLayer.lang,
             now,
+            presentIds: presentIds,
           );
+          added = added || inserted;
         }
         if (!presentLangs.contains(targetLayer.lang)) {
-          added = true;
-          await _insertVariants(
+          final inserted = await _insertVariants(
             ids,
             existing.id,
             targetEntry,
             targetLayer.lang,
             now,
+            presentIds: presentIds,
           );
+          added = added || inserted;
         }
       }
     }
@@ -377,14 +385,16 @@ class StarterSeeder {
     return true;
   });
 
-  Future<void> _insertVariants(
+  Future<bool> _insertVariants(
     VocabularySyncIds ids,
     String conceptId,
     SeedEntry entry,
     String lang,
-    DateTime now,
-  ) async {
+    DateTime now, {
+    Set<String> presentIds = const {},
+  }) async {
     final seenSlots = <int, int>{};
+    var inserted = false;
     for (final w in entry.words) {
       final occurrence = seenSlots.update(
         w.position,
@@ -400,6 +410,7 @@ class StarterSeeder {
           occurrence,
         ),
       );
+      if (presentIds.contains(id)) continue;
       await _conceptDao.upsertVariant(
         WordVariantsTableCompanion(
           id: Value(id),
@@ -420,7 +431,9 @@ class StarterSeeder {
         id,
         (await _conceptDao.getVariantById(id))!,
       );
+      inserted = true;
     }
+    return inserted;
   }
 }
 

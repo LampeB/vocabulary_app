@@ -125,16 +125,18 @@ Relire le diff du verrou et repasser le script sans projet avant de commiter.
   Sur l'appareil, les accès aux clips privés vérifient également le propriétaire
   avant de consulter le disque ou les téléchargements en cours. Les noms du
   cache écartent les anciens fichiers créés avant le manifeste de publication.
-- La migration 012 crée également `review_events` et sa politique limitée au
-  propriétaire ; un historique ne peut pas être écrit ou lu pour un autre compte.
+- `review_events` limite les lectures, insertions, mises à jour et suppressions
+  au propriétaire. Les rôles client n'ont aucun privilège de troncature.
 
 ## Pendant la bêta
 
 - Les deux moteurs STT cloud partagent **300 requêtes par jour UTC** et
   **80 par heure UTC**, ainsi qu'une seule requête simultanée par utilisateur.
-  Le bail serveur dure 90 secondes et se libère à la fin de chaque requête ;
-  les appels fournisseur sont interrompus après 60 secondes, les uploads après
-  5 secondes. Un crash conserve le verrou jusqu'à son expiration.
+  Le bail serveur dure 90 secondes. Une fin avant appel fournisseur ou une
+  réponse fournisseur reçue intégralement libère le bail. Une erreur de
+  transport ou un délai dépassé après l'envoi laisse le bail expirer, le
+  fournisseur pouvant encore travailler. L'appel fournisseur est interrompu
+  côté proxy après 60 secondes et l'envoi du client est borné à 5 secondes.
 - Les captures acceptées sont du PCM16 mono 16 kHz (brut ElevenLabs ou WAV).
   Le serveur vérifie leur format et les **30 secondes réelles** ; une simple
   limite d'octets ne suffit pas pour un format compressé ou un autre débit.

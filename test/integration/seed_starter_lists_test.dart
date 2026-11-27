@@ -428,6 +428,79 @@ void main() {
     }
   });
 
+  test('starter completion preserves physically purged deterministic IDs '
+      'without their original content', () async {
+    await seed();
+    final original = await repo.watchMyLists().first;
+    final active = original.singleWhere(
+      (list) => list.seedId == 'starter-greetings:fr>ko',
+    );
+    final purged = original.firstWhere((list) => list.id != active.id);
+    final words = await db.conceptDao.getConceptsByList(active.id);
+    final deletedConcept = words.singleWhere((c) => c.seedId == 'bonjour');
+    final editedConcept = words.singleWhere((c) => c.seedId == 'merci');
+    final variants = await db.conceptDao.getVariantsByConcept(editedConcept.id);
+    final deletedWords = variants.where((v) => v.langCode == 'ko').toList();
+    expect(deletedWords, isNotEmpty);
+    const tombstone = {
+      'is_deleted': true,
+      'created_at': '1970-01-01T00:00:00Z',
+      'updated_at': '1970-01-01T00:00:00Z',
+    };
+    final remote = _HistoricalStarterRemote()
+      ..offline = false
+      ..lists.addAll([
+        active.toRemoteMap(),
+        {...tombstone, 'id': purged.id, 'owner_id': 'u1', 'name': ''},
+      ])
+      ..concepts.addAll([
+        {...tombstone, 'id': deletedConcept.id, 'list_id': active.id},
+        {
+          ...editedConcept.toRemoteMap(),
+          'word_variants': [
+            for (final variant in deletedWords)
+              {...tombstone, 'id': variant.id, 'concept_id': editedConcept.id},
+          ],
+        },
+      ]);
+    SharedPreferences.setMockInitialValues({});
+    final device = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(device.close);
+    final restored = repositoryFor(device, remote);
+    await restored.syncFromRemote();
+    final seeder = makeContainer(
+      repository: restored,
+      device: device,
+    ).read(starterSeederProvider);
+    await seeder.ensureSeededForPair('fr', 'ko');
+
+    expect(
+      (await device.vocabularyListDao.getById(purged.id))?.isDeleted,
+      isTrue,
+    );
+    expect(
+      (await device.conceptDao.getById(deletedConcept.id))?.isDeleted,
+      isTrue,
+    );
+    for (final word in deletedWords) {
+      final row = await device.conceptDao.getVariantById(word.id);
+      expect(row?.isDeleted, isTrue);
+      expect(row?.isSynced, isTrue);
+    }
+    expect(
+      (await device.conceptDao.getVariantsByConcept(
+        editedConcept.id,
+      )).map((word) => word.id),
+      unorderedEquals(
+        variants.where((v) => v.langCode == 'fr').map((v) => v.id),
+      ),
+    );
+    expect(
+      (await device.vocabularyListDao.getById(active.id))?.wordCount,
+      words.length - 1,
+    );
+  });
+
   for (final includeListInEvent in [true, false]) {
     test('a draft created during another list upload keeps its reviews local '
         '(event has list ID: $includeListInEvent)', () async {

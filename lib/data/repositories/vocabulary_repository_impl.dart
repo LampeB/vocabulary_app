@@ -550,6 +550,9 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       final listId = await _database.writeOutbound(_userId, () async {
         final ids = await VocabularySyncIds.load(_database, _userId);
         final listId = await ids.reserve(SyncedVocabularyRow.list, wireListId);
+        if (starter && (await _listDao.getById(listId))?.isDeleted == true) {
+          return listId;
+        }
         await _listDao.upsert(
           VocabularyListsTableCompanion(
             id: Value(listId),
@@ -1309,7 +1312,7 @@ class _RestoreTraversal {
   }
 
   static String _key(String ownerId) => 'vocabulary-pull:$ownerId';
-  static const _checkpointVersion = 2;
+  static const _checkpointVersion = 3;
 
   static Future<_RestoreTraversal> load(AppDatabase db, String ownerId) async {
     final row = await db

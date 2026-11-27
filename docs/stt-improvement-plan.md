@@ -57,7 +57,10 @@ la consigne dans la langue de l'interface précède le mot à transformer.
 Si la lecture échoue ou dépasse son délai, le tour reste disponible via le
 bouton Répéter. Le microphone reste fermé. Un refus explicite du moteur
 vocal de l'appareil, lors du réglage de la langue ou du lancement de la
-lecture, suit le même chemin.
+lecture, suit le même chemin. Une erreur native de lecture d'un clip
+interrompt l'attente dès sa réception. Si le lecteur est remplacé pendant
+un prompt, le tour attend sa libération puis rejoue le prompt sur le nouveau
+lecteur. Un arrêt ou un remplacement ne valide aucune fin de lecture.
 Un arrêt TTS confirmé permet de rejouer la consigne quand une réponse de
 configuration de langue est perdue. La réponse tardive d'un ancien tour
 ne remet pas sa voix en service.
@@ -87,6 +90,10 @@ Le mode mains-libres reprend quand l'application est à nouveau active et le
 quiz visible, y compris après fermeture d'un import ouvert par lien. Pendant
 un feedback, il reprend l'avance différée et conserve la notation déjà écrite.
 Une pause volontaire reste active jusqu'à la reprise par l'apprenant.
+Chaque route de quiz conserve sa session, ses cartes, son score et sa pause.
+Un quiz lancé depuis un détail importé peut ainsi se terminer, puis rendre la
+main au quiz précédemment couvert. Une fermeture demandée pendant un arrêt
+audio reste attachée à sa route et se termine quand celle-ci redevient visible.
 Le bouton Pause et le bouton Reprendre sont accessibles au clavier. En
 pause, Reprendre reçoit le focus et les actions d'écoute sont retirées.
 Lorsque la hauteur ou le grossissement du texte réduit l'espace disponible,

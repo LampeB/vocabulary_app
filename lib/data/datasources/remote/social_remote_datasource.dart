@@ -117,6 +117,7 @@ class SocialRemoteDataSource {
               .select()
               .eq('to_user_id', _userId)
               .eq('status', 'pending')
+              .eq('sender_verified', true)
               .order('created_at', ascending: false))
           as List,
     );
@@ -125,49 +126,31 @@ class SocialRemoteDataSource {
 
   Future<Result<void>> sendFriendRequest(String toUserId) async {
     try {
-      await _client.from('friend_requests').insert({
-        'from_user_id': _userId,
-        'to_user_id': toUserId,
-        'status': 'pending',
-      });
+      await _client.rpc<void>(
+        'send_friend_request',
+        params: {'p_to_user_id': toUserId},
+      );
       return const Success(null);
     } catch (e) {
       return Failure(NetworkException(e.toString()));
     }
   }
 
-  Future<Result<void>> acceptFriendRequest(String requestId) async {
+  Future<Result<void>> acceptFriendRequest(String requestId) =>
+      _respondToFriendRequest(requestId, accept: true);
+
+  Future<Result<void>> declineFriendRequest(String requestId) =>
+      _respondToFriendRequest(requestId, accept: false);
+
+  Future<Result<void>> _respondToFriendRequest(
+    String requestId, {
+    required bool accept,
+  }) async {
     try {
-      final req = await _client
-          .from('friend_requests')
-          .select()
-          .eq('id', requestId)
-          .single();
-      final fromUserId = req['from_user_id'] as String;
-
-      await _client
-          .from('friend_requests')
-          .update({'status': 'accepted'})
-          .eq('id', requestId);
-
-      // Enforce user_a < user_b to prevent duplicate rows
-      final sorted = [_userId, fromUserId]..sort();
-      await _client.from('friendships').upsert({
-        'user_a_id': sorted[0],
-        'user_b_id': sorted[1],
-      });
-      return const Success(null);
-    } catch (e) {
-      return Failure(NetworkException(e.toString()));
-    }
-  }
-
-  Future<Result<void>> declineFriendRequest(String requestId) async {
-    try {
-      await _client
-          .from('friend_requests')
-          .update({'status': 'declined'})
-          .eq('id', requestId);
+      await _client.rpc<void>(
+        'respond_friend_request',
+        params: {'p_request_id': requestId, 'p_accept': accept},
+      );
       return const Success(null);
     } catch (e) {
       return Failure(NetworkException(e.toString()));

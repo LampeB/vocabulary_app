@@ -26,7 +26,7 @@ Future<void> resetTestAccount(ScenarioAccount account) async {
       'e2e_patrol_contract',
       get: true,
     );
-    if (contract != 'challenge-boundaries-v1') {
+    if (contract != 'friend-consent-v1') {
       throw StateError('Hosted Patrol schema is not ready.');
     }
     final auth = await client.auth.signInWithPassword(

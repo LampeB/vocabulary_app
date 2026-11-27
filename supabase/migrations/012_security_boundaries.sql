@@ -67,7 +67,7 @@ CREATE TABLE public.review_events (
 );
 CREATE INDEX review_events_user_time ON public.review_events(user_id, created_at DESC);
 ALTER TABLE public.review_events ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.review_events FROM PUBLIC, anon;
+REVOKE ALL ON public.review_events FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.review_events TO authenticated;
 CREATE POLICY review_events_own ON public.review_events TO authenticated
 USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());

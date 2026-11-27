@@ -12,6 +12,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/v3_colors.dart';
 import '../../../core/widget_keys.dart';
 import '../../widgets/v3_pond.dart';
+import '../../widgets/scroll_affordance.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key, this.initialMode = 'signin'});
@@ -49,73 +50,94 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     var email = _emailCtrl.text.trim();
     await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        // Title and content colors come from dialogTheme automatically.
-        title: Text('auth.reset_dialog_title'.tr()),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('auth.reset_dialog_body'.tr()),
-            const SizedBox(height: 16),
-            TextFormField(
-              key: const ValueKey(WidgetKeys.authResetEmail),
-              initialValue: email,
-              onChanged: (value) => email = value,
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                labelText: 'auth.field_email'.tr(),
-                prefixIcon: const Icon(Icons.email_outlined),
-              ),
-              autofocus: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('common.cancel'.tr()),
-          ),
-          TextButton(
-            key: const ValueKey(WidgetKeys.authResetSend),
-            onPressed: () async {
-              final address = email.trim();
-              Navigator.pop(ctx);
-              final result = await ref
-                  .read(authStateProvider.notifier)
-                  .sendPasswordReset(address);
-              if (!mounted) return;
-              final failureKey = switch (result.exceptionOrNull) {
-                NetworkException() => 'auth.error_network',
-                AuthException(reason: AuthFailureReason.rateLimited) =>
-                  'auth.error_rate_limited',
-                _ => 'auth.reset_snackbar_error',
-              };
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    result.isSuccess
-                        ? 'auth.reset_snackbar_success'.tr()
-                        : failureKey.tr(),
-                    key: ValueKey(
-                      result.isSuccess
-                          ? WidgetKeys.authResetSuccess
-                          : WidgetKeys.authResetError,
-                    ),
-                  ),
-                  behavior: SnackBarBehavior.floating,
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        child: SizedBox(
+          width: 440,
+          child: ScrollAffordance(
+            hint: 'v3.scroll_hint'.tr(),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'auth.reset_dialog_title'.tr(),
+                  style: Theme.of(ctx).textTheme.headlineSmall,
                 ),
-              );
-            },
-            child: Text(
-              'auth.reset_send'.tr(),
-              style: AppTextStyles.fig(
-                14,
-                FontWeight.w600,
-              ).copyWith(color: AppColors.teal),
+                const SizedBox(height: 16),
+                Text('auth.reset_dialog_body'.tr()),
+                const SizedBox(height: 16),
+                TextFormField(
+                  key: const ValueKey(WidgetKeys.authResetEmail),
+                  initialValue: email,
+                  onChanged: (value) => email = value,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    labelText: 'auth.field_email'.tr(),
+                    prefixIcon: const Icon(Icons.email_outlined),
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 8,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text('common.cancel'.tr()),
+                      ),
+                      TextButton(
+                        key: const ValueKey(WidgetKeys.authResetSend),
+                        onPressed: () async {
+                          final address = email.trim();
+                          Navigator.pop(ctx);
+                          final result = await ref
+                              .read(authStateProvider.notifier)
+                              .sendPasswordReset(address);
+                          if (!mounted) return;
+                          final failureKey = switch (result.exceptionOrNull) {
+                            NetworkException() => 'auth.error_network',
+                            AuthException(
+                              reason: AuthFailureReason.rateLimited,
+                            ) =>
+                              'auth.error_rate_limited',
+                            _ => 'auth.reset_snackbar_error',
+                          };
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                result.isSuccess
+                                    ? 'auth.reset_snackbar_success'.tr()
+                                    : failureKey.tr(),
+                                key: ValueKey(
+                                  result.isSuccess
+                                      ? WidgetKeys.authResetSuccess
+                                      : WidgetKeys.authResetError,
+                                ),
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        child: Text(
+                          'auth.reset_send'.tr(),
+                          style: AppTextStyles.fig(
+                            14,
+                            FontWeight.w600,
+                          ).copyWith(color: AppColors.teal),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

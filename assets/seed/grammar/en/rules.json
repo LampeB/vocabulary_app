@@ -131,12 +131,12 @@
           "fr": "La négation avec don't"
         },
         "description": {
-          "en": "Negate with don't (doesn't for he/she/it) + the base verb.",
-          "fr": "Nier avec don't (doesn't pour he/she/it) + la base verbale."
+          "en": "Practise the present negative with I. Use don't or do not before the base verb.",
+          "fr": "Entraîne-toi à former la négation au présent avec I (je). Place don't ou do not devant le verbe à sa forme de base."
         },
         "explanation": {
-          "en": "The present simple negates with the auxiliary do: don't (do not) + base verb: I work → I don't work. For he/she/it, use doesn't — and the main verb LOSES its -s, because doesn't already carries it: she works → she doesn't work. The verb be negates directly, without do: I'm not, he isn't.",
-          "fr": "Le présent simple se nie avec l'auxiliaire do : don't (do not) + base verbale : I work → I don't work. Pour he/she/it, utilise doesn't — et le verbe principal PERD son -s, car doesn't le porte déjà : she works → she doesn't work. Le verbe be se nie directement, sans do : I'm not, he isn't."
+          "en": "With I, put don't or do not before the base form of the verb. In this exercise, you can answer don't work or do not work, or include the subject and say I don't work or I do not work. With be, put not after am. You can answer am not busy, I am not busy or I'm not busy. With he, she or it, use doesn't and drop the final -s from the main verb. For example, she works becomes she doesn't work.",
+          "fr": "Avec I (je), place don't ou do not devant le verbe à sa forme de base. Dans cet exercice, tu peux répondre don't work ou do not work, ou ajouter le sujet et dire I don't work ou I do not work. Avec be, place not après am. Tu peux répondre am not busy, I am not busy ou I'm not busy. Avec he, she ou it, utilise doesn't et retire le -s final du verbe principal. Par exemple, she works devient she doesn't work."
         },
         "prerequisite_lists": ["starter-daily-life"],
         "min_known_words": { "verbe": 5 },
@@ -158,6 +158,14 @@
           {
             "target": "I don't drink coffee.",
             "translations": { "en": "I don't drink coffee.", "fr": "Je ne bois pas de café." }
+          },
+          {
+            "target": "I do not work on Sundays.",
+            "translations": { "en": "I do not work on Sundays.", "fr": "Je ne travaille pas le dimanche." }
+          },
+          {
+            "target": "I'm not busy right now.",
+            "translations": { "en": "I'm not busy right now.", "fr": "Je ne suis pas occupé en ce moment." }
           }
         ],
         "test_vectors": [
@@ -184,8 +192,8 @@
           "fr": "Ajouter -s ; -es après s/sh/ch/x/o ; -ies après consonne + y ; certains noms sont irréguliers ou indénombrables."
         },
         "explanation": {
-          "en": "Most nouns add -s: book → books. Nouns in -s, -sh, -ch, -x, -o add -es: bus → buses. Consonant + y becomes -ies: city → cities. Some plurals are irregular: person → people. And uncountable nouns (water, milk, bread, rice…) normally have no plural at all — they stay the same.",
-          "fr": "La plupart des noms ajoutent -s : book → books. Les noms en -s, -sh, -ch, -x, -o ajoutent -es : bus → buses. Consonne + y devient -ies : city → cities. Certains pluriels sont irréguliers : person → people. Et les indénombrables (water, milk, bread, rice…) n'ont normalement pas de pluriel — ils restent identiques."
+          "en": "Most nouns add -s: book → books. Nouns in -s, -sh, -ch, -x, -o add -es: bus → buses. Consonant + y becomes -ies: city → cities. Some plurals are irregular: person → people. And uncountable nouns (water, milk, bread, rice…) normally have no plural at all — they stay the same. When ordering, a coffee means one cup. To order two, say “Two coffees, please.”",
+          "fr": "La plupart des noms ajoutent -s : book → books. Les noms en -s, -sh, -ch, -x, -o ajoutent -es : bus → buses. Consonne + y devient -ies : city → cities. Certains pluriels sont irréguliers : person → people. Et les indénombrables (water, milk, bread, rice…) n'ont normalement pas de pluriel — ils restent identiques. Quand tu commandes, a coffee désigne une tasse de café. Pour en commander deux, dis « Two coffees, please. »"
         },
         "prerequisite_lists": ["starter-food"],
         "min_known_words": { "nom": 5 },
@@ -201,7 +209,7 @@
               "meat": "meat",
               "fruit": "fruit",
               "tea": "tea",
-              "coffee": "coffee",
+              "coffee": "coffees",
               "time": "time"
             }
           }
@@ -214,6 +222,10 @@
           {
             "target": "three people",
             "translations": { "en": "three people", "fr": "trois personnes" }
+          },
+          {
+            "target": "Two coffees, please.",
+            "translations": { "en": "Two coffees, please.", "fr": "Deux cafés, s'il vous plaît." }
           }
         ],
         "test_vectors": [
@@ -223,6 +235,7 @@
           { "input": "person", "context": "irregular", "expected": "people" },
           { "input": "cell phone", "context": "compound", "expected": "cell phones" },
           { "input": "water", "context": "uncountable", "expected": "water" },
+          { "input": "coffee", "context": "countable serving", "expected": "coffees" },
           { "input": "subway", "context": "vowel+y", "expected": "subways" },
           { "input": "vegetable", "context": "-s", "expected": "vegetables" }
         ]

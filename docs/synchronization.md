@@ -67,7 +67,11 @@ L'application utilise SQLite comme source de lecture et les colonnes
   appareil tente d'éditer une branche supprimée. L'app applique l'accusé à
   la branche locale et retire la progression masquée dans la même transaction.
   Le client supprime le vocabulaire via ces tombstones. La suppression
-  physique est réservée au serveur.
+  physique est réservée au serveur. À partir de la migration 020, elle
+  retire définitivement l'identité de la liste, du concept ou de la variante
+  pour ce propriétaire. PostgreSQL refuse aussi un envoi concurrent avec
+  la purge. La file lit le tombstone canonique après ce refus et l'applique
+  dans SQLite avec les mêmes règles que les autres accusés de suppression.
 - Un partage envoie la liste ciblée et vérifie l'accusé de son token et de
   tous ses mots avant d'ouvrir le partage système. Un envoi global en cours
   partage le même travail pour cette liste. Les autres listes, la progression,
@@ -100,6 +104,11 @@ L'application utilise SQLite comme source de lecture et les colonnes
 - Dans le schéma des défis, une nouvelle référence doit viser une liste
   active visible par la personne qui écrit. Les mises à jour de résultat
   restent permises lorsque les participants et la référence sont inchangés.
+- Une liste visible aux amis exige une amitié confirmée. Le serveur enregistre
+  l'expéditeur de la demande, puis seul son destinataire peut l'accepter.
+  L'acceptation et l'ajout de l'amitié se font dans une même transaction.
+  Les amitiés historiques restent visibles dans la liste sociale. Une nouvelle
+  demande acceptée est nécessaire pour leur donner accès aux listes d'amis.
 - Chaque note calcule FSRS à partir de la progression courante, dans la
   transaction qui enregistre la réponse. Deux passages de la même carte
   incrémentent les compteurs et appliquent les transitions successives, même
@@ -149,8 +158,14 @@ L'application utilise SQLite comme source de lecture et les colonnes
   et de progressions modifiées. Le curseur et les bornes de rattrapage
   persistent entre les tentatives. Une suppression ou une insertion derrière
   le curseur d'identifiants rejoint ainsi la restauration. L'inventaire
-  initial inclut aussi les tombstones minimaux des purges physiques déjà
-  validées, même pour un cache qui n'a pas encore de curseur compatible.
+  initial et les fenêtres de rattrapage incluent les tombstones des listes,
+  concepts et variantes purgés. Les traces conservent les identifiants et
+  le lien parent nécessaire à la synchronisation. L'inventaire permet aussi
+  de retirer une purge déjà validée d'un cache sans curseur compatible.
+  La migration 020 ajoute ces garanties et l'inventaire aux installations
+  ayant appliqué la version historique de 017, en conservant leurs données
+  et les purges de listes déjà journalisées. Le journal des purges de
+  concepts et de variantes commence à l'installation de 020.
   Le rapprochement
   des starters attend la fin de la couverture et la confirmation de son
   dernier numéro. Au retour du réseau, le shell relance la récupération en
@@ -173,6 +188,8 @@ L'application utilise SQLite comme source de lecture et les colonnes
   et du catalogue. Le complément utilise les mêmes identifiants de concepts
   et de variantes que l'import. Il tient compte des suppressions déjà
   enregistrées, y compris pour une langue dont tous les mots ont été supprimés.
+  Un UUID déterministe déjà supprimé reste protégé lorsque son tombstone de
+  purge ne contient plus les métadonnées du catalogue.
   Une liste distante reçue sans son contenu complet attend la récupération
   de ses concepts avant le complément du catalogue.
   Les brouillons créés avant la première restauration restent étudiables sur

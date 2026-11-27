@@ -1,5 +1,3 @@
-import 'dart:async' show unawaited;
-
 import 'package:flutter_tts/flutter_tts.dart';
 import 'audio_service.dart';
 import 'audio_ports.dart';
@@ -214,14 +212,15 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
   Future<bool> isAvailable() async => true;
 
   @override
-  void dispose() {
+  Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
     _playbackGeneration++;
-    unawaited(
-      _stopVoices().catchError((Object error) {
-        sttLog('[TTS] disposal could not stop device speech: $error');
-      }),
-    );
+    final switching = _engineSwitch;
+    try {
+      await switching;
+    } finally {
+      await _stopVoices();
+    }
   }
 }

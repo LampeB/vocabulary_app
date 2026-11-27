@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/native.dart';
@@ -413,9 +414,9 @@ void main() {
     );
     expect(await db.vocabularyListDao.getById('restored-list'), isNotNull);
     final conceptRequest = requests.singleWhere(
-      (r) => r.url.path.endsWith('/concepts'),
+      (r) => r.url.path.endsWith('/vocabulary_pull_concepts'),
     );
-    expect(conceptRequest.url.queryParameters['owner_id'], 'eq.u');
+    expect(jsonDecode(conceptRequest.body)['p_owner_id'], 'u');
     final progressRequest = requests.singleWhere(
       (r) => r.url.path.endsWith('/variant_progress'),
     );

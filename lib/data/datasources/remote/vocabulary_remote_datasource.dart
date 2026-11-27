@@ -117,16 +117,22 @@ class VocabularyRemoteDataSource {
     VocabularyNetworkBudget? budget,
   }) async {
     try {
-      // Includes deleted concepts — same tombstone-propagation rationale
-      // as fetchLists (the local upsert carries the is_deleted flag).
+      // Both a full inventory and a changed-list window include physical
+      // purges of concepts and their variants.
       return Success(
-        await _fetchTablePages(
-          () => _client
-              .from('concepts')
-              .select('*, word_variants(*)')
-              .eq('owner_id', ownerId)
-              .eq('list_id', listId),
+        await _fetchPages(
+          (cursor) => _client
+              .rpc<List<Map<String, dynamic>>>(
+                'vocabulary_pull_concepts',
+                params: {
+                  'p_owner_id': ownerId,
+                  'p_list_id': listId,
+                  'p_after_id': cursor,
+                },
+              )
+              .order('id'),
           budget: budget,
+          project: (row) => row['value'] as Map<String, dynamic>,
         ),
       );
     } catch (e) {
@@ -154,8 +160,8 @@ class VocabularyRemoteDataSource {
     bool insertOnly,
     Map<String, dynamic>? changes,
   ) async {
+    final budget = VocabularyNetworkBudget(_writeTimeout);
     try {
-      final budget = VocabularyNetworkBudget(_writeTimeout);
       final (stamp, mutation) = VocabularyWriteStamp.take(data);
       final ownerId = data['owner_id'] as String;
       final write = _versionedTable(table, stamp)
@@ -207,6 +213,35 @@ class VocabularyRemoteDataSource {
       return Success(
         await _withAncestorTombstones(table, ownerId, existing, budget),
       );
+    } on PostgrestException catch (error) {
+      // A purge may occur after the insert or before the acknowledgement
+      // read. Only a tombstone confirmed by the owner's journal closes the
+      // local queue. Unrelated constraint failures remain errors.
+      if (const {'PV001', '23503', '23505', 'PGRST116'}.contains(error.code)) {
+        try {
+          final purged = await budget._request(
+            () => _client.rpc<Map<String, dynamic>?>(
+              'vocabulary_purge_ack',
+              params: {
+                'p_owner_id': data['owner_id'],
+                'p_kind': switch (table) {
+                  'vocabulary_lists' => 'list',
+                  'concepts' => 'concept',
+                  _ => 'variant',
+                },
+                'p_id': data['id'],
+                'p_parent_id': parentColumn == 'owner_id'
+                    ? null
+                    : data[parentColumn],
+              },
+            ),
+          );
+          if (purged != null) return Success(purged);
+        } catch (lookupError) {
+          return Failure(_writeFailure(lookupError));
+        }
+      }
+      return Failure(_writeFailure(error));
     } catch (e) {
       return Failure(_writeFailure(e));
     }

@@ -388,6 +388,7 @@
   "grammar.drill.particle_variant": "Ajoute la particule de {hint} à « {word} »",
   "grammar.drill.conjugate": "Conjugue « {word} » au présent poli",
   "grammar.drill.negate": "Mets « {word} » à la forme négative",
+  "grammar.drill.negate_en_first_person": "Mets « {word} » au présent négatif à la première personne du singulier (je). Tu peux omettre « I ». Utilise don't ou do not. Avec be, utilise am not ou I'm not.",
   "grammar.drill.negate_fr_first_person": "Pour « {word} », donne la forme négative au présent à la première personne du singulier, avec ou sans « je ».",
   "grammar.drill.spoken_word": "le mot suivant",
   "grammar.hint.subject": "sujet",

@@ -91,6 +91,34 @@ void main() {
           reason: '$lang curriculum has too few vectors',
         );
       });
+
+      if (lang == 'en') {
+        test(
+          'first-person negation accepts taught contractions and full forms',
+          () {
+            final rule = rules.firstWhere(
+              (rule) => rule.id == 'en-negation-dont',
+            );
+            expect(
+              module.apply(rule, 'to work').accepted,
+              unorderedEquals([
+                "don't work",
+                'do not work',
+                "I don't work",
+                'I do not work',
+              ]),
+            );
+            expect(
+              module.apply(rule, 'to be busy').accepted,
+              unorderedEquals(['am not busy', 'I am not busy', "I'm not busy"]),
+            );
+            expect(
+              module.apply(rule, 'to work').accepted,
+              isNot(contains("I doesn't work")),
+            );
+          },
+        );
+      }
     });
   }
 }

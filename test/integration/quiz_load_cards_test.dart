@@ -25,6 +25,8 @@ import 'package:vocab_kr/presentation/providers/quiz/quiz_availability_provider.
 import 'package:vocab_kr/services/audio/audio_player_service.dart';
 import '../helpers/fake_remote.dart';
 
+final _quiz = quizProvider(Object());
+
 /// QuizNotifier.loadCards, end to end at the provider level: due-card fetching
 /// (single + both directions, failure policy), enrichment against a real
 /// in-memory drift DB, the drop rule for unresolvable variants, and padding.
@@ -157,7 +159,7 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    final sub = container.listen(quizProvider, (_, _) {});
+    final sub = container.listen(_quiz, (_, _) {});
     return (container, sub);
   }
 
@@ -184,7 +186,7 @@ void main() {
           _due(koVariantId['개']!, QuizDirection.koToFr),
         ]),
       }, delayed: delayed);
-      final quiz = container.read(quizProvider.notifier);
+      final quiz = container.read(_quiz.notifier);
       await quiz.loadCards(args(cardLimit: 1));
       quiz.flipCard();
       quiz.setListening(true);
@@ -225,7 +227,7 @@ void main() {
         ]),
       });
 
-      await container.read(quizProvider.notifier).loadCards(args());
+      await container.read(_quiz.notifier).loadCards(args());
 
       final state = sub.read();
       expect(state.isLoading, isFalse);
@@ -253,7 +255,7 @@ void main() {
         ]),
       });
 
-      await container.read(quizProvider.notifier).loadCards(args());
+      await container.read(_quiz.notifier).loadCards(args());
       await Future<void>.delayed(Duration.zero);
 
       expect(audio.prefetchedPaths, hasLength(6));
@@ -294,7 +296,7 @@ void main() {
           _due(koVariantId['고양이']!, QuizDirection.koToFr),
         ]),
       });
-      final quiz = container.read(quizProvider.notifier);
+      final quiz = container.read(_quiz.notifier);
       await quiz.loadCards(
         args(direction: QuizDirectionChoice.koToFr, cardLimit: 1),
       );
@@ -361,9 +363,9 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    final sub = container.listen(quizProvider, (_, _) {});
+    final sub = container.listen(_quiz, (_, _) {});
     await container
-        .read(quizProvider.notifier)
+        .read(_quiz.notifier)
         .loadCards(
           const QuizArgs(
             mode: QuizMode.flashcard,
@@ -392,7 +394,7 @@ void main() {
           _due(frVariantId['chien']!, QuizDirection.frToKo),
         ]),
       });
-      final notifier = container.read(quizProvider.notifier);
+      final notifier = container.read(_quiz.notifier);
       await notifier.loadCards(args(cardLimit: 2));
       final first = sub.read().currentCard!;
       expect(audio.spokenPaths.single, first.questionAudioPath);
@@ -420,7 +422,7 @@ void main() {
     });
 
     await container
-        .read(quizProvider.notifier)
+        .read(_quiz.notifier)
         .loadCards(args(direction: QuizDirectionChoice.both, cardLimit: 4));
 
     final cards = sub.read().cards;
@@ -451,7 +453,7 @@ void main() {
       });
 
       await container
-          .read(quizProvider.notifier)
+          .read(_quiz.notifier)
           .loadCards(args(direction: QuizDirectionChoice.both, cardLimit: 4));
 
       final state = sub.read();
@@ -472,7 +474,7 @@ void main() {
     });
 
     await container
-        .read(quizProvider.notifier)
+        .read(_quiz.notifier)
         .loadCards(args(direction: QuizDirectionChoice.both, cardLimit: 4));
 
     final state = sub.read();
@@ -486,7 +488,7 @@ void main() {
       QuizDirection.frToKo: const Failure(NetworkException('down')),
     });
 
-    await container.read(quizProvider.notifier).loadCards(args());
+    await container.read(_quiz.notifier).loadCards(args());
 
     expect(sub.read().errorMessage, isNotNull);
   });
@@ -498,7 +500,7 @@ void main() {
         QuizDirection.frToKo: const Success([]),
       });
 
-      await container.read(quizProvider.notifier).loadCards(args());
+      await container.read(_quiz.notifier).loadCards(args());
 
       final state = sub.read();
       expect(state.isEmpty, isTrue);
@@ -593,9 +595,9 @@ void main() {
       });
       addTearDown(availability.close);
       expect(await container.read(due.future), 1);
-      final keptQuiz = container.listen(quizProvider, (_, _) {});
+      final keptQuiz = container.listen(_quiz, (_, _) {});
       addTearDown(keptQuiz.close);
-      final quiz = container.read(quizProvider.notifier);
+      final quiz = container.read(_quiz.notifier);
       const args = QuizArgs(
         source: QuizSource.allDue,
         mode: QuizMode.flashcard,
@@ -629,7 +631,7 @@ void main() {
         ]),
       });
 
-      await container.read(quizProvider.notifier).loadCards(args(cardLimit: 2));
+      await container.read(_quiz.notifier).loadCards(args(cardLimit: 2));
 
       final state = sub.read();
       expect(state.errorMessage, isNull);
@@ -706,9 +708,9 @@ void main() {
           )).future,
         );
         expect(available, total);
-        final reading = container.listen(quizProvider, (_, _) {});
+        final reading = container.listen(_quiz, (_, _) {});
         addTearDown(reading.close);
-        final quiz = container.read(quizProvider.notifier);
+        final quiz = container.read(_quiz.notifier);
         await quiz.loadCards(
           QuizArgs(
             listId: configuredList,
@@ -751,7 +753,7 @@ void main() {
         ]),
       });
 
-      await container.read(quizProvider.notifier).loadCards(args(cardLimit: 3));
+      await container.read(_quiz.notifier).loadCards(args(cardLimit: 3));
 
       final state = sub.read();
       expect(state.cards.length, 3);

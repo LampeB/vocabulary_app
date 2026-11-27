@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/services/audio/audio_player_service.dart';
 import 'package:vocab_kr/services/audio/audio_ports.dart';
@@ -46,7 +47,7 @@ class _FakeTts implements DeviceSpeech {
   bool get isSpeaking => speaking;
 
   @override
-  void dispose() => disposed++;
+  Future<void> dispose() async => disposed++;
 }
 
 class _FakeFilePlayer implements FileAudioPlayer {
@@ -85,10 +86,11 @@ class _FakeFilePlayer implements FileAudioPlayer {
   bool get isPlaying => playing;
 
   @override
-  void dispose() => disposed++;
+  Future<void> dispose() async => disposed++;
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   AudioPlayerService service({
     required bool premium,
     String? cachedPath,
@@ -212,6 +214,74 @@ void main() {
     finished.complete();
     await speaking;
     expect(returned, isTrue);
+  });
+
+  test('a native audio event error settles required cached playback', () async {
+    const codec = StandardMethodCodec();
+    const global = MethodChannel('xyz.luan/audioplayers.global');
+    const globalEvents = MethodChannel('xyz.luan/audioplayers.global/events');
+    const player = MethodChannel('xyz.luan/audioplayers');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    final resumed = Completer<void>();
+    MethodChannel? events;
+    Future<void> emit(ByteData payload) =>
+        messenger.handlePlatformMessage(events!.name, payload, null);
+    messenger.setMockMethodCallHandler(global, (_) async => null);
+    messenger.setMockMethodCallHandler(globalEvents, (_) async => null);
+    messenger.setMockMethodCallHandler(player, (call) async {
+      switch (call.method) {
+        case 'create':
+          events = MethodChannel(
+            'xyz.luan/audioplayers/events/${call.arguments['playerId']}',
+          );
+          messenger.setMockMethodCallHandler(events!, (_) async => null);
+        case 'setSourceUrl':
+          await emit(
+            codec.encodeSuccessEnvelope({
+              'event': 'audio.onPrepared',
+              'value': true,
+            }),
+          );
+        case 'getCurrentPosition':
+          return 0;
+        case 'resume':
+          resumed.complete();
+      }
+      return null;
+    });
+    addTearDown(() {
+      messenger.setMockMethodCallHandler(global, null);
+      messenger.setMockMethodCallHandler(globalEvents, null);
+      messenger.setMockMethodCallHandler(player, null);
+      if (events != null) messenger.setMockMethodCallHandler(events!, null);
+    });
+    final audio = AudioPlayerService(
+      usePremium: true,
+      assetCache: _FakeCache(path: '/cache/prompt.mp3'),
+      tts: _FakeTts(),
+    );
+    final playback = audio.speak(
+      'mot',
+      'fr',
+      audioPath: 'mot.mp3',
+      requirePlayback: true,
+    );
+    final failure = expectLater(
+      playback,
+      throwsA(
+        isA<PlatformException>().having(
+          (error) => error.code,
+          'code',
+          'AndroidAudioError',
+        ),
+      ),
+    );
+    await resumed.future.timeout(const Duration(seconds: 2));
+    await emit(codec.encodeErrorEnvelope(code: 'AndroidAudioError'));
+    await failure.timeout(const Duration(seconds: 2));
+    audio.dispose();
+    await audio.stop();
   });
 
   for (final dispose in [false, true]) {

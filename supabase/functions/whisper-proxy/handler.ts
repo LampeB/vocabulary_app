@@ -56,6 +56,7 @@ export async function handleTranscription(req: Request): Promise<Response> {
       },
     );
   }
+  let providerInFlight = false;
   try {
     const openAiApiKey = Deno.env.get("OPENAI_API_KEY");
     if (!openAiApiKey) {
@@ -104,6 +105,7 @@ export async function handleTranscription(req: Request): Promise<Response> {
     }
     formData.append("response_format", "json");
 
+    providerInFlight = true;
     const openAiResponse = await fetch(
       "https://api.openai.com/v1/audio/transcriptions",
       {
@@ -113,6 +115,8 @@ export async function handleTranscription(req: Request): Promise<Response> {
         signal: AbortSignal.timeout(60_000),
       },
     );
+    const responseBody = await openAiResponse.text();
+    providerInFlight = false;
     if (!openAiResponse.ok) {
       // Never relay provider detail: it can include account/billing metadata.
       return Response.json(
@@ -121,7 +125,7 @@ export async function handleTranscription(req: Request): Promise<Response> {
       );
     }
 
-    const data = await openAiResponse.json();
+    const data = JSON.parse(responseBody);
     return Response.json(
       { text: typeof data.text === "string" ? data.text.trim() : "" },
       { headers: corsHeaders },
@@ -129,6 +133,6 @@ export async function handleTranscription(req: Request): Promise<Response> {
   } catch {
     return invalidRequest();
   } finally {
-    await permit.release();
+    if (!providerInFlight) await permit.release();
   }
 }

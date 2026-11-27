@@ -152,47 +152,65 @@ class AuthRemoteDataSource implements AuthRemote {
     if (currentUser?.id != userId) return inactiveAccount;
     final studyDay = civilDate(studyDate);
     try {
-      final rows = List<Map<String, dynamic>>.from(
-        (await _client
-                .from('profiles')
-                .select('current_streak, longest_streak, last_study_date')
-                .eq('id', userId)
-                .limit(1))
-            as List,
-      );
-      if (currentUser?.id != userId) return inactiveAccount;
-      if (rows.isEmpty) return const Success(null);
-      final profile = rows.first;
-      final lastRaw = profile['last_study_date'] as String?;
-      final lastStudyDate = lastRaw == null ? null : DateTime.parse(lastRaw);
-      if (lastStudyDate != null && civilDate(lastStudyDate).isAfter(studyDay)) {
-        return const Success(null);
+      for (var attempt = 0; attempt < 3; attempt++) {
+        if (currentUser?.id != userId) return inactiveAccount;
+        final rows = List<Map<String, dynamic>>.from(
+          (await _client
+                  .from('profiles')
+                  .select('current_streak, longest_streak, last_study_date')
+                  .eq('id', userId)
+                  .limit(1))
+              as List,
+        );
+        if (currentUser?.id != userId) return inactiveAccount;
+        if (rows.isEmpty) return const Success(null);
+        final profile = rows.first;
+        final lastRaw = profile['last_study_date'] as String?;
+        final lastStudyDate = lastRaw == null ? null : DateTime.parse(lastRaw);
+        if (lastStudyDate != null &&
+            civilDate(lastStudyDate).isAfter(studyDay)) {
+          return const Success(null);
+        }
+
+        final current = profile['current_streak'] as int? ?? 0;
+        final longest = profile['longest_streak'] as int? ?? 0;
+        final update = computeStreak(
+          today: studyDay,
+          lastStudyDate: lastStudyDate,
+          currentStreak: current,
+        );
+        if (update.alreadyCountedToday) return const Success(null);
+        final newStreak = update.streak;
+
+        final date = studyDay.toIso8601String().split('T').first;
+        // Compare the counters and day actually used by computeStreak. Another
+        // completed day can still be earlier than ours and invalidate its result.
+        var write = _client
+            .from('profiles')
+            .update({
+              'current_streak': newStreak,
+              'longest_streak': newStreak > longest ? newStreak : longest,
+              'last_study_date': date,
+              'updated_at': _now().toUtc().toIso8601String(),
+            })
+            .eq('id', userId);
+        for (final field in [
+          'last_study_date',
+          'current_streak',
+          'longest_streak',
+        ]) {
+          final readValue = profile[field];
+          write = readValue == null
+              ? write.isFilter(field, null)
+              : write.eq(field, readValue);
+        }
+        final saved = await write.select('id');
+        if (saved.isNotEmpty) return const Success(null);
       }
 
-      final current = profile['current_streak'] as int? ?? 0;
-      final longest = profile['longest_streak'] as int? ?? 0;
-      final update = computeStreak(
-        today: studyDay,
-        lastStudyDate: lastStudyDate,
-        currentStreak: current,
+      return const Failure(
+        app_ex.StorageException('Concurrent study profile update'),
       );
-      if (update.alreadyCountedToday) return const Success(null);
-      final newStreak = update.streak;
-
-      final date = studyDay.toIso8601String().split('T').first;
-      // Keep any same-day or later date written while the request was pending.
-      await _client
-          .from('profiles')
-          .update({
-            'current_streak': newStreak,
-            'longest_streak': newStreak > longest ? newStreak : longest,
-            'last_study_date': date,
-            'updated_at': _now().toUtc().toIso8601String(),
-          })
-          .eq('id', userId)
-          .or('last_study_date.is.null,last_study_date.lt.$date');
-
-      return const Success(null);
     } catch (e) {
       return Failure(app_ex.UnknownException(e.toString()));
     }

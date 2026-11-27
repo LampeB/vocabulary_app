@@ -74,6 +74,20 @@ and `starter-greetings`, with a minimum of five known eligible nouns.
 The food list supplies three eligible nouns and the greetings list adds
 four. Both lists use the standard vocabulary mastery gate.
 
+## English A1 negation and plural
+
+The negative drill asks for the present tense with `I`. The learner may
+include the subject and may use either `don't` or `do not` with the base
+verb. The exercise also accepts `am not busy`, `I am not busy` and
+`I'm not busy` for `to be busy`. The prompt is available in FR, EN and KO.
+
+The plural drill uses the same serving sense of coffee as the article
+drill. Keep the `coffee` → `coffees` override and the ordering example
+“Two coffees, please.” aligned with the catalog example “A coffee, please.”
+
+The revised English negation and plural teaching text and the Korean
+negation prompt are pending native review.
+
 ## Grammar lesson pages (P3)
 
 Grammar rules may carry an optional `lesson_pages` array. It is authored

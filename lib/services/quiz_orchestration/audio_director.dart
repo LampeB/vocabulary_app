@@ -1,6 +1,9 @@
 import '../audio/audio_player_service.dart';
+import '../audio/audio_ports.dart';
 import '../audio/sound_effects_service.dart';
 import '../../core/utils/stt_debug_log.dart';
+
+enum StudyPromptResult { completed, cancelled, failed }
 
 /// Step 1 of the voice-orchestration refactor
 /// (docs/refactor-voice-orchestration.md): the single owner of "when is the
@@ -51,6 +54,10 @@ class AudioDirector {
     _audio.stop,
   ).whenComplete(() => _stopping = null);
 
+  /// Waits for the old player to release its native resources after its
+  /// provider has been replaced. An unconfirmed release stays replayable.
+  Future<void> waitForPlayerRelease() => _audio.stop().timeout(_releaseTimeout);
+
   /// Stops both speech and the separate earcon player. Unlike [stop], this is
   /// for a lifecycle interruption, where no sound may survive in background.
   Future<void> stopAll() async {
@@ -90,7 +97,7 @@ class AudioDirector {
 
   /// Plays the localized grammar instruction and then the drill word with
   /// its target-language voice. Resolves when both utterances have finished.
-  Future<bool> speakGrammarPrompt({
+  Future<StudyPromptResult> speakGrammarPrompt({
     required String instruction,
     required String instructionLang,
     required String word,
@@ -104,7 +111,7 @@ class AudioDirector {
   );
 
   /// Resolves after the word is heard, including voice setup or file playback.
-  Future<bool> speakVocabularyPrompt({
+  Future<StudyPromptResult> speakVocabularyPrompt({
     required String word,
     required String wordLang,
     required bool Function() keepGoing,
@@ -116,7 +123,7 @@ class AudioDirector {
     lines: [(word, wordLang, audioPath)],
   );
 
-  Future<bool> _speakStudyPrompt({
+  Future<StudyPromptResult> _speakStudyPrompt({
     required Future<void>? previousSpeech,
     required bool Function() keepGoing,
     required List<(String, String, String?)> lines,
@@ -125,12 +132,16 @@ class AudioDirector {
     try {
       await previousSpeech?.timeout(deadline);
       for (final (text, language, audioPath) in lines) {
-        if (!keepGoing()) return false;
+        if (!keepGoing()) return StudyPromptResult.cancelled;
         await _audio
             .speak(text, language, audioPath: audioPath, requirePlayback: true)
             .timeout(deadline);
       }
-      return keepGoing();
+      return keepGoing()
+          ? StudyPromptResult.completed
+          : StudyPromptResult.cancelled;
+    } on AudioPlaybackCancelled {
+      return StudyPromptResult.cancelled;
     } catch (error) {
       sttLog('[TTS] study prompt failed: $error');
       if (keepGoing()) {
@@ -140,7 +151,7 @@ class AudioDirector {
           sttLog('[TTS] study prompt stop failed: $error');
         }
       }
-      return false;
+      return StudyPromptResult.failed;
     }
   }
 

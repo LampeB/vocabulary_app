@@ -59,6 +59,7 @@ export async function handleTranscription(req: Request): Promise<Response> {
       },
     );
   }
+  let providerInFlight = false;
   try {
     const elevenLabsApiKey = Deno.env.get("ELEVENLABS_API_KEY");
     if (!elevenLabsApiKey) {
@@ -111,6 +112,7 @@ export async function handleTranscription(req: Request): Promise<Response> {
       formData.append("keyterms", expected_word.trim());
     }
 
+    providerInFlight = true;
     const response = await fetch(
       "https://api.elevenlabs.io/v1/speech-to-text",
       {
@@ -120,6 +122,8 @@ export async function handleTranscription(req: Request): Promise<Response> {
         signal: AbortSignal.timeout(60_000),
       },
     );
+    const responseBody = await response.text();
+    providerInFlight = false;
     if (!response.ok) {
       // Provider details can contain subscription information; never relay it.
       return Response.json(
@@ -127,7 +131,7 @@ export async function handleTranscription(req: Request): Promise<Response> {
         { status: 502, headers: corsHeaders },
       );
     }
-    const data = await response.json();
+    const data = JSON.parse(responseBody);
     return Response.json(
       { text: typeof data.text === "string" ? data.text.trim() : "" },
       { headers: corsHeaders },
@@ -135,6 +139,6 @@ export async function handleTranscription(req: Request): Promise<Response> {
   } catch {
     return invalidRequest();
   } finally {
-    await permit.release();
+    if (!providerInFlight) await permit.release();
   }
 }

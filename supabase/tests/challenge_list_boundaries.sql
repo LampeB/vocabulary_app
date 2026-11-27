@@ -12,8 +12,8 @@ INSERT INTO public.vocabulary_lists(owner_id,id,name,visibility,is_deleted) VALU
   ('19000000-0000-4000-8000-000000000003','19000000-0000-4000-8000-000000000013','Collision','private',false),
   ('19000000-0000-4000-8000-000000000001','19000000-0000-4000-8000-000000000014','Owned','private',false),
   ('19000000-0000-4000-8000-000000000003','19000000-0000-4000-8000-000000000015','Friends','friends',false);
-INSERT INTO public.friendships(user_a_id,user_b_id) VALUES
-  ('19000000-0000-4000-8000-000000000001','19000000-0000-4000-8000-000000000003');
+INSERT INTO public.friendships(user_a_id,user_b_id,consent_verified) VALUES
+  ('19000000-0000-4000-8000-000000000001','19000000-0000-4000-8000-000000000003',true);
 -- A former participant's challenge may still refer to its original list.
 INSERT INTO public.challenges(id,challenger_id,challenged_id,list_owner_id,list_id) VALUES
   ('19000000-0000-4000-8000-000000000021','19000000-0000-4000-8000-000000000003',
