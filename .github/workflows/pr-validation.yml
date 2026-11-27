@@ -104,7 +104,7 @@ jobs:
           for migration in 008_e2e_reset 009_e2e_scenario_accounts 010_provider_quota_buckets 011_sync_identity 012_security_boundaries 013_e2e_isolation 014_vocabulary_tombstones 015_vocabulary_owner_namespace add_subscription_type; do
             psql -v ON_ERROR_STOP=1 -f "supabase/migrations/${migration}.sql"
             case "$migration" in
-              009_*|012_*) psql -v ON_ERROR_STOP=1 -f supabase/tests/e2e_reset_before_activation.sql ;;
+              009_*|012_*|013_*|014_*) psql -v ON_ERROR_STOP=1 -f supabase/tests/e2e_reset_before_activation.sql ;;
             esac
           done
           for test in provider_quota security_boundaries reset_e2e_account e2e_scenario_accounts e2e_isolation vocabulary_tombstones vocabulary_owner_namespace; do

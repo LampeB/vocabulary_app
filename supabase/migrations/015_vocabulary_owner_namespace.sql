@@ -279,5 +279,41 @@ ALTER TABLE public.word_variants ENABLE TRIGGER word_variants_guard_tombstone;
 ALTER TABLE public.variant_progress ENABLE TRIGGER e2e_guard_shared_write;
 ALTER TABLE public.challenges ENABLE TRIGGER e2e_guard_shared_write;
 
+-- This versioned response admits Patrol only on the schema it exercises.
+CREATE FUNCTION public.e2e_patrol_contract()
+RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  SELECT CASE WHEN public.e2e_isolation_ready()
+    AND (SELECT count(*) = 3 FROM pg_catalog.pg_trigger
+      WHERE tgenabled IN ('O', 'A') AND (
+        (tgrelid = to_regclass('public.vocabulary_lists')
+         AND tgname = 'vocabulary_lists_keep_tombstone' AND tgtype = 19
+         AND tgfoid = to_regprocedure('public.keep_vocabulary_tombstone()'))
+        OR (tgfoid = to_regprocedure('public.guard_vocabulary_child_tombstone()') AND tgtype = 23
+            AND ((tgrelid = to_regclass('public.concepts') AND tgname = 'concepts_guard_tombstone')
+              OR (tgrelid = to_regclass('public.word_variants') AND tgname = 'word_variants_guard_tombstone')))))
+    AND (SELECT count(*) = 3 FROM pg_catalog.pg_constraint
+      WHERE contype = 'p'
+        AND conrelid IN (to_regclass('public.vocabulary_lists'), to_regclass('public.concepts'),
+                        to_regclass('public.word_variants'))
+        AND pg_catalog.pg_get_constraintdef(oid) = 'PRIMARY KEY (owner_id, id)')
+    AND EXISTS (SELECT 1 FROM pg_catalog.pg_constraint
+      WHERE contype = 'u' AND conrelid = to_regclass('public.variant_progress')
+        AND pg_catalog.pg_get_constraintdef(oid) = 'UNIQUE (user_id, variant_owner_id, variant_id, direction)')
+    THEN 'owner-scoped-v1' END;
+$$;
+REVOKE ALL ON FUNCTION public.e2e_patrol_contract() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.e2e_patrol_contract() TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.reset_e2e_account(p_scenario_id text)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF public.e2e_patrol_contract() IS DISTINCT FROM 'owner-scoped-v1' THEN
+    RAISE EXCEPTION 'E2E isolation or owner namespace is unavailable; reset refused' USING ERRCODE = '55000';
+  END IF;
+  RETURN e2e_private.reset_e2e_account(p_scenario_id);
+END $$;
+REVOKE ALL ON FUNCTION public.reset_e2e_account(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.reset_e2e_account(text) TO authenticated;
+
 NOTIFY pgrst, 'reload schema';
 COMMIT;

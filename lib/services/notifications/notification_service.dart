@@ -19,6 +19,8 @@ class NotificationService {
 
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+  final _scheduleGenerations = <int, int>{};
+  final _platformOperations = <int, Future<void>>{};
 
   Future<tz.TZDateTime> _nowForScheduling() async {
     const channel = MethodChannel('vocab_kr/device_time_zone');
@@ -87,11 +89,14 @@ class NotificationService {
 
   // ─── Daily study reminder ─────────────────────────────────────────────────
 
-  Future<void> scheduleDailyReminder({int hour = 9, int minute = 0}) async {
-    await cancelDailyReminder();
+  Future<void> scheduleDailyReminder({int hour = 9, int minute = 0}) =>
+      _schedule(
+        _dailyReminderId,
+        (now) => nextDailyReminder(now, hour, minute),
+        _scheduleDailyReminder,
+      );
 
-    final next = nextDailyReminder(await _nowForScheduling(), hour, minute);
-
+  Future<void> _scheduleDailyReminder(tz.TZDateTime next) async {
     try {
       await _plugin.zonedSchedule(
         _dailyReminderId,
@@ -126,12 +131,16 @@ class NotificationService {
 
   // Schedules a one-off warning for today at 20:00 if the user has a streak
   // and hasn't studied yet. Call after app launch / profile load.
-  Future<void> scheduleStreakWarning(int streakDays) async {
-    await cancelStreakWarning();
+  Future<void> scheduleStreakWarning(int streakDays) => _schedule(
+    _streakWarningId,
+    (now) => streakWarningSlot(now, streakDays),
+    (warning) => _scheduleStreakWarning(streakDays, warning),
+  );
 
-    final warning = streakWarningSlot(await _nowForScheduling(), streakDays);
-    if (warning == null) return;
-
+  Future<void> _scheduleStreakWarning(
+    int streakDays,
+    tz.TZDateTime warning,
+  ) async {
     try {
       await _plugin.zonedSchedule(
         _streakWarningId,
@@ -161,9 +170,82 @@ class NotificationService {
     }
   }
 
-  Future<void> cancelDailyReminder() => _plugin.cancel(_dailyReminderId);
-  Future<void> cancelStreakWarning() => _plugin.cancel(_streakWarningId);
-  Future<void> cancelAll() => _plugin.cancelAll();
+  int _invalidate(int id) => _scheduleGenerations.update(
+    id,
+    (generation) => generation + 1,
+    ifAbsent: () => 1,
+  );
+
+  Future<void> _schedule(
+    int id,
+    tz.TZDateTime? Function(tz.TZDateTime) nextSlot,
+    Future<void> Function(tz.TZDateTime) write,
+  ) async {
+    final generation = _invalidate(id);
+    bool current() => _scheduleGenerations[id] == generation;
+    await _orderPlatformOperation(id, () async {
+      if (current()) await _plugin.cancel(id);
+    });
+    if (!current()) return;
+
+    // Resolve the zone outside the platform queue. Cancel and subsequent
+    // requests remain usable if this reply is slow or never arrives.
+    final now = await _nowForScheduling();
+    if (!current()) return;
+    final slot = nextSlot(now);
+    if (slot == null) return;
+    await _orderPlatformOperation(id, () async {
+      if (current()) await write(slot);
+    });
+  }
+
+  Future<void> _orderPlatformOperation(int id, Future<void> Function() action) {
+    final operation = (_platformOperations[id] ?? Future<void>.value()).then(
+      (_) => action(),
+    );
+    _trackPlatformOperation(operation, [id]);
+    return operation;
+  }
+
+  void _trackPlatformOperation(Future<void> operation, List<int> ids) {
+    late final Future<void> settled;
+    void release() {
+      for (final id in ids) {
+        if (identical(_platformOperations[id], settled)) {
+          _platformOperations.remove(id);
+        }
+      }
+    }
+
+    settled = operation.then<void>(
+      (_) => release(),
+      onError: (Object _, StackTrace _) => release(),
+    );
+    for (final id in ids) {
+      _platformOperations[id] = settled;
+    }
+  }
+
+  Future<void> _cancel(int id) {
+    _invalidate(id);
+    return _orderPlatformOperation(id, () => _plugin.cancel(id));
+  }
+
+  Future<void> cancelDailyReminder() => _cancel(_dailyReminderId);
+  Future<void> cancelStreakWarning() => _cancel(_streakWarningId);
+
+  Future<void> cancelAll() {
+    _invalidate(_dailyReminderId);
+    _invalidate(_streakWarningId);
+    final operation = Future.wait(
+      _platformOperations.values,
+    ).then((_) => _plugin.cancelAll());
+    _trackPlatformOperation(operation, const [
+      _dailyReminderId,
+      _streakWarningId,
+    ]);
+    return operation;
+  }
 
   void _onTapped(NotificationResponse response) {
     // Navigation is handled by the app shell listening to this stream.

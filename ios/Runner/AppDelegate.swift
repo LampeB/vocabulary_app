@@ -14,6 +14,7 @@ import UIKit
     GeneratedPluginRegistrant.register(with: self)
     if let registrar = registrar(forPlugin: "VocabKrNativeBridge") {
       systemSpeech = SystemSpeechCapture(messenger: registrar.messenger())
+      SttDiagnosticStorage.register(messenger: registrar.messenger())
       FlutterMethodChannel(
         name: "vocab_kr/device_time_zone",
         binaryMessenger: registrar.messenger()
@@ -26,6 +27,67 @@ import UIKit
       }
     }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+}
+
+private enum SttDiagnosticStorage {
+  private static let directories = ["stt_corpus", "stt_logs"]
+
+  static func register(messenger: FlutterBinaryMessenger) {
+    // Reapply the exclusion to diagnostic directories from earlier builds
+    // even when this launch does not enable diagnostics.
+    for name in directories {
+      do {
+        _ = try prepare(name, create: false)
+      } catch {
+        NSLog("Could not exclude the existing STT diagnostic directory from backup")
+      }
+    }
+    FlutterMethodChannel(
+      name: "vocab_kr/stt_diagnostics_storage", binaryMessenger: messenger
+    ).setMethodCallHandler { call, result in
+      guard call.method == "prepare" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      guard let name = call.arguments as? String, directories.contains(name) else {
+        result(FlutterError(code: "stt_directory", message: "Unknown STT directory", details: nil))
+        return
+      }
+      do {
+        result(try prepare(name, create: true)?.path)
+      } catch {
+        result(FlutterError(
+          code: "stt_backup_exclusion",
+          message: "Could not confirm STT backup exclusion",
+          details: nil))
+      }
+    }
+  }
+
+  private static func prepare(_ name: String, create: Bool) throws -> URL? {
+    let manager = FileManager.default
+    let documents = try manager.url(
+      for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: create)
+    var directory = documents.appendingPathComponent(name, isDirectory: true)
+    if !manager.fileExists(atPath: directory.path) {
+      guard create else { return nil }
+      try manager.createDirectory(at: directory, withIntermediateDirectories: false)
+    }
+    let kind = try directory.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+    guard kind.isDirectory == true, kind.isSymbolicLink == false else {
+      throw CocoaError(.fileReadUnknown)
+    }
+    var attributes = URLResourceValues()
+    attributes.isExcludedFromBackup = true
+    try directory.setResourceValues(attributes)
+    // Read the flag independently of the URL used to set it.
+    let checked = try URL(fileURLWithPath: directory.path, isDirectory: true)
+      .resourceValues(forKeys: [.isExcludedFromBackupKey])
+    guard checked.isExcludedFromBackup == true else {
+      throw CocoaError(.fileWriteUnknown)
+    }
+    return directory
   }
 }
 

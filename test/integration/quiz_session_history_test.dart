@@ -9,6 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/core/utils/fsrs_algorithm.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
+import 'package:vocab_kr/data/datasources/remote/vocabulary_remote_datasource.dart'
+    show VocabularyNetworkBudget;
 import 'package:vocab_kr/data/models/concept_dto.dart';
 import 'package:vocab_kr/data/models/variant_progress_dto.dart';
 import 'package:vocab_kr/data/models/vocabulary_list_dto.dart';
@@ -132,19 +134,23 @@ class _StarterRestoreRemote extends FakeRemote {
   late Map<String, dynamic> progress;
 
   @override
-  Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async =>
-      Success([list]);
+  Future<Result<List<Map<String, dynamic>>>> fetchLists(
+    String ownerId, {
+    VocabularyNetworkBudget? budget,
+  }) async => Success([list]);
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
     String listId, {
     required String ownerId,
+    VocabularyNetworkBudget? budget,
   }) async => Success([concept]);
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchProgress(
-    String userId,
-  ) async => Success([progress]);
+    String userId, {
+    VocabularyNetworkBudget? budget,
+  }) async => Success([progress]);
 }
 
 void main() {

@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../domain/entities/vocabulary_list.dart';
 import '../providers/lists/vocabulary_provider.dart';
+import 'scroll_affordance.dart';
 
 Future<void> showListPreviewSheet(BuildContext context, VocabularyList list) =>
     showModalBottomSheet<void>(
@@ -29,75 +30,80 @@ class _ListPreviewSheet extends ConsumerWidget {
     return SafeArea(
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
+          maxHeight: MediaQuery.sizeOf(context).height * .7,
         ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      list.name,
-                      style: AppTextStyles.grotesk(20, FontWeight.w700),
-                    ),
-                  ),
-                  Text(
-                    '${Languages.flagFor(list.langA)} → '
-                    '${Languages.flagFor(list.langB)}',
-                    style: AppTextStyles.body,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Flexible(
-                child: conceptsAsync.when(
-                  loading: () => const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: CircularProgressIndicator(
-                        color: AppColors.clay,
-                        strokeWidth: 2,
-                      ),
-                    ),
-                  ),
-                  error: (_, _) => Text('common.error'.tr()),
-                  data: (concepts) {
-                    final visible = concepts
-                        .where((c) => !c.isDeleted)
-                        .toList();
-                    if (visible.isEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: ScrollAffordance.slivers(
+          hint: 'v3.scroll_hint'.tr(),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Semantics(
+                        header: true,
                         child: Text(
-                          'start_session.empty_lists'.tr(),
-                          style: AppTextStyles.body.copyWith(
-                            color: AppColors.muted,
-                          ),
+                          list.name,
+                          style: AppTextStyles.grotesk(20, FontWeight.w700),
                         ),
-                      );
-                    }
-                    return ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: visible.length,
-                      separatorBuilder: (_, _) => Divider(
-                        height: 1,
-                        color: Theme.of(context).colorScheme.outline,
                       ),
-                      itemBuilder: (_, i) => _PreviewRow(
-                        conceptId: visible[i].id,
-                        langA: list.langA,
-                        langB: list.langB,
-                      ),
-                    );
-                  },
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '${Languages.flagFor(list.langA)} → ${Languages.flagFor(list.langB)}',
+                      style: AppTextStyles.body,
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+            conceptsAsync.when(
+              loading: () => const SliverToBoxAdapter(
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(
+                      color: AppColors.clay,
+                      strokeWidth: 2,
+                    ),
+                  ),
+                ),
+              ),
+              error: (_, _) =>
+                  SliverToBoxAdapter(child: Text('common.error'.tr())),
+              data: (concepts) {
+                final visible = concepts
+                    .where((concept) => !concept.isDeleted)
+                    .toList();
+                if (visible.isEmpty) {
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Text(
+                        'start_session.empty_lists'.tr(),
+                        style: AppTextStyles.body,
+                      ),
+                    ),
+                  );
+                }
+                return SliverList.separated(
+                  itemCount: visible.length,
+                  separatorBuilder: (_, _) => Divider(
+                    height: 1,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                  itemBuilder: (_, i) => _PreviewRow(
+                    conceptId: visible[i].id,
+                    langA: list.langA,
+                    langB: list.langB,
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );

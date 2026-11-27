@@ -18,6 +18,7 @@ import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/grammar/grammar_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
+import 'package:vocab_kr/presentation/providers/quiz/quiz_availability_provider.dart';
 import 'package:vocab_kr/presentation/screens/grammar/grammar_lesson_screen.dart';
 import 'package:vocab_kr/presentation/screens/grammar/grammar_screen.dart';
 import 'package:vocab_kr/presentation/screens/home/daily_path_screen.dart';
@@ -117,6 +118,9 @@ void main() {
         ),
         dueCountProvider.overrideWith((ref) => Stream.value(4)),
         dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(4)),
+        quizAvailabilityProvider.overrideWith(
+          (ref, q) => Stream.value(q.source == QuizSource.allDue ? 4 : 0),
+        ),
         studiedListIdsProvider.overrideWith((ref) => Stream.value(studied)),
         grammarPrerequisiteNameKeysProvider.overrideWith(
           (ref) async => {
@@ -268,6 +272,9 @@ void main() {
           (ref) => Stream.value([_list('l1', 'Animaux')]),
         ),
         dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(4)),
+        quizAvailabilityProvider.overrideWith(
+          (ref, q) => Stream.value(q.source == QuizSource.allDue ? 4 : 0),
+        ),
         studiedListIdsProvider.overrideWith((ref) => Stream.value(const {})),
         grammarRulesProvider.overrideWith((ref, lang) async => [rule]),
         ruleStatusesProvider.overrideWith(

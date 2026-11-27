@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import '../../core/utils/stt_diagnostics.dart';
+import '../../core/utils/stt_diagnostics_directory.dart';
 
 /// Minimal port around the native microphone recorder used by the corpus lab.
 /// The corpus manifest and file lifecycle can then be tested on a desktop
@@ -237,6 +238,11 @@ class SttCorpusRecorder {
   Future<List<SttCorpusSample>> samples() async {
     if (!sttDiagnosticsEnabled) return const [];
     final manifest = await _manifest();
+    if (manifest == null) return const [];
+    return _readSamples(manifest);
+  }
+
+  Future<List<SttCorpusSample>> _readSamples(File manifest) async {
     if (!await manifest.exists()) return const [];
     try {
       final decoded = jsonDecode(await manifest.readAsString()) as List;
@@ -261,6 +267,7 @@ class SttCorpusRecorder {
     if (recorder == null || word.trim().isEmpty || isRecording) return false;
     if (!await recorder.hasPermission()) return false;
     final directory = await _directory();
+    if (directory == null) return false;
     final now = _clock();
     final id = '${now.millisecondsSinceEpoch}_$langCode';
     final pending = SttCorpusSample(
@@ -298,8 +305,9 @@ class SttCorpusRecorder {
     _pending = null;
     final path = await recorder.stop();
     if (path == null || !await File(path).exists()) return null;
-    final all = await samples();
     final manifest = await _manifest();
+    if (manifest == null) return null;
+    final all = await _readSamples(manifest);
     await manifest.writeAsString(
       jsonEncode([pending.toJson(), ...all.map((sample) => sample.toJson())]),
     );
@@ -311,84 +319,62 @@ class SttCorpusRecorder {
     required String sampleId,
     required String? transcript,
     required int? durationMs,
-  }) async {
-    if (!sttDiagnosticsEnabled) return;
-    final all = await samples();
-    final updated = all
-        .map(
-          (sample) => sample.id == sampleId
-              ? sample.withWhisperResult(
-                  transcript: transcript,
-                  durationMs: durationMs,
-                )
-              : sample,
-        )
-        .toList();
-    final manifest = await _manifest();
-    await manifest.writeAsString(
-      jsonEncode(updated.map((sample) => sample.toJson()).toList()),
-    );
-  }
+  }) => _saveResult(
+    sampleId,
+    (sample) => sample.withWhisperResult(
+      transcript: transcript,
+      durationMs: durationMs,
+    ),
+  );
 
   /// Persists a cloud OpenAI benchmark alongside the local result.
   Future<void> saveOpenAiResult({
     required String sampleId,
     required String? transcript,
     required int? durationMs,
-  }) async {
-    if (!sttDiagnosticsEnabled) return;
-    final all = await samples();
-    final updated = all
-        .map(
-          (sample) => sample.id == sampleId
-              ? sample.withOpenAiResult(
-                  transcript: transcript,
-                  durationMs: durationMs,
-                )
-              : sample,
-        )
-        .toList();
-    final manifest = await _manifest();
-    await manifest.writeAsString(
-      jsonEncode(updated.map((sample) => sample.toJson()).toList()),
-    );
-  }
+  }) => _saveResult(
+    sampleId,
+    (sample) =>
+        sample.withOpenAiResult(transcript: transcript, durationMs: durationMs),
+  );
 
   /// Persists an ElevenLabs Scribe benchmark alongside the other engines.
   Future<void> saveElevenLabsResult({
     required String sampleId,
     required String? transcript,
     required int? durationMs,
-  }) async {
+  }) => _saveResult(
+    sampleId,
+    (sample) => sample.withElevenLabsResult(
+      transcript: transcript,
+      durationMs: durationMs,
+    ),
+  );
+
+  Future<void> _saveResult(
+    String sampleId,
+    SttCorpusSample Function(SttCorpusSample) update,
+  ) async {
     if (!sttDiagnosticsEnabled) return;
-    final all = await samples();
-    final updated = all
-        .map(
-          (sample) => sample.id == sampleId
-              ? sample.withElevenLabsResult(
-                  transcript: transcript,
-                  durationMs: durationMs,
-                )
-              : sample,
-        )
-        .toList();
     final manifest = await _manifest();
+    if (manifest == null) return;
+    final all = await _readSamples(manifest);
     await manifest.writeAsString(
-      jsonEncode(updated.map((sample) => sample.toJson()).toList()),
+      jsonEncode([
+        for (final sample in all)
+          (sample.id == sampleId ? update(sample) : sample).toJson(),
+      ]),
     );
   }
 
-  Future<Directory> _directory() async {
-    final docs = await _documentsDirectory();
-    final directory = Directory(
-      '${docs.path}${Platform.pathSeparator}stt_corpus',
-    );
-    if (!await directory.exists()) await directory.create(recursive: true);
-    return directory;
-  }
+  Future<Directory?> _directory() async => prepareSttDiagnosticsDirectory(
+    await _documentsDirectory(),
+    SttDiagnosticsFolder.corpus,
+  );
 
-  Future<File> _manifest() async {
+  Future<File?> _manifest() async {
     final directory = await _directory();
+    if (directory == null) return null;
     return File('${directory.path}${Platform.pathSeparator}manifest.json');
   }
 

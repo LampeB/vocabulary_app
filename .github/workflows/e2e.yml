@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   suites:
-    if: github.ref == 'refs/heads/main' && vars.PATROL_E2E_ACTIVATION == 'isolated-v1'
+    if: github.ref == 'refs/heads/main' && vars.PATROL_E2E_ACTIVATION == 'owner-scoped-v1'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - name: Verify hosted isolation before any Patrol suite
+      - name: Verify the hosted Patrol schema before selecting suites
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -44,7 +44,7 @@ jobs:
 
   e2e:
     needs: suites
-    if: github.ref == 'refs/heads/main' && vars.PATROL_E2E_ACTIVATION == 'isolated-v1'
+    if: github.ref == 'refs/heads/main' && vars.PATROL_E2E_ACTIVATION == 'owner-scoped-v1'
     environment: patrol-e2e
     name: E2E (${{ matrix.target }})
     runs-on: ubuntu-latest

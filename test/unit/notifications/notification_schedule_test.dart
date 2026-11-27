@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +9,31 @@ import 'package:vocab_kr/presentation/providers/notifications/notification_provi
 import 'package:vocab_kr/services/notifications/notification_schedule.dart';
 import 'package:vocab_kr/services/notifications/notification_service.dart';
 
+Future<NotificationService> _mockNotifications(
+  WidgetTester tester, {
+  required FutureOr<String> Function() timeZone,
+  required FutureOr<Object?> Function(MethodCall) onNotification,
+}) async {
+  const zone = MethodChannel('vocab_kr/device_time_zone');
+  const notifications = MethodChannel(
+    'dexterous.com/flutter/local_notifications',
+  );
+  final messenger = tester.binding.defaultBinaryMessenger;
+  AndroidFlutterLocalNotificationsPlugin.registerWith();
+  messenger.setMockMethodCallHandler(zone, (_) async => timeZone());
+  messenger.setMockMethodCallHandler(notifications, (call) async {
+    if (call.method == 'initialize') return true;
+    return onNotification(call);
+  });
+  addTearDown(() {
+    messenger.setMockMethodCallHandler(zone, null);
+    messenger.setMockMethodCallHandler(notifications, null);
+  });
+  final service = NotificationService.instance;
+  await service.init();
+  return service;
+}
+
 /// The *when/whether* of notifications is pure wall-clock logic (extracted from
 /// NotificationService so it's testable without the native plugin or a device).
 void main() {
@@ -15,29 +42,125 @@ void main() {
   testWidgets(
     'daily schedule sends 09:00 in the device zone to Android',
     (tester) async {
-      const zone = MethodChannel('vocab_kr/device_time_zone');
-      const notifications = MethodChannel(
-        'dexterous.com/flutter/local_notifications',
-      );
-      final messenger = tester.binding.defaultBinaryMessenger;
-      AndroidFlutterLocalNotificationsPlugin.registerWith();
-      messenger.setMockMethodCallHandler(zone, (_) async => 'Europe/Paris');
       final schedules = <Map<Object?, Object?>>[];
-      messenger.setMockMethodCallHandler(notifications, (call) async {
-        if (call.method == 'zonedSchedule') {
-          schedules.add(call.arguments as Map<Object?, Object?>);
-        }
-        return call.method == 'initialize' ? true : null;
-      });
-      addTearDown(() {
-        messenger.setMockMethodCallHandler(zone, null);
-        messenger.setMockMethodCallHandler(notifications, null);
-      });
-      final service = NotificationService.instance;
-      await service.init();
+      final service = await _mockNotifications(
+        tester,
+        timeZone: () => 'Europe/Paris',
+        onNotification: (call) {
+          if (call.method == 'zonedSchedule') {
+            schedules.add(call.arguments as Map<Object?, Object?>);
+          }
+          return null;
+        },
+      );
       await service.scheduleDailyReminder();
       expect(schedules.single['timeZoneName'], 'Europe/Paris');
       expect(schedules.single['scheduledDateTime'], endsWith('T09:00:00'));
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
+
+  for (final streak in [false, true]) {
+    testWidgets(
+      'cancel invalidates the pending device zone lookup (streak: $streak)',
+      (tester) async {
+        final zone = ['Europe/Paris', 'Pacific/Tahiti', 'Asia/Tokyo']
+            .firstWhere(
+              (name) => tz.TZDateTime.now(tz.getLocation(name)).hour < 18,
+            );
+        final delayedZone = Completer<String>();
+        final calls = <MethodCall>[];
+        var lookups = 0;
+        final service = await _mockNotifications(
+          tester,
+          timeZone: () => ++lookups == 1 ? delayedZone.future : zone,
+          onNotification: (call) {
+            calls.add(call);
+            return null;
+          },
+        );
+        final old = streak
+            ? service.scheduleStreakWarning(7)
+            : service.scheduleDailyReminder(hour: 9);
+        await tester.pump();
+        expect(lookups, 1);
+
+        if (streak) {
+          await service.cancelStreakWarning();
+        } else {
+          await service.cancelDailyReminder();
+        }
+        expect(calls.map((call) => call.method), ['cancel', 'cancel']);
+        if (streak) {
+          await service.scheduleStreakWarning(11);
+        } else {
+          await service.scheduleDailyReminder(hour: 11);
+        }
+        expect(lookups, 2);
+        delayedZone.complete(zone);
+        await old;
+
+        final schedule = calls
+            .where((call) => call.method == 'zonedSchedule')
+            .single;
+        expect(schedule.arguments['id'], streak ? 2 : 1);
+        if (streak) {
+          expect(schedule.arguments['body'], contains('11-day'));
+        } else {
+          expect(
+            schedule.arguments['scheduledDateTime'],
+            endsWith('T11:00:00'),
+          );
+        }
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.android),
+    );
+  }
+
+  testWidgets(
+    'cancelAll drains an active platform write and invalidates the other ID',
+    (tester) async {
+      final nativeWrite = Completer<void>();
+      final delayedZone = Completer<String>();
+      final operations = <String>[];
+      var lookups = 0;
+      var writes = 0;
+      final service = await _mockNotifications(
+        tester,
+        timeZone: () => ++lookups == 2 ? delayedZone.future : 'Europe/Paris',
+        onNotification: (call) async {
+          operations.add(call.method);
+          if (call.method == 'zonedSchedule' && ++writes == 1) {
+            await nativeWrite.future;
+          }
+          return null;
+        },
+      );
+      final active = service.scheduleDailyReminder();
+      await tester.pump();
+      expect(writes, 1);
+      final stale = service.scheduleStreakWarning(4);
+      await tester.pump();
+      expect(lookups, 2);
+      final cancellation = service.cancelAll();
+      final replacement = service.scheduleDailyReminder(hour: 11);
+      await tester.pump();
+      expect(operations, ['cancel', 'zonedSchedule', 'cancel']);
+
+      nativeWrite.complete();
+      await active;
+      await cancellation;
+      await replacement;
+      delayedZone.complete('Europe/Paris');
+      await stale;
+      expect(operations, [
+        'cancel',
+        'zonedSchedule',
+        'cancel',
+        'cancelAll',
+        'cancel',
+        'zonedSchedule',
+      ]);
     },
     variant: TargetPlatformVariant.only(TargetPlatform.android),
   );

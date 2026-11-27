@@ -1,4 +1,6 @@
 {
+  "common.retry": "다시 시도",
+  "quiz.no_cards_available": "이 선택에 해당하는 카드가 없어요.",
   "free_practice.source": "학습할 내용",
   "v3.card_answer": "정답",
   "v3.card_take": "카드를 확인하세요",

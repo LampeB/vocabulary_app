@@ -13,10 +13,15 @@ import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
 // ---------------------------------------------------------------------------
 class _FakeRemote implements VocabularyRemoteDataSource {
   @override
-  Future<ProvisionedAudio?> provisionAudio(String variantId) async => null;
+  Future<ProvisionedAudio?> provisionAudio(
+    String variantId, {
+    required String ownerId,
+  }) async => null;
   @override
-  Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async =>
-      const Success([]);
+  Future<Result<List<Map<String, dynamic>>>> fetchLists(
+    String ownerId, {
+    VocabularyNetworkBudget? budget,
+  }) async => const Success([]);
 
   @override
   Future<Result<Map<String, dynamic>>> upsertList(
@@ -32,6 +37,7 @@ class _FakeRemote implements VocabularyRemoteDataSource {
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
     String listId, {
     required String ownerId,
+    VocabularyNetworkBudget? budget,
   }) async => const Success([]);
 
   @override
@@ -50,8 +56,9 @@ class _FakeRemote implements VocabularyRemoteDataSource {
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchProgress(
-    String userId,
-  ) async => const Success([]);
+    String userId, {
+    VocabularyNetworkBudget? budget,
+  }) async => const Success([]);
 
   @override
   Future<Result<Map<String, dynamic>>> upsertProgress(

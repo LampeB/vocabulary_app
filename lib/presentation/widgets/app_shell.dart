@@ -263,7 +263,7 @@ class _NavTile extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = active
         ? (isDark ? AppColors.onDark : AppColors.ink)
-        : (isDark ? AppColors.onDarkFaint : AppColors.faint);
+        : (isDark ? AppColors.onDarkMuted : AppColors.muted);
     return Semantics(
       selected: active,
       child: TextButton(

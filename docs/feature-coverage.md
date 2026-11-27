@@ -49,9 +49,10 @@
 
 | Behavior | Status | Verified by |
 |---|---|---|
-| Session setup (list/mode/direction/count accordion) | ✅ | widget `start_session` (args captured exactly) + E2E |
+| Full session setup for lessons and existing detailed entries | ✅ | widget `start_session` captures arguments and rule/pair; this is not the plateau free-practice entry |
+| Plateau free practice: Quoi/Sens/Mode sheet | ✅ | widget `free_practice_sheet`: selected pair/direction/source, empty pools, long preview and keyboard; `localized_free_practice` uses the production locale configuration |
 | Smart lists ("À réviser maintenant" / "En cours") + cross-list queries | ✅ | integration `smart_lists_test` (due vs future vs new vs deleted semantics, use-case routing) + widget (tile → allDue/inProgress args, CTA without a list) |
-| Home "À réviser" one-tap → all-due session | ✅ | widget (card CTA → /quiz with allDue args, no accordion) |
+| Active plateau → daily path → due-review mode → quiz | ✅ | widgets `daily_path_screen` / `quiz_screen`, plus provider tests for bidirectional availability and the session cap; the former Home one-tap path is historical |
 | Session assembly (both-directions interleave, cap, padding, drop rule, failure policy) | ✅ | unit `session_assembly` + provider `quiz_load_cards` |
 | Vocabulary flashcards: flip, self-grade and FSRS good/again (decision 2026-08-08 in `design/map/quiz-canvas.md`) | ✅ | widget `quiz_screen`: both grading controls persist the schedule once. Grammar cards remain practice without grammar mastery writes. E2E `Cartes ×2` checks score/summary. |
 | Typing: verdicts, KO→FR direction, card-count 10 | ✅ | widget + unit `answer_validator` + E2E `Écrire ×6` |
@@ -81,6 +82,11 @@
 | Settings screen (toggles persist, cancel/reschedule service calls, time picker) | ✅ | widget with real notifier + recording fake service |
 | Streak warning armed from Home when streak > 0 | ✅ | widget |
 | Actual notification delivery | 📵 | native plugin |
+
+Une annulation invalide une programmation de même identifiant encore en
+attente du fuseau. Les commandes envoyées au système sont ordonnées par
+identifiant, y compris lorsqu'une annulation globale doit attendre une
+programmation déjà transmise.
 
 ## 6. Import / export / share
 
@@ -137,8 +143,8 @@
 
 | Behavior | Status | Verified by |
 |---|---|---|
-| Bottom tabs, list→detail, bell, profile tiles, study button | ✅ | E2E `navigation` (5) + per-screen widget nav stubs |
-| App shell (nav bar rendering, offline banner) | ✅ | widget: tabs + study button route; banner per §7. Found+fixed: nav labels overflowed the bar at large text scales |
+| Five V0 tabs and contextual list/lesson/quiz navigation | ✅ | widgets `app_shell`, `start_session`, import and list detail; Patrol source exists, hosted execution remains pending per PROJECT_STATUS |
+| App shell: five equal tabs, keyboard/selection, contrast, offline banner | ✅ | widget `app_shell`: 320px/double text, keyboard route change and both-theme text contrast; no central study button in the active shell |
 | Legacy patrol files (`auth_test`, `sign_up_test`, `vocab_list_test`) | ⚠️ | exist but are not in the maintained nine-suite workflow — superseded by auth_flows/user_flows; delete or fold in |
 
 ---

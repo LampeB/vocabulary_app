@@ -35,24 +35,12 @@ class ProgressRepositoryImpl implements ProgressRepository {
     int limit = 20,
   }) async {
     try {
-      final questionLang = direction.questionLang;
-
-      final canonicalId = await _listDao.resolveStarterId(
-        StarterAliasKind.list,
-        userId,
-        listId,
+      final allVariantIds = await _progressDao.getPlayableListVariantIds(
+        userId: userId,
+        listId: listId,
+        direction: direction,
       );
-      final concepts = await _conceptDao.getConceptsByList(canonicalId);
-      if (concepts.isEmpty) return const Success([]);
-
-      final conceptIds = concepts.map((c) => c.id).toList();
-      final questionVariants = await _conceptDao.getVariantsByConceptIds(
-        conceptIds,
-        questionLang,
-      );
-      if (questionVariants.isEmpty) return const Success([]);
-
-      final allVariantIds = questionVariants.map((v) => v.id).toList();
+      if (allVariantIds.isEmpty) return const Success([]);
 
       // Existing due/learning cards
       final dueRows = await _progressDao.getDue(
@@ -122,7 +110,7 @@ class ProgressRepositoryImpl implements ProgressRepository {
     try {
       final rows = await _progressDao.getDueAcrossLists(
         userId: userId,
-        direction: direction.name,
+        direction: direction,
         limit: limit,
         langA: langA,
         langB: langB,
@@ -144,7 +132,7 @@ class ProgressRepositoryImpl implements ProgressRepository {
     try {
       final rows = await _progressDao.getInProgressAcrossLists(
         userId: userId,
-        direction: direction.name,
+        direction: direction,
         limit: limit,
         langA: langA,
         langB: langB,

@@ -1,4 +1,6 @@
 {
+  "common.retry": "Réessayer",
+  "quiz.no_cards_available": "Aucune carte n’est disponible pour cette sélection.",
   "free_practice.source": "Quoi",
   "v3.card_answer": "RÉPONSE",
   "v3.card_take": "PRENDS LA CARTE",

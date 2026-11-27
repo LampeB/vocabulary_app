@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'package:drift/drift.dart';
+import '../../../../domain/entities/variant_progress.dart';
 import '../app_database.dart';
 import '../sync_snapshot.dart';
 import '../tables/variant_progress_table.dart';
 import '../tables/word_variants_table.dart';
+import 'vocabulary_list_dao.dart';
 
 part 'progress_dao.g.dart';
+
+enum SmartQuizPool { due, inProgress }
 
 @DriftAccessor(tables: [VariantProgressTable, WordVariantsTable])
 class ProgressDao extends DatabaseAccessor<AppDatabase>
@@ -95,11 +99,19 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
         db.vocabularyListsTable,
       },
     );
+    return _watchCount(
+      query.map((row) => row.read<int>('due')),
+      refreshEvery: refreshEvery,
+    );
+  }
+
+  Stream<int> _watchCount(Selectable<int> query, {Duration? refreshEvery}) {
+    if (refreshEvery == null) return query.watchSingle().distinct();
     late StreamController<int> controller;
-    StreamSubscription<QueryRow>? subscription;
+    StreamSubscription<int>? subscription;
     Timer? refresh;
-    void emit(QueryRow row) {
-      if (!controller.isClosed) controller.add(row.read<int>('due'));
+    void emit(int count) {
+      if (!controller.isClosed) controller.add(count);
     }
 
     controller = StreamController<int>(
@@ -148,102 +160,221 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
         .get();
   }
 
-  /// Due rows for [userId]+[direction] across ALL lists (the "À réviser
-  /// maintenant" smart list). "Due" = an existing progress row scheduled at or
-  /// before now — never-studied words are not due. Soft-deleted variants are
-  /// excluded via the join.
   Future<List<VariantProgressTableData>> getDueAcrossLists({
     required String userId,
-    required String direction,
+    required QuizDirection direction,
     String? langA,
     String? langB,
     int limit = 20,
-  }) {
-    final now = DateTime.now();
-    final query =
-        select(variantProgressTable).join([
-            innerJoin(
-              wordVariantsTable,
-              wordVariantsTable.id.equalsExp(variantProgressTable.variantId),
-            ),
-            innerJoin(
-              db.conceptsTable,
-              db.conceptsTable.id.equalsExp(wordVariantsTable.conceptId),
-            ),
-            innerJoin(
-              db.vocabularyListsTable,
-              db.vocabularyListsTable.id.equalsExp(db.conceptsTable.listId),
-            ),
-          ])
-          ..where(
-            variantProgressTable.userId.equals(userId) &
-                variantProgressTable.direction.equals(direction) &
-                db.conceptsTable.isDeleted.equals(false) &
-                db.vocabularyListsTable.isDeleted.equals(false) &
-                db.vocabularyListsTable.ownerId.equals(userId) &
-                (langA == null
-                    ? const Constant(true)
-                    : db.vocabularyListsTable.langA.equals(langA)) &
-                (langB == null
-                    ? const Constant(true)
-                    : db.vocabularyListsTable.langB.equals(langB)) &
-                wordVariantsTable.isDeleted.equals(false) &
-                (variantProgressTable.nextReview.isNull() |
-                    variantProgressTable.nextReview.isSmallerOrEqualValue(now)),
-          )
-          ..orderBy([
-            OrderingTerm.asc(variantProgressTable.nextReview),
-            OrderingTerm.asc(variantProgressTable.reps),
-          ])
-          ..limit(limit);
-    return query.map((row) => row.readTable(variantProgressTable)).get();
-  }
+  }) => _loadSmartCards(
+    userId: userId,
+    direction: direction,
+    pool: SmartQuizPool.due,
+    langA: langA,
+    langB: langB,
+    limit: limit,
+  );
 
-  /// Started rows (FSRS state ≠ newCard) for [userId]+[direction] across ALL
-  /// lists (the "En cours d'apprentissage" smart list), due or not.
   Future<List<VariantProgressTableData>> getInProgressAcrossLists({
     required String userId,
-    required String direction,
+    required QuizDirection direction,
     String? langA,
     String? langB,
     int limit = 20,
+  }) => _loadSmartCards(
+    userId: userId,
+    direction: direction,
+    pool: SmartQuizPool.inProgress,
+    langA: langA,
+    langB: langB,
+    limit: limit,
+  );
+
+  Future<List<VariantProgressTableData>> _loadSmartCards({
+    required String userId,
+    required QuizDirection direction,
+    required SmartQuizPool pool,
+    required String? langA,
+    required String? langB,
+    required int limit,
   }) {
+    final progress = variantProgressTable;
     final query =
-        select(variantProgressTable).join([
-            innerJoin(
-              wordVariantsTable,
-              wordVariantsTable.id.equalsExp(variantProgressTable.variantId),
-            ),
-            innerJoin(
-              db.conceptsTable,
-              db.conceptsTable.id.equalsExp(wordVariantsTable.conceptId),
-            ),
-            innerJoin(
-              db.vocabularyListsTable,
-              db.vocabularyListsTable.id.equalsExp(db.conceptsTable.listId),
-            ),
-          ])
-          ..where(
-            variantProgressTable.userId.equals(userId) &
-                variantProgressTable.direction.equals(direction) &
-                db.conceptsTable.isDeleted.equals(false) &
-                db.vocabularyListsTable.isDeleted.equals(false) &
-                db.vocabularyListsTable.ownerId.equals(userId) &
-                (langA == null
-                    ? const Constant(true)
-                    : db.vocabularyListsTable.langA.equals(langA)) &
-                (langB == null
-                    ? const Constant(true)
-                    : db.vocabularyListsTable.langB.equals(langB)) &
-                wordVariantsTable.isDeleted.equals(false) &
-                variantProgressTable.state.equals('newCard').not(),
+        _smartCards(
+            userId: userId,
+            directions: [direction],
+            pool: pool,
+            langA: langA,
+            langB: langB,
+            countOnly: false,
           )
           ..orderBy([
-            OrderingTerm.asc(variantProgressTable.nextReview),
-            OrderingTerm.asc(variantProgressTable.reps),
+            OrderingTerm.asc(progress.nextReview),
+            OrderingTerm.asc(progress.reps),
           ])
           ..limit(limit);
-    return query.map((row) => row.readTable(variantProgressTable)).get();
+    return query.map((row) => row.readTable(progress)).get();
+  }
+
+  Stream<int> watchSmartQuizCardCount({
+    required String userId,
+    required List<QuizDirection> directions,
+    required SmartQuizPool pool,
+    required String langA,
+    required String langB,
+  }) {
+    final count = countAll();
+    final query = _smartCards(
+      userId: userId,
+      directions: directions,
+      pool: pool,
+      langA: langA,
+      langB: langB,
+      countOnly: true,
+    )..addColumns([count]);
+    return _watchCount(
+      query.map((row) => row.read(count)!),
+      refreshEvery: pool == SmartQuizPool.due
+          ? const Duration(minutes: 1)
+          : null,
+    );
+  }
+
+  JoinedSelectStatement _smartCards({
+    required String userId,
+    required List<QuizDirection> directions,
+    required SmartQuizPool pool,
+    required String? langA,
+    required String? langB,
+    required bool countOnly,
+  }) {
+    final progress = variantProgressTable;
+    final variants = wordVariantsTable;
+    final joins = [
+      innerJoin(
+        variants,
+        variants.id.equalsExp(progress.variantId),
+        useColumns: false,
+      ),
+      ..._contentJoins(),
+    ];
+    final query = countOnly
+        ? selectOnly(progress).join(joins)
+        : select(progress).join(joins);
+    final poolFilter = switch (pool) {
+      SmartQuizPool.due =>
+        progress.nextReview.isNull() |
+            progress.nextReview.isSmallerOrEqual(currentDateAndTime),
+      SmartQuizPool.inProgress => progress.state.equals('newCard').not(),
+    };
+    final playable = directions.fold<Expression<bool>>(
+      const Constant(false),
+      (any, direction) =>
+          any |
+          (progress.direction.equals(direction.name) &
+              _playableDirection(direction)),
+    );
+    return query..where(
+      progress.userId.equals(userId) &
+          _liveContent(userId, langA: langA, langB: langB) &
+          poolFilter &
+          playable,
+    );
+  }
+
+  Future<List<String>> getPlayableListVariantIds({
+    required String userId,
+    required String listId,
+    required QuizDirection direction,
+  }) {
+    final id = wordVariantsTable.id;
+    final query = _listCards(
+      userId: userId,
+      listId: listId,
+      directions: [direction],
+    )..addColumns([id]);
+    return query.map((row) => row.read(id)!).get();
+  }
+
+  Stream<int> watchListQuizCardCount({
+    required String userId,
+    required String listId,
+    required List<QuizDirection> directions,
+    required String langA,
+    required String langB,
+  }) {
+    final count = countAll();
+    final query = _listCards(
+      userId: userId,
+      listId: listId,
+      directions: directions,
+      langA: langA,
+      langB: langB,
+    )..addColumns([count]);
+    return query.map((row) => row.read(count)!).watchSingle().distinct();
+  }
+
+  JoinedSelectStatement _listCards({
+    required String userId,
+    required String listId,
+    required List<QuizDirection> directions,
+    String? langA,
+    String? langB,
+  }) {
+    final resolved = db.vocabularyListDao.starterIdExpression(
+      StarterAliasKind.list,
+      userId,
+      listId,
+    );
+    final playable = directions.fold<Expression<bool>>(
+      const Constant(false),
+      (any, direction) => any | _playableDirection(direction),
+    );
+    return selectOnly(wordVariantsTable).join(_contentJoins())..where(
+      db.vocabularyListsTable.id.equalsExp(resolved) &
+          _liveContent(userId, langA: langA, langB: langB) &
+          playable,
+    );
+  }
+
+  List<Join> _contentJoins() => [
+    innerJoin(
+      db.conceptsTable,
+      db.conceptsTable.id.equalsExp(wordVariantsTable.conceptId),
+      useColumns: false,
+    ),
+    innerJoin(
+      db.vocabularyListsTable,
+      db.vocabularyListsTable.id.equalsExp(db.conceptsTable.listId),
+      useColumns: false,
+    ),
+  ];
+
+  Expression<bool> _liveContent(
+    String ownerId, {
+    String? langA,
+    String? langB,
+  }) {
+    final lists = db.vocabularyListsTable;
+    return lists.ownerId.equals(ownerId) &
+        lists.isDeleted.equals(false) &
+        db.conceptsTable.isDeleted.equals(false) &
+        wordVariantsTable.isDeleted.equals(false) &
+        (langA == null ? const Constant(true) : lists.langA.equals(langA)) &
+        (langB == null ? const Constant(true) : lists.langB.equals(langB));
+  }
+
+  Expression<bool> _playableDirection(QuizDirection direction) {
+    final answer = alias(wordVariantsTable, 'answer_variant');
+    final alternatives = selectOnly(answer)
+      ..addColumns([answer.id])
+      ..where(
+        answer.conceptId.equalsExp(wordVariantsTable.conceptId) &
+            answer.langCode.equals(direction.answerLang) &
+            answer.isDeleted.equals(false),
+      );
+    return wordVariantsTable.langCode.equals(direction.questionLang) &
+        existsQuery(alternatives);
   }
 
   Future<VariantProgressTableData?> getByVariantAndDirection(

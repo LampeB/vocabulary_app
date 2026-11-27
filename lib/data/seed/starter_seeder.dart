@@ -104,6 +104,7 @@ class StarterSeeder {
       }
     }
 
+    var complete = true;
     for (final seedList in catalog.listsForTarget(target)) {
       final seedId = seedList.seedIdFor(source, target);
       final existing = bySeedId[seedId];
@@ -125,11 +126,18 @@ class StarterSeeder {
           );
         }
       } else if (!existing.isDeleted) {
-        await _topUp(existing.id, seedList, catalog, sourceLayer, targetLayer);
+        final ready = await _topUp(
+          existing.id,
+          seedList,
+          catalog,
+          sourceLayer,
+          targetLayer,
+        );
+        if (!ready) complete = false;
       }
     }
 
-    await prefs.setBool(flagKey, true);
+    if (complete) await prefs.setBool(flagKey, true);
   }
 
   /// Stamps seed identities onto starter lists created before the catalog
@@ -261,7 +269,7 @@ class StarterSeeder {
   /// Adds whatever an existing seeded list is missing — new registry concepts,
   /// or a missing language variant on an existing concept (the healing path
   /// for pre-v3 installs). Never modifies existing variants.
-  Future<void> _topUp(
+  Future<bool> _topUp(
     String listId,
     SeedList seedList,
     SeedCatalog catalog,
@@ -274,7 +282,8 @@ class StarterSeeder {
       listId,
     );
     final list = await _listDao.getById(resolved);
-    if (list == null || list.isDeleted || list.ownerId != _userId) return;
+    if (list == null || list.isDeleted || list.ownerId != _userId) return true;
+    if (await _listDao.isStarterContentsPending(list.id)) return false;
     final ids = await VocabularySyncIds.load(
       _listDao.attachedDatabase,
       _userId,
@@ -365,6 +374,7 @@ class StarterSeeder {
       await _listDao.updateWordCount(list.id, count);
       _listDao.attachedDatabase.notifyOutboundMutation(_userId);
     }
+    return true;
   });
 
   Future<void> _insertVariants(

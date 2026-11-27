@@ -144,6 +144,7 @@ class QuizState {
     this.isFlipped = false,
     this.isListening = false,
     this.isLoading = false,
+    this.isEmpty = false,
     this.correctCount = 0,
     this.isComplete = false,
     this.errorMessage,
@@ -158,6 +159,7 @@ class QuizState {
   final bool isFlipped;
   final bool isListening;
   final bool isLoading;
+  final bool isEmpty;
   final int correctCount;
   final bool isComplete;
   final String? errorMessage;
@@ -208,6 +210,7 @@ class QuizState {
     bool? isFlipped,
     bool? isListening,
     bool? isLoading,
+    bool? isEmpty,
     int? correctCount,
     bool? isComplete,
     String? errorMessage,
@@ -222,6 +225,7 @@ class QuizState {
     isFlipped: isFlipped ?? this.isFlipped,
     isListening: isListening ?? this.isListening,
     isLoading: isLoading ?? this.isLoading,
+    isEmpty: isEmpty ?? this.isEmpty,
     correctCount: correctCount ?? this.correctCount,
     isComplete: isComplete ?? this.isComplete,
     errorMessage: errorMessage,
@@ -425,7 +429,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     }
 
     if (progressList.isEmpty) {
-      state = state.copyWith(isLoading: false, isComplete: true);
+      state = state.copyWith(isLoading: false, isEmpty: true);
       return;
     }
 
@@ -525,7 +529,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       cards: quizCards,
       currentIndex: 0,
       isLoading: false,
-      isComplete: quizCards.isEmpty,
+      isEmpty: quizCards.isEmpty,
       correctCount: 0,
     );
 
@@ -595,7 +599,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     if (!_isCurrentSession(epoch)) return;
     if (module == null) {
       // No deterministic engine for this language — nothing to drill.
-      state = state.copyWith(isLoading: false, isComplete: true);
+      state = state.copyWith(isLoading: false, isEmpty: true);
       return;
     }
     final words = await ref.read(
@@ -615,7 +619,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       promptLocale: promptLocale,
     );
     if (exercises.isEmpty) {
-      state = state.copyWith(isLoading: false, isComplete: true);
+      state = state.copyWith(isLoading: false, isEmpty: true);
       return;
     }
     final now = DateTime.now();

@@ -6,6 +6,8 @@ import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
+import 'package:vocab_kr/data/datasources/remote/vocabulary_remote_datasource.dart'
+    show VocabularyNetworkBudget;
 import 'package:vocab_kr/data/models/concept_dto.dart';
 import 'package:vocab_kr/data/models/vocabulary_list_dto.dart';
 import 'package:vocab_kr/data/models/word_variant_dto.dart';
@@ -22,13 +24,16 @@ class _StarterRemote extends FakeRemote {
   late Map<String, dynamic> concept;
 
   @override
-  Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async =>
-      Success([list]);
+  Future<Result<List<Map<String, dynamic>>>> fetchLists(
+    String ownerId, {
+    VocabularyNetworkBudget? budget,
+  }) async => Success([list]);
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
     String listId, {
     required String ownerId,
+    VocabularyNetworkBudget? budget,
   }) async => Success([concept]);
 }
 

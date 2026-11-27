@@ -44,13 +44,16 @@ class _ScopedRemote extends FakeRemote {
   }
 
   @override
-  Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async =>
-      Success(_owned(lists, ownerId));
+  Future<Result<List<Map<String, dynamic>>>> fetchLists(
+    String ownerId, {
+    VocabularyNetworkBudget? budget,
+  }) async => Success(_owned(lists, ownerId));
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
     String listId, {
     required String ownerId,
+    VocabularyNetworkBudget? budget,
   }) async => Success([
     for (final concept in _owned(concepts, ownerId))
       if (concept['list_id'] == listId)
@@ -65,8 +68,9 @@ class _ScopedRemote extends FakeRemote {
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchProgress(
-    String userId,
-  ) async => Success(_owned(progress, userId));
+    String userId, {
+    VocabularyNetworkBudget? budget,
+  }) async => Success(_owned(progress, userId));
 
   @override
   Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(
@@ -126,7 +130,10 @@ class _ScopedRemote extends FakeRemote {
   }
 
   @override
-  Future<ProvisionedAudio?> provisionAudio(String variantId) async {
+  Future<ProvisionedAudio?> provisionAudio(
+    String variantId, {
+    required String ownerId,
+  }) async {
     audioRequests.add(variantId);
     return null;
   }

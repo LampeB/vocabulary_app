@@ -1,4 +1,6 @@
 {
+  "common.retry": "Try again",
+  "quiz.no_cards_available": "No cards are available for this selection.",
   "free_practice.source": "What",
   "v3.card_answer": "ANSWER",
   "v3.card_take": "TAKE THE CARD",

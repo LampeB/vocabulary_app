@@ -18,6 +18,7 @@ import 'package:vocab_kr/presentation/widgets/session_bootstrap.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/grammar/grammar_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
+import 'package:vocab_kr/presentation/providers/quiz/quiz_availability_provider.dart';
 import 'package:vocab_kr/presentation/screens/home/v3_home_screen.dart';
 
 import '../../helpers/pump_screen.dart';
@@ -45,6 +46,7 @@ void main() {
             ),
           ),
           myListsProvider.overrideWith((ref) => Stream.value([])),
+          quizAvailabilityProvider.overrideWith((ref, q) => Stream.value(0)),
           dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(0)),
           ruleStatusesProvider.overrideWith((ref, lang) async => []),
           seedStarterListsProvider.overrideWith((ref) async {

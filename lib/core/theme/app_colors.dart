@@ -13,7 +13,7 @@ abstract final class AppColors {
   static const muted2 = Color(0xFF6F695F); // eyebrow labels, meta (AA on paper)
   static const faint = Color(
     0xFF8A8073,
-  ); // captions, inactive nav (AA on paper)
+  ); // decorative/large secondary marks; not AA for small text on paper
   static const line = Color(0xFFECE3D7); // borders, progress track, dividers
 
   // ── Accents ───────────────────────────────────────────────────────────────

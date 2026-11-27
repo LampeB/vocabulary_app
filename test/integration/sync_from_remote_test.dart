@@ -10,6 +10,8 @@ import 'package:vocab_kr/core/config/app_config.dart';
 import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
+import 'package:vocab_kr/data/datasources/remote/vocabulary_remote_datasource.dart'
+    show VocabularyNetworkBudget;
 import 'package:vocab_kr/data/models/variant_progress_dto.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/data/sync/push_sync.dart';
@@ -120,7 +122,10 @@ class _SyncRemote extends FakeRemote {
   String? unavailableList;
 
   @override
-  Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async {
+  Future<Result<List<Map<String, dynamic>>>> fetchLists(
+    String ownerId, {
+    VocabularyNetworkBudget? budget,
+  }) async {
     fetchListsCalls++;
     await onLists?.call();
     return Success(lists);
@@ -130,14 +135,16 @@ class _SyncRemote extends FakeRemote {
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
     String listId, {
     required String ownerId,
+    VocabularyNetworkBudget? budget,
   }) async => listId == unavailableList
       ? const Failure(NetworkException('unavailable list contents'))
       : Success(conceptsByList[listId] ?? []);
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchProgress(
-    String userId,
-  ) async => Success(progress);
+    String userId, {
+    VocabularyNetworkBudget? budget,
+  }) async => Success(progress);
 }
 
 void main() {

@@ -1,7 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+import 'package:vocab_kr/core/utils/stt_debug_log.dart';
 import 'package:vocab_kr/services/speech/stt_corpus_recorder.dart';
 
 class _FakeRecorder implements CorpusAudioRecorder {
@@ -74,6 +78,135 @@ void main() {
 
   Future<Directory> tempDirectory() =>
       Directory.systemTemp.createTemp('stt-corpus-test-');
+
+  for (final existing in [false, true]) {
+    testWidgets(
+      'iOS corpus starts only after backup exclusion (existing: $existing)',
+      (tester) async {
+        await tester.runAsync(() async {
+          final parent = await tempDirectory();
+          addTearDown(() => parent.delete(recursive: true));
+          final corpus = Directory(p.join(parent.path, 'stt_corpus'));
+          if (existing) await corpus.create();
+          const channel = MethodChannel('vocab_kr/stt_diagnostics_storage');
+          final messenger = tester.binding.defaultBinaryMessenger;
+          final attempted = Completer<void>();
+          final confirmed = Completer<void>();
+          var requests = 0;
+          messenger.setMockMethodCallHandler(channel, (call) async {
+            expect(call.method, 'prepare');
+            expect(call.arguments, 'stt_corpus');
+            if (++requests == 1) {
+              expect(await corpus.exists(), existing);
+              attempted.complete();
+              await confirmed.future;
+              if (!existing) await corpus.create();
+            }
+            return corpus.path;
+          });
+          addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+          final native = _FakeRecorder();
+          final recorder = SttCorpusRecorder(
+            recorder: native,
+            documentsDirectory: () async => parent,
+          );
+          final started = recorder.start(word: 'bonjour', langCode: 'fr');
+          await attempted.future;
+          expect(native.startedPath, isNull);
+          confirmed.complete();
+          expect(await started, isTrue);
+          expect(p.dirname(native.startedPath!), corpus.path);
+          expect(await recorder.stop(), isNotNull);
+          expect(requests, 2, reason: 'manifest write also verifies exclusion');
+          expect(
+            await File(p.join(corpus.path, 'manifest.json')).exists(),
+            isTrue,
+          );
+          recorder.dispose();
+        });
+      },
+      skip: !optedIn,
+      variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+    );
+  }
+
+  testWidgets(
+    'iOS log creates no new file while existing folder awaits confirmation',
+    (tester) async {
+      await tester.runAsync(() async {
+        final parent = await tempDirectory();
+        addTearDown(() => parent.delete(recursive: true));
+        final logs = await Directory(p.join(parent.path, 'stt_logs')).create();
+        await File(p.join(logs.path, 'stt_old.log')).writeAsString('old');
+        const channel = MethodChannel('vocab_kr/stt_diagnostics_storage');
+        final messenger = tester.binding.defaultBinaryMessenger;
+        final attempted = Completer<void>();
+        final confirmed = Completer<String>();
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          expect(call.method, 'prepare');
+          expect(call.arguments, 'stt_logs');
+          attempted.complete();
+          return confirmed.future;
+        });
+        addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+        final opening = SttDebugLog.openFile(parent);
+        await attempted.future;
+        expect(await logs.list().length, 1);
+        confirmed.complete(logs.path);
+        final sink = (await opening)!;
+        sink.writeln('diagnostic');
+        await sink.close();
+        expect(await logs.list().length, 2);
+      });
+    },
+    skip: !optedIn,
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+  );
+
+  testWidgets(
+    'iOS leaves diagnostic files untouched when exclusion cannot be confirmed',
+    (tester) async {
+      await tester.runAsync(() async {
+        final parent = await tempDirectory();
+        addTearDown(() => parent.delete(recursive: true));
+        final corpus = await Directory(
+          p.join(parent.path, 'stt_corpus'),
+        ).create();
+        final manifest = File(p.join(corpus.path, 'manifest.json'));
+        final original = jsonEncode([sample().toJson()]);
+        await manifest.writeAsString(original);
+        const channel = MethodChannel('vocab_kr/stt_diagnostics_storage');
+        final messenger = tester.binding.defaultBinaryMessenger;
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          if (call.arguments == 'stt_logs') return null;
+          throw PlatformException(code: 'stt_backup_exclusion');
+        });
+        addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+        final native = _FakeRecorder();
+        final recorder = SttCorpusRecorder(
+          recorder: native,
+          documentsDirectory: () async => parent,
+        );
+        expect(await recorder.start(word: 'bonjour', langCode: 'fr'), isFalse);
+        expect(native.startedPath, isNull);
+        await recorder.saveWhisperResult(
+          sampleId: 'sample_fr',
+          transcript: 'do not write',
+          durationMs: 1,
+        );
+        expect(await manifest.readAsString(), original);
+        expect(await SttDebugLog.openFile(parent), isNull);
+        expect(
+          await Directory(p.join(parent.path, 'stt_logs')).exists(),
+          isFalse,
+        );
+        recorder.dispose();
+      });
+    },
+    skip: !optedIn,
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+  );
 
   test(
     'without opt-in the recorder touches neither microphone nor files',

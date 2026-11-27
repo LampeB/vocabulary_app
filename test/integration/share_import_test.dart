@@ -35,15 +35,18 @@ class _SharedListRemote extends FakeRemote {
   }
 
   @override
-  Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async =>
-      Success(
-        storedLists.values.where((row) => row['owner_id'] == ownerId).toList(),
-      );
+  Future<Result<List<Map<String, dynamic>>>> fetchLists(
+    String ownerId, {
+    VocabularyNetworkBudget? budget,
+  }) async => Success(
+    storedLists.values.where((row) => row['owner_id'] == ownerId).toList(),
+  );
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
     String listId, {
     required String ownerId,
+    VocabularyNetworkBudget? budget,
   }) async => Success([
     for (final row in storedConcepts.values.where(
       (row) => row['list_id'] == listId,

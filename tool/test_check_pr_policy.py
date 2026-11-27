@@ -65,17 +65,38 @@ class PolicyTest(unittest.TestCase):
         self.assertIn(FORBIDDEN, output)
         self.assertIn(expected_path, output)
 
+    def make_fixture_revision(self):
+        base = self.git('rev-parse', 'HEAD')
+        revision = self.git('commit-tree', self.git('write-tree'), '-p', base,
+                            '-m', 'Synthetic path in PR diff fixture')
+        self.git('update-ref', 'HEAD', revision)
+        return base
+
     def test_index_and_base_diff_keep_non_ascii_and_line_breaks(self):
         for path in ('tool/stt_corpus/voix-é.wav', 'tool/stt_corpus/one\ntwo.wav'):
             with self.subTest(path=path):
                 self.stage_fixture(path)
                 display = path.replace('\n', r'\n')
                 self.assert_blocked(self.pwsh(POLICY, '-Staged', check=False), display)
-                base = self.git('rev-parse', 'HEAD')
-                revision = self.git('commit-tree', self.git('write-tree'), '-p', base,
-                                    '-m', 'Synthetic path in PR diff fixture')
-                self.git('update-ref', 'HEAD', revision)
+                base = self.make_fixture_revision()
                 self.assert_blocked(self.pwsh(POLICY, '-BaseRef', base, check=False), display)
+
+    def test_ignored_deployment_env_is_rejected_but_example_is_allowed(self):
+        path = 'supabase/.env.deploy'
+        exclude = self.root / '.git/info/exclude'
+        exclude.parent.mkdir(exist_ok=True)
+        exclude.write_text(f'/{path}\n', encoding='utf-8')
+        (self.root / 'supabase').mkdir()
+        (self.root / path).write_text('synthetic deployment config\n', encoding='utf-8')
+        self.git('add', '-f', '--', path)
+        self.assert_blocked(self.pwsh(POLICY, '-Staged', check=False), path)
+        base = self.make_fixture_revision()
+        self.assert_blocked(self.pwsh(POLICY, '-BaseRef', base, check=False), path)
+
+        self.stage_fixture(f'{path}.example')
+        self.stage_fixture('README.md')
+        self.pwsh(POLICY, '-Staged')
+        self.pwsh(POLICY, '-BaseRef', self.make_fixture_revision())
 
     def test_installed_hook_rejects_a_real_commit(self):
         mode = self.invoke('git', 'ls-files', '--stage', HOOK, root=ROOT).stdout.split()[0]

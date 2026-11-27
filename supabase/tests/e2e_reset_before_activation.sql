@@ -1,8 +1,8 @@
--- Disposable database only, after 009 or 012 and before 013.
+-- Disposable database only, after 009, 012, 013 or 014 and before 015.
 BEGIN;
 DO $$ BEGIN
-  IF to_regprocedure('public.e2e_isolation_ready()') IS NOT NULL THEN
-    RAISE EXCEPTION 'Run this check before migration 013';
+  IF to_regprocedure('public.e2e_patrol_contract()') IS NOT NULL THEN
+    RAISE EXCEPTION 'A partial schema exposes the Patrol contract before migration 015';
   END IF;
 END $$;
 INSERT INTO auth.users(id,email,raw_user_meta_data,raw_app_meta_data) VALUES
@@ -16,13 +16,13 @@ SET LOCAL ROLE authenticated;
 DO $$ BEGIN
   BEGIN
     PERFORM public.reset_e2e_account('activation.a');
-    RAISE EXCEPTION 'An enrolled account reset before E2E isolation was active';
+    RAISE EXCEPTION 'An enrolled account reset before the Patrol schema was ready';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 RESET ROLE;
 DO $$ BEGIN
   IF NOT EXISTS(SELECT 1 FROM public.vocabulary_lists WHERE id='52000000-0000-0000-0000-000000000001') THEN
-    RAISE EXCEPTION 'Reset modified a list before E2E isolation was active';
+    RAISE EXCEPTION 'Reset modified a list before the Patrol schema was ready';
   END IF;
 END $$;
 ROLLBACK;

@@ -44,8 +44,10 @@ class _RecordingRemote extends FakeRemote {
   Future<ProvisionedAudio?> Function(String)? onAudio;
 
   @override
-  Future<ProvisionedAudio?> provisionAudio(String variantId) async =>
-      await onAudio?.call(variantId);
+  Future<ProvisionedAudio?> provisionAudio(
+    String variantId, {
+    required String ownerId,
+  }) async => await onAudio?.call(variantId);
 
   @override
   Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(

@@ -173,7 +173,7 @@ final seedStarterListsProvider = FutureProvider<void>((ref) async {
   // A remote pull improves an existing account, but must not prevent a new
   // user (or an offline user) from receiving the bundled starter curriculum.
   try {
-    await ref.read(syncOnLoginProvider.future);
+    await ref.watch(syncOnLoginProvider.future);
   } catch (_) {
     // The local database remains usable; a later reconnect retries the pull.
   }

@@ -10,6 +10,7 @@ import '../../domain/entities/vocabulary_list.dart';
 import '../../domain/usecases/quiz/get_due_cards_usecase.dart' show QuizSource;
 import '../providers/lists/vocabulary_provider.dart';
 import '../providers/quiz/quiz_provider.dart';
+import '../providers/quiz/quiz_availability_provider.dart';
 import 'list_preview_sheet.dart';
 import 'quiz_mode_label.dart';
 import 'scroll_affordance.dart';
@@ -48,7 +49,17 @@ class _FreePracticeSheetState extends ConsumerState<FreePracticeSheet> {
   Widget build(BuildContext context) {
     final listState = ref.watch(myListsProvider);
     final due =
-        ref.watch(dueCountForPairProvider(widget.pair)).valueOrNull ?? 0;
+        ref
+            .watch(
+              quizAvailabilityProvider((
+                pair: widget.pair,
+                source: QuizSource.allDue,
+                direction: _direction,
+                listId: null,
+              )),
+            )
+            .valueOrNull ??
+        0;
     final studied =
         ref.watch(studiedListIdsProvider).valueOrNull ?? const <String>{};
     final lists =
@@ -64,12 +75,17 @@ class _FreePracticeSheetState extends ConsumerState<FreePracticeSheet> {
             (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
           );
     final selected = lists.where((list) => list.id == _listId).firstOrNull;
-    final canStart = _source == QuizSource.allDue
-        ? due > 0
-        : _source == QuizSource.inProgress || (selected?.wordCount ?? 0) > 0;
-    final limit = _source == QuizSource.allDue
-        ? math.min(due, _sessionLimit)
-        : _sessionLimit;
+    final query = (
+      pair: widget.pair,
+      source: _source,
+      direction: _direction,
+      listId: _source == QuizSource.list ? selected?.id : null,
+    );
+    final availability = ref.watch(quizAvailabilityProvider(query));
+    final count = availability.valueOrNull ?? 0;
+    final canStart =
+        !availability.isLoading && !availability.hasError && count > 0;
+    final limit = math.min(count, _sessionLimit);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final ink = dark ? V3Colors.light : V3Colors.ink;
     final pairLabel =
@@ -220,6 +236,16 @@ class _FreePracticeSheetState extends ConsumerState<FreePracticeSheet> {
                 ],
               ),
               const SizedBox(height: 20),
+              if (availability.isLoading) const LinearProgressIndicator(),
+              if (availability.hasError) ...[
+                Text('common.error'.tr()),
+                TextButton(
+                  onPressed: () =>
+                      ref.invalidate(quizAvailabilityProvider(query)),
+                  child: Text('common.retry'.tr()),
+                ),
+              ] else if (!availability.isLoading && count == 0)
+                Text('quiz.no_cards_available'.tr()),
               FilledButton(
                 key: const ValueKey('free-practice-start'),
                 onPressed: !canStart

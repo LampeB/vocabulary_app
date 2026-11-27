@@ -111,6 +111,8 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
   )..where((t) => t.id.isIn(ids))).go();
 
   static const _starterDraftPrefix = 'starter-draft:';
+  static const _starterEstablishedPrefix = 'starter-established:';
+  static const _starterContentsPendingPrefix = 'starter-contents-pending:';
 
   String _starterAliasKey(StarterAliasKind kind, String ownerId, String id) =>
       'starter-alias:${kind.name}:$ownerId:$id';
@@ -169,6 +171,43 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
             ..where((t) => t.id.equals('$_starterDraftPrefix$listId')))
           .getSingleOrNull()) !=
       null;
+
+  Future<bool> isStarterEstablished(String listId) async =>
+      (await (select(db.sharedImportBootstrapTable)
+            ..where((t) => t.id.equals('$_starterEstablishedPrefix$listId')))
+          .getSingleOrNull()) !=
+      null;
+
+  Future<void> establishStarterIdentity(String listId) async {
+    if (await isStarterEstablished(listId)) return;
+    await into(db.sharedImportBootstrapTable).insert(
+      SharedImportBootstrapTableCompanion.insert(
+        id: '$_starterEstablishedPrefix$listId',
+        snapshot: '{}',
+      ),
+      mode: InsertMode.insertOrIgnore,
+    );
+    await releaseStarterDraft(listId);
+  }
+
+  Future<bool> isStarterContentsPending(String listId) async =>
+      (await (select(
+            db.sharedImportBootstrapTable,
+          )..where((t) => t.id.equals('$_starterContentsPendingPrefix$listId')))
+          .getSingleOrNull()) !=
+      null;
+
+  Future<void> setStarterContentsPending(String listId, bool pending) async {
+    final id = '$_starterContentsPendingPrefix$listId';
+    if (pending) {
+      await into(db.sharedImportBootstrapTable).insert(
+        SharedImportBootstrapTableCompanion.insert(id: id, snapshot: '{}'),
+        mode: InsertMode.insertOrIgnore,
+      );
+    } else {
+      await forgetSharedImportBases([id]);
+    }
+  }
 
   Future<List<VocabularyListsTableData>> heldStarterDrafts({String? ownerId}) {
     final bootstrap = db.sharedImportBootstrapTable;

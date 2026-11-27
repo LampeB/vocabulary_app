@@ -614,6 +614,23 @@ void main() {
     await tick(tester, times: 4); // loadCards + first frame
   }
 
+  testWidgets(
+    'an emptied pool offers retry and exit without a zero-score summary',
+    (tester) async {
+      await pump(tester, mode: QuizMode.flashcard, words: [], cardLimit: 3);
+      expect(find.text('quiz.no_cards_available'.tr()), findsOneWidget);
+      expect(find.byKey(const ValueKey(WidgetKeys.summary)), findsNothing);
+      await tester.tap(find.text('common.retry'.tr()));
+      await tick(tester, times: 4);
+      expect(find.text('quiz.no_cards_available'.tr()), findsOneWidget);
+      expect(find.byKey(const ValueKey(WidgetKeys.summary)), findsNothing);
+      await tester.tap(find.text('common.back'.tr()));
+      await tick(tester, times: 4);
+      expect(navigatedTo, '/home');
+      await unmountScreen(tester);
+    },
+  );
+
   testWidgets('flashcard: flip reveals the answer, grading advances to the '
       'summary, done goes home', (tester) async {
     await pump(
@@ -1058,8 +1075,9 @@ void main() {
       words: [],
       entry: '/daily-path',
     );
-    expect(find.byKey(const ValueKey(WidgetKeys.summary)), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey(WidgetKeys.summaryDone)));
+    expect(find.text('quiz.no_cards_available'.tr()), findsOneWidget);
+    expect(find.byKey(const ValueKey(WidgetKeys.summary)), findsNothing);
+    await tester.tap(find.text('common.back'.tr()));
     await tick(tester, times: 3);
     expect(find.byKey(const ValueKey('open-quiz')), findsOneWidget);
     expect(find.byType(QuizScreen), findsNothing);

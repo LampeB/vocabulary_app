@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'stt_diagnostics.dart';
+import 'stt_diagnostics_directory.dart';
 
 const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
@@ -35,36 +36,49 @@ class SttDebugLog {
       final dir = Platform.isAndroid
           ? await getExternalStorageDirectory()
           : await getApplicationDocumentsDirectory();
-      if (dir == null) {
+      final sink = dir == null ? null : await openFile(dir);
+      if (sink == null) {
         _unavailable = true;
+        _pending.clear();
         return;
       }
-      final logDir = Directory('${dir.path}/stt_logs');
-      await logDir.create(recursive: true);
-      // One file per app launch; keep only the 5 most recent.
-      final existing = logDir.listSync().whereType<File>().toList()
-        ..sort((a, b) => b.path.compareTo(a.path));
-      for (final f in existing.skip(4)) {
-        try {
-          f.deleteSync();
-        } catch (_) {}
-      }
-      final stamp = DateTime.now()
-          .toIso8601String()
-          .replaceAll(':', '-')
-          .split('.')
-          .first;
-      final file = File('${logDir.path}/stt_$stamp.log');
-      _sink = file.openWrite(mode: FileMode.append);
-      _sink!.writeln('=== STT debug log — app started ${DateTime.now()} ===');
+      _sink = sink;
+      sink.writeln('=== STT debug log — app started ${DateTime.now()} ===');
       for (final line in _pending) {
-        _sink!.writeln(line);
+        sink.writeln(line);
       }
       _pending.clear();
     } catch (_) {
       _unavailable = true;
       _pending.clear();
     }
+  }
+
+  @visibleForTesting
+  static Future<IOSink?> openFile(Directory parent) async {
+    if (!sttDiagnosticsEnabled || _kTestMode) return null;
+    final directory = await prepareSttDiagnosticsDirectory(
+      parent,
+      SttDiagnosticsFolder.logs,
+    );
+    if (directory == null) return null;
+    // One file per app launch; keep only the 5 most recent.
+    final existing = directory.listSync().whereType<File>().toList()
+      ..sort((a, b) => b.path.compareTo(a.path));
+    for (final file in existing.skip(4)) {
+      try {
+        file.deleteSync();
+      } catch (_) {}
+    }
+    final stamp = DateTime.now()
+        .toIso8601String()
+        .replaceAll(':', '-')
+        .split('.')
+        .first;
+    final file = File(
+      '${directory.path}${Platform.pathSeparator}stt_$stamp.log',
+    );
+    return file.openWrite(mode: FileMode.append);
   }
 
   void log(String message) {

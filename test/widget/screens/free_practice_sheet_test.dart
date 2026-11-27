@@ -8,11 +8,145 @@ import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart'
     show QuizSource;
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
+import 'package:vocab_kr/presentation/providers/quiz/quiz_availability_provider.dart';
+import 'package:vocab_kr/domain/entities/concept.dart';
+import 'package:vocab_kr/domain/entities/word_variant.dart';
 import 'package:vocab_kr/presentation/widgets/free_practice_sheet.dart';
 import '../../helpers/pump_screen.dart';
 
 void main() {
   setUpAll(initTestLocalization);
+
+  testWidgets(
+    'empty direction and a new account in-progress pool cannot start',
+    (tester) async {
+      await pumpScreen(
+        tester,
+        screen: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () =>
+                  showFreePracticeSheet(context, pair: ('en', 'ko')),
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+        overrides: [
+          myListsProvider.overrideWith((ref) => Stream.value([])),
+          studiedListIdsProvider.overrideWith((ref) => Stream.value({})),
+          quizAvailabilityProvider.overrideWith(
+            (ref, q) => Stream.value(
+              q.source == QuizSource.allDue &&
+                      q.direction != QuizDirectionChoice.frToKo
+                  ? 3
+                  : 0,
+            ),
+          ),
+        ],
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      final start = find.byKey(const ValueKey('free-practice-start'));
+      expect(tester.widget<FilledButton>(start).onPressed, isNotNull);
+      await tester.tap(
+        find.byKey(const ValueKey('free-practice-direction-frToKo')),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.widget<FilledButton>(start).onPressed, isNull);
+      expect(
+        find.text('Aucune carte n’est disponible pour cette sélection.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('free-practice-in-progress')));
+      await tester.pumpAndSettle();
+      expect(tester.widget<FilledButton>(start).onPressed, isNull);
+      await unmountScreen(tester);
+    },
+  );
+
+  testWidgets('a long preview title and its words share a signalled scroller', (
+    tester,
+  ) async {
+    final now = DateTime(2026);
+    final list = VocabularyList(
+      id: 'long',
+      ownerId: 'u',
+      name: List.filled(10, 'Salutations utiles en voyage').join(' '),
+      wordCount: 1,
+      langA: 'en',
+      langB: 'ko',
+      createdAt: now,
+      updatedAt: now,
+    );
+    await pumpScreen(
+      tester,
+      screen: Builder(
+        builder: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () => showFreePracticeSheet(context, pair: ('en', 'ko')),
+            child: const Text('Open'),
+          ),
+        ),
+      ),
+      overrides: [
+        myListsProvider.overrideWith((ref) => Stream.value([list])),
+        studiedListIdsProvider.overrideWith((ref) => Stream.value({})),
+        quizAvailabilityProvider.overrideWith((ref, q) => Stream.value(0)),
+        listDetailProvider.overrideWith(
+          (ref, id) => Stream.value([
+            Concept(id: 'c', listId: 'long', createdAt: now, updatedAt: now),
+          ]),
+        ),
+        variantsProvider.overrideWith(
+          (ref, id) => Stream.value([
+            WordVariant(
+              id: 'en',
+              conceptId: 'c',
+              word: 'hello',
+              langCode: 'en',
+              createdAt: now,
+              updatedAt: now,
+            ),
+            WordVariant(
+              id: 'ko',
+              conceptId: 'c',
+              word: '안녕',
+              langCode: 'ko',
+              createdAt: now,
+              updatedAt: now,
+            ),
+          ]),
+        ),
+      ],
+    );
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    final preview = find.byTooltip('Aperçu');
+    await tester.ensureVisible(preview);
+    await tester.tap(preview);
+    await tester.pumpAndSettle();
+    expect(find.byType(CustomScrollView), findsOneWidget);
+    final scroll = tester.state<ScrollableState>(
+      find.descendant(
+        of: find.byType(CustomScrollView),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    for (var i = 0; i < 3; i++) {
+      scroll.position.jumpTo(scroll.position.maxScrollExtent);
+      await tester.pumpAndSettle();
+    }
+    await tester.pumpAndSettle();
+    expect(find.text('hello').hitTestable(), findsOneWidget);
+    expect(find.text('안녕').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await unmountScreen(tester);
+  });
   for (final pair in [('fr', 'ko'), ('en', 'ko'), ('ko', 'fr')]) {
     testWidgets('sheet launches both directions in $pair without full setup', (
       tester,
@@ -31,6 +165,9 @@ void main() {
         overrides: [
           myListsProvider.overrideWith((ref) => Stream.value([])),
           studiedListIdsProvider.overrideWith((ref) => Stream.value({})),
+          quizAvailabilityProvider.overrideWith(
+            (ref, q) => Stream.value(q.pair == pair ? 24 : 0),
+          ),
           dueCountForPairProvider.overrideWith(
             (ref, p) => Stream.value(p == pair ? 24 : 0),
           ),
@@ -93,6 +230,9 @@ void main() {
         overrides: [
           myListsProvider.overrideWith((ref) => Stream.value([list])),
           studiedListIdsProvider.overrideWith((ref) => Stream.value({})),
+          quizAvailabilityProvider.overrideWith(
+            (ref, q) => Stream.value(q.source == QuizSource.list ? 5 : 0),
+          ),
           dueCountForPairProvider.overrideWith((ref, p) => Stream.value(0)),
         ],
         routes: [

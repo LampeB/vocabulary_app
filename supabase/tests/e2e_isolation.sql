@@ -1,4 +1,4 @@
--- Disposable database only, after migration 013. All fixtures roll back.
+-- Disposable database only, after migration 015. All fixtures roll back.
 BEGIN;
 INSERT INTO auth.users(id,email,raw_user_meta_data,raw_app_meta_data) VALUES
  ('51000000-0000-0000-0000-000000000001','isolated@example.invalid','{"username":"isolated"}',
@@ -26,14 +26,16 @@ END $$;
 
 SET LOCAL ROLE anon;
 DO $$ BEGIN
-  IF NOT public.e2e_isolation_ready() THEN RAISE EXCEPTION 'CI cannot verify installed isolation'; END IF;
+  IF public.e2e_patrol_contract() IS DISTINCT FROM 'owner-scoped-v1' THEN
+    RAISE EXCEPTION 'CI cannot verify the installed Patrol schema';
+  END IF;
 END $$;
 RESET ROLE;
 ALTER TABLE public.friend_requests DISABLE TRIGGER e2e_guard_shared_write;
 SELECT set_config('request.jwt.claim.sub','51000000-0000-0000-0000-000000000001',true);
 SET LOCAL ROLE authenticated;
 DO $$ BEGIN
-  IF public.e2e_isolation_ready() THEN RAISE EXCEPTION 'Disabled isolation reported ready'; END IF;
+  IF public.e2e_patrol_contract() IS NOT NULL THEN RAISE EXCEPTION 'Disabled isolation reported ready'; END IF;
   BEGIN
     PERFORM public.reset_e2e_account('isolation.a');
     RAISE EXCEPTION 'Reset accepted with disabled isolation';
@@ -44,6 +46,13 @@ DO $$ BEGIN
 END $$;
 RESET ROLE;
 ALTER TABLE public.friend_requests ENABLE TRIGGER e2e_guard_shared_write;
+ALTER TABLE public.word_variants DISABLE TRIGGER word_variants_guard_tombstone;
+SET LOCAL ROLE anon;
+DO $$ BEGIN
+  IF public.e2e_patrol_contract() IS NOT NULL THEN RAISE EXCEPTION 'Disabled tombstones reported ready'; END IF;
+END $$;
+RESET ROLE;
+ALTER TABLE public.word_variants ENABLE TRIGGER word_variants_guard_tombstone;
 
 SELECT set_config('request.jwt.claim.sub','51000000-0000-0000-0000-000000000002',true);
 SET LOCAL ROLE authenticated;

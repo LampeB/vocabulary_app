@@ -1016,6 +1016,35 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       );
     }
 
+    if (quizState.isEmpty) {
+      return Scaffold(
+        body: SafeArea(
+          child: ScrollAffordance(
+            hint: 'v3.scroll_hint'.tr(),
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.inbox_outlined, size: 48),
+                const SizedBox(height: 16),
+                Text(
+                  'quiz.no_cards_available'.tr(),
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.body,
+                ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: _loadSession,
+                  child: Text('common.retry'.tr()),
+                ),
+                TextButton(onPressed: _quit, child: Text('common.back'.tr())),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     if (quizState.isComplete) {
       return _SummaryScreen(
         correct: quizState.correctCount,

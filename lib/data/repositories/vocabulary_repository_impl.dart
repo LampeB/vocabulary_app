@@ -33,14 +33,16 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     this._conceptDao,
     this._remote,
     this._userId,
-    this._database,
-  );
+    this._database, {
+    this._restoreTimeout = const Duration(seconds: 15),
+  });
 
   final VocabularyListDao _listDao;
   final ConceptDao _conceptDao;
   final VocabularyRemoteDataSource _remote;
   final String _userId;
   final AppDatabase _database;
+  final Duration _restoreTimeout;
   Future<void>? _activeRestoration;
   bool _starterIdentityReady = false;
 
@@ -833,30 +835,56 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         // could pull. Keep its queued snapshot on the device until we know
         // whether the server already has a copy under another ID.
         for (final list in await _listDao.getStarterLists(_userId)) {
-          if (!list.isSynced) await _listDao.holdStarterDraft(list.id);
+          if (await _listDao.isStarterEstablished(list.id)) continue;
+          final held = await _listDao.isStarterDraftHeld(list.id);
+          // Keep modern drafts held through real concurrent FSRS conflicts.
+          // Older acknowledged starters no longer have a creation baseline.
+          if (held && await _listDao.getSharedImportBase(list.id) != null) {
+            continue;
+          }
+          if (list.isSynced || await _conceptDao.hasSyncedContents(list.id)) {
+            await _listDao.establishStarterIdentity(list.id);
+          } else if (!held) {
+            await _listDao.holdStarterDraft(list.id);
+          }
         }
       }
       return _snapshotForPull();
     });
-    final lists = <VocabularyList>[];
+    final budget = VocabularyNetworkBudget(_restoreTimeout);
     final contents = <String, List<Map<String, dynamic>>>{};
-    final result = await _remote.fetchLists(_userId);
-    if (result case Failure(:final exception)) throw exception;
-    AppException? incomplete;
-    for (final map in result.valueOrNull!) {
-      final list = map.toVocabularyListDomain();
-      if (list.ownerId != _userId) continue;
-      lists.add(list);
+    final completeContents = <String>{};
+    final result = await _remote.fetchLists(_userId, budget: budget);
+    final lists = [
+      for (final map in result.valueOrNull ?? budget.takePartialRows())
+        map.toVocabularyListDomain(),
+    ].where((list) => list.ownerId == _userId).toList();
+    AppException? incomplete = result.exceptionOrNull;
+    for (final list in lists) {
+      if (incomplete is NetworkException) break;
       if (list.isDeleted) continue;
-      switch (await _remote.fetchConcepts(list.id, ownerId: _userId)) {
+      switch (await _remote.fetchConcepts(
+        list.id,
+        ownerId: _userId,
+        budget: budget,
+      )) {
         case Success(:final value):
           contents[list.id] = value;
+          completeContents.add(list.id);
         case Failure(:final exception):
-          incomplete ??= exception;
+          final partial = budget.takePartialRows();
+          if (partial.isNotEmpty) contents[list.id] = partial;
+          if (exception is NetworkException || incomplete == null) {
+            incomplete = exception;
+          }
       }
     }
-    final progress = await _remote.fetchProgress(_userId);
-    if (progress case Failure(:final exception)) incomplete ??= exception;
+    var progress = const <Map<String, dynamic>>[];
+    if (incomplete is! NetworkException) {
+      final received = await _remote.fetchProgress(_userId, budget: budget);
+      incomplete ??= received.exceptionOrNull;
+      progress = received.valueOrNull ?? budget.takePartialRows();
+    }
 
     await _database.transaction(() async {
       final current = await _snapshotForPull();
@@ -868,6 +896,15 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
           id: await ids.reserve(SyncedVocabularyRow.list, remoteList.id),
         );
         restoredLists.add(list);
+        if (list.origin == 'starter' && list.seedId != null) {
+          await _listDao.setStarterContentsPending(
+            list.id,
+            !list.isDeleted && !completeContents.contains(remoteList.id),
+          );
+          if (!await _listDao.isStarterDraftHeld(list.id)) {
+            await _listDao.establishStarterIdentity(list.id);
+          }
+        }
         final localList = current.lists[list.id];
         final keepLocalList =
             localList != before.lists[list.id] ||
@@ -878,7 +915,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         }
         if (!keepLocalList) {
           final missingContents =
-              !list.isDeleted && !contents.containsKey(remoteList.id);
+              !list.isDeleted && !completeContents.contains(remoteList.id);
           final metadata = missingContents && localList != null
               ? list.copyWith(wordCount: localList.wordCount)
               : list;
@@ -954,18 +991,18 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         }
         // The count follows the surviving concepts even when a pending rename
         // or other local edit prevents replacing the list metadata.
-        if (contents.containsKey(remoteList.id)) {
+        if (completeContents.contains(remoteList.id)) {
           await _conceptDao.refreshListWordCount(list.id);
         }
       }
 
       // Apply progress after content so parent liveness reflects this pull.
       final conflictingProgressVariantIds = <String>{};
-      if (progress case Success(:final value) when value.isNotEmpty) {
+      if (progress.isNotEmpty) {
         final progressDao = _database.progressDao;
         final liveVariantIds = await progressDao.getLiveVariantIds(_userId);
         final changedRows = <(String, String), VariantProgressTableData>{};
-        for (final map in value) {
+        for (final map in progress) {
           try {
             if (map['user_id'] != _userId ||
                 !liveVariantIds.contains(

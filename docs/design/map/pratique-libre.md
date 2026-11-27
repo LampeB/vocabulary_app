@@ -17,7 +17,10 @@ l'entrée vit sur le plateau Parcours, dans « Choisir une activité ».
   simplement commencés.
 - L'aperçu des mots et les groupes de listes étudiées/non étudiées sont conservés.
 - La session courte utilise le plafond existant de 20 cartes ; le bouton
-  indique ce plafond, réduit au nombre de cartes dues lorsqu'il est inférieur.
+  indique ce plafond, réduit au nombre de cartes jouables de la source, de
+  la paire et du sens sélectionnés lorsqu'il est inférieur. Un choix sans
+  carte ne peut pas lancer le quiz ; un pool devenu vide permet de réessayer
+  ou revenir, sans bilan artificiel.
   Il n'y a pas de quatrième sélecteur de quantité dans la feuille.
 - Les choix initiaux sont cartes dues, deux sens et flashcards. La mémorisation
   des derniers choix et le réglage de quantité ne sont pas livrés.

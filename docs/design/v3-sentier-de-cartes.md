@@ -98,6 +98,14 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
 - Un prérequis absent utilise le libellé localisé du catalogue. Une liste
   résolue garde son nom, même si ses statistiques ne sont pas disponibles ;
   aucun identifiant technique n'est affiché à l'apprenant.
+- La feuille compte les cartes jouables pour la source, la paire et le sens
+  choisis avant d'activer le lancement. Un pool devenu vide au chargement
+  propose Réessayer ou Retour, sans produire un bilan à zéro.
+- Le titre et les mots de l'aperçu partagent un défilement signalé et paresseux.
+  Le signal se met à jour après chargement ou redimensionnement sans geste.
+- Les locales partielles DE/ES/IT/JA utilisent les chaînes françaises de repli
+  lorsque leur copie manque, via la configuration de localisation commune.
+  Cela ne vaut pas traduction complète de ces parcours hors V0.
 
 ## Limites connues à corriger avant de qualifier V3 de complète
 

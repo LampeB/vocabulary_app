@@ -45,8 +45,8 @@ CREATE TRIGGER e2e_guard_shared_write BEFORE INSERT OR UPDATE ON public.challeng
 CREATE TRIGGER e2e_guard_shared_write BEFORE INSERT OR UPDATE ON public.variant_progress
   FOR EACH ROW EXECUTE FUNCTION e2e_private.guard_shared_write();
 
--- The read-only check exposes a boolean to CI and Patrol. A disabled isolation
--- trigger or a missing 012 prerequisite closes the reset boundary again.
+-- Check the relationship isolation installed here. Patrol additionally needs
+-- the tombstone and owner namespace contract published in migration 015.
 CREATE FUNCTION public.e2e_isolation_ready()
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   SELECT to_regclass('public.review_events') IS NOT NULL
@@ -81,8 +81,7 @@ BEGIN
   END IF;
   RETURN e2e_private.reset_e2e_account(p_scenario_id);
 END $$;
-REVOKE ALL ON FUNCTION public.reset_e2e_account(text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.reset_e2e_account(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.reset_e2e_account(text) FROM PUBLIC, anon, authenticated;
 NOTIFY pgrst, 'reload schema';
 
 COMMIT;

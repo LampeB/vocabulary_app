@@ -1,4 +1,6 @@
 {
+  "common.retry": "もう一度試す",
+  "quiz.no_cards_available": "この選択で利用できるカードはありません。",
   "free_practice.source": "学習する内容",
   "common.cancel": "キャンセル",
   "common.save": "保存",

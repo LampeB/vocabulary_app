@@ -1,4 +1,6 @@
 {
+  "common.retry": "Erneut versuchen",
+  "quiz.no_cards_available": "Für diese Auswahl sind keine Karten verfügbar.",
   "free_practice.source": "Inhalt",
   "common.cancel": "Abbrechen",
   "common.save": "Speichern",

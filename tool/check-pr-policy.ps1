@@ -21,6 +21,7 @@ $forbidden = @(
     $_ -match '(^|/)(ci-apk|build|coverage)/' -or
     $_ -match '\.(apk|aab|ipa)$' -or
     $_ -match '(^|/)(\.env\.json|test.*\.env\.json)$' -or
+    $_ -match '^supabase/\.env\.deploy$' -or
     $_ -match '(^|/)\.e2e/' -or
     $_ -match '^tool/stt_corpus/'
   }

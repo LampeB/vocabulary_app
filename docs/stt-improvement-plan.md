@@ -160,6 +160,12 @@ cette configuration, les routes sont absentes et l'enregistreur de corpus
 n'accède ni au micro ni à ses fichiers. Le récepteur
 Android de corpus est limité au shell de test, au dossier de corpus et aux
 captures WAV bornées ; il n'est pas présent dans la livraison.
+Sur iOS, le pont prépare les seuls dossiers `Documents/stt_corpus` et
+`Documents/stt_logs`. Il pose et relit leur exclusion des sauvegardes avant
+de rendre leur chemin aux écrivains Flutter. La vérification s'applique
+aussi aux dossiers existants et l'app rétablit leur exclusion au lancement.
+Sans confirmation, le laboratoire ne crée ni WAV, ni résultat de corpus,
+ni journal persistant.
 
 | Capacité | Plafond authentifié |
 | --- | --- |

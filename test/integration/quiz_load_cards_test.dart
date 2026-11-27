@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
+import 'package:vocab_kr/core/utils/fsrs_algorithm.dart' show CardState;
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/models/variant_progress_dto.dart';
 import 'package:vocab_kr/data/repositories/progress_repository_impl.dart';
@@ -20,6 +21,7 @@ import 'package:vocab_kr/presentation/providers/audio/audio_provider.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
+import 'package:vocab_kr/presentation/providers/quiz/quiz_availability_provider.dart';
 import 'package:vocab_kr/services/audio/audio_player_service.dart';
 import '../helpers/fake_remote.dart';
 
@@ -488,16 +490,133 @@ void main() {
     expect(sub.read().errorMessage, isNotNull);
   });
 
-  test('no due cards → session immediately complete, no error', () async {
-    final (container, sub) = harness({QuizDirection.frToKo: const Success([])});
+  test(
+    'no due cards exposes a retryable empty state without a result',
+    () async {
+      final (container, sub) = harness({
+        QuizDirection.frToKo: const Success([]),
+      });
 
-    await container.read(quizProvider.notifier).loadCards(args());
+      await container.read(quizProvider.notifier).loadCards(args());
 
-    final state = sub.read();
-    expect(state.isComplete, isTrue);
-    expect(state.errorMessage, isNull);
-    expect(state.cards, isEmpty);
-  });
+      final state = sub.read();
+      expect(state.isEmpty, isTrue);
+      expect(state.isComplete, isFalse);
+      expect(state.errorMessage, isNull);
+      expect(state.cards, isEmpty);
+    },
+  );
+
+  test(
+    'availability matches the live quiz for the pair, source and direction',
+    () async {
+      final remote = FakeRemote();
+      final repo = VocabularyRepositoryImpl(
+        db.vocabularyListDao,
+        db.conceptDao,
+        remote,
+        'u',
+        db,
+      );
+      final list = (await repo.watchMyLists().first).single;
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          vocabularyRemoteProvider.overrideWithValue(remote),
+          currentUserProvider.overrideWithValue(
+            AppUser(
+              id: 'u',
+              username: 'learner',
+              email: 'u@example.invalid',
+              createdAt: _now,
+            ),
+          ),
+          audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
+        ],
+      );
+      addTearDown(container.dispose);
+      QuizAvailabilityQuery query(
+        QuizSource source,
+        QuizDirectionChoice direction, {
+        (String, String) pair = ('fr', 'ko'),
+      }) => (
+        pair: pair,
+        source: source,
+        direction: direction,
+        listId: source == QuizSource.list ? list.id : null,
+      );
+      Future<int> count(QuizAvailabilityQuery query) =>
+          container.read(quizAvailabilityProvider(query).future);
+
+      const forward = QuizDirectionChoice.frToKo;
+      const backward = QuizDirectionChoice.koToFr;
+      const both = QuizDirectionChoice.both;
+      expect(await count(query(QuizSource.inProgress, both)), 0);
+      expect(await count(query(QuizSource.allDue, both)), 0);
+      expect(await count(query(QuizSource.list, both)), 6);
+
+      final saved = _due(
+        frVariantId['chat']!,
+        QuizDirection.frToKo,
+      ).copyWith(state: CardState.review, timesShown: 1);
+      await db.progressDao.upsertLocal(saved.toLocalCompanion());
+      final incomplete = (await repo.createConcept(
+        listId: list.id,
+      )).valueOrNull!;
+      final noTranslation = (await repo.createVariant(
+        conceptId: incomplete.id,
+        word: 'unanswered',
+        langCode: 'fr',
+      )).valueOrNull!;
+      await db.progressDao.upsertLocal(
+        _due(
+          noTranslation.id,
+          QuizDirection.frToKo,
+        ).copyWith(state: CardState.review).toLocalCompanion(),
+      );
+      expect(await count(query(QuizSource.allDue, backward)), 0);
+      expect(
+        await count(query(QuizSource.allDue, both, pair: ('ko', 'fr'))),
+        0,
+      );
+      expect(await count(query(QuizSource.inProgress, forward)), 1);
+      expect(await count(query(QuizSource.inProgress, backward)), 0);
+      expect(await count(query(QuizSource.list, both)), 6);
+
+      final due = quizAvailabilityProvider(query(QuizSource.allDue, forward));
+      final disappeared = Completer<void>();
+      final availability = container.listen(due, (_, value) {
+        if (value.valueOrNull == 0 && !disappeared.isCompleted) {
+          disappeared.complete();
+        }
+      });
+      addTearDown(availability.close);
+      expect(await container.read(due.future), 1);
+      final keptQuiz = container.listen(quizProvider, (_, _) {});
+      addTearDown(keptQuiz.close);
+      final quiz = container.read(quizProvider.notifier);
+      const args = QuizArgs(
+        source: QuizSource.allDue,
+        mode: QuizMode.flashcard,
+        direction: forward,
+        cardLimit: 1,
+      );
+      await quiz.loadCards(args);
+      expect(keptQuiz.read().cards.single.questionWord, 'chat');
+
+      await db.progressDao.upsertLocal(
+        saved
+            .copyWith(nextReview: DateTime.now().add(const Duration(days: 1)))
+            .toLocalCompanion(),
+      );
+      await disappeared.future.timeout(const Duration(seconds: 2));
+      expect(await count(query(QuizSource.inProgress, forward)), 1);
+      await quiz.loadCards(args);
+      expect(keptQuiz.read().isEmpty, isTrue);
+      expect(keptQuiz.read().isComplete, isFalse);
+      expect(await db.quizSessionDao.getSessionsByUser('u'), isEmpty);
+    },
+  );
 
   test(
     'a progress row pointing at a missing variant is dropped, not crashed',

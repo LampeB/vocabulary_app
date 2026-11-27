@@ -1,4 +1,4 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show FutureOr, unawaited;
 import 'dart:convert' show jsonEncode;
 import 'package:drift/drift.dart' show DataClass;
 
@@ -51,7 +51,7 @@ class PushSync {
   final _listsToRetry = <String>{};
 
   static const _maxPendingAudio = 256;
-  final _pendingAudio = <(String localId, String wireId)>{};
+  final _pendingAudio = <(String localId, String wireId, String ownerId)>{};
   bool _provisioningAudio = false;
 
   /// Pushes all unsynced rows in FK order (lists → concepts → variants →
@@ -227,6 +227,13 @@ class PushSync {
             ),
             onTombstone: () =>
                 _conceptDao.tombstoneListContents(r.id, r.ownerId),
+            afterAck: (_) async {
+              if (r.origin == 'starter' && r.seedId != null) {
+                await _listDao.transaction(
+                  () => _listDao.establishStarterIdentity(r.id),
+                );
+              }
+            },
           ),
           onChanged: retry,
         );
@@ -283,7 +290,11 @@ class PushSync {
           ),
           afterAck: (row) {
             if (row['is_deleted'] != true && row['audio_path'] != null) {
-              _queueAudio(r.id, ids.wireId(SyncedVocabularyRow.variant, r.id));
+              _queueAudio(
+                r.id,
+                ids.wireId(SyncedVocabularyRow.variant, r.id),
+                list.ownerId,
+              );
             }
           },
         ),
@@ -311,7 +322,7 @@ class PushSync {
     required Future<int> Function(Map<String, dynamic>, bool isSynced) save,
     required Future<void> Function() onTombstone,
     Future<void> Function()? onAuthoredTombstone,
-    void Function(Map<String, dynamic>)? afterAck,
+    FutureOr<void> Function(Map<String, dynamic>)? afterAck,
   }) async {
     Map<String, dynamic> wire(R row) => ids.encode(kind, toRemote(row));
     final payload = wire(submitted);
@@ -353,7 +364,7 @@ class PushSync {
               return acknowledged;
             })
           : await acknowledge(submitted);
-      if (value == 1 && !deleted) afterAck?.call(server);
+      if (value == 1 && !deleted) await afterAck?.call(server);
       return Success(value);
     }
 
@@ -379,7 +390,7 @@ class PushSync {
       await save({...server, ...remaining}, false);
       return 0;
     });
-    if (acknowledgement == 1) afterAck?.call(server);
+    if (acknowledgement == 1) await afterAck?.call(server);
     return Success(acknowledgement);
   }
 
@@ -442,9 +453,9 @@ class PushSync {
     };
   }
 
-  void _queueAudio(String localId, String wireId) {
+  void _queueAudio(String localId, String wireId, String ownerId) {
     if (_pendingAudio.length >= _maxPendingAudio) return;
-    _pendingAudio.add((localId, wireId));
+    _pendingAudio.add((localId, wireId, ownerId));
     if (!_provisioningAudio) unawaited(_provisionAudio());
   }
 
@@ -453,13 +464,13 @@ class PushSync {
     while (_pendingAudio.isNotEmpty) {
       final request = _pendingAudio.first;
       _pendingAudio.remove(request);
-      final (localId, wireId) = request;
+      final (localId, wireId, ownerId) = request;
       try {
-        final audio = await _remote.provisionAudio(wireId);
+        final audio = await _remote.provisionAudio(wireId, ownerId: ownerId);
         if (audio != null) {
           await _conceptDao.applyProvisionedAudio(
             variantId: localId,
-            ownerId: _userId,
+            ownerId: ownerId,
             word: audio.word,
             langCode: audio.langCode,
             path: audio.path,

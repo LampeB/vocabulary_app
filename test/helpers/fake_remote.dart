@@ -5,10 +5,15 @@ import 'package:vocab_kr/data/datasources/remote/vocabulary_remote_datasource.da
 /// All write calls succeed; all fetch calls return empty data.
 class FakeRemote implements VocabularyRemoteDataSource {
   @override
-  Future<ProvisionedAudio?> provisionAudio(String variantId) async => null;
+  Future<ProvisionedAudio?> provisionAudio(
+    String variantId, {
+    required String ownerId,
+  }) async => null;
   @override
-  Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async =>
-      const Success([]);
+  Future<Result<List<Map<String, dynamic>>>> fetchLists(
+    String ownerId, {
+    VocabularyNetworkBudget? budget,
+  }) async => const Success([]);
 
   @override
   Future<Result<Map<String, dynamic>>> upsertList(
@@ -24,6 +29,7 @@ class FakeRemote implements VocabularyRemoteDataSource {
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
     String listId, {
     required String ownerId,
+    VocabularyNetworkBudget? budget,
   }) async => const Success([]);
 
   @override
@@ -42,8 +48,9 @@ class FakeRemote implements VocabularyRemoteDataSource {
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchProgress(
-    String userId,
-  ) async => const Success([]);
+    String userId, {
+    VocabularyNetworkBudget? budget,
+  }) async => const Success([]);
 
   @override
   Future<Result<Map<String, dynamic>>> upsertProgress(

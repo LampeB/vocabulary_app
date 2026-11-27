@@ -97,14 +97,14 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **1 075 tests hôte passent**, avec **72,9 %**
-  de couverture sur le dernier lot du 27 novembre. Huit tests positifs du
+- L'analyse Flutter est propre ; les **1 092 tests hôte passent**, avec **73,6 %**
+  de couverture sur le dernier lot du 27 novembre. Douze tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
-  réussit ses 21 tests ciblés. La sonde compilée en mode produit confirme le
+  réussit ses 25 tests ciblés. La sonde compilée en mode produit confirme le
   refus des diagnostics, même avec l'option fournie.
-- Sur `9735b9c`, les sept checks CI alors exigés, dont les tests hôte, le wrapper SQL et la
+- Sur `f5f5949`, les sept anciens checks CI, dont les tests hôte, le wrapper SQL et la
   compilation native Android, sont verts. Le pont utilise le NDK 28.2 de
-  l'application. Les dix premières itérations des quatre relecteurs ont été
+  l'application. Les onze premières itérations des quatre relecteurs ont été
   bloquées ; leurs corrections sont consignées dans
   [le registre du 27 novembre](docs/reviews/2026-11-27-integration.md).
   Le sas exige deux revues propres sur le commit final ; les verdicts et les
@@ -112,7 +112,7 @@ de contenu avant bêta pédagogique.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **1 075** tests hôte réussis lors de la dernière validation locale
+- La suite compte **1 092** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - Les sept suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
@@ -121,7 +121,7 @@ de contenu avant bêta pédagogique.
   vérifié le verrou du reset et le refus de l'écriture concurrente ; la CI de
   `f7827da` confirme le wrapper Bash des six suites.
   Les huit tests Python E2E, vingt-neuf tests Deno, vingt-et-un tests du bot,
-  quatre tests du déploiement et trois tests du garde Git passent dans le lot courant. Le bot refuse
+  quatre tests du déploiement et quatre tests du garde Git passent dans le lot courant. Le bot refuse
   aussi une CI verte issue d'un
   autre workflow ou évaluée contre une autre base.
 - La règle anglaise `a/an` exclut les indénombrables. Décision utilisateur du
@@ -147,6 +147,17 @@ de contenu avant bêta pédagogique.
   l'acquittement de commande. Le nouveau pont iOS et le fuseau natif doivent
   passer la compilation simulateur macOS, désormais huitième check CI exigé ;
   aucun build iOS ni essai appareil n'est revendiqué sur l'hôte Windows.
+- Le premier check iOS de `f5f5949` a échoué au lien `Pods_Runner`. Le lot
+  versionne la configuration CocoaPods et désactive l'intégration SwiftPM
+  automatique ; le prochain check macOS doit confirmer cette correction.
+- La feuille compte les cartes par source/paire/sens ; un pool devenu vide
+  offre une reprise sans faux bilan. Les titres longs d'aperçu défilent avec
+  leurs mots et les locales partielles disposent du repli français réel.
+- Les écritures et la restauration ont des échéances bornées, les identités
+  starter reconnues survivent aux éditions hors ligne et les rendus audio
+  restent liés au compte initial. Les annulations de rappels invalident les
+  programmations tardives. Les diagnostics iOS attendent une exclusion des
+  sauvegardes confirmée, également réappliquée aux dossiers existants.
 - La CI Patrol contient neuf suites Android, lançables manuellement avec des
   secrets Supabase : navigation, auth, flux utilisateur, chemin quotidien,
   prérequis de leçon, paires de langues, quiz voix/cartes, écriture et login.

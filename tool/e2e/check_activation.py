@@ -9,6 +9,9 @@ from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
+PATROL_CONTRACT = 'owner-scoped-v1'
+
+
 class NoRedirects(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
@@ -24,11 +27,11 @@ def require_isolation_ready(url, key):
     headers = {'apikey': key, 'Accept': 'application/json'}
     if key.startswith('eyJ'):
         headers['Authorization'] = f'Bearer {key}'
-    req = Request(f"{url.rstrip('/')}/rest/v1/rpc/e2e_isolation_ready", headers=headers)
+    req = Request(f"{url.rstrip('/')}/rest/v1/rpc/e2e_patrol_contract", headers=headers)
     with build_opener(NoRedirects()).open(req, timeout=10) as response:
         body = response.read(257)
-        if response.status != 200 or len(body) > 256 or json.loads(body) is not True:
-            raise ValueError('Hosted E2E isolation is unavailable')
+        if response.status != 200 or len(body) > 256 or json.loads(body) != PATROL_CONTRACT:
+            raise ValueError('Hosted Patrol schema is unavailable')
 
 
 def main(argv=None):
@@ -39,9 +42,9 @@ def main(argv=None):
         config = os.environ if args.config is None else json.loads(args.config.read_text(encoding='utf-8'))
         require_isolation_ready(config['SUPABASE_URL'], config['SUPABASE_ANON_KEY'])
     except (HTTPException, KeyError, OSError, TypeError, ValueError):
-        print('Hosted E2E isolation could not be verified. Follow the activation runbook.', file=sys.stderr)
+        print('Hosted Patrol schema could not be verified. Follow the activation runbook.', file=sys.stderr)
         return 1
-    print('Hosted E2E isolation verified.')
+    print('Hosted Patrol schema verified.')
     return 0
 
 

@@ -502,3 +502,61 @@ atomiquement. Le test SQLite ouvre successivement deux comptes dans le
 même fichier puis rouvre le repository : les objets locaux restent isolés,
 les écritures, événements et chemins audio gardent les bonnes clés distantes.
 L'exécution Unix du hook et la compilation iOS restent à confirmer en CI.
+
+## Onzième itération — `f5f5949`
+
+Les quatre profils ont rendu `BLOQUÉ` sur
+`f5f594923334c3a8d9f467585b8afdf8e42cdb7b` avant toute correction.
+Leurs 14 observations Important correspondent à **13 constats distincts** :
+le comptage de la feuille dans un sens vide est signalé par produit et
+correction. Aucun Bloquant et deux Suggestions sont remontés. Les quatre
+compteurs propres restent à zéro ; la prochaine relecture sera l'itération
+**12**, avec le plafond de vingt conservé.
+
+| Type | Constat regroupé | Correction et preuve ciblée |
+| --- | --- | --- |
+| Important | Feuille lançant un sens/source sans carte et affichant un faux plafond | Comptage réactif commun aux prédicats du chargeur ; état vide avec Réessayer/Retour, sans bilan artificiel |
+| Important | Clés brutes dans les locales proposées hors V0 | Configuration de localisation partagée avec repli FR activé ; trajet japonais réel plateau/feuille testé |
+| Important | Titre long empêchant la lecture des mots de l'aperçu | Titre et mots dans un défilement commun paresseux à texte doublé |
+| Important | Texte inactif de navigation insuffisamment contrasté | Encre secondaire lisible et mesure des cinq libellés dans les deux thèmes |
+| Important | Écriture ou lecture d'ACK pendante bloquant envois et partage | Échéance distante, ligne non acquittée, partage récupérable et reprise réseau testés |
+| Important | Délais par liste cumulant plusieurs minutes de restauration | Budget global de quinze secondes, arrêt des nouvelles lectures après panne et données partielles conservées |
+| Important | Indicateur de scroll absent après chargement tardif | Notifications de métriques et redimensionnement traités sans geste |
+| Important | Prévol E2E acceptant le schéma 013 incompatible avec le binaire | Nouveau contrat exact owner-scoped-v1 requis par clients et reset ; refus 013/014, succès 015 |
+| Important | Diagnostics iOS inclus dans les sauvegardes | Exclusion Foundation posée et relue avant écriture, réappliquée aux deux dossiers existants |
+| Important | Jeton supabase/.env.deploy accepté après ajout forcé | Refus local et PR du fichier réel, modèle .example conservé |
+| Important | Starter établi remis en quarantaine après édition/révision hors ligne | Identité reconnue durable, vrais brouillons divergents toujours retenus |
+| Important | Rendu audio différé exécuté sous le compte suivant | Propriétaire capturé vérifié à l'appel et à l'attachement, deux rendus suspendus testés |
+| Important | Annulation de rappel dépassée par une résolution tardive du fuseau | Générations et commandes natives ordonnées par ID, annulations quotidiennes/série/globales testées |
+
+La Suggestion sur l'inventaire des tests est traitée : les trajets du plateau,
+de la feuille et des cinq onglets remplacent les anciens contrôles de l'accueil.
+La Suggestion sur le coût des réservations unitaires d'alias reste conservée
+pour une optimisation mesurée, sans correction revendiquée dans ce lot.
+
+### Échec déterministe iOS du même candidat
+
+Les sept anciens checks CI sont verts sur `f5f5949`, y compris le vrai hook
+Unix et le PostgreSQL jetable. Le nouveau build simulateur échoue à l'édition
+des liens : `Framework 'Pods_Runner' not found`. Le projet utilisait une
+intégration CocoaPods non versionnée et la migration SwiftPM automatique.
+Le lot versionne le Podfile et les inclusions Debug/Profile/Release, puis
+choisit explicitement CocoaPods. Le prochain check macOS devra confirmer
+la correction ; aucun contournement du check obligatoire n'est introduit.
+
+Validation du lot : **1 092 tests hôte réussis**, douze diagnostics positifs
+exclus sans opt-in, couverture **73,6 %** (13 681 / 18 585 lignes).
+L'analyse Flutter est propre ; les 25 diagnostics ciblés passent avec opt-in
+et la sonde AOT refuse les diagnostics en mode produit. Les 190 tests data
+ciblés passent. Le trajet japonais utilise la configuration réelle de
+localisation ; les tests de mots accessibles après un très long titre,
+de contraste et de métriques de scroll passent sans geste initial requis.
+La passe voix/notifications compte 44 réussites avec opt-in et 24 sans.
+
+PostgreSQL 16.11 valide les sept suites, les refus de reset après 009, 012,
+013 et 014, le contrat après 015, la concurrence à deux connexions et le
+bundle d'activation avec rejet de réapplication. Les 37 tests Python,
+actionlint, zizmor et la frontière de licence passent. Les fonctions Edge
+restent inchangées depuis les 29 tests Deno et sept bundles figés validés.
+La configuration iOS est vérifiée statiquement ; son édition des liens
+et le contrôle de la nouvelle exclusion native attendent la CI macOS.

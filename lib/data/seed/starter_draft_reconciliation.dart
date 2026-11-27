@@ -38,7 +38,7 @@ class StarterDraftReconciliation {
           });
           if (variantIds.any(conflictingProgressVariantIds.contains)) continue;
         }
-        await lists.releaseStarterDraft(draft.id);
+        await lists.establishStarterIdentity(draft.id);
       } else if (identities.isEmpty) {
         await lists.releaseStarterDraft(draft.id);
       } else if (identities.length == 1) {
@@ -253,6 +253,7 @@ class StarterDraftReconciliation {
       ...removedVariants,
     ]);
     await lists.releaseStarterDraft(draft.id);
+    await lists.establishStarterIdentity(canonical.id);
     if (draft.isDeleted && !canonical.isDeleted) {
       await _db.conceptDao.tombstoneListContents(canonical.id, draft.ownerId);
     } else if (!deleted) {

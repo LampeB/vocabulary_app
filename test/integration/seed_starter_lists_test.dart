@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
+import 'package:vocab_kr/data/datasources/remote/vocabulary_remote_datasource.dart'
+    show VocabularyNetworkBudget;
 import 'package:vocab_kr/data/models/concept_dto.dart';
 import 'package:vocab_kr/data/models/variant_progress_dto.dart';
 import 'package:vocab_kr/data/models/vocabulary_list_dto.dart';
@@ -27,6 +29,7 @@ import 'package:vocab_kr/presentation/providers/settings/default_pair_provider.d
 
 class _HistoricalStarterRemote extends FakeRemote {
   bool offline = true;
+  String? unavailableContents;
   final lists = <Map<String, dynamic>>[];
   final concepts = <Map<String, dynamic>>[];
   final progress = <Map<String, dynamic>>[];
@@ -37,20 +40,26 @@ class _HistoricalStarterRemote extends FakeRemote {
   Future<void> Function(Map<String, dynamic>)? onEvent;
 
   @override
-  Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async =>
+  Future<Result<List<Map<String, dynamic>>>> fetchLists(
+    String ownerId, {
+    VocabularyNetworkBudget? budget,
+  }) async =>
       offline ? const Failure(NetworkException('offline')) : Success(lists);
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
     String listId, {
     required String ownerId,
-  }) async =>
-      Success(concepts.where((row) => row['list_id'] == listId).toList());
+    VocabularyNetworkBudget? budget,
+  }) async => listId == unavailableContents
+      ? const Failure(NetworkException('contents unavailable'))
+      : Success(concepts.where((row) => row['list_id'] == listId).toList());
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchProgress(
-    String userId,
-  ) async => Success(progress);
+    String userId, {
+    VocabularyNetworkBudget? budget,
+  }) async => Success(progress);
 
   @override
   Future<Result<Map<String, dynamic>>> upsertList(
@@ -138,13 +147,14 @@ void main() {
     String userId = 'u1',
     AppDatabase? device,
     VocabularyRepositoryImpl? repository,
+    bool restoreOnLogin = false,
   }) {
     final c = ProviderContainer(
       overrides: [
         appDatabaseProvider.overrideWithValue(device ?? db),
         vocabularyRepositoryProvider.overrideWithValue(repository ?? repo),
         currentUserProvider.overrideWithValue(_user(userId)),
-        syncOnLoginProvider.overrideWith((ref) async {}),
+        if (!restoreOnLogin) syncOnLoginProvider.overrideWith((ref) async {}),
       ],
     );
     addTearDown(c.dispose);
@@ -242,6 +252,62 @@ void main() {
     );
   });
   tearDown(() => db.close());
+
+  test('an incomplete pull defers topping up a restored starter, then '
+      'seeding resumes after its tombstones arrive', () async {
+    const listId = '41414141-4141-4141-8141-414141414141';
+    final remote = _HistoricalStarterRemote()
+      ..offline = false
+      ..unavailableContents = listId
+      ..lists.add({
+        'id': listId,
+        'owner_id': 'u1',
+        'name': 'Historical',
+        'origin': 'starter',
+        'seed_id': 'starter-greetings:fr>ko',
+        'created_at': '2026-11-27T00:00:00Z',
+        'updated_at': '2026-11-27T00:00:00Z',
+      })
+      ..concepts.add({
+        'id': 'legacy-deleted-bonjour',
+        'list_id': listId,
+        'seed_id': 'bonjour',
+        'is_deleted': true,
+        'created_at': '2026-11-27T00:00:00Z',
+        'updated_at': '2026-11-27T00:00:00Z',
+      });
+    repo = repositoryFor(db, remote);
+    final container = makeContainer(restoreOnLogin: true);
+    container.listen(seedStarterListsProvider, (_, _) {});
+    await container.read(seedStarterListsProvider.future);
+    expect(await db.vocabularyListDao.isStarterContentsPending(listId), isTrue);
+    expect(await db.conceptDao.getConceptsByList(listId), isEmpty);
+    final all = await repo.watchMyLists().first;
+    expect(all, hasLength(6));
+    final offline = all.firstWhere((list) => list.id != listId);
+    expect(await db.vocabularyListDao.isStarterDraftHeld(offline.id), isTrue);
+    final prefs = await SharedPreferences.getInstance();
+    final flag = StarterSeeder.flagKeyFor('u1', 'fr', 'ko');
+    expect(prefs.getBool(flag), isNot(true));
+
+    remote.unavailableContents = null;
+    container.invalidate(syncOnLoginProvider);
+    await container.read(syncOnLoginProvider.future);
+    await container.read(seedStarterListsProvider.future);
+    expect(
+      await db.vocabularyListDao.isStarterContentsPending(listId),
+      isFalse,
+    );
+    final words = await db.conceptDao.getConceptsByList(
+      listId,
+      includeDeleted: true,
+    );
+    final deleted = words.singleWhere((word) => word.seedId == 'bonjour');
+    expect(deleted.id, 'legacy-deleted-bonjour');
+    expect(deleted.isDeleted, isTrue);
+    expect(words, hasLength(18));
+    expect(prefs.getBool(flag), isTrue);
+  });
 
   test('fresh devices preserve starter tombstones and complete missing '
       'catalogue rows with the original import IDs', () async {
@@ -437,6 +503,14 @@ void main() {
     final push = pushFor(remote);
     final pushing = push.pushAll();
     await firstEvent.future;
+    // Old unconfirmed metadata was still a draft when the previous build
+    // released its review. The in-flight event keeps the CAS race open.
+    await db
+        .update(db.conceptsTable)
+        .write(const ConceptsTableCompanion(isSynced: Value(false)));
+    await db
+        .update(db.wordVariantsTable)
+        .write(const WordVariantsTableCompanion(isSynced: Value(false)));
     expect((await repo.renameList(draftId, 'Offline title')).isSuccess, isTrue);
     await repo.syncFromRemote();
     final requeued = await db.reviewEventDao.getUnsynced(userId: 'u1');
@@ -730,6 +804,64 @@ void main() {
       12,
     );
   });
+
+  test(
+    'an acknowledged starter stays established after offline edits and a later review',
+    () async {
+      final remote = _HistoricalStarterRemote()..offline = false;
+      repo = repositoryFor(db, remote);
+      await repo.syncFromRemote();
+      final list = (await repo.importFromJson(
+        _oneWordStarter,
+        origin: 'starter',
+      )).valueOrNull!;
+      final concept = (await repo.watchConcepts(list.id).first).single;
+      final variants = await db.conceptDao.getVariantsByConcept(concept.id);
+      final variant = variants.singleWhere((row) => row.langCode == 'fr');
+      final now = DateTime.utc(2026, 11, 27);
+      final first = VariantProgress(
+        id: 'established-progress',
+        userId: 'u1',
+        variantId: variant.id,
+        direction: QuizDirection.frToKo,
+        reps: 1,
+        timesShown: 1,
+        createdAt: now,
+        updatedAt: now,
+      );
+      await db.progressDao.upsertLocal(first.toLocalCompanion());
+      await pushFor(remote).pushAll();
+      expect(await db.vocabularyListDao.isStarterEstablished(list.id), isTrue);
+      remote.lists.add(remote.pushedLists.single);
+      remote.concepts.add({
+        ...(await db.conceptDao.getById(concept.id))!.toRemoteMap(),
+        'word_variants': variants.map((row) => row.toRemoteMap()).toList(),
+      });
+      remote.progress.add(remote.pushedProgress.single);
+
+      remote.offline = true;
+      await repo.renameList(list.id, 'Renamed offline');
+      await repo.updateConcept(concept.copyWith(notes: 'Offline note'));
+      for (final word in variants) {
+        await repo.updateVariantWord(word.id, '${word.word} edited');
+      }
+      await db.progressDao.upsertLocal(
+        first.copyWith(reps: 2, timesShown: 2).toLocalCompanion(),
+      );
+
+      // A fresh repository has no in-memory history. All of its metadata is
+      // dirty; only the persisted evidence identifies this established starter.
+      repo = repositoryFor(db, remote);
+      remote.offline = false;
+      await repo.syncFromRemote();
+      expect(await db.vocabularyListDao.isStarterDraftHeld(list.id), isFalse);
+      expect((await db.progressDao.getById(first.id))?.timesShown, 2);
+      expect(await pushFor(remote).pushAll(), greaterThan(0));
+      expect(remote.pushedLists.last['name'], 'Renamed offline');
+      expect(remote.pushedProgress.map((row) => row['times_shown']), [1, 2]);
+      expect((await db.progressDao.getById(first.id))?.isSynced, isTrue);
+    },
+  );
 
   test(
     'a brand-new user gets the 6 fr>ko starter lists with all their words',

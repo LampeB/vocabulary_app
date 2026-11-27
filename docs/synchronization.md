@@ -13,6 +13,9 @@ L'application utilise SQLite comme source de lecture et les colonnes
   écritures en attente. Un déclenchement reçu pendant cette passe ouvre
   une nouvelle passe après l'échec. Un refus attaché à une ligne laisse
   les autres écritures avancer. Les dates envoyées au serveur sont explicites en UTC.
+- Un envoi PostgREST dispose de 15 secondes, y compris les lectures nécessaires
+  à son accusé canonique. L'expiration conserve la version locale en file et
+  libère les appelants qui attendent l'envoi de la liste pour la partager.
 - Le déclencheur écoute les mutations locales validées par SQLite pour le
   compte actif. Une nouvelle édition d'une ligne déjà en attente réveille
   la file. Les accusés, les restaurations et les mutations des autres comptes
@@ -37,7 +40,10 @@ L'application utilise SQLite comme source de lecture et les colonnes
   la fois et de 256 variantes distinctes en attente. Un échec ou une file
   audio pleine laisse la synthèse de l'appareil disponible. SQLite adopte le
   chemin canonique si la variante, son mot, sa langue et ses parents sont
-  encore valides. Le changement de chemin ne déclenche aucun nouvel envoi.
+  encore valides. La demande utilise la session du propriétaire capturé
+  à la mise en file. Un changement de compte invalide la réponse et
+  empêche les demandes restantes de partir sous le nouveau compte.
+  Le changement de chemin ne déclenche aucun nouvel envoi.
 - L'accusé de réception ne marque une ligne synchronisée que si tous ses
   champs correspondent toujours à la version envoyée. Une modification
   pendant un envoi reste donc en attente. Les détails de liste et les mots
@@ -109,9 +115,11 @@ L'application utilise SQLite comme source de lecture et les colonnes
   enrichissement du profil conserve la même tentative. Une récupération
   incomplète conserve les données reçues et reste en attente de nouvelle
   tentative. Le seeding local et l'ouverture du plateau restent disponibles
-  hors ligne. Chaque page distante expire après 15 secondes et laisse la
-  récupération en attente. Au retour du réseau, le shell relance la récupération en
-  attente avant d'envoyer les modifications locales. Un retour réseau
+  hors ligne. Un budget de 15 secondes couvre toute la lecture distante.
+  Une panne de transport ou une expiration arrête les prochaines lectures
+  et conserve les pages déjà reçues. Au retour du réseau, le shell relance
+  la récupération en attente avant d'envoyer les modifications locales.
+  Un retour réseau
   pendant un pull est retenu et ouvre une tentative si le pull échoue.
   En cas d'indisponibilité du profil distant, une session déjà signée fournit
   l'identité locale pour le seeding et l'ouverture du plateau. Un profil reçu
@@ -129,9 +137,13 @@ L'application utilise SQLite comme source de lecture et les colonnes
   et du catalogue. Le complément utilise les mêmes identifiants de concepts
   et de variantes que l'import. Il tient compte des suppressions déjà
   enregistrées, y compris pour une langue dont tous les mots ont été supprimés.
+  Une liste distante reçue sans son contenu complet attend la récupération
+  de ses concepts avant le complément du catalogue.
   Les brouillons créés avant la première restauration restent étudiables sur
   l'appareil. La file vérifie leur retenue dans la transaction qui sélectionne
-  la progression et les événements à envoyer.
+  la progression et les événements à envoyer. Une identité starter confirmée
+  se conserve dans SQLite. Une modification hors ligne de cette liste ou
+  d'une carte ne la remet pas en brouillon après un redémarrage.
 - Au retour du réseau, le brouillon adopte les identifiants d'une liste
   starter existante, y compris les anciens UUID aléatoires. La transaction
   reprend les champs explicitement modifiés et rattache les révisions et les
@@ -161,6 +173,10 @@ synchronisation sans changement pédagogique ne recharge pas leur pool.
 Une session de cartes dues dans les deux sens complète son plafond depuis
 le sens disponible. La variante principale fournit ensemble le mot prononcé
 et son extrait audio. Les autres variantes restent acceptées.
+La disponibilité de pratique suit la source, la paire et le sens choisi.
+Le compteur et le chargeur utilisent les mêmes critères de carte jouable,
+avec une variante de réponse active. Si la dernière carte disparaît avant
+le chargement, le quiz affiche un état vide récupérable.
 
 Les tests d'intégration de récupération, d'envoi et d'export/import servent de
 preuves exécutables. La validation sur deux appareils reste nécessaire avant

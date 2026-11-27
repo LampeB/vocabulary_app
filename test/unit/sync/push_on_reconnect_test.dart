@@ -39,7 +39,10 @@ class _RestorationRemote extends FakeRemote {
   final release = Completer<void>();
 
   @override
-  Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async {
+  Future<Result<List<Map<String, dynamic>>>> fetchLists(
+    String ownerId, {
+    VocabularyNetworkBudget? budget,
+  }) async {
     pulls++;
     if (offline) return const Failure(NetworkException('offline'));
     if (!requested.isCompleted) requested.complete();

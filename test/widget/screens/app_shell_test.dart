@@ -18,6 +18,49 @@ import '../../helpers/pump_screen.dart';
 void main() {
   setUpAll(initTestLocalization);
 
+  for (final mode in [ThemeMode.light, ThemeMode.dark]) {
+    testWidgets('all nav labels meet small-text contrast in $mode', (
+      tester,
+    ) async {
+      await pumpScreen(
+        tester,
+        screen: const AppShell(child: Text('Content')),
+        themeMode: mode,
+        overrides: [
+          connectivityStreamProvider.overrideWith(
+            (ref) => Stream.value([ConnectivityResult.wifi]),
+          ),
+          pushOnReconnectProvider.overrideWith((ref) {}),
+        ],
+      );
+      final home = find.byKey(ValueKey(WidgetKeys.navTab('home')));
+      final container = tester.widget<Container>(
+        find.ancestor(of: home, matching: find.byType(Container)).first,
+      );
+      final theme = Theme.of(tester.element(home));
+      final fill = Color.alphaBlend(
+        (container.decoration! as BoxDecoration).color!,
+        theme.scaffoldBackgroundColor,
+      );
+      for (final tab in ['home', 'lists', 'grammar', 'stats', 'profile']) {
+        final label = find.descendant(
+          of: find.byKey(ValueKey(WidgetKeys.navTab(tab))),
+          matching: find.byType(Text),
+        );
+        final color = tester.widget<Text>(label).style!.color!;
+        final ink = Color.alphaBlend(color, fill).computeLuminance();
+        final paper = fill.computeLuminance();
+        expect(
+          ink > paper
+              ? (ink + .05) / (paper + .05)
+              : (paper + .05) / (ink + .05),
+          greaterThanOrEqualTo(4.5),
+          reason: tab,
+        );
+      }
+    });
+  }
+
   testWidgets(
     'tabs keep readable labels and selected keyboard navigation at 320px double text',
     (tester) async {

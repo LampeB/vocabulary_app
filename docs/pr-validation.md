@@ -189,8 +189,9 @@ exige :
   dépôt progressivement sans reformater du code hors sujet ;
 - la politique documentaire et l'interdiction des artefacts générés ou de la
   configuration privée, y compris les chemins accentués et les chemins avec
-  retour à la ligne. La CI vérifie aussi que Git lance le hook après son
-  installation sous Ubuntu ;
+  retour à la ligne. Le fichier de déploiement local `supabase/.env.deploy`
+  est interdit dans l'index et dans les diffs de PR. La CI vérifie aussi que
+  Git lance le hook après son installation sous Ubuntu ;
 - `flutter analyze`, les tests hôte et le seuil de couverture ;
 - les diagnostics STT testés en debug avec et sans opt-in et une sonde Dart
   compilée en mode produit avec l'opt-in actif pour vérifier le refus ;
@@ -204,8 +205,10 @@ exige :
 Ce dernier contrôle applique aussi les migrations de production de sécurité.
 Il vérifie que `vocab-audio` reste fermé aux clients entre 007 et 012, puis
 exerce les lectures publiques, la confidentialité des clips malgré une règle
-Storage permissive préexistante et l'historique des réponses. Le reset E2E est
-refusé avant 013 et quand un déclencheur d'isolation est désactivé. Les tests
+Storage permissive préexistante et l'historique des réponses. Le prévol Patrol
+et le reset exigent le contrat `owner-scoped-v1` de 015. Les suites SQL
+vérifient les refus après 013 et 014, puis l'acceptation après 015 et le refus
+quand un déclencheur d'isolation ou de suppression est désactivé. Les tests
 d'isolation E2E couvrent les écritures de relations et de
 progression par le rôle authentifié. Deux connexions PostgreSQL vérifient qu'une
 demande d'amitié concurrente attend la fin du reset, puis est refusée.
@@ -213,6 +216,12 @@ demande d'amitié concurrente attend la fin du reset, puis est refusée.
 La version Flutter de ce check est figée à **3.44.9**, celle qui correspond à
 la version validée du projet. Toute montée de SDK est une modification séparée
 qui doit rendre la suite verte avant de devenir la nouvelle référence CI.
+
+Le projet iOS utilise CocoaPods seul tant que des plugins nécessaires ne
+gèrent pas Swift Package Manager. Le `ios/Podfile` est versionné et les
+configurations Debug, Profile et Release de Runner chargent chacune les
+réglages CocoaPods correspondants. Le build Flutter installe les pods avant
+de lancer Xcode.
 
 La revue de dépendances exige que le **Dependency Graph** soit activé dans les
 réglages GitHub du dépôt. Tant que cette activation distante n'est pas faite,

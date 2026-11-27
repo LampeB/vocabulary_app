@@ -243,6 +243,15 @@ class ConceptDao extends DatabaseAccessor<AppDatabase> with _$ConceptDaoMixin {
     return row.read(count) ?? 0;
   }
 
+  // Acknowledged descendants are evidence for lists persisted by an older app
+  // version which had not yet recorded established starter identities.
+  Future<bool> hasSyncedContents(String listId) => customSelect(
+    'SELECT EXISTS (SELECT 1 FROM concepts c WHERE c.list_id = ? '
+    'AND (c.is_synced = 1 OR EXISTS (SELECT 1 FROM word_variants w '
+    'WHERE w.concept_id = c.id AND w.is_synced = 1))) AS synced',
+    variables: [Variable(listId)],
+  ).map((row) => row.read<bool>('synced')).getSingle();
+
   Future<Set<String>> getVariantIdsByLists(Set<String> listIds) async {
     if (listIds.isEmpty) return {};
     final variants = selectOnly(wordVariantsTable)

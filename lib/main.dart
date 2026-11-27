@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/app_config.dart';
+import 'core/ponderin_localization.dart';
 import 'services/notifications/notification_service.dart';
 import 'services/purchases/purchase_service.dart';
 import 'presentation/providers/notifications/notification_provider.dart';
@@ -54,18 +55,7 @@ Future<void> main() async {
   await EasyLocalization.ensureInitialized();
 
   runApp(
-    EasyLocalization(
-      supportedLocales: const [
-        Locale('fr'),
-        Locale('en'),
-        Locale('es'),
-        Locale('de'),
-        Locale('it'),
-        Locale('ja'),
-        Locale('ko'),
-      ],
-      path: 'assets/translations',
-      fallbackLocale: const Locale('fr'),
+    PonderinLocalization(
       startLocale: _kTestLocale.isEmpty ? null : Locale(_kTestLocale),
       child: ProviderScope(
         overrides: [

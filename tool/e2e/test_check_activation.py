@@ -12,16 +12,19 @@ class CheckActivationTest(unittest.TestCase):
             with self.subTest(key=key), patch('check_activation.build_opener') as build:
                 response = build.return_value.open.return_value.__enter__.return_value
                 response.status = 200
-                response.read.return_value = b'true'
+                response.read.return_value = b'"owner-scoped-v1"'
                 require_isolation_ready('https://project.invalid/', key)
                 request = build.return_value.open.call_args.args[0]
-                self.assertEqual(request.full_url, 'https://project.invalid/rest/v1/rpc/e2e_isolation_ready')
+                self.assertEqual(request.full_url, 'https://project.invalid/rest/v1/rpc/e2e_patrol_contract')
                 self.assertEqual(request.get_method(), 'GET')
                 self.assertEqual(request.get_header('Apikey'), key)
                 self.assertEqual(request.get_header('Authorization'), f'Bearer {key}' if key.startswith('eyJ') else None)
 
     def test_uncertain_or_inactive_project_fails_closed(self):
-        for status, body in [(200, b'false'), (200, b'"true"'), (200, b'{}'), (200, b'html'), (203, b'true')]:
+        for status, body in [
+            (200, b'true'), (200, b'false'), (200, b'null'), (200, b'"isolated-v1"'),
+            (200, b'"true"'), (200, b'{}'), (200, b'html'), (203, b'"owner-scoped-v1"'),
+        ]:
             with self.subTest(status=status, body=body), patch('check_activation.build_opener') as build:
                 response = build.return_value.open.return_value.__enter__.return_value
                 response.status = status
