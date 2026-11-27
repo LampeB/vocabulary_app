@@ -387,6 +387,7 @@
   "quiz.grammar_prompt_failed": "안내 음성을 재생할 수 없습니다. 다시 듣기를 눌러 재시도하세요.",
   "quiz.listen_cue_failed": "듣기 신호를 재생할 수 없습니다. 다시 듣기를 눌러 재시도하세요.",
   "quiz.load_failed": "카드를 불러올 수 없어요.",
+  "quiz.voice_prepare_failed": "음성 인식을 시작할 수 없어요. 다시 시도해 주세요.",
   "grammar.drill.particle_variant": "「{word}」에 {hint} 조사를 붙이세요",
   "grammar.drill.conjugate": "「{word}」를 해요체 현재형으로 활용하세요",
   "grammar.drill.negate": "「{word}」를 부정형으로 만드세요",

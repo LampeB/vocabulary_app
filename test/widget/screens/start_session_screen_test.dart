@@ -727,6 +727,82 @@ void main() {
       final contrast = await renderedTextContrast(tester, label);
       expect(contrast, inInclusiveRange(4.5, 21.0));
     });
+
+    testWidgets(
+      'vocabulary group headings have readable ${theme.name} contrast',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        useFallbackFontsForContrast();
+        await pump(
+          tester,
+          lists: [_list('l1', 'Animaux'), _list('l2', 'Voyage')],
+          studied: {'l1'},
+          themeMode: theme,
+        );
+        await pickLanguage(tester);
+        for (final key in [
+          'start_session.group_studying',
+          'start_session.group_not_studied',
+        ]) {
+          final label = find.text(key.tr().toUpperCase());
+          await tester.ensureVisible(label);
+          await tester.pumpAndSettle();
+          expect(
+            await renderedTextContrast(tester, label),
+            inInclusiveRange(4.5, 21.0),
+          );
+        }
+      },
+    );
+
+    testWidgets('French -er setup keeps disabled voice guidance readable in '
+        '${theme.name} and launches writing', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      useFallbackFontsForContrast();
+      final raw = (await tester.runAsync(
+        () => rootBundle.loadString('assets/seed/grammar/fr/rules.json'),
+      ))!;
+      final rules = (jsonDecode(raw) as Map<String, dynamic>)['rules'] as List;
+      final rule = rules
+          .map((json) => GrammarRule.fromJson(json as Map<String, dynamic>))
+          .firstWhere((rule) => rule.id == 'fr-present-er');
+      expect(rule.mechanics, isA<ConjugationMechanics>());
+      await pump(
+        tester,
+        grammar: true,
+        initialRuleId: rule.id,
+        langA: 'ko',
+        langB: 'fr',
+        rule: rule,
+        themeMode: theme,
+      );
+      for (final mode in ['voice', 'handsFree']) {
+        final tile = byKey(WidgetKeys.startQuizType(mode));
+        final button = find.descendant(
+          of: tile,
+          matching: find.byType(OutlinedButton),
+        );
+        final note = find.descendant(
+          of: tile,
+          matching: find.text('grammar.written_only'.tr()),
+        );
+        expect(tester.widget<OutlinedButton>(button).onPressed, isNull);
+        await tester.ensureVisible(note);
+        await tester.pumpAndSettle();
+        expect(
+          await renderedTextContrast(tester, note),
+          inInclusiveRange(4.5, 21.0),
+        );
+        await tester.tap(button, warnIfMissed: false);
+        await tester.pumpAndSettle();
+        expect(byKey(WidgetKeys.startCount(10)), findsNothing);
+      }
+      await tapKey(tester, WidgetKeys.startQuizType('typing'));
+      await tapKey(tester, WidgetKeys.startCount(10));
+      await tapKey(tester, WidgetKeys.startSessionStart);
+      expect(capturedArgs?.ruleId, rule.id);
+      expect(capturedArgs?.mode, QuizMode.typing);
+    });
   }
 
   testWidgets('French plural preview teaches in Korean and starts in writing', (

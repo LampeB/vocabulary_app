@@ -700,10 +700,68 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }) async {
     final m = _turnMachine!;
     final turn = m.turn;
-    if (_turnStale(turn, card)) return;
+    final userId = ref.read(currentUserProvider)?.id;
+    bool stale() =>
+        _turnStale(turn, card) || ref.read(currentUserProvider)?.id != userId;
+    if (stale()) return;
+    try {
+      await _runRaceAttempt(card, langCode, m, stale, rescue: rescue);
+    } catch (error) {
+      sttLog('[QUIZ] voice attempt failed: $error');
+      if (stale()) return;
+      // The detached attempt may have reached native mic startup. Join
+      // release before any retry can start, including a retry during cleanup.
+      await (_interruption = _recoverRaceAttempt(stale));
+    }
+  }
 
-    final online = !isOffline(await Connectivity().checkConnectivity());
-    if (_turnStale(turn, card)) return;
+  Future<bool> _raceNetworkAvailable() async {
+    try {
+      return !isOffline(await Connectivity().checkConnectivity());
+    } catch (error) {
+      sttLog('[QUIZ] connectivity unknown; using local speech engines: $error');
+      return false;
+    }
+  }
+
+  Future<void> _recoverRaceAttempt(bool Function() stale) async {
+    _cancelActiveRace();
+    _listenBarCtrl.stop();
+    try {
+      await _releaseTurnMicrophone();
+    } catch (error) {
+      sttLog('[QUIZ] failed attempt could not release the microphone: $error');
+      if (!stale()) _showReleaseFailure();
+      return;
+    }
+    if (!mounted || stale()) return;
+    ref.read(_quiz.notifier).setListening(false);
+    const key = 'quiz.voice_prepare_failed';
+    if (widget.args.mode == QuizMode.handsFree) {
+      setState(() {
+        _hfCountdown = null;
+        _hfAnalyzing = false;
+        _hfNotHeard = false;
+        _hfFailureKey = key;
+      });
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(key.tr())));
+    }
+  }
+
+  Future<void> _runRaceAttempt(
+    QuizCard card,
+    String langCode,
+    VoiceTurnMachine m,
+    bool Function() stale, {
+    required bool rescue,
+  }) async {
+    final turn = m.turn;
+    // System mode has no external speech service to check.
+    final online = !_turnCourseMode || await _raceNetworkAvailable();
+    if (stale()) return;
     final engines = _turnCourseMode
         ? _sttRegistry!.select(
             langCode: langCode,
@@ -718,16 +776,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       await _releaseTurnMicrophone();
     } catch (error) {
       sttLog('[HF] microphone release preflight failed: $error');
-      if (!_turnStale(turn, card)) _showReleaseFailure();
+      if (!stale()) _showReleaseFailure();
       return;
     }
-    if (_turnStale(turn, card)) return;
+    if (stale()) return;
     final shared = engines.any(
       (engine) => engine.capture == SttCapture.sharedPcm,
     );
     final canOpen =
         engines.isNotEmpty && (!shared || await recorder.ensurePermission());
-    if (_turnStale(turn, card)) return;
+    if (stale()) return;
     if (!canOpen) {
       await _runTurnCommands(
         m.on(NothingHeard(turn, hadRealWindow: false)),
@@ -740,19 +798,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // All lanes are ready before the learner hears the opening cue. The
     // microphone opens only after the cue has cleared.
     if (widget.args.mode == QuizMode.handsFree && !_kTestMode) {
-      if (!await _runCountdown(() => _turnStale(turn, card))) return;
-      if (_turnStale(turn, card)) return;
+      if (!await _runCountdown(stale)) return;
+      if (stale()) return;
       HapticFeedback.selectionClick();
       try {
         await ref.read(audioDirectorProvider).listenCue();
       } catch (error) {
         sttLog('[QUIZ] opening cue failed: $error');
-        if (!_turnStale(turn, card)) {
+        if (!stale()) {
           setState(() => _hfFailureKey = 'quiz.listen_cue_failed');
         }
         return;
       }
-      if (_turnStale(turn, card)) return;
+      if (stale()) return;
     }
 
     m.on(MicOpened(turn));
@@ -806,7 +864,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       timeout: listenWindow,
       restartOnSessionEnd: false,
       onStatus: (status) {
-        if (!identical(_activeRace, race) || _turnStale(turn, card)) return;
+        if (!identical(_activeRace, race) || stale()) return;
         final micOpen =
             status.phase == SttPhase.listening ||
             status.phase == SttPhase.speaking;
@@ -817,19 +875,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         setState(() => _sttStatus = status);
       },
       onMicClosedPending: () {
-        if (!identical(_activeRace, race) || _turnStale(turn, card)) return;
+        if (!identical(_activeRace, race) || stale()) return;
         unawaited(
           _runTurnCommands(m.micClosedPendingVerdict(turn), card, langCode),
         );
       },
       onPartial: (h) {
-        if (!_turnStale(turn, card)) {
+        if (!stale()) {
           ref.read(_quiz.notifier).setPartialTranscript(h.transcript);
         }
       },
     );
     if (identical(_activeRace, race)) _activeRace = null;
-    if (outcome.cancelled || _turnStale(turn, card)) return;
+    if (outcome.cancelled || stale()) return;
     if (outcome.micReleaseFailed) {
       _showReleaseFailure();
       return;

@@ -1021,3 +1021,43 @@ premier verdict collectif propre de ce nouveau SHA. La limite de vingt
 interdit d'inventer la seconde lecture ou de réutiliser une ancienne tête ;
 la fusion et l'approbation automatique restent donc conditionnées à une
 décision utilisateur si la convergence dépasse ce plafond.
+
+## Vingtième itération — `65a0a07` — plafond atteint
+
+Les quatre verdicts finaux ont été réunis sur
+`65a0a078caf40cc4f8dcc0e0866d5f60146f83d5` avant toute correction. Le profil
+sécurité rend `PROPRE`, les trois autres rendent `BLOQUÉ`. Les **4 Important
+sont distincts**, sans Bloquant ni Suggestion. La convergence collective
+reste **0/2**. Les vingt passes autorisées sont consommées pour chacun des
+quatre profils ; aucune passe 21 n'est lancée sans décision utilisateur.
+
+| Profil / instance | Verdict | Important | Suggestion |
+| --- | --- | --- | --- |
+| Produit — `/root/r20_product` | BLOQUÉ | 2 | 0 |
+| Qualité — `/root/r20_quality` | BLOQUÉ | 1 | 0 |
+| Correction — `/root/r20_correctness` | BLOQUÉ | 1 | 0 |
+| Sécurité — `/root/r20_security` | PROPRE | 0 | 0 |
+
+| Type | Constat distinct | Correction et preuve ciblée |
+| --- | --- | --- |
+| Important | Conjugaison française homophone notée à l'oral | Politique écrite commune à `fr-present-er` et au pluriel français ; vrai catalogue, configurateur, refus des lancements directs voix/mains-libres et saisie distinguant `travaille`/`travailles` |
+| Important | Titres de groupes et explication de mode désactivé trop peu contrastés | Encre adaptée au thème et explication indépendante de l'opacité de l'option ; contraste des surfaces réellement rendues au moins 4,5:1 dans les deux thèmes |
+| Important | Synthèses concurrentes écrasant l'unique réponse native de fin | Une file englobe configuration, lecture complète et warm-up ; arrêt hors file, annulation après ACK et test de transport natif à un seul résultat disponible |
+| Important | Exception de connectivité ou de permission échappant à la tentative vocale | Réseau inconnu préservant Whisper local, Système sans vérification réseau, récupération de permission sous garde de tour/compte et fermeture confirmée avant relance |
+
+Les 50 tests ciblés de grammaire, les 23 tests ciblés audio et les 16 widgets
+ciblés de configuration/prévol passent ; leurs périmètres ne sont pas additionnés.
+La suite complète passe : **1 249 tests hôte**, douze diagnostics positifs
+exclus sans opt-in, couverture **76,0 %** (14 553 / 19 156 lignes). L'analyse
+Flutter est propre ; les 25 diagnostics ciblés passent avec opt-in, avec un
+test de refus réservé à l'autre configuration exclu. Les huit checks CI sont
+verts sur le commit examiné `65a0a07` ; le candidat corrigé exige sa propre CI.
+
+Ce lot corrige les quatre remontées de la passe 20 ; les tests ne constituent
+pas une nouvelle revue indépendante. Les migrations, fonctions Edge, outils,
+workflows et versions de dépendances restent inchangés depuis leurs contrôles
+précédents. Le garde documentaire, le formatage et le contrôle de l'historique
+restent obligatoires. Le statut de revue demeure en attente : aucune preuve
+de convergence, approbation du bot, fusion ou renommage n'est fabriquée. La
+prochaine étape est une décision utilisateur sur la limite de passes, après
+présentation de ce candidat corrigé et de sa CI.

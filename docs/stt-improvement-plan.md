@@ -79,6 +79,9 @@ L'arrêt confirmé termine aussi l'attente Dart d'une synthèse interrompue,
 même si le moteur natif ne répond plus à la commande de lecture. Une réponse
 tardive de cette synthèse laisse l'activité de la lecture suivante intacte.
 Un refus d'arrêt conserve l'activité des lectures encore en cours.
+La synthèse de l'appareil traite une seule demande à la fois, de la
+configuration de sa voix jusqu'à la fin du son. Un arrêt confirmé peut
+interrompre cette demande immédiatement et annule les demandes déjà en file.
 `SttRace` et `VoiceTurnMachine` ignorent les résultats arrivés après la fin du
 tour pour empêcher une réponse de contaminer la carte suivante.
 La fermeture de la capture attend sa dernière portion audio et l'inscrit dans
@@ -99,6 +102,11 @@ Chaque tour attend la restauration du mode STT et garde ce mode pour les
 nouvelles tentatives. Le premier essai et chaque relance attendent la
 sélection des moteurs disponibles et la vérification du microphone avant
 le compte à rebours et le signal d'ouverture.
+Un échec de lecture de la connectivité conserve les moteurs locaux éligibles
+sans lancer de moteur cloud ; le mode Système ne dépend pas de cette lecture.
+Une exception de permission ou de préparation termine la tentative avec un
+message FR/EN/KO et attend la fermeture du microphone avant une relance.
+Les résultats tardifs d'une tentative ou d'un ancien compte sont ignorés.
 La mise en arrière-plan, le recouvrement de la route du quiz et la pause
 volontaire invalident le tour, y compris le compte à rebours et les relances.
 Le mode mains-libres reprend quand l'application est à nouveau active et le

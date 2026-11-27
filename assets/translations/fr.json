@@ -387,6 +387,7 @@
   "quiz.grammar_prompt_failed": "La consigne audio n’a pas pu être lue. Appuie sur Répéter pour réessayer.",
   "quiz.listen_cue_failed": "Le signal d’écoute n’a pas pu être joué. Appuie sur Répéter pour réessayer.",
   "quiz.load_failed": "Impossible de charger les cartes.",
+  "quiz.voice_prepare_failed": "La reconnaissance vocale n’a pas pu démarrer. Réessaie.",
   "grammar.drill.particle_variant": "Ajoute la particule de {hint} à « {word} »",
   "grammar.drill.conjugate": "Conjugue « {word} » au présent poli",
   "grammar.drill.negate": "Mets « {word} » à la forme négative",

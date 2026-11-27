@@ -199,6 +199,9 @@ void main() {
             (ruleId: 'fr-negation-ne-pas', targetLang: 'fr') => const [
               DrillWord(word: 'travailler', category: 'verbe'),
             ],
+            (ruleId: 'fr-present-er', targetLang: 'fr') => const [
+              DrillWord(word: 'travailler', category: 'verbe'),
+            ],
             (ruleId: 'en-negation-dont', targetLang: 'en') => const [
               DrillWord(word: 'to work', category: 'verbe'),
             ],
@@ -287,28 +290,73 @@ void main() {
     expect(sub.read().errorMessage, 'quiz.load_failed'.tr());
   });
 
-  test('direct voice entry cannot grade an isolated French plural', () async {
-    final sub = container.listen(_quiz, (_, _) {});
-    final notifier = container.read(_quiz.notifier);
-    for (final mode in [QuizMode.voice, QuizMode.handsFree]) {
-      await notifier.loadCards(
-        QuizArgs(
-          source: QuizSource.grammar,
-          ruleId: 'fr-plural-s',
-          mode: mode,
-          direction: QuizDirectionChoice.frToKo,
-          cardLimit: 3,
-          langA: 'ko',
-          langB: 'fr',
-        ),
-      );
-      expect(sub.read().cards, isEmpty);
-      expect(sub.read().errorMessage, 'grammar.written_only'.tr());
-      notifier.submitVoiceAnswer('pommes', isDrivingMode: true);
-      expect(sub.read().answerState, QuizAnswerState.idle);
-    }
-    expect(await db.grammarProgressDao.get('u', 'fr-plural-s'), isNull);
-  });
+  for (final ruleId in ['fr-plural-s', 'fr-present-er']) {
+    test(
+      'direct spoken entry cannot grade ambiguous French spelling in $ruleId',
+      () async {
+        final sub = container.listen(_quiz, (_, _) {});
+        final notifier = container.read(_quiz.notifier);
+        for (final mode in [QuizMode.voice, QuizMode.handsFree]) {
+          await notifier.loadCards(
+            QuizArgs(
+              source: QuizSource.grammar,
+              ruleId: ruleId,
+              mode: mode,
+              direction: QuizDirectionChoice.frToKo,
+              cardLimit: 3,
+              langA: 'ko',
+              langB: 'fr',
+            ),
+          );
+          expect(sub.read().cards, isEmpty);
+          expect(sub.read().errorMessage, 'grammar.written_only'.tr());
+          notifier.submitVoiceAnswer('pommes', isDrivingMode: true);
+          expect(sub.read().answerState, QuizAnswerState.idle);
+        }
+        expect(await db.grammarProgressDao.get('u', ruleId), isNull);
+      },
+    );
+  }
+
+  for (final answer in ['travaille', 'travailles']) {
+    test(
+      'French present evaluates the written second-person ending in $answer',
+      () async {
+        const ruleId = 'fr-present-er';
+        final sub = container.listen(_quiz, (_, _) {});
+        final notifier = container.read(_quiz.notifier);
+        await notifier.loadCards(
+          const QuizArgs(
+            source: QuizSource.grammar,
+            ruleId: ruleId,
+            mode: QuizMode.typing,
+            direction: QuizDirectionChoice.frToKo,
+            cardLimit: 2,
+            langA: 'ko',
+            langB: 'fr',
+          ),
+        );
+        expect(sub.read().currentCard!.answerWords, ['travaille']);
+        notifier.submitTextAnswer('travaille');
+        expect(sub.read().answerState, QuizAnswerState.correct);
+        notifier.advance();
+        expect(sub.read().currentCard!.answerWords, ['travailles']);
+        notifier.submitTextAnswer(answer);
+        expect(
+          sub.read().answerState,
+          answer == 'travailles'
+              ? QuizAnswerState.correct
+              : QuizAnswerState.incorrect,
+        );
+        final progress = await db.grammarProgressDao
+            .watchByUser('u')
+            .expand((rows) => rows)
+            .firstWhere((row) => row.ruleId == ruleId && row.shown == 2)
+            .timeout(const Duration(seconds: 2));
+        expect(progress.correct, answer == 'travailles' ? 2 : 1);
+      },
+    );
+  }
 
   test('the French plural drill requires the written s', () async {
     final sub = container.listen(_quiz, (_, _) {});

@@ -1,6 +1,7 @@
 import '../../domain/entities/grammar_rule.dart';
 
-/// The current word-level French plural drill cannot distinguish silent -s
-/// through speech. It stays written until an audible exercise is delivered.
+/// Word-level French spelling drills stay written until an audible exercise
+/// can distinguish their silent endings reliably.
 bool supportsSpokenGrammar(GrammarRule rule, String targetLang) =>
-    !(targetLang == 'fr' && rule.mechanics is PluralMechanics);
+    !(targetLang == 'fr' &&
+        (rule.mechanics is PluralMechanics || rule.id == 'fr-present-er'));

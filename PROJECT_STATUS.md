@@ -97,23 +97,26 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **1 234 tests hôte passent**, avec **75,9 %**
+- L'analyse Flutter est propre ; les **1 249 tests hôte passent**, avec **76,0 %**
   de couverture sur le dernier lot du 27 novembre. Douze tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 25 tests ciblés. La sonde compilée en mode produit confirme le
   refus des diagnostics, même avec l'option fournie.
-- Sur `789f684`, les huit checks CI, dont les tests hôte, le wrapper SQL,
+- Sur `65a0a07`, les huit checks CI, dont les tests hôte, le wrapper SQL,
   Android et le simulateur iOS, sont verts. Le pont utilise le NDK 28.2 de
-  l'application. Les dix-neuf premières itérations n'ont pas encore convergé ;
-  le profil sécurité est propre de la dix-septième à la dix-neuvième sur trois
-  commits différents. Les corrections sont consignées dans
+  l'application. Les vingt itérations autorisées n'ont pas convergé ;
+  le profil sécurité est propre de la dix-septième à la vingtième sur quatre
+  commits différents. Les quatre Important de la dernière passe sont corrigés,
+  mais ce candidat n'a pas reçu de nouvelle revue indépendante. La boucle est
+  arrêtée au plafond décidé ; toute prolongation exige une décision utilisateur.
+  La convergence collective reste 0/2. Les corrections sont consignées dans
   [le registre du 27 novembre](docs/reviews/2026-11-27-integration.md).
   Le sas exige deux revues propres sur le commit final ; les verdicts et les
   checks du candidat courant sont consignés dans la PR d'intégration.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **1 234** tests hôte réussis lors de la dernière validation locale
+- La suite compte **1 249** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - Les dix-sept suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations

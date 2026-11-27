@@ -57,6 +57,7 @@ import 'package:vocab_kr/services/notifications/notification_service.dart';
 import 'package:vocab_kr/services/quiz_orchestration/audio_director.dart';
 import 'package:vocab_kr/services/quiz_orchestration/voice_turn_machine.dart';
 import 'package:vocab_kr/services/speech/elevenlabs_speech_service.dart';
+import 'package:vocab_kr/services/speech/pcm_microphone.dart';
 import 'package:vocab_kr/services/speech/shared_pcm_capture.dart';
 import 'package:vocab_kr/services/speech/stt_engine.dart';
 import 'package:vocab_kr/services/speech/whisper_speech_service.dart';
@@ -190,12 +191,17 @@ class _FakeCapture implements SharedPcmCapture {
   int opens = 0;
   bool canOpen = true;
   _FakeCaptureSession? session;
+  Future<bool> Function()? checkPermission;
+  void Function(_FakeCaptureSession)? onOpen;
 
   @override
   Duration get releaseTimeout => sttMicReleaseTimeout;
 
   @override
-  Future<bool> ensurePermission() async => true;
+  Future<bool> ensurePermission() async {
+    final check = checkPermission;
+    return check == null || await check();
+  }
 
   @override
   Future<PcmCaptureSession?> open({
@@ -204,7 +210,9 @@ class _FakeCapture implements SharedPcmCapture {
   }) async {
     opens++;
     if (!canOpen) return null;
-    return session = _FakeCaptureSession(onSegment);
+    final opened = session = _FakeCaptureSession(onSegment);
+    onOpen?.call(opened);
+    return opened;
   }
 
   @override
@@ -1806,6 +1814,168 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('a rejected connectivity channel lets Course continue locally', (
+    tester,
+  ) async {
+    final network = Completer<List<String>>();
+    var checks = 0;
+    final voice = _VoiceHarness(
+      checkConnectivity: () {
+        checks++;
+        return network.future;
+      },
+    );
+    await pump(
+      tester,
+      mode: QuizMode.handsFree,
+      words: [('chat', '고양이')],
+      voice: voice,
+    );
+    expect(checks, 1);
+    expect(voice.director.cues, 0);
+    expect(voice.capture.opens, 0);
+
+    network.completeError(PlatformException(code: 'ConnectivityUnavailable'));
+    await tick(tester, times: 8);
+    expect(voice.director.cues, 1);
+    expect(voice.capture.opens, 1);
+    expect(voice.systemListens, 0);
+    voice.capture.session!.answer();
+    await tick(tester, times: 3);
+    expect(voice.whisper.decodes, 1);
+    expect(progressRepo.saved, hasLength(1));
+    expect(tester.takeException(), isNull);
+    await unmountScreen(tester);
+    await tester.pump(const Duration(seconds: 1));
+  });
+
+  testWidgets('System starts without consulting the connectivity channel', (
+    tester,
+  ) async {
+    var checks = 0;
+    final voice = _VoiceHarness(
+      checkConnectivity: () async {
+        checks++;
+        throw PlatformException(code: 'ConnectivityUnavailable');
+      },
+    );
+    final mode = _DelayedSttMode()..preference.complete(SttEngineMode.system);
+    await pump(
+      tester,
+      mode: QuizMode.voice,
+      words: [('chat', '고양이')],
+      voice: voice,
+      sttMode: mode,
+    );
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.micButton)));
+    await tick(tester, times: 4);
+    expect(checks, 0);
+    expect(voice.systemListens, 1);
+    expect(voice.capture.opens, 0);
+    expect(tester.takeException(), isNull);
+    await unmountScreen(tester);
+  });
+
+  for (final cancel in [false, true]) {
+    testWidgets('a rejected native recorder permission allows a safe retry '
+        '(cancelled first: $cancel)', (tester) async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      const channel = MethodChannel('com.llfbandit.record/messages');
+      final permission = Completer<bool>();
+      final retryPermission = Completer<bool>();
+      var permissionChecks = 0;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method != 'hasPermission') return null;
+        return ++permissionChecks == 1
+            ? await permission.future
+            : await retryPermission.future;
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+      final recorder = RecordPcmMicrophone();
+      final voice = _VoiceHarness();
+      voice.capture.checkPermission = recorder.hasPermission;
+      await pump(
+        tester,
+        mode: QuizMode.handsFree,
+        words: [('chat', '고양이')],
+        voice: voice,
+      );
+      expect(permissionChecks, 1);
+      expect(voice.director.cues, 0);
+      expect(voice.capture.opens, 0);
+      if (cancel) {
+        await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfPause)));
+        await tester.pump();
+      }
+
+      permission.completeError(
+        PlatformException(code: 'PermissionQueryFailed'),
+      );
+      await tick(tester, times: 2);
+      final message = find.text('quiz.voice_prepare_failed'.tr());
+      expect(message, cancel ? findsNothing : findsOneWidget);
+      expect(voice.director.cues, 0);
+      expect(voice.capture.opens, 0);
+      await tester.tap(
+        find.byKey(
+          ValueKey(cancel ? WidgetKeys.hfResume : WidgetKeys.hfRepeat),
+        ),
+      );
+      await tick(tester, times: 5);
+      expect(permissionChecks, 2);
+      expect(voice.director.cues, 0);
+      expect(voice.capture.opens, 0);
+
+      retryPermission.complete(true);
+      await tick(tester, times: 8);
+      expect(message, findsNothing);
+      expect(voice.director.cues, 1);
+      expect(voice.capture.opens, 1);
+      expect(tester.takeException(), isNull);
+      await unmountScreen(tester);
+      recorder.dispose();
+      await tester.pump();
+    });
+  }
+
+  testWidgets('a failed partial mic start releases before a newer retry', (
+    tester,
+  ) async {
+    final release = Completer<void>();
+    final voice = _VoiceHarness();
+    voice.capture.onOpen = (session) {
+      if (voice.capture.opens == 1) {
+        session.pendingClose = release.future;
+        throw PlatformException(code: 'RecorderStartFailed');
+      }
+    };
+    await pump(
+      tester,
+      mode: QuizMode.handsFree,
+      words: [('chat', '고양이')],
+      voice: voice,
+    );
+    await tick(tester, times: 8);
+    final partial = voice.capture.session!;
+    expect(partial.closeCalls, greaterThan(0));
+    expect(partial.closed, isFalse);
+    expect(find.text('quiz.voice_prepare_failed'.tr()), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfRepeat)));
+    await tick(tester, times: 2);
+    expect(voice.capture.opens, 1);
+    expect(voice.director.cues, 1);
+    release.complete();
+    await tick(tester, times: 10);
+    expect(partial.closed, isTrue);
+    expect(voice.capture.opens, 2);
+    expect(voice.director.cues, 2);
+    expect(find.text('quiz.voice_prepare_failed'.tr()), findsNothing);
+    expect(tester.takeException(), isNull);
+    await unmountScreen(tester);
+  });
 
   testWidgets('hands-free pause during countdown prevents cue and capture', (
     tester,

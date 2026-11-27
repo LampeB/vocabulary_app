@@ -8,6 +8,40 @@ import 'package:vocab_kr/services/audio/flutter_tts_service.dart';
 
 const _channel = MethodChannel('flutter_tts');
 
+class _NativeSpeechSlot {
+  final spoken = <(String, String)>[];
+  final languages = <String>[];
+  Completer<int>? reply;
+  Completer<int>? stopping;
+  int overwrites = 0;
+  int stopCalls = 0;
+
+  Future<Object?> handle(MethodCall call) async {
+    switch (call.method) {
+      case 'getEngines':
+        return <Object>[];
+      case 'setLanguage':
+        languages.add(call.arguments as String);
+      case 'speak':
+        spoken.add((call.arguments as String, languages.last));
+        if (reply != null) overwrites++;
+        return (reply = Completer<int>()).future;
+      case 'stop':
+        stopCalls++;
+        final acknowledgement = await stopping?.future ?? 1;
+        if (acknowledgement == 1) reply = null;
+        return acknowledgement;
+    }
+    return 1;
+  }
+
+  void finish() {
+    final completed = reply!;
+    reply = null;
+    completed.complete(1);
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -47,6 +81,105 @@ void main() {
   });
 
   List<String> names() => calls.map((call) => call.method).toList();
+
+  test(
+    'native speech keeps its voice and reply until the utterance ends',
+    () async {
+      final native = _NativeSpeechSlot();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(_channel, native.handle);
+      final tts = FlutterTtsService();
+
+      final first = tts.speak('chat', 'fr');
+      final second = tts.speak('고양이', 'ko');
+      await Future<void>.delayed(Duration.zero);
+      expect(native.spoken, [('chat', 'fr-FR')]);
+      expect(native.languages, ['fr-FR']);
+      expect(tts.isSpeaking, isTrue);
+
+      native.finish();
+      await first.timeout(const Duration(seconds: 1));
+      await Future<void>.delayed(Duration.zero);
+      expect(native.spoken, [('chat', 'fr-FR'), ('고양이', 'ko-KR')]);
+      expect(native.overwrites, 0);
+      expect(tts.isSpeaking, isTrue);
+      native.finish();
+      await second.timeout(const Duration(seconds: 1));
+      expect(tts.isSpeaking, isFalse);
+    },
+  );
+
+  test(
+    'confirmed stop cancels active and queued speech and releases the next generation',
+    () async {
+      final native = _NativeSpeechSlot()..stopping = Completer<int>();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(_channel, native.handle);
+      final tts = FlutterTtsService();
+
+      final cancelled = Future.wait([
+        expectLater(
+          tts.speak('ancien', 'fr'),
+          throwsA(isA<AudioPlaybackCancelled>()),
+        ),
+        expectLater(
+          tts.speak('en attente', 'ko'),
+          throwsA(isA<AudioPlaybackCancelled>()),
+        ),
+      ]);
+      await Future<void>.delayed(Duration.zero);
+      expect(native.spoken, [('ancien', 'fr-FR')]);
+      final lateReply = native.reply!;
+      final stop = tts.stop();
+      final fresh = tts.speak('nouveau', 'fr');
+      await Future<void>.delayed(Duration.zero);
+      expect(native.stopCalls, 1);
+      expect(tts.isSpeaking, isTrue);
+      expect(native.spoken, [('ancien', 'fr-FR')]);
+      expect(native.languages, ['fr-FR']);
+
+      native.stopping!.complete(1);
+      await stop.timeout(const Duration(seconds: 1));
+      await cancelled.timeout(const Duration(seconds: 1));
+      await Future<void>.delayed(Duration.zero);
+      expect(native.spoken, [('ancien', 'fr-FR'), ('nouveau', 'fr-FR')]);
+      expect(native.overwrites, 0);
+      expect(lateReply.isCompleted, isFalse);
+      expect(tts.isSpeaking, isTrue);
+      lateReply.complete(1);
+      await Future<void>.delayed(Duration.zero);
+      expect(tts.isSpeaking, isTrue);
+      native.finish();
+      await fresh.timeout(const Duration(seconds: 1));
+      expect(tts.isSpeaking, isFalse);
+    },
+  );
+
+  test('a fresh voice waits for an interrupted native engine switch', () async {
+    final tts = FlutterTtsService();
+    delayedMethod = 'setEngine';
+    final engine = configurationGate = Completer<void>();
+    final cancelled = expectLater(
+      tts.speak('ancien', 'fr'),
+      throwsA(isA<AudioPlaybackCancelled>()),
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(names(), ['getEngines', 'setEngine']);
+    await tts.stop();
+    await cancelled;
+
+    delayedMethod = null;
+    final fresh = tts.speak('새로운', 'ko');
+    await Future<void>.delayed(Duration.zero);
+    expect(names(), ['getEngines', 'setEngine', 'stop']);
+    engine.complete();
+    await fresh.timeout(const Duration(seconds: 1));
+    expect(
+      calls.where((call) => call.method == 'speak').single.arguments,
+      '새로운',
+    );
+    expect(tts.isSpeaking, isFalse);
+  });
 
   test(
     'a rejected locale is retried before speak on the same locale',
@@ -293,6 +426,10 @@ void main() {
           delayedMethod = method;
           final gate = configurationGate = Completer<void>();
           final speaking = tts.speak('bonjour', 'fr');
+          final cancelled = expectLater(
+            speaking,
+            throwsA(isA<AudioPlaybackCancelled>()),
+          );
           await Future<void>.delayed(Duration.zero);
           expect(names(), [method]);
 
@@ -301,8 +438,9 @@ void main() {
           } else {
             await tts.stop();
           }
+          await cancelled.timeout(const Duration(seconds: 1));
           gate.complete();
-          await speaking;
+          await Future<void>.delayed(Duration.zero);
           expect(names().where((name) => name != 'stop'), [method]);
           expect(tts.isSpeaking, isFalse);
 

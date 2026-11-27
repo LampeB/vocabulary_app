@@ -387,6 +387,7 @@
   "quiz.grammar_prompt_failed": "The audio prompt couldn’t play. Tap Repeat to try again.",
   "quiz.listen_cue_failed": "The listening cue couldn’t play. Tap Repeat to try again.",
   "quiz.load_failed": "Couldn’t load the cards.",
+  "quiz.voice_prepare_failed": "Speech recognition couldn’t start. Try again.",
   "grammar.drill.particle_variant": "Add the {hint} particle to “{word}”",
   "grammar.drill.conjugate": "Conjugate “{word}” in the polite present",
   "grammar.drill.negate": "Make “{word}” negative",

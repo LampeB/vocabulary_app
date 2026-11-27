@@ -346,7 +346,9 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
       padding: const EdgeInsets.only(left: 4, bottom: 2),
       child: Text(
         text.toUpperCase(),
-        style: AppTextStyles.eyebrowSm.copyWith(color: AppColors.muted),
+        style: AppTextStyles.eyebrowSm.copyWith(
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
       ),
     ),
   );
@@ -827,9 +829,9 @@ class _OptionTile extends StatelessWidget {
     final muted = dark ? V3Colors.light70 : V3Colors.ink60;
     final fg = selected
         ? Colors.white
-        : (disabled
-              ? (dark ? V3Colors.moss : V3Colors.edgeWarm2)
-              : (dark ? V3Colors.light : V3Colors.ink));
+        : disabled
+        ? muted
+        : (dark ? V3Colors.light : V3Colors.ink);
     final background = selected
         ? V3Colors.terra
         : (dark ? V3Colors.block2 : V3Colors.paper);
@@ -837,81 +839,80 @@ class _OptionTile extends StatelessWidget {
         ? V3Colors.terra
         : (dark ? V3Colors.ruleDark : V3Colors.edgeWarm2);
 
-    return Opacity(
-      opacity: disabled ? 0.6 : 1,
-      child: Stack(
-        alignment: AlignmentDirectional.centerEnd,
-        children: [
-          MergeSemantics(
-            child: Semantics(
-              selected: selected,
-              child: OutlinedButton(
-                onPressed: disabled ? null : onTap,
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: background,
-                  foregroundColor: fg,
-                  padding: EdgeInsetsDirectional.fromSTEB(
-                    16,
-                    14,
-                    onPreview == null ? 16 : 56,
-                    14,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  side: BorderSide(color: border),
+    return Stack(
+      alignment: AlignmentDirectional.centerEnd,
+      children: [
+        MergeSemantics(
+          child: Semantics(
+            selected: selected,
+            child: OutlinedButton(
+              onPressed: disabled ? null : onTap,
+              style: OutlinedButton.styleFrom(
+                backgroundColor: background,
+                disabledBackgroundColor: background,
+                foregroundColor: fg,
+                disabledForegroundColor: muted,
+                padding: EdgeInsetsDirectional.fromSTEB(
+                  16,
+                  14,
+                  onPreview == null ? 16 : 56,
+                  14,
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                side: BorderSide(color: border),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: AppTextStyles.fig(
+                        15,
+                        FontWeight.w600,
+                      ).copyWith(color: fg),
+                    ),
+                  ),
+                  if (trailing != null)
+                    Flexible(
                       child: Text(
-                        label,
-                        style: AppTextStyles.fig(
-                          15,
-                          FontWeight.w600,
-                        ).copyWith(color: fg),
+                        trailing!,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: AppTextStyles.caption.copyWith(
+                          color: selected ? Colors.white70 : muted,
+                        ),
                       ),
                     ),
-                    if (trailing != null)
-                      Flexible(
-                        child: Text(
-                          trailing!,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.end,
-                          style: AppTextStyles.caption.copyWith(
-                            color: selected ? Colors.white70 : muted,
-                          ),
-                        ),
+                  if (selected)
+                    const Padding(
+                      padding: EdgeInsetsDirectional.only(start: 8),
+                      child: Icon(
+                        Icons.check_rounded,
+                        color: Colors.white,
+                        size: 18,
                       ),
-                    if (selected)
-                      const Padding(
-                        padding: EdgeInsetsDirectional.only(start: 8),
-                        child: Icon(
-                          Icons.check_rounded,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                  ],
-                ),
+                    ),
+                ],
               ),
             ),
           ),
-          if (onPreview != null)
-            PositionedDirectional(
-              end: 4,
-              child: IconButton(
-                tooltip: 'common.preview'.tr(),
-                onPressed: onPreview,
-                icon: Icon(
-                  Icons.visibility_outlined,
-                  size: 18,
-                  color: selected ? Colors.white70 : muted,
-                ),
+        ),
+        if (onPreview != null)
+          PositionedDirectional(
+            end: 4,
+            child: IconButton(
+              tooltip: 'common.preview'.tr(),
+              onPressed: onPreview,
+              icon: Icon(
+                Icons.visibility_outlined,
+                size: 18,
+                color: selected ? Colors.white70 : muted,
               ),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }

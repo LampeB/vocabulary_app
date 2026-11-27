@@ -123,6 +123,9 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
 - Les aides de détail de leçon et les traductions d'aperçu du configurateur
   atteignent au moins 4,5:1 sur leur surface effectivement rendue, dans les
   deux thèmes ; le contraste tient compte de l'encre et du fond teinté.
+  Les titres de groupes de listes respectent le même seuil. L'explication
+  d'une règle limitée à l'écrit reste lisible sans subir l'opacité de son
+  option vocale désactivée.
 - La série compare des dates civiles, y compris lors des journées de 23 ou
   25 heures. La fin de quiz et le suivi social utilisent le même calcul.
 - Au bilan, le quiz capture le compte, les résultats et le jour civil. Son

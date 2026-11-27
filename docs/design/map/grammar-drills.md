@@ -21,6 +21,10 @@ explicitement signalée non décidée (2026-08-07).
 - Le générateur actuel de pluriel français demande un mot isolé : les formes
   en `-s` muet sont donc évaluées à l'écrit. Les modes vocaux de cette règle
   restent indisponibles tant qu'un énoncé audible ne distingue pas la forme.
+  La même protection s'applique à `fr-present-er` : des réponses comme
+  `travaille` et `travailles` sont homophones. Le configurateur désactive voix
+  et mains-libres et le provider refuse aussi leur lancement direct. La saisie
+  conserve la distinction orthographique et la notation stricte.
 - L'exercice de négation française demande la première personne du singulier
   au présent. La forme verbale attendue (`ne travaille pas`) et la phrase
   avec sujet (`je ne travaille pas`) sont toutes deux valides. Les deux
