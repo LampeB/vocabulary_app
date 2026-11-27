@@ -1,5 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.119.2";
 import { authorizeAndConsume } from "../_shared/provider_gate.ts";
 import {
   audioPathForUser,
@@ -38,7 +37,7 @@ async function hash(text: string, lang: string) {
     .join("");
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   if (req.method !== "POST") {
     return response({ error: "Method not allowed" }, 405);

@@ -20,7 +20,7 @@ class _FakeRemote implements VocabularyRemoteDataSource {
 
   @override
   Future<Result<Map<String, dynamic>>> upsertList(Map<String, dynamic> data,
-          {bool insertOnly = false}) async =>
+          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
       Success(data);
 
   @override
@@ -33,12 +33,12 @@ class _FakeRemote implements VocabularyRemoteDataSource {
 
   @override
   Future<Result<Map<String, dynamic>>> upsertConcept(Map<String, dynamic> data,
-          {bool insertOnly = false}) async =>
+          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
       Success(data);
 
   @override
   Future<Result<Map<String, dynamic>>> upsertVariant(Map<String, dynamic> data,
-          {bool insertOnly = false}) async =>
+          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
       Success(data);
 
   @override
@@ -350,6 +350,34 @@ void main() {
       final list = (reimported as Success<VocabularyList>).value;
       expect(list.langA, 'en');
       expect(list.langB, 'ko');
+    });
+
+    test('round-trip preserves a variant’s context tags and example', () async {
+      final imported = (await repo.importFromJson({
+        'list': {
+          'name': 'Greetings',
+          'concepts': [
+            {
+              'variants': [
+                {
+                  'word': 'salut',
+                  'langCode': 'fr',
+                  'contextTags': ['informal', 'greeting'],
+                  'example': 'Salut Camille !'
+                }
+              ]
+            }
+          ],
+        },
+      }))
+          .valueOrNull!;
+      final json = (await repo.exportToJson(imported.id)).valueOrNull!;
+      final restored = (await repo.importFromJson(json)).valueOrNull!;
+      final concept =
+          (await db.conceptDao.getConceptsByList(restored.id)).single;
+      final variant = (await repo.getVariants(concept.id)).valueOrNull!.single;
+      expect(variant.contextTags, ['informal', 'greeting']);
+      expect(variant.example, 'Salut Camille !');
     });
   });
 

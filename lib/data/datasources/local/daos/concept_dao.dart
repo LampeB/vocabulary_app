@@ -152,4 +152,35 @@ class ConceptDao extends DatabaseAccessor<AppDatabase> with _$ConceptDaoMixin {
   Future<int> acknowledgeVariant(WordVariantsTableData row) =>
       (update(wordVariantsTable)..where((t) => matchesSyncSnapshot(t, row)))
           .write(const WordVariantsTableCompanion(isSynced: Value(true)));
+
+  /// The caller applies the parent tombstone in the same transaction.
+  Future<void> tombstoneListContents(String listId, String userId) async {
+    final ids = await (selectOnly(conceptsTable)
+          ..addColumns([conceptsTable.id])
+          ..where(conceptsTable.listId.equals(listId)))
+        .map((row) => row.read(conceptsTable.id)!)
+        .get();
+    if (ids.isEmpty) return;
+    await (update(conceptsTable)..where((t) => t.id.isIn(ids))).write(
+        const ConceptsTableCompanion(
+            isDeleted: Value(true), isSynced: Value(true)));
+    await db.vocabularyListDao.forgetSharedImportBases(ids);
+    await tombstoneConceptContents(ids, userId);
+  }
+
+  Future<void> tombstoneConceptContents(
+      List<String> conceptIds, String userId) async {
+    final ids = await (selectOnly(wordVariantsTable)
+          ..addColumns([wordVariantsTable.id])
+          ..where(wordVariantsTable.conceptId.isIn(conceptIds)))
+        .map((row) => row.read(wordVariantsTable.id)!)
+        .get();
+    if (ids.isEmpty) return;
+    await (update(wordVariantsTable)..where((t) => t.id.isIn(ids))).write(
+        const WordVariantsTableCompanion(
+            isDeleted: Value(true), isSynced: Value(true)));
+    await db.vocabularyListDao.forgetSharedImportBases(ids);
+    await db.progressDao
+        .deleteProgressForVariants(userId: userId, variantIds: ids);
+  }
 }

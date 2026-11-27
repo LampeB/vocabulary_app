@@ -55,7 +55,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
           data: (l) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('LISTE DE VOCABULAIRE',
+              Text('list_detail.kind'.tr(),
                   style: AppTextStyles.mono(10, FontWeight.w700)
                       .copyWith(color: muted, letterSpacing: 1.2)),
               Text(l?.name ?? 'list_detail.appbar_fallback'.tr(),
@@ -499,7 +499,8 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
                     labelText: Languages.displayName(widget.langA),
                     prefixText: '${Languages.flagFor(widget.langA)}  '),
                 textInputAction: TextInputAction.next,
-                validator: (v) => (v?.trim().isEmpty ?? true) ? 'Requis' : null,
+                validator: (v) =>
+                    (v?.trim().isEmpty ?? true) ? 'common.required'.tr() : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -508,7 +509,8 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
                 decoration: InputDecoration(
                     labelText: Languages.displayName(widget.langB),
                     prefixText: '${Languages.flagFor(widget.langB)}  '),
-                validator: (v) => (v?.trim().isEmpty ?? true) ? 'Requis' : null,
+                validator: (v) =>
+                    (v?.trim().isEmpty ?? true) ? 'common.required'.tr() : null,
               ),
               const SizedBox(height: 10),
               Align(

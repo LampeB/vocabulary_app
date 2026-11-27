@@ -72,6 +72,15 @@ class _FakeProgressRepo implements ProgressRepository {
       Success(progress);
 
   @override
+  Future<Result<VariantProgress>> mutateProgress({
+    required String variantId,
+    required QuizDirection direction,
+    required VariantProgress Function(VariantProgress) mutate,
+  }) async =>
+      Success(mutate(due.firstWhere(
+          (row) => row.variantId == variantId && row.direction == direction)));
+
+  @override
   Future<Result<List<VariantProgress>>> getMasteredVariants(String userId) {
     masteryRequested.complete();
     return mastered.future;

@@ -7,7 +7,7 @@
 // The API key lives here, server-side (ANTHROPIC_API_KEY function secret);
 // the app never ships it. JWT verification is on (Supabase default), so only
 // authenticated users can call this.
-import Anthropic from "npm:@anthropic-ai/sdk";
+import Anthropic from "npm:@anthropic-ai/sdk@1.14.0";
 import { authorizeAndConsume } from "../_shared/provider_gate.ts";
 import { boundedJson, boundedText } from "../_shared/request_limits.ts";
 

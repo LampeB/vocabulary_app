@@ -7,7 +7,7 @@
 //
 // Same security model as generate-grammar-exercises: ANTHROPIC_API_KEY is a
 // function secret, JWT verification is on, the app never ships a key.
-import Anthropic from "npm:@anthropic-ai/sdk";
+import Anthropic from "npm:@anthropic-ai/sdk@1.14.0";
 import { authorizeAndConsume } from "../_shared/provider_gate.ts";
 import { boundedJson, boundedText } from "../_shared/request_limits.ts";
 

@@ -77,10 +77,12 @@ jobs:
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: v2.9.6
-      - name: Check Edge Functions and test request boundaries
-        run: |
-          deno check supabase/functions/{audio-provision,elevenlabs-proxy,elevenlabs-stt-proxy,generate-grammar-exercises,seed-audio-publish,vocab-assistant,whisper-proxy}/index.ts
-          deno test --allow-env supabase/functions/_shared
+      - name: Verify frozen Edge bundles and request boundaries
+        run: python3 tool/deploy-edge-functions.py
+      - name: Verify E2E credentials are scoped to each Patrol target
+        run: python3 -m unittest discover -s tool/e2e -p 'test_*.py'
+      - name: Test validated PR approval gates
+        run: python3 -m unittest discover -s tool -p 'test_approve_validated_pr.py'
       - name: Test quotas, RLS and concurrent reset on disposable PostgreSQL
         env:
           PGPASSWORD: postgres-test-only

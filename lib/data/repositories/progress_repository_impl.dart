@@ -144,21 +144,51 @@ class ProgressRepositoryImpl implements ProgressRepository {
     required QuizDirection direction,
   }) async {
     try {
-      final row = await _progressDao
-          .getByVariantAndDirection(variantId, direction.name, userId: _userId);
-      if (row == null) {
-        final now = DateTime.now();
-        return Success(VariantProgress(
-          id: _uuid.v5(Namespace.url.value,
-              'ponderin:progress:$_userId:$variantId:${direction.name}'),
+      return Success(await _currentProgress(variantId, direction));
+    } catch (e) {
+      return Failure(StorageException(e.toString()));
+    }
+  }
+
+  Future<VariantProgress> _currentProgress(
+      String variantId, QuizDirection direction) async {
+    final row = await _progressDao
+        .getByVariantAndDirection(variantId, direction.name, userId: _userId);
+    if (row != null) return row.toDomain();
+    final now = DateTime.now();
+    return VariantProgress(
+      id: _uuid.v5(Namespace.url.value,
+          'ponderin:progress:$_userId:$variantId:${direction.name}'),
+      userId: _userId,
+      variantId: variantId,
+      direction: direction,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
+  @override
+  Future<Result<VariantProgress>> mutateProgress({
+    required String variantId,
+    required QuizDirection direction,
+    required VariantProgress Function(VariantProgress) mutate,
+  }) async {
+    try {
+      return await _progressDao.transaction(() async {
+        if (!await _progressDao.isLiveVariant(_userId, variantId)) {
+          return const Failure(NotFoundException('Card not found'));
+        }
+        final current = await _currentProgress(variantId, direction);
+        final local = mutate(current).copyWith(
+          id: current.id,
           userId: _userId,
           variantId: variantId,
           direction: direction,
-          createdAt: now,
-          updatedAt: now,
-        ));
-      }
-      return Success(row.toDomain());
+          isSynced: false,
+        );
+        await _progressDao.upsert(local.toLocalCompanion());
+        return Success(local);
+      });
     } catch (e) {
       return Failure(StorageException(e.toString()));
     }

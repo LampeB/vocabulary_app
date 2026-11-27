@@ -1,13 +1,20 @@
 // ignore_for_file: invalid_use_of_internal_member
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
+import 'package:vocab_kr/data/datasources/local/daos/progress_dao.dart';
 import 'package:vocab_kr/data/repositories/progress_repository_impl.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
+import 'package:vocab_kr/domain/entities/app_user.dart';
 import 'package:vocab_kr/domain/entities/variant_progress.dart';
 import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart';
+import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
+import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import '../helpers/fake_remote.dart';
 
 /// Cross-list smart-list sources ("À réviser maintenant" / "En cours
@@ -16,6 +23,32 @@ import '../helpers/fake_remote.dart';
 
 const _kUserId = 'u';
 final _now = DateTime(2026, 7, 4);
+
+class _ObservedDueDao extends ProgressDao {
+  _ObservedDueDao(super.db);
+
+  final cancelled = Completer<void>();
+
+  @override
+  Stream<int> watchDueCountForPair(String userId, String langA, String langB,
+      {Duration refreshEvery = const Duration(minutes: 1)}) {
+    late StreamController<int> controller;
+    late StreamSubscription<int> subscription;
+    controller = StreamController<int>(
+      onListen: () {
+        subscription = super
+            .watchDueCountForPair(userId, langA, langB,
+                refreshEvery: refreshEvery)
+            .listen(controller.add, onError: controller.addError);
+      },
+      onCancel: () async {
+        await subscription.cancel();
+        cancelled.complete();
+      },
+    );
+    return controller.stream;
+  }
+}
 
 void main() {
   late AppDatabase db;
@@ -195,5 +228,31 @@ void main() {
     final due = counts.firstWhere((count) => count == 1);
     expect(await counts.first, 0);
     expect(await due.timeout(const Duration(seconds: 5)), 1);
+  });
+
+  test('the pair counter releases its stream when its last listener leaves',
+      () async {
+    final dao = _ObservedDueDao(db);
+    final container = ProviderContainer(overrides: [
+      progressDaoProvider.overrideWithValue(dao),
+      currentUserProvider.overrideWithValue(AppUser(
+        id: _kUserId,
+        email: 'u@example.test',
+        username: 'u',
+        createdAt: _now,
+      )),
+    ]);
+    addTearDown(container.dispose);
+    final counter = dueCountForPairProvider(('fr', 'ko'));
+    final first = container.listen(counter, (_, __) {});
+    final second = container.listen(counter, (_, __) {});
+    expect(await container.read(counter.future), 0);
+
+    first.close();
+    await container.pump();
+    expect(dao.cancelled.isCompleted, isFalse);
+    second.close();
+    await container.pump();
+    await dao.cancelled.future.timeout(const Duration(seconds: 1));
   });
 }

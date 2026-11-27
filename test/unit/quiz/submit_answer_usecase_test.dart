@@ -6,10 +6,22 @@ import 'package:vocab_kr/domain/repositories/progress_repository.dart';
 import 'package:vocab_kr/domain/usecases/quiz/submit_answer_usecase.dart';
 
 // ---------------------------------------------------------------------------
-// Minimal fake — captures the progress passed to updateProgress.
+// Minimal fake — supplies the stored row and captures the rated replacement.
 // ---------------------------------------------------------------------------
 class _FakeProgressRepo implements ProgressRepository {
   VariantProgress? captured;
+  late VariantProgress current;
+
+  @override
+  Future<Result<VariantProgress>> mutateProgress({
+    required String variantId,
+    required QuizDirection direction,
+    required VariantProgress Function(VariantProgress) mutate,
+  }) {
+    expect(variantId, current.variantId);
+    expect(direction, current.direction);
+    return updateProgress(mutate(current));
+  }
 
   @override
   Future<Result<VariantProgress>> updateProgress(
@@ -96,6 +108,15 @@ void main() {
   late _FakeProgressRepo fakeRepo;
   late SubmitAnswerUseCase useCase;
 
+  Future<Result<VariantProgress>> submit({
+    required VariantProgress progress,
+    required FsrsRating rating,
+  }) {
+    fakeRepo.current = progress;
+    // A quiz may still hold the original unreviewed card when rating again.
+    return useCase.call(progress: _makeProgress(), rating: rating);
+  }
+
   setUp(() {
     fakeRepo = _FakeProgressRepo();
     useCase = SubmitAnswerUseCase(fakeRepo);
@@ -104,39 +125,38 @@ void main() {
   group('timesShown counter', () {
     for (final rating in FsrsRating.values) {
       test('increments by 1 for ${rating.name}', () async {
-        await useCase.call(
-            progress: _makeProgress(timesShown: 3), rating: rating);
+        await submit(progress: _makeProgress(timesShown: 3), rating: rating);
         expect(fakeRepo.captured!.timesShown, 4);
       });
     }
 
     test('starts at 0 and becomes 1 after first answer', () async {
-      await useCase.call(progress: _makeProgress(), rating: FsrsRating.good);
+      await submit(progress: _makeProgress(), rating: FsrsRating.good);
       expect(fakeRepo.captured!.timesShown, 1);
     });
   });
 
   group('timesCorrect counter', () {
     test('Again does NOT increment timesCorrect', () async {
-      await useCase.call(
+      await submit(
           progress: _makeProgress(timesCorrect: 2), rating: FsrsRating.again);
       expect(fakeRepo.captured!.timesCorrect, 2);
     });
 
     test('Hard increments timesCorrect', () async {
-      await useCase.call(
+      await submit(
           progress: _makeProgress(timesCorrect: 2), rating: FsrsRating.hard);
       expect(fakeRepo.captured!.timesCorrect, 3);
     });
 
     test('Good increments timesCorrect', () async {
-      await useCase.call(
+      await submit(
           progress: _makeProgress(timesCorrect: 2), rating: FsrsRating.good);
       expect(fakeRepo.captured!.timesCorrect, 3);
     });
 
     test('Easy increments timesCorrect', () async {
-      await useCase.call(
+      await submit(
           progress: _makeProgress(timesCorrect: 2), rating: FsrsRating.easy);
       expect(fakeRepo.captured!.timesCorrect, 3);
     });
@@ -144,14 +164,13 @@ void main() {
 
   group('masteryLevel', () {
     test('is 0.0 when reps == 0 (new card), regardless of rating', () async {
-      await useCase.call(
-          progress: _makeProgress(reps: 0), rating: FsrsRating.good);
+      await submit(progress: _makeProgress(reps: 0), rating: FsrsRating.good);
       expect(fakeRepo.captured!.masteryLevel, 0.0);
     });
 
     test('calculated when reps > 0 and answer is correct', () async {
       // timesCorrect=4, timesShown=4, reps=3 → after correct: (4+1)/(4+1) = 1.0
-      await useCase.call(
+      await submit(
         progress: _makeProgress(reps: 3, timesShown: 4, timesCorrect: 4),
         rating: FsrsRating.good,
       );
@@ -160,7 +179,7 @@ void main() {
 
     test('calculated when reps > 0 and answer is wrong', () async {
       // timesCorrect=2, timesShown=4, reps=3 → after wrong: 2/(4+1) = 0.4
-      await useCase.call(
+      await submit(
         progress: _makeProgress(reps: 3, timesShown: 4, timesCorrect: 2),
         rating: FsrsRating.again,
       );
@@ -170,12 +189,12 @@ void main() {
 
   group('FSRS fields are delegated to AppFsrs.schedule', () {
     test('new card + Good → state changes to learning', () async {
-      await useCase.call(progress: _makeProgress(), rating: FsrsRating.good);
+      await submit(progress: _makeProgress(), rating: FsrsRating.good);
       expect(fakeRepo.captured!.state, CardState.learning);
     });
 
     test('new card + Good → reps increments to 1', () async {
-      await useCase.call(progress: _makeProgress(), rating: FsrsRating.good);
+      await submit(progress: _makeProgress(), rating: FsrsRating.good);
       expect(fakeRepo.captured!.reps, 1);
     });
   });
@@ -183,7 +202,7 @@ void main() {
   group('isSynced', () {
     test('is always false after submission', () async {
       final progress = _makeProgress().copyWith(isSynced: true);
-      await useCase.call(progress: progress, rating: FsrsRating.good);
+      await submit(progress: progress, rating: FsrsRating.good);
       expect(fakeRepo.captured!.isSynced, isFalse);
     });
   });

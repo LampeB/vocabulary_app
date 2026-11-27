@@ -16,7 +16,10 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
    `python3 tool/e2e/build_activation.py > /tmp/activer-vocab-e2e.sql` regroupe
    008, 009, 012 et 013 dans une transaction. Si le projet est déjà partiellement
    activé, appliquer uniquement les migrations manquantes.
-2. Depuis la racine du dépôt, avec `.env.json` configuré pour ce projet :
+2. Avant toute publication du secret CI, créer l'environnement GitHub Actions
+   `patrol-e2e`. Dans *Deployment branches and tags*, sélectionner les branches
+   et tags explicitement autorisés et ajouter uniquement la branche `main`.
+   Depuis la racine du dépôt, avec `.env.json` configuré pour ce projet :
 
    ```bash
    python3 tool/e2e/provision.py --publish-github
@@ -24,7 +27,8 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
 
    Saisir la clé Supabase `service_role` ou secret key dans l'invite masquée du
    terminal. Ne pas la coller dans un chat. Elle reste en mémoire et n'est
-   transmise ni à GitHub ni à l'APK. L'option GitHub nécessite `gh auth login`.
+   transmise ni à GitHub ni à l'APK. L'option GitHub nécessite `gh auth login`
+   et écrit le secret des comptes dans l'environnement `patrol-e2e`.
 3. Sauvegarder **privément** `.e2e/accounts.json`. Ce fichier ignoré par Git
    conserve les mots de passe et UUID ; `test.accounts.env.json` est généré
    pour Patrol. Les fichiers sont écrits avec des permissions 0600 sur POSIX
@@ -110,10 +114,21 @@ La CI fixe `patrol_cli` à **4.4.0**, compatible avec `patrol` **4.6.1**.
 Utiliser cette même version localement : `dart pub global activate patrol_cli 4.4.0`.
 Une mise à jour du package Patrol doit réévaluer cette compatibilité.
 
-La CI utilise `SUPABASE_URL`, `SUPABASE_ANON_KEY` et `E2E_ACCOUNTS_JSON`.
-Les anciens secrets `TEST_EMAIL` et `TEST_PASSWORD` ne sont plus utilisés.
-Le précontrôle valide le catalogue complet sans modifier les comptes ; seul
-le scénario sur le point de démarrer réinitialise son propre compte.
+Seuls les jobs issus de `main` utilisent l'environnement GitHub `patrol-e2e`.
+`E2E_ACCOUNTS_JSON` appartient à cet environnement. `SUPABASE_URL` et
+`SUPABASE_ANON_KEY` restent des secrets du dépôt pour la CI Android. Le
+27 novembre, le secret historique a été transféré sous chiffrement scellé vers
+la clé de cet environnement, puis sa copie dépôt a été retirée après vérification
+de l'écriture. Les identifiants n'ont pas été affichés. La lecture effective du
+secret depuis le runner intégré reste à confirmer après fusion et migrations.
+Les anciens secrets `TEST_EMAIL`
+et `TEST_PASSWORD` ne sont plus requis.
+[Environnements GitHub Actions](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments).
+
+Le précontrôle valide le catalogue complet sans modifier les comptes. Pour
+chaque job, le fichier de compilation contient uniquement les comptes du fichier
+Patrol ciblé. La cible manuelle `quiz_all_test.dart` reçoit les scénarios de ses
+suites importées. Seul le scénario en cours réinitialise son compte.
 
 Le dispatcher cible `main` après intégration de cette branche, chaque soir à
 22 h 17 Asia/Seoul (13 h 17 UTC). Le verrou `supabase-e2e-account` sérialise les

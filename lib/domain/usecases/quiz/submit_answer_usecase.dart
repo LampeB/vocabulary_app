@@ -10,7 +10,14 @@ class SubmitAnswerUseCase {
   Future<Result<VariantProgress>> call({
     required VariantProgress progress,
     required FsrsRating rating,
-  }) {
+  }) =>
+      _repo.mutateProgress(
+        variantId: progress.variantId,
+        direction: progress.direction,
+        mutate: (current) => _rate(current, rating),
+      );
+
+  VariantProgress _rate(VariantProgress progress, FsrsRating rating) {
     final now = DateTime.now();
     final card = FsrsCard(
       stability: progress.stability,
@@ -27,7 +34,7 @@ class SubmitAnswerUseCase {
     final updated = AppFsrs.schedule(card, rating, now);
     final isCorrect = rating != FsrsRating.again;
 
-    final newProgress = progress.copyWith(
+    return progress.copyWith(
       stability: updated.stability,
       difficulty: updated.difficulty,
       elapsedDays: updated.elapsedDays,
@@ -46,7 +53,5 @@ class SubmitAnswerUseCase {
       isSynced: false,
       updatedAt: now,
     );
-
-    return _repo.updateProgress(newProgress);
   }
 }

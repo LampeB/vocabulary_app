@@ -67,7 +67,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', default='.env.json')
     parser.add_argument('--publish-github', action='store_true',
-                        help='Write E2E_ACCOUNTS_JSON to LampeB/vocabulary_app after successful provisioning')
+                        help='Write E2E_ACCOUNTS_JSON to the patrol-e2e environment after successful provisioning')
     args = parser.parse_args()
     config = json.loads(Path(args.config).read_text())
     url = config['SUPABASE_URL'].rstrip('/')
@@ -100,7 +100,8 @@ def main():
                  TEST_LOCALE='fr', TEST_CARD_LIMIT='3', SIMULATE_SPEECH='correct')
     write_private('test.accounts.env.json', local)
     if args.publish_github:
-        subprocess.run(['gh', 'secret', 'set', 'E2E_ACCOUNTS_JSON', '--repo', 'LampeB/vocabulary_app'],
+        subprocess.run(['gh', 'secret', 'set', 'E2E_ACCOUNTS_JSON', '--repo', 'LampeB/vocabulary_app',
+                        '--env', 'patrol-e2e'],
                        input=json.dumps(accounts), text=True, check=True)
         print('GitHub scenario credentials updated; admin credential not published.')
     print('Keep a private backup of .e2e/accounts.json; use test.accounts.env.json for local Patrol.')

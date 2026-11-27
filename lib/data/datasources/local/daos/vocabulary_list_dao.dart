@@ -1,4 +1,4 @@
-import 'dart:convert' show jsonEncode;
+import 'dart:convert' show jsonDecode, jsonEncode;
 
 import 'package:drift/drift.dart';
 import '../app_database.dart';
@@ -62,31 +62,24 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
         variables: [Variable<String>(ownerId), Variable<String>(ownerId)],
       ).map((row) => row.read<String>('id')).get();
 
-  /// Keep the original local row until its first successful upload. An
-  /// unedited bootstrap may insert but cannot overwrite an existing copy.
+  /// The common base for a shared import until all of its edits are acknowledged.
   Future<void> rememberSharedImport(String id, DataClass row) =>
-      into(db.sharedImportBootstrapTable).insert(
+      into(db.sharedImportBootstrapTable).insertOnConflictUpdate(
           SharedImportBootstrapTableCompanion.insert(
               id: id, snapshot: jsonEncode(row.toJson())));
 
-  Future<bool> isInitialSharedImport(String id, DataClass row) async {
+  Future<Map<String, dynamic>?> getSharedImportBase(String id) async {
     final initial = await (select(db.sharedImportBootstrapTable)
           ..where((t) => t.id.equals(id)))
         .getSingleOrNull();
-    return initial != null && initial.snapshot == jsonEncode(row.toJson());
+    return initial == null
+        ? null
+        : jsonDecode(initial.snapshot) as Map<String, dynamic>;
   }
 
-  Future<int> acknowledgeMetadata(
-          String id, Future<int> Function() acknowledge) =>
-      transaction(() async {
-        final acknowledged = await acknowledge();
-        if (acknowledged != 0) {
-          await (delete(db.sharedImportBootstrapTable)
-                ..where((t) => t.id.equals(id)))
-              .go();
-        }
-        return acknowledged;
-      });
+  Future<void> forgetSharedImportBases(Iterable<String> ids) =>
+      (delete(db.sharedImportBootstrapTable)..where((t) => t.id.isIn(ids)))
+          .go();
 
   Future<int> softDelete(String id) =>
       (update(vocabularyListsTable)..where((t) => t.id.equals(id)))

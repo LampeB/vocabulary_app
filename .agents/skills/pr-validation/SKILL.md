@@ -35,3 +35,15 @@ a new round. If all four reviewers are clean, do not change code: repeat the
 round on the same SHA with fresh agents. Stop after twenty rounds without
 convergence and ask for a human decision. A final clean result requires two
 consecutive clean rounds for all four reviewers on the same SHA.
+
+## Required convergence status
+
+Publish `PR / Independent agent reviews` on the current PR head SHA using
+GitHub commit statuses. Keep it pending until all four reviewers have two
+consecutive clean verdicts on that exact SHA. A new commit always starts
+pending; never reuse verdicts from a prior SHA or count interrupted runs.
+Record the four profiles, iteration counts and final verdicts in the PR body.
+Only then publish success. Required CI and an eligible GitHub approval are
+separate gates. The validated-PR GitHub Actions bot may formalize the approval
+only after checking the owner-attested convergence evidence and required CI
+for the exact current SHA. It performs no extra Copilot code review.

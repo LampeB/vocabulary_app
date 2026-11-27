@@ -23,15 +23,15 @@ class _OfflineRemote extends FakeRemote {
 
   @override
   Future<Result<Map<String, dynamic>>> upsertList(Map<String, dynamic> data,
-          {bool insertOnly = false}) async =>
+          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
       _fail();
   @override
   Future<Result<Map<String, dynamic>>> upsertConcept(Map<String, dynamic> data,
-          {bool insertOnly = false}) async =>
+          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
       _fail();
   @override
   Future<Result<Map<String, dynamic>>> upsertVariant(Map<String, dynamic> data,
-          {bool insertOnly = false}) async =>
+          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
       _fail();
   @override
   Future<Result<void>> deleteList(String id) async => _fail();

@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter_tts/flutter_tts.dart';
 import 'audio_service.dart';
 import 'audio_ports.dart';
@@ -27,6 +29,11 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
   // pairs epic; was two hardcoded fr/ko instances).
   final _ttsByLang = <String, FlutterTts>{};
   List<dynamic>? _availableEngines;
+  int _playbackGeneration = 0;
+  bool _disposed = false;
+
+  bool _current(int generation) =>
+      !_disposed && generation == _playbackGeneration;
 
   // Overlapping speaks (e.g. KO answer then FR question) each count.
   int _activeSpeaks = 0;
@@ -36,7 +43,7 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
   @override
   bool get isSpeaking => _activeSpeaks > 0;
 
-  Future<FlutterTts> _ttsFor(String langCode) async {
+  Future<FlutterTts?> _ttsFor(String langCode, int generation) async {
     final existing = _ttsByLang[langCode];
     if (existing != null) return existing;
 
@@ -48,16 +55,24 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
         _availableEngines = [];
       }
     }
+    if (!_current(generation)) return null;
     final preference = _enginePreferences[langCode] ?? _defaultEnginePreference;
     final engine = preference.firstWhere(
       _availableEngines!.contains,
       orElse: () => '',
     );
-    if (engine.isNotEmpty) await tts.setEngine(engine);
+    if (engine.isNotEmpty) {
+      // Selecting a different Android engine can reset its language.
+      _nativeLang = null;
+      await tts.setEngine(engine);
+      if (!_current(generation)) return null;
+    }
     await tts.setVolume(1.0);
+    if (!_current(generation)) return null;
     // speak() resolves when the utterance FINISHES, so callers (and
     // isSpeaking) can coordinate with real speech, not just its start.
     await tts.awaitSpeakCompletion(true);
+    if (!_current(generation)) return null;
     _ttsByLang[langCode] = tts;
     return tts;
   }
@@ -79,14 +94,21 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
     return result;
   }
 
-  Future<FlutterTts> _configure(String langCode) async {
-    final tts = await _ttsFor(langCode);
+  Future<FlutterTts?> _configure(String langCode, int generation) async {
+    if (!_current(generation)) return null;
+    final tts = await _ttsFor(langCode, generation);
+    if (tts == null || !_current(generation)) return null;
     if (_nativeLang == langCode) return tts;
     final sw = Stopwatch()..start();
+    // The previous language is no longer known once a switch is dispatched.
+    _nativeLang = null;
     await tts.setLanguage(Languages.speechLocaleFor(langCode));
+    if (!_current(generation)) return null;
     // Must set rate/pitch AFTER setLanguage — Android TTS resets them on language change.
     await tts.setSpeechRate(speechRate);
+    if (!_current(generation)) return null;
     await tts.setPitch(pitch);
+    if (!_current(generation)) return null;
     _nativeLang = langCode;
     sttLog(
         '[TTS] 🔥 voice switched to $langCode in ${sw.elapsedMilliseconds}ms');
@@ -97,12 +119,16 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
   /// in that language starts instantly. Call during idle windows (e.g. while
   /// the hands-free mic is listening); it produces no audio.
   @override
-  Future<void> warmUp(String langCode) =>
-      _serialized(() async => _configure(langCode));
+  Future<void> warmUp(String langCode) {
+    final generation = _playbackGeneration;
+    return _serialized(() => _configure(langCode, generation));
+  }
 
   @override
   Future<void> speak(String text, String langCode, {String? voiceId}) async {
-    final tts = await _serialized(() => _configure(langCode));
+    final generation = _playbackGeneration;
+    final tts = await _serialized(() => _configure(langCode, generation));
+    if (tts == null || !_current(generation)) return;
     _activeSpeaks++;
     sttLog(
         '[TTS] ▶ speak start lang=$langCode "$text" (active=$_activeSpeaks)');
@@ -117,13 +143,17 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
 
   @override
   Future<void> stop() async {
+    _playbackGeneration++;
+    if (_disposed) return;
     if (_activeSpeaks > 0) {
       sttLog(
           '[TTS] ✋ stop() while $_activeSpeaks utterance(s) in flight — speech is being CUT OFF');
     }
-    for (final tts in _ttsByLang.values) {
-      await tts.stop();
-    }
+    await _stopVoices();
+  }
+
+  Future<void> _stopVoices() async {
+    await Future.wait(_ttsByLang.values.map((tts) => tts.stop()));
   }
 
   @override
@@ -131,8 +161,9 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
 
   @override
   void dispose() {
-    for (final tts in _ttsByLang.values) {
-      tts.stop();
-    }
+    if (_disposed) return;
+    _disposed = true;
+    _playbackGeneration++;
+    unawaited(_stopVoices());
   }
 }

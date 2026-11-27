@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async' show unawaited;
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:path_provider/path_provider.dart';
@@ -13,9 +14,11 @@ class ElevenLabsService implements AudioService, AudioAssetCache {
     Map<String, String>? voiceIds,
     Future<Uint8List> Function(String audioPath)? assetDownloader,
     Future<Directory> Function()? cacheDirectory,
+    String? Function()? currentUserId,
   })  : voiceIds = voiceIds ?? _defaultVoices,
         _assetDownloader = assetDownloader ?? _downloadFromStorage,
-        _cacheDirectory = cacheDirectory ?? _defaultCacheDirectory;
+        _cacheDirectory = cacheDirectory ?? _defaultCacheDirectory,
+        _currentUserId = currentUserId ?? _authenticatedUserId;
 
   /// Default rendering voice per content language. Voice selection is applied
   /// by the server when an asset is published, never while a learner quizzes.
@@ -32,6 +35,7 @@ class ElevenLabsService implements AudioService, AudioAssetCache {
   final Map<String, String> voiceIds;
   final Future<Uint8List> Function(String audioPath) _assetDownloader;
   final Future<Directory> Function() _cacheDirectory;
+  final String? Function() _currentUserId;
   static const _defaultVoiceId = 'Charlotte';
 
   String voiceIdFor(String langCode) => voiceIds[langCode] ?? _defaultVoiceId;
@@ -58,13 +62,36 @@ class ElevenLabsService implements AudioService, AudioAssetCache {
   /// content is created or published. A cache miss is only a cheap Storage
   /// download and an expired cache simply downloads the same immutable object.
   @override
-  Future<String?> downloadAndCache(String? audioPath) {
-    if (audioPath == null || audioPath.isEmpty) return Future.value(null);
-    return _getOrDownload(audioPath);
+  Future<String?> downloadAndCache(String? audioPath) async {
+    if (audioPath == null ||
+        audioPath.contains('\\') ||
+        audioPath.contains('%')) {
+      return null;
+    }
+    final segments = audioPath.split('/');
+    if (segments.length != 4 ||
+        segments.any((segment) =>
+            segment.isEmpty || segment == '.' || segment == '..')) {
+      return null;
+    }
+    final namespace = segments.first;
+    if (namespace != 'seed' && namespace != 'users') return null;
+    final ownerId = namespace == 'users' ? segments[1] : null;
+    if (!_mayRead(ownerId)) return null;
+
+    // Ignore files cached before Storage required the seed publishing manifest.
+    final key = sha256
+        .convert(utf8.encode('v2\u0000${ownerId ?? ''}\u0000$audioPath'))
+        .toString();
+    final path = await _getOrDownload(audioPath, key, ownerId);
+    return _mayRead(ownerId) ? path : null;
   }
 
-  Future<String?> _getOrDownload(String audioPath) async {
-    final key = _cacheKey(audioPath);
+  bool _mayRead(String? ownerId) =>
+      ownerId == null || ownerId == _currentUserId();
+
+  Future<String?> _getOrDownload(
+      String audioPath, String key, String? ownerId) async {
     final memoryPath = _cache[key];
     if (memoryPath != null) {
       _touch(File(memoryPath));
@@ -77,7 +104,7 @@ class ElevenLabsService implements AudioService, AudioAssetCache {
     final pending = _inFlight[key];
     if (pending != null) return pending;
 
-    final task = _downloadAndCache(key, audioPath);
+    final task = _downloadAndCache(key, audioPath, ownerId);
     _inFlight[key] = task;
     try {
       return await task;
@@ -86,9 +113,11 @@ class ElevenLabsService implements AudioService, AudioAssetCache {
     }
   }
 
-  Future<String?> _downloadAndCache(String key, String audioPath) async {
+  Future<String?> _downloadAndCache(
+      String key, String audioPath, String? ownerId) async {
     try {
       final dir = await _cacheDir();
+      if (!_mayRead(ownerId)) return null;
       final file = File('${dir.path}/$key.mp3');
       if (file.existsSync()) {
         _cache[key] = file.path;
@@ -97,6 +126,7 @@ class ElevenLabsService implements AudioService, AudioAssetCache {
       }
       final bytes =
           await _assetDownloader(audioPath).timeout(const Duration(seconds: 3));
+      if (!_mayRead(ownerId)) return null;
       await file.writeAsBytes(bytes, flush: true);
       _cache[key] = file.path;
       return file.path;
@@ -104,9 +134,6 @@ class ElevenLabsService implements AudioService, AudioAssetCache {
       return null;
     }
   }
-
-  String _cacheKey(String audioPath) =>
-      md5.convert(audioPath.codeUnits).toString();
 
   Future<Directory> _cacheDir() async {
     return _cacheDirectory();
@@ -116,6 +143,9 @@ class ElevenLabsService implements AudioService, AudioAssetCache {
       Supabase.instance.client.storage
           .from(AudioAssetPath.bucket)
           .download(audioPath);
+
+  static String? _authenticatedUserId() =>
+      Supabase.instance.client.auth.currentUser?.id;
 
   static Future<Directory> _defaultCacheDirectory() async {
     final base = await getApplicationDocumentsDirectory();

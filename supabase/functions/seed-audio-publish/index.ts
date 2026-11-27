@@ -1,5 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.119.2";
 import { boundedJson, boundedText } from "../_shared/request_limits.ts";
 
 // This endpoint is a publishing tool, never an app endpoint. It accepts only
@@ -29,7 +28,7 @@ async function contentHash(text: string, lang: string) {
     .join("");
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   if (!supabaseUrl || !anonKey || !serviceRoleKey || !elevenLabsKey) {
     return json({ error: "Server is not configured" }, 503);

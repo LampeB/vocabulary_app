@@ -44,16 +44,23 @@ def http_failure(stage, error):
 
 def prepare():
     from accounts import scenarios, validate_accounts, write_private
+    from matrix import scenario_ids_for_target
+
     config = {name: os.environ[name] for name in ('SUPABASE_URL', 'SUPABASE_ANON_KEY')}
     if not all(config.values()) or not config['SUPABASE_URL'].startswith('https://'):
         raise ValueError('Missing Supabase configuration')
+    selected = scenario_ids_for_target(os.environ['E2E_TARGET'])
     accounts = validate_accounts(json.loads(os.environ['E2E_ACCOUNTS_JSON']), scenarios())
+    suite_accounts = {
+        scenario: {field: account[field] for field in ('user_id', 'email', 'password', 'username')}
+        for scenario, account in accounts.items() if scenario in selected
+    }
     # No account is modified here. Only the scenario about to run resets itself.
-    config.update(TEST_ACCOUNTS_JSON=json.dumps(accounts), TEST_MODE='true',
+    config.update(TEST_ACCOUNTS_JSON=json.dumps(suite_accounts), TEST_MODE='true',
                   TEST_LOCALE='fr', TEST_CARD_LIMIT='3', SIMULATE_SPEECH='correct',
                   REVENUECAT_API_KEY='YOUR_REVENUECAT_KEY')
     write_private('.env.json', config)
-    print(f'Validated {len(accounts)} distinct scenario accounts; no server data changed.')
+    print(f'Prepared {len(suite_accounts)} distinct scenario accounts for the selected target.')
 
 
 if __name__ == '__main__':

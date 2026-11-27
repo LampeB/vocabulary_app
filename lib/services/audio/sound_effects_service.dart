@@ -65,6 +65,8 @@ class SoundEffectsService {
   final SoundEffectPlayer? _injectedPlayer;
   SoundEffectPlayer? _playerInstance;
   Future<void>? _readyFuture;
+  int _playbackGeneration = 0;
+  bool _disposed = false;
 
   SoundEffectPlayer get _player {
     if (_playerInstance == null) {
@@ -160,57 +162,53 @@ class SoundEffectsService {
     return out;
   }
 
-  Future<void> playCorrect() async {
+  Future<void> _play(String label, Uint8List Function() bytes) async {
+    if (_disposed) return;
+    final generation = _playbackGeneration;
     try {
       await _ready;
-      _correctBytes ??= _makeTwoTone(660, 990, 0.22); // rising chirp
-      sttLog('[SFX] 🎵 playCorrect (rising chirp)');
-      await _player.play(_correctBytes!);
+      if (generation != _playbackGeneration) return;
+      sttLog('[SFX] 🎵 $label');
+      await _player.play(bytes());
     } catch (_) {}
   }
 
-  Future<void> playIncorrect() async {
-    try {
-      await _ready;
-      _incorrectBytes ??= _makeTwoTone(330, 220, 0.28); // falling low buzz
-      sttLog('[SFX] 🎵 playIncorrect (falling buzz)');
-      await _player.play(_incorrectBytes!);
-    } catch (_) {}
-  }
+  Future<void> playCorrect() => _play('playCorrect (rising chirp)',
+      () => _correctBytes ??= _makeTwoTone(660, 990, 0.22));
+
+  Future<void> playIncorrect() => _play('playIncorrect (falling buzz)',
+      () => _incorrectBytes ??= _makeTwoTone(330, 220, 0.28));
 
   /// Short soft cue marking the start of listening — the hands-free "your turn"
   /// earcon (paired with a haptic so it's catchable eyes-off).
-  Future<void> playListenCue() async {
-    try {
-      await _ready;
-      _cueBytes ??= _makeBeep(620, 0.07, volume: 0.4);
-      sttLog('[SFX] 🎵 playListenCue (soft tick)');
-      await _player.play(_cueBytes!);
-    } catch (_) {}
-  }
+  Future<void> playListenCue() => _play('playListenCue (soft tick)',
+      () => _cueBytes ??= _makeBeep(620, 0.07, volume: 0.4));
 
   /// Mirror of [playListenCue]: lower soft tick marking that the mic has
   /// CLOSED and the answer is being analyzed — the eyes-off signal to stop
   /// talking (hands-free protocol, user request 2026-07-08).
-  Future<void> playListenDone() async {
-    try {
-      await _ready;
-      _doneBytes ??= _makeBeep(440, 0.07, volume: 0.4);
-      sttLog('[SFX] 🎵 playListenDone (soft low tick)');
-      await _player.play(_doneBytes!);
-    } catch (_) {}
-  }
+  Future<void> playListenDone() => _play('playListenDone (soft low tick)',
+      () => _doneBytes ??= _makeBeep(440, 0.07, volume: 0.4));
 
   /// Stops an in-flight earcon without disposing the player. Used when the
   /// app backgrounds: a cue must never keep playing after the quiz is paused.
   Future<void> stop() async {
+    _playbackGeneration++;
+    if (_disposed) return;
+    await _stopPlayer();
+  }
+
+  Future<void> _stopPlayer() async {
     try {
       await _playerInstance?.stop();
     } catch (_) {}
   }
 
   void dispose() {
-    unawaited(stop());
+    if (_disposed) return;
+    _disposed = true;
+    _playbackGeneration++;
+    unawaited(_stopPlayer());
     _playerInstance?.dispose();
   }
 }

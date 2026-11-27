@@ -90,7 +90,7 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **897 tests hôte passent**, avec **67,1 %**
+- L'analyse Flutter est propre ; les **941 tests hôte passent**, avec **69,1 %**
   de couverture sur le dernier lot du 27 novembre. Huit tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 21 tests ciblés. La sonde compilée en mode produit confirme le
@@ -105,13 +105,14 @@ de contenu avant bêta pédagogique.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **897** tests hôte réussis lors de la dernière validation locale
+- La suite compte **941** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - Les cinq suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
   réelles. Deux connexions ont vérifié le verrou du reset et le refus de
   l'écriture concurrente ; la CI doit encore exécuter son wrapper Bash complet.
-  Les trois tests Python E2E et les huit tests Deno passent également.
+  Les cinq tests Python E2E et les dix tests Deno passent également. Les 17
+  tests du bot d'approbation vérifient ses refus et son approbation liée au SHA.
 - La CI Patrol contient neuf suites Android, lançables manuellement avec des
   secrets Supabase : navigation, auth, flux utilisateur, chemin quotidien,
   prérequis de leçon, paires de langues, quiz voix/cartes, écriture et login.
@@ -162,8 +163,9 @@ de contenu avant bêta pédagogique.
   domaine et stores reste à vérifier avant toute diffusion externe, et les
   identifiants `vocab_kr` restent temporairement stables. Voir la
   [décision](docs/decisions/2026-11-23-ponder-working-name.md).
-- Le dépôt GitHub sera renommé **PonderIn** après l'intégration dans `main`
-  (décision utilisateur du 26 novembre). Le renommage distant reste à effectuer.
+- Le nom retenu pour le dépôt GitHub est **PonderIn** (décision utilisateur du
+  26 novembre). L'opération distante suit la fusion de l'intégration dans `main`
+  et ne change pas les identifiants techniques Flutter.
 
 - La racine du dépôt est un vault Obsidian versionné. Son point d'entrée est
   [`docs/knowledge-base/00-Accueil.md`](docs/knowledge-base/00-Accueil.md) ;
@@ -179,12 +181,20 @@ de contenu avant bêta pédagogique.
   [`docs/runbooks/documentation-et-commits.md`](docs/runbooks/documentation-et-commits.md).
 - Le protocole de validation des PR est décidé : quatre relecteurs agents
   indépendants doivent converger sur deux passes propres consécutives, sans se
-  substituer à la CI ni à l'approbation humaine. Le skill, les quatre profils,
+  substituer à la CI ni à l'approbation formelle GitHub. Le skill, les quatre profils,
   le hook et la CI sont implémentés sur la branche d'intégration ; l'activation
   du Dependency Graph et des alertes Dependabot a été réalisée le 26 novembre
   (la comparaison des dépendances répond désormais). La protection GitHub de
-  `main` et la convergence des revues restent requises ; voir
+  `main` est désormais active : sept checks CI, un statut de convergence,
+  une approbation et la résolution des conversations, y compris pour l'admin.
+  Le bot GitHub Actions choisi le 27 novembre formalise l'approbation après
+  preuve des huit rapports propres et CI verte ; il n'est pas un relecteur
+  Copilot. Son premier dispatch et la convergence restent à obtenir ; voir
   [`docs/pr-validation.md`](docs/pr-validation.md).
+- Le corpus vocal de travail reste local et interdit par le garde de PR.
+  Les deux historiques affectés ont été purgés avec sauvegarde ; l'utilisateur
+  a explicitement accepté le reliquat des anciens objets GitHub pour cette
+  intégration. Aucun effacement de ces caches n'est revendiqué.
 - Les anciennes maquettes, audits et plans V1/V2 ont été retirés du vault pour
   éviter les sources concurrentes ; leur historique reste récupérable dans Git.
 

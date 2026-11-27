@@ -99,7 +99,47 @@ fusion exige, sur le commit final :
 1. deux verdicts propres consécutifs des quatre relecteurs ;
 2. toutes les validations CI obligatoires vertes ;
 3. les conversations de PR résolues ;
-4. l'approbation humaine exigée par la protection de branche.
+4. une approbation GitHub admissible exigée par la protection de branche.
+
+Décision utilisateur du 27 novembre 2026 : un bot GitHub Actions peut fournir
+l'approbation formelle après les quatre profils indépendants et la CI. Il ne
+fait pas de nouvelle analyse de code et ne prétend pas être Copilot. Le compte
+utilisé n'est actuellement pas éligible à la revue Copilot ; aucune licence
+n'est achetée et aucune approbation Copilot n'est simulée. Le bot vérifie le
+SHA, la preuve de convergence attestée par le propriétaire et les sept checks
+CI avant de publier une review `APPROVED`. Les approbations périmées sont
+annulées au push ; le bot ne fusionne pas et ne modifie pas le code.
+
+L'orchestrateur publie le statut requis `PR / Independent agent reviews` sur
+le SHA de tête courant. Il reste `pending` pendant les revues/corrections et
+ne passe à `success` qu'après deux verdicts propres consécutifs des quatre
+profils sur ce même SHA. Les compteurs et rapports sont consignés dans la PR.
+Tout nouveau SHA repart en attente. Ce statut s'ajoute aux sept checks CI :
+une CI verte et une approbation externe seules ne satisfont pas la convergence.
+
+### Preuve vérifiée par le bot
+
+Le corps de PR contient exactement un commentaire HTML commençant par
+`<!-- ponderin-review-evidence` et terminé par `-->`. Son objet JSON possède
+exactement `head_sha`, `base_sha` et `reviewers`. Ce dernier associe les quatre
+noms de profils `.codex/agents/` à deux rapports : `iteration` (1–20),
+`instance_id`, `verdict` (`PROPRE`), `bloquant` (0), `important` (0), et
+éventuellement `report_text`. Les deux itérations sont consécutives et communes
+aux quatre profils ; les huit identifiants d'instances sont distincts.
+
+Le propriétaire atteste cette preuve avec le statut de convergence dont la
+description est `reviews-v1:` suivi du SHA-256 du JSON canonique (clés triées,
+séparateurs `,`/`:`, `ensure_ascii=True`, encodage UTF-8). Le bot refuse une
+preuve altérée, un statut d'un autre auteur, une CI périmée ou issue d'une
+autre application, un fork, un brouillon ou une nouvelle tête/base.
+
+Le workflow manuel [d'approbation](../.github/workflows/approve-validated-pr.yml)
+ne s'exécute que sur `main`, à la demande du propriétaire. Il utilise son code
+fiable, jamais le code de la PR. Pour cette première intégration uniquement,
+l'orchestrateur peut préparer une référence d'exploitation temporaire issue
+de `main` avec le même script revu, déclenchable uniquement par le propriétaire
+et sur son SHA vérifié ; elle est retirée après l'approbation. Ce bootstrap
+ne dispense d'aucun contrôle et ne publie jamais de faux verdict propre.
 
 ## Garde-fous exécutables
 
@@ -144,8 +184,12 @@ accessible. Le résultat du check reste à revérifier sur chaque commit final.
 
 Les profils des quatre relecteurs sont versionnés dans `.codex/agents/` et le
 skill d'orchestration dans `.agents/skills/pr-validation/`. Ils n'accordent
-jamais eux-mêmes une fusion : l'approbation humaine et les checks GitHub
-obligatoires restent le verrou effectif.
+jamais eux-mêmes une fusion : l'approbation GitHub admissible, la convergence
+publiée et les checks obligatoires restent le verrou effectif.
+
+Copilot n'est pas une dépendance du sas. Son éventuelle activation future
+nécessitera une licence éligible et les réglages décrits dans la
+[configuration officielle](https://docs.github.com/en/copilot/how-tos/copilot-on-github/set-up-copilot/configure-code-review).
 
 ## Références
 

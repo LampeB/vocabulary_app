@@ -61,6 +61,7 @@ abstract final class WidgetKeys {
   static const gradeKnew = 'study.grade.knew';
   static const ecrireInput = 'study.ecrire.input';
   static const ecrireValidate = 'study.ecrire.validate';
+  static const quizPrompt = 'study.prompt';
 
   // ── Full-screen feedback flood ─────────────────────────────────────────────
   static const feedbackCorrect = 'study.feedback.correct';
@@ -75,6 +76,7 @@ abstract final class WidgetKeys {
 
   // ── Summary ────────────────────────────────────────────────────────────────
   static const summary = 'summary';
+  static const summaryRestart = 'summary.restart';
   static const summaryDone = 'summary.done';
 
   // ── Lists screen + create/rename dialog ────────────────────────────────────

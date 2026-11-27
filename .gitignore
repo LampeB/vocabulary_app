@@ -93,3 +93,6 @@ patrol_test/test_bundle.dart
 
 # Private permanent E2E account credentials
 /.e2e/
+
+# Private recorded voice, transcripts and local benchmark results
+/tool/stt_corpus/

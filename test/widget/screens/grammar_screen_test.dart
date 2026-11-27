@@ -55,6 +55,14 @@ void main() {
     );
   }
 
+  testWidgets('a tab-root lesson hub has no pop action', (tester) async {
+    await pump(tester, []);
+    expect(
+        find.byKey(const ValueKey(WidgetKeys.screenGrammar)), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_back_ios_new_rounded), findsNothing);
+    expect(tester.widget<AppBar>(find.byType(AppBar)).leading, isNull);
+  });
+
   testWidgets(
       'a locked rule shows the unlock bar plus one bar per prerequisite '
       'list, and no start button', (tester) async {

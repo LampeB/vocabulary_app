@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../domain/entities/vocabulary_list.dart';
 import '../../../core/languages.dart';
 import '../../../domain/entities/grammar_rule.dart';
+import '../../../core/grammar/grammar_practice_policy.dart';
 import '../../providers/grammar/grammar_provider.dart';
 import '../../../domain/usecases/quiz/get_due_cards_usecase.dart'
     show QuizSource;
@@ -117,10 +118,13 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         foregroundColor: foreground,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-          onPressed: () => context.pop(),
-        ),
+        automaticallyImplyLeading: false,
+        leading: context.canPop()
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                onPressed: () => context.pop(),
+              )
+            : null,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -197,6 +201,10 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                         key: ValueKey(WidgetKeys.startQuizType(m.name)),
                         label: _modeLabel(m),
                         selected: _mode == m,
+                        disabled: !_modeAllowed(m),
+                        trailing: _modeAllowed(m)
+                            ? null
+                            : 'grammar.written_only'.tr(),
                         onTap: () {
                           setState(() => _mode = m);
                           _select(_grammar ? iCount : iDir);
@@ -510,7 +518,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                     style: AppTextStyles.grotesk(22, FontWeight.w700)
                         .copyWith(color: cs.onSurface)),
                 const SizedBox(height: 12),
-                Text(rule.explanation(uiLocaleCode(ctx)),
+                Text(rule.explanation(_langA),
                     style: AppTextStyles.body.copyWith(color: cs.onSurface)),
                 const SizedBox(height: 16),
                 Text('grammar.lesson.examples'.tr(),
@@ -523,7 +531,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                               ? AppTextStyles.kr(16, FontWeight.w600)
                               : AppTextStyles.fig(16, FontWeight.w600))
                           .copyWith(color: cs.onSurface)),
-                  Text(e.translation(uiLocaleCode(ctx)),
+                  Text(e.translation(_langA),
                       style: AppTextStyles.caption
                           .copyWith(color: AppColors.muted)),
                   const SizedBox(height: 8),
@@ -600,6 +608,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   // No field has a default, so every one must be chosen before starting.
   bool get _canStart {
     if (_mode == null || _count == null) return false;
+    if (!_modeAllowed(_mode!)) return false;
     if (_grammar) {
       final selected = ref
           .read(ruleStatusesProvider(_langB))
@@ -615,11 +624,23 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
     return _source != QuizSource.list || _listId != null;
   }
 
+  bool _modeAllowed(QuizMode mode) {
+    if (!_grammar || mode == QuizMode.flashcard || mode == QuizMode.typing) {
+      return true;
+    }
+    final selected = ref
+        .read(ruleStatusesProvider(_langB))
+        .valueOrNull
+        ?.where((status) => status.rule.id == _ruleId)
+        .firstOrNull;
+    return selected != null && supportsSpokenGrammar(selected.rule, _langB);
+  }
+
   void _start() {
     // Wipe any prior session so the quiz screen doesn't flash the old
     // summary before its cards load (field 2026-07-14).
     ref.read(quizProvider.notifier).reset();
-    context.go(
+    context.push(
       '/quiz',
       extra: _grammar
           ? QuizArgs(
@@ -769,54 +790,60 @@ class _OptionTile extends StatelessWidget {
 
     return Opacity(
       opacity: disabled ? 0.6 : 1,
-      child: GestureDetector(
-        onTap: disabled ? null : onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: border),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(label,
-                    style: AppTextStyles.fig(15, FontWeight.w600)
-                        .copyWith(color: fg)),
+      child: Stack(
+        alignment: AlignmentDirectional.centerEnd,
+        children: [
+          MergeSemantics(
+            child: Semantics(
+              selected: selected,
+              child: OutlinedButton(
+                onPressed: disabled ? null : onTap,
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: background,
+                  foregroundColor: fg,
+                  padding: EdgeInsetsDirectional.fromSTEB(
+                      16, 14, onPreview == null ? 16 : 56, 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  side: BorderSide(color: border),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(label,
+                          style: AppTextStyles.fig(15, FontWeight.w600)
+                              .copyWith(color: fg)),
+                    ),
+                    if (trailing != null)
+                      Flexible(
+                        child: Text(trailing!,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: AppTextStyles.caption.copyWith(
+                                color: selected ? Colors.white70 : muted)),
+                      ),
+                    if (selected)
+                      const Padding(
+                        padding: EdgeInsetsDirectional.only(start: 8),
+                        child: Icon(Icons.check_rounded,
+                            color: Colors.white, size: 18),
+                      ),
+                  ],
+                ),
               ),
-              if (trailing != null)
-                // Flexible: long trailings (e.g. a locked rule's prerequisite
-                // list names) must ellipsize, not overflow the tile.
-                Flexible(
-                  child: Text(trailing!,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.end,
-                      style: AppTextStyles.caption
-                          .copyWith(color: selected ? Colors.white70 : muted)),
-                ),
-              if (selected)
-                const Padding(
-                  padding: EdgeInsets.only(left: 8),
-                  child:
-                      Icon(Icons.check_rounded, color: Colors.white, size: 18),
-                ),
-              // Peek icon LAST so it sits at the row's right edge
-              // (user feedback 2026-07-19).
-              if (onPreview != null)
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onPreview,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 10),
-                    child: Icon(Icons.visibility_outlined,
-                        size: 18, color: selected ? Colors.white70 : muted),
-                  ),
-                ),
-            ],
+            ),
           ),
-        ),
+          if (onPreview != null)
+            PositionedDirectional(
+              end: 4,
+              child: IconButton(
+                tooltip: 'common.preview'.tr(),
+                onPressed: onPreview,
+                icon: Icon(Icons.visibility_outlined,
+                    size: 18, color: selected ? Colors.white70 : muted),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -838,24 +865,27 @@ class _CountChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final muted = dark ? V3Colors.light70 : V3Colors.ink60;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected
-              ? V3Colors.terra
-              : (dark ? V3Colors.block2 : V3Colors.paper),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-              color: selected
-                  ? V3Colors.terra
-                  : (dark ? V3Colors.ruleDark : V3Colors.edgeWarm2)),
+    return MergeSemantics(
+      child: Semantics(
+        selected: selected,
+        child: OutlinedButton(
+          onPressed: onTap,
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            backgroundColor: selected
+                ? V3Colors.terra
+                : (dark ? V3Colors.block2 : V3Colors.paper),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            side: BorderSide(
+                color: selected
+                    ? V3Colors.terra
+                    : (dark ? V3Colors.ruleDark : V3Colors.edgeWarm2)),
+          ),
+          child: Text('$n',
+              style: AppTextStyles.fig(14, FontWeight.w700)
+                  .copyWith(color: selected ? Colors.white : muted)),
         ),
-        child: Text('$n',
-            style: AppTextStyles.fig(14, FontWeight.w700)
-                .copyWith(color: selected ? Colors.white : muted)),
       ),
     );
   }

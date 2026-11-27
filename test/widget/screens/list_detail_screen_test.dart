@@ -1,7 +1,14 @@
 // ignore_for_file: invalid_use_of_internal_member
+import 'dart:convert';
+
 import 'package:drift/native.dart';
 import 'package:easy_localization/easy_localization.dart';
+// ignore: implementation_imports
+import 'package:easy_localization/src/localization.dart';
+// ignore: implementation_imports
+import 'package:easy_localization/src/translations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
@@ -142,6 +149,37 @@ void main() {
     expect(find.text('chien'), findsOneWidget);
     await unmountScreen(tester);
   });
+
+  for (final (locale, kind, required) in [
+    ('fr', 'LISTE DE VOCABULAIRE', 'Requis'),
+    ('en', 'VOCABULARY LIST', 'Required'),
+    ('ko', '단어 목록', '필수'),
+  ]) {
+    testWidgets('list heading and both empty field errors use $locale',
+        (tester) async {
+      final raw = (await tester.runAsync(
+          () => rootBundle.loadString('assets/translations/$locale.json')))!;
+      final translations =
+          Translations(jsonDecode(raw) as Map<String, dynamic>);
+      Localization.load(Locale(locale),
+          translations: translations, fallbackTranslations: translations);
+      addTearDown(initTestLocalization);
+      await pump(tester);
+
+      expect(find.text(kind), findsOneWidget);
+      await tester.tap(byKey(WidgetKeys.listDetailAddWord));
+      await tester.pumpAndSettle();
+      await tester.tap(byKey(WidgetKeys.addWordConfirm));
+      await tester.pumpAndSettle();
+
+      for (final field in [WidgetKeys.addWordFr, WidgetKeys.addWordKo]) {
+        expect(tester.state<FormFieldState<String>>(byKey(field)).errorText,
+            required);
+      }
+      expect(find.byType(AlertDialog), findsOneWidget);
+      await unmountScreen(tester);
+    });
+  }
 
   for (final pair in [
     ('en', 'ko', 'cat', '고양이'),

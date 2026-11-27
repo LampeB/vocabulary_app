@@ -450,6 +450,44 @@ void main() {
       expect(await db.progressDao.getById(bad['id'] as String), isNull);
       expect(await db.progressDao.getById('$_kUserId|rc1-ko|fr>ko'), isNotNull);
     });
+
+    test(
+        'unchanged restored progress performs no writes, while a legacy ID converges',
+        () async {
+      final old = _remoteProgress('rc1-ko')
+        ..['updated_at'] = '2026-07-01T19:00:00.750+09:00';
+      final remote = remoteWithProgress([old]);
+      final repo = repoWith(remote);
+      await repo.syncFromRemote();
+      await db.customStatement(
+          'CREATE TABLE progress_write_audit (operation TEXT NOT NULL)');
+      for (final operation in ['insert', 'delete', 'update']) {
+        await db.customStatement(
+            'CREATE TRIGGER audit_progress_$operation AFTER $operation ON variant_progress '
+            "BEGIN INSERT INTO progress_write_audit VALUES ('$operation'); END");
+      }
+
+      await repo.syncFromRemote();
+      expect(
+          await db
+              .customSelect('SELECT operation FROM progress_write_audit')
+              .get(),
+          isEmpty);
+
+      remote.progress[0] = {...old, 'id': 'remote-legacy-id', 'reps': 13};
+      await repo.syncFromRemote();
+      final row = await db.progressDao
+          .getByVariantAndDirection('rc1-ko', 'fr>ko', userId: _kUserId);
+      expect(row!.id, 'remote-legacy-id');
+      expect(row.reps, 13);
+      expect(
+          (await db
+                  .customSelect('SELECT operation FROM progress_write_audit')
+                  .get())
+              .single
+              .read<String>('operation'),
+          'update');
+    });
   });
 
   group('getListByShareToken', () {

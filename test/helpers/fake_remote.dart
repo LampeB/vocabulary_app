@@ -12,7 +12,7 @@ class FakeRemote implements VocabularyRemoteDataSource {
 
   @override
   Future<Result<Map<String, dynamic>>> upsertList(Map<String, dynamic> data,
-          {bool insertOnly = false}) async =>
+          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
       Success(data);
 
   @override
@@ -25,12 +25,12 @@ class FakeRemote implements VocabularyRemoteDataSource {
 
   @override
   Future<Result<Map<String, dynamic>>> upsertConcept(Map<String, dynamic> data,
-          {bool insertOnly = false}) async =>
+          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
       Success(data);
 
   @override
   Future<Result<Map<String, dynamic>>> upsertVariant(Map<String, dynamic> data,
-          {bool insertOnly = false}) async =>
+          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
       Success(data);
 
   @override

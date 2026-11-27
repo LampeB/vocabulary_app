@@ -123,8 +123,9 @@ final studiedListIdsProvider = StreamProvider<Set<String>>((ref) {
 /// quiz setup's "to study now" badge so it reflects the chosen language, not
 /// every language's due cards. Streamed for the same fresh-device reason.
 final dueCountForPairProvider =
-    StreamProvider.family<int, (String, String)>((ref, pair) {
-  final userId = ref.watch(currentUserProvider)?.id ?? '';
+    StreamProvider.autoDispose.family<int, (String, String)>((ref, pair) {
+  final userId =
+      ref.watch(currentUserProvider.select((user) => user?.id)) ?? '';
   if (userId.isEmpty) return Stream.value(0);
   return ref
       .watch(progressDaoProvider)
@@ -259,14 +260,8 @@ class ListActionsNotifier extends Notifier<void> {
     return result;
   }
 
-  Future<Result<VocabularyList>> renameList(
-      String listId, String newName) async {
-    final r = await _repo.getListById(listId);
-    return r.fold(
-      onSuccess: (list) => _repo.updateList(list.copyWith(name: newName)),
-      onFailure: (e) async => Failure(e),
-    );
-  }
+  Future<Result<VocabularyList>> renameList(String listId, String newName) =>
+      _repo.renameList(listId, newName);
 
   Future<Result<void>> deleteList(String listId) => _repo.deleteList(listId);
 

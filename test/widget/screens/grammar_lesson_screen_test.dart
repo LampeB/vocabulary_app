@@ -50,6 +50,7 @@ void main() {
 
     expect(find.byKey(const ValueKey(WidgetKeys.screenGrammarLesson)),
         findsOneWidget);
+    expect(find.byIcon(Icons.arrow_back_ios_new_rounded), findsNothing);
     expect(find.text(_rule.explanation('fr')), findsOneWidget);
     await tester.tap(find.text('저는 학생이에요.'));
     await tester.pump(const Duration(milliseconds: 250));
@@ -105,7 +106,10 @@ void main() {
       id: 'fr-articles-le-la',
       titles: const {'fr': 'Les articles'},
       descriptions: const {'fr': 'Choisir un article.'},
-      explanations: const {'fr': 'Le pour un nom masculin.'},
+      explanations: const {
+        'fr': 'Le pour un nom masculin.',
+        'ko': '남성 명사 앞에는 le를 써요.'
+      },
       workedExamples: const [
         WorkedExample(target: 'le café', translations: {'ko': '커피'}),
       ],
@@ -137,6 +141,19 @@ void main() {
       settle: false,
     );
     expect(curriculum, 'fr');
+    // Teaching follows the Korean base while navigation remains in French.
+    expect(find.text('Leçon'), findsOneWidget);
+    expect(find.text('Les articles'), findsOneWidget);
+    expect(find.text('남성 명사 앞에는 le를 써요.'), findsOneWidget);
+    expect(find.text('Le pour un nom masculin.'), findsNothing);
+    await tester.tap(find.text('le café'));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(
+        find.descendant(
+            of: find.byType(AlertDialog), matching: find.text('커피')),
+        findsOneWidget);
+    await tester.tap(find.text('common.close'.tr()));
+    await tester.pump(const Duration(milliseconds: 250));
     await tester
         .tap(find.byKey(const ValueKey(WidgetKeys.grammarLessonPractice)));
     await tester.pump(const Duration(milliseconds: 250));

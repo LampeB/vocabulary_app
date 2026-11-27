@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -8,6 +9,7 @@ class _FakePlayer implements SoundEffectPlayer {
   bool failPrepare = false;
   bool failPlay = false;
   bool failStop = false;
+  Completer<void>? pendingPrepare;
   var prepared = 0;
   var stopped = 0;
   var disposed = 0;
@@ -16,6 +18,7 @@ class _FakePlayer implements SoundEffectPlayer {
   @override
   Future<void> prepare() async {
     prepared++;
+    await pendingPrepare?.future;
     if (failPrepare) throw StateError('no audio session');
   }
 
@@ -104,4 +107,33 @@ void main() {
     expect(player.stopped, 2);
     expect(player.disposed, 1);
   });
+
+  for (final dispose in [false, true]) {
+    test('${dispose ? 'dispose' : 'stop'} cancels earcons waiting for prepare',
+        () async {
+      final gate = Completer<void>();
+      final player = _FakePlayer()..pendingPrepare = gate;
+      final service = SoundEffectsService(player: player);
+      final pending = Future.wait([
+        service.playCorrect(),
+        service.playIncorrect(),
+        service.playListenCue(),
+        service.playListenDone(),
+      ]);
+      expect(player.prepared, 1);
+
+      if (dispose) {
+        service.dispose();
+      } else {
+        await service.stop();
+      }
+      gate.complete();
+      await pending;
+      expect(player.played, isEmpty);
+      expect(player.stopped, 1);
+
+      await service.playListenCue();
+      expect(player.played, hasLength(dispose ? 0 : 1));
+    });
+  }
 }

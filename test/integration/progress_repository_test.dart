@@ -12,6 +12,7 @@ import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/domain/entities/concept.dart';
 import 'package:vocab_kr/domain/entities/variant_progress.dart';
 import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
+import 'package:vocab_kr/domain/usecases/quiz/submit_answer_usecase.dart';
 
 import '../helpers/fake_remote.dart';
 
@@ -83,6 +84,67 @@ void main() {
     final rows = await db.progressDao.getUnsyncedProgress(userId: _kUserId);
     expect(rows, hasLength(1));
     expect(rows.single.reps, 2);
+  });
+
+  test('a padded card rated again then good uses the previous saved review',
+      () async {
+    await setup();
+    final original = (await progressRepo.getProgress(
+            variantId: frVariantId, direction: QuizDirection.frToKo))
+        .valueOrNull!;
+    final submit = SubmitAnswerUseCase(progressRepo);
+    final first = (await submit(progress: original, rating: FsrsRating.again))
+        .valueOrNull!;
+    final second = (await submit(progress: original, rating: FsrsRating.good))
+        .valueOrNull!;
+
+    expect(first.state, CardState.learning);
+    expect(second.id, first.id);
+    expect(second.state, CardState.review);
+    expect(second.reps, 2);
+    expect(second.timesShown, 2);
+    expect(second.timesCorrect, 1);
+    final saved = (await db.progressDao.getById(second.id))!;
+    expect(saved.scheduledDays, second.scheduledDays);
+    expect(saved.timesShown, 2);
+  });
+
+  test('simultaneous ratings of the same card both reach the durable row',
+      () async {
+    await setup();
+    final sameCard = (await progressRepo.getProgress(
+            variantId: frVariantId, direction: QuizDirection.frToKo))
+        .valueOrNull!;
+    final other = ProgressRepositoryImpl(
+        db.progressDao, db.conceptDao, FakeRemote(), _kUserId);
+    final revisions = await Future.wait([
+      SubmitAnswerUseCase(progressRepo)(
+          progress: sameCard, rating: FsrsRating.good),
+      SubmitAnswerUseCase(other)(progress: sameCard, rating: FsrsRating.again),
+    ]);
+
+    expect(revisions.map((result) => result.valueOrNull?.timesShown),
+        unorderedEquals([1, 2]));
+    final rows = await db.progressDao.getUnsyncedProgress(userId: _kUserId);
+    expect(rows, hasLength(1));
+    expect(rows.single.reps, 2);
+    expect(rows.single.timesShown, 2);
+    expect(rows.single.timesCorrect, 1);
+  });
+
+  test('a loaded card cannot restore progress after its list is deleted',
+      () async {
+    final list = await setup();
+    final card = (await progressRepo.getProgress(
+            variantId: frVariantId, direction: QuizDirection.frToKo))
+        .valueOrNull!;
+    await vocabRepo.deleteList(list.id);
+
+    final result = await SubmitAnswerUseCase(progressRepo)(
+        progress: card, rating: FsrsRating.good);
+
+    expect(result.isFailure, isTrue);
+    expect(await db.progressDao.getById(card.id), isNull);
   });
 
   test('a sync acknowledgement does not invalidate pedagogical progress',

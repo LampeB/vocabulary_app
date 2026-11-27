@@ -28,10 +28,13 @@ class GrammarScreen extends ConsumerWidget {
     return Scaffold(
       key: const ValueKey(WidgetKeys.screenGrammar),
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.pop(),
-        ),
+        automaticallyImplyLeading: false,
+        leading: context.canPop()
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                onPressed: () => context.pop(),
+              )
+            : null,
         title: Text('daily_path.lessons_title'.tr()),
       ),
       body: Stack(

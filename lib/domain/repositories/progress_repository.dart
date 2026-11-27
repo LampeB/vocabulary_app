@@ -36,6 +36,13 @@ abstract interface class ProgressRepository {
 
   Future<Result<VariantProgress>> updateProgress(VariantProgress progress);
 
+  /// Applies [mutate] to the current card for this account in one transaction.
+  Future<Result<VariantProgress>> mutateProgress({
+    required String variantId,
+    required QuizDirection direction,
+    required VariantProgress Function(VariantProgress) mutate,
+  });
+
   Future<Result<Map<String, int>>> getListStats(String listId);
 
   Future<Result<void>> resetProgress(String listId);

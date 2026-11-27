@@ -27,27 +27,39 @@ final connectivityStreamProvider =
 /// shell. Skipped in TEST_MODE (same isolation rationale as syncOnLoginProvider).
 final pushOnReconnectProvider = Provider<void>((ref) {
   if (_kTestMode) return;
-  final user = ref.watch(currentUserProvider);
-  if (user == null) return;
+  final userId = ref.watch(currentUserProvider.select((user) => user?.id));
+  if (userId == null) return;
+  bool online() {
+    final value = ref.read(connectivityStreamProvider).valueOrNull;
+    return value != null && !isOffline(value);
+  }
+
+  void drain() {
+    if (online()) unawaited(ref.read(pushSyncProvider).pushAll());
+  }
+
   Timer? drainTimer;
   ref.onDispose(() => drainTimer?.cancel());
   ref.listen(pendingWritesProvider, (previous, next) {
-    if ((next.valueOrNull ?? 0) == 0) return;
     drainTimer?.cancel();
+    if ((next.valueOrNull ?? 0) == 0 || !online()) return;
     drainTimer = Timer(const Duration(milliseconds: 300), () {
-      unawaited(ref.read(pushSyncProvider).pushAll());
+      drain();
     });
   });
   ref.listen(connectivityStreamProvider, (prev, next) {
-    final wasOffline =
-        prev?.valueOrNull != null && isOffline(prev!.valueOrNull!);
+    final wasOnline =
+        prev?.valueOrNull != null && !isOffline(prev!.valueOrNull!);
     final nowOnline = next.valueOrNull != null && !isOffline(next.valueOrNull!);
-    if (wasOffline && nowOnline) {
-      unawaited(ref.read(pushSyncProvider).pushAll());
+    if (!nowOnline) {
+      drainTimer?.cancel();
+    } else if (!wasOnline) {
+      drainTimer?.cancel();
+      drain();
     }
   });
   // Initial drain on login / app start.
-  unawaited(ref.read(pushSyncProvider).pushAll());
+  drain();
 });
 
 class AppShell extends ConsumerWidget {
@@ -77,6 +89,7 @@ class AppShell extends ConsumerWidget {
     final offline = connectivityAsync.valueOrNull != null &&
         isOffline(connectivityAsync.valueOrNull!);
     final selected = _selectedIndex(context);
+    final inSession = GoRouterState.of(context).uri.path == '/quiz';
     final safeBottom = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
@@ -87,7 +100,7 @@ class AppShell extends ConsumerWidget {
           // Content — padded at bottom so nothing hides behind the frosted bar.
           Column(
             children: [
-              if (offline)
+              if (offline && !inSession)
                 Material(
                   color: Colors.orange,
                   child: SafeArea(
@@ -119,22 +132,24 @@ class AppShell extends ConsumerWidget {
                 ),
               Expanded(
                 child: Padding(
-                  padding: EdgeInsets.only(bottom: _kBarHeight + safeBottom),
+                  padding: EdgeInsets.only(
+                      bottom: inSession ? 0 : _kBarHeight + safeBottom),
                   child: child,
                 ),
               ),
             ],
           ),
           // Frosted bottom nav.
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _VkBottomNav(
-              selectedIndex: selected,
-              onTap: (index) => context.go(_routes[index]),
+          if (!inSession)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _VkBottomNav(
+                selectedIndex: selected,
+                onTap: (index) => context.go(_routes[index]),
+              ),
             ),
-          ),
         ],
       ),
     );

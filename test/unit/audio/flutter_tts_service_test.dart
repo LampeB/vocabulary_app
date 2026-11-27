@@ -12,14 +12,19 @@ void main() {
   final calls = <MethodCall>[];
   var engines = <dynamic>['com.samsung.SMT', 'com.google.android.tts'];
   Completer<void>? speakGate;
+  Completer<void>? configurationGate;
+  String? delayedMethod;
 
   setUp(() {
     calls.clear();
     engines = ['com.samsung.SMT', 'com.google.android.tts'];
     speakGate = null;
+    configurationGate = null;
+    delayedMethod = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_channel, (call) async {
       calls.add(call);
+      if (call.method == delayedMethod) await configurationGate!.future;
       if (call.method == 'getEngines') return engines;
       if (call.method == 'speak' && speakGate != null) {
         await speakGate!.future;
@@ -127,4 +132,42 @@ void main() {
 
     expect(names().where((name) => name == 'stop'), hasLength(2));
   });
+
+  for (final dispose in [false, true]) {
+    for (final method in ['getEngines', 'setLanguage']) {
+      test('${dispose ? 'dispose' : 'stop'} cancels speak waiting for $method',
+          () async {
+        final tts = FlutterTtsService();
+        if (method == 'setLanguage') {
+          await tts.warmUp('fr');
+          await tts.warmUp('ko');
+          calls.clear();
+        }
+        delayedMethod = method;
+        final gate = configurationGate = Completer<void>();
+        final speaking = tts.speak('bonjour', 'fr');
+        await Future<void>.delayed(Duration.zero);
+        expect(names(), [method]);
+
+        if (dispose) {
+          tts.dispose();
+        } else {
+          await tts.stop();
+        }
+        gate.complete();
+        await speaking;
+        expect(names().where((name) => name != 'stop'), [method]);
+        expect(tts.isSpeaking, isFalse);
+
+        calls.clear();
+        await tts.speak('안녕', 'ko');
+        if (dispose) {
+          expect(names(), isEmpty);
+        } else {
+          // A cancelled language switch left the native language unknown.
+          expect(names(), containsAll(['setLanguage', 'speak']));
+        }
+      });
+    }
+  }
 }

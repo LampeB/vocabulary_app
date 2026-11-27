@@ -16,6 +16,7 @@ abstract interface class VocabularyRepository {
     String langB = 'ko',
   });
   Future<Result<VocabularyList>> updateList(VocabularyList list);
+  Future<Result<VocabularyList>> renameList(String listId, String name);
   Future<Result<void>> deleteList(String listId);
   Future<Result<VocabularyList>> getListById(String listId);
   Future<Result<VocabularyList?>> getListByShareToken(String token);

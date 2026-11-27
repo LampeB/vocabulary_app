@@ -101,3 +101,80 @@ diagnostics en mode produit.
 L'intégration aligne aussi le dispatcher nocturne sur `main` et empêche son
 exécution depuis la branche d'intégration avant fusion. Les migrations
 hébergées et une vraie validation sur appareils restent distinctes de ce lot.
+
+## Revue de `9ecc70b` — corrections et configuration du sas
+
+Les quatre profils ont rendu `BLOQUÉ` sur
+`9ecc70bb8e919188bbb921c1983911709bfc900a` avant les corrections de ce lot.
+L'observation audio commune à qualité et correction est regroupée sans changer
+son type. Le verrou Deno, précédemment proposé en Suggestion, est cette fois
+signalé Important et traité comme tel.
+
+| Type | Constat regroupé | Correction et preuve ciblée |
+| --- | --- | --- |
+| Bloquant | Retours impossibles sur les racines du shell et origine perdue par le configurateur | Routes contextuelles poussées, flèche conditionnelle ; plateau et chemin → leçon → setup → quiz → bilan → retour |
+| Important | Explications/traductions pédagogiques choisies par la locale UI | Lecteur et aperçu utilisent langA ; KO→FR avec interface française |
+| Important | Titre de liste et validateurs français en dur | Détail et formulaire vide vérifiés en FR/EN/KO |
+| Important | Choix de configuration et bilan inutilisables au clavier | Boutons focalisables, état selected annoncé, parcours Tab/Entrée et sortie bilan |
+| Important | Longs prompts mains-libres/écrits sans défilement | Tests 320 × 568, texte doublé et clavier ouvert, commandes accessibles |
+| Important | Ambre sur papier insuffisamment contrasté | Accent clair adapté et contraste vérifié dans les deux thèmes |
+| Important | Pluriel français isolé impossible à distinguer à l'oral | Voix/HF indisponibles pour cette règle, garde d'entrée directe, pomme/pommes à l'écrit |
+| Important | Grammaire annonçant une échéance non enregistrée | Verdict de grammaire sans fausse échéance ; vocabulaire conserve son intervalle réel |
+| Important | Onglets généraux actifs pendant quiz et bilan | Masquage du chrome avec le vrai ShellRoute et une navigation poussée |
+| Important | Notes répétées recalculées depuis l'ancien snapshot | Notation transactionnelle depuis la progression courante ; réponses opposées et concurrence |
+| Important | Création importée acquittée sans adopter la réponse canonique | Réconciliation immédiate, delta de champs en cours, tombstone et renommage sans pull de réparation |
+| Important | Dates locales envoyées à TIMESTAMPTZ sans fuseau | Payloads UTC explicites et round-trip avec décalage |
+| Important | TTS et earcon reprenant après leur préparation interrompue | Annulation à la frontière native ; tests Completer stop/dispose |
+| Important | Clavier/Révéler laissant la course PCM active | Invalidation du tour et fermeture capture ; transcription tardive ignorée |
+| Important | Tags/exemples de variantes perdus à l'export ou par lien | Deux aller-retours préservent les métadonnées de grammaire |
+| Bloquant | Corpus vocal personnel et résultats versionnés publiquement | Corpus conservé localement, ignoré et interdit par le garde ; deux historiques publics filtrés |
+| Important | Secret E2E disponible à toute branche et 36 comptes embarqués par suite | Environnement patrol-e2e limité à main ; transfert scellé et suppression de la copie dépôt ; sous-ensemble de comptes par cible |
+| Important | Cache de clip privé consulté avant l'autorisation du compte | Contrôle avant mémoire/disque et après attente ; isolation des téléchargements par compte |
+| Important | expected_word non borné aux proxys STT | Limite 256 avant authentification/quota/fournisseur ; deux vrais handlers testés |
+| Important | Graphe Edge mutable entre CI et déploiement | Versions exactes et verrou transitif ; sept bundles frozen/offline via le même outil |
+| Important | Branche par défaut empêchant le déclenchement nocturne prévu | main rétablie par défaut ; exécution du runner intégré à confirmer après fusion/migrations |
+| Important | Protection de main absente | Sept checks CI, statut de convergence, une approbation, conversations et administrateurs soumis au sas |
+| Important | Compteurs par paire conservant leurs timers hors écran | autoDispose et vérification d'arrêt après le dernier abonné |
+| Important | Arriéré réessayé à chaque écriture hors ligne | Aucun drain offline, reprise au réseau ; arrêt sur panne transport et poursuite après refus d'une ligne |
+| Important | Progression identique relue/réécrite ligne par ligne au pull | Parents résolus en lot, lignes identiques ignorées, réconciliation groupée |
+
+La validation du lot a aussi reproduit une perte d'incrément de maîtrise de
+grammaire lors de deux réponses simultanées. La lecture/incrément/écriture est
+désormais transactionnelle ; la régression vérifie la création et le seuil.
+
+Les 941 tests hôte passent, avec 69,1 % de couverture et huit tests réservés à
+l'opt-in diagnostic exclus de la passe normale. Analyse Flutter, formatage,
+gardes et licence propres ; les tests ciblés comptent notamment 142 cas data,
+92 cas produit et 76 cas voix. Les dix tests Deno et cinq tests Python E2E
+passent. Les bundles Edge sont préparés et démarrés sans réseau ; un verrou
+incomplet est refusé. Aucun backend Supabase n'est modifié.
+
+### Purge et décision de conservation historique
+
+L'utilisateur a autorisé le push forcé des deux historiques affectés. Une
+sauvegarde locale complète a été vérifiée avant l'opération. Le filtrage
+préserve les fichiers hors corpus et la base signée exacte de main. Les
+captures ne sont plus accessibles dans l'historique de ces branches. Les
+copies locales et la sauvegarde ne sont pas publiées.
+
+GitHub conserve néanmoins les anciens objets et vues par leur identifiant.
+Ce reliquat a été constaté et **explicitement accepté par l'utilisateur le
+27 novembre 2026 pour cette intégration**, après explication. Il n'est pas
+présenté comme supprimé. Une demande GitHub Support a été préparée localement
+mais n'a pas été envoyée. Cette décision ne permet aucune nouvelle capture
+personnelle versionnée et ne retire pas le garde empêchant sa réintroduction.
+
+### Compteurs de convergence
+
+Quatre itérations complètes ont rendu des verdicts bloqués avant ce lot :
+`47ce871`, `ec6fc5c`, `08e730f` et `9ecc70b` (identifiants antérieurs à la purge).
+Les tentatives interrompues sans rapport ne sont pas des verdicts. Le prochain
+commit repart à zéro passe propre pour chaque profil ; l'itération suivante
+est la cinquième, avec le même plafond de vingt. Le bot d'approbation choisi
+par l'utilisateur ne dispense d'aucune de ces relectures.
+
+Le bot d'approbation formelle possède 17 tests de garde. Il vérifie le dernier
+résultat des sept jobs de l'application GitHub Actions officielle, la preuve
+des huit rapports et son empreinte attestée par le propriétaire, puis relit
+la tête de PR avant `APPROVE`. Les tests ne publient aucun verdict synthétique
+sur GitHub. Son premier dispatch réel reste subordonné à la convergence.

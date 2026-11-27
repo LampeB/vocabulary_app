@@ -62,7 +62,7 @@ class QuizScreen extends ConsumerStatefulWidget {
 }
 
 class _QuizScreenState extends ConsumerState<QuizScreen>
-    with TickerProviderStateMixin, WidgetsBindingObserver {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final _stt = SpeechRecognitionService();
   late final bool _usesRealStt;
   // Whisper engine (own capture + own endpointing) — app-lifetime via
@@ -132,8 +132,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   bool _flashcardExiting = false;
   int _flashcardExitDirection = 1;
   double _flashcardDragProgress = 0;
-  // Whole-screen warm breathing pulse used during the hands-free reading state.
-  late final AnimationController _pulseCtrl;
   // Listening-window countdown bar: fills left→right over the mic's
   // listenFor window; a full bar means the attempt timed out. Restarted on
   // every mic open (retries included).
@@ -150,17 +148,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _whisper = ref.read(whisperSpeechProvider);
       _elevenLabs = ref.read(elevenLabsSpeechProvider);
     }
-    _pulseCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1900));
-    // Don't run the perpetual breathing pulse under test — it never settles.
-    if (!_kTestMode) _pulseCtrl.repeat(reverse: true);
     // Duration mirrors SpeechRecognitionService.startListening's listenFor.
     _listenBarCtrl =
         AnimationController(vsync: this, duration: const Duration(seconds: 10));
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      _loadSession();
-      if (_usesRealStt) {
+      await _loadSession();
+      if (!mounted || _quitting) return;
+      if (_usesRealStt && ref.read(quizProvider).currentCard != null) {
         final ok = await _stt.initialize();
         if (!mounted || _quitting) return;
         if (!ok && _appForeground) {
@@ -186,7 +181,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     });
   }
 
-  void _loadSession() {
+  Future<void> _loadSession() {
     _sessionStarted = true;
     _listenToken++;
     _cancelActiveRace();
@@ -201,14 +196,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _flashcardExiting = false;
     _flashcardDragProgress = 0;
     final quiz = ref.read(quizProvider.notifier);
-    unawaited(quiz.loadCards(widget.args));
+    final loading = quiz.loadCards(widget.args);
     quiz.setForeground(_appForeground);
+    return loading;
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _pulseCtrl.dispose();
     _listenBarCtrl.dispose();
     _activeRace?.cancel();
     if (!_quitting) {
@@ -383,6 +378,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final token = ++_listenToken;
     _listenStartInFlight = token;
     try {
+      final pending = _interruption;
+      if (pending != null) await pending;
       await _startListeningInner(card, token);
     } finally {
       if (_listenStartInFlight == token) _listenStartInFlight = null;
@@ -463,6 +460,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final quiz = ref.read(quizProvider);
     return !identical(quiz.currentCard, card) ||
         quiz.isComplete ||
+        (widget.args.mode == QuizMode.voice &&
+            _voiceKbIndex == quiz.currentIndex) ||
         quiz.answerState != QuizAnswerState.idle;
   }
 
@@ -868,7 +867,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                     style: AppTextStyles.body.copyWith(color: AppColors.muted)),
                 const SizedBox(height: 24),
                 GestureDetector(
-                  onTap: () => _quit(returnToEntry: false),
+                  onTap: _quit,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 14),
@@ -892,7 +891,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       return _SummaryScreen(
         correct: quizState.correctCount,
         total: quizState.displayTotal,
-        onDone: () => _quit(returnToEntry: false),
+        onDone: _quit,
         onRestart: _loadSession,
       );
     }
@@ -990,7 +989,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       verdictPending: _hfAnalyzing,
       notHeard: _hfNotHeard,
     );
-    final analyzing = hfCue == HfCue.analyzing;
     final micLive = hfBarVisible(
       paused: _hfPaused,
       countdown: _hfCountdown,
@@ -1012,7 +1010,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           'total': '3',
         }),
     };
-    final cueColor = micLive ? V3Colors.amber : muted;
+    final accent = dark ? V3Colors.amber : V3Colors.terraInk;
+    final cueColor = micLive || hfCue == HfCue.countdown ? accent : muted;
 
     return V3StudyScaffold(
       remaining: (s.displayTotal - s.position + 1).clamp(1, s.displayTotal),
@@ -1021,26 +1020,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         children: [
           // Reading state only: whole-canvas warm breathing pulse (not in
           // the "pas entendu" state).
-          if (!listening && !_hfPaused && !_hfNotHeard)
+          if (hfCue == HfCue.reading && _appForeground)
             Positioned.fill(
               child: IgnorePointer(
-                child: AnimatedBuilder(
-                  animation: _pulseCtrl,
-                  builder: (_, __) {
-                    final t = reduceMotion ? 0.5 : _pulseCtrl.value;
-                    return DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: RadialGradient(
-                          radius: 1.1,
-                          colors: [
-                            AppColors.clay.withValues(alpha: 0.04 + 0.10 * t),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                child: reduceMotion || _kTestMode
+                    ? _ReadingGlow(progress: 0.5)
+                    : const _ReadingPulse(),
               ),
             ),
           // Main content — tap centre to pause.
@@ -1053,24 +1038,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               child: Column(
                 children: [
                   Expanded(
-                    child: Center(
-                      // During "analyse" the status text breathes (slow fade
-                      // in/out) and the wave freezes — the mic is closed.
-                      child: AnimatedBuilder(
-                        animation: _pulseCtrl,
-                        builder: (_, __) {
-                          final fade = analyzing && !reduceMotion
-                              ? 0.35 + 0.65 * _pulseCtrl.value
-                              : 1.0;
-                          return WordInWave(
-                            word: card.questionWord,
-                            isKorean: questionIsHangul,
-                            cue: cue,
-                            wordColor: foreground,
-                            cueColor: cueColor.withValues(alpha: fade),
-                            waveActive: micLive,
-                          );
-                        },
+                    child: _ScrollablePrompt(
+                      child: WordInWave(
+                        word: card.questionWord,
+                        isKorean: questionIsHangul,
+                        cue: cue,
+                        wordColor: foreground,
+                        cueColor: cueColor,
+                        waveActive: micLive,
                       ),
                     ),
                   ),
@@ -1082,7 +1057,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                         '$_hfCountdown',
                         key: const ValueKey('hf_countdown'),
                         style: AppTextStyles.grotesk(64, FontWeight.w700)
-                            .copyWith(color: V3Colors.amber),
+                            .copyWith(color: accent),
                       ),
                     ),
                   // Which engines are working on the answer, and what each
@@ -1112,8 +1087,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                             value: 1 - _listenBarCtrl.value,
                             minHeight: 5,
                             backgroundColor: rule.withValues(alpha: 0.7),
-                            valueColor:
-                                const AlwaysStoppedAnimation(V3Colors.amber),
+                            valueColor: AlwaysStoppedAnimation(accent),
                           ),
                         ),
                       ),
@@ -1161,7 +1135,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                                 ? Icons.hearing_disabled_rounded
                                 : Icons.pause_rounded,
                             size: 56,
-                            color: foreground),
+                            color: V3Colors.inkLight),
                         const SizedBox(height: 10),
                         Text(
                             (_hfAutoPausedSilence
@@ -1170,11 +1144,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                                 .tr(),
                             textAlign: TextAlign.center,
                             style: AppTextStyles.grotesk(28, FontWeight.w700)
-                                .copyWith(color: foreground)),
+                                .copyWith(color: V3Colors.inkLight)),
                         const SizedBox(height: 6),
                         Text('quiz.hf_resume_hint'.tr(),
                             style: AppTextStyles.fig(14, FontWeight.w500)
-                                .copyWith(color: muted)),
+                                .copyWith(color: V3Colors.inkLight70)),
                       ],
                     ),
                   ),
@@ -1186,13 +1160,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     );
   }
 
-  Future<void> _quit({bool returnToEntry = true}) async {
+  Future<void> _quit() async {
     if (_quitting) return;
     _quitting = true;
     ref.read(quizProvider.notifier).setForeground(false);
     await _interruptTurn();
     if (!mounted) return;
-    if (returnToEntry && context.canPop()) {
+    if (context.canPop()) {
       context.pop();
     } else {
       context.go('/home');
@@ -1220,13 +1194,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         noEngine: 'quiz.stt_no_engine'.tr(),
       );
 
-  String _nextReviewText(int scheduledDays, bool correct) {
-    if (!correct) return 'quiz.next_review_soon'.tr();
-    return scheduledDays <= 1
-        ? 'quiz.next_review_tomorrow'.tr()
-        : 'quiz.next_review_in_days'
-            .tr(namedArgs: {'days': scheduledDays.toString()});
-  }
+  String? _nextReviewText(int? scheduledDays) => switch (scheduledDays) {
+        null => null,
+        0 => 'quiz.next_review_soon'.tr(),
+        1 => 'quiz.next_review_tomorrow'.tr(),
+        final days =>
+          'quiz.next_review_in_days'.tr(namedArgs: {'days': '$days'}),
+      };
 
   Future<void> _dismissFlashcard({required bool knew}) async {
     final quiz = ref.read(quizProvider);
@@ -1440,7 +1414,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             correct ? 'quiz.feedback_correct'.tr() : 'quiz.feedback_wrong'.tr(),
         answer: card.answerWords.join(' / '),
         answerIsKorean: answerIsHangul,
-        detail: _nextReviewText(s.scheduledDays, correct),
+        detail: _nextReviewText(s.scheduledDays),
         continueLabel: 'quiz.continue_button'.tr(),
         onContinue: () => ref.read(quizProvider.notifier).advance(),
       );
@@ -1473,7 +1447,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         child: Column(
           children: [
             Expanded(
-              child: Center(
+              child: _ScrollablePrompt(
                 child: WordInWave(
                   word: card.questionWord,
                   isKorean: questionIsHangul, // question is Korean when KO→FR
@@ -1537,7 +1511,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             correct ? 'quiz.feedback_correct'.tr() : 'quiz.feedback_wrong'.tr(),
         answer: card.answerWords.join(' / '),
         answerIsKorean: answerIsHangul, // answer is Korean when FR→KO
-        detail: _nextReviewText(s.scheduledDays, correct),
+        detail: _nextReviewText(s.scheduledDays),
         continueLabel: 'quiz.continue_button'.tr(),
         onContinue: () => ref.read(quizProvider.notifier).advance(),
       );
@@ -1566,7 +1540,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         child: Column(
           children: [
             Expanded(
-              child: Center(
+              child: _ScrollablePrompt(
                 child: WordInWave(
                   word: card.questionWord,
                   isKorean: questionIsHangul, // question is Korean when KO→FR
@@ -1576,7 +1550,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 ),
               ),
             ),
-            if (s.isListening || !_sttOnline)
+            if (!kbOn && (s.isListening || !_sttOnline))
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: SttStatusStrip(
@@ -1610,27 +1584,24 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 onTap: () => _startListening(card),
               ),
               const SizedBox(height: 18),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 12,
+                runSpacing: 8,
                 children: [
                   _EscapePill(
                     key: const ValueKey(WidgetKeys.voiceReveal),
                     icon: Icons.visibility_outlined,
                     label: 'quiz.voice_reveal'.tr(),
-                    onTap: () {
-                      _stt.stopListening();
-                      ref.read(quizProvider.notifier).submitVoiceAnswer('');
-                    },
+                    onTap: () => unawaited(_revealVoiceAnswer(card)),
                   ),
-                  const SizedBox(width: 12),
                   _EscapePill(
                     key: const ValueKey(WidgetKeys.voiceKeyboard),
                     icon: Icons.keyboard_outlined,
                     label: 'quiz.voice_keyboard'.tr(),
                     onTap: () {
-                      _stt.stopListening();
-                      ref.read(quizProvider.notifier).setListening(false);
                       setState(() => _voiceKbIndex = s.currentIndex);
+                      unawaited(_interruptTurn());
                     },
                   ),
                 ],
@@ -1640,6 +1611,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _revealVoiceAnswer(QuizCard card) async {
+    final stopped = _interruptTurn();
+    final token = _listenToken;
+    await stopped;
+    if (_turnStale(token, card)) return;
+    ref.read(quizProvider.notifier).submitVoiceAnswer('');
   }
 }
 
@@ -1676,9 +1655,12 @@ class _EscapePill extends StatelessWidget {
           children: [
             Icon(icon, size: 16, color: fg),
             const SizedBox(width: 6),
-            Text(label,
-                style:
-                    AppTextStyles.fig(13, FontWeight.w600).copyWith(color: fg)),
+            Flexible(
+              child: Text(label,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.fig(13, FontWeight.w600)
+                      .copyWith(color: fg)),
+            ),
           ],
         ),
       ),
@@ -1727,6 +1709,75 @@ class _FlashcardSurface extends StatelessWidget {
 
 // ── Hands-free oversized control ──────────────────────────────────────────────
 
+/// A short prompt stays centred. The scrollbar appears when a long prompt or
+/// larger system text needs more room, leaving the answer controls in place.
+class _ScrollablePrompt extends StatelessWidget {
+  const _ScrollablePrompt({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) => Scrollbar(
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+            key: const ValueKey(WidgetKeys.quizPrompt),
+            primary: true,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(child: child),
+            ),
+          ),
+        ),
+      );
+}
+
+class _ReadingPulse extends StatefulWidget {
+  const _ReadingPulse();
+
+  @override
+  State<_ReadingPulse> createState() => _ReadingPulseState();
+}
+
+class _ReadingPulseState extends State<_ReadingPulse>
+    with SingleTickerProviderStateMixin {
+  late final _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1900),
+  )..repeat(reverse: true);
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: _pulse,
+        builder: (_, __) => _ReadingGlow(progress: _pulse.value),
+      );
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+}
+
+class _ReadingGlow extends StatelessWidget {
+  const _ReadingGlow({required this.progress});
+
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            radius: 1.1,
+            colors: [
+              AppColors.clay.withValues(alpha: 0.04 + 0.10 * progress),
+              Colors.transparent,
+            ],
+          ),
+        ),
+      );
+}
+
 class _HfButton extends StatelessWidget {
   const _HfButton({
     super.key,
@@ -1743,26 +1794,25 @@ class _HfButton extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final surface = dark ? V3Colors.block : V3Colors.paperPanel;
     final foreground = dark ? V3Colors.inkLight : V3Colors.ink;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        height: 104,
-        decoration: BoxDecoration(
-          color: surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: dark ? V3Colors.ruleDark : V3Colors.edge2),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 32, color: foreground),
-            const SizedBox(height: 8),
-            Text(label,
-                style: AppTextStyles.fig(15, FontWeight.w700)
-                    .copyWith(color: foreground)),
-          ],
-        ),
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: foreground,
+        backgroundColor: surface,
+        minimumSize: const Size(0, 104),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        side: BorderSide(color: dark ? V3Colors.ruleDark : V3Colors.edge2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 32),
+          const SizedBox(height: 8),
+          Text(label,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.fig(15, FontWeight.w700)),
+        ],
       ),
     );
   }
@@ -1829,6 +1879,11 @@ class _SummaryScreen extends StatelessWidget {
     final foreground = dark ? V3Colors.inkLight : V3Colors.ink;
     final muted = dark ? V3Colors.inkLight70 : V3Colors.ink60;
     final surface = dark ? V3Colors.block : V3Colors.paperPanel;
+    final accent = dark ? V3Colors.amber : V3Colors.terraInk;
+    final shape =
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(12));
+    const padding = EdgeInsets.symmetric(vertical: 12, horizontal: 8);
+    const buttonSize = Size(0, 52);
 
     return Scaffold(
       key: const ValueKey(WidgetKeys.summary),
@@ -1854,8 +1909,8 @@ class _SummaryScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     '$pct %',
-                    style: V3Text.title(64,
-                        color: isGreat ? V3Colors.amber : foreground),
+                    style:
+                        V3Text.title(64, color: isGreat ? accent : foreground),
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -1870,43 +1925,43 @@ class _SummaryScreen extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: GestureDetector(
-                          onTap: onRestart,
-                          child: Container(
-                            height: 52,
-                            decoration: BoxDecoration(
-                              color: surface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: dark
-                                      ? V3Colors.ruleDark
-                                      : V3Colors.edge2),
-                            ),
-                            child: Center(
-                              child: Text('quiz.summary_restart'.tr(),
-                                  style: AppTextStyles.fig(14, FontWeight.w600)
-                                      .copyWith(color: foreground)),
-                            ),
+                        child: OutlinedButton(
+                          key: const ValueKey(WidgetKeys.summaryRestart),
+                          onPressed: onRestart,
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: buttonSize,
+                            padding: padding,
+                            shape: shape,
+                            backgroundColor: surface,
+                            foregroundColor: foreground,
+                            side: BorderSide(
+                                color:
+                                    dark ? V3Colors.ruleDark : V3Colors.edge2),
                           ),
+                          child: Text('quiz.summary_restart'.tr(),
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.fig(14, FontWeight.w600)),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: GestureDetector(
+                        child: FilledButton(
                           key: const ValueKey(WidgetKeys.summaryDone),
-                          onTap: onDone,
-                          child: Container(
-                            height: 52,
-                            decoration: BoxDecoration(
-                              color: V3Colors.terra,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(
-                              child: Text('quiz.summary_home'.tr(),
-                                  style: AppTextStyles.fig(14, FontWeight.w700)
-                                      .copyWith(color: Colors.white)),
-                            ),
+                          onPressed: onDone,
+                          style: FilledButton.styleFrom(
+                            minimumSize: buttonSize,
+                            padding: padding,
+                            shape: shape,
+                            backgroundColor: V3Colors.terra,
+                            foregroundColor: Colors.white,
                           ),
+                          child: Text(
+                              (context.canPop()
+                                      ? 'common.back'
+                                      : 'quiz.summary_home')
+                                  .tr(),
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.fig(14, FontWeight.w700)),
                         ),
                       ),
                     ],

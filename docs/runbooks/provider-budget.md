@@ -27,6 +27,33 @@ cloud à 20 EUR.
    fonction du projet hébergé. Le client actuel ne l'appelle plus ; conserver
    son ancienne version déployée laisserait un contournement des quotas.
 
+## Préparer et déployer les Edge Functions
+
+La CI et le déploiement utilisent Deno **2.9.6** et le même
+[verrou versionné](../../supabase/functions/deno.lock). Les imports fixent
+SupabaseJS à **2.119.2** et Anthropic à **1.14.0**, et le verrou fixe les
+versions et les empreintes de leurs dépendances transitives.
+[Verrouillage Deno](https://docs.deno.com/runtime/packages/#lockfile-and-reproducible-installs).
+
+Depuis la racine du dépôt, lancer `python3 tool/deploy-edge-functions.py`.
+Le script vérifie les types, exécute les tests avec `--frozen`, prépare les
+bundles verrouillés et démarre leurs points d'entrée dans un test sans accès
+réseau ni résolution npm. Les bundles temporaires sont supprimés à la fin.
+[Bundling Deno](https://docs.deno.com/runtime/reference/bundling/).
+
+Une fois les migrations requises appliquées sur le projet ciblé, utiliser
+la CLI Supabase (version 3.4 ou ultérieure), authentifiée localement, puis
+`python3 tool/deploy-edge-functions.py --project-ref <ref-du-projet>`. Le script
+vérifie à nouveau les bundles et transmet à la CLI uniquement les points
+d'entrée autonomes de son dossier temporaire. La CLI demande confirmation
+pour le projet désigné. Utiliser ce chemin pour éviter un nouveau calcul du
+graphe par le service de déploiement.
+[Déploiement Supabase](https://supabase.com/docs/reference/cli/supabase-functions-deploy).
+
+Pour une mise à jour de dépendance, modifier les imports exacts, puis lancer
+`deno check --config supabase/functions/deno.json --frozen=false supabase/functions/*/index.ts`.
+Relire le diff du verrou et repasser le script sans projet avant de commiter.
+
 ## Frontières des contenus et des audios
 
 - Les corps JSON des assistants sont lus en flux, avec un maximum de 32 Kio
@@ -45,6 +72,9 @@ cloud à 20 EUR.
 - Storage vérifie le propriétaire dans le chemin privé généré côté serveur,
   indépendamment du champ `audio_path` modifiable dans une variante. Les
   audios publiés du catalogue restent lisibles aux utilisateurs authentifiés.
+  Sur l'appareil, les accès aux clips privés vérifient également le propriétaire
+  avant de consulter le disque ou les téléchargements en cours. Les noms du
+  cache écartent les anciens fichiers créés avant le manifeste de publication.
 - La migration 012 crée également `review_events` et sa politique limitée au
   propriétaire ; un historique ne peut pas être écrit ou lu pour un autre compte.
 
@@ -58,6 +88,8 @@ cloud à 20 EUR.
 - Les captures acceptées sont du PCM16 mono 16 kHz (brut ElevenLabs ou WAV).
   Le serveur vérifie leur format et les **30 secondes réelles** ; une simple
   limite d'octets ne suffit pas pour un format compressé ou un autre débit.
+- Les deux proxys bornent `expected_word` à 256 caractères avant le débit de
+  quota ou l'appel au fournisseur. Le champ reste facultatif.
 - Les limites quotidiennes restantes sont : traduction 200, suggestions 25,
   grammaire 20 et audio 500. Le provisionnement audio ne consomme le quota
   qu'après un cache miss. Une requête refusée pour concurrence ou plafond STT

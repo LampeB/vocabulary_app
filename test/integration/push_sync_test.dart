@@ -1,12 +1,18 @@
 // ignore_for_file: invalid_use_of_internal_member
 import 'dart:async';
+import 'dart:convert' show jsonDecode, jsonEncode;
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show SupabaseClient;
 import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
+import 'package:vocab_kr/data/datasources/remote/vocabulary_remote_datasource.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/data/sync/push_sync.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
@@ -23,10 +29,12 @@ class _RecordingRemote extends FakeRemote {
   Map<String, dynamic>? publicList;
   bool failAll = false;
   bool failConcepts = false;
+  int attempts = 0;
   final pushedLists = <Map<String, dynamic>>[];
   final pushedConcepts = <Map<String, dynamic>>[];
   final pushedVariants = <Map<String, dynamic>>[];
   final pushedProgress = <Map<String, dynamic>>[];
+  final pushedEvents = <Map<String, dynamic>>[];
   Future<void> Function(Map<String, dynamic>)? onList;
   Future<void> Function(String)? onAudio;
 
@@ -43,30 +51,41 @@ class _RecordingRemote extends FakeRemote {
   Result<Map<String, dynamic>> _record(
       List<Map<String, dynamic>> sink, Map<String, dynamic> data,
       {bool fail = false}) {
-    if (failAll || fail) return const Failure(NetworkException('down'));
+    attempts++;
+    if (failAll) return const Failure(NetworkException('down'));
+    if (fail) return const Failure(StorageException('row rejected'));
     sink.add(data);
     return Success(data);
   }
 
   @override
   Future<Result<Map<String, dynamic>>> upsertList(Map<String, dynamic> data,
-      {bool insertOnly = false}) async {
+      {bool insertOnly = false, Map<String, dynamic>? changes}) async {
     await onList?.call(data);
     return _record(pushedLists, data);
   }
 
   @override
   Future<Result<Map<String, dynamic>>> upsertConcept(Map<String, dynamic> data,
-          {bool insertOnly = false}) async =>
+          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
       _record(pushedConcepts, data, fail: failConcepts);
   @override
   Future<Result<Map<String, dynamic>>> upsertVariant(Map<String, dynamic> data,
-          {bool insertOnly = false}) async =>
+          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
       _record(pushedVariants, data);
   @override
   Future<Result<Map<String, dynamic>>> upsertProgress(
           Map<String, dynamic> data) async =>
       _record(pushedProgress, data);
+
+  @override
+  Future<Result<void>> upsertReviewEvent(Map<String, dynamic> data) async {
+    final sent = _record(pushedEvents, data);
+    return switch (sent) {
+      Success() => const Success(null),
+      Failure(:final exception) => Failure(exception),
+    };
+  }
 }
 
 void main() {
@@ -84,6 +103,63 @@ void main() {
         db.reviewEventDao, remote);
   });
   tearDown(() => db.close());
+
+  test('remote writes distinguish transport outages from row rejection',
+      () async {
+    var connected = false;
+    final client = SupabaseClient('https://service.example.test', 'anon',
+        httpClient: MockClient((request) async {
+      if (!connected) throw http.ClientException('disconnected');
+      return http.Response(
+          jsonEncode({'code': '23514', 'message': 'row constraint'}), 400,
+          headers: {'content-type': 'application/json'}, request: request);
+    }));
+    addTearDown(client.dispose);
+    final datasource = VocabularyRemoteDataSource(client);
+
+    final outage = await datasource.upsertList({'id': 'list'});
+    expect(outage.exceptionOrNull, isA<NetworkException>());
+    connected = true;
+    final rejected = await datasource.upsertList({'id': 'list'});
+    expect(rejected.exceptionOrNull, isA<StorageException>());
+  });
+
+  test('the remote import patches only edited fields on a live copy', () async {
+    final methods = <String>[];
+    final client = SupabaseClient('https://service.example.test', 'anon',
+        httpClient: MockClient((request) async {
+      methods.add(request.method);
+      switch (request.method) {
+        case 'POST':
+          expect(request.headers['prefer'],
+              contains('resolution=ignore-duplicates'));
+          return http.Response('[]', 201,
+              headers: {'content-type': 'application/json'}, request: request);
+        case 'PATCH':
+          expect(request.url.queryParameters,
+              containsPair('is_deleted', 'eq.false'));
+          expect(request.url.queryParameters, containsPair('owner_id', 'eq.u'));
+          expect(jsonDecode(request.body), {'name': 'Edited on B'});
+          return http.Response(
+              '[{"id":"list","owner_id":"u","name":"Edited on B","visibility":"public"}]',
+              200,
+              headers: {'content-type': 'application/json'},
+              request: request);
+        default:
+          fail('Unexpected request ${request.method}');
+      }
+    }));
+    addTearDown(client.dispose);
+    final datasource = VocabularyRemoteDataSource(client);
+
+    final result = await datasource.upsertList(
+        {'id': 'list', 'owner_id': 'u', 'visibility': 'private'},
+        insertOnly: true,
+        changes: {'name': 'Edited on B'});
+    expect(result.isSuccess, isTrue, reason: result.exceptionOrNull?.message);
+    expect(methods, ['POST', 'PATCH']);
+    expect(result.valueOrNull?['visibility'], 'public');
+  });
 
   test('profile data keeps the writer but an account change replaces it', () {
     final user = AppUser(
@@ -272,6 +348,84 @@ void main() {
 
     expect(pushed, 0);
     expect(remote.pushedLists, isEmpty);
+  });
+
+  test('a transport outage stops the drain and preserves its pending rows',
+      () async {
+    for (final name in ['First', 'Second']) {
+      final list = (await repo.createList(name: name)).valueOrNull!;
+      await repo.addConceptWithVariants(
+          listId: list.id, wordA: 'chat', wordB: '고양이');
+    }
+    remote.failAll = true;
+
+    expect(await sync.pushAll(), 0);
+    expect(remote.attempts, 1);
+    expect(await db.vocabularyListDao.getUnsyncedLists(), hasLength(2));
+    expect(await db.conceptDao.getUnsyncedConcepts(), hasLength(2));
+    expect(await db.conceptDao.getUnsyncedVariants(), hasLength(4));
+
+    remote.failAll = false;
+    expect(await sync.pushAll(), 8);
+    expect(remote.attempts, 9);
+    expect(await db.vocabularyListDao.getPendingListIds(), isEmpty);
+  });
+
+  test('all remote payloads preserve the instant and declare UTC', () async {
+    final instant = DateTime.parse('2026-11-27T12:30:00+09:00').toLocal();
+    expect(instant.isUtc, isFalse);
+    const expected = '2026-11-27T03:30:00.000Z';
+    final list = (await repo.createList(name: 'UTC')).valueOrNull!;
+    final concept = (await repo.addConceptWithVariants(
+            listId: list.id, wordA: 'chat', wordB: '고양이'))
+        .valueOrNull!;
+    final variant =
+        (await db.conceptDao.getVariantsByConcept(concept.id)).first;
+    await (db.update(db.vocabularyListsTable)
+          ..where((t) => t.id.equals(list.id)))
+        .write(VocabularyListsTableCompanion(
+            createdAt: Value(instant), updatedAt: Value(instant)));
+    await (db.update(db.conceptsTable)..where((t) => t.id.equals(concept.id)))
+        .write(ConceptsTableCompanion(
+            createdAt: Value(instant), updatedAt: Value(instant)));
+    await (db.update(db.wordVariantsTable)
+          ..where((t) => t.conceptId.equals(concept.id)))
+        .write(WordVariantsTableCompanion(
+            createdAt: Value(instant), updatedAt: Value(instant)));
+    await db.progressDao.upsert(VariantProgressTableCompanion.insert(
+      id: 'progress',
+      variantId: variant.id,
+      userId: 'u',
+      direction: 'fr>ko',
+      lastReview: Value(instant),
+      nextReview: Value(instant),
+      createdAt: instant,
+      updatedAt: instant,
+    ));
+    await db.reviewEventDao.insertEvent(ReviewEventsTableCompanion.insert(
+      id: 'event',
+      variantId: variant.id,
+      userId: 'u',
+      direction: 'fr>ko',
+      mode: 'flashcard',
+      correct: true,
+      rating: 'good',
+      createdAt: instant,
+    ));
+
+    expect(await sync.pushAll(), 6);
+    for (final row in [
+      ...remote.pushedLists,
+      ...remote.pushedConcepts,
+      ...remote.pushedVariants,
+      ...remote.pushedProgress
+    ]) {
+      expect(row['created_at'], expected);
+      expect(row['updated_at'], expected);
+    }
+    expect(remote.pushedProgress.single['last_review'], expected);
+    expect(remote.pushedProgress.single['next_review'], expected);
+    expect(remote.pushedEvents.single['created_at'], expected);
   });
 
   test(

@@ -14,8 +14,9 @@ Do not run the same scenario locally while CI uses its permanent account.
 
 Before the first run, apply the pending production migrations and enroll the
 distinct scenario accounts using [the E2E account runbook](runbooks/e2e-account.md).
-Repository secrets are `SUPABASE_URL`, `SUPABASE_ANON_KEY` and
-`E2E_ACCOUNTS_JSON`; `TEST_EMAIL` and `TEST_PASSWORD` are no longer used.
+The `patrol-e2e` environment limits its `E2E_ACCOUNTS_JSON` secret to `main`.
+Each build embeds only the credentials for its selected Patrol target.
+`SUPABASE_URL` and `SUPABASE_ANON_KEY` remain repository secrets for Android CI.
 The integration itself neither applies hosted migrations nor dispatches a run.
 No administrator credential is embedded in the app or this dispatcher.
 

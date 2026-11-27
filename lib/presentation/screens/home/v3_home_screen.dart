@@ -263,14 +263,14 @@ class _V3HomeBody extends StatelessWidget {
                 label: 'v3.a_lesson'.tr(),
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  context.go('/grammar');
+                  context.push('/grammar');
                 }),
             const SizedBox(height: 7),
             _SheetChoice(
                 label: 'v3.choose_quiz'.tr(),
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  context.go('/start-session');
+                  context.push('/start-session');
                 }),
           ],
         ),
@@ -485,7 +485,7 @@ class _PathEntry extends StatelessWidget {
                           .tr(namedArgs: {'count': '${rules.length}'}),
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    context.go('/grammar');
+                    context.push('/grammar');
                   }),
             ]),
       ),

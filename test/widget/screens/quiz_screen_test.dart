@@ -3,24 +3,30 @@ import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
 import 'package:drift/native.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
+import 'package:vocab_kr/core/grammar/grammar_drill_generator.dart';
 import 'package:vocab_kr/core/stt_simulator.dart';
 import 'package:vocab_kr/core/utils/pcm_segmenter.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
+import 'package:vocab_kr/domain/entities/grammar_rule.dart';
 import 'package:vocab_kr/domain/entities/variant_progress.dart';
 import 'package:vocab_kr/domain/repositories/auth_repository.dart';
 import 'package:vocab_kr/domain/repositories/progress_repository.dart';
 import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart';
+import 'package:vocab_kr/presentation/design/v3/v3_tokens.dart';
 import 'package:vocab_kr/presentation/providers/audio/audio_provider.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
+import 'package:vocab_kr/presentation/providers/grammar/grammar_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/notifications/notification_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
@@ -28,6 +34,8 @@ import 'package:vocab_kr/presentation/providers/speech/elevenlabs_speech_provide
 import 'package:vocab_kr/presentation/providers/speech/shared_pcm_capture_provider.dart';
 import 'package:vocab_kr/presentation/providers/speech/whisper_speech_provider.dart';
 import 'package:vocab_kr/presentation/screens/quiz/quiz_screen.dart';
+import 'package:vocab_kr/presentation/widgets/study/study_feedback_flood.dart';
+import 'package:vocab_kr/presentation/widgets/study/word_in_wave.dart';
 import 'package:vocab_kr/services/audio/audio_player_service.dart';
 import 'package:vocab_kr/services/notifications/notification_service.dart';
 import 'package:vocab_kr/services/quiz_orchestration/audio_director.dart';
@@ -147,6 +155,7 @@ class _FakeCaptureSession implements PcmCaptureSession {
 
 class _FakeWhisper implements WhisperSpeechService {
   int decodes = 0;
+  Completer<String?>? pendingDecode;
 
   @override
   bool get isReady => true;
@@ -164,7 +173,9 @@ class _FakeWhisper implements WhisperSpeechService {
     required List<String> promptHints,
   }) async {
     decodes++;
-    return promptHints.single;
+    return pendingDecode == null
+        ? promptHints.single
+        : await pendingDecode!.future;
   }
 
   @override
@@ -222,6 +233,8 @@ class _FakeProgressRepo implements ProgressRepository {
   _FakeProgressRepo(this.due);
   final List<VariantProgress> due;
   final saved = <VariantProgress>[];
+  int? committedDays;
+  Completer<void>? pendingCommit;
 
   @override
   Future<Result<List<VariantProgress>>> getDueCards({
@@ -233,10 +246,20 @@ class _FakeProgressRepo implements ProgressRepository {
       Success(due.where((p) => p.direction == direction).take(limit).toList());
 
   @override
-  Future<Result<VariantProgress>> updateProgress(
-      VariantProgress progress) async {
-    saved.add(progress);
-    return Success(progress);
+  Future<Result<VariantProgress>> mutateProgress({
+    required String variantId,
+    required QuizDirection direction,
+    required VariantProgress Function(VariantProgress) mutate,
+  }) async {
+    final latest = [...saved.reversed, ...due].firstWhere((progress) =>
+        progress.variantId == variantId && progress.direction == direction);
+    await pendingCommit?.future;
+    final updated = mutate(latest);
+    final days = committedDays;
+    final committed =
+        days == null ? updated : updated.copyWith(scheduledDays: days);
+    saved.add(committed);
+    return Success(committed);
   }
 
   @override
@@ -265,7 +288,17 @@ class _FakeNotifService implements NotificationService {
 }
 
 void main() {
-  setUpAll(initTestLocalization);
+  late List<GrammarRule> koreanRules;
+  setUpAll(() async {
+    await initTestLocalization();
+    // Load the rule assets before individual widgets run in fake time.
+    final container = ProviderContainer();
+    try {
+      koreanRules = await container.read(grammarRulesProvider('ko').future);
+    } finally {
+      container.dispose();
+    }
+  });
 
   late AppDatabase db;
   late _FakeProgressRepo progressRepo;
@@ -296,6 +329,8 @@ void main() {
     String? entry,
     _VoiceHarness? voice,
     _TestDirector? director,
+    bool grammar = false,
+    ThemeMode themeMode = ThemeMode.light,
   }) async {
     navigatedTo = null;
     final dueCards = <VariantProgress>[];
@@ -316,7 +351,9 @@ void main() {
     progressRepo = _FakeProgressRepo(dueCards);
     final quiz = QuizScreen(
       args: QuizArgs(
-        listId: 'l',
+        listId: grammar ? null : 'l',
+        source: grammar ? QuizSource.grammar : QuizSource.list,
+        ruleId: grammar ? 'particule-theme-eun-neun' : null,
         mode: mode,
         direction: QuizDirectionChoice.frToKo,
         cardLimit: cardLimit ?? words.length,
@@ -341,6 +378,13 @@ void main() {
         getDueCardsUseCaseProvider
             .overrideWithValue(GetDueCardsUseCase(progressRepo)),
         progressRepositoryProvider.overrideWithValue(progressRepo),
+        if (grammar) ...[
+          grammarRulesProvider.overrideWith((_, __) => koreanRules),
+          ruleDrillWordsProvider.overrideWith((_, __) async => const [
+                DrillWord(word: '학생', category: 'nom'),
+                DrillWord(word: '친구', category: 'nom'),
+              ]),
+        ],
         audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
         if (voice != null) ...[
           sharedPcmCaptureProvider.overrideWithValue(voice.capture),
@@ -377,6 +421,7 @@ void main() {
         ),
       ],
       settle: false,
+      themeMode: themeMode,
     );
     if (entry != null) {
       await tester.tap(find.byKey(ValueKey(entry)));
@@ -487,6 +532,214 @@ void main() {
     expect(
         find.byKey(const ValueKey(WidgetKeys.feedbackWrong)), findsOneWidget);
     expect(find.text('고양이'), findsWidgets); // the correct answer is revealed
+  });
+
+  testWidgets(
+      'vocabulary verdict shows the interval returned by the saved rating',
+      (tester) async {
+    await pump(tester, mode: QuizMode.typing, words: [('chat', '고양이')]);
+    final commit = progressRepo.pendingCommit = Completer<void>();
+    progressRepo.committedDays = 37;
+
+    await tester.enterText(
+        find.byKey(const ValueKey(WidgetKeys.ecrireInput)), '고양이');
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.ecrireValidate)));
+    await tester.pump();
+    final verdict = find.byType(StudyFeedbackFlood);
+    expect(tester.widget<StudyFeedbackFlood>(verdict).isCorrect, isTrue);
+    expect(tester.widget<StudyFeedbackFlood>(verdict).detail, isNull);
+
+    commit.complete();
+    await tester.pump();
+    expect(tester.widget<StudyFeedbackFlood>(verdict).detail,
+        'quiz.next_review_in_days'.tr(namedArgs: {'days': '37'}));
+    expect(progressRepo.saved.single.scheduledDays, 37);
+  });
+
+  for (final mode in [QuizMode.typing, QuizMode.voice]) {
+    testWidgets('grammar ${mode.name} feedback has no next-review interval',
+        (tester) async {
+      await pump(tester, mode: mode, words: [], grammar: true, cardLimit: 1);
+      if (mode == QuizMode.typing) {
+        await tester.enterText(
+            find.byKey(const ValueKey(WidgetKeys.ecrireInput)), '틀림');
+        await tester.tap(find.byKey(const ValueKey(WidgetKeys.ecrireValidate)));
+      } else {
+        await tester.tap(find.byKey(const ValueKey(WidgetKeys.micButton)));
+        await tester.pump(const Duration(milliseconds: 800));
+      }
+      await tester.pump();
+      expect(
+          tester
+              .widget<StudyFeedbackFlood>(find.byType(StudyFeedbackFlood))
+              .detail,
+          isNull);
+      expect(progressRepo.saved, isEmpty);
+      await unmountScreen(tester);
+      // Voice schedules a feedback delay before the next card.
+      await tick(tester, times: 5);
+    });
+  }
+
+  for (final escape in [WidgetKeys.voiceKeyboard, WidgetKeys.voiceReveal]) {
+    testWidgets('voice $escape closes PCM and drops a delayed result',
+        (tester) async {
+      final voice = _VoiceHarness();
+      final recognizing = voice.whisper.pendingDecode = Completer<String?>();
+      await pump(tester,
+          mode: QuizMode.voice, words: [('chat', '고양이')], voice: voice);
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.micButton)));
+      await tester.pump();
+      final capture = voice.capture.session!;
+      capture.answer();
+      await tester.pump();
+      expect(voice.whisper.decodes, 1);
+
+      await tester.tap(find.byKey(ValueKey(escape)));
+      await tester.pump();
+      expect(capture.closed, isTrue);
+      recognizing.complete('고양이');
+      capture.answer(); // a queued segment after capture closed is stale too
+      await tester.pump();
+      expect(voice.whisper.decodes, 1);
+      expect(
+          find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)), findsNothing);
+
+      if (escape == WidgetKeys.voiceKeyboard) {
+        final input = find.byType(TextField);
+        expect(input, findsOneWidget);
+        expect(progressRepo.saved, isEmpty);
+        await tester.enterText(input, '고양이');
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await tester.pump();
+        expect(find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)),
+            findsOneWidget);
+        expect(progressRepo.saved.single.timesCorrect, 1);
+      } else {
+        expect(find.byKey(const ValueKey(WidgetKeys.feedbackWrong)),
+            findsOneWidget);
+        expect(progressRepo.saved.single.timesCorrect, 0);
+        expect(progressRepo.saved.single.timesShown, 1);
+      }
+      await unmountScreen(tester);
+      await tester.pump(const Duration(seconds: 3));
+    });
+  }
+
+  for (final mode in [QuizMode.typing, QuizMode.handsFree]) {
+    testWidgets('long ${mode.name} prompt scrolls on 320×568 at 2× text scale',
+        (tester) async {
+      final voice = mode == QuizMode.handsFree ? _VoiceHarness() : null;
+      final prompt =
+          List.filled(14, 'Une consigne longue avec plusieurs formes')
+              .join(' ');
+      await pump(tester, mode: mode, words: [(prompt, '답')], voice: voice);
+      tester.view.physicalSize = const Size(960, 1704);
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      if (mode == QuizMode.typing) {
+        await tester.tap(find.byKey(const ValueKey(WidgetKeys.ecrireInput)));
+        tester.view.viewInsets = const FakeViewPadding(bottom: 780);
+      }
+      await tester.pump();
+
+      final scroll = find.byKey(const ValueKey(WidgetKeys.quizPrompt));
+      final scrollable =
+          find.descendant(of: scroll, matching: find.byType(Scrollable));
+      final position = tester.state<ScrollableState>(scrollable).position;
+      expect(position.maxScrollExtent, greaterThan(0));
+      expect(find.ancestor(of: scroll, matching: find.byType(Scrollbar)),
+          findsOneWidget);
+      await tester.drag(scrollable, const Offset(0, -80));
+      await tester.pump();
+      expect(position.pixels, greaterThan(0));
+      final keys = mode == QuizMode.handsFree
+          ? [WidgetKeys.hfRepeat, WidgetKeys.hfSkip]
+          : [WidgetKeys.ecrireInput, WidgetKeys.ecrireValidate];
+      for (final key in keys) {
+        expect(find.byKey(ValueKey(key)).hitTestable(), findsOneWidget);
+      }
+      expect(tester.takeException(), isNull);
+      await unmountScreen(tester);
+      await tester.pump(const Duration(seconds: 3));
+    });
+  }
+
+  for (final theme in [ThemeMode.light, ThemeMode.dark]) {
+    testWidgets(
+        'hands-free cues and summary score are readable in ${theme.name}',
+        (tester) async {
+      final voice = _VoiceHarness();
+      await pump(tester,
+          mode: QuizMode.handsFree,
+          words: [('chat', '고양이')],
+          voice: voice,
+          themeMode: theme);
+      final accent =
+          theme == ThemeMode.light ? V3Colors.terraInk : V3Colors.amber;
+      final background =
+          tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor!;
+      final luminances = [
+        accent.computeLuminance(),
+        background.computeLuminance()
+      ]..sort();
+      expect((luminances.last + .05) / (luminances.first + .05),
+          greaterThanOrEqualTo(4.5));
+      final countdown =
+          tester.widget<Text>(find.byKey(const ValueKey('hf_countdown')));
+      expect(countdown.style!.color, accent);
+      expect(
+          tester.widget<WordInWave>(find.byType(WordInWave)).cueColor, accent);
+      await tick(tester, times: 8);
+      expect(
+          tester.widget<WordInWave>(find.byType(WordInWave)).cueColor, accent);
+      voice.capture.session!.answer();
+      await tick(tester, times: 6);
+      expect(tester.widget<Text>(find.text('100 %')).style!.color, accent);
+      await unmountScreen(tester);
+      await tester.pump(const Duration(seconds: 3));
+    });
+  }
+
+  testWidgets('summary actions can restart and return to setup by keyboard',
+      (tester) async {
+    await pump(tester,
+        mode: QuizMode.flashcard,
+        words: [('chat', '고양이')],
+        entry: '/start-session');
+    Future<void> finish() async {
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.cartesCard)));
+      await tick(tester, times: 2);
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.gradeKnew)));
+      await tick(tester, times: 4);
+      expect(find.byKey(const ValueKey(WidgetKeys.summary)), findsOneWidget);
+    }
+
+    await finish();
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tick(tester, times: 4);
+    expect(find.byKey(const ValueKey(WidgetKeys.cartesCard)), findsOneWidget);
+
+    await finish();
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tick(tester, times: 4);
+    expect(find.byKey(const ValueKey('open-quiz')), findsOneWidget);
+    expect(find.byType(QuizScreen), findsNothing);
+    expect(navigatedTo, isNull);
+  });
+
+  testWidgets('an empty session returns to the daily path', (tester) async {
+    await pump(tester,
+        mode: QuizMode.flashcard, words: [], entry: '/daily-path');
+    expect(find.byKey(const ValueKey(WidgetKeys.summary)), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.summaryDone)));
+    await tick(tester, times: 3);
+    expect(find.byKey(const ValueKey('open-quiz')), findsOneWidget);
+    expect(find.byType(QuizScreen), findsNothing);
+    expect(navigatedTo, isNull);
   });
 
   testWidgets('a long flashcard scrolls at 320×568 and 2× text scale',

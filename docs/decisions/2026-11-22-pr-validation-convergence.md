@@ -41,10 +41,20 @@ sans convergence, la fusion reste bloquée et une décision humaine est requise.
   profil : les quatre verdicts sont collectés avant toute correction.
 - Une PR propre nécessite volontairement deux relectures indépendantes du même
   code, afin de réduire l'effet du caractère non déterministe des agents.
-- Les suggestions ne bloquent pas ; les contrôles CI et l'approbation humaine
-  restent obligatoires avant fusion.
+- Les suggestions ne bloquent pas ; les contrôles CI et une approbation GitHub
+  admissible restent obligatoires avant fusion. La précision du 27 novembre
+  ci-dessous remplace l'exigence d'un approbateur nécessairement humain.
 - Le futur orchestrateur doit conserver les verdicts, le SHA examiné et le
   compteur de chaque profil.
+
+## Précision utilisateur du 27 novembre 2026
+
+Après le refus d'éligibilité Copilot par GitHub, l'utilisateur a choisi un bot
+GitHub Actions pour l'approbation formelle. Ce bot vérifie la CI et une preuve
+des deux passes propres des quatre profils, sur le SHA courant ; il n'effectue
+pas de relecture Copilot supplémentaire. Le statut requis
+`PR / Independent agent reviews` matérialise cette convergence. Le bot publie
+une review `APPROVED` admissible mais ne fusionne pas et ne modifie pas le code.
 
 ## Références
 

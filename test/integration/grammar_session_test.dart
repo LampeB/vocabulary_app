@@ -1,6 +1,7 @@
 // ignore_for_file: invalid_use_of_internal_member
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
 import 'package:drift/native.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -85,7 +86,10 @@ void main() {
     final c = ProviderContainer(overrides: [
       appDatabaseProvider.overrideWithValue(db),
       vocabularyRemoteProvider.overrideWithValue(FakeRemote()),
-      ruleDrillWordsProvider.overrideWith((ref, key) async => words),
+      ruleDrillWordsProvider.overrideWith((ref, key) async =>
+          key.targetLang == 'fr'
+              ? const [DrillWord(word: 'pomme', category: 'nom')]
+              : words),
       currentUserProvider.overrideWithValue(AppUser(
         id: 'u',
         email: 't@t.fr',
@@ -132,6 +136,55 @@ void main() {
     }
   });
 
+  test('direct voice entry cannot grade an isolated French plural', () async {
+    final sub = container.listen(quizProvider, (_, __) {});
+    final notifier = container.read(quizProvider.notifier);
+    for (final mode in [QuizMode.voice, QuizMode.handsFree]) {
+      await notifier.loadCards(QuizArgs(
+        source: QuizSource.grammar,
+        ruleId: 'fr-plural-s',
+        mode: mode,
+        direction: QuizDirectionChoice.frToKo,
+        cardLimit: 3,
+        langA: 'ko',
+        langB: 'fr',
+      ));
+      expect(sub.read().cards, isEmpty);
+      expect(sub.read().errorMessage, 'grammar.written_only'.tr());
+      notifier.submitVoiceAnswer('pommes', isDrivingMode: true);
+      expect(sub.read().answerState, QuizAnswerState.idle);
+    }
+    expect(await db.grammarProgressDao.get('u', 'fr-plural-s'), isNull);
+  });
+
+  test('the French plural drill requires the written s', () async {
+    final sub = container.listen(quizProvider, (_, __) {});
+    final notifier = container.read(quizProvider.notifier);
+    await notifier.loadCards(const QuizArgs(
+      source: QuizSource.grammar,
+      ruleId: 'fr-plural-s',
+      mode: QuizMode.typing,
+      direction: QuizDirectionChoice.frToKo,
+      cardLimit: 2,
+      langA: 'ko',
+      langB: 'fr',
+    ));
+    expect(sub.read().currentCard!.answerWords, ['pommes']);
+    notifier.submitTextAnswer('pomme');
+    expect(sub.read().answerState, QuizAnswerState.incorrect);
+    Future<GrammarProgressTableData> afterAnswers(int shown) => db
+        .grammarProgressDao
+        .watchByUser('u')
+        .expand((rows) => rows)
+        .firstWhere((row) => row.ruleId == 'fr-plural-s' && row.shown == shown)
+        .timeout(const Duration(seconds: 2));
+    expect((await afterAnswers(1)).correct, 0);
+    notifier.advance();
+    notifier.submitTextAnswer('pommes');
+    expect(sub.read().answerState, QuizAnswerState.correct);
+    expect((await afterAnswers(2)).correct, 1);
+  });
+
   test('a correct typed answer records rule progress — never FSRS', () async {
     final sub = container.listen(quizProvider, (_, __) {});
     final notifier = container.read(quizProvider.notifier);
@@ -165,28 +218,24 @@ void main() {
     expect(progress.correct, 0);
   });
 
-  for (final example in [('eau', 'l’eau'), ('pomme', 'pommes')]) {
-    test(
-        'written grammar preserves the taught form: ${example.$1} != ${example.$2}',
-        () async {
-      final sub = container.listen(quizProvider, (_, __) {});
-      final notifier = container.read(quizProvider.notifier);
-      await notifier.loadCards(args());
-      final generated = sub.read().currentCard!;
-      notifier.state = QuizState(cards: [
-        QuizCard(
-            progress: generated.progress,
-            questionWord: 'Complete the grammatical form',
-            answerWords: [example.$2])
-      ]);
-      notifier.submitTextAnswer(example.$1);
-      expect(sub.read().answerState, QuizAnswerState.incorrect);
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      final progress =
-          await db.grammarProgressDao.get('u', 'particule-theme-eun-neun');
-      expect(progress!.correct, 0);
-    });
-  }
+  test('written grammar preserves the taught article', () async {
+    final sub = container.listen(quizProvider, (_, __) {});
+    final notifier = container.read(quizProvider.notifier);
+    await notifier.loadCards(args());
+    final generated = sub.read().currentCard!;
+    notifier.state = QuizState(cards: [
+      QuizCard(
+          progress: generated.progress,
+          questionWord: 'Complete the grammatical form',
+          answerWords: ['l’eau'])
+    ]);
+    notifier.submitTextAnswer('eau');
+    expect(sub.read().answerState, QuizAnswerState.incorrect);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    final progress =
+        await db.grammarProgressDao.get('u', 'particule-theme-eun-neun');
+    expect(progress!.correct, 0);
+  });
 
   test('grammar accepts typographic apostrophes without dropping the article',
       () {
@@ -323,5 +372,37 @@ void main() {
     );
     expect((await db.grammarProgressDao.get('u', 'r'))!.masteredAt,
         firstMasteredAt);
+  });
+
+  test('concurrent correct and wrong answers both count and unlock mastery',
+      () async {
+    final dao = db.grammarProgressDao;
+    Future<GrammarProgressTableData> answer(bool correct) => dao.recordAnswer(
+          userId: 'u',
+          ruleId: 'concurrent-rule',
+          correct: correct,
+          masteredWhenCorrectReaches: kRuleMasteryTarget,
+        );
+
+    final first = await Future.wait([answer(false), answer(true)]);
+    expect(first.map((row) => row.shown), unorderedEquals([1, 2]));
+    final firstRow = (await dao.get('u', 'concurrent-rule'))!;
+    expect(firstRow.shown, 2);
+    expect(firstRow.correct, 1);
+
+    for (var correctCount = 1;
+        correctCount < kRuleMasteryTarget - 1;
+        correctCount++) {
+      await answer(true);
+    }
+    final before = (await dao.get('u', 'concurrent-rule'))!;
+    expect(before.masteredAt, isNull);
+    final next = await Future.wait([answer(false), answer(true)]);
+    expect(next.map((row) => row.shown),
+        unorderedEquals([before.shown + 1, before.shown + 2]));
+    final after = (await dao.get('u', 'concurrent-rule'))!;
+    expect(after.correct, kRuleMasteryTarget);
+    expect(after.shown, before.shown + 2);
+    expect(after.masteredAt, isNotNull);
   });
 }

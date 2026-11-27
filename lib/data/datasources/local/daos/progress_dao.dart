@@ -243,6 +243,46 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
         return into(variantProgressTable).insertOnConflictUpdate(companion);
       });
 
+  Future<Set<String>> getLiveVariantIds(String userId) async =>
+      (await _liveVariantIds(userId).get()).toSet();
+
+  Future<bool> isLiveVariant(String userId, String variantId) async =>
+      (await _liveVariantIds(userId, variantId: variantId).getSingleOrNull()) !=
+      null;
+
+  Selectable<String> _liveVariantIds(String userId, {String? variantId}) {
+    final variants = wordVariantsTable;
+    final concepts = db.conceptsTable;
+    final lists = db.vocabularyListsTable;
+    final query = selectOnly(variants)..addColumns([variants.id]);
+    final joined = query.join([
+      innerJoin(concepts, concepts.id.equalsExp(variants.conceptId),
+          useColumns: false),
+      innerJoin(lists, lists.id.equalsExp(concepts.listId), useColumns: false),
+    ])
+      ..where(lists.ownerId.equals(userId) &
+          lists.isDeleted.equals(false) &
+          concepts.isDeleted.equals(false) &
+          variants.isDeleted.equals(false));
+    if (variantId != null) joined.where(variants.id.equals(variantId));
+    return joined.map((row) => row.read(variants.id)!);
+  }
+
+  Future<void> applyPulledProgress(List<VariantProgressTableData> rows) async {
+    if (rows.isEmpty) return;
+    final progress = variantProgressTable;
+    await batch((batch) {
+      for (final row in rows) {
+        batch.insert(progress, row,
+            onConflict: DoUpdate((_) => row, target: [
+              progress.userId,
+              progress.variantId,
+              progress.direction,
+            ]));
+      }
+    });
+  }
+
   Future<VariantProgressTableData?> getById(String id) =>
       (select(variantProgressTable)..where((t) => t.id.equals(id)))
           .getSingleOrNull();

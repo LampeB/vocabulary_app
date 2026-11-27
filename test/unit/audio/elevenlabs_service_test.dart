@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:vocab_kr/services/audio/audio_asset_path.dart';
@@ -94,6 +96,89 @@ void main() {
     expect(cachedPath, originalPath);
     expect(
         await File(cachedPath!).readAsBytes(), Uint8List.fromList([9, 8, 7]));
+  });
+
+  test('account switches cannot read another owner’s cached clip', () async {
+    const asset = 'users/user-a/variant/private.mp3';
+    String? account = 'user-a';
+    var cacheReads = 0;
+    var downloads = 0;
+    ElevenLabsService serviceForSession() => ElevenLabsService(
+          currentUserId: () => account,
+          cacheDirectory: () async {
+            cacheReads++;
+            return cacheDir;
+          },
+          assetDownloader: (_) async {
+            downloads++;
+            return Uint8List.fromList([1, 2, 3]);
+          },
+        );
+    final original = serviceForSession();
+    final cached = (await original.downloadAndCache(asset))!;
+    expect(await File(cached).exists(), isTrue);
+
+    account = 'user-b';
+    final newService = serviceForSession();
+    expect(await original.downloadAndCache(asset), isNull);
+    expect(await newService.downloadAndCache(asset), isNull);
+    expect(await newService.downloadAndCache('seed/../users/user-a'), isNull);
+    expect(
+        await newService.downloadAndCache('seed/%2e%2e/users/user-a'), isNull);
+    account = null;
+    expect(await newService.downloadAndCache(asset), isNull);
+    expect(cacheReads, 1);
+    expect(downloads, 1);
+
+    account = 'user-a';
+    expect(await newService.downloadAndCache(asset), cached);
+    expect(downloads, 1);
+  });
+
+  test('a private download started by the previous account is discarded',
+      () async {
+    const first = 'users/user-a/variant/private.mp3';
+    const second = 'users/user-b/variant/private.mp3';
+    String? account = 'user-a';
+    final started = Completer<void>();
+    final oldDownload = Completer<Uint8List>();
+    final service = ElevenLabsService(
+      currentUserId: () => account,
+      cacheDirectory: () async => cacheDir,
+      assetDownloader: (path) async {
+        if (path == first) {
+          started.complete();
+          return oldDownload.future;
+        }
+        expect(path, second);
+        return Uint8List.fromList([4]);
+      },
+    );
+    final pending = service.downloadAndCache(first);
+    await started.future;
+
+    account = 'user-b';
+    expect(await service.downloadAndCache(first), isNull);
+    final ownPath = (await service.downloadAndCache(second))!;
+    oldDownload.complete(Uint8List.fromList([1, 2, 3]));
+    expect(await pending, isNull);
+    expect(await File(ownPath).readAsBytes(), [4]);
+    expect(await service.cacheSize(), 1);
+  });
+
+  test('a seed file cached before the publishing manifest is ignored',
+      () async {
+    const asset = 'seed/v1/fr/unpublished.mp3';
+    final oldKey = md5.convert(asset.codeUnits);
+    await File('${cacheDir.path}/$oldKey.mp3').writeAsBytes([1]);
+    var downloads = 0;
+    final service = serviceWith((_) async {
+      downloads++;
+      throw const SocketException('not published');
+    });
+
+    expect(await service.downloadAndCache(asset), isNull);
+    expect(downloads, 1);
   });
 
   test('a Storage failure leaves no corrupt cache file and returns null',

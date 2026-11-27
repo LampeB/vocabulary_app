@@ -25,25 +25,26 @@ class GrammarProgressDao extends DatabaseAccessor<AppDatabase>
     required String ruleId,
     required bool correct,
     required int masteredWhenCorrectReaches,
-  }) async {
-    final now = DateTime.now();
-    final existing = await get(userId, ruleId);
-    final shown = (existing?.shown ?? 0) + 1;
-    final correctCount = (existing?.correct ?? 0) + (correct ? 1 : 0);
-    final masteredAt = existing?.masteredAt ??
-        (correctCount >= masteredWhenCorrectReaches ? now : null);
-    await into(grammarProgressTable)
-        .insertOnConflictUpdate(GrammarProgressTableCompanion(
-      id: Value('$userId|$ruleId'),
-      userId: Value(userId),
-      ruleId: Value(ruleId),
-      shown: Value(shown),
-      correct: Value(correctCount),
-      masteredAt: Value(masteredAt),
-      isSynced: const Value(false),
-      createdAt: Value(existing?.createdAt ?? now),
-      updatedAt: Value(now),
-    ));
-    return (await get(userId, ruleId))!;
-  }
+  }) =>
+      transaction(() async {
+        final now = DateTime.now();
+        final existing = await get(userId, ruleId);
+        final shown = (existing?.shown ?? 0) + 1;
+        final correctCount = (existing?.correct ?? 0) + (correct ? 1 : 0);
+        final masteredAt = existing?.masteredAt ??
+            (correctCount >= masteredWhenCorrectReaches ? now : null);
+        await into(grammarProgressTable)
+            .insertOnConflictUpdate(GrammarProgressTableCompanion(
+          id: Value('$userId|$ruleId'),
+          userId: Value(userId),
+          ruleId: Value(ruleId),
+          shown: Value(shown),
+          correct: Value(correctCount),
+          masteredAt: Value(masteredAt),
+          isSynced: const Value(false),
+          createdAt: Value(existing?.createdAt ?? now),
+          updatedAt: Value(now),
+        ));
+        return (await get(userId, ruleId))!;
+      });
 }

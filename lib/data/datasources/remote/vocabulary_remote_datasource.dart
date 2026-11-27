@@ -1,4 +1,8 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:async' show TimeoutException;
+import 'dart:io' show SocketException;
+
+import 'package:http/http.dart' show ClientException;
+import 'package:supabase_flutter/supabase_flutter.dart' hide StorageException;
 import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
 
@@ -23,14 +27,14 @@ class VocabularyRemoteDataSource {
   }
 
   Future<Result<Map<String, dynamic>>> upsertList(Map<String, dynamic> data,
-          {bool insertOnly = false}) =>
-      _upsertContent('vocabulary_lists', 'owner_id', data, insertOnly);
+          {bool insertOnly = false, Map<String, dynamic>? changes}) =>
+      _upsertContent('vocabulary_lists', 'owner_id', data, insertOnly, changes);
 
   Future<Result<void>> deleteList(String id) async {
     try {
       await _client.from('vocabulary_lists').update({
         'is_deleted': true,
-        'updated_at': DateTime.now().toIso8601String()
+        'updated_at': DateTime.now().toUtc().toIso8601String()
       }).eq('id', id);
       return const Success(null);
     } catch (e) {
@@ -55,15 +59,19 @@ class VocabularyRemoteDataSource {
   }
 
   Future<Result<Map<String, dynamic>>> upsertConcept(Map<String, dynamic> data,
-          {bool insertOnly = false}) =>
-      _upsertContent('concepts', 'list_id', data, insertOnly);
+          {bool insertOnly = false, Map<String, dynamic>? changes}) =>
+      _upsertContent('concepts', 'list_id', data, insertOnly, changes);
 
   Future<Result<Map<String, dynamic>>> upsertVariant(Map<String, dynamic> data,
-          {bool insertOnly = false}) =>
-      _upsertContent('word_variants', 'concept_id', data, insertOnly);
+          {bool insertOnly = false, Map<String, dynamic>? changes}) =>
+      _upsertContent('word_variants', 'concept_id', data, insertOnly, changes);
 
-  Future<Result<Map<String, dynamic>>> _upsertContent(String table,
-      String parentColumn, Map<String, dynamic> data, bool insertOnly) async {
+  Future<Result<Map<String, dynamic>>> _upsertContent(
+      String table,
+      String parentColumn,
+      Map<String, dynamic> data,
+      bool insertOnly,
+      Map<String, dynamic>? changes) async {
     try {
       final write = _client
           .from(table)
@@ -71,20 +79,52 @@ class VocabularyRemoteDataSource {
           .select();
       if (!insertOnly) return Success(await write.single());
       final inserted = await write;
-      // An unchanged shared import cannot replace a copy created on another
-      // device. Verify the existing row belongs to the same parent before ack.
-      final row = inserted.isNotEmpty
-          ? inserted.single
-          : await _client
-              .from(table)
-              .select()
-              .eq('id', data['id'] as String)
-              .eq(parentColumn, data[parentColumn] as String)
-              .single();
-      return Success(row);
+      if (inserted.isNotEmpty) return Success(inserted.single);
+
+      final id = data['id'] as String;
+      final parent = data[parentColumn] as String;
+      // Patch only explicit local changes. The live predicate is evaluated
+      // by the database alongside the update so a tombstone always wins.
+      if (changes != null && changes.isNotEmpty) {
+        final updated = await _client
+            .from(table)
+            .update(changes)
+            .eq('id', id)
+            .eq(parentColumn, parent)
+            .eq('is_deleted', false)
+            .select();
+        if (updated.isNotEmpty) return Success(updated.single);
+      }
+      return Success(await _client
+          .from(table)
+          .select()
+          .eq('id', id)
+          .eq(parentColumn, parent)
+          .single());
     } catch (e) {
-      return Failure(NetworkException(e.toString()));
+      return Failure(_writeFailure(e));
     }
+  }
+
+  AppException _writeFailure(Object error) {
+    if (error is SocketException ||
+        error is ClientException ||
+        error is TimeoutException) {
+      return NetworkException(error.toString());
+    }
+    if (error is PostgrestException &&
+        const {
+          'PGRST000',
+          'PGRST001',
+          'PGRST002',
+          'PGRST003',
+          '502',
+          '503',
+          '504'
+        }.contains(error.code)) {
+      return NetworkException(error.toString());
+    }
+    return StorageException(error.toString());
   }
 
   /// Asks the authenticated server to render a newly created/edited custom
@@ -120,7 +160,7 @@ class VocabularyRemoteDataSource {
           .single();
       return Success(result);
     } catch (e) {
-      return Failure(NetworkException(e.toString()));
+      return Failure(_writeFailure(e));
     }
   }
 
@@ -129,7 +169,7 @@ class VocabularyRemoteDataSource {
       await _client.from('review_events').upsert(data);
       return const Success(null);
     } catch (e) {
-      return Failure(NetworkException(e.toString()));
+      return Failure(_writeFailure(e));
     }
   }
 

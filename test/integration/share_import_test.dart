@@ -1,4 +1,5 @@
 // ignore_for_file: invalid_use_of_internal_member
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
@@ -21,6 +22,7 @@ class _SharedListRemote extends FakeRemote {
   final storedConcepts = <String, Map<String, dynamic>>{};
   final storedVariants = <String, Map<String, dynamic>>{};
   bool writesOffline = false;
+  Future<void> Function()? onImportedListResponse;
 
   @override
   Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(
@@ -49,27 +51,36 @@ class _SharedListRemote extends FakeRemote {
 
   Result<Map<String, dynamic>> _upsert(
       Map<String, Map<String, dynamic>> table, Map<String, dynamic> row,
-      {required bool insertOnly}) {
+      {required bool insertOnly, Map<String, dynamic>? changes}) {
     if (writesOffline) return const Failure(NetworkException('offline'));
     final id = row['id'] as String;
-    if (!insertOnly || !table.containsKey(id)) table[id] = row;
+    final existing = table[id];
+    if (!insertOnly || existing == null) {
+      table[id] = row;
+    } else if (changes != null && existing['is_deleted'] != true) {
+      table[id] = {...existing, ...changes};
+    }
     return Success(table[id]!);
   }
 
   @override
   Future<Result<Map<String, dynamic>>> upsertList(Map<String, dynamic> data,
-          {bool insertOnly = false}) async =>
-      _upsert(storedLists, data, insertOnly: insertOnly);
+      {bool insertOnly = false, Map<String, dynamic>? changes}) async {
+    final response =
+        _upsert(storedLists, data, insertOnly: insertOnly, changes: changes);
+    if (insertOnly) await onImportedListResponse?.call();
+    return response;
+  }
 
   @override
   Future<Result<Map<String, dynamic>>> upsertConcept(Map<String, dynamic> data,
-          {bool insertOnly = false}) async =>
-      _upsert(storedConcepts, data, insertOnly: insertOnly);
+          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
+      _upsert(storedConcepts, data, insertOnly: insertOnly, changes: changes);
 
   @override
   Future<Result<Map<String, dynamic>>> upsertVariant(Map<String, dynamic> data,
-          {bool insertOnly = false}) async =>
-      _upsert(storedVariants, data, insertOnly: insertOnly);
+          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
+      _upsert(storedVariants, data, insertOnly: insertOnly, changes: changes);
 }
 
 Map<String, dynamic> _sharedPayload() => {
@@ -87,6 +98,8 @@ Map<String, dynamic> _sharedPayload() => {
               'id': 'greeting-fr',
               'word': 'bonjour',
               'lang_code': 'fr',
+              'context_tags': ['greeting', 'formal'],
+              'example': 'Bonjour, madame.',
               'is_primary': true,
               'position': 0
             },
@@ -173,6 +186,11 @@ void main() {
       final variants =
           await db.conceptDao.getVariantsByConcept(concepts.first.id);
       expect(variants.map((v) => v.word), containsAll(['bonjour', '안녕하세요']));
+      final french = (await repo.getVariants(concepts.first.id))
+          .valueOrNull!
+          .firstWhere((variant) => variant.langCode == 'fr');
+      expect(french.contextTags, ['greeting', 'formal']);
+      expect(french.example, 'Bonjour, madame.');
     });
 
     test('re-importing the same token returns the existing list (dedup)',
@@ -268,11 +286,108 @@ void main() {
       expect(remote.storedLists[first.id]!['share_token'], isNotEmpty);
       expect(remote.storedConcepts[concept.id]!['notes'], 'Edited note');
       expect(remote.storedVariants[variant.id]!['word'], 'salutations');
-      await repoWith(remote, device: secondDevice).syncFromRemote();
       final restored =
           (await secondDevice.vocabularyListDao.getById(first.id))!;
       expect(restored.name, 'Edited title');
       expect(restored.isSynced, isTrue);
+      expect(restored.visibility, 'public');
+      expect((await secondDevice.conceptDao.getById(concept.id))!.notes,
+          'Edited note');
+      expect((await secondDevice.conceptDao.getVariantById(variant.id))!.word,
+          'salutations');
+
+      final restarted = repoWith(remote, device: secondDevice);
+      await restarted.renameList(first.id, 'Renamed after ack');
+      await pushWith(secondDevice, remote).pushAll();
+      expect(remote.storedLists[first.id]!['name'], 'Renamed after ack');
+      expect(remote.storedLists[first.id]!['visibility'], 'public');
+      expect(remote.storedLists[first.id]!['share_token'], restored.shareToken);
+    });
+
+    test(
+        'a duplicate import rebases edits made while its response was in flight',
+        () async {
+      await allowIndependentTestDatabases();
+      final device = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(device.close);
+      final remote = _SharedListRemote(_sharedPayload());
+      final author = repoWith(remote);
+      final copy = repoWith(remote, device: device);
+      final first = (await author.importFromShareToken('link')).valueOrNull!;
+      final second = (await copy.importFromShareToken('link')).valueOrNull!;
+      await author.generateShareLink(first.id);
+      await pushWith(db, remote).pushAll();
+
+      final requested = Completer<void>();
+      final reply = Completer<void>();
+      remote.onImportedListResponse = () async {
+        remote.onImportedListResponse = null;
+        requested.complete();
+        await reply.future;
+      };
+      final syncing = pushWith(device, remote).pushAll();
+      try {
+        await requested.future;
+        await copy.updateList(second.copyWith(name: 'Title on B'));
+        // A changed another field after the response for B was captured.
+        await remote.upsertList(
+            {...remote.storedLists[first.id]!, 'description': 'Latest on A'});
+      } finally {
+        reply.complete();
+        await syncing;
+      }
+      final local = (await device.vocabularyListDao.getById(second.id))!;
+      expect(local.isSynced, isTrue);
+      expect(local.name, 'Title on B');
+      expect(local.description, 'Latest on A');
+      expect(local.visibility, 'public');
+      expect(remote.storedLists[first.id]!['name'], 'Title on B');
+      expect(remote.storedLists[first.id]!['description'], 'Latest on A');
+      expect(remote.storedLists[first.id]!['share_token'], local.shareToken);
+    });
+
+    test(
+        'acknowledging a duplicate tombstone removes its local subtree immediately',
+        () async {
+      await allowIndependentTestDatabases();
+      final device = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(device.close);
+      final remote = _SharedListRemote(_sharedPayload());
+      final author = repoWith(remote);
+      final copy = repoWith(remote, device: device);
+      final first = (await author.importFromShareToken('link')).valueOrNull!;
+      final second = (await copy.importFromShareToken('link')).valueOrNull!;
+      final concept =
+          (await device.conceptDao.getConceptsByList(second.id)).single;
+      final variant =
+          (await device.conceptDao.getVariantsByConcept(concept.id)).first;
+      final now = DateTime.now();
+      await device.progressDao.upsert(VariantProgressTableCompanion.insert(
+        id: 'card',
+        userId: _kUserId,
+        variantId: variant.id,
+        direction: 'fr>ko',
+        createdAt: now,
+        updatedAt: now,
+      ));
+      await pushWith(db, remote).pushAll();
+      await author.deleteList(first.id);
+      await pushWith(db, remote).pushAll();
+
+      await pushWith(device, remote).pushAll();
+
+      expect(await copy.watchMyLists().first, isEmpty);
+      expect((await device.conceptDao.getById(concept.id))!.isDeleted, isTrue);
+      expect((await device.conceptDao.getVariantById(variant.id))!.isDeleted,
+          isTrue);
+      expect(await device.progressDao.getById('card'), isNull);
+      expect(
+          await device.vocabularyListDao.getPendingListIds(ownerId: _kUserId),
+          isEmpty);
+      expect(remote.storedLists[first.id]!['is_deleted'], isTrue);
+      expect((await copy.renameList(second.id, 'Must stay deleted')).isFailure,
+          isTrue);
+      expect(await pushWith(device, remote).pushAll(), 0);
     });
 
     test('reimport can find an existing copy after restoring legacy duplicates',

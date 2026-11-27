@@ -31,10 +31,13 @@ class GrammarLessonScreen extends ConsumerWidget {
     return Scaffold(
       key: const ValueKey(WidgetKeys.screenGrammarLesson),
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.pop(),
-        ),
+        automaticallyImplyLeading: false,
+        leading: context.canPop()
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                onPressed: () => context.pop(),
+              )
+            : null,
         title: Text('lesson.screen_title'.tr()),
       ),
       body: Stack(
@@ -105,7 +108,7 @@ class _LessonReaderState extends State<_LessonReader> {
   @override
   Widget build(BuildContext context) {
     final locale = uiLocaleCode(context);
-    final pages = _ReaderPage.fromRule(widget.rule, locale);
+    final pages = _ReaderPage.fromRule(widget.rule, widget.pair.$1);
     final atLastPage = _index == pages.length - 1;
 
     return LayoutBuilder(

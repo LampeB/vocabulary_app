@@ -8,8 +8,10 @@ L'application utilise SQLite comme source de lecture et les colonnes
 - Les repositories écrivent localement. `PushSync` est le seul responsable
   des envois de listes, concepts, variantes, progression et événements.
 - Le shell déclenche un envoi après modification locale (regroupement de
-  300 ms), à la connexion et au retour du réseau. Un échec conserve la ligne
-  en attente pour une prochaine tentative.
+  300 ms) lorsque le réseau est disponible, à la connexion et au retour du
+  réseau. Une panne de transport interrompt la passe courante et laisse les
+  écritures en attente. Un refus attaché à une ligne laisse les autres
+  écritures avancer. Les dates envoyées au serveur sont explicites en UTC.
 - Les envois de production sont filtrés par utilisateur connecté, y compris
   les concepts et variantes reliés à leurs listes. Les recherches de token de
   partage et de progression sont également isolées par compte.
@@ -36,15 +38,22 @@ L'application utilise SQLite comme source de lecture et les colonnes
   déjà, la recherche retrouve la plus ancienne encore active et départage
   les dates identiques par identifiant. Chaque copie et ses éditions restent
   disponibles.
-- La migration locale 12 conserve le snapshot initial des créations issues
-  d'un lien jusqu'à l'accusé de réception. Une création dont le contenu est
-  intact s'insère uniquement si elle est absente du serveur, même après une
-  panne ou un redémarrage. Un import tardif ne peut donc pas réécrire les
-  éditions déjà envoyées par un autre appareil.
+- La migration locale 12 conserve une base durable pour chaque création issue
+  d'un lien. Si la ligne existe déjà sur le serveur, l'envoi applique
+  uniquement les champs modifiés par l'utilisateur. L'accusé reprend la
+  version distante et réapplique dans la même transaction les changements
+  locaux survenus en cours de requête. Ces changements restent en attente et
+  sont renvoyés par champ après une panne ou un redémarrage. Une suppression
+  distante confirmée retire la branche locale et sa progression.
 - Une progression est identifiée par `(user_id, variant_id, direction)` : les
   nouvelles cartes utilisent un UUID déterministe et l'envoi distant fait un
   upsert sur cette clé métier. La récupération préserve une édition locale en
   attente et ne crée pas un doublon lorsqu'un autre appareil a un ancien UUID.
+- Chaque note calcule FSRS à partir de la progression courante, dans la
+  transaction qui enregistre la réponse. Deux passages de la même carte
+  incrémentent les compteurs et appliquent les transitions successives, même
+  si le quiz a chargé les deux cartes en même temps. Le retour du quiz
+  utilise l'intervalle réellement enregistré.
 
 ## Récupération distante
 
@@ -60,6 +69,9 @@ L'application utilise SQLite comme source de lecture et les colonnes
   ne doit pas faire réapparaître des cartes supprimées.
 - Le recalcul du nombre de mots après récupération est une donnée dérivée :
   il ne fabrique pas une nouvelle modification à envoyer.
+- Après la restauration du contenu, une requête jointe identifie les variantes
+  encore actives. Les progressions identiques sont ignorées et les autres
+  mises à jour sont regroupées dans la transaction du pull.
 - L'authentification, y compris une connexion depuis l'écran d'accueil,
   déclenche la récupération puis le seeding idempotent avant le plateau.
   En cas d'indisponibilité du profil distant, une session déjà signée fournit
@@ -70,12 +82,14 @@ L'application utilise SQLite comme source de lecture et les colonnes
 
 ## Paires de langues
 
-Les exports JSON et les liens partagés préservent `langA` et `langB`. Le chemin
+Les exports JSON et les liens partagés préservent `langA` et `langB`, ainsi que
+les tags de contexte et l'exemple de chaque variante. Le chemin
 quotidien recommande uniquement une liste de la paire active ; sans liste
 correspondante, il propose d'en préparer une.
 Les compteurs et les sessions intelligentes utilisent la paire **ordonnée**
 de la liste et excluent les concepts/listes supprimés. Un compteur ouvert
-réévalue l'heure au moins une fois par minute. Les exercices observent une
+réévalue l'heure au moins une fois par minute et arrête son écoute quand le
+dernier abonné ferme le compteur de la paire. Les exercices observent une
 projection dédupliquée des états pédagogiques et du vocabulaire ; un accusé de
 synchronisation sans changement pédagogique ne recharge pas leur pool.
 

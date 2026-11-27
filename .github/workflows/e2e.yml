@@ -3,7 +3,8 @@ name: E2E (emulator)
 # Runs the Patrol app E2E suite on an Android emulator on GitHub's cloud runners —
 # no local machine or phone needed. Nightly on the default branch, or manual.
 #
-# Requires repo secrets: SUPABASE_URL, SUPABASE_ANON_KEY, E2E_ACCOUNTS_JSON.
+# Requires the main-only patrol-e2e environment secret E2E_ACCOUNTS_JSON
+# and repo secrets SUPABASE_URL, SUPABASE_ANON_KEY.
 on:
   workflow_dispatch:
     inputs:
@@ -12,7 +13,7 @@ on:
         default: 'all'
         required: false
 
-# Permanent per-scenario accounts: serialize runs of the same scenario across branches.
+# Permanent per-scenario accounts: serialize runs of the same scenario.
 concurrency:
   group: supabase-e2e-account
   cancel-in-progress: false
@@ -22,6 +23,7 @@ permissions:
 
 jobs:
   suites:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -37,6 +39,8 @@ jobs:
 
   e2e:
     needs: suites
+    if: github.ref == 'refs/heads/main'
+    environment: patrol-e2e
     name: E2E (${{ matrix.target }})
     runs-on: ubuntu-latest
     strategy:

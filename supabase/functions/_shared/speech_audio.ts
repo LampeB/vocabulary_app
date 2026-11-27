@@ -1,3 +1,5 @@
+import { boundedText } from "./request_limits.ts";
+
 // The mobile capture contract is mono 16 kHz PCM16, either raw or RIFF/WAVE.
 // A byte limit alone permits low-rate or compressed files lasting hours.
 export async function readSpeechRequest(
@@ -29,6 +31,11 @@ export async function readSpeechRequest(
     const body = JSON.parse(new TextDecoder().decode(bytes));
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       throw new Error("Invalid request body");
+    }
+    if (
+      body.expected_word != null && !boundedText(body.expected_word, 256, false)
+    ) {
+      throw new Error("Invalid expected word");
     }
     return body;
   } finally {

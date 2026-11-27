@@ -1,4 +1,4 @@
-import 'dart:convert' show jsonEncode;
+import 'dart:convert' show jsonDecode, jsonEncode;
 import 'package:uuid/uuid.dart';
 import '../../domain/entities/concept.dart';
 import '../../domain/entities/vocabulary_list.dart';
@@ -10,6 +10,7 @@ import '../datasources/local/daos/vocabulary_list_dao.dart';
 import '../datasources/local/daos/concept_dao.dart';
 import '../datasources/local/app_database.dart';
 import '../datasources/remote/vocabulary_remote_datasource.dart';
+import '../models/concept_dto.dart';
 import '../models/variant_progress_dto.dart';
 import '../models/vocabulary_list_dto.dart';
 import '../models/word_variant_dto.dart';
@@ -70,6 +71,23 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     try {
       await _listDao.upsert(updated.toLocalCompanion());
       return Success(updated);
+    } catch (e) {
+      return Failure(StorageException(e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<VocabularyList>> renameList(String listId, String name) async {
+    try {
+      return await _database.transaction(() async {
+        final current = await _listDao.getById(listId);
+        if (current == null ||
+            current.ownerId != _userId ||
+            current.isDeleted) {
+          return const Failure(NotFoundException('List not found'));
+        }
+        return updateList(current.toDomain().copyWith(name: name));
+      });
     } catch (e) {
       return Failure(StorageException(e.toString()));
     }
@@ -373,8 +391,10 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
                     'word': v.word,
                     'langCode': v.langCode,
                     'registerTag': v.registerTag,
+                    'contextTags': jsonDecode(v.contextTags),
                     'isPrimary': v.isPrimary,
                     'position': v.position,
+                    'example': v.example,
                   })
               .toList(),
         });
@@ -583,8 +603,10 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
                   'word': v['word'],
                   'langCode': v['lang_code'],
                   'registerTag': v['register_tag'],
+                  'contextTags': v['context_tags'],
                   'isPrimary': v['is_primary'],
                   'position': v['position'],
+                  'example': v['example'],
                 })
             .toList(),
       };
@@ -653,7 +675,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
           continue;
         }
         if (list.isDeleted) {
-          await _tombstoneListContents(list.id);
+          await _listDao.forgetSharedImportBases([list.id]);
+          await _conceptDao.tombstoneListContents(list.id, _userId);
           continue;
         }
 
@@ -673,20 +696,12 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
             continue;
           }
           if (!keepLocalConcept) {
-            await _conceptDao.upsert(ConceptsTableCompanion(
-              id: Value(conceptId),
-              listId: Value(c['list_id'] as String),
-              category: Value(c['category'] as String?),
-              notes: Value(c['notes'] as String?),
-              imageUrl: Value(c['image_url'] as String?),
-              exampleFr: Value(c['example_fr'] as String?),
-              exampleKo: Value(c['example_ko'] as String?),
-              seedId: Value(c['seed_id'] as String?),
-              isDeleted: Value(c['is_deleted'] as bool? ?? false),
-              isSynced: const Value(true),
-              createdAt: Value(DateTime.parse(c['created_at'] as String)),
-              updatedAt: Value(DateTime.parse(c['updated_at'] as String)),
-            ));
+            await _conceptDao.upsert(conceptCompanionFromRemote(c));
+          }
+          if (remoteConceptDeleted) {
+            await _listDao.forgetSharedImportBases([conceptId]);
+            await _conceptDao.tombstoneConceptContents([conceptId], _userId);
+            continue;
           }
           final variants =
               (c['word_variants'] as List?)?.cast<Map<String, dynamic>>() ?? [];
@@ -702,23 +717,12 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
                     changed.variants.contains(variantId))) {
               continue;
             }
-            await _conceptDao.upsertVariant(WordVariantsTableCompanion(
-              id: Value(variantId),
-              conceptId: Value(v['concept_id'] as String),
-              word: Value(v['word'] as String? ?? ''),
-              langCode: Value(v['lang_code'] as String? ?? 'fr'),
-              registerTag: Value(v['register_tag'] as String? ?? 'neutral'),
-              contextTags:
-                  Value(jsonEncode(v['context_tags'] as List? ?? const [])),
-              isPrimary: Value(v['is_primary'] as bool? ?? false),
-              position: Value(v['position'] as int? ?? 0),
-              example: Value(v['example'] as String?),
-              audioPath: Value(v['audio_path'] as String?),
-              isDeleted: Value(v['is_deleted'] as bool? ?? false),
-              isSynced: const Value(true),
-              createdAt: Value(DateTime.parse(v['created_at'] as String)),
-              updatedAt: Value(DateTime.parse(v['updated_at'] as String)),
-            ));
+            await _conceptDao.upsertVariant(wordVariantCompanionFromRemote(v));
+            if (remoteVariantDeleted) {
+              await _listDao.forgetSharedImportBases([variantId]);
+              await _database.progressDao.deleteProgressForVariants(
+                  userId: _userId, variantIds: [variantId]);
+            }
           }
         }
         // Recount from actual non-deleted rows so the stored wordCount
@@ -730,31 +734,29 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       }
 
       // Apply progress after content so parent liveness reflects this pull.
-      if (progress case Success(:final value)) {
+      if (progress case Success(:final value) when value.isNotEmpty) {
+        final progressDao = _database.progressDao;
+        final liveVariantIds = await progressDao.getLiveVariantIds(_userId);
+        final changedRows = <(String, String), VariantProgressTableData>{};
         for (final map in value) {
           try {
-            final row = variantProgressCompanionFromRemote(map);
-            if (row.userId.value != _userId) continue;
-            final key = (row.variantId.value, row.direction.value);
+            final row = variantProgressFromRemote(map);
+            if (row.userId != _userId ||
+                !liveVariantIds.contains(row.variantId)) {
+              continue;
+            }
+            final key = (row.variantId, row.direction);
             final local = current.progress[key];
             if (local != before.progress[key] ||
                 (local != null && !local.isSynced)) {
               continue;
             }
-            final variant =
-                await _conceptDao.getVariantById(row.variantId.value);
-            if (variant == null || variant.isDeleted) continue;
-            final concept = await _conceptDao.getById(variant.conceptId);
-            if (concept == null || concept.isDeleted) continue;
-            final list = await _listDao.getById(concept.listId);
-            if (list == null || list.isDeleted || list.ownerId != _userId) {
-              continue;
-            }
-            await _database.progressDao.upsert(row);
+            if (row != local) changedRows[key] = row;
           } catch (_) {
             // Skip malformed rows and continue restoring the other cards.
           }
         }
+        await progressDao.applyPulledProgress(changedRows.values.toList());
       }
     });
   }
@@ -805,28 +807,6 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     if (row == null) return;
     final newCount = (row.wordCount + delta).clamp(0, 999999);
     await _listDao.updateWordCount(listId, newCount);
-  }
-
-  Future<void> _tombstoneListContents(String listId) async {
-    await _database.transaction(() async {
-      final concepts = await (_database.select(_database.conceptsTable)
-            ..where((t) => t.listId.equals(listId)))
-          .get();
-      final ids = concepts.map((c) => c.id).toList();
-      final variants = await (_database.select(_database.wordVariantsTable)
-            ..where((t) => t.conceptId.isIn(ids)))
-          .get();
-      await (_database.update(_database.conceptsTable)
-            ..where((t) => t.id.isIn(ids)))
-          .write(const ConceptsTableCompanion(
-              isDeleted: Value(true), isSynced: Value(true)));
-      await (_database.update(_database.wordVariantsTable)
-            ..where((t) => t.conceptId.isIn(ids)))
-          .write(const WordVariantsTableCompanion(
-              isDeleted: Value(true), isSynced: Value(true)));
-      await _database.progressDao.deleteProgressForVariants(
-          userId: _userId, variantIds: variants.map((v) => v.id).toList());
-    });
   }
 }
 

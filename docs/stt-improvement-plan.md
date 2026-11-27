@@ -57,11 +57,18 @@ Le retour au premier plan reprend le tour interrompu si la session est
 active. Pendant un feedback, il reprend l'avance différée et conserve la
 notation déjà écrite. Une pause volontaire reste active jusqu'à la reprise
 par l'apprenant.
+En Voix, passer au clavier ou révéler la réponse invalide également le tour
+et ferme sa capture. Une transcription reçue ensuite ne peut plus décider du
+résultat. L'arrêt de la synthèse et des signaux invalide les demandes audio
+en attente de configuration native avant qu'elles puissent jouer.
 Les cartes suivantes et reportées conservent leurs chemins de clips en cache.
 
 La notation **écrite de grammaire** préserve les formes attendues par le module :
 ni élision supprimée, ni rapprochement phonétique ne peut masquer un article
 ou un pluriel manquant. La tolérance du vocabulaire ne s'y applique pas.
+Les réponses de grammaire alimentent la maîtrise de la règle. Le feedback de
+vocabulaire annonce l'intervalle renvoyé par la notation FSRS enregistrée
+pour cette réponse. Les verdicts s'affichent dès la validation.
 
 ## Règles de modification
 
@@ -130,6 +137,12 @@ La disponibilité iOS n'est pas livrée : le projet iOS ne contient actuellement
 pas de `Podfile`, et le pont est donc explicitement Android-only jusqu'à une
 intégration Xcode et un test physique séparés. Aucune diffusion externe ne doit
 prétendre offrir Whisper local sur iOS avant cette validation.
+
+Le corpus de travail `tool/stt_corpus/` et ses résultats restent privés,
+ignorés par Git et interdits par le garde de PR. Les anciennes captures ont
+été retirées des deux historiques de branches publiques avec sauvegarde locale.
+Le reliquat des anciens objets GitHub a été explicitement accepté pour cette
+intégration ; voir [la décision de conservation historique](reviews/2026-11-27-integration.md#purge-et-décision-de-conservation-historique).
 
 ## Décisions encore ouvertes
 

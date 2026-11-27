@@ -12,6 +12,9 @@ explicitement signalée non décidée (2026-08-07).
 - La disponibilité et la génération utilisent le même pool, restreint aux
   copies de listes résolues pour les prérequis de la règle. Un mot maîtrisé
   dans une autre liste ne remplit pas leur minimum de vocabulaire utilisable.
+- Le générateur actuel de pluriel français demande un mot isolé : les formes
+  en `-s` muet sont donc évaluées à l'écrit. Les modes vocaux de cette règle
+  restent indisponibles tant qu'un énoncé audible ne distingue pas la forme.
 - (2026-08-09) D'où viennent les phrases : banque de GABARITS auteurés
   par règle, slots remplis par le moteur avec le vocab que
   l'utilisateur connaît — pas de génération LLM au runtime (voir

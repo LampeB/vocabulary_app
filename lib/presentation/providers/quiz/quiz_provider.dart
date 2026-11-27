@@ -23,6 +23,7 @@ import '../../../services/audio/audio_player_service.dart';
 import '../grammar/grammar_provider.dart';
 import '../notifications/notification_provider.dart';
 import '../../../core/grammar/grammar_drill_generator.dart';
+import '../../../core/grammar/grammar_practice_policy.dart';
 import '../../../core/grammar/rule_mastery.dart';
 import 'session_assembly.dart';
 
@@ -151,7 +152,7 @@ class QuizState {
     this.correctCount = 0,
     this.isComplete = false,
     this.errorMessage,
-    this.scheduledDays = 0,
+    this.scheduledDays,
   });
 
   final List<QuizCard> cards;
@@ -166,8 +167,8 @@ class QuizState {
   final bool isComplete;
   final String? errorMessage;
 
-  /// FSRS-computed interval for the last answered card — used by the feedback screen.
-  final int scheduledDays;
+  /// Interval saved by FSRS for the current answer, if one was scheduled.
+  final int? scheduledDays;
 
   QuizCard? get currentCard =>
       currentIndex < cards.length ? cards[currentIndex] : null;
@@ -216,6 +217,7 @@ class QuizState {
     bool? isComplete,
     String? errorMessage,
     int? scheduledDays,
+    bool clearSchedule = false,
   }) =>
       QuizState(
         cards: cards ?? this.cards,
@@ -229,7 +231,8 @@ class QuizState {
         correctCount: correctCount ?? this.correctCount,
         isComplete: isComplete ?? this.isComplete,
         errorMessage: errorMessage,
-        scheduledDays: scheduledDays ?? this.scheduledDays,
+        scheduledDays:
+            clearSchedule ? null : scheduledDays ?? this.scheduledDays,
       );
 }
 
@@ -511,6 +514,14 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     final rules = await ref.read(grammarRulesProvider(args.langB).future);
     if (!_isCurrentSession(epoch)) return;
     final rule = rules.firstWhere((r) => r.id == args.ruleId);
+    if ((args.mode == QuizMode.voice || args.mode == QuizMode.handsFree) &&
+        !supportsSpokenGrammar(rule, args.langB)) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'grammar.written_only'.tr(),
+      );
+      return;
+    }
     final module = await ref.read(grammarModuleProvider(args.langB).future);
     if (!_isCurrentSession(epoch)) return;
     if (module == null) {
@@ -588,18 +599,16 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         state.answerState != QuizAnswerState.idle) {
       return;
     }
-    // The 2026-08-08 decision applies FSRS to vocabulary. Grammar flashcards
-    // are practice and leave rule mastery unchanged.
-    final scheduledDays = _lastArgs?.source == QuizSource.grammar
-        ? 0
-        : _scheduleRating(card.progress, rating);
     final isCorrect = rating == FsrsRating.good || rating == FsrsRating.easy;
     _recordReviewEvent(card, correct: isCorrect, rating: rating);
     state = state.copyWith(
       answerState:
           isCorrect ? QuizAnswerState.correct : QuizAnswerState.incorrect,
-      scheduledDays: scheduledDays,
     );
+    // Grammar flashcards are practice and leave rule mastery unchanged.
+    if (_lastArgs?.source != QuizSource.grammar) {
+      unawaited(_persistRating(card, rating));
+    }
   }
 
   /// Called by the "Continuer" button on the feedback screen.
@@ -622,14 +631,13 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
             acceptedAnswers: card.answerWords,
           ).isCorrect;
     final rating = correct ? FsrsRating.good : FsrsRating.again;
-    final scheduledDays = _scheduleRating(card.progress, rating);
     _recordReviewEvent(card, correct: correct, rating: rating);
     state = state.copyWith(
       userAnswer: answer,
       answerState:
           correct ? QuizAnswerState.correct : QuizAnswerState.incorrect,
-      scheduledDays: scheduledDays,
     );
+    unawaited(_persistRating(card, rating));
     // Advance is triggered by user tapping "Continuer" on the feedback screen.
   }
 
@@ -647,7 +655,6 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       isDrivingMode: isDrivingMode,
     );
     final rating = result.isCorrect ? FsrsRating.good : FsrsRating.again;
-    final scheduledDays = _scheduleRating(card.progress, rating);
     _recordReviewEvent(card, correct: result.isCorrect, rating: rating);
     state = state.copyWith(
       userAnswer: transcript,
@@ -655,8 +662,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
           ? QuizAnswerState.correct
           : QuizAnswerState.incorrect,
       isListening: false,
-      scheduledDays: scheduledDays,
     );
+    unawaited(_persistRating(card, rating));
     if (isDrivingMode) {
       _pendingAutoAdvance =
           (index: state.currentIndex, correct: result.isCorrect);
@@ -772,34 +779,6 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     }
   }
 
-  /// Scheduling and persistence are best-effort so they cannot block a verdict.
-  int _scheduleRating(VariantProgress progress, FsrsRating rating) {
-    unawaited(_persistRating(progress, rating).catchError((Object e) {
-      sttLog('[QUIZ] ⚠️ persistRating failed: $e');
-    }));
-    try {
-      return _computeScheduledDays(progress, rating);
-    } catch (e) {
-      sttLog('[QUIZ] ⚠️ scheduledDays computation failed: $e');
-      return 0;
-    }
-  }
-
-  int _computeScheduledDays(VariantProgress progress, FsrsRating rating) {
-    final fsrsCard = FsrsCard(
-      stability: progress.stability,
-      difficulty: progress.difficulty,
-      elapsedDays: progress.elapsedDays,
-      scheduledDays: progress.scheduledDays,
-      reps: progress.reps,
-      lapses: progress.lapses,
-      state: progress.state,
-      lastReview: progress.lastReview,
-      nextReview: progress.nextReview,
-    );
-    return AppFsrs.schedule(fsrsCard, rating, DateTime.now()).scheduledDays;
-  }
-
   void setPartialTranscript(String text) =>
       state = state.copyWith(partialTranscript: text);
 
@@ -880,24 +859,40 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     }
   }
 
-  Future<void> _persistRating(
-      VariantProgress progress, FsrsRating rating) async {
+  /// The verdict appears immediately. An interval appears only when FSRS
+  /// returns the saved progress for this turn, including repeats of one word.
+  Future<void> _persistRating(QuizCard card, FsrsRating rating) async {
     final args = _lastArgs;
-    if (args?.source == QuizSource.grammar) {
-      // Grammar typing and voice answers count toward rule mastery.
-      final userId = ref.read(currentUserProvider)?.id ?? '';
-      if (userId.isEmpty) return;
-      await ref.read(appDatabaseProvider).grammarProgressDao.recordAnswer(
-            userId: userId,
-            ruleId: args!.ruleId!,
-            correct: rating != FsrsRating.again,
-            masteredWhenCorrectReaches: kRuleMasteryTarget,
-          );
-      return;
+    final epoch = _sessionEpoch;
+    final index = state.currentIndex;
+    try {
+      if (args?.source == QuizSource.grammar) {
+        // Grammar typing and voice answers count toward rule mastery.
+        final userId = ref.read(currentUserProvider)?.id ?? '';
+        if (userId.isEmpty) return;
+        await ref.read(appDatabaseProvider).grammarProgressDao.recordAnswer(
+              userId: userId,
+              ruleId: args!.ruleId!,
+              correct: rating != FsrsRating.again,
+              masteredWhenCorrectReaches: kRuleMasteryTarget,
+            );
+        return;
+      }
+      final saved = await ref
+          .read(submitAnswerUseCaseProvider)
+          .call(progress: card.progress, rating: rating);
+      final days = saved.valueOrNull?.scheduledDays;
+      if (days != null &&
+          _isCurrentSession(epoch) &&
+          state.currentIndex == index &&
+          identical(state.currentCard, card) &&
+          !state.isComplete &&
+          state.answerState != QuizAnswerState.idle) {
+        state = state.copyWith(scheduledDays: days);
+      }
+    } catch (error) {
+      sttLog('[QUIZ] rating persistence failed: $error');
     }
-    await ref
-        .read(submitAnswerUseCaseProvider)
-        .call(progress: progress, rating: rating);
   }
 
   /// Variant ids already requeued once by [skipCurrentCard] — a card comes
@@ -949,7 +944,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         answerState: QuizAnswerState.idle,
         isFlipped: false,
         isListening: false,
-        scheduledDays: 0,
+        clearSchedule: true,
       );
       state = completed;
       unawaited(_onSessionComplete(completed));
@@ -962,7 +957,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         isFlipped: false,
         isListening: false,
         correctCount: newCorrect,
-        scheduledDays: 0,
+        clearSchedule: true,
       );
       _cardShownAt = DateTime.now();
       final nextCard = state.currentCard;

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:easy_localization/easy_localization.dart';
 // ignore: implementation_imports
 import 'package:easy_localization/src/localization.dart';
 // ignore: implementation_imports
@@ -13,9 +14,14 @@ import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
 import 'package:vocab_kr/domain/entities/grammar_rule.dart';
 import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart'
     show QuizSource;
+import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/grammar/grammar_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
+import 'package:vocab_kr/presentation/screens/grammar/grammar_lesson_screen.dart';
+import 'package:vocab_kr/presentation/screens/grammar/grammar_screen.dart';
+import 'package:vocab_kr/presentation/screens/home/daily_path_screen.dart';
+import 'package:vocab_kr/presentation/screens/home/v3_home_screen.dart';
 import 'package:vocab_kr/presentation/screens/quiz/start_session_screen.dart';
 import 'package:vocab_kr/presentation/design/v3/v3_card_stack.dart';
 import '../../helpers/pump_screen.dart';
@@ -25,6 +31,27 @@ import '../../helpers/pump_screen.dart';
 /// direction / count. The CTA fires /quiz with exactly the QuizArgs assembled.
 
 final _now = DateTime(2026, 7, 3);
+
+const _frenchPlural = GrammarRule(
+  id: 'fr-plural-s',
+  titles: {'fr': 'Le pluriel en -s', 'ko': '-s 복수형'},
+  descriptions: {},
+  explanations: {
+    'fr': 'On ajoute un s au nom.',
+    'ko': '명사 뒤에 s를 붙여요.',
+  },
+  workedExamples: [
+    WorkedExample(
+      target: 'les pommes',
+      translations: {'fr': 'des pommes', 'ko': '사과 여러 개'},
+    ),
+  ],
+  prerequisiteLists: [],
+  appliesToCategories: ['nom'],
+  minKnownWords: {'nom': 1},
+  mechanics: PluralMechanics(irregulars: {}),
+  testVectors: [],
+);
 
 VocabularyList _list(String id, String name,
         {int wordCount = 5, String langA = 'fr', String langB = 'ko'}) =>
@@ -68,7 +95,8 @@ void main() {
       bool grammar = false,
       String? initialRuleId,
       String? langA,
-      String? langB}) {
+      String? langB,
+      GrammarRule? rule}) {
     capturedArgs = null;
     return pumpScreen(
       tester,
@@ -85,8 +113,9 @@ void main() {
         studiedListIdsProvider.overrideWith((ref) => Stream.value(studied)),
         ruleStatusesProvider.overrideWith((ref, lang) async => [
               RuleStatus(
-                rule: _rule(initialRuleId ?? 'regle-debloquee',
-                    'La particule de thème'),
+                rule: rule ??
+                    _rule(initialRuleId ?? 'regle-debloquee',
+                        'La particule de thème'),
                 availability: RuleAvailability.unlocked,
                 missingLists: const [],
                 enoughWords: true,
@@ -158,6 +187,28 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> activateByKeyboard(WidgetTester tester, String key) async {
+    final element = tester.element(byKey(key));
+    bool containsFocus() {
+      final focused = FocusManager.instance.primaryFocus?.context as Element?;
+      if (focused == element) return true;
+      var found = false;
+      focused?.visitAncestorElements((ancestor) {
+        found = ancestor == element;
+        return !found;
+      });
+      return found;
+    }
+
+    for (var tabs = 0; tabs < 20 && !containsFocus(); tabs++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+    }
+    expect(containsFocus(), isTrue, reason: '$key must be reachable by Tab');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+  }
+
   // Language step is first: open it, pick the pair, then the list step opens.
   Future<void> pickLanguage(WidgetTester tester, {String langB = 'ko'}) async {
     await tapKey(tester, WidgetKeys.startSection(0));
@@ -172,6 +223,117 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> pumpTrail(WidgetTester tester) {
+    final rule = _rule('ko-topic', 'La particule de thème');
+    return pumpScreen(
+      tester,
+      screen: const TickerMode(enabled: false, child: V3HomeScreen()),
+      overrides: [
+        currentUserProvider.overrideWithValue(null),
+        myListsProvider
+            .overrideWith((ref) => Stream.value([_list('l1', 'Animaux')])),
+        dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(4)),
+        studiedListIdsProvider.overrideWith((ref) => Stream.value(const {})),
+        grammarRulesProvider.overrideWith((ref, lang) async => [rule]),
+        ruleStatusesProvider.overrideWith((ref, lang) async => [
+              RuleStatus(
+                rule: rule,
+                availability: RuleAvailability.unlocked,
+                missingLists: const [],
+                enoughWords: true,
+                correct: 0,
+              ),
+            ]),
+      ],
+      routes: [
+        GoRoute(
+            path: '/daily-path', builder: (_, __) => const DailyPathScreen()),
+        GoRoute(path: '/grammar', builder: (_, __) => const GrammarScreen()),
+        GoRoute(
+          path: '/grammar/:ruleId',
+          builder: (_, state) =>
+              GrammarLessonScreen(ruleId: state.pathParameters['ruleId']!),
+        ),
+        GoRoute(
+            path: '/start-session',
+            builder: (_, __) => const StartSessionScreen()),
+        GoRoute(
+          path: '/start-session-grammar',
+          builder: (_, state) => StartSessionScreen(
+            grammar: true,
+            initialRuleId: state.uri.queryParameters['rule'],
+            initialLangA: state.uri.queryParameters['langA'],
+            initialLangB: state.uri.queryParameters['langB'],
+          ),
+        ),
+        GoRoute(
+          path: '/quiz',
+          builder: (context, _) => Scaffold(
+            body: BackButton(
+              key: const ValueKey('quiz-back'),
+              onPressed: () => context.pop(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> appBarBack(WidgetTester tester) async {
+    await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('quiz preserves setup and the plateau below it', (tester) async {
+    await pumpTrail(tester);
+    final activity = find.text('v3.choose_activity'.tr());
+    await tester.ensureVisible(activity);
+    await tester.tap(activity);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('v3.choose_quiz'.tr()));
+    await tester.pumpAndSettle();
+    expect(byKey(WidgetKeys.screenStartSession), findsOneWidget);
+
+    await pickLanguage(tester);
+    await tapKey(tester, WidgetKeys.startSmart('due'));
+    await tapKey(tester, WidgetKeys.startQuizType('typing'));
+    await tapKey(tester, WidgetKeys.startDirection('frToKo'));
+    await tapKey(tester, WidgetKeys.startCount(20));
+    await tapKey(tester, WidgetKeys.startSessionStart);
+    await tapKey(tester, 'quiz-back');
+    expect(byKey(WidgetKeys.screenStartSession), findsOneWidget);
+    expect(
+        tester
+            .widget<ElevatedButton>(byKey(WidgetKeys.startSessionStart))
+            .onPressed,
+        isNotNull);
+    await appBarBack(tester);
+    expect(byKey(WidgetKeys.screenHome), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('lesson quiz returns through setup and reader to the daily path',
+      (tester) async {
+    await pumpTrail(tester);
+    await tapKey(tester, WidgetKeys.homeDailyPath);
+    await tapKey(tester, WidgetKeys.dailyPathLessons);
+    await tapKey(tester, WidgetKeys.grammarRuleOpenLesson('ko-topic'));
+    await tapKey(tester, WidgetKeys.grammarLessonPractice);
+    await tapKey(tester, WidgetKeys.startQuizType('typing'));
+    await tapKey(tester, WidgetKeys.startCount(10));
+    await tapKey(tester, WidgetKeys.startSessionStart);
+
+    await tapKey(tester, 'quiz-back');
+    expect(byKey(WidgetKeys.screenStartSession), findsOneWidget);
+    await appBarBack(tester);
+    expect(byKey(WidgetKeys.screenGrammarLesson), findsOneWidget);
+    await appBarBack(tester);
+    expect(byKey(WidgetKeys.screenGrammar), findsOneWidget);
+    await appBarBack(tester);
+    expect(byKey(WidgetKeys.screenDailyPath), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('vocab flow renders its five sections — and NO grammar anywhere',
       (tester) async {
     await pump(tester);
@@ -183,8 +345,50 @@ void main() {
           reason: 'section $i header missing');
     }
     expect(byKey(WidgetKeys.startSessionStart), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_back_ios_new_rounded), findsNothing);
     expect(find.textContaining('rammaire'), findsNothing);
     expect(byKey(WidgetKeys.startRule('regle-debloquee')), findsNothing);
+  });
+
+  testWidgets('keyboard selects mode and count and starts the quiz',
+      (tester) async {
+    await pump(tester);
+
+    bool? selected(String key) {
+      final button = find.descendant(
+          of: byKey(key), matching: find.byType(OutlinedButton));
+      final data = tester.getSemantics(button).getSemanticsData();
+      final flags = data.flagsCollection;
+      expect(flags.isButton, isTrue, reason: '$key must expose a button');
+      return flags.isSelected.toBoolOrNull();
+    }
+
+    final semantics = tester.ensureSemantics();
+    try {
+      final typing = WidgetKeys.startQuizType('typing');
+      final count = WidgetKeys.startCount(20);
+      await activateByKeyboard(tester, WidgetKeys.startSection(0));
+      await activateByKeyboard(tester, WidgetKeys.startLanguage('ko'));
+      await activateByKeyboard(tester, WidgetKeys.startSmart('due'));
+      expect(selected(typing), isFalse);
+      await activateByKeyboard(tester, typing);
+      await activateByKeyboard(tester, WidgetKeys.startDirection('frToKo'));
+      expect(selected(count), isFalse);
+      await activateByKeyboard(tester, count);
+
+      await activateByKeyboard(tester, WidgetKeys.startSection(2));
+      expect(selected(typing), isTrue);
+      await activateByKeyboard(tester, WidgetKeys.startSection(4));
+      expect(selected(count), isTrue);
+      await activateByKeyboard(tester, count);
+      await activateByKeyboard(tester, WidgetKeys.startSessionStart);
+    } finally {
+      semantics.dispose();
+    }
+
+    expect(capturedArgs?.source, QuizSource.allDue);
+    expect(capturedArgs?.mode, QuizMode.typing);
+    expect(capturedArgs?.cardLimit, 20);
   });
 
   testWidgets(
@@ -372,6 +576,41 @@ void main() {
     expect(capturedArgs!.ruleId, 'fr-articles-le-la');
     expect(capturedArgs!.langA, 'ko');
     expect(capturedArgs!.langB, 'fr');
+  });
+
+  testWidgets('French plural preview teaches in Korean and starts in writing',
+      (tester) async {
+    await pump(tester,
+        grammar: true, langA: 'ko', langB: 'fr', rule: _frenchPlural);
+    await tapKey(tester, WidgetKeys.startSection(0));
+    await tapKey(tester, WidgetKeys.startRule('fr-plural-s'));
+
+    expect(find.text('명사 뒤에 s를 붙여요.'), findsOneWidget);
+    expect(find.text('사과 여러 개'), findsOneWidget);
+    expect(find.text('les pommes'), findsOneWidget);
+    expect(find.text('On ajoute un s au nom.'), findsNothing);
+    expect(find.text('des pommes'), findsNothing);
+    expect(find.text('Exemples'), findsOneWidget);
+    expect(find.text("C'est parti !"), findsOneWidget);
+
+    await tapKey(tester, WidgetKeys.grammarLessonStart);
+    for (final mode in ['voice', 'handsFree']) {
+      final choice = byKey(WidgetKeys.startQuizType(mode));
+      final button = find.descendant(
+        of: choice,
+        matching: find.byType(OutlinedButton),
+      );
+      expect(tester.widget<OutlinedButton>(button).onPressed, isNull);
+      await tapKey(tester, WidgetKeys.startQuizType(mode));
+      expect(byKey(WidgetKeys.startCount(10)), findsNothing);
+    }
+    await tapKey(tester, WidgetKeys.startQuizType('typing'));
+    await tapKey(tester, WidgetKeys.startCount(10));
+    await tapKey(tester, WidgetKeys.startSessionStart);
+    expect(capturedArgs?.ruleId, 'fr-plural-s');
+    expect(capturedArgs?.mode, QuizMode.typing);
+    expect(capturedArgs?.langA, 'ko');
+    expect(capturedArgs?.langB, 'fr');
   });
 
   testWidgets('the CTA label shows the selected card count', (tester) async {
