@@ -6,6 +6,7 @@ import 'package:easy_localization/src/localization.dart';
 // ignore: implementation_imports
 import 'package:easy_localization/src/translations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -770,8 +771,9 @@ void main() {
   });
 
   testWidgets(
-    'real French lesson preview scrolls at 320x568 with double text',
+    'real French lesson preview and 100-card CTA fit at 320x568 with double text',
     (tester) async {
+      SharedPreferences.setMockInitialValues({});
       final raw = (await tester.runAsync(
         () => rootBundle.loadString('assets/seed/grammar/fr/rules.json'),
       ))!;
@@ -794,15 +796,66 @@ void main() {
       final viewport = tester.getRect(find.byType(Scrollable).first);
       expect(titleRect.top, greaterThanOrEqualTo(viewport.top));
       expect(titleRect.bottom, lessThanOrEqualTo(viewport.bottom));
-      await tapKey(tester, WidgetKeys.startSection(0));
-      await tapKey(tester, WidgetKeys.startRule(rule.id));
+      Future<void> tapConfig(String key) async {
+        final control = byKey(key);
+        if (control.evaluate().isEmpty) {
+          await tester.scrollUntilVisible(
+            control,
+            64,
+            scrollable: find.descendant(
+              of: find.byType(ListView),
+              matching: find.byType(Scrollable),
+            ),
+          );
+        }
+        await tester.ensureVisible(control);
+        await tester.pumpAndSettle();
+        expect(control.hitTestable(), findsOneWidget);
+        await tester.tap(control);
+        await tester.pumpAndSettle();
+      }
+
+      await tapConfig(WidgetKeys.startSection(0));
+      await tapConfig(WidgetKeys.startRule(rule.id));
       expect(tester.takeException(), isNull);
       await tester.ensureVisible(byKey(WidgetKeys.grammarLessonStart));
       await tester.pumpAndSettle();
       await tester.tap(byKey(WidgetKeys.grammarLessonStart));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
-      expect(byKey(WidgetKeys.startQuizType('typing')), findsOneWidget);
+      await tapConfig(WidgetKeys.startQuizType('typing'));
+      await tapConfig(WidgetKeys.startCount(100));
+      final start = byKey(WidgetKeys.startSessionStart);
+      const cta = 'Commencer · 100 cartes';
+      final label = find.descendant(of: start, matching: find.text(cta));
+      expect(label, findsOneWidget);
+      final paragraph = tester.renderObject<RenderParagraph>(label);
+      final glyphs = paragraph.getBoxesForSelection(
+        TextSelection(baseOffset: 0, extentOffset: cta.length),
+      );
+      final buttonBounds = tester.getRect(start);
+      final labelOrigin = tester.getTopLeft(label);
+      expect(glyphs.map((box) => box.top).toSet().length, greaterThan(1));
+      expect(paragraph.didExceedMaxLines, isFalse);
+      for (final box in glyphs) {
+        final bounds = box.toRect().shift(labelOrigin);
+        expect(bounds.left, greaterThanOrEqualTo(buttonBounds.left));
+        expect(bounds.top, greaterThanOrEqualTo(buttonBounds.top));
+        expect(bounds.right, lessThanOrEqualTo(buttonBounds.right));
+        expect(bounds.bottom, lessThanOrEqualTo(buttonBounds.bottom));
+      }
+      expect(
+        tester.getRect(find.byType(ListView)).bottom,
+        lessThanOrEqualTo(buttonBounds.top),
+      );
+      expect(buttonBounds.bottom, lessThanOrEqualTo(568));
+      expect(start.hitTestable(), findsOneWidget);
+      await tester.tap(start);
+      await tester.pumpAndSettle();
+      expect(capturedArgs?.source, QuizSource.grammar);
+      expect(capturedArgs?.ruleId, rule.id);
+      expect(capturedArgs?.cardLimit, 100);
+      expect(tester.takeException(), isNull);
       await unmountScreen(tester);
     },
   );

@@ -210,44 +210,47 @@ for deterministic rest states. Find by key/type/icon, read rendered properties.
 
 Reserve for true cross-screen journeys. **Body = only `given/when/then` Steps
 calls; select by keys.** Always `addTearDown(deleteListsByName(...))`. Keep card
-counts small (`TEST_CARD_LIMIT`). New scenario files must be imported by
-`patrol_test/quiz_all_test.dart`.
+counts small (`TEST_CARD_LIMIT`). Register a new independent suite in the
+[CI matrix](../tool/e2e/matrix.py) and its scenario/account entries in
+[the non-secret catalogue](../tool/e2e/scenarios.json). Import it in
+[the local umbrella](../patrol_test/quiz_all_test.dart) when it belongs to that
+subset; the umbrella is not the list of all CI jobs.
 
-### 4.0 Navigation graph — `navigation_test.dart` ⚠️ BLOCKED (written, not in CI)
-The screen-reachability backbone: every signed-in destination must open and
-render. Assertions use **screen-root keys** (`WidgetKeys.screen*`), never text.
+**Executable inventory, 27 November 2026.** The matrix selects nine suites:
+`navigation`, `auth_flows`, `user_flows`, `daily_path`, `lesson_prerequisites`,
+`language_pairs`, `quiz`, `quiz_ecrire`, and `auth_login`. The local umbrella
+calls five of them: `quiz`, `quiz_ecrire`, `navigation`, `user_flows`, and
+`auth_flows`. Presence in this inventory describes maintained executable
+scenarios, not a successful hosted run of the current commit. The
+[current delivery state](../PROJECT_STATUS.md) and
+[activation runbook](runbooks/e2e-account.md) track the separate hosted gate.
 
-> **Blocked by a test-binding limitation.** Tapping into Social/Profile/Stats
-> performs GoRouter navigation that triggers *"mid-layout Scaffold animation"*
-> assertions in Flutter's integration-test binding (the same issue
-> [`auth_test.dart`](../patrol_test/auth_test.dart) documents) — it aborts the
-> whole run (CI run #3: the 11 quiz tests passed, then the first nav test crashed
-> the process with `Gradle code 1`, 0 failures). The file stays in the repo but
-> is **excluded from the `quiz_all_test` umbrella**. Unblocking it needs an app
-> change: the study/social screen animations (waveform, pulse, `TabController`)
-> must freeze when `MediaQuery.disableAnimations` is true (CI sets this). That
-> same fix would also remove the ~10 s-per-action settle cost (see §2.9 follow-ups
-> in the how-to). Until then, screen presence is partially covered by the quiz +
-> user-flow journeys.
+### 4.0 Navigation graph — `navigation_test.dart`
 
-| # | Scenario | Reaches | Status |
-|---|----------|---------|--------|
-| 4.0.1 | Bottom-nav tabs open Home / Lists / Social / Profile | home, lists, social, profile | ✅ |
-| 4.0.2 | Raised Study button opens Start-a-session | startSession | ✅ |
-| 4.0.3 | Home header bell opens Notification settings | notifications | ✅ |
-| 4.0.4 | Profile tiles open Stats / Settings / Notifications | stats, settings, notifications | ✅ |
-| 4.0.5 | Tapping a list opens its detail | listDetail | ✅ |
-| 4.0.6 | Sign-out tile returns to Welcome | — | 🔧 `then.onWelcome()` (key `profileSignOut` now exists) |
-| 4.0.7 | Paywall reachable (via freemium trigger or upgrade tile) | paywall | 🔧 see 4.4 (key `screenPaywall` exists) |
-| 4.0.8 | Import screen reachable via `vocabkr://import?token=…` | importLink | 🔧 see 4.8 (key `screenImport` exists) |
-| 4.0.9 | Android system **back** button pops a pushed screen correctly | — | 🔧 `when.goesBack()` via `$.native.pressBack()` |
+[The maintained file](../patrol_test/navigation_test.dart) defines four
+scenarios. It is imported and called by the umbrella and is one of the nine
+independent CI targets. Assertions use **screen-root keys**
+(`WidgetKeys.screen*`), not translated text.
 
-> Infra added for this net: nav-tab keys (`WidgetKeys.navTab`), a screen-root key
-> on every screen's Scaffold (`WidgetKeys.screen*`), the Home bell + Profile tile
-> keys, and steps `when.tapsNavTab` / `when.opensProfileTile` /
-> `when.opensNotificationsFromBell` / `when.opensList` / `then.onScreen`. Paywall
-> and Import screens are keyed (`screenPaywall`, `screenImport`) but reached only
-> once their trigger scenarios (4.4 / 4.8) exist.
+| # | Executable scenario | Reaches | Status |
+|---|---------------------|---------|--------|
+| 4.0.1 | Bottom-nav tabs open Home / Lists / Lessons / Progress / Profile | home, lists, grammar, stats, profile | ✅ written in `navigation_test.dart` |
+| 4.0.2 | Retained setup route opens Start-a-session | startSession | ✅ written in `navigation_test.dart` |
+| 4.0.4 | Profile tiles open Stats / Settings / Notifications | stats, settings, notifications | ✅ written in `navigation_test.dart` |
+| 4.0.5 | Tapping a list opens its detail | listDetail | ✅ written in `navigation_test.dart` |
+
+The old Social tab and Home-bell scenario (former row 4.0.3) are not part of
+these four maintained journeys. Profile sign-out is covered by
+[`auth_flows_test.dart`](../patrol_test/auth_flows_test.dart), not by this net.
+The Paywall, import-link and Android-back ideas formerly listed here are
+additional catalogue work; the four navigation scenarios do not prove them.
+
+> **Historical incident, not the current inclusion status.** An earlier CI
+> run crashed on a mid-layout Scaffold-animation assertion after the quiz
+> tests. Navigation was excluded from the umbrella at that time. This is
+> historical context only: the current source includes the suite again.
+> Its current hosted execution still requires the activation and migrations
+> described in the runbook; inclusion alone does not prove device behaviour.
 
 ### 4.1 Auth — `auth_test.dart`, `sign_up_test.dart`
 
@@ -258,11 +261,11 @@ render. Assertions use **screen-root keys** (`WidgetKeys.screen*`), never text.
 | 4.1.3 | Sign-up duplicate email → inline error | ✅ |
 | 4.1.4 | Sign-up duplicate username → inline error | ✅ |
 | 4.1.5 | Sign-up invalid username (too short / bad chars) → inline validation error, no account | 🔧 `when.submitsSignUp(...)`, `then.signUpErrorShown()` + keys on auth fields |
-| 4.1.6 | Sign out from Profile → returns to Welcome | 🔧 `when.signsOut()`, `then.onWelcome()` |
+| 4.1.6 | Sign out from Profile → returns to Welcome | ✅ `auth_flows_test.dart`, `when.signsOut()` and `then.onScreen(Screen.welcome)` |
 
 ### 4.2 List & word management
 
-> ⚠️ **`vocab_list_test.dart` is stale and NOT in CI** (only `quiz_all_test` runs).
+> ⚠️ **`vocab_list_test.dart` is stale and is not one of the nine CI targets.**
 > It drives the UI by French text + positional `TextField` finders, and it never
 > enters edit mode — but the current List-Detail UI only shows the edit/delete
 > icons in edit mode, so its edit/delete cases would fail today. The keyed,
@@ -418,7 +421,7 @@ is a `WidgetKeys` constant wired into the widget on both sides.
 - `when.switchesToKeyboardInVoice()` / `when.typesCurrentAnswer(word)` — keys `voiceKeyboard`, `ecrireInput` exist (4.3.12).
 - `when.skipsHandsFreeCard()` / `when.repeatsHandsFreeCard()` — keys `hfSkip`, `hfRepeat` exist (4.3.13).
 - `when.renamesList(old, new)` / `when.exportsList()` — need rename/export menu keys (4.2.7/4.2.9).
-- `when.signsOut()` — needs a key on the Profile sign-out tile (4.1.6).
+- `when.signsOut()` — already used by `auth_flows_test.dart` (4.1.6).
 - `when.submitsSignUp({email, username, password})` — keys on auth fields (4.1.5).
 - `when.opensSettings()` / `when.choosesTheme()` / `when.opensNotificationSettings()` (4.5).
 - `when.opensStats()` (4.6); `when.opensSocial()` (4.7).
@@ -446,6 +449,7 @@ state must be reset between runs) — note this when implementing 4.4.
 - [ ] New selector is a `WidgetKeys` constant wired into the widget.
 - [ ] Seeded data torn down with `addTearDown`.
 - [ ] One-line comment states the behaviour proven.
-- [ ] New E2E file imported by `quiz_all_test.dart`.
+- [ ] New independent suite registered in the CI matrix and scenario catalogue;
+      imported by `quiz_all_test.dart` if it belongs to the local umbrella.
 - [ ] `flutter analyze` clean; host tests pass with `LD_LIBRARY_PATH="$HOME/.local/lib:…"`.
 - [ ] Row checked off here (✅) with the test file name.

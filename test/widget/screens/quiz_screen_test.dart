@@ -22,6 +22,7 @@ import 'package:vocab_kr/core/stt_simulator.dart';
 import 'package:vocab_kr/core/utils/pcm_segmenter.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
+import 'package:vocab_kr/data/datasources/local/daos/concept_dao.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
 import 'package:vocab_kr/domain/entities/grammar_rule.dart';
@@ -469,6 +470,29 @@ class _FakeProgressRepo implements ProgressRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _FailingAnswerVariantDao extends ConceptDao {
+  _FailingAnswerVariantDao(super.db);
+
+  final languagesRead = <String>[];
+
+  @override
+  Future<List<WordVariantsTableData>> getVariantsByConceptIds(
+    List<String> conceptIds,
+    String langCode, {
+    bool firstPerConcept = false,
+  }) async {
+    languagesRead.add(langCode);
+    if (langCode == 'ko') {
+      throw StateError('SQLite answer-variant query failed');
+    }
+    return super.getVariantsByConceptIds(
+      conceptIds,
+      langCode,
+      firstPerConcept: firstPerConcept,
+    );
+  }
+}
+
 class _DelayedSttMode extends SttEngineModeNotifier {
   final preference = Completer<SttEngineMode>();
 
@@ -652,6 +676,7 @@ void main() {
     VoiceTurnMachine Function()? machineFactory,
     ThemeMode themeMode = ThemeMode.light,
     AppException? loadFailure,
+    ConceptDao Function(AppDatabase)? quizConceptDao,
   }) async {
     navigatedTo = null;
     final dueCards = <VariantProgress>[];
@@ -750,6 +775,8 @@ void main() {
             ),
       overrides: [
         appDatabaseProvider.overrideWithValue(db),
+        if (quizConceptDao != null)
+          conceptDaoProvider.overrideWithValue(quizConceptDao(db)),
         vocabularyRemoteProvider.overrideWithValue(
           importRemote ?? FakeRemote(),
         ),
@@ -1604,6 +1631,39 @@ void main() {
       },
     );
   }
+
+  testWidgets('an exception enriching selected cards returns to the setup '
+      'by keyboard', (tester) async {
+    late _FailingAnswerVariantDao dao;
+    await pump(
+      tester,
+      mode: QuizMode.flashcard,
+      words: [('chat', '고양이')],
+      entry: '/start-session',
+      quizConceptDao: (db) => dao = _FailingAnswerVariantDao(db),
+    );
+
+    expect(progressRepo.due, isNotEmpty);
+    expect(dao.languagesRead, ['fr', 'ko']);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('quiz.load_failed'.tr()), findsOneWidget);
+    expect(
+      find.textContaining('SQLite answer-variant query failed'),
+      findsNothing,
+    );
+    expect(
+      find.widgetWithText(FilledButton, 'common.back'.tr()),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('open-quiz')), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tick(tester, times: 4);
+    expect(find.byKey(const ValueKey('open-quiz')), findsOneWidget);
+    expect(find.byType(QuizScreen), findsNothing);
+    expect(navigatedTo, isNull);
+    await unmountScreen(tester);
+  });
 
   testWidgets('an empty session returns to the daily path', (tester) async {
     await pump(

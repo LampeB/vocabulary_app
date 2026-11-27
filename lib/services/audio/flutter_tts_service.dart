@@ -1,3 +1,5 @@
+import 'dart:async' show Completer;
+
 import 'package:flutter_tts/flutter_tts.dart';
 import 'audio_service.dart';
 import 'audio_ports.dart';
@@ -41,18 +43,18 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
   List<dynamic>? _availableEngines;
   int _playbackGeneration = 0;
   bool _disposed = false;
+  Future<void>? _stopping;
   Future<void>? _nativeDisposal;
 
   bool _current(int generation) =>
       !_disposed && generation == _playbackGeneration;
 
-  // Overlapping speaks (e.g. KO answer then FR question) each count.
-  int _activeSpeaks = 0;
+  final _activeSpeaks = <Completer<void>>{};
 
   /// Whether any utterance is still in flight — hands-free must not open the
   /// mic (which stops audio AND hears the speaker) while this is true.
   @override
-  bool get isSpeaking => _activeSpeaks > 0;
+  bool get isSpeaking => _activeSpeaks.isNotEmpty;
 
   Future<FlutterTts?> _ttsFor(String langCode, int generation) async {
     final existing = _ttsByLang[langCode];
@@ -155,37 +157,49 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
     final generation = _playbackGeneration;
     final tts = await _serialized(() => _configure(langCode, generation));
     if (tts == null || !_current(generation)) return;
-    _activeSpeaks++;
+    final interrupted = Completer<void>();
+    _activeSpeaks.add(interrupted);
     sttLog(
-      '[TTS] ▶ speak start lang=$langCode "$text" (active=$_activeSpeaks)',
+      '[TTS] ▶ speak start lang=$langCode "$text" (active=${_activeSpeaks.length})',
     );
     try {
-      final result = await tts.speak(text);
+      final result = await Future.any<dynamic>([
+        tts.speak(text),
+        interrupted.future.then<dynamic>(
+          (_) => throw const AudioPlaybackCancelled(),
+        ),
+      ]);
+      if (!_current(generation)) {
+        await (_nativeDisposal ?? _stopping);
+        throw const AudioPlaybackCancelled();
+      }
       // The pinned native plugin reports rejection with 0. Other backends
       // may complete successfully without a numeric acknowledgement.
-      if (result == 0 && _current(generation)) {
-        throw TtsRejected('speak', langCode);
-      }
+      if (result == 0) throw TtsRejected('speak', langCode);
     } finally {
-      _activeSpeaks--;
+      _activeSpeaks.remove(interrupted);
       sttLog(
-        '[TTS] ■ speak done  lang=$langCode "$text" (active=$_activeSpeaks)',
+        '[TTS] ■ speak done  lang=$langCode "$text" (active=${_activeSpeaks.length})',
       );
     }
   }
 
   @override
-  Future<void> stop() async {
+  Future<void> stop() {
+    if (_disposed) return dispose();
+    return _stopping ??= _stopForReplay().whenComplete(() => _stopping = null);
+  }
+
+  Future<void> _stopForReplay() {
     _playbackGeneration++;
-    if (_disposed) return;
-    if (_activeSpeaks > 0) {
+    if (_activeSpeaks.isNotEmpty) {
       sttLog(
-        '[TTS] ✋ stop() while $_activeSpeaks utterance(s) in flight — speech is being CUT OFF',
+        '[TTS] ✋ stop() with ${_activeSpeaks.length} utterance(s) in flight',
       );
     }
     final prior = _nativeOps;
     final engineSwitchPending = _engineSwitch != null;
-    final stopping = _stopVoices();
+    final stopping = _stopActiveSpeech();
     // The pinned plugin applies setLanguage before sending its reply. Android
     // drains early native requests in order when the engine becomes ready.
     // A later acknowledged stop therefore fences those synchronous mutations
@@ -194,7 +208,17 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
     _nativeOps = stopping.then<void>((_) async {
       if (engineSwitchPending) await prior;
     }, onError: (Object _, StackTrace _) => prior);
-    await stopping;
+    return stopping;
+  }
+
+  Future<void> _stopActiveSpeech() async {
+    final interrupted = _activeSpeaks.toList(growable: false);
+    await _stopVoices();
+    // iOS acknowledges stop but can leave the interrupted speak reply open.
+    // Retire only these utterances once native stop is confirmed.
+    for (final speech in interrupted) {
+      if (_activeSpeaks.remove(speech)) speech.complete();
+    }
   }
 
   Future<void> _stopVoices() async {
@@ -214,8 +238,10 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
 
   @override
   Future<void> dispose() {
-    _disposed = true;
-    _playbackGeneration++;
+    if (!_disposed) {
+      _disposed = true;
+      _playbackGeneration++;
+    }
     return _nativeDisposal ??= _disposeEngine().onError((
       Object error,
       StackTrace stack,
@@ -226,11 +252,14 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
   }
 
   Future<void> _disposeEngine() async {
+    final stopping = _stopping;
     final switching = _engineSwitch;
+    if (switching == null && stopping != null) return stopping;
     try {
       await switching;
     } finally {
-      await _stopVoices();
+      await stopping;
+      await _stopActiveSpeech();
     }
   }
 }

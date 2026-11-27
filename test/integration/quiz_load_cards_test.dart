@@ -24,6 +24,7 @@ import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_availability_provider.dart';
 import 'package:vocab_kr/services/audio/audio_player_service.dart';
 import '../helpers/fake_remote.dart';
+import '../helpers/pump_screen.dart';
 
 final _quiz = quizProvider(Object());
 
@@ -110,6 +111,7 @@ VariantProgress _due(String variantId, QuizDirection direction) =>
     );
 
 void main() {
+  setUpAll(initTestLocalization);
   late AppDatabase db;
   // fr word → variant ids, seeded in setUp.
   late Map<String, String> frVariantId;
@@ -215,6 +217,32 @@ void main() {
 
       expect(sub.read().currentCard!.questionWord, '개');
       expect(audio.spokenPaths, hasLength(1));
+    },
+  );
+
+  test(
+    'an earlier loading exception leaves the newer successful quiz intact',
+    () async {
+      final delayed = Completer<void>();
+      final (container, sub) = harness({
+        QuizDirection.frToKo: Success([
+          _due(frVariantId['chat']!, QuizDirection.frToKo),
+        ]),
+        QuizDirection.koToFr: Success([
+          _due(koVariantId['개']!, QuizDirection.koToFr),
+        ]),
+      }, delayed: delayed);
+      final quiz = container.read(_quiz.notifier);
+      final oldLoad = quiz.loadCards(args(listId: 'slow', cardLimit: 1));
+      await quiz.loadCards(
+        args(direction: QuizDirectionChoice.koToFr, cardLimit: 1),
+      );
+      final active = sub.read();
+      expect(active.currentCard?.questionWord, '개');
+      delayed.completeError(StateError('Old card query failed'));
+      await oldLoad;
+      expect(sub.read(), same(active));
+      expect(sub.read().errorMessage, isNull);
     },
   );
 

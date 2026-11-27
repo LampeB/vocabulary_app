@@ -270,6 +270,23 @@ void main() {
     },
   );
 
+  test('a rejected grammar words provider settles the loading state', () async {
+    final session = makeContainer(
+      overrides: [
+        ruleDrillWordsProvider.overrideWith(
+          (_, _) async => throw StateError('Could not read grammar words'),
+        ),
+      ],
+    );
+    final sub = session.listen(_quiz, (_, _) {});
+    await session.read(_quiz.notifier).loadCards(args());
+
+    expect(sub.read().isLoading, isFalse);
+    expect(sub.read().isEmpty, isFalse);
+    expect(sub.read().cards, isEmpty);
+    expect(sub.read().errorMessage, 'quiz.load_failed'.tr());
+  });
+
   test('direct voice entry cannot grade an isolated French plural', () async {
     final sub = container.listen(_quiz, (_, _) {});
     final notifier = container.read(_quiz.notifier);

@@ -117,6 +117,9 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   FR/EN/KO ; son détail reste réservé au diagnostic debug. Le bouton Retour
   est focalisable et retrouve l'écran d'origine avec Tab puis Entrée. Les
   messages dédiés de changement de compte et de grammaire écrite restent distincts.
+  Cette frontière couvre aussi les exceptions après sélection des cartes,
+  pendant leur enrichissement SQLite ou le chargement de grammaire. Un
+  ancien chargement qui échoue ne peut pas remplacer une séance plus récente.
 - Les aides de détail de leçon et les traductions d'aperçu du configurateur
   atteignent au moins 4,5:1 sur leur surface effectivement rendue, dans les
   deux thèmes ; le contraste tient compte de l'encre et du fond teinté.
@@ -143,6 +146,10 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
 - L'aperçu de leçon du configurateur défile aussi avec un signal explicite :
   le contenu réel et son bouton de pratique restent accessibles à 320 × 568,
   texte doublé. Les libellés des sections peuvent revenir à la ligne.
+- Le bouton de lancement du configurateur garde un minimum de 52 pixels et
+  grandit avec son libellé ; le pied réserve sa hauteur réelle. Le texte
+  « Commencer · 100 cartes » reste entier à 320 × 568 et texte doublé,
+  sans recouvrir le contenu, puis lance la quantité choisie.
 - Dans le lecteur de leçon, une hauteur disponible inférieure à 400 pixels
   ou un titre agrandi d'au moins 50 % place le titre, la page et la pagination
   dans le même défilement signalé.

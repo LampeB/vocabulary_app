@@ -188,6 +188,8 @@ class AudioPlayerService {
   ) async {
     try {
       await _tts.speak(text, langCode);
+    } on AudioPlaybackCancelled {
+      if (requirePlayback) rethrow;
     } on TtsRejected catch (error) {
       if (requirePlayback) rethrow;
       sttLog('[TTS] optional playback failed: $error');

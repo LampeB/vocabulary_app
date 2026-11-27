@@ -1,6 +1,8 @@
 import 'dart:async' show unawaited;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/foundation.dart'
+    show debugPrint, debugPrintStack, kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,6 +15,7 @@ import '../../../domain/repositories/progress_repository.dart';
 import '../../../domain/repositories/vocabulary_repository.dart';
 import '../../../domain/usecases/quiz/get_due_cards_usecase.dart';
 import '../../../domain/usecases/quiz/submit_answer_usecase.dart';
+import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/utils/answer_validator.dart';
 import '../../../core/utils/fsrs_algorithm.dart';
@@ -341,20 +344,58 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
 
   Future<void> loadCards(QuizArgs args, {String? promptLocale}) async {
     final userId = ref.read(currentUserProvider)?.id;
-    state = _newSessionState(args: args, userId: userId);
+    final loading = _newSessionState(args: args, userId: userId);
     final epoch = _sessionEpoch;
+    state = loading;
 
-    final ownerId = userId ?? '';
-
-    if (args.source == QuizSource.grammar) {
-      await _loadGrammarCards(
-        args,
-        epoch,
-        ownerId,
-        promptLocale ?? Intl.defaultLocale?.split(RegExp('[_-]')).first ?? 'en',
-      );
-      return;
+    try {
+      if (!_isCurrentSession(epoch)) return;
+      final ownerId = userId ?? '';
+      if (args.source == QuizSource.grammar) {
+        await _loadGrammarCards(
+          args,
+          epoch,
+          ownerId,
+          promptLocale ??
+              Intl.defaultLocale?.split(RegExp('[_-]')).first ??
+              'en',
+        );
+      } else {
+        await _loadVocabularyCards(args, epoch, ownerId);
+      }
+    } catch (error, stackTrace) {
+      _failCardLoad(epoch, error, stackTrace: stackTrace);
     }
+  }
+
+  void _failCardLoad(int epoch, Object? error, {StackTrace? stackTrace}) {
+    if (!_isCurrentSession(epoch)) return;
+    state = state.copyWith(
+      isLoading: false,
+      errorMessage: 'quiz.load_failed'.tr(),
+    );
+    if (kDebugMode) {
+      final detail = error is AppException
+          ? '${error.runtimeType}: ${error.message}'
+          : '$error';
+      final diagnostic = '[QUIZ] Card preparation failed: $detail';
+      if (stackTrace == null) {
+        debugPrint(diagnostic);
+      } else {
+        debugPrintStack(
+          label: diagnostic,
+          stackTrace: stackTrace,
+          maxFrames: 10,
+        );
+      }
+    }
+  }
+
+  Future<void> _loadVocabularyCards(
+    QuizArgs args,
+    int epoch,
+    String ownerId,
+  ) async {
     final getDueCards = ref.read(getDueCardsUseCaseProvider);
     final distinctCardsOnly =
         args.distinctCardsOnly || args.source == QuizSource.allDue;
@@ -388,11 +429,7 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
       );
       if (!_isCurrentSession(epoch)) return;
       if (frResult.isFailure && koResult.isFailure) {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage:
-              frResult.exceptionOrNull?.message ?? 'Failed to load cards',
-        );
+        _failCardLoad(epoch, frResult.exceptionOrNull);
         return;
       }
       // Distinct-card sessions can fill unused places from either direction.
@@ -417,11 +454,7 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
       );
       if (!_isCurrentSession(epoch)) return;
       if (result.isFailure) {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage:
-              result.exceptionOrNull?.message ?? 'Failed to load cards',
-        );
+        _failCardLoad(epoch, result.exceptionOrNull);
         return;
       }
       progressList = result.valueOrNull ?? [];

@@ -2,7 +2,6 @@ import 'dart:async' show unawaited;
 import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1040,9 +1039,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       }
     });
 
-    ref.listen(_quiz.select((state) => state.errorMessage), (_, error) {
-      if (kDebugMode && error != null) debugPrint('[QUIZ] Unavailable: $error');
-    });
     if (!_sessionStarted || quizState.isLoading) {
       return const Scaffold(
         body: Center(

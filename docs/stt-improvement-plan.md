@@ -75,6 +75,10 @@ arrière-plan et réessaie une fois la seule opération native refusée.
 Un arrêt TTS confirmé permet de rejouer la consigne quand une réponse de
 configuration de langue est perdue. La réponse tardive d'un ancien tour
 ne remet pas sa voix en service.
+L'arrêt confirmé termine aussi l'attente Dart d'une synthèse interrompue,
+même si le moteur natif ne répond plus à la commande de lecture. Une réponse
+tardive de cette synthèse laisse l'activité de la lecture suivante intacte.
+Un refus d'arrêt conserve l'activité des lectures encore en cours.
 `SttRace` et `VoiceTurnMachine` ignorent les résultats arrivés après la fin du
 tour pour empêcher une réponse de contaminer la carte suivante.
 La fermeture de la capture attend sa dernière portion audio et l'inscrit dans

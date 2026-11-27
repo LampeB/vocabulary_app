@@ -977,3 +977,47 @@ complète est propre ; les 25 diagnostics ciblés passent avec opt-in. Les
 migrations, fonctions Edge, outils, workflows et versions de dépendances
 restent inchangés depuis leurs contrôles précédents. Le garde documentaire,
 le formatage et le contrôle d'historique restent requis avant la revue 19.
+
+## Dix-neuvième itération — `789f684`
+
+Les quatre verdicts finaux ont été réunis sur
+`789f6849affda448ea6c690cdbef9bc4a82a02f3` avant toute correction. Le profil
+sécurité rend `PROPRE`, les trois autres rendent `BLOQUÉ`. Les **5 Important
+bruts donnent 4 constats distincts** : les exceptions de préparation du quiz
+sont communes aux rapports qualité et correction. Aucun Bloquant ni Suggestion.
+Convergence collective **0/2** ; la prochaine passe est **20**, plafond convenu.
+
+| Profil / instance | Verdict | Important | Suggestion |
+| --- | --- | --- | --- |
+| Produit — `/root/r19_product` | BLOQUÉ | 2 | 0 |
+| Qualité — `/root/r19_quality` | BLOQUÉ | 2 | 0 |
+| Correction — `/root/r19_correctness` | BLOQUÉ | 1 | 0 |
+| Sécurité — `/root/r19_security` | PROPRE | 0 | 0 |
+
+| Type | Constat distinct | Correction et preuve ciblée |
+| --- | --- | --- |
+| Important | Attente TTS annulée sur iOS laissant isSpeaking actif | Attentes Dart et activité par lecture/génération, annulées après ACK natif ; ancien speak sans réponse, refus/reprise et réponse tardive testés sur canal simulé |
+| Important | Exceptions de préparation laissant le quiz sur le spinner | Frontière commune pour vocabulaire et grammaire, publication d'échec sous garde de séance/compte/époque ; SQLite jetant après sélection, provider de grammaire rejeté et ancien échec après nouveau succès testés |
+| Important | Libellé de lancement rogné à texte doublé | Bouton de hauteur intrinsèque avec minimum 52 et pied réservé par Scaffold ; glyphes complets du vrai lancement FR de 100 cartes à 320 × 568 puis QuizArgs vérifiés |
+| Important | Catalogue de navigation contredisant les suites maintenues | Neuf cibles CI, cinq suites dans l'umbrella et quatre scénarios de navigation documentés ; cloche/Social non crédités, ancien incident marqué historique et validation hébergée séparée |
+
+Les treize tests TTS ciblés passent, dont arrêt acquitté sans réponse à
+l'ancien speak, arrêt partagé, refus/reprise, modes strict/facultatif et
+résultat tardif sans effet sur la nouvelle lecture. Les treize tests quiz/
+configurateur ciblés passent ; ces périmètres ne sont pas additionnés.
+Les huit checks CI sont verts sur `789f684`.
+
+La suite finale passe : **1 234 tests hôte**, douze diagnostics positifs
+exclus sans opt-in, couverture **75,9 %** (14 519 / 19 123 lignes). L'analyse
+complète est propre ; les 25 diagnostics ciblés passent avec opt-in. Le
+commentaire d'en-tête du test de navigation est aussi aligné mécaniquement
+sur ses quatre scénarios. Les migrations, fonctions Edge, outils, workflows
+et versions de dépendances restent inchangés depuis leurs contrôles précédents.
+Le garde documentaire, le formatage et le contrôle d'historique restent requis
+avant la passe 20.
+
+Après le commit de correction, une passe 20 propre ne fournirait que le
+premier verdict collectif propre de ce nouveau SHA. La limite de vingt
+interdit d'inventer la seconde lecture ou de réutiliser une ancienne tête ;
+la fusion et l'approbation automatique restent donc conditionnées à une
+décision utilisateur si la convergence dépasse ce plafond.

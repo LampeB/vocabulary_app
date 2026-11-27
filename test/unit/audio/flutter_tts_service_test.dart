@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vocab_kr/services/audio/audio_player_service.dart';
+import 'package:vocab_kr/services/audio/audio_ports.dart';
 import 'package:vocab_kr/services/audio/flutter_tts_service.dart';
 
 const _channel = MethodChannel('flutter_tts');
@@ -160,15 +162,111 @@ void main() {
       speakGate = Completer<void>();
 
       final speaking = tts.speak('bonjour', 'fr');
+      final cancelled = expectLater(
+        speaking,
+        throwsA(isA<AudioPlaybackCancelled>()),
+      );
       await Future<void>.delayed(Duration.zero);
       expect(tts.isSpeaking, isTrue);
       await tts.stop();
       expect(names().where((name) => name == 'stop'), hasLength(2));
-      speakGate!.complete();
-      await speaking;
+      await cancelled;
       expect(tts.isSpeaking, isFalse);
+      speakGate!.complete();
     },
   );
+
+  for (final lateReply in [false, true]) {
+    test(
+      'confirmed stop retires unanswered speech (late reply: $lateReply)',
+      () async {
+        final previous = Completer<int>();
+        final next = Completer<int>();
+        final firstSpeak = Completer<void>();
+        final secondSpeak = Completer<void>();
+        final stops = <Completer<int>>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(_channel, (call) async {
+              switch (call.method) {
+                case 'getEngines':
+                  return <Object>[];
+                case 'speak':
+                  if (call.arguments == 'ancien') {
+                    firstSpeak.complete();
+                    return previous.future;
+                  }
+                  secondSpeak.complete();
+                  return next.future;
+                case 'stop':
+                  final reply = Completer<int>();
+                  stops.add(reply);
+                  return reply.future;
+              }
+              return 1;
+            });
+
+        final tts = FlutterTtsService();
+        final interrupted = expectLater(
+          tts.speak('ancien', 'fr'),
+          throwsA(isA<AudioPlaybackCancelled>()),
+        );
+        await firstSpeak.future;
+        final refusal = expectLater(tts.stop(), throwsA(isA<TtsRejected>()));
+        expect(stops, hasLength(1));
+        expect(tts.isSpeaking, isTrue);
+        stops.single.complete(0);
+        await refusal;
+        expect(tts.isSpeaking, isTrue);
+
+        final release = tts.stop();
+        expect(identical(tts.stop(), release), isTrue);
+        expect(stops, hasLength(2));
+        expect(tts.isSpeaking, isTrue);
+        stops.last.complete(1);
+        await release;
+        await interrupted.timeout(const Duration(seconds: 1));
+        expect(previous.isCompleted, isFalse);
+        expect(tts.isSpeaking, isFalse);
+
+        final fresh = tts.speak('nouveau', 'fr');
+        await secondSpeak.future;
+        expect(tts.isSpeaking, isTrue);
+        if (lateReply) {
+          previous.completeError(PlatformException(code: 'LateOldSpeechError'));
+          await Future<void>.delayed(Duration.zero);
+          expect(tts.isSpeaking, isTrue);
+        }
+        next.complete(1);
+        await fresh.timeout(const Duration(seconds: 1));
+        expect(tts.isSpeaking, isFalse);
+      },
+    );
+  }
+
+  for (final required in [false, true]) {
+    test(
+      'player handles interrupted device speech (required: $required)',
+      () async {
+        final tts = FlutterTtsService();
+        final audio = AudioPlayerService(usePremium: false, tts: tts);
+        speakGate = Completer<void>();
+        final playback = audio.speak(
+          'bonjour',
+          'fr',
+          requirePlayback: required,
+        );
+        final result = required
+            ? expectLater(playback, throwsA(isA<AudioPlaybackCancelled>()))
+            : playback;
+        await Future<void>.delayed(Duration.zero);
+        expect(audio.isSpeaking, isTrue);
+        await tts.stop();
+        await result.timeout(const Duration(seconds: 1));
+        expect(speakGate!.isCompleted, isFalse);
+        expect(audio.isSpeaking, isFalse);
+      },
+    );
+  }
 
   test('dispose stops every created native voice', () async {
     final tts = FlutterTtsService();
@@ -176,8 +274,7 @@ void main() {
     await tts.warmUp('ko');
     calls.clear();
 
-    tts.dispose();
-    await Future<void>.delayed(Duration.zero);
+    await tts.dispose();
 
     expect(names().where((name) => name == 'stop'), hasLength(2));
   });
@@ -200,7 +297,7 @@ void main() {
           expect(names(), [method]);
 
           if (dispose) {
-            tts.dispose();
+            await tts.dispose();
           } else {
             await tts.stop();
           }

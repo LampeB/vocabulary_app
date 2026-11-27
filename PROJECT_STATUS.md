@@ -97,15 +97,15 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **1 227 tests hôte passent**, avec **75,9 %**
+- L'analyse Flutter est propre ; les **1 234 tests hôte passent**, avec **75,9 %**
   de couverture sur le dernier lot du 27 novembre. Douze tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 25 tests ciblés. La sonde compilée en mode produit confirme le
   refus des diagnostics, même avec l'option fournie.
-- Sur `b6ec398`, les huit checks CI, dont les tests hôte, le wrapper SQL,
+- Sur `789f684`, les huit checks CI, dont les tests hôte, le wrapper SQL,
   Android et le simulateur iOS, sont verts. Le pont utilise le NDK 28.2 de
-  l'application. Les dix-huit premières itérations n'ont pas encore convergé ;
-  le profil sécurité est propre aux dix-septième et dix-huitième sur deux
+  l'application. Les dix-neuf premières itérations n'ont pas encore convergé ;
+  le profil sécurité est propre de la dix-septième à la dix-neuvième sur trois
   commits différents. Les corrections sont consignées dans
   [le registre du 27 novembre](docs/reviews/2026-11-27-integration.md).
   Le sas exige deux revues propres sur le commit final ; les verdicts et les
@@ -113,7 +113,7 @@ de contenu avant bêta pédagogique.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **1 227** tests hôte réussis lors de la dernière validation locale
+- La suite compte **1 234** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - Les dix-sept suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
@@ -244,6 +244,13 @@ de contenu avant bêta pédagogique.
   propre. Une ancienne préparation, expiration ou fin de son ne peut pas
   valider ni arrêter sa remplaçante ; le son précédent doit être arrêté
   avant de préparer le nouveau signal.
+- Après un arrêt TTS acquitté, l'attente Dart de la génération arrêtée se
+  termine même si le plugin iOS ne répond jamais à l'ancien `speak`. Une
+  réponse tardive ne retire pas l'activité d'une nouvelle lecture.
+- La frontière d'erreur du quiz couvre toute la préparation, y compris
+  SQLite après sélection et les futurs de grammaire, sans écraser une séance
+  plus récente. Le bouton du configurateur grandit avec le texte et réserve
+  son vrai pied ; 100 cartes restent lisibles et lançables à texte doublé.
 - Les imports superposés ne consomment leur résultat que sur leur propre
   route visible. Une route masquant le quiz interrompt son micro. Les tours
   mains-libres attendent le résultat du prompt, les transcriptions longues

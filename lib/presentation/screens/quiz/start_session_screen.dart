@@ -136,7 +136,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
         children: [
           const Positioned.fill(child: V3Pond(animate: false)),
           ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
             children: [
               Text(
                 'v3.configure'.tr(),
@@ -278,49 +278,52 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
               ),
             ],
           ),
-          // Pinned Commencer CTA.
-          Positioned(
-            left: 20,
-            right: 20,
-            bottom: 16 + MediaQuery.of(context).padding.bottom,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: footer,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: dark ? V3Colors.ruleDark : V3Colors.edgeWarm2,
-                ),
+        ],
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: footer,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: dark ? V3Colors.ruleDark : V3Colors.edgeWarm2,
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: SizedBox(
-                  height: 52,
-                  child: ElevatedButton.icon(
-                    key: const ValueKey(WidgetKeys.startSessionStart),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: V3Colors.terra,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(11),
-                      ),
-                    ),
-                    onPressed: _canStart ? _start : null,
-                    icon: const Icon(Icons.play_arrow_rounded, size: 22),
-                    label: Text(
-                      _count == null
-                          ? 'start_session.start'.tr()
-                          : 'start_session.start_with_count'.tr(
-                              namedArgs: {'count': _count.toString()},
-                            ),
-                      style: AppTextStyles.fig(15, FontWeight.w700),
-                    ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: ElevatedButton.icon(
+                key: const ValueKey(WidgetKeys.startSessionStart),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(0, 52),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
                   ),
+                  backgroundColor: V3Colors.terra,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                ),
+                onPressed: _canStart ? _start : null,
+                icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                label: Text(
+                  _count == null
+                      ? 'start_session.start'.tr()
+                      : 'start_session.start_with_count'.tr(
+                          namedArgs: {'count': _count.toString()},
+                        ),
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.fig(15, FontWeight.w700),
                 ),
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

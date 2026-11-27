@@ -2,9 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'helpers/steps.dart';
 import 'helpers/test_helpers.dart';
 
-// Navigation net: proves every signed-in destination is reachable and renders
-// its own screen. Covers the V0 bottom-nav tabs, the retained setup route, the
-// Home header bell, the Profile nav tiles, and a list → detail tap.
+// Navigation net for the V0 bottom-nav tabs, the retained setup route,
+// the Profile nav tiles, and a list → detail tap. Each maintained scenario
+// checks that its destination renders its own screen.
 //
 // Assertions use screen-root keys (WidgetKeys.screen*), never localized text, so
 // a copy/locale change can't break them — only an actual routing regression can.
