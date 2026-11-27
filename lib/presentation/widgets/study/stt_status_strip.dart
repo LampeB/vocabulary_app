@@ -97,6 +97,13 @@ class SttStatusStrip extends StatelessWidget {
           color: dark ? V3Colors.amber : V3Colors.terra,
           dark: dark,
         );
+      case SttEngineState.partial:
+        return _Chip(
+          icon: Icons.hearing_rounded,
+          text: '$name · « ${e.transcript ?? ''} »',
+          color: muted,
+          dark: dark,
+        );
       case SttEngineState.heard:
         return _Chip(
           icon: e.matched ? Icons.check_rounded : Icons.close_rounded,

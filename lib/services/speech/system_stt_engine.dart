@@ -10,11 +10,15 @@ import 'stt_engine.dart';
 /// enforces that. In field logs this is the fastest, most accurate engine for
 /// the languages it supports, so register it first (priority order).
 class SystemSttEngine implements SttEngine {
-  SystemSttEngine(this._service, {Set<String>? languages})
-    : _languages = languages ?? Languages.supported.toSet();
+  SystemSttEngine(
+    this._service, {
+    required this.onDevice,
+    Set<String>? languages,
+  }) : _languages = languages ?? Languages.supported.toSet();
 
   final SystemSpeechCapture _service;
   final Set<String> _languages;
+  final bool onDevice;
   bool _ready = false;
 
   // The service exposes a single onListeningDone callback, owned by the quiz
@@ -34,10 +38,8 @@ class SystemSttEngine implements SttEngine {
   @override
   SttCapture get capture => SttCapture.ownsMicrophone;
 
-  /// Platform recognizers can run on downloaded offline packs; when they
-  /// can't, they fail fast and the turn machine's ladder takes over.
   @override
-  bool get requiresNetwork => false;
+  bool get requiresNetwork => !onDevice;
 
   @override
   bool get isReady => _ready;
@@ -47,7 +49,9 @@ class SystemSttEngine implements SttEngine {
 
   @override
   Future<void> prepare() async {
-    _ready = await _service.initialize();
+    _ready =
+        (!onDevice || await _service.supportsOnDeviceRecognition()) &&
+        await _service.initialize();
   }
 
   @override
@@ -57,6 +61,7 @@ class SystemSttEngine implements SttEngine {
     required void Function(SttHypothesis) onHypothesis,
     void Function()? onSessionEnd,
   }) {
+    if (!_ready) return Future.value(false);
     if (onSessionEnd != null) {
       if (!_hooked) {
         _restoreDone = _service.onListeningDone;
@@ -67,6 +72,7 @@ class SystemSttEngine implements SttEngine {
     }
     return _service.startListening(
       langCode: langCode,
+      onDevice: onDevice,
       onResult: (primary, candidates) => onHypothesis(
         SttHypothesis(
           engineId: id,

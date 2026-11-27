@@ -7,7 +7,7 @@ import '../grammar_language_module.dart';
 /// conjugation and its regular plural. Lexical exceptions come from the rule
 /// data (`irregulars`, `overrides`) — same split as the Korean module
 /// (algorithms in code, exceptions in content).
-abstract class LatinGrammarModule implements GrammarLanguageModule {
+abstract class LatinGrammarModule extends GrammarLanguageModule {
   const LatinGrammarModule({this.conjugationIrregulars = const {}});
 
   /// Merged 'word|person' → form map mined from the language's conjugation
@@ -54,7 +54,7 @@ abstract class LatinGrammarModule implements GrammarLanguageModule {
         // verbs: 'stehe nicht auf', not 'stehe auf nicht').
         final direct = irregulars['$word|$negationPerson'] ?? irregulars[word];
         if (direct != null) {
-          return GrammarAnswer(expected: direct, accepted: [direct]);
+          return _negationAnswer(direct);
         }
         final base = _irregularOr(
           conjugationIrregulars,
@@ -66,7 +66,7 @@ abstract class LatinGrammarModule implements GrammarLanguageModule {
           (pattern ?? '{verb}').replaceAll('{verb}', base),
           base,
         );
-        return GrammarAnswer(expected: negated, accepted: [negated]);
+        return _negationAnswer(negated);
 
       case PluralMechanics(:final irregulars):
         final plural = irregulars[word] ?? pluralize(word);
@@ -97,6 +97,20 @@ abstract class LatinGrammarModule implements GrammarLanguageModule {
 
   /// Which person the negation drill wraps (usually p1sg).
   String get negationPerson => 'p1sg';
+
+  String? get _negationSubject => null;
+
+  GrammarAnswer _negationAnswer(String negated) {
+    final subject = _negationSubject;
+    return GrammarAnswer(
+      expected: negated,
+      accepted: [
+        negated,
+        if (subject != null && !negated.startsWith('$subject '))
+          '$subject $negated',
+      ],
+    );
+  }
 
   /// The verb form the negation pattern wraps — conjugated by default;
   /// English overrides to the bare infinitive ("don't eat").
@@ -196,6 +210,12 @@ class FrenchGrammarModule extends LatinGrammarModule {
 
   @override
   String get langCode => 'fr';
+
+  @override
+  String get negationPromptKey => 'grammar.drill.negate_fr_first_person';
+
+  @override
+  String get _negationSubject => 'je';
 
   @override
   String articlePhrase(String article, String word) =>

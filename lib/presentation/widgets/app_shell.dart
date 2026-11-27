@@ -23,9 +23,8 @@ final connectivityStreamProvider = StreamProvider<List<ConnectivityResult>>((
   return Connectivity().onConnectivityChanged;
 });
 
-/// Drains the outbound sync queue on login and whenever connectivity comes
-/// back. Watched by [AppShell] so it lives exactly as long as the signed-in
-/// shell. Skipped in TEST_MODE (same isolation rationale as syncOnLoginProvider).
+/// Restores unfinished inbound state, then drains outbound edits on login or
+/// reconnect. Both stay scoped to the signed-in shell.
 final pushOnReconnectProvider = Provider<void>((ref) {
   if (_kTestMode) return;
   final userId = ref.watch(currentUserProvider.select((user) => user?.id));
@@ -35,19 +34,41 @@ final pushOnReconnectProvider = Provider<void>((ref) {
     return value != null && !isOffline(value);
   }
 
+  var active = true;
+  var restoring = false;
   void drain() {
-    if (online()) unawaited(ref.read(pushSyncProvider).pushAll());
+    if (active && online() && !restoring) {
+      unawaited(ref.read(pushSyncProvider).pushAll());
+    }
+  }
+
+  Future<void> restoreThenDrain() async {
+    if (!active || !online() || restoring) return;
+    restoring = true;
+    try {
+      if (ref.read(syncOnLoginProvider).hasError) {
+        ref.invalidate(syncOnLoginProvider);
+      }
+      await ref.read(syncOnLoginProvider.future);
+    } catch (_) {
+      // A partial pull remains eligible for the next reconnect. Outbound
+      // changes can still be sent if their endpoint is reachable.
+    } finally {
+      restoring = false;
+    }
+    drain();
   }
 
   Timer? drainTimer;
-  ref.onDispose(() => drainTimer?.cancel());
+  ref.onDispose(() {
+    active = false;
+    drainTimer?.cancel();
+  });
   ref.listen(outboundMutationsProvider, (previous, next) {
     if (!next.hasValue) return;
     drainTimer?.cancel();
     if (!online()) return;
-    drainTimer = Timer(const Duration(milliseconds: 300), () {
-      drain();
-    });
+    drainTimer = Timer(const Duration(milliseconds: 300), drain);
   });
   ref.listen(connectivityStreamProvider, (prev, next) {
     final wasOnline =
@@ -57,11 +78,11 @@ final pushOnReconnectProvider = Provider<void>((ref) {
       drainTimer?.cancel();
     } else if (!wasOnline) {
       drainTimer?.cancel();
-      drain();
+      unawaited(restoreThenDrain());
     }
   });
   // Initial drain on login / app start.
-  drain();
+  unawaited(restoreThenDrain());
 });
 
 class AppShell extends ConsumerWidget {

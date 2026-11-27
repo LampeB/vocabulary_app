@@ -148,7 +148,7 @@ class GrammarDrillGenerator {
           'grammar.drill.conjugate',
           {'word': word.word},
         ),
-        NegationMechanics() => ('grammar.drill.negate', {'word': word.word}),
+        NegationMechanics() => (_module.negationPromptKey, {'word': word.word}),
         ArticleMechanics() => (
           'grammar.drill.article',
           {'word': word.word, 'rule': rule.title(promptLocale)},

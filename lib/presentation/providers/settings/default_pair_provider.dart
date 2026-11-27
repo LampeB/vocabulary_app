@@ -5,8 +5,8 @@ const _keyLangA = 'settings_default_lang_a';
 const _keyLangB = 'settings_default_lang_b';
 
 /// The user's global learning pair — "je parle [a] / j'apprends [b]".
-/// Prefills the create-list language picker (each list still carries its own
-/// pair; this is only the default). Persisted across sessions.
+/// Selected explicitly in the header. Free-list creation has its own remembered
+/// pair and never changes this guided-learning context.
 final defaultPairProvider =
     NotifierProvider<DefaultPairNotifier, (String, String)>(
       DefaultPairNotifier.new,

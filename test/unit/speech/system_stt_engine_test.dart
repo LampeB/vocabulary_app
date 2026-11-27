@@ -7,13 +7,15 @@ import 'package:vocab_kr/services/speech/stt_engine.dart';
 import 'package:vocab_kr/services/speech/system_stt_engine.dart';
 
 class _FakeSystemCapture implements SystemSpeechCapture {
-  _FakeSystemCapture({this.initializeResult = true});
+  _FakeSystemCapture({this.initializeResult = true, this.supportsLocal = true});
 
   bool initializeResult;
+  final bool supportsLocal;
   int initializations = 0;
   int stops = 0;
   int disposals = 0;
   String? language;
+  bool? onDevice;
   void Function(String, List<String>)? finalHandler;
   void Function(String, List<String>)? partialHandler;
 
@@ -30,12 +32,17 @@ class _FakeSystemCapture implements SystemSpeechCapture {
   }
 
   @override
+  Future<bool> supportsOnDeviceRecognition() async => supportsLocal;
+
+  @override
   Future<bool> startListening({
     required String langCode,
+    bool onDevice = false,
     required void Function(String primary, List<String> candidates) onResult,
     void Function(String primary, List<String> candidates)? onPartial,
   }) async {
     language = langCode;
+    this.onDevice = onDevice;
     finalHandler = onResult;
     partialHandler = onPartial;
     return true;
@@ -49,7 +56,11 @@ void main() {
   group('SystemSttEngine', () {
     test('prepares and adapts final and partial platform hypotheses', () async {
       final capture = _FakeSystemCapture();
-      final engine = SystemSttEngine(capture, languages: {'fr', 'ko'});
+      final engine = SystemSttEngine(
+        capture,
+        onDevice: true,
+        languages: {'fr', 'ko'},
+      );
       final hypotheses = <SttHypothesis>[];
 
       expect(engine.id, 'system');
@@ -67,6 +78,7 @@ void main() {
         onHypothesis: hypotheses.add,
       );
       expect(capture.language, 'ko');
+      expect(capture.onDevice, isTrue);
       capture.partialHandler!('고양', ['고양', '고양이']);
       capture.finalHandler!('고양이', ['고양이', '고양']);
 
@@ -85,7 +97,8 @@ void main() {
         final capture = _FakeSystemCapture();
         var legacyCalls = 0;
         capture.onListeningDone = () => legacyCalls++;
-        final engine = SystemSttEngine(capture);
+        final engine = SystemSttEngine(capture, onDevice: false);
+        await engine.prepare();
         var sessionEnds = 0;
 
         await engine.start(
@@ -105,7 +118,8 @@ void main() {
 
     test('a stale stop cannot remove a newer session-end callback', () async {
       final capture = _FakeSystemCapture();
-      final engine = SystemSttEngine(capture);
+      final engine = SystemSttEngine(capture, onDevice: true);
+      await engine.prepare();
       var latestSessionEnds = 0;
 
       await engine.start(
@@ -137,11 +151,42 @@ void main() {
 
     test('keeps not-ready state when platform initialization fails', () async {
       final capture = _FakeSystemCapture(initializeResult: false);
-      final engine = SystemSttEngine(capture);
+      final engine = SystemSttEngine(capture, onDevice: true);
 
       await engine.prepare();
       expect(engine.isReady, isFalse);
       expect(capture.initializations, 1);
     });
+
+    test(
+      'unavailable local capability cannot open a default recognizer',
+      () async {
+        final capture = _FakeSystemCapture(supportsLocal: false);
+        final local = SystemSttEngine(capture, onDevice: true);
+        await local.prepare();
+        expect(local.isReady, isFalse);
+        expect(capture.initializations, 0);
+        expect(
+          await local.start(
+            langCode: 'ko',
+            promptHints: const [],
+            onHypothesis: (_) {},
+          ),
+          isFalse,
+        );
+        expect(capture.language, isNull);
+
+        final explicit = SystemSttEngine(capture, onDevice: false);
+        await explicit.prepare();
+        expect(explicit.isReady, isTrue);
+        expect(explicit.requiresNetwork, isTrue);
+        await explicit.start(
+          langCode: 'ko',
+          promptHints: const [],
+          onHypothesis: (_) {},
+        );
+        expect(capture.onDevice, isFalse);
+      },
+    );
   });
 }

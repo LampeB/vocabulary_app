@@ -423,6 +423,19 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
     variantProgressTable,
   )..where((t) => t.userId.equals(userId) & t.variantId.isIn(variantIds))).go();
 
+  Future<int> deleteProgressForConcept({
+    required String userId,
+    required String conceptId,
+  }) {
+    final variants = selectOnly(wordVariantsTable)
+      ..addColumns([wordVariantsTable.id])
+      ..where(wordVariantsTable.conceptId.equals(conceptId));
+    return (delete(variantProgressTable)..where(
+          (t) => t.userId.equals(userId) & t.variantId.isInQuery(variants),
+        ))
+        .go();
+  }
+
   Future<List<VariantProgressTableData>> getUnsyncedProgress({
     String? userId,
   }) =>

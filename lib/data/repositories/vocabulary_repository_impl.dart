@@ -19,6 +19,7 @@ import '../../services/audio/audio_asset_path.dart';
 import 'package:drift/drift.dart' show Value, innerJoin;
 
 const _uuid = Uuid();
+const _accountRequired = AuthException('Sign in to save vocabulary');
 
 class VocabularyRepositoryImpl implements VocabularyRepository {
   VocabularyRepositoryImpl(
@@ -34,6 +35,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   final VocabularyRemoteDataSource _remote;
   final String _userId;
   final AppDatabase _database;
+  Future<void>? _activeRestoration;
 
   @override
   Stream<List<VocabularyList>> watchMyLists() => _listDao
@@ -47,6 +49,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     String langA = 'fr',
     String langB = 'ko',
   }) async {
+    if (_userId.isEmpty) return const Failure(_accountRequired);
     final now = DateTime.now();
     final list = VocabularyList(
       id: _uuid.v4(),
@@ -71,6 +74,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
 
   @override
   Future<Result<VocabularyList>> updateList(VocabularyList list) async {
+    if (_userId.isEmpty) return const Failure(_accountRequired);
     final updated = list.copyWith(updatedAt: DateTime.now(), isSynced: false);
     try {
       await _database.writeOutbound(
@@ -182,6 +186,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     String? exampleFr,
     String? exampleKo,
   }) async {
+    if (_userId.isEmpty) return const Failure(_accountRequired);
     final now = DateTime.now();
     final concept = Concept(
       id: _uuid.v4(),
@@ -226,6 +231,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     String? notes,
     String? category,
   }) async {
+    if (_userId.isEmpty) return const Failure(_accountRequired);
     final now = DateTime.now();
     final concept = Concept(
       id: _uuid.v4(),
@@ -294,6 +300,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
 
   @override
   Future<Result<Concept>> updateConcept(Concept concept) async {
+    if (_userId.isEmpty) return const Failure(_accountRequired);
     final updated = concept.copyWith(
       updatedAt: DateTime.now(),
       isSynced: false,
@@ -327,10 +334,13 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     try {
       await _database.writeOutbound(_userId, () async {
         final row = await _conceptDao.getById(conceptId);
+        if (row == null) return;
         await _conceptDao.softDelete(conceptId);
-        if (row != null) {
-          await _updateWordCount(row.listId, -1);
-        }
+        await _database.progressDao.deleteProgressForConcept(
+          userId: _userId,
+          conceptId: conceptId,
+        );
+        await _conceptDao.refreshListWordCount(row.listId);
       });
       return const Success(null);
     } catch (e) {
@@ -365,6 +375,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     String registerTag = 'neutral',
     bool isPrimary = false,
   }) async {
+    if (_userId.isEmpty) return const Failure(_accountRequired);
     final now = DateTime.now();
     final variantId = _uuid.v4();
     final variant = WordVariant(
@@ -396,6 +407,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
 
   @override
   Future<Result<WordVariant>> updateVariant(WordVariant variant) async {
+    if (_userId.isEmpty) return const Failure(_accountRequired);
     final updated = variant.copyWith(
       audioPath: AudioAssetPath.user(
         userId: _userId,
@@ -499,6 +511,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     String? sharedListId,
     String? shareToken,
   }) async {
+    if (_userId.isEmpty) return const Failure(_accountRequired);
     try {
       final listData = json['list'] as Map<String, dynamic>?;
       if (listData == null) {
@@ -656,6 +669,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
 
   @override
   Future<Result<String>> generateShareLink(String listId) async {
+    if (_userId.isEmpty) return const Failure(_accountRequired);
     try {
       final token = _uuid.v4().replaceAll('-', '');
       await _database.writeOutbound(
@@ -670,6 +684,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
 
   @override
   Future<Result<VocabularyList>> importFromShareToken(String token) async {
+    if (_userId.isEmpty) return const Failure(_accountRequired);
     // Return existing local copy if already imported (dedup by share token).
     final existing =
         await _listDao.getImportedCopy(token, _userId) ??
@@ -751,25 +766,36 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   }
 
   @override
-  Future<void> syncFromRemote() async {
-    if (_userId.isEmpty) return;
+  Future<void> syncFromRemote() {
+    if (_userId.isEmpty) return Future.value();
+    return _activeRestoration ??= _restore().whenComplete(() {
+      _activeRestoration = null;
+    });
+  }
+
+  Future<void> _restore() async {
     // Capture the whole account before any remote I/O. A push can acknowledge
     // an edit between the request and response, leaving isSynced=true again.
     final before = await _database.transaction(_snapshotForPull);
     final lists = <VocabularyList>[];
     final contents = <String, List<Map<String, dynamic>>>{};
     final result = await _remote.fetchLists(_userId);
-    if (result case Success(:final value)) {
-      for (final map in value) {
-        final list = map.toVocabularyListDomain();
-        if (list.ownerId != _userId) continue;
-        lists.add(list);
-        if (list.isDeleted) continue;
-        final concepts = await _remote.fetchConcepts(list.id);
-        if (concepts case Success(:final value)) contents[list.id] = value;
+    if (result case Failure(:final exception)) throw exception;
+    AppException? incomplete;
+    for (final map in result.valueOrNull!) {
+      final list = map.toVocabularyListDomain();
+      if (list.ownerId != _userId) continue;
+      lists.add(list);
+      if (list.isDeleted) continue;
+      switch (await _remote.fetchConcepts(list.id)) {
+        case Success(:final value):
+          contents[list.id] = value;
+        case Failure(:final exception):
+          incomplete ??= exception;
       }
     }
     final progress = await _remote.fetchProgress(_userId);
+    if (progress case Failure(:final exception)) incomplete ??= exception;
 
     await _database.transaction(() async {
       final current = await _snapshotForPull();
@@ -839,11 +865,10 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
             }
           }
         }
-        // Recount from actual non-deleted rows so the stored wordCount
-        // is always authoritative, regardless of what the remote sent.
-        final actualCount = await _conceptDao.countByList(list.id);
-        if (!keepLocalList) {
-          await _listDao.refreshWordCount(list.id, actualCount);
+        // The count follows the surviving concepts even when a pending rename
+        // or other local edit prevents replacing the list metadata.
+        if (contents.containsKey(list.id)) {
+          await _conceptDao.refreshListWordCount(list.id);
         }
       }
 
@@ -873,6 +898,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         await progressDao.applyPulledProgress(changedRows.values.toList());
       }
     });
+    if (incomplete != null) throw incomplete;
   }
 
   Future<_PullSnapshot> _snapshotForPull() async {

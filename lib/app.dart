@@ -84,13 +84,13 @@ class _PonderinAppState extends ConsumerState<PonderinApp> {
   void _initDeepLinks() {
     _appLinks = AppLinks();
     // Handle initial link (app was cold-started from a link).
-    _appLinks.getInitialLink().then(_handleLink);
+    _appLinks.getInitialLink().then((uri) => _handleLink(uri, coldStart: true));
     // Handle links while app is already running.
     _linkSub = _appLinks.uriLinkStream.listen(_handleLink);
   }
 
-  void _handleLink(Uri? uri) {
-    if (uri == null) return;
+  void _handleLink(Uri? uri, {bool coldStart = false}) {
+    if (!mounted || uri == null) return;
     // Supabase auth callback: vocabkr://auth/callback?...
     if (uri.scheme == 'vocabkr' && uri.host == 'auth') {
       Supabase.instance.client.auth.getSessionFromUrl(uri);
@@ -100,7 +100,17 @@ class _PonderinAppState extends ConsumerState<PonderinApp> {
     if (uri.scheme == 'vocabkr' && uri.host == 'import') {
       final token = uri.queryParameters['token'];
       if (token != null && token.isNotEmpty) {
-        _router.push('/import?token=$token');
+        final location = Uri(
+          path: '/import',
+          queryParameters: {'token': token},
+        ).toString();
+        // Replacing splash cancels its pending navigation when a cold link
+        // arrives before the profile. Warm links retain the previous surface.
+        if (coldStart) {
+          _router.go(location);
+        } else {
+          _router.push(location);
+        }
       }
     }
   }

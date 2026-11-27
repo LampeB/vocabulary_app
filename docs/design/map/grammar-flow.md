@@ -31,6 +31,8 @@ diagramme : `../diagrams/grammar-stage-ramp.svg`
   exceptions lexicales dans le contenu — même partage code/données que
   le module coréen
 - Prérequis par `seed_id` de liste du catalogue (plus jamais par nom)
+  et langue cible exacte. Une liste personnelle homonyme ne compte pas ;
+  l'adoption des anciens noms reste réservée à la migration des listes starter.
 
 ## Décidé (utilisateur, 2026-08-08, précisé le 2026-09-12) — porte hybride
 - La porte d'une règle se calcule sur l'ENSEMBLE de ses listes prérequises :

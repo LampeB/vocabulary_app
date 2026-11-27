@@ -168,6 +168,8 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
   /// The pending request may still enrich this identity when it completes.
   AppUser? useLocalSession() {
     final user = ref.read(authRepositoryProvider).currentUser;
+    final resolved = state.valueOrNull;
+    if (user != null && resolved?.id == user.id) return resolved;
     state = AsyncData(user);
     return user;
   }

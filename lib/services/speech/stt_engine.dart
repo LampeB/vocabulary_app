@@ -34,7 +34,7 @@ class SttHypothesis {
   final double confidence;
 
   /// A finished utterance vs a live partial. Partials drive UI feedback and
-  /// can win the race early (a validating partial ends the turn immediately).
+  /// can win a vocabulary race early. Grammar grading requires a final.
   final bool isFinal;
 }
 
@@ -97,5 +97,6 @@ abstract interface class SttEngine {
 }
 
 /// A shared decoder whose [SttEngine.stop] invalidates active and queued work
-/// synchronously. New PCM can be dispatched once decoder teardown finishes.
+/// synchronously. Active inference may finish and clean up while the next
+/// turn queues its PCM.
 abstract interface class CancellablePcmSttEngine implements SttEngine {}

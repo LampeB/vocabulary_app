@@ -6,6 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide StorageException;
 import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
 
+typedef ProvisionedAudio = ({String path, String word, String langCode});
+
 class VocabularyRemoteDataSource {
   VocabularyRemoteDataSource(this._client);
   final SupabaseClient _client;
@@ -182,15 +184,24 @@ class VocabularyRemoteDataSource {
   }
 
   /// Asks the authenticated server to render a newly created/edited custom
-  /// variant once and place it in Storage. Failures are intentionally silent:
-  /// sync retries the content, and device TTS remains the safe fallback.
-  Future<void> provisionAudio(String variantId) async {
+  /// variant once and place it in Storage. A failed or stale render leaves
+  /// device TTS available.
+  Future<ProvisionedAudio?> provisionAudio(String variantId) async {
     try {
-      await _client.functions.invoke(
+      final result = await _client.functions.invoke(
         'audio-provision',
         body: {'variant_id': variantId},
       );
+      if (result.data case {
+        'status': 'ready',
+        'audio_path': final String path,
+        'word': final String word,
+        'lang_code': final String langCode,
+      } when path.isNotEmpty) {
+        return (path: path, word: word, langCode: langCode);
+      }
     } catch (_) {}
+    return null;
   }
 
   Future<Result<List<Map<String, dynamic>>>> fetchProgress(

@@ -1,5 +1,7 @@
 package com.vocabkr.vocab_kr
 
+import android.os.Build
+import android.speech.SpeechRecognizer
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -8,6 +10,16 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "vocab_kr/system_speech")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "supportsOnDeviceRecognition" -> result.success(
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                            SpeechRecognizer.isOnDeviceRecognitionAvailable(applicationContext)
+                    )
+                    else -> result.notImplemented()
+                }
+            }
         val recognizer = PcmSpeechRecognizer(applicationContext)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "vocab_kr/pcm_speech")
             .setMethodCallHandler { call, result ->

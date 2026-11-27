@@ -26,6 +26,9 @@ enum SttEngineState {
   /// Transcribing (cloud: request sent; on-device: inference running).
   working,
 
+  /// Provisional grammar transcript, shown without a verdict.
+  partial,
+
   /// Produced a transcript — see [SttEngineStatus.transcript]/[matched].
   heard,
 

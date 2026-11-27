@@ -5,7 +5,7 @@ import 'package:vocab_kr/data/datasources/remote/vocabulary_remote_datasource.da
 /// All write calls succeed; all fetch calls return empty data.
 class FakeRemote implements VocabularyRemoteDataSource {
   @override
-  Future<void> provisionAudio(String variantId) async {}
+  Future<ProvisionedAudio?> provisionAudio(String variantId) async => null;
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async =>
       const Success([]);

@@ -187,8 +187,17 @@ class PushSync {
           save: (row, synced) => _conceptDao.upsert(
             conceptCompanionFromRemote(row, isSynced: synced),
           ),
-          onTombstone: () =>
-              _conceptDao.tombstoneConceptContents([r.id], list.ownerId),
+          onTombstone: () async {
+            await _conceptDao.tombstoneConceptContents([r.id], list.ownerId);
+            await _conceptDao.refreshListWordCount(r.listId);
+          },
+          onAuthoredTombstone: () async {
+            await _progressDao.deleteProgressForConcept(
+              userId: list.ownerId,
+              conceptId: r.id,
+            );
+            await _conceptDao.refreshListWordCount(r.listId);
+          },
         ),
         onChanged: retry,
       );
@@ -237,6 +246,7 @@ class PushSync {
     required Future<R?> Function(String) load,
     required Future<int> Function(Map<String, dynamic>, bool isSynced) save,
     required Future<void> Function() onTombstone,
+    Future<void> Function()? onAuthoredTombstone,
     void Function(Map<String, dynamic>)? afterAck,
   }) async {
     final payload = toRemote(submitted);
@@ -271,7 +281,13 @@ class PushSync {
       );
     }
     if (base == null) {
-      final value = await acknowledge(submitted);
+      final value = deleted && onAuthoredTombstone != null
+          ? await _listDao.transaction(() async {
+              final acknowledged = await acknowledge(submitted);
+              if (acknowledged == 1) await onAuthoredTombstone();
+              return acknowledged;
+            })
+          : await acknowledge(submitted);
       if (value == 1 && !deleted) afterAck?.call(server);
       return Success(value);
     }
@@ -325,6 +341,7 @@ class PushSync {
     await _conceptDao.tombstoneConceptContents([
       concept.id.value,
     ], list.ownerId);
+    await _conceptDao.refreshListWordCount(list.id);
   }
 
   static Map<String, dynamic> _changedFields(
@@ -372,7 +389,16 @@ class PushSync {
       final id = _pendingAudio.first;
       _pendingAudio.remove(id);
       try {
-        await _remote.provisionAudio(id);
+        final audio = await _remote.provisionAudio(id);
+        if (audio != null) {
+          await _conceptDao.applyProvisionedAudio(
+            variantId: id,
+            ownerId: _userId,
+            word: audio.word,
+            langCode: audio.langCode,
+            path: audio.path,
+          );
+        }
       } catch (_) {
         // The durable metadata has already landed. Device TTS is available.
       }

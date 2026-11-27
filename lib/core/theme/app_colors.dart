@@ -65,7 +65,7 @@ abstract final class AppColors {
   // ── Full-screen study feedback floods ─────────────────────────────────────
   // The redesign's grading takeover: a held, full-screen color flood (not a
   // tint) so it's catchable peripherally. Bright, max-separation, and
-  // **theme-independent** — identical in light and dark. White icon/text on top.
+  // **theme-independent** — identical in light and dark. Contrasted ink on top.
   static const feedbackCorrect = Color(0xFF2FA98C); // "Juste !"  (bright teal)
   static const feedbackWrong = Color(0xFFE8693C); // "À revoir" (bright orange)
 

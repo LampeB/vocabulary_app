@@ -2,9 +2,14 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
+import 'package:vocab_kr/core/languages.dart';
+import 'package:vocab_kr/presentation/providers/settings/default_pair_provider.dart';
+import 'package:vocab_kr/presentation/providers/settings/create_list_pair_provider.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
@@ -19,6 +24,7 @@ import '../../helpers/pump_screen.dart';
 
 void main() {
   setUpAll(initTestLocalization);
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
   late AppDatabase db;
   late VocabularyRepositoryImpl repo;
@@ -112,6 +118,67 @@ void main() {
     expect(pushedRoute, startsWith('/lists/'));
     await unmountScreen(tester);
   });
+
+  testWidgets(
+    'free-list pair is remembered without changing the plateau pair',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'settings_default_lang_a': 'en',
+        'settings_default_lang_b': 'ko',
+      });
+      await pump(tester);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(ListsScreen)),
+      );
+      container.read(defaultPairProvider);
+      await tester.pumpAndSettle();
+      expect(container.read(defaultPairProvider), ('en', 'ko'));
+      await tester.tap(byKey(WidgetKeys.listsFab));
+      await tester.pumpAndSettle();
+      await tester.enterText(byKey(WidgetKeys.listNameField), 'Espagnol libre');
+      await tester.tap(find.byType(DropdownButton<String>).at(0));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(Languages.displayName('fr')).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(DropdownButton<String>).at(1));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(Languages.displayName('es')).last);
+      await tester.pumpAndSettle();
+      await tester.tap(byKey(WidgetKeys.listNameConfirm));
+      await tester.pumpAndSettle();
+      expect(container.read(defaultPairProvider), ('en', 'ko'));
+      expect(container.read(createListPairProvider), ('fr', 'es'));
+      final lists = await tester.runAsync(() => repo.watchMyLists().first);
+      final created = lists!.singleWhere(
+        (list) => list.name == 'Espagnol libre',
+      );
+      expect((created.langA, created.langB), ('fr', 'es'));
+      await tester.tap(byKey(WidgetKeys.listsFab));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<DropdownButton<String>>(
+              find.byType(DropdownButton<String>).at(0),
+            )
+            .value,
+        'fr',
+      );
+      expect(
+        tester
+            .widget<DropdownButton<String>>(
+              find.byType(DropdownButton<String>).at(1),
+            )
+            .value,
+        'es',
+      );
+      await tester.tap(find.text('common.cancel'.tr()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Espagnol libre'));
+      await tester.pumpAndSettle();
+      expect(pushedRoute, '/lists/${created.id}');
+      await unmountScreen(tester);
+    },
+  );
 
   testWidgets('renaming a list through the tile menu updates the tile', (
     tester,

@@ -19,6 +19,11 @@
   2) choisir depuis quelle langue on l'apprend (base — langue des
   explications/leçons). Renforce la décision ci-dessus (pas de base
   fixe) au moment précis où elle compte le plus : la création
+- La paire du formulaire de liste libre est mémorisée séparément. Créer une
+  liste FR→ES la rend étudiable immédiatement sans remplacer la paire active
+  du plateau, du chemin ou des leçons ; seul le sélecteur d'en-tête change
+  ce contexte guidé. Sans préférence de création, le formulaire reprend la
+  paire active de l'en-tête.
 
 ## Décidé (utilisateur, 2026-07-22, livré en partie)
 - Toute feature doit marcher pour TOUTES les paires étudiables — rien de

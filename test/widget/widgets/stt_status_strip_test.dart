@@ -95,6 +95,21 @@ void main() {
     expect(find.byIcon(Icons.close_rounded), findsOneWidget);
   });
 
+  testWidgets('shows a provisional grammar transcript without a verdict', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      SttRaceStatus(
+        phase: SttPhase.speaking,
+        engines: [_e('system', SttEngineState.partial, text: '사과가')],
+      ),
+    );
+    expect(find.text('system · « 사과가 »'), findsOneWidget);
+    expect(find.byIcon(Icons.check_rounded), findsNothing);
+    expect(find.byIcon(Icons.close_rounded), findsNothing);
+  });
+
   testWidgets('waiting, empty and failed engines are labelled', (tester) async {
     await _pump(
       tester,

@@ -229,8 +229,8 @@ class RuleStatus {
 /// unlocking (≥80% weighted across its prerequisite lists, with ≥70% in each),
 /// rule progress
 /// gates "mastered". Prerequisites are matched by seed list id
-/// (`<id>:<any-source>><targetLang>`), falling back to display name for
-/// not-yet-adopted legacy lists.
+/// (`<id>:<source>><targetLang>`). Legacy starter names are adopted by seeding,
+/// never treated as an identity during prerequisite resolution.
 final grammarPrerequisitesProvider =
     FutureProvider.family<
       ({
@@ -250,7 +250,7 @@ final grammarPrerequisitesProvider =
       final progressRepo = ref.watch(progressRepositoryProvider);
 
       // Resolve each prerequisite token to the user's matching list: by seed id
-      // for catalog lists (any source language, this target), by name for legacy.
+      // for catalog lists (any source language, this exact target).
       final tokens = {for (final r in rules) ...r.prerequisiteLists};
       final prerequisiteProgress = <String, PrerequisiteProgress>{};
       final displayName = <String, String>{};
@@ -258,10 +258,8 @@ final grammarPrerequisitesProvider =
       for (final token in tokens) {
         final matches = [
           for (final l in lists)
-            if ((l.seedId != null &&
-                    l.seedId!.startsWith('$token:') &&
-                    l.langB == targetLang) ||
-                l.name == token)
+            if (l.seedId == '$token:${l.langA}>$targetLang' &&
+                l.langB == targetLang)
               l,
         ];
         var best = const PrerequisiteProgress(known: 0, total: 0);

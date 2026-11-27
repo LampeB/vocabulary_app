@@ -1,5 +1,9 @@
+import 'dart:convert';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/services/speech/speech_recognition_service.dart';
+import 'package:vocab_kr/services/speech/system_stt_engine.dart';
 
 class _FakeRecognizer implements SystemSpeechRecognizer {
   bool initializeResult = true;
@@ -10,10 +14,14 @@ class _FakeRecognizer implements SystemSpeechRecognizer {
   String? localeId;
   Duration? pauseFor;
   Duration? listenFor;
+  bool? onDevice;
   void Function(String message, bool permanent)? onError;
   void Function(String status)? onStatus;
   void Function(double level)? onSoundLevel;
   void Function(SystemRecognitionResult result)? onResult;
+
+  @override
+  Future<bool> supportsOnDeviceRecognition() async => true;
 
   @override
   Future<bool> initialize({
@@ -31,6 +39,7 @@ class _FakeRecognizer implements SystemSpeechRecognizer {
     required void Function(double level) onSoundLevel,
     required void Function(SystemRecognitionResult result) onResult,
     required String localeId,
+    required bool onDevice,
     required Duration pauseFor,
     required Duration listenFor,
   }) async {
@@ -38,6 +47,7 @@ class _FakeRecognizer implements SystemSpeechRecognizer {
     this.onSoundLevel = onSoundLevel;
     this.onResult = onResult;
     this.localeId = localeId;
+    this.onDevice = onDevice;
     this.pauseFor = pauseFor;
     this.listenFor = listenFor;
   }
@@ -50,6 +60,8 @@ class _FakeRecognizer implements SystemSpeechRecognizer {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test(
     'initializes once and translates partial/final hypotheses with alternates',
     () async {
@@ -69,6 +81,7 @@ void main() {
       expect(
         await service.startListening(
           langCode: 'ko',
+          onDevice: true,
           onResult: (word, candidates) => finals.add((word, candidates)),
           onPartial: (word, candidates) => partials.add((word, candidates)),
           pauseFor: const Duration(seconds: 2),
@@ -77,6 +90,7 @@ void main() {
         isTrue,
       );
       expect(native.localeId, 'ko-KR');
+      expect(native.onDevice, isTrue);
       expect(native.pauseFor, const Duration(seconds: 2));
       expect(native.listenFor, const Duration(seconds: 7));
 
@@ -127,6 +141,7 @@ void main() {
       expect(service.isListening, isTrue);
       expect(service.listenElapsedMs, 350);
       native.onStatus!('notListening');
+      expect(done, 0, reason: 'a native final can still arrive');
       native.onStatus!('done');
       expect(service.isListening, isFalse);
       expect(done, 1);
@@ -188,4 +203,83 @@ void main() {
       isFalse,
     );
   });
+
+  testWidgets(
+    'Android requests on-device speech and keeps partials provisional',
+    (tester) async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      const system = MethodChannel('vocab_kr/system_speech');
+      const speech = MethodChannel('plugin.csdcorp.com/speech_to_text');
+      var installed = false;
+      messenger.setMockMethodCallHandler(system, (call) async {
+        expect(call.method, 'supportsOnDeviceRecognition');
+        return installed;
+      });
+      final listenOptions = <Map<Object?, Object?>>[];
+      messenger.setMockMethodCallHandler(speech, (call) async {
+        if (call.method == 'listen') {
+          listenOptions.add(call.arguments as Map<Object?, Object?>);
+        }
+        return true;
+      });
+      addTearDown(() {
+        messenger.setMockMethodCallHandler(system, null);
+        messenger.setMockMethodCallHandler(speech, null);
+      });
+      final engine = SystemSttEngine(
+        SpeechRecognitionService(),
+        onDevice: true,
+      );
+      await engine.prepare();
+      expect(engine.isReady, isFalse);
+      expect(
+        await engine.start(
+          langCode: 'ko',
+          promptHints: const [],
+          onHypothesis: (_) {},
+        ),
+        isFalse,
+      );
+      expect(listenOptions, isEmpty);
+
+      installed = true;
+      await engine.prepare();
+      expect(engine.isReady, isTrue);
+      final hypotheses = <bool>[];
+      expect(
+        await engine.start(
+          langCode: 'ko',
+          promptHints: const [],
+          onHypothesis: (hypothesis) => hypotheses.add(hypothesis.isFinal),
+        ),
+        isTrue,
+      );
+      expect(listenOptions.single['onDevice'], isTrue);
+      await messenger.handlePlatformMessage(
+        speech.name,
+        speech.codec.encodeMethodCall(
+          MethodCall(
+            'textRecognition',
+            jsonEncode({
+              'resultType': 0,
+              'alternates': [
+                {'recognizedWords': '사과가', 'confidence': .8},
+              ],
+            }),
+          ),
+        ),
+        null,
+      );
+      expect(hypotheses, [false]);
+      await engine.stop();
+      await tester.pump(const Duration(seconds: 3));
+      expect(
+        hypotheses,
+        [false],
+        reason: 'the plugin must not promote the last partial to final',
+      );
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
 }

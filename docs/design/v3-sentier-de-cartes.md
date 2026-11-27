@@ -58,6 +58,10 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
 - Les feuilles papier du plateau utilisent une encre explicite dans les deux
   thèmes. Les ondulations s'arrêtent avec la réduction des animations ou un
   sous-arbre inactif ; le prototype de parcours sans route est retiré.
+- Le verdict conserve ses fonds de couleur, avec texte et rappel contrastés.
+  Continuer est un bouton focalisable : une seconde activation Entrée après
+  la réponse fait avancer la révision. La paire d'une nouvelle liste libre
+  est mémorisée sans changer le contexte guidé choisi dans l'en-tête.
 
 ## Limites connues à corriger avant de qualifier V3 de complète
 

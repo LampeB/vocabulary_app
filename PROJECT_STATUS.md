@@ -90,29 +90,30 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **967 tests hôte passent**, avec **69,0 %**
+- L'analyse Flutter est propre ; les **988 tests hôte passent**, avec **69,3 %**
   de couverture sur le dernier lot du 27 novembre. Huit tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 21 tests ciblés. La sonde compilée en mode produit confirme le
   refus des diagnostics, même avec l'option fournie.
-- Sur `602835c`, les sept checks CI, dont les tests hôte, le wrapper SQL et la
+- Sur `f7827da`, les sept checks CI, dont les tests hôte, le wrapper SQL et la
   compilation native Android, sont verts. Le pont utilise le NDK 28.2 de
-  l'application. Les cinq premières itérations des quatre relecteurs restent
-  bloquées ; le lot courant traite les 14 Important de la cinquième passe dans
+  l'application. Les six premières itérations des quatre relecteurs restent
+  bloquées ; le lot courant traite les 17 Important de la sixième passe dans
   [le registre du 27 novembre](docs/reviews/2026-11-27-integration.md). Aucun
   compteur propre n'est acquis : il faut deux revues propres sur le commit final.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **967** tests hôte réussis lors de la dernière validation locale
+- La suite compte **988** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - Les six suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
   réelles, dont la nouvelle protection des tombstones. Deux connexions ont
   vérifié le verrou du reset et le refus de l'écriture concurrente ; la CI de
-  `602835c` confirme le wrapper Bash des cinq suites précédentes.
-  Les cinq tests Python E2E, seize tests Deno et vingt-et-un tests du bot
-  passent dans le lot courant. Le bot refuse aussi une CI verte issue d'un
+  `f7827da` confirme le wrapper Bash des six suites.
+  Les cinq tests Python E2E, vingt-quatre tests Deno, vingt-et-un tests du bot
+  et quatre tests du déploiement passent dans le lot courant. Le bot refuse
+  aussi une CI verte issue d'un
   autre workflow ou évaluée contre une autre base.
 - La CI Patrol contient neuf suites Android, lançables manuellement avec des
   secrets Supabase : navigation, auth, flux utilisateur, chemin quotidien,

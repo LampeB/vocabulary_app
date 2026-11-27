@@ -23,12 +23,16 @@ class _SharedListRemote extends FakeRemote {
   final storedConcepts = <String, Map<String, dynamic>>{};
   final storedVariants = <String, Map<String, dynamic>>{};
   bool writesOffline = false;
+  int publicFetches = 0;
   Future<void> Function()? onImportedListResponse;
 
   @override
   Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(
     String token,
-  ) async => Success(payload);
+  ) async {
+    publicFetches++;
+    return Success(payload);
+  }
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async =>
@@ -220,6 +224,24 @@ void main() {
   });
 
   group('importFromShareToken', () {
+    test(
+      'an anonymous repository never persists new lists or requests an import',
+      () async {
+        final remote = _SharedListRemote(_sharedPayload());
+        final signedOut = repoWith(remote, ownerId: '');
+        for (final result in [
+          await signedOut.createList(name: 'No account'),
+          await signedOut.importFromJson({
+            'list': {'name': 'JSON'},
+          }),
+          await signedOut.importFromShareToken('link'),
+        ]) {
+          expect(result.exceptionOrNull, isA<AuthException>());
+        }
+        expect(remote.publicFetches, 0);
+        expect(await db.vocabularyListDao.getUnsyncedLists(), isEmpty);
+      },
+    );
     test('unknown token → NotFoundException', () async {
       final repo = repoWith(_SharedListRemote(null));
       final result = await repo.importFromShareToken('nope');
@@ -603,6 +625,7 @@ void main() {
       ))!;
       expect(localList.isDeleted, listDeleted);
       expect(localConcept.isDeleted, listDeleted || target == 'concept');
+      if (target == 'concept') expect(localList.wordCount, 0);
       expect(localVariant.isDeleted, isTrue);
       expect(await device.progressDao.getById('saved-card'), isNull);
       expect(

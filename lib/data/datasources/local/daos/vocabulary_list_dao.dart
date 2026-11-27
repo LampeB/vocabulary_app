@@ -151,9 +151,10 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
 
   /// Refresh a derived count after pull without manufacturing a local edit.
   Future<int> refreshWordCount(String listId, int count) =>
-      (update(vocabularyListsTable)..where((t) => t.id.equals(listId))).write(
-        VocabularyListsTableCompanion(wordCount: Value(count)),
-      );
+      (update(vocabularyListsTable)..where(
+            (t) => t.id.equals(listId) & t.wordCount.equals(count).not(),
+          ))
+          .write(VocabularyListsTableCompanion(wordCount: Value(count)));
 
   /// Retro-tags a pre-catalog starter list with its stable seed identity
   /// (legacy adoption — see StarterSeeder).

@@ -359,6 +359,8 @@
   "grammar.drill.particle_variant": "「{word}」に{hint}の助詞を付けてください",
   "grammar.drill.conjugate": "「{word}」を丁寧形の現在形に活用してください",
   "grammar.drill.negate": "「{word}」を否定形にしてください",
+  "grammar.drill.negate_fr_first_person": "「{word}」を一人称単数の現在否定形にしてください。主語の「je」は省略できます。",
+  "grammar.drill.spoken_word": "次の単語",
   "grammar.hint.subject": "主語",
   "grammar.hint.object": "目的語",
   "grammar.hint.destination_or_time": "方向・時間",

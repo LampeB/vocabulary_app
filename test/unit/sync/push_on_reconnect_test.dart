@@ -4,6 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
@@ -16,11 +17,43 @@ import '../../helpers/fake_remote.dart';
 
 class _CountingPushSync implements PushSync {
   int calls = 0;
+  final first = Completer<void>();
   @override
-  Future<int> pushAll() async => ++calls;
+  Future<int> pushAll() async {
+    if (!first.isCompleted) first.complete();
+    return ++calls;
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
+
+class _RestorationRemote extends FakeRemote {
+  bool offline = false;
+  int pulls = 0;
+  final requested = Completer<void>();
+  final release = Completer<void>();
+
+  @override
+  Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async {
+    pulls++;
+    if (offline) return const Failure(NetworkException('offline'));
+    if (!requested.isCompleted) requested.complete();
+    await release.future;
+    return Success([
+      {
+        'id': 'restored-list',
+        'owner_id': ownerId,
+        'name': 'Restored Vocabulary',
+        'created_at': '2026-11-27T00:00:00Z',
+        'updated_at': '2026-11-27T00:00:00Z',
+      },
+    ]);
+  }
+}
+
+AppUser _user(String id) =>
+    AppUser(id: id, email: '$id@test', username: id, createdAt: DateTime(2026));
 
 void main() {
   testWidgets('offline writes wait for reconnect and cancel a queued drain', (
@@ -41,6 +74,7 @@ void main() {
         ),
         connectivityStreamProvider.overrideWith((ref) => network.stream),
         outboundMutationsProvider.overrideWith((ref) => writes.stream),
+        syncOnLoginProvider.overrideWith((ref) async {}),
         pushSyncProvider.overrideWithValue(sync),
       ],
     );
@@ -115,6 +149,7 @@ void main() {
             ),
           ),
           connectivityStreamProvider.overrideWith((ref) => network.stream),
+          syncOnLoginProvider.overrideWith((ref) async {}),
           pushSyncProvider.overrideWithValue(sync),
         ],
       );
@@ -160,6 +195,85 @@ void main() {
       } finally {
         container.dispose();
       }
+    },
+  );
+
+  test(
+    'late profile enrichment shares the same in-flight restoration',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      final remote = _RestorationRemote();
+      final current = StateProvider<AppUser?>((_) => _user('u'));
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          vocabularyRemoteProvider.overrideWithValue(remote),
+          currentUserProvider.overrideWith((ref) => ref.watch(current)),
+        ],
+      );
+      addTearDown(db.close);
+      addTearDown(container.dispose);
+
+      final initial = container.read(syncOnLoginProvider.future);
+      await remote.requested.future;
+      container.read(current.notifier).state = _user(
+        'u',
+      ).copyWith(displayName: 'Enriched');
+      expect(container.read(syncOnLoginProvider.future), same(initial));
+      remote.release.complete();
+      await initial;
+      expect(remote.pulls, 1);
+
+      container.read(current.notifier).state = null;
+      await container.read(syncOnLoginProvider.future);
+      container.read(current.notifier).state = _user('u');
+      await container.read(syncOnLoginProvider.future);
+      expect(remote.pulls, 2);
+    },
+  );
+
+  test(
+    'reconnect retries a failed initial pull before draining local edits',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      final remote = _RestorationRemote()..offline = true;
+      final network = StreamController<List<ConnectivityResult>>.broadcast();
+      final sync = _CountingPushSync();
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          vocabularyRemoteProvider.overrideWithValue(remote),
+          currentUserProvider.overrideWithValue(_user('u')),
+          connectivityStreamProvider.overrideWith((ref) => network.stream),
+          pushSyncProvider.overrideWithValue(sync),
+        ],
+      );
+      addTearDown(db.close);
+      addTearDown(network.close);
+      addTearDown(container.dispose);
+
+      await expectLater(
+        container.read(syncOnLoginProvider.future),
+        throwsA(isA<NetworkException>()),
+      );
+      expect(container.read(syncOnLoginProvider).hasError, isTrue);
+      container.read(pushOnReconnectProvider);
+      network.add([ConnectivityResult.none]);
+      await container.read(connectivityStreamProvider.future);
+      final repo = container.read(vocabularyRepositoryProvider);
+      expect((await repo.createList(name: 'Local edit')).isSuccess, isTrue);
+      expect(sync.calls, 0);
+
+      remote.offline = false;
+      network.add([ConnectivityResult.wifi]);
+      await remote.requested.future.timeout(const Duration(seconds: 2));
+      expect(sync.calls, 0);
+      remote.release.complete();
+      await sync.first.future.timeout(const Duration(seconds: 2));
+      expect(remote.pulls, 2);
+      expect(container.read(syncOnLoginProvider).hasValue, isTrue);
+      expect((await repo.getListById('restored-list')).isSuccess, isTrue);
+      expect(sync.calls, 1);
     },
   );
 }

@@ -359,6 +359,8 @@
   "grammar.drill.particle_variant": "Aggiungi la particella di {hint} a « {word} »",
   "grammar.drill.conjugate": "Coniuga « {word} » al presente formale",
   "grammar.drill.negate": "Metti « {word} » alla forma negativa",
+  "grammar.drill.negate_fr_first_person": "Dai la forma negativa della prima persona singolare del presente di « {word} », con o senza « je ».",
+  "grammar.drill.spoken_word": "la parola seguente",
   "grammar.hint.subject": "soggetto",
   "grammar.hint.object": "oggetto",
   "grammar.hint.destination_or_time": "destinazione o tempo",

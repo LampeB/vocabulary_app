@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../providers/lists/vocabulary_provider.dart';
 import '../../providers/settings/default_pair_provider.dart';
+import '../../providers/settings/create_list_pair_provider.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/languages.dart';
@@ -187,7 +188,9 @@ class ListsScreen extends ConsumerWidget {
     final nameCtrl = TextEditingController();
     var quotaExceeded = false;
 
-    final defaultPair = ref.read(defaultPairProvider);
+    final (String, String) defaultPair =
+        ref.read(createListPairProvider) ??
+        ref.read<(String, String)>(defaultPairProvider);
     await showDialog<void>(
       context: context,
       builder: (ctx) => _CreateListDialog(
@@ -204,13 +207,13 @@ class ListsScreen extends ConsumerWidget {
                 langA: langA,
                 langB: langB,
               );
-          // Remember the chosen pair as the global default — the next
-          // create-list dialog prefills it (user decision 2026-07-21:
-          // per-list pair + a global default).
+          if (!context.mounted || !ctx.mounted) return;
+          // Remember only the free-list form; the header owns the active pair.
           if (result.isSuccess) {
-            unawaited(ref.read(defaultPairProvider.notifier).set(langA, langB));
+            unawaited(
+              ref.read(createListPairProvider.notifier).set(langA, langB),
+            );
           }
-          if (!ctx.mounted) return;
           if (result.isFailure) {
             if (result.exceptionOrNull is QuotaExceededException) {
               quotaExceeded = true;
@@ -582,7 +585,7 @@ class _CreateListDialog extends StatefulWidget {
   final TextEditingController controller;
   final Future<void> Function(String langA, String langB) onConfirm;
 
-  /// Seeded from the global default pair (last pair the user created with).
+  /// Last free-list pair, falling back to the active header pair.
   final String initialLangA;
   final String initialLangB;
 

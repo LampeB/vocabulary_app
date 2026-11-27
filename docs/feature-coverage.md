@@ -106,7 +106,7 @@
 | Behavior | Status | Verified by |
 |---|---|---|
 | Theme switching (persist + restore) | ✅ | unit + widget |
-| Every screen renders correctly in BOTH themes | ✅ | `theme_sweep_test`: 14 screens × light/dark under the real AppTheme — fails on per-theme layout errors or a scaffold background that ignores the theme. Found+fixed: app_shell forced light paper in dark mode |
+| Sampled legacy screens mount in both themes | ✅ | `theme_sweep_test` mounts 14 screen fixtures, including the old `HomeScreen`, and checks layout exceptions and the first Scaffold brightness. It does not prove the active V3 plateau's appearance or every element's contrast. V3 has focused contrast/navigation tests; its full visual validation remains open in [the V3 scope](design/v3-sentier-de-cartes.md). |
 | Audio prefs (rate/pitch) | ✅ | unit + widget |
 | Language picker | ⚠️ | dialog opens; actual locale switch is EasyLocalization-coupled (can't re-init in tests — documented) |
 | Subscription row (free vs premium, upgrade → paywall) | ✅ | widget |

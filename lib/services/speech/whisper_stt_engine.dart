@@ -7,10 +7,9 @@ import 'whisper_speech_service.dart';
 /// [SttEngine] contract. It transcribes every studied language with one model
 /// and grades wrong answers as real transcripts.
 ///
-/// It consumes the race's shared capture ([SttCapture.sharedPcm]), so it runs
-/// in parallel with cloud Scribe online and stands alone offline — never as a
-/// slow sequential lane after another engine's window.
-class WhisperSttEngine implements SttEngine {
+/// It consumes the race's shared capture ([SttCapture.sharedPcm]) and runs
+/// locally before network rescue.
+class WhisperSttEngine implements CancellablePcmSttEngine {
   WhisperSttEngine(this._service);
 
   final WhisperSpeechCapture _service;
@@ -80,7 +79,10 @@ class WhisperSttEngine implements SttEngine {
   }
 
   @override
-  Future<void> stop() => _service.stopListening();
+  Future<void> stop() {
+    _service.cancelSharedTranscriptions();
+    return _service.stopListening();
+  }
 
   @override
   void dispose() => _service.dispose();

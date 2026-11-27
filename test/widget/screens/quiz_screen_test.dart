@@ -77,7 +77,7 @@ class _NoopAudio implements AudioPlayerService {
 }
 
 class _TestDirector extends AudioDirector {
-  _TestDirector() : super(_NoopAudio());
+  _TestDirector([AudioPlayerService? audio]) : super(audio ?? _NoopAudio());
 
   int cues = 0;
   int stops = 0;
@@ -111,6 +111,17 @@ class _TestDirector extends AudioDirector {
   Future<void> stopAll() async {
     stops++;
     await pendingStop?.future;
+  }
+}
+
+class _BlockingPromptAudio extends _NoopAudio {
+  final utterances = <(String, String, Completer<void>)>[];
+
+  @override
+  Future<void> speak(String text, String langCode, {String? audioPath}) {
+    final done = Completer<void>();
+    utterances.add((text, langCode, done));
+    return done.future;
   }
 }
 
@@ -170,6 +181,9 @@ class _FakeWhisper implements WhisperSpeechService {
   Future<void> stopListening({bool keepPendingTranscripts = false}) async {}
 
   @override
+  void cancelSharedTranscriptions() {}
+
+  @override
   Future<String?> transcribeSegment({
     required Uint8List pcm16,
     required String langCode,
@@ -197,12 +211,16 @@ class _FakeScribe implements ElevenLabsSpeechService {
 }
 
 class _VoiceHarness {
-  _VoiceHarness({Completer<bool>? preparePhone}) {
+  _VoiceHarness({
+    Completer<bool>? preparePhone,
+    AudioPlayerService? promptAudio,
+  }) : director = _TestDirector(promptAudio) {
     SttSimulator.mode = '';
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     const speech = MethodChannel('plugin.csdcorp.com/speech_to_text');
     const phone = MethodChannel('vocab_kr/pcm_speech');
+    const localCapability = MethodChannel('vocab_kr/system_speech');
     const connectivity = MethodChannel(
       'dev.fluttercommunity.plus/connectivity',
     );
@@ -218,17 +236,19 @@ class _VoiceHarness {
       phonePrepares++;
       return preparePhone == null ? false : await preparePhone.future;
     });
+    messenger.setMockMethodCallHandler(localCapability, (_) async => false);
     messenger.setMockMethodCallHandler(connectivity, (_) async => ['none']);
     addTearDown(() {
       messenger.setMockMethodCallHandler(speech, null);
       messenger.setMockMethodCallHandler(phone, null);
+      messenger.setMockMethodCallHandler(localCapability, null);
       messenger.setMockMethodCallHandler(connectivity, null);
     });
   }
 
   final capture = _FakeCapture();
   final whisper = _FakeWhisper();
-  final director = _TestDirector();
+  final _TestDirector director;
   int systemListens = 0;
   int phonePrepares = 0;
 }
@@ -615,6 +635,36 @@ void main() {
     expect(find.text('고양이'), findsWidgets); // the correct answer is revealed
   });
 
+  testWidgets('typing submits and continues to the next card by keyboard', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      mode: QuizMode.typing,
+      words: [('chat', '고양이'), ('chien', '개')],
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey(WidgetKeys.ecrireInput)),
+      '고양이',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tick(tester, times: 4);
+    expect(
+      find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)),
+      findsOneWidget,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tick(tester, times: 4);
+    expect(
+      find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)),
+      findsNothing,
+    );
+    expect(find.text('chien'), findsOneWidget);
+    expect(find.byKey(const ValueKey(WidgetKeys.ecrireInput)), findsOneWidget);
+    expect(progressRepo.saved.single.timesCorrect, 1);
+  });
+
   testWidgets(
     'vocabulary verdict shows the interval returned by the saved rating',
     (tester) async {
@@ -987,6 +1037,56 @@ void main() {
     await unmountScreen(tester);
     await tester.pump(const Duration(seconds: 3));
   });
+
+  testWidgets(
+    'hands-free awaits the grammar instruction and word on both cards',
+    (tester) async {
+      final previousLocale = Intl.defaultLocale;
+      Intl.defaultLocale = 'fr';
+      addTearDown(() => Intl.defaultLocale = previousLocale);
+      final audio = _BlockingPromptAudio();
+      final voice = _VoiceHarness(promptAudio: audio);
+      await pump(
+        tester,
+        mode: QuizMode.handsFree,
+        words: [],
+        cardLimit: 2,
+        grammar: true,
+        voice: voice,
+      );
+
+      for (var index = 0; index < 2; index++) {
+        await tick(tester, times: 8);
+        expect(audio.utterances, hasLength(index * 2 + 1));
+        final (instruction, instructionLang, instructionDone) =
+            audio.utterances.last;
+        expect(instruction, contains('le mot suivant'));
+        expect(instructionLang, 'fr');
+        expect(voice.director.cues, index);
+        expect(voice.capture.opens, index);
+
+        instructionDone.complete();
+        await tick(tester, times: 8);
+        expect(audio.utterances, hasLength(index * 2 + 2));
+        final (word, wordLang, wordDone) = audio.utterances.last;
+        expect(word, anyOf('학생', '친구'));
+        expect(wordLang, 'ko');
+        expect(voice.director.cues, index);
+        expect(voice.capture.opens, index);
+
+        wordDone.complete();
+        await tick(tester, times: 8);
+        expect(voice.director.cues, index + 1);
+        expect(voice.capture.opens, index + 1);
+        voice.capture.session!.answer();
+        await tick(tester, times: 5);
+      }
+
+      expect(audio.utterances[1].$1, isNot(audio.utterances[3].$1));
+      await unmountScreen(tester);
+      await tester.pump(const Duration(seconds: 3));
+    },
+  );
 
   testWidgets(
     'a hands-free verdict advances once after background and resume',

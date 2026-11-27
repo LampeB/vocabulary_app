@@ -13,6 +13,7 @@ class _FakeWhisperCapture implements WhisperSpeechCapture {
   bool startResult;
   int prepares = 0;
   int stops = 0;
+  int cancelledPcmTurns = 0;
   int disposals = 0;
   String? language;
   List<String>? hints;
@@ -45,6 +46,9 @@ class _FakeWhisperCapture implements WhisperSpeechCapture {
   Future<void> stopListening({bool keepPendingTranscripts = false}) async {
     stops++;
   }
+
+  @override
+  void cancelSharedTranscriptions() => cancelledPcmTurns++;
 
   String? segmentReply;
   Uint8List? segmentPcm;
@@ -116,6 +120,7 @@ void main() {
       await engine.stop();
       engine.dispose();
       expect(capture.stops, 1);
+      expect(capture.cancelledPcmTurns, 1);
       expect(capture.disposals, 1);
     });
 

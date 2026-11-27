@@ -374,6 +374,8 @@
   "grammar.drill.particle_variant": "Ajoute la particule de {hint} à « {word} »",
   "grammar.drill.conjugate": "Conjugue « {word} » au présent poli",
   "grammar.drill.negate": "Mets « {word} » à la forme négative",
+  "grammar.drill.negate_fr_first_person": "Pour « {word} », donne la forme négative au présent à la première personne du singulier, avec ou sans « je ».",
+  "grammar.drill.spoken_word": "le mot suivant",
   "grammar.hint.subject": "sujet",
   "grammar.hint.object": "objet",
   "grammar.hint.destination_or_time": "destination ou de temps",

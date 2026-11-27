@@ -13,7 +13,7 @@ import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
 // ---------------------------------------------------------------------------
 class _FakeRemote implements VocabularyRemoteDataSource {
   @override
-  Future<void> provisionAudio(String variantId) async {}
+  Future<ProvisionedAudio?> provisionAudio(String variantId) async => null;
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async =>
       const Success([]);

@@ -232,3 +232,62 @@ Les sept checks CI et la compilation Android de `602835c` sont verts.
 Cela ne constitue pas une passe propre d'agents. Cinq itérations complètes
 ont désormais rendu `BLOQUÉ` ; aucun compteur propre n'est acquis. La prochaine
 relecture sera l'itération **6**, avec le plafond de vingt inchangé.
+
+## Sixième itération — `f7827da`
+
+Les quatre profils ont rendu `BLOQUÉ` sur
+`f7827da7797ad0c7cce9eba479f2c83daad2c456`, avant toute correction.
+Après déduplication, cette passe compte **17 Important**, aucun Bloquant et
+une Suggestion. Le rattachement audio périmé est signalé par correction,
+qualité et sécurité ; la consigne absente en mains-libres par produit et
+correction. Ces doublons restent Important.
+
+| Type | Constat regroupé | Correction et preuve ciblée |
+| --- | --- | --- |
+| Important | Liste personnelle homonyme utilisée comme prérequis | Identité seed et langue cible exactes, migration des anciens noms séparée |
+| Important | Création d'une liste libre changeant la paire du plateau | Préférence de formulaire distincte de la paire guidée explicite |
+| Important | Grammaire mains-libres ouvrant le micro sans consigne | AudioDirector joue consigne et prompt avant signal/micro sur chaque carte |
+| Important | Négation française correcte avec je rejetée | Consigne première personne localisée et réponse complète acceptée sans perdre le contrôle de négation |
+| Important | Continuer du verdict inutilisable au clavier | Bouton focalisable et parcours saisie/Entrée/verdict/avance |
+| Important | Texte du bouton et rappel insuffisamment contrastés | Encre contrastée sur le fond réel des deux verdicts |
+| Important | Rendu audio A tardif rattaché au mot désormais B | CAS centralisé sur mot/langue/état actif, résultat confirmé avant ready |
+| Important | Chemin audio canonique retourné mais ignoré dans SQLite | Réconciliation locale conditionnée au contenu rendu, sans nouvel envoi |
+| Important | Suppression locale d'un mot gardant sa progression | Nettoyage transactionnel des progrès, tombstones encore à envoyer |
+| Important | Résultat système partiel notant une phrase grammaticale tronquée | Partiels affichés, verdict réservé à un résultat final, expiration sans revalidation du partiel |
+| Important | Import froid écrivant sous propriétaire vide avant le profil | Identité locale résolue avant repository, gardes d'écriture sans compte et navigation froide testée |
+| Important | Reconnaisseur système réseau présenté comme tentative locale | Capacité embarquée vérifiée et option locale obligatoire, secours documenté sinon |
+| Important | Erreur Storage assimilée à une absence déclenchant un rendu facturé | Absence confirmée distincte d'une panne, arrêt avant quota/fournisseur sur erreur |
+| Important | Déploiement incluant un index local non versionné | Snapshot d'un commit validé et liste versionnée des fonctions autorisées |
+| Important | Profil enrichi relançant le pull et échec initial sans retry réseau | Restauration partagée par session, état à réessayer et reprise au réseau |
+| Important | Tombstone de concept laissant le compteur de liste incorrect | Recalcul dérivé transactionnel malgré les métadonnées locales conservées |
+| Important | Segments Whisper du tour quitté restant en file | Annulation de tour et abandon des segments périmés, inférence engagée toujours sérialisée |
+
+Le rattachement audio côté serveur et l'application du chemin canonique côté
+client restent deux constats distincts : leurs symptômes et corrections ne
+sont pas équivalents.
+
+La Suggestion précise la portée réelle de `theme_sweep_test`, qui monte
+notamment l'ancien HomeScreen et ne prouve pas tous les contrastes du plateau
+V3 actif. Elle est traitée dans ce lot documentaire.
+
+Les sept checks GitHub et Android sont verts sur `f7827da`. Le contrôle du bot
+en lecture seule confirme aussi leur workflow, événement d'origine, PR et
+SHA de tête/base. Aucune approbation n'est publiée : six itérations complètes
+restent bloquées et les quatre compteurs propres sont à zéro. Le prochain
+commit sera relu à l'itération **7**, avec le plafond de vingt conservé.
+
+Validation finale du lot : **988 tests hôte réussis**, huit diagnostics
+positifs exclus de la passe normale, couverture **69,3 %** (11 956 / 17 248
+lignes). Les 21 diagnostics ciblés passent avec opt-in ; la sonde AOT refuse
+toujours les diagnostics en mode produit. Analyse Flutter, licence,
+formatage, actionlint et zizmor propres. Les tests ciblés comprennent 127 cas
+data et 254 cas voix/grammaire/widgets ; Kotlin compile. Les 24 tests Deno,
+sept bundles Edge figés et 30 tests Python passent. Le contrat SQL 014 est
+inchangé depuis les six suites PostgreSQL 16.11 et la concurrence validées
+dans le lot précédent, également vertes dans la CI de `f7827da`.
+
+Aucun backend n'est déployé. Le script de déploiement exige le SHA complet
+de `origin/main` récupéré et utilise uniquement son manifeste, ses sources,
+son verrou et sa sonde. Le contrôle de la CI et des revues de ce SHA reste
+une vérification explicite de l'opérateur, pas une attestation inventée par
+le script.

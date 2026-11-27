@@ -35,6 +35,10 @@ abstract interface class WhisperSpeechCapture {
     required String langCode,
     required List<String> promptHints,
   });
+
+  /// Invalidates shared segments while allowing active native inference to
+  /// finish and clean up its own file.
+  void cancelSharedTranscriptions();
   void dispose();
 }
 
@@ -359,6 +363,12 @@ class WhisperSpeechService implements WhisperSpeechCapture {
   /// One native inference at a time: whisper.cpp contexts are not
   /// re-entrant, and two parallel calls only make both slower.
   Future<void> _sharedChain = Future.value();
+  int _sharedEpoch = 0;
+
+  @override
+  void cancelSharedTranscriptions() {
+    _sharedEpoch++;
+  }
 
   @override
   Future<String?> transcribeSegment({
@@ -373,13 +383,16 @@ class WhisperSpeechService implements WhisperSpeechCapture {
       for (final h in promptHints)
         ...h.split('/').map(AnswerValidator.stripAnnotations),
     }.where((h) => h.isNotEmpty).join(', ');
+    final epoch = _sharedEpoch;
     final result = _sharedChain.then((_) async {
+      if (_disposed || epoch != _sharedEpoch) return null;
       final sw = Stopwatch()..start();
       final raw = await _transcribeSegment(
         pcm16: pcm16,
         langCode: langCode,
         prompt: prompt,
       );
+      if (_disposed || epoch != _sharedEpoch) return null;
       final cleaned = cleanTranscript(raw);
       sttLog(
         '[WSP] 📝 shared ${pcm16.length ~/ 32}ms in '

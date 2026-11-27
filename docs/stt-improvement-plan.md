@@ -47,6 +47,9 @@ audio du prompt → signal de fin → remise micro → hypothèses STT
 ```
 
 `AudioDirector` doit terminer ou annuler l'audio précédent avant l'écoute.
+En grammaire mains-libres, chaque carte fait entendre la consigne dans la
+langue de l'interface puis le mot à transformer dans la langue étudiée.
+Le compte à rebours, le signal et le micro suivent la fin de ces deux lectures.
 `SttRace` et `VoiceTurnMachine` ignorent les résultats arrivés après la fin du
 tour pour empêcher une réponse de contaminer la carte suivante.
 La fermeture de la capture attend sa dernière portion audio et l'inscrit dans
@@ -61,6 +64,9 @@ L'arrêt d'un tour invalide les portions PCM en file pour le reconnaisseur du
 téléphone. Le pont Android annule et détruit le reconnaisseur actif et ferme
 ses deux descripteurs de capture. Le nouveau tour attend cette remise à zéro
 et peut décoder sans attendre une ancienne transcription.
+Pour Whisper, l'inférence native déjà lancée libère elle-même son fichier.
+Les portions PCM annulées en attente sont abandonnées avant leur écriture
+WAV et le nouveau tour attend seulement l'inférence déjà lancée.
 En Voix, passer au clavier ou révéler la réponse invalide également le tour
 et ferme sa capture. Une transcription reçue ensuite ne peut plus décider du
 résultat. L'arrêt de la synthèse et des signaux invalide les demandes audio
@@ -69,9 +75,11 @@ Les cartes suivantes et reportées conservent leurs chemins de clips en cache.
 
 La notation **écrite et orale de grammaire** préserve les formes attendues
 par le module, y compris les articles élidés, les terminaisons et les
-particules. Le même contrôle s'applique à chaque hypothèse de la course et
-à l'enregistrement du verdict. La transcription orale peut ajouter de la
-ponctuation finale. Le vocabulaire conserve ses normalisations tolérantes.
+particules. Le même contrôle s'applique à chaque hypothèse finale de la
+course et à l'enregistrement du verdict. Les hypothèses partielles restent
+visibles, sans verdict si aucun résultat final n'arrive. La transcription
+orale peut ajouter de la ponctuation finale. Le vocabulaire conserve ses
+normalisations tolérantes.
 Les réponses de grammaire alimentent la maîtrise de la règle. Le feedback de
 vocabulaire annonce l'intervalle renvoyé par la notation FSRS enregistrée
 pour cette réponse. Les verdicts s'affichent dès la validation.
@@ -94,10 +102,14 @@ limite atteinte ne doit jamais empêcher une session locale avec le moteur du
 téléphone ou Whisper.
 En mode Course, un décodeur PCM local prêt pour la langue fait utiliser la
 capture partagée, y compris lors de la dernière tentative. Sans décodeur PCM
-local compatible, le reconnaisseur système peut ouvrir le micro seul. Les
-moteurs réseau seuls servent de secours si aucun moteur local n'est disponible
+local compatible, le reconnaisseur système peut ouvrir le micro seul en
+mode embarqué. Sur Android, il faut un service embarqué détecté par l'API
+système (Android 12+) et une écoute du plugin avec l'option `onDevice`.
+Sur iOS, la requête exige la reconnaissance embarquée pour la langue.
+Les moteurs réseau servent de secours si aucun moteur local n'est disponible
 ou après les tentatives infructueuses du système. Le mode Système utilise
-directement le reconnaisseur exclusif.
+directement le reconnaisseur exclusif configuré par la plateforme, qui peut
+utiliser le réseau.
 Le cloud n'analyse la capture qu'après la fin de la tentative locale et de
 ses segments en attente, sans réponse locale validée. Les demandes cloud
 d'un même tour sont sérialisées. Une validation locale n'envoie ni audio ni

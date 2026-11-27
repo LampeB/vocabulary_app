@@ -15,6 +15,10 @@ explicitement signalée non décidée (2026-08-07).
 - Le générateur actuel de pluriel français demande un mot isolé : les formes
   en `-s` muet sont donc évaluées à l'écrit. Les modes vocaux de cette règle
   restent indisponibles tant qu'un énoncé audible ne distingue pas la forme.
+- L'exercice de négation française demande la première personne du singulier
+  au présent. La forme verbale attendue (`ne travaille pas`) et la phrase
+  avec sujet (`je ne travaille pas`) sont toutes deux valides. Les deux
+  marques de négation restent nécessaires et les élisions s'appliquent.
 - (2026-08-09) D'où viennent les phrases : banque de GABARITS auteurés
   par règle, slots remplis par le moteur avec le vocab que
   l'utilisateur connaît — pas de génération LLM au runtime (voir

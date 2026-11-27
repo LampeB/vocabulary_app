@@ -12,6 +12,8 @@ import 'package:vocab_kr/services/speech/shared_pcm_capture.dart';
 import 'package:vocab_kr/services/speech/stt_engine.dart';
 import 'package:vocab_kr/services/speech/stt_race.dart';
 import 'package:vocab_kr/services/speech/stt_race_status.dart';
+import 'package:vocab_kr/services/speech/whisper_speech_service.dart';
+import 'package:vocab_kr/services/speech/whisper_stt_engine.dart';
 
 PcmSegment _seg([int ms = 800]) => PcmSegment(Uint8List(ms * 32), ms, 5000);
 
@@ -560,6 +562,48 @@ void main() {
   });
 
   group('SttRace.cancel — a superseded listen must not touch the next one', () {
+    test(
+      'Whisper skips cancelled queued PCM after the active inference',
+      () async {
+        final activeInference = Completer<String>();
+        final calls = <int>[];
+        final whisper = WhisperSttEngine(
+          WhisperSpeechService(
+            microphone: _UnusedMicrophone(),
+            modelReady: true,
+            segmentTranscriber:
+                ({required pcm16, required langCode, required prompt}) async {
+                  final ms = pcm16.length ~/ 32;
+                  calls.add(ms);
+                  return ms == 800 ? activeInference.future : 'bonjour';
+                },
+          ),
+        );
+        final source = _FakeSource();
+        final firstRace = SttRace([whisper], capture: source);
+        final first = firstRace.run(langCode: 'fr', acceptedAnswers: ['salut']);
+        await _pump();
+        source.session!.finishUtterance(800);
+        source.session!.finishUtterance(900);
+        source.session!.finishUtterance(1000);
+        await _pump();
+        expect(calls, [800]);
+
+        firstRace.cancel();
+        expect((await first).cancelled, isTrue);
+        final nextRace = SttRace([whisper], capture: source);
+        final next = nextRace.run(langCode: 'fr', acceptedAnswers: ['bonjour']);
+        await _pump();
+        source.session!.finishUtterance(1100);
+        await _pump();
+        expect(calls, [800], reason: 'native inference must stay serial');
+
+        activeInference.complete('salut');
+        expect((await next).matchedCandidate, 'bonjour');
+        expect(calls, [800, 1100]);
+      },
+    );
+
     test(
       'pausing cancels phone PCM and a new race ignores blocked old work',
       () async {

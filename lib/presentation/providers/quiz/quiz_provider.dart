@@ -39,6 +39,7 @@ class QuizCard {
     required this.answerWords,
     this.questionAudioPath,
     this.answerAudioPath,
+    this.grammarAudioPrompt,
     this.isRequeue = false,
   });
 
@@ -53,6 +54,9 @@ class QuizCard {
 
   /// Immutable Storage path for the spoken prompt, if it has been published.
   final String? questionAudioPath;
+
+  /// The localized instruction and the target-language word it introduces.
+  final ({String instruction, String locale, String word})? grammarAudioPrompt;
 
   /// Accepted answer words (used for typing / voice validation).
   final List<String> answerWords;
@@ -309,14 +313,19 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
 
   bool _isCurrentSession(int epoch) => _alive && _sessionEpoch == epoch;
 
-  Future<void> loadCards(QuizArgs args) async {
+  Future<void> loadCards(QuizArgs args, {String? promptLocale}) async {
     _resetSession(args: args);
     final epoch = _sessionEpoch;
 
     final userId = ref.read(currentUserProvider)?.id ?? '';
 
     if (args.source == QuizSource.grammar) {
-      await _loadGrammarCards(args, epoch, userId);
+      await _loadGrammarCards(
+        args,
+        epoch,
+        userId,
+        promptLocale ?? Intl.defaultLocale?.split(RegExp('[_-]')).first ?? 'en',
+      );
       return;
     }
     final getDueCards = ref.read(getDueCardsUseCaseProvider);
@@ -525,6 +534,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     QuizArgs args,
     int epoch,
     String userId,
+    String promptLocale,
   ) async {
     final rules = await ref.read(grammarRulesProvider(args.langB).future);
     if (!_isCurrentSession(epoch)) return;
@@ -558,33 +568,41 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       count: args.cardLimit,
       // The drill prompt itself is localized to the UI locale (.tr), so the
       // interpolated rule title must match it.
-      promptLocale: Intl.defaultLocale?.split(RegExp('[_-]')).first ?? 'en',
+      promptLocale: promptLocale,
     );
     if (exercises.isEmpty) {
       state = state.copyWith(isLoading: false, isComplete: true);
       return;
     }
     final now = DateTime.now();
-    final cards = [
-      for (final e in exercises)
-        QuizCard(
-          progress: VariantProgress(
-            id: 'grammar|${e.ruleId}',
-            userId: userId,
-            variantId: 'grammar|${e.ruleId}|${e.variantKey ?? ''}',
-            direction: args.forward,
-            createdAt: now,
-            updatedAt: now,
-          ),
-          questionWord: e.promptKey.tr(
+    final cards = exercises.map((exercise) {
+      final promptArgs = {
+        for (final entry in exercise.promptParams.entries)
+          entry.key: entry.key == 'hint' ? entry.value.tr() : entry.value,
+      };
+      return QuizCard(
+        progress: VariantProgress(
+          id: 'grammar|${exercise.ruleId}',
+          userId: userId,
+          variantId: 'grammar|${exercise.ruleId}|${exercise.variantKey ?? ''}',
+          direction: args.forward,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        questionWord: exercise.promptKey.tr(namedArgs: promptArgs),
+        grammarAudioPrompt: (
+          instruction: exercise.promptKey.tr(
             namedArgs: {
-              for (final entry in e.promptParams.entries)
-                entry.key: entry.key == 'hint' ? entry.value.tr() : entry.value,
+              ...promptArgs,
+              'word': 'grammar.drill.spoken_word'.tr(),
             },
           ),
-          answerWords: e.accepted,
+          locale: promptLocale,
+          word: exercise.promptParams['word']!,
         ),
-    ];
+        answerWords: exercise.accepted,
+      );
+    }).toList();
     _cardShownAt = now;
     state = state.copyWith(
       cards: cards,
@@ -962,6 +980,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
             answerWords: card.answerWords,
             questionAudioPath: card.questionAudioPath,
             answerAudioPath: card.answerAudioPath,
+            grammarAudioPrompt: card.grammarAudioPrompt,
             isRequeue: true,
           ),
         ],

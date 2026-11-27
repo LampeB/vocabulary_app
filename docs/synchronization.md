@@ -24,7 +24,9 @@ L'application utilise SQLite comme source de lecture et les colonnes
   la progression et les événements. Après l'accusé d'une variante, le
   provisionnement audio s'exécute en arrière-plan, à raison d'une requête à
   la fois et de 256 variantes distinctes en attente. Un échec ou une file
-  audio pleine laisse la synthèse de l'appareil disponible.
+  audio pleine laisse la synthèse de l'appareil disponible. SQLite adopte le
+  chemin canonique si la variante, son mot, sa langue et ses parents sont
+  encore valides. Le changement de chemin ne déclenche aucun nouvel envoi.
 - L'accusé de réception ne marque une ligne synchronisée que si tous ses
   champs correspondent toujours à la version envoyée. Une modification
   pendant un envoi reste donc en attente. Les détails de liste et les mots
@@ -79,19 +81,31 @@ L'application utilise SQLite comme source de lecture et les colonnes
   un autre pull si une ligne de la branche affectée a changé entre-temps.
 - Une suppression distante de liste invalide ses concepts et variantes et
   retire la progression locale associée. Une progression distante ancienne
-  ne doit pas faire réapparaître des cartes supprimées.
-- Le recalcul du nombre de mots après récupération est une donnée dérivée :
-  il ne fabrique pas une nouvelle modification à envoyer.
+  ne doit pas faire réapparaître des cartes supprimées. La suppression locale
+  d'un concept retire sa progression dans la transaction de suppression et
+  conserve son tombstone dans la file sortante.
+- Le nombre de mots suit les concepts actifs après une restauration ou
+  l'accusé d'un concept supprimé. Ce recalcul libère la place dans le quota
+  local et préserve les métadonnées qui attendent leur propre envoi.
 - Après la restauration du contenu, une requête jointe identifie les variantes
   encore actives. Les progressions identiques sont ignorées et les autres
   mises à jour sont regroupées dans la transaction du pull.
 - L'authentification, y compris une connexion depuis l'écran d'accueil,
   déclenche la récupération puis le seeding idempotent avant le plateau.
+  Les appelants d'une même session partagent la récupération en cours. Un
+  enrichissement du profil conserve la même tentative. Une récupération
+  incomplète conserve les données reçues et reste en attente de nouvelle
+  tentative. Le seeding local et l'ouverture du plateau restent disponibles
+  hors ligne. Au retour du réseau, le shell relance la récupération en
+  attente avant d'envoyer les modifications locales.
   En cas d'indisponibilité du profil distant, une session déjà signée fournit
   l'identité locale pour le seeding et l'ouverture du plateau. Un profil reçu
   plus tard enrichit la session si elle est toujours active. Après un
   changement de compte ou une déconnexion, une ancienne réponse de profil
   ne peut plus restaurer l'identité précédente.
+- Un lien ouvert au démarrage peut importer dès la restauration d'une session
+  locale signée, même si le profil distant est encore en cours de chargement.
+  Le repository exige un identifiant de compte avant toute création ou import.
 - Les créations de listes starter partagent une exécution en cours par
   compte/paire. Un import échoué ne positionne jamais le marqueur de complétion.
 

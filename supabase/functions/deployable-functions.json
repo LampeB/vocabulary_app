@@ -1,0 +1,9 @@
+[
+  "audio-provision",
+  "elevenlabs-proxy",
+  "elevenlabs-stt-proxy",
+  "generate-grammar-exercises",
+  "seed-audio-publish",
+  "vocab-assistant",
+  "whisper-proxy"
+]

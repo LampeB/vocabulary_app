@@ -154,6 +154,14 @@ void main() {
       await container.read(authStateProvider.notifier).reloadProfile();
       expect(container.read(authStateProvider).valueOrNull?.currentStreak, 9);
 
+      expect(
+        container
+            .read(authStateProvider.notifier)
+            .useLocalSession()
+            ?.currentStreak,
+        9,
+      );
+
       repo.profile = null; // reload now fails → state unchanged
       await container.read(authStateProvider.notifier).reloadProfile();
       expect(container.read(authStateProvider).valueOrNull?.currentStreak, 9);

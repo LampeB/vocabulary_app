@@ -36,18 +36,27 @@ versions et les empreintes de leurs dépendances transitives.
 [Verrouillage Deno](https://docs.deno.com/runtime/packages/#lockfile-and-reproducible-installs).
 
 Depuis la racine du dépôt, lancer `python3 tool/deploy-edge-functions.py`.
-Le script vérifie les types, exécute les tests avec `--frozen`, prépare les
-bundles verrouillés et démarre leurs points d'entrée dans un test sans accès
-réseau ni résolution npm. Les bundles temporaires sont supprimés à la fin.
+Le script lit le [manifeste des fonctions déployables](../../supabase/functions/deployable-functions.json),
+vérifie les types, exécute les tests avec `--frozen`, prépare les bundles
+verrouillés et démarre leurs points d'entrée dans un test sans accès réseau
+ni résolution npm. Les bundles temporaires sont supprimés à la fin.
 [Bundling Deno](https://docs.deno.com/runtime/reference/bundling/).
 
-Une fois les migrations requises appliquées sur le projet ciblé, utiliser
-la CLI Supabase (version 3.4 ou ultérieure), authentifiée localement, puis
-`python3 tool/deploy-edge-functions.py --project-ref <ref-du-projet>`. Le script
-vérifie à nouveau les bundles et transmet à la CLI uniquement les points
-d'entrée autonomes de son dossier temporaire. La CLI demande confirmation
-pour le projet désigné. Utiliser ce chemin pour éviter un nouveau calcul du
-graphe par le service de déploiement.
+Pour déployer, actualiser `origin/main` avec `git fetch origin main`, relever
+son SHA complet et vérifier la validation de ce commit sur GitHub. Préparer
+les migrations requises sur le projet ciblé et utiliser la CLI Supabase
+(version 3.4 ou ultérieure), authentifiée localement. Depuis un checkout
+propre du commit validé, lancer la commande suivante.
+
+```bash
+python3 tool/deploy-edge-functions.py --project-ref <ref-du-projet> --commit <sha-validé-origin-main>
+```
+
+Le script compare le SHA à la référence locale `origin/main`, puis extrait
+de ce commit le manifeste, les sources, le verrou et la sonde de démarrage.
+Il valide cette copie et transmet les bundles autonomes du manifeste à la
+CLI, qui demande confirmation pour le projet désigné. La vérification du
+résultat de la revue et de la CI sur GitHub appartient à l'opérateur.
 [Déploiement Supabase](https://supabase.com/docs/reference/cli/supabase-functions-deploy).
 
 Pour une mise à jour de dépendance, modifier les imports exacts, puis lancer
@@ -62,6 +71,14 @@ Relire le diff du verrou et repasser le script sans projet avant de commiter.
 - Les appels IA et TTS ont un délai de 60 secondes sans retry automatique
   Anthropic. Deux demandes du même clip manquant partagent une réservation
   SQL exclusive de 90 secondes ; le cache est revérifié après réservation.
+  Une absence d'objet confirmée par Storage permet la génération. Une panne
+  ou une réponse ambiguë renvoie `503` avant le débit de quota ou l'appel TTS.
+  [Vérification d'existence d'un objet Supabase Storage](https://supabase.com/docs/reference/javascript/storage-from-exists).
+- Pour un clip en cache comme pour une génération, le serveur attache le
+  chemin seulement à une variante toujours active dont le mot et la langue
+  correspondent au clip. Une édition ou une suppression concurrente renvoie
+  `409` sans chemin. Le résultat `ready` indique le chemin, le mot et la langue
+  de la variante confirmée.
 - Le provisionnement utilisateur écrit exclusivement sous `users/<UUID>/`.
   Le champ `origin` d'une liste n'autorise jamais une publication sous `seed/`.
   Seul `seed-audio-publish`, administrateur, publie le catalogue partagé.

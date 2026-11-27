@@ -136,8 +136,8 @@ const _kTestMode = bool.fromEnvironment('TEST_MODE');
 // can queue hundreds of Drift writes that block quiz card loading.
 final syncOnLoginProvider = FutureProvider<void>((ref) async {
   if (_kTestMode) return;
-  final user = ref.watch(currentUserProvider);
-  if (user == null) return;
+  final userId = ref.watch(currentUserProvider.select((user) => user?.id));
+  if (userId == null || userId.isEmpty) return;
   await ref.watch(vocabularyRepositoryProvider).syncFromRemote();
 });
 
@@ -149,7 +149,7 @@ final starterSeederProvider = Provider<StarterSeeder>(
     repo: ref.watch(vocabularyRepositoryProvider),
     listDao: ref.watch(vocabularyListDaoProvider),
     conceptDao: ref.watch(conceptDaoProvider),
-    userId: ref.watch(currentUserProvider)?.id ?? '',
+    userId: ref.watch(currentUserProvider.select((user) => user?.id)) ?? '',
     uiLocale: Intl.defaultLocale,
   ),
 );
@@ -165,12 +165,16 @@ final starterSeederProvider = Provider<StarterSeeder>(
 /// Skipped in TEST_MODE — E2E owns its own data.
 final seedStarterListsProvider = FutureProvider<void>((ref) async {
   if (_kTestMode) return;
-  final user = ref.watch(currentUserProvider);
-  if (user == null) return;
+  final userId = ref.watch(currentUserProvider.select((user) => user?.id));
+  if (userId == null || userId.isEmpty) return;
+  ref.watch(defaultPairProvider);
+  final seeder = ref.watch(starterSeederProvider);
+  var active = true;
+  ref.onDispose(() => active = false);
   // A remote pull improves an existing account, but must not prevent a new
   // user (or an offline user) from receiving the bundled starter curriculum.
   try {
-    await ref.watch(syncOnLoginProvider.future);
+    await ref.read(syncOnLoginProvider.future);
   } catch (_) {
     // The local database remains usable; a later reconnect retries the pull.
   }
@@ -178,12 +182,12 @@ final seedStarterListsProvider = FutureProvider<void>((ref) async {
   // Re-read the persisted pair rather than trusting the notifier's state:
   // its initial ('fr','ko') stands in until the async prefs load lands, and
   // seeding the wrong pair on a non-French account would be user-visible.
-  ref.watch(defaultPairProvider);
+  if (!active) return;
   final prefs = await SharedPreferences.getInstance();
   final langA = prefs.getString('settings_default_lang_a') ?? 'fr';
   final langB = prefs.getString('settings_default_lang_b') ?? 'ko';
 
-  await ref.read(starterSeederProvider).ensureSeededForPair(langA, langB);
+  if (active) await seeder.ensureSeededForPair(langA, langB);
 });
 
 /// Outbound sync (the isSynced flags are the queue — see data/sync/push_sync).

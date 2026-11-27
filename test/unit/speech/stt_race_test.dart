@@ -3,6 +3,7 @@ import 'package:vocab_kr/core/utils/pcm_segmenter.dart';
 import 'package:vocab_kr/services/speech/stt_engine.dart';
 import 'package:vocab_kr/services/speech/stt_engine_registry.dart';
 import 'package:vocab_kr/services/speech/stt_race.dart';
+import 'package:vocab_kr/services/speech/stt_race_status.dart';
 
 /// A controllable engine: the test pushes hypotheses via [emit] and inspects
 /// [started]/[stopped].
@@ -161,6 +162,55 @@ void main() {
           if (grammar) system.emit("L'eau.");
           expect((await verdict).matchedCandidate, grammar ? "L'eau." : 'eau');
         }
+      },
+    );
+
+    test(
+      'grammar shows a matching partial and waits for the full utterance',
+      () async {
+        final system = _FakeEngine('system', languages: {'ko'});
+        final partials = <SttHypothesis>[];
+        final statuses = <SttRaceStatus>[];
+        final verdict = SttRace([system]).run(
+          langCode: 'ko',
+          acceptedAnswers: ['사과가'],
+          preserveGrammar: true,
+          restartOnSessionEnd: false,
+          onPartial: partials.add,
+          onStatus: statuses.add,
+        );
+        await _pump();
+        system.emit('사과가', isFinal: false);
+        expect(partials.single.transcript, '사과가');
+        expect(statuses.last.engines.single.state, SttEngineState.partial);
+        expect(system.stopped, isFalse);
+
+        system.emit('사과가 아니에요');
+        system.endSession();
+        final outcome = await verdict;
+        expect(outcome.matched, isFalse);
+        expect(outcome.bestTranscript, '사과가 아니에요');
+      },
+    );
+
+    test(
+      'a partial without a final is not passed to grammar grading',
+      () async {
+        final system = _FakeEngine('system', languages: {'ko'});
+        final verdict = SttRace([system]).run(
+          langCode: 'ko',
+          acceptedAnswers: ['사과가'],
+          preserveGrammar: true,
+          timeout: const Duration(milliseconds: 30),
+          lateResultGrace: Duration.zero,
+        );
+        await _pump();
+        system.emit('사과가', isFinal: false);
+
+        final outcome = await verdict;
+        expect(outcome.matched, isFalse);
+        expect(outcome.bestTranscript, isNull);
+        expect(outcome.hadRealSession, isTrue);
       },
     );
 

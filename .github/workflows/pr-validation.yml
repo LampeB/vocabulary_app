@@ -80,6 +80,8 @@ jobs:
           deno-version: v2.9.6
       - name: Verify frozen Edge bundles and request boundaries
         run: python3 tool/deploy-edge-functions.py
+      - name: Test versioned Edge deployment inputs
+        run: python3 -m unittest discover -s tool -p 'test_deploy_edge_functions.py'
       - name: Verify E2E credentials are scoped to each Patrol target
         run: python3 -m unittest discover -s tool/e2e -p 'test_*.py'
       - name: Test validated PR approval gates

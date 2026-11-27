@@ -68,6 +68,19 @@ class AudioDirector {
     await _audio.speak(text, langCode, audioPath: audioPath);
   }
 
+  /// Plays the localized grammar instruction and then the drill word with
+  /// its target-language voice. Resolves when both utterances have finished.
+  Future<void> speakGrammarPrompt({
+    required String instruction,
+    required String instructionLang,
+    required String word,
+    required String wordLang,
+    required bool Function() keepGoing,
+  }) async {
+    await speakWhenQuiet(instruction, instructionLang, keepGoing: keepGoing);
+    if (keepGoing()) await speak(word, wordLang);
+  }
+
   /// Waits out a speech CHAIN — utterances queuing behind each other (a
   /// correction replay with the question queued next). A single start→end
   /// wait latched onto the first utterance and the mic path then cut off the

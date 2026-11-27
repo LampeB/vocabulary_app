@@ -3,12 +3,17 @@ import 'dart:async';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vocab_kr/core/config/app_config.dart';
+import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/models/variant_progress_dto.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/data/sync/push_sync.dart';
+import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
+import 'package:vocab_kr/presentation/providers/purchases/purchase_provider.dart';
 import '../helpers/fake_remote.dart';
 
 const _kUserId = 'test-user-sync';
@@ -108,6 +113,7 @@ class _SyncRemote extends FakeRemote {
   final List<Map<String, dynamic>> progress;
   int fetchListsCalls = 0;
   Future<void> Function()? onLists;
+  String? unavailableList;
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async {
@@ -119,7 +125,9 @@ class _SyncRemote extends FakeRemote {
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
     String listId,
-  ) async => Success(conceptsByList[listId] ?? []);
+  ) async => listId == unavailableList
+      ? const Failure(NetworkException('unavailable list contents'))
+      : Success(conceptsByList[listId] ?? []);
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchProgress(
@@ -145,6 +153,76 @@ void main() {
   tearDown(() => db.close());
 
   group('syncFromRemote', () {
+    test(
+      'partial retrieval keeps received data and reports a retryable failure',
+      () async {
+        final remote = _SyncRemote(
+          lists: [
+            _remoteList('received', 'Received'),
+            _remoteList('missing', 'Missing'),
+          ],
+          conceptsByList: {
+            'received': [_remoteConcept('card1', 'received')],
+            'missing': [_remoteConcept('card2', 'missing')],
+          },
+        )..unavailableList = 'missing';
+        final repo = repoWith(remote);
+
+        await expectLater(
+          repo.syncFromRemote(),
+          throwsA(isA<NetworkException>()),
+        );
+        expect(await db.conceptDao.getById('card1'), isNotNull);
+        expect(await db.conceptDao.getById('card2'), isNull);
+        expect((await db.vocabularyListDao.getById('missing'))!.wordCount, 1);
+
+        remote.unavailableList = null;
+        await repo.syncFromRemote();
+        expect(await db.conceptDao.getById('card2'), isNotNull);
+      },
+    );
+
+    test(
+      'a concept tombstone frees quota without overwriting a pending list rename',
+      () async {
+        final concepts = List.generate(
+          AppConfig.maxFreeWordsPerList,
+          (i) => _remoteConcept('card$i', 'rl1'),
+        );
+        final remote = _SyncRemote(
+          lists: [_remoteList('rl1', 'Remote title')],
+          conceptsByList: {'rl1': concepts},
+        );
+        final repo = repoWith(remote);
+        await repo.syncFromRemote();
+        final container = ProviderContainer(
+          overrides: [
+            vocabularyRepositoryProvider.overrideWithValue(repo),
+            isPremiumProvider.overrideWithValue(false),
+          ],
+        );
+        addTearDown(container.dispose);
+        final actions = container.read(listActionsProvider.notifier);
+        Future<Result<dynamic>> addWord() =>
+            actions.addConcept(listId: 'rl1', wordA: 'new', wordB: 'nuevo');
+        expect(
+          (await addWord()).exceptionOrNull,
+          isA<QuotaExceededException>(),
+        );
+
+        await repo.renameList('rl1', 'Local title');
+        final before = (await db.vocabularyListDao.getById('rl1'))!;
+        concepts[0] = {...concepts.first, 'is_deleted': true};
+        await repo.syncFromRemote();
+
+        final refreshed = (await db.vocabularyListDao.getById('rl1'))!;
+        expect(refreshed.name, 'Local title');
+        expect(refreshed.isSynced, isFalse);
+        expect(refreshed.updatedAt, before.updatedAt);
+        expect(refreshed.wordCount, AppConfig.maxFreeWordsPerList - 1);
+        expect((await addWord()).isSuccess, isTrue);
+      },
+    );
     test(
       'pulls remote lists, concepts and variants into the local DB',
       () async {

@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/lists/vocabulary_provider.dart';
+import '../../providers/auth/auth_provider.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widget_keys.dart';
+import '../../../domain/entities/vocabulary_list.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/vk_waveform.dart';
 
@@ -28,15 +30,26 @@ class _ImportFromLinkScreenState extends ConsumerState<ImportFromLinkScreen> {
   }
 
   Future<void> _import() async {
+    if (!mounted) return;
+    // A restored Supabase session can precede its remote profile. Resolve the
+    // local identity before constructing the account-scoped repository.
+    final user = ref.read(authStateProvider.notifier).useLocalSession();
+    if (user == null) {
+      _finish(const Failure(AuthException('Not signed in')));
+      return;
+    }
     final result = await ref
         .read(listActionsProvider.notifier)
         .importFromLink(widget.token);
 
-    if (!mounted) return;
+    _finish(result);
+  }
 
+  void _finish(Result<VocabularyList> result) {
+    if (!mounted) return;
     result.fold(
       onSuccess: (list) {
-        context.push('/lists/${list.id}');
+        context.replace('/lists/${list.id}');
       },
       onFailure: (e) {
         final message = e is NotFoundException

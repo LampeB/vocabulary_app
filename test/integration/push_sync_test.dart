@@ -11,13 +11,18 @@ import 'package:http/testing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show SupabaseClient;
 import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
+import 'package:vocab_kr/core/utils/fsrs_algorithm.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/datasources/remote/vocabulary_remote_datasource.dart';
+import 'package:vocab_kr/data/models/variant_progress_dto.dart';
+import 'package:vocab_kr/data/repositories/progress_repository_impl.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/data/sync/push_sync.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
+import 'package:vocab_kr/domain/entities/variant_progress.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
+import 'package:vocab_kr/services/audio/audio_asset_path.dart';
 import '../helpers/fake_remote.dart';
 
 /// Outbound sync: the isSynced flags are the queue. Rows written while the
@@ -36,12 +41,11 @@ class _RecordingRemote extends FakeRemote {
   final pushedProgress = <Map<String, dynamic>>[];
   final pushedEvents = <Map<String, dynamic>>[];
   Future<void> Function(Map<String, dynamic>)? onList;
-  Future<void> Function(String)? onAudio;
+  Future<ProvisionedAudio?> Function(String)? onAudio;
 
   @override
-  Future<void> provisionAudio(String variantId) async {
-    await onAudio?.call(variantId);
-  }
+  Future<ProvisionedAudio?> provisionAudio(String variantId) async =>
+      await onAudio?.call(variantId);
 
   @override
   Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(
@@ -122,6 +126,149 @@ void main() {
     );
   });
   tearDown(() => db.close());
+
+  test(
+    'audio acknowledgement adopts a canonical path without queuing a write',
+    () async {
+      final list = (await repo.createList(name: 'Audio')).valueOrNull!;
+      final concept = (await repo.addConceptWithVariants(
+        listId: list.id,
+        wordA: 'chat',
+        wordB: '고양이',
+      )).valueOrNull!;
+      final word = (await db.conceptDao.getVariantsByConcept(
+        concept.id,
+      )).firstWhere((v) => v.langCode == 'fr');
+      final canonical = AudioAssetPath.seed(
+        text: word.word,
+        langCode: word.langCode,
+      );
+      expect(word.audioPath, isNot(canonical));
+      remote.onAudio = (id) async => id == word.id
+          ? (path: canonical, word: word.word, langCode: word.langCode)
+          : null;
+      var signals = 0;
+      final subscription = db
+          .watchOutboundMutations('u')
+          .listen((_) => signals++);
+      addTearDown(subscription.cancel);
+      final updated = db.conceptDao
+          .watchVariantsByConcept(concept.id)
+          .expand((rows) => rows)
+          .firstWhere((row) => row.id == word.id && row.audioPath == canonical);
+
+      expect(await sync.pushAll(), 4);
+      final acknowledged = await updated.timeout(const Duration(seconds: 2));
+      expect(acknowledged.isSynced, isTrue);
+      expect(acknowledged.updatedAt, word.updatedAt);
+      expect(signals, 0);
+      expect(await sync.pushAll(), 0);
+    },
+  );
+
+  test(
+    'audio rendered for a previous word cannot replace its edited path',
+    () async {
+      final list = (await repo.createList(name: 'Audio edit')).valueOrNull!;
+      final concept = (await repo.addConceptWithVariants(
+        listId: list.id,
+        wordA: 'chat',
+        wordB: '고양이',
+      )).valueOrNull!;
+      final word = (await repo.getVariants(
+        concept.id,
+      )).valueOrNull!.firstWhere((v) => v.langCode == 'fr');
+      final started = Completer<void>();
+      final ready = Completer<ProvisionedAudio?>();
+      final attemptedAfterEdit = Completer<void>();
+      remote.onAudio = (id) async {
+        if (id != word.id) return null;
+        if (started.isCompleted) {
+          attemptedAfterEdit.complete();
+          return null;
+        }
+        started.complete();
+        return ready.future;
+      };
+
+      expect(await sync.pushAll(), 4);
+      await started.future.timeout(const Duration(seconds: 2));
+      final edited = (await repo.updateVariant(
+        word.copyWith(word: 'chaton'),
+      )).valueOrNull!;
+      expect(await sync.pushAll(), 1);
+      ready.complete((
+        path: AudioAssetPath.seed(text: 'chat', langCode: 'fr'),
+        word: 'chat',
+        langCode: 'fr',
+      ));
+      await attemptedAfterEdit.future.timeout(const Duration(seconds: 2));
+
+      final row = (await db.conceptDao.getVariantById(word.id))!;
+      expect(row.word, 'chaton');
+      expect(row.audioPath, edited.audioPath);
+      expect(row.isSynced, isTrue);
+    },
+  );
+
+  test(
+    'concept deletion removes pending mastery before and after its ordinary ack',
+    () async {
+      final list = (await repo.createList(name: 'Mastered word')).valueOrNull!;
+      final concept = (await repo.addConceptWithVariants(
+        listId: list.id,
+        wordA: 'chat',
+        wordB: '고양이',
+      )).valueOrNull!;
+      final variant = (await db.conceptDao.getVariantsByConcept(
+        concept.id,
+      )).first;
+      final progress = ProgressRepositoryImpl(
+        db.progressDao,
+        db.conceptDao,
+        remote,
+        'u',
+      );
+      final base = (await progress.getProgress(
+        variantId: variant.id,
+        direction: QuizDirection.frToKo,
+      )).valueOrNull!;
+      final card = base.copyWith(
+        state: CardState.review,
+        scheduledDays: 40,
+        reps: 8,
+        timesCorrect: 8,
+      );
+      await sync.pushAll();
+      await progress.updateProgress(card);
+      expect(
+        (await progress.getMasteredVariants('u')).valueOrNull,
+        hasLength(1),
+      );
+      expect(
+        (await progress.getListStats(list.id)).valueOrNull?['mastered'],
+        1,
+      );
+
+      expect((await repo.deleteConcept(concept.id)).isSuccess, isTrue);
+      expect(await db.progressDao.getById(card.id), isNull);
+      expect((await progress.getMasteredVariants('u')).valueOrNull, isEmpty);
+      expect(
+        (await progress.getListStats(list.id)).valueOrNull?['mastered'],
+        0,
+      );
+      expect(await db.conceptDao.getUnsyncedConcepts(), hasLength(1));
+      expect((await db.vocabularyListDao.getById(list.id))!.isSynced, isTrue);
+
+      // An older build could leave progress queued beside the authored tombstone.
+      await db.progressDao.upsert(card.toLocalCompanion());
+      await sync.pushAll();
+      expect(remote.pushedConcepts.last['is_deleted'], isTrue);
+      expect(remote.pushedProgress, isEmpty);
+      expect(await db.progressDao.getById(card.id), isNull);
+      expect((await progress.getMasteredVariants('u')).valueOrNull, isEmpty);
+    },
+  );
 
   test(
     'remote writes distinguish transport outages from row rejection',
@@ -391,6 +538,7 @@ void main() {
         requests.add(id);
         if (!requested.isCompleted) requested.complete();
         await reply.future;
+        return null;
       };
 
       final shareDrain = sync.pushList(shared.id);

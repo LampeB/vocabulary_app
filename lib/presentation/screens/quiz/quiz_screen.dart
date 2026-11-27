@@ -79,6 +79,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // existing service instances — never disposed here (the services' own
   // lifecycles are unchanged; see dispose()).
   SystemSttEngine? _raceSystemEngine;
+  SystemSttEngine? _systemModeEngine;
   WhisperSttEngine? _raceWhisperEngine;
   ElevenLabsSttEngine? _raceElevenLabsEngine;
   // The phone's recognizer fed with OUR recording (Android 13+ bridge).
@@ -204,7 +205,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _flashcardExiting = false;
     _flashcardDragProgress = 0;
     final quiz = ref.read(quizProvider.notifier);
-    final loading = quiz.loadCards(widget.args);
+    final loading = quiz.loadCards(
+      widget.args,
+      promptLocale: uiLocaleCode(context),
+    );
     quiz.setForeground(_appForeground);
     return loading;
   }
@@ -291,7 +295,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final pending = _interruption;
     if (pending != null) await pending;
     if (_turnStale(token, card)) return;
-    if (!_kTestMode) {
+    if (!_kTestMode && card.grammarAudioPrompt == null) {
       unawaited(
         ref
             .read(audioDirectorProvider)
@@ -318,7 +322,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // semantics (and their field-log history) live in AudioDirector.
     final director = ref.read(audioDirectorProvider);
     final waitStart = DateTime.now();
-    await director.chainQuiet(keepGoing: () => !stale());
+    final grammarPrompt = card.grammarAudioPrompt;
+    if (grammarPrompt == null) {
+      await director.chainQuiet(keepGoing: () => !stale());
+    } else if (!_kTestMode) {
+      await director.speakGrammarPrompt(
+        instruction: grammarPrompt.instruction,
+        instructionLang: grammarPrompt.locale,
+        word: grammarPrompt.word,
+        wordLang: card.direction.answerLang,
+        keepGoing: () => !stale(),
+      );
+    }
     if (stale()) return;
     final speechWaitMs = DateTime.now().difference(waitStart).inMilliseconds;
     sttLog(
@@ -430,7 +445,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     String langCode,
     int sessionToken,
   ) async {
-    _raceSystemEngine ??= SystemSttEngine(_stt);
+    _raceSystemEngine ??= SystemSttEngine(_stt, onDevice: true);
+    _systemModeEngine ??= SystemSttEngine(_stt, onDevice: false);
     _raceWhisperEngine ??= WhisperSttEngine(_whisper);
     _raceElevenLabsEngine ??= ElevenLabsSttEngine(_elevenLabs);
     _racePhoneEngine ??= PhoneSttEngine(
@@ -444,7 +460,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       ..register(_raceSystemEngine!)
       ..register(_raceWhisperEngine!);
     final courseMode = ref.read(sttEngineModeProvider) == SttEngineMode.race;
-    await _raceSystemEngine!.prepare();
+    await (courseMode ? _raceSystemEngine! : _systemModeEngine!).prepare();
     if (_turnStale(sessionToken, card)) return;
     if (courseMode) {
       await _racePhoneEngine!.prepare();
@@ -602,7 +618,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // (first render is a 1-4s network fetch). Lived in the legacy block and
     // was silently skipped by race mode since 4a — restored here (4c).
     final upcoming = ref.read(quizProvider).nextCard;
-    if (upcoming != null && m.attempt == 0) {
+    if (upcoming != null &&
+        upcoming.grammarAudioPrompt == null &&
+        m.attempt == 0) {
       final audio = ref.read(audioPlayerServiceProvider);
       unawaited(audio.warmUp(upcoming.progress.direction.questionLang));
       unawaited(
@@ -639,7 +657,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             online: online,
             rescue: rescue,
           )
-        : [_raceSystemEngine!];
+        : [_systemModeEngine!];
     sttLog(
       '[RACE][HF] engines=${engines.map((e) => e.id).join("+")} '
       'online=$online turn=$turn attempt=${m.attempt} rescue=$rescue '
@@ -789,7 +807,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// visible — not only once its microphone opens. This gives ElevenLabs the
   /// whole prompt + answer interval to fill the local cache.
   void _prefetchFollowingCard(QuizCard? card) {
-    if (card == null || _kTestMode) return;
+    if (card == null || card.grammarAudioPrompt != null || _kTestMode) return;
     final audio = ref.read(audioPlayerServiceProvider);
     unawaited(audio.warmUp(card.progress.direction.questionLang));
     unawaited(

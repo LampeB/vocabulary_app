@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/core/theme/app_colors.dart';
 import 'package:vocab_kr/presentation/widgets/study/study_feedback_flood.dart';
+import '../helpers/pump_screen.dart';
 
 void main() {
+  setUpAll(initTestLocalization);
   Future<void> pump(WidgetTester tester, Widget w) =>
       tester.pumpWidget(MaterialApp(home: w));
 
   Color floodColor(WidgetTester tester) => tester
       .widget<Material>(
-        find.descendant(
-          of: find.byType(StudyFeedbackFlood),
-          matching: find.byType(Material),
-        ),
+        find
+            .descendant(
+              of: find.byType(StudyFeedbackFlood),
+              matching: find.byType(Material),
+            )
+            .first,
       )
       .color!;
 
@@ -64,4 +69,43 @@ void main() {
     await tester.tap(find.text('Continuer'));
     expect(tapped, isTrue);
   });
+
+  for (final correct in [false, true]) {
+    testWidgets('feedback keyboard action and contrast (correct=$correct)', (
+      tester,
+    ) async {
+      var continued = 0;
+      await pump(
+        tester,
+        StudyFeedbackFlood(
+          isCorrect: correct,
+          label: correct ? 'Juste !' : 'À revoir',
+          detail: 'Prochain rappel demain',
+          onContinue: () => continued++,
+        ),
+      );
+      await tester.pump();
+      final button = tester.widget<FilledButton>(find.byType(FilledButton));
+      final buttonBackground = button.style!.backgroundColor!.resolve({})!;
+      final buttonText = tester.widget<Text>(find.text('Continuer'));
+      double ratio(Color foreground, Color background) {
+        final a = foreground.computeLuminance();
+        final b = background.computeLuminance();
+        return ((a > b ? a : b) + 0.05) / ((a < b ? a : b) + 0.05);
+      }
+
+      expect(
+        ratio(buttonText.style!.color!, buttonBackground),
+        greaterThanOrEqualTo(4.5),
+      );
+      final detail = tester.widget<Text>(find.text('Prochain rappel demain'));
+      expect(
+        ratio(detail.style!.color!, floodColor(tester)),
+        greaterThanOrEqualTo(4.5),
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(continued, 1);
+    });
+  }
 }

@@ -374,6 +374,8 @@
   "grammar.drill.particle_variant": "「{word}」에 {hint} 조사를 붙이세요",
   "grammar.drill.conjugate": "「{word}」를 해요체 현재형으로 활용하세요",
   "grammar.drill.negate": "「{word}」를 부정형으로 만드세요",
+  "grammar.drill.negate_fr_first_person": "「{word}」의 1인칭 단수 현재 부정형을 말하거나 쓰세요. 주어 「je」는 생략해도 됩니다.",
+  "grammar.drill.spoken_word": "다음 단어",
   "grammar.hint.subject": "주격",
   "grammar.hint.object": "목적격",
   "grammar.hint.destination_or_time": "방향·시간",

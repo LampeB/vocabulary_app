@@ -211,14 +211,17 @@ class SttRace {
       sawRealSession = true;
       seen.add(h);
       if (!h.isFinal) onPartial?.call(h);
-      final match = AnswerValidator.firstCorrect(
-        candidates: h.candidates.isEmpty ? [h.transcript] : h.candidates,
-        acceptedAnswers: acceptedAnswers,
-        isDrivingMode: isDrivingMode,
-        preserveGrammar: preserveGrammar,
-      );
+      final provisional = preserveGrammar && !h.isFinal;
+      final match = provisional
+          ? null
+          : AnswerValidator.firstCorrect(
+              candidates: h.candidates.isEmpty ? [h.transcript] : h.candidates,
+              acceptedAnswers: acceptedAnswers,
+              isDrivingMode: isDrivingMode,
+              preserveGrammar: preserveGrammar,
+            );
       chips[engine.id] = chips[engine.id]!.copyWith(
-        state: SttEngineState.heard,
+        state: provisional ? SttEngineState.partial : SttEngineState.heard,
         transcript: h.transcript,
         matched: match != null,
       );
@@ -252,7 +255,7 @@ class SttRace {
       finish(
         SttRaceOutcome(
           matched: false,
-          bestTranscript: _bestTranscript(seen),
+          bestTranscript: _bestTranscript(seen, finalOnly: preserveGrammar),
           hypotheses: List.of(seen),
           hadRealSession: sawRealSession || ranFullWindow,
         ),
@@ -320,7 +323,10 @@ class SttRace {
                   finish(
                     SttRaceOutcome(
                       matched: false,
-                      bestTranscript: _bestTranscript(seen),
+                      bestTranscript: _bestTranscript(
+                        seen,
+                        finalOnly: preserveGrammar,
+                      ),
                       hypotheses: List.of(seen),
                       hadRealSession: sawRealSession,
                     ),
@@ -369,6 +375,7 @@ class SttRace {
             if (phase == SttPhase.starting) emit(SttPhase.listening);
           } else {
             sttLog('[RACE] "${e.id}" failed to start');
+            if (!restartOnSessionEnd) finishTimedOut();
           }
         }).catchError((Object err) {
           sttLog('[RACE] "${e.id}" start threw: $err');
@@ -520,7 +527,7 @@ class SttRace {
       finish(
         SttRaceOutcome(
           matched: false,
-          bestTranscript: _bestTranscript(seen),
+          bestTranscript: _bestTranscript(seen, finalOnly: preserveGrammar),
           hypotheses: List.of(seen),
           hadRealSession: true,
         ),
@@ -548,14 +555,19 @@ class SttRace {
           return;
         }
         seen.add(h);
-        final match = AnswerValidator.firstCorrect(
-          candidates: h.candidates.isEmpty ? [h.transcript] : h.candidates,
-          acceptedAnswers: acceptedAnswers,
-          isDrivingMode: isDrivingMode,
-          preserveGrammar: preserveGrammar,
-        );
+        final provisional = preserveGrammar && !h.isFinal;
+        final match = provisional
+            ? null
+            : AnswerValidator.firstCorrect(
+                candidates: h.candidates.isEmpty
+                    ? [h.transcript]
+                    : h.candidates,
+                acceptedAnswers: acceptedAnswers,
+                isDrivingMode: isDrivingMode,
+                preserveGrammar: preserveGrammar,
+              );
         chips[engine.id] = chips[engine.id]!.copyWith(
-          state: SttEngineState.heard,
+          state: provisional ? SttEngineState.partial : SttEngineState.heard,
           transcript: h.transcript,
           matched: match != null,
         );
@@ -700,10 +712,14 @@ class SttRace {
 
   /// Highest-confidence final transcript, else the last thing heard — the
   /// "we heard X" shown on a miss.
-  static String? _bestTranscript(List<SttHypothesis> seen) {
+  static String? _bestTranscript(
+    List<SttHypothesis> seen, {
+    required bool finalOnly,
+  }) {
     if (seen.isEmpty) return null;
     final finals = seen.where((h) => h.isFinal).toList();
-    final pool = finals.isNotEmpty ? finals : seen;
+    final pool = finalOnly || finals.isNotEmpty ? finals : [...seen];
+    if (pool.isEmpty) return null;
     pool.sort((a, b) => b.confidence.compareTo(a.confidence));
     return pool.first.transcript;
   }

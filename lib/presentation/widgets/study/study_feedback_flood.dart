@@ -6,7 +6,7 @@ import '../../../core/widget_keys.dart';
 
 /// The unified grading feedback used by every study mode: a held, **full-screen
 /// colour flood** (not a tint) so it's catchable peripherally — bright teal for
-/// "Juste !", bright orange for "À revoir" — with a big white icon and label.
+/// "Juste !", bright orange for "À revoir" — with a contrasted icon and label.
 ///
 /// Theme-independent by design (the floods are identical in light and dark).
 /// Generalises the old per-screen `_triggerFlash` / `_AnswerFeedback`.
@@ -80,7 +80,7 @@ class StudyFeedbackFlood extends StatelessWidget {
                 ),
                 child: Icon(
                   isCorrect ? Icons.check_rounded : Icons.close_rounded,
-                  color: Colors.white,
+                  color: AppColors.ink,
                   size: 56,
                 ),
               ),
@@ -91,7 +91,7 @@ class StudyFeedbackFlood extends StatelessWidget {
                 style: AppTextStyles.grotesk(
                   28,
                   FontWeight.w700,
-                ).copyWith(color: Colors.white),
+                ).copyWith(color: AppColors.ink),
               ),
               if (answer != null && answer!.isNotEmpty) ...[
                 const SizedBox(height: 16),
@@ -104,7 +104,7 @@ class StudyFeedbackFlood extends StatelessWidget {
                                   fontSize: 40,
                                 )
                               : AppTextStyles.grotesk(40, FontWeight.w700))
-                          .copyWith(color: Colors.white),
+                          .copyWith(color: AppColors.ink),
                 ),
                 if (onPlayAudio != null) ...[
                   const SizedBox(height: 8),
@@ -114,7 +114,7 @@ class StudyFeedbackFlood extends StatelessWidget {
                     iconSize: 32,
                     icon: const Icon(
                       Icons.volume_up_rounded,
-                      color: Colors.white,
+                      color: AppColors.ink,
                     ),
                     tooltip: 'quiz.play_audio'.tr(),
                   ),
@@ -128,31 +128,31 @@ class StudyFeedbackFlood extends StatelessWidget {
                   style: AppTextStyles.fig(
                     14,
                     FontWeight.w500,
-                  ).copyWith(color: Colors.white.withValues(alpha: 0.92)),
+                  ).copyWith(color: AppColors.ink),
                 ),
               ],
               const Spacer(),
               if (onContinue != null)
                 SizedBox(
                   width: double.infinity,
-                  child: GestureDetector(
+                  child: FilledButton(
                     key: const ValueKey(WidgetKeys.feedbackContinue),
-                    onTap: onContinue,
-                    child: Container(
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
+                    autofocus: true,
+                    onPressed: onContinue,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.ink,
+                      minimumSize: const Size(double.infinity, 56),
+                      shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: Center(
-                        child: Text(
-                          continueLabel ?? 'Continuer',
-                          style: AppTextStyles.fig(
-                            16,
-                            FontWeight.w700,
-                          ).copyWith(color: color),
-                        ),
-                      ),
+                    ),
+                    child: Text(
+                      continueLabel ?? 'course.continue'.tr(),
+                      style: AppTextStyles.fig(
+                        16,
+                        FontWeight.w700,
+                      ).copyWith(color: AppColors.ink),
                     ),
                   ),
                 ),

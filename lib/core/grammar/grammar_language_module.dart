@@ -13,7 +13,12 @@ import 'korean/korean_morphology.dart';
 /// VSO rule out a static role list) and a validation hook (Korean's jamo
 /// similarity becomes the first implementation).
 abstract class GrammarLanguageModule {
+  const GrammarLanguageModule();
+
   String get langCode;
+
+  /// Localized instruction for the form expected by this module.
+  String get negationPromptKey => 'grammar.drill.negate';
 
   /// Applies [rule] to a single [word] and returns the expected answer plus
   /// accepted alternatives. [variantKey] selects among a rule's variants
@@ -37,7 +42,7 @@ class GrammarAnswer {
   final List<String> accepted;
 }
 
-class KoreanGrammarModule implements GrammarLanguageModule {
+class KoreanGrammarModule extends GrammarLanguageModule {
   /// [conjugationIrregulars] is the merged lexical-irregularity map (today
   /// from the conjugation rule's content; later per-word grammar metadata).
   /// Negation composes on top of conjugation, so it needs the same map.

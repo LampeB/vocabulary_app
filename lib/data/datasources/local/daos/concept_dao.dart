@@ -72,6 +72,42 @@ class ConceptDao extends DatabaseAccessor<AppDatabase> with _$ConceptDaoMixin {
     wordVariantsTable,
   )..where((t) => t.id.equals(id))).getSingleOrNull();
 
+  /// Apply the rendered content's path without creating an outbound edit.
+  /// The comparison and ancestor liveness check belong to the same write.
+  Future<int> applyProvisionedAudio({
+    required String variantId,
+    required String? ownerId,
+    required String word,
+    required String langCode,
+    required String path,
+  }) {
+    final lists = db.vocabularyListsTable;
+    final liveConcepts = selectOnly(conceptsTable)
+      ..addColumns([conceptsTable.id]);
+    final live =
+        liveConcepts.join([
+          innerJoin(
+            lists,
+            lists.id.equalsExp(conceptsTable.listId),
+            useColumns: false,
+          ),
+        ])..where(
+          conceptsTable.isDeleted.equals(false) & lists.isDeleted.equals(false),
+        );
+    if (ownerId != null) live.where(lists.ownerId.equals(ownerId));
+
+    return (update(wordVariantsTable)..where(
+          (t) =>
+              t.id.equals(variantId) &
+              t.word.equals(word) &
+              t.langCode.equals(langCode) &
+              t.isDeleted.equals(false) &
+              t.conceptId.isInQuery(live) &
+              (t.audioPath.isNull() | t.audioPath.equals(path).not()),
+        ))
+        .write(WordVariantsTableCompanion(audioPath: Value(path)));
+  }
+
   Future<int> upsertVariant(WordVariantsTableCompanion companion) =>
       into(wordVariantsTable).insertOnConflictUpdate(companion);
 
@@ -105,6 +141,13 @@ class ConceptDao extends DatabaseAccessor<AppDatabase> with _$ConceptDaoMixin {
       );
     final row = await query.getSingle();
     return row.read(count) ?? 0;
+  }
+
+  Future<void> refreshListWordCount(String listId) async {
+    await db.vocabularyListDao.refreshWordCount(
+      listId,
+      await countByList(listId),
+    );
   }
 
   // ── Push-sync support (the isSynced flags are the outbound queue) ──────────

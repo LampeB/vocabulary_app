@@ -114,6 +114,9 @@ void main() {
             (ruleId: 'fr-articles-le-la', targetLang: 'fr') => const [
               DrillWord(word: 'eau', category: 'nom', tags: ['f']),
             ],
+            (ruleId: 'fr-negation-ne-pas', targetLang: 'fr') => const [
+              DrillWord(word: 'travailler', category: 'verbe'),
+            ],
             (ruleId: _, targetLang: 'fr') => const [
               DrillWord(word: 'pomme', category: 'nom'),
             ],
@@ -223,6 +226,40 @@ void main() {
     notifier.submitTextAnswer('pommes');
     expect(sub.read().answerState, QuizAnswerState.correct);
     expect((await afterAnswers(2)).correct, 1);
+  });
+
+  test('French negation accepts the full first-person answer', () async {
+    const ruleId = 'fr-negation-ne-pas';
+    final sub = container.listen(quizProvider, (_, _) {});
+    final notifier = container.read(quizProvider.notifier);
+    await notifier.loadCards(
+      const QuizArgs(
+        source: QuizSource.grammar,
+        ruleId: ruleId,
+        mode: QuizMode.typing,
+        direction: QuizDirectionChoice.frToKo,
+        cardLimit: 2,
+        langA: 'ko',
+        langB: 'fr',
+      ),
+      promptLocale: 'fr',
+    );
+    final card = sub.read().currentCard!;
+    expect(card.questionWord, contains('première personne du singulier'));
+    expect(card.questionWord, contains('avec ou sans « je »'));
+    expect(card.answerWords, ['ne travaille pas', 'je ne travaille pas']);
+
+    notifier.submitTextAnswer('je travaille pas');
+    expect(sub.read().answerState, QuizAnswerState.incorrect);
+    notifier.advance();
+    notifier.submitTextAnswer('je ne travaille pas');
+    expect(sub.read().answerState, QuizAnswerState.correct);
+    final progress = await db.grammarProgressDao
+        .watchByUser('u')
+        .expand((rows) => rows)
+        .firstWhere((row) => row.ruleId == ruleId && row.shown == 2)
+        .timeout(const Duration(seconds: 2));
+    expect(progress.correct, 1);
   });
 
   test('a correct typed answer records rule progress — never FSRS', () async {

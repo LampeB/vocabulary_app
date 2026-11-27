@@ -68,13 +68,15 @@ VocabularyList _list({
   required String id,
   required String name,
   String? seedId,
+  String langA = 'fr',
+  String langB = 'ko',
 }) => VocabularyList(
   id: id,
   ownerId: 'u',
   name: name,
   seedId: seedId,
-  langA: 'fr',
-  langB: 'ko',
+  langA: langA,
+  langB: langB,
   createdAt: DateTime(2026),
   updatedAt: DateTime(2026),
 );
@@ -511,6 +513,14 @@ void main() {
                 id: 'best-progress',
                 name: 'Greetings EN',
                 seedId: 'starter-greetings:en>ko',
+                langA: 'en',
+              ),
+              _list(id: 'homonym', name: 'starter-greetings'),
+              _list(
+                id: 'wrong-pair',
+                name: 'starter-greetings',
+                seedId: 'starter-greetings:fr>en',
+                langB: 'en',
               ),
               _list(id: 'legacy', name: 'Legacy list'),
             ]),
@@ -519,6 +529,8 @@ void main() {
             _StatsProgressRepository({
               'fr-progress': const {'known': 15, 'total': 20},
               'best-progress': const {'known': 18, 'total': 20},
+              'homonym': const {'known': 20, 'total': 20},
+              'wrong-pair': const {'known': 20, 'total': 20},
               'legacy': const {'known': 6, 'total': 10},
             }),
           ),
@@ -557,8 +569,8 @@ void main() {
       final locked = statuses[1];
       expect(locked.availability, RuleAvailability.locked);
       expect(locked.missingLists, const ['Legacy list']);
-      expect(locked.unlockFraction, 0.6);
-      expect(locked.enoughWords, isTrue);
+      expect(locked.unlockFraction, 0);
+      expect(locked.enoughWords, isFalse);
 
       final mastered = statuses[2];
       expect(mastered.availability, RuleAvailability.mastered);

@@ -1,14 +1,19 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+
 import '../../core/utils/stt_debug_log.dart';
 import '../../core/languages.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 /// Platform recognizer capabilities consumed by [SystemSttEngine].
 abstract interface class SystemSpeechCapture {
   void Function()? get onListeningDone;
   set onListeningDone(void Function()? callback);
   Future<bool> initialize();
+  Future<bool> supportsOnDeviceRecognition();
   Future<bool> startListening({
     required String langCode,
+    bool onDevice = false,
     required void Function(String primary, List<String> candidates) onResult,
     void Function(String primary, List<String> candidates)? onPartial,
   });
@@ -35,6 +40,7 @@ class SystemRecognitionResult {
 /// Port for the Android/iOS recognizer. The production implementation maps
 /// `speech_to_text`; unit tests supply deterministic status/error callbacks.
 abstract interface class SystemSpeechRecognizer {
+  Future<bool> supportsOnDeviceRecognition();
   Future<bool> initialize({
     required void Function(String message, bool permanent) onError,
     required void Function(String status) onStatus,
@@ -43,6 +49,7 @@ abstract interface class SystemSpeechRecognizer {
     required void Function(double level) onSoundLevel,
     required void Function(SystemRecognitionResult result) onResult,
     required String localeId,
+    required bool onDevice,
     required Duration pauseFor,
     required Duration listenFor,
   });
@@ -57,12 +64,33 @@ class _SpeechToTextRecognizer implements SystemSpeechRecognizer {
   final stt.SpeechToText _speech;
 
   @override
+  Future<bool> supportsOnDeviceRecognition() async {
+    if (kIsWeb) return false;
+    // On iOS the plugin checks each locale and requires a local request.
+    if (defaultTargetPlatform == TargetPlatform.iOS) return true;
+    if (defaultTargetPlatform != TargetPlatform.android) return false;
+    // Without a guaranteed Android on-device service, speech_to_text 7.4
+    // silently uses the default recognizer, even with onDevice enabled.
+    const channel = MethodChannel('vocab_kr/system_speech');
+    try {
+      return await channel.invokeMethod<bool>('supportsOnDeviceRecognition') ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  @override
   Future<bool> initialize({
     required void Function(String message, bool permanent) onError,
     required void Function(String status) onStatus,
   }) => _speech.initialize(
     onError: (error) => onError(error.errorMsg, error.permanent),
     onStatus: onStatus,
+    // The plugin otherwise promotes its last partial to a synthetic final.
+    finalTimeout: Duration.zero,
   );
 
   @override
@@ -70,6 +98,7 @@ class _SpeechToTextRecognizer implements SystemSpeechRecognizer {
     required void Function(double level) onSoundLevel,
     required void Function(SystemRecognitionResult result) onResult,
     required String localeId,
+    required bool onDevice,
     required Duration pauseFor,
     required Duration listenFor,
   }) => _speech.listen(
@@ -92,6 +121,7 @@ class _SpeechToTextRecognizer implements SystemSpeechRecognizer {
       cancelOnError: false,
       listenMode: stt.ListenMode.search,
       partialResults: true,
+      onDevice: onDevice,
       localeId: localeId,
       listenFor: listenFor,
       pauseFor: pauseFor,
@@ -141,6 +171,10 @@ class SpeechRecognitionService implements SystemSpeechCapture {
   void Function(String)? onError;
 
   @override
+  Future<bool> supportsOnDeviceRecognition() =>
+      _speech.supportsOnDeviceRecognition();
+
+  @override
   Future<bool> initialize() async {
     if (_initialized) return true;
     _initialized = await _speech.initialize(
@@ -180,7 +214,10 @@ class SpeechRecognitionService implements SystemSpeechCapture {
           _sessionDone = false;
           _listenStartTime = _clock();
           sttLog('[STT] ✅ STT now listening — timer reset');
-        } else if (status == 'notListening' || status == 'done') {
+        } else if (status == 'notListening') {
+          // The microphone ended, but the final recognition may still arrive.
+          _isListening = false;
+        } else if (status == 'done') {
           _isListening = false;
           if (!_sessionDone) {
             _sessionDone = true;
@@ -203,6 +240,7 @@ class SpeechRecognitionService implements SystemSpeechCapture {
   @override
   Future<bool> startListening({
     required String langCode,
+    bool onDevice = false,
     required void Function(String primary, List<String> candidates) onResult,
     void Function(String primary, List<String> candidates)? onPartial,
     Duration pauseFor = const Duration(seconds: 5),
@@ -273,6 +311,7 @@ class SpeechRecognitionService implements SystemSpeechCapture {
           }
         },
         localeId: localeId,
+        onDevice: onDevice,
         listenFor: listenFor,
         pauseFor: pauseFor,
       );
