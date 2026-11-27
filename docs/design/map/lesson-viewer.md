@@ -72,6 +72,10 @@ complément : `../../grammar-lessons-redesign.md`
   la lecture séparée des exercices.
 - Les exemples ouvrent une popup de contexte avec fermeture explicite ; la
   page reste en place dessous.
+- Le titre de l'exemple, sa traduction, ses détails éventuels et Fermer
+  partagent une surface défilante signalée lorsque la popup manque de place.
+  Le parcours KO→FR à texte doublé reste lisible à 568 × 320 et 320 × 568 ;
+  la fermeture restitue la position de lecture.
 - Le lecteur utilise les explications/exemples existants tant qu'une unité U7
   n'a pas ajouté ses `lesson_pages` relues. Son chevron de scroll apparaît si
   le texte se prolonge réellement sous la zone visible.

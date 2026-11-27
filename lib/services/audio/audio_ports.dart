@@ -30,5 +30,8 @@ abstract interface class FileAudioPlayer {
   Future<void> stop();
   Future<PlayerState> get state;
   bool get isPlaying;
+
+  /// Confirms the audible resources are released before final cleanup.
+  Future<void> release();
   Future<void> dispose();
 }

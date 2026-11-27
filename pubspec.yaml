@@ -43,6 +43,7 @@ dependencies:
 
   # Audio
   audioplayers: ^6.1.0
+  audioplayers_platform_interface: ^7.1.1
   flutter_tts: ^4.2.0
   record: ^7.1.1
 

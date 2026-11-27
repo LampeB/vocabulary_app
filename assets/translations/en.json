@@ -374,7 +374,7 @@
   "start_session.start": "Start",
   "start_session.soon": "Soon",
   "start_session.section_list": "LIST",
-  "start_session.start_with_count": "Start · {count} words",
+  "start_session.start_with_count": "Start · {count} cards",
   "start_session.empty_lists": "Create a list first",
   "start_session.smart_due": "Due now",
   "start_session.smart_in_progress": "In progress",

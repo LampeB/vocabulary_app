@@ -50,9 +50,11 @@ audio du prompt → vérification des moteurs → compte à rebours → signal d
 Un échec ou une attente trop longue de l'arrêt affiche une reprise du tour.
 Le signal d'ouverture et la capture attendent l'arrêt confirmé du lecteur,
 y compris si l'apprenant réessaie pendant une demande d'arrêt déjà en cours.
-Le microphone attend la confirmation du signal d'ouverture. Un refus du
-lecteur rend Répéter disponible sur la carte et permet de relancer la
-préparation ou la lecture du signal.
+Le microphone attend l'événement natif de fin du signal d'ouverture. Une
+erreur native pendant la lecture ou une attente de plus de deux secondes
+rend Répéter disponible sur la carte. L'arrêt invalide le signal en cours.
+Une nouvelle tentative utilise un nouveau lecteur après confirmation de
+l'arrêt, pour isoler les événements natifs de l'ancien signal.
 En mains-libres, le compte à rebours, le signal et le micro suivent la fin
 confirmée du prompt de la carte courante. Le tour attend aussi la configuration
 de la voix ou la lecture complète de l'enregistrement local. En grammaire,
@@ -65,7 +67,9 @@ interrompt l'attente dès sa réception. Si le lecteur est remplacé pendant
 un prompt, le tour attend sa libération puis rejoue le prompt sur le nouveau
 lecteur. Répéter redemande une libération refusée. Une libération en cours ou
 déjà confirmée conserve son résultat. Seule la fin de la lecture confirme que
-le prompt a été joué.
+le prompt a été joué. Pour un clip, la libération native de l'audio suffit
+au nouveau lecteur. Le nettoyage final de l'ancien lecteur continue en
+arrière-plan et réessaie une fois la seule opération native refusée.
 Un arrêt TTS confirmé permet de rejouer la consigne quand une réponse de
 configuration de langue est perdue. La réponse tardive d'un ancien tour
 ne remet pas sa voix en service.

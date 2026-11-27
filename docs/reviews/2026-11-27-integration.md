@@ -875,3 +875,56 @@ E2E passent, soit **43 tests Python**. Actionlint, zizmor et la syntaxe Bash
 des tests de concurrence sont propres. Les fonctions Edge restent inchangées
 depuis leurs 31 tests Deno et sept bundles validés. Le garde documentaire et
 le formatage restent obligatoires avant le commit commun et la revue 17.
+
+## Dix-septième itération — `295bdcd`
+
+Les quatre verdicts ont été réunis sur
+`295bdcd229900abaad4f4c3f2e50a8bcf10d369b` avant toute correction. Le profil
+sécurité rend `PROPRE` ; les trois autres rendent `BLOQUÉ`. Les **6 Important
+bruts donnent 5 constats distincts** : la disposition partielle du vrai
+lecteur est commune aux rapports qualité et correction. Aucun Bloquant ni
+Suggestion. La convergence collective reste **0/2** ; le commit de correction
+remet les compteurs à zéro. Prochaine passe **18**, plafond vingt conservé.
+
+| Profil / instance | Verdict | Important | Suggestion |
+| --- | --- | --- | --- |
+| Produit — `/root/r17_product` | BLOQUÉ | 3 | 0 |
+| Qualité — `/root/r17_quality` | BLOQUÉ | 1 | 0 |
+| Correction — `/root/r17_correctness` | BLOQUÉ | 2 | 0 |
+| Sécurité — `/root/r17_security` | PROPRE | 0 | 0 |
+
+| Type | Constat distinct | Correction et preuve ciblée |
+| --- | --- | --- |
+| Important | Lecteur marqué disposed avant refus du dernier nettoyage natif | Étapes de libération et de nettoyage distinguées dans un adaptateur utilisant l'interface publique ; la libération confirmée autorise la suite sans rappeler des méthodes sur l'objet détruit |
+| Important | Signal d'ouverture accepté puis échouant sur le flux natif | Fin réelle, erreur, échéance et annulation du signal traitées ; aucune ouverture du micro sur un simple ACK de resume |
+| Important | Lancement annonçant des mots au lieu des cartes | Libellés de cartes ; une vraie base SQLite avec un concept EN/KO annonce et lance deux cartes en FR/EN/KO |
+| Important | Kimchi indénombrable noté faux dans le pluriel | Exception lexicale et vecteur conservant son éligibilité ; mot et catégorie du vrai catalogue vérifiés dans un quiz écrit et vocal, `coffees` préservé |
+| Important | Popup de leçon sans traduction entièrement lisible en format compact | Titre, traduction et Fermer dans un défilement signalé ; vrai exemple KO→FR à 568 × 320 et 320 × 568, texte doublé, position restituée |
+
+Deux scénarios préliminaires ont été retirés par leurs auteurs avant verdict :
+l'ACK ordinaire ne notifie pas Drift et ne produit donc pas la cascade
+supposée ; `rice / meal` est déjà exclu avant génération. Ils ne comptent pas
+parmi les constats finaux et n'entraînent aucun élargissement de ces corrections.
+
+Les huit checks CI sont verts sur `295bdcd`. Les 43 tests ciblés d'interface
+et de grammaire passent. La gate élargie de contenu réussit 118 tests ; la
+comparaison structurée limite l'édition de seed à une exception et un vecteur
+dans la seule règle de pluriel. Les identifiants, prérequis, minima et la
+règle a/an restent identiques.
+
+La suite finale passe : **1 218 tests hôte**, douze diagnostics positifs
+exclus sans opt-in, couverture **75,9 %** (14 472 / 19 074 lignes). L'analyse
+complète est propre et les 25 diagnostics ciblés passent avec opt-in. Les
+douze régressions audio ciblées valident notamment le dernier appel natif
+de nettoyage refusé puis repris, l'erreur après ACK et l'attente réelle de
+fin du signal avant ouverture du microphone.
+
+L'interface publique `audioplayers_platform_interface` 7.1.1, déjà résolue
+dans le lock, devient une dépendance directe pour reprendre l'opération
+native finale sans appeler une méthode sur un objet détruit. Aucune version
+de paquet n'est changée. Les sept JSON de traduction sont valides.
+
+Les migrations, fonctions Edge, outils et workflows restent inchangés depuis
+leurs dix-sept suites SQL, 31 tests Deno, sept bundles et 43 tests Python
+validés dans le lot précédent. Le garde documentaire, le formatage et le
+contrôle de tout l'historique de PR restent requis avant la revue 18.

@@ -375,6 +375,8 @@ class _SilentFilePlayer implements FileAudioPlayer {
   @override
   bool get isPlaying => false;
   @override
+  Future<void> release() async {}
+  @override
   Future<void> dispose() async {}
 }
 
@@ -1985,7 +1987,7 @@ void main() {
   );
 
   testWidgets(
-    'native opening cue retries refused preparation and playback',
+    'native opening cue requires completion after failures, timeout and pause',
     (tester) async {
       const codec = StandardMethodCodec();
       const global = MethodChannel('xyz.luan/audioplayers.global');
@@ -1996,6 +1998,12 @@ void main() {
       var preparationCalls = 0;
       var playbackCalls = 0;
       var successfulCues = 0;
+      String? lastCuePlayer;
+      Future<void> finishCue(String id) => messenger.handlePlatformMessage(
+        events[id]!.name,
+        codec.encodeSuccessEnvelope({'event': 'audio.onComplete'}),
+        null,
+      );
       messenger.setMockMethodCallHandler(global, (_) async => null);
       messenger.setMockMethodCallHandler(globalEvents, (_) async => null);
       messenger.setMockMethodCallHandler(player, (call) async {
@@ -2026,6 +2034,7 @@ void main() {
               throw PlatformException(code: 'NativeCuePlaybackRefused');
             }
             successfulCues++;
+            lastCuePlayer = id;
         }
         return null;
       });
@@ -2066,9 +2075,37 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfRepeat)));
       await tick(tester, times: 12);
-      expect(preparationCalls, 2);
+      expect(preparationCalls, 3);
       expect(playbackCalls, 2);
       expect(successfulCues, 1);
+      expect(voice.capture.opens, 0);
+      final timedOut = lastCuePlayer!;
+      await tick(tester, times: 10);
+      expect(find.text('quiz.listen_cue_failed'.tr()), findsOneWidget);
+      expect(voice.capture.opens, 0);
+
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfRepeat)));
+      await tick(tester, times: 12);
+      expect(successfulCues, 2);
+      final paused = lastCuePlayer!;
+      expect(paused, isNot(timedOut));
+      await finishCue(timedOut);
+      await tester.pump();
+      expect(voice.capture.opens, 0);
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfPause)));
+      await tester.pump();
+      await finishCue(paused);
+      await tester.pump();
+      expect(voice.capture.opens, 0);
+      expect(find.byKey(const ValueKey(WidgetKeys.hfResume)), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfResume)));
+      await tick(tester, times: 12);
+      expect(successfulCues, 3);
+      expect(lastCuePlayer, isNot(paused));
+      expect(voice.capture.opens, 0);
+      await finishCue(lastCuePlayer!);
+      await tick(tester, times: 2);
       expect(voice.capture.opens, 1);
       await unmountScreen(tester);
       director.dispose();

@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, debugDefaultTargetPlatformOverride;
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/services/audio/audio_ports.dart';
 import 'package:vocab_kr/services/audio/sound_effects_service.dart';
@@ -24,7 +27,7 @@ class _FakePlayer implements SoundEffectPlayer {
   }
 
   @override
-  Future<void> play(Uint8List bytes) async {
+  Future<void> play(Uint8List bytes, {bool waitForCompletion = false}) async {
     if (failPlay) throw StateError('no output device');
     played.add(bytes);
   }
@@ -51,6 +54,76 @@ void _expectWav(Uint8List bytes, int dataLength) {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  test(
+    'native opening cue observes an error after resume acknowledgement',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      const codec = StandardMethodCodec();
+      const global = MethodChannel('xyz.luan/audioplayers.global');
+      const globalEvents = MethodChannel('xyz.luan/audioplayers.global/events');
+      const player = MethodChannel('xyz.luan/audioplayers');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final resumed = Completer<void>();
+      final disposed = Completer<void>();
+      MethodChannel? events;
+      Future<void> emit(ByteData payload) =>
+          messenger.handlePlatformMessage(events!.name, payload, null);
+      messenger.setMockMethodCallHandler(global, (_) async => null);
+      messenger.setMockMethodCallHandler(globalEvents, (_) async => null);
+      messenger.setMockMethodCallHandler(player, (call) async {
+        switch (call.method) {
+          case 'create':
+            events = MethodChannel(
+              'xyz.luan/audioplayers/events/${call.arguments['playerId']}',
+            );
+            messenger.setMockMethodCallHandler(events!, (_) async => null);
+          case 'setSourceBytes':
+            await emit(
+              codec.encodeSuccessEnvelope({
+                'event': 'audio.onPrepared',
+                'value': true,
+              }),
+            );
+          case 'getCurrentPosition':
+            return 0;
+          case 'resume':
+            resumed.complete();
+          case 'dispose':
+            disposed.complete();
+        }
+        return null;
+      });
+      addTearDown(() {
+        messenger.setMockMethodCallHandler(global, null);
+        messenger.setMockMethodCallHandler(globalEvents, null);
+        messenger.setMockMethodCallHandler(player, null);
+        if (events != null) messenger.setMockMethodCallHandler(events!, null);
+      });
+
+      final service = SoundEffectsService();
+      final cue = service.playListenCue();
+      final result = expectLater(
+        cue,
+        throwsA(
+          isA<PlatformException>().having(
+            (error) => error.code,
+            'code',
+            'AndroidAudioError',
+          ),
+        ),
+      );
+      await resumed.future.timeout(const Duration(seconds: 2));
+      await emit(codec.encodeErrorEnvelope(code: 'AndroidAudioError'));
+      await result.timeout(const Duration(seconds: 2));
+      service.dispose();
+      await disposed.future.timeout(const Duration(seconds: 2));
+    },
+  );
+
   test('creates and caches a valid rising verdict WAV', () async {
     final player = _FakePlayer();
     final service = SoundEffectsService(player: player);

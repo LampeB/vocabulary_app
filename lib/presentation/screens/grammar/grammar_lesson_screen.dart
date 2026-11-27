@@ -296,10 +296,12 @@ class _TappableExample extends StatelessWidget {
                     color: AppColors.clay,
                   ),
                   const SizedBox(width: 5),
-                  Text(
-                    'lesson.example_open'.tr(),
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.clay,
+                  Flexible(
+                    child: Text(
+                      'lesson.example_open'.tr(),
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.clay,
+                      ),
                     ),
                   ),
                 ],
@@ -313,27 +315,47 @@ class _TappableExample extends StatelessWidget {
 
   Future<void> _showContext(BuildContext context) => showDialog<void>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(example.target),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('lesson.translation_label'.tr(), style: AppTextStyles.eyebrow),
-          const SizedBox(height: 5),
-          Text(example.translation, style: AppTextStyles.body),
-          if (example.detail.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text(example.detail, style: AppTextStyles.body),
-          ],
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: Text('common.close'.tr()),
+    builder: (dialogContext) => Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: SizedBox(
+        width: 440,
+        child: ScrollAffordance(
+          hint: 'lesson.scroll_hint'.tr(),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Semantics(
+                namesRoute: true,
+                child: Text(
+                  example.target,
+                  style: Theme.of(dialogContext).textTheme.headlineSmall,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'lesson.translation_label'.tr(),
+                style: AppTextStyles.eyebrow,
+              ),
+              const SizedBox(height: 5),
+              Text(example.translation, style: AppTextStyles.body),
+              if (example.detail.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(example.detail, style: AppTextStyles.body),
+              ],
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text('common.close'.tr()),
+                ),
+              ),
+            ],
+          ),
         ),
-      ],
+      ),
     ),
   );
 }

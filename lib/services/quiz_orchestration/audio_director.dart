@@ -1,3 +1,5 @@
+import 'dart:async' show TimeoutException, unawaited;
+
 import '../audio/audio_player_service.dart';
 import '../audio/audio_ports.dart';
 import '../audio/sound_effects_service.dart';
@@ -26,10 +28,12 @@ class AudioDirector {
   final SoundEffectsService _sfx;
   final DateTime Function() _clock;
   Future<void>? _stopping;
+  int _cueGeneration = 0;
 
   /// Poll cadence for the quiet checks — 100ms mirrors the historical loops.
   static const _poll = Duration(milliseconds: 100);
   static const _releaseTimeout = Duration(milliseconds: 900);
+  static const _openingCueTimeout = Duration(seconds: 2);
 
   bool get isSpeaking => _audio.isSpeaking;
 
@@ -62,6 +66,7 @@ class AudioDirector {
   /// Stops both speech and the separate earcon player. Unlike [stop], this is
   /// for a lifecycle interruption, where no sound may survive in background.
   Future<void> stopAll() async {
+    _cueGeneration++;
     await Future.wait([stop(), _sfx.stop()]).timeout(_releaseTimeout);
   }
 
@@ -217,17 +222,27 @@ class AudioDirector {
   Future<void> listenCue({
     Duration clearance = const Duration(milliseconds: 100),
   }) async {
-    // Do not start the clearance clock until the platform accepted the sound.
-    // `audioplayers.play` can be scheduled noticeably later than this Dart
-    // call on Samsung. The long *pre-cue* hand-off already cleared TTS and
-    // audio focus; this tiny post-cue beat only lets the 70ms tick finish.
-    // A larger delay makes the cue lie: learners quite naturally answer as
-    // soon as they hear it, before the mic is live.
-    await _sfx.playListenCue();
+    final generation = _cueGeneration;
+    await _sfx.playListenCue().timeout(
+      _openingCueTimeout,
+      onTimeout: () {
+        // Invalidate and stop the old signal before the next attempt. A
+        // pending or refused native stop remains a barrier to a new signal.
+        unawaited(_sfx.stop());
+        throw TimeoutException(
+          'Opening cue did not finish',
+          _openingCueTimeout,
+        );
+      },
+    );
     await Future.delayed(clearance);
+    if (generation != _cueGeneration) throw const AudioPlaybackCancelled();
   }
 
   /// Frees the director-owned SFX player. The [AudioPlayerService] belongs to
   /// its own provider and is NOT disposed here.
-  void dispose() => _sfx.dispose();
+  void dispose() {
+    _cueGeneration++;
+    _sfx.dispose();
+  }
 }

@@ -1,21 +1,142 @@
+import 'dart:convert';
+
+import 'package:drift/native.dart';
+// ignore: implementation_imports
+import 'package:easy_localization/src/localization.dart';
+// ignore: implementation_imports
+import 'package:easy_localization/src/translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vocab_kr/core/languages.dart';
+import 'package:vocab_kr/core/errors/failure.dart';
+import 'package:vocab_kr/data/datasources/local/app_database.dart';
+import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
+import 'package:vocab_kr/domain/entities/app_user.dart';
 import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
 import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart'
     show QuizSource;
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
+import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_availability_provider.dart';
 import 'package:vocab_kr/domain/entities/concept.dart';
 import 'package:vocab_kr/domain/entities/word_variant.dart';
 import 'package:vocab_kr/presentation/widgets/free_practice_sheet.dart';
 import '../../helpers/pump_screen.dart';
+import '../../helpers/fake_remote.dart';
 
 void main() {
-  setUpAll(initTestLocalization);
+  final copies = <String, Map<String, dynamic>>{};
+  setUpAll(() async {
+    await initTestLocalization();
+    for (final locale in ['fr', 'en', 'ko']) {
+      copies[locale] =
+          jsonDecode(
+                await rootBundle.loadString('assets/translations/$locale.json'),
+              )
+              as Map<String, dynamic>;
+    }
+  });
+
+  for (final locale in ['fr', 'en', 'ko']) {
+    testWidgets(
+      'one real concept in both directions launches two cards in $locale',
+      (tester) async {
+        final translations = Translations(copies[locale]!);
+        Localization.load(
+          Locale(locale),
+          translations: translations,
+          fallbackTranslations: translations,
+        );
+        addTearDown(initTestLocalization);
+        late AppDatabase db;
+        late VocabularyRepositoryImpl repo;
+        late String listId;
+        await tester.runAsync(() async {
+          db = AppDatabase.forTesting(NativeDatabase.memory());
+          addTearDown(db.close);
+          repo = VocabularyRepositoryImpl(
+            db.vocabularyListDao,
+            db.conceptDao,
+            FakeRemote(),
+            'u',
+            db,
+          );
+          final list = (await repo.createList(
+            name: 'Single concept',
+            langA: 'en',
+            langB: 'ko',
+          )).valueOrNull!;
+          listId = list.id;
+          await repo.addConceptWithVariants(
+            listId: listId,
+            wordA: 'cat',
+            wordB: '고양이',
+            langA: 'en',
+            langB: 'ko',
+          );
+        });
+        QuizArgs? args;
+        await pumpScreen(
+          tester,
+          screen: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () =>
+                    showFreePracticeSheet(context, pair: ('en', 'ko')),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+          overrides: [
+            appDatabaseProvider.overrideWithValue(db),
+            vocabularyRepositoryProvider.overrideWithValue(repo),
+            currentUserProvider.overrideWithValue(
+              AppUser(
+                id: 'u',
+                email: 'u@example.test',
+                username: 'u',
+                createdAt: DateTime(2026),
+              ),
+            ),
+          ],
+          routes: [
+            GoRoute(
+              path: '/quiz',
+              builder: (_, state) {
+                args = state.extra! as QuizArgs;
+                return const Scaffold();
+              },
+            ),
+          ],
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        final option = find.byKey(ValueKey('free-practice-list-$listId'));
+        await tester.ensureVisible(option);
+        await tester.tap(option);
+        await tester.pumpAndSettle();
+        final start = find.byKey(const ValueKey('free-practice-start'));
+        final label =
+            (copies[locale]!['start_session.start_with_count'] as String)
+                .replaceAll('{count}', '2');
+        expect(
+          find.descendant(of: start, matching: find.text(label)),
+          findsOneWidget,
+        );
+        await tester.ensureVisible(start);
+        await tester.tap(start);
+        await tester.pumpAndSettle();
+        expect(args!.direction, QuizDirectionChoice.both);
+        expect(args!.cardLimit, 2);
+        expect(args!.listId, listId);
+        expect(tester.takeException(), isNull);
+        await unmountScreen(tester);
+      },
+    );
+  }
 
   testWidgets(
     'empty direction and a new account in-progress pool cannot start',

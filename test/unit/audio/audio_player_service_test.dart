@@ -92,6 +92,9 @@ class _FakeFilePlayer implements FileAudioPlayer {
   bool get isPlaying => playing;
 
   @override
+  Future<void> release() async {}
+
+  @override
   Future<void> dispose() async => disposed++;
 }
 
@@ -222,73 +225,99 @@ void main() {
     expect(returned, isTrue);
   });
 
-  test('a native audio event error settles required cached playback', () async {
-    const codec = StandardMethodCodec();
-    const global = MethodChannel('xyz.luan/audioplayers.global');
-    const globalEvents = MethodChannel('xyz.luan/audioplayers.global/events');
-    const player = MethodChannel('xyz.luan/audioplayers');
-    final messenger =
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-    final resumed = Completer<void>();
-    MethodChannel? events;
-    Future<void> emit(ByteData payload) =>
-        messenger.handlePlatformMessage(events!.name, payload, null);
-    messenger.setMockMethodCallHandler(global, (_) async => null);
-    messenger.setMockMethodCallHandler(globalEvents, (_) async => null);
-    messenger.setMockMethodCallHandler(player, (call) async {
-      switch (call.method) {
-        case 'create':
-          events = MethodChannel(
-            'xyz.luan/audioplayers/events/${call.arguments['playerId']}',
-          );
-          messenger.setMockMethodCallHandler(events!, (_) async => null);
-        case 'setSourceUrl':
-          await emit(
-            codec.encodeSuccessEnvelope({
-              'event': 'audio.onPrepared',
-              'value': true,
-            }),
-          );
-        case 'getCurrentPosition':
-          return 0;
-        case 'resume':
-          resumed.complete();
-      }
-      return null;
-    });
-    addTearDown(() {
-      messenger.setMockMethodCallHandler(global, null);
-      messenger.setMockMethodCallHandler(globalEvents, null);
-      messenger.setMockMethodCallHandler(player, null);
-      if (events != null) messenger.setMockMethodCallHandler(events!, null);
-    });
-    final audio = AudioPlayerService(
-      usePremium: true,
-      assetCache: _FakeCache(path: '/cache/prompt.mp3'),
-      tts: _FakeTts(),
-    );
-    final playback = audio.speak(
-      'mot',
-      'fr',
-      audioPath: 'mot.mp3',
-      requirePlayback: true,
-    );
-    final failure = expectLater(
-      playback,
-      throwsA(
-        isA<PlatformException>().having(
-          (error) => error.code,
-          'code',
-          'AndroidAudioError',
+  test(
+    'a cached player releases audio before retrying final native cleanup',
+    () async {
+      const codec = StandardMethodCodec();
+      const global = MethodChannel('xyz.luan/audioplayers.global');
+      const globalEvents = MethodChannel('xyz.luan/audioplayers.global/events');
+      const player = MethodChannel('xyz.luan/audioplayers');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final resumed = Completer<void>();
+      final firstCleanup = Completer<void>();
+      final allowRefusal = Completer<void>();
+      final cleanedUp = Completer<void>();
+      final releaseCalls = <String>[];
+      var cleanupCalls = 0;
+      MethodChannel? events;
+      Future<void> emit(ByteData payload) =>
+          messenger.handlePlatformMessage(events!.name, payload, null);
+      messenger.setMockMethodCallHandler(global, (_) async => null);
+      messenger.setMockMethodCallHandler(globalEvents, (_) async => null);
+      messenger.setMockMethodCallHandler(player, (call) async {
+        switch (call.method) {
+          case 'create':
+            events = MethodChannel(
+              'xyz.luan/audioplayers/events/${call.arguments['playerId']}',
+            );
+            messenger.setMockMethodCallHandler(events!, (_) async => null);
+          case 'setSourceUrl':
+            await emit(
+              codec.encodeSuccessEnvelope({
+                'event': 'audio.onPrepared',
+                'value': true,
+              }),
+            );
+          case 'getCurrentPosition':
+            return 0;
+          case 'resume':
+            resumed.complete();
+          case 'stop':
+          case 'release':
+            releaseCalls.add(call.method);
+          case 'dispose':
+            releaseCalls.add(call.method);
+            if (++cleanupCalls == 1) {
+              firstCleanup.complete();
+              await allowRefusal.future;
+              throw PlatformException(code: 'FinalCleanupRefused');
+            }
+            cleanedUp.complete();
+        }
+        return null;
+      });
+      addTearDown(() {
+        messenger.setMockMethodCallHandler(global, null);
+        messenger.setMockMethodCallHandler(globalEvents, null);
+        messenger.setMockMethodCallHandler(player, null);
+        if (events != null) messenger.setMockMethodCallHandler(events!, null);
+      });
+      final audio = AudioPlayerService(
+        usePremium: true,
+        assetCache: _FakeCache(path: '/cache/prompt.mp3'),
+        tts: _FakeTts(),
+      );
+      final playback = audio.speak(
+        'mot',
+        'fr',
+        audioPath: 'mot.mp3',
+        requirePlayback: true,
+      );
+      final failure = expectLater(
+        playback,
+        throwsA(
+          isA<PlatformException>().having(
+            (error) => error.code,
+            'code',
+            'AndroidAudioError',
+          ),
         ),
-      ),
-    );
-    await resumed.future.timeout(const Duration(seconds: 2));
-    await emit(codec.encodeErrorEnvelope(code: 'AndroidAudioError'));
-    await failure.timeout(const Duration(seconds: 2));
-    audio.dispose();
-    await audio.stop();
-  });
+      );
+      await resumed.future.timeout(const Duration(seconds: 2));
+      await emit(codec.encodeErrorEnvelope(code: 'AndroidAudioError'));
+      await failure.timeout(const Duration(seconds: 2));
+      audio.dispose();
+      await firstCleanup.future.timeout(const Duration(seconds: 2));
+      await audio.stop().timeout(const Duration(seconds: 2));
+      expect(releaseCalls, ['stop', 'release', 'dispose']);
+      expect(cleanedUp.isCompleted, isFalse);
+      allowRefusal.complete();
+      await cleanedUp.future.timeout(const Duration(seconds: 2));
+      await audio.retryDisposal();
+      expect(releaseCalls, ['stop', 'release', 'dispose', 'dispose']);
+    },
+  );
 
   for (final dispose in [false, true]) {
     for (final cacheHit in [false, true]) {
@@ -361,6 +390,7 @@ void main() {
       expect(await audio.state, PlayerState.playing);
       await audio.stop();
       audio.dispose();
+      await audio.stop();
 
       expect(tts.warmed, ['ko']);
       expect(tts.stopped, 1);

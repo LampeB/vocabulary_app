@@ -55,6 +55,7 @@ final _rule = GrammarRule(
 
 void main() {
   late GrammarRule actualRule;
+  late GrammarRule actualFrenchNegation;
   late Map<String, dynamic> english;
   setUpAll(() async {
     await initTestLocalization();
@@ -71,6 +72,14 @@ void main() {
         .firstWhere(
           (rule) => rule.id == 'particules-sujet-objet-i-ga-eul-reul',
         );
+    final frenchCatalog =
+        jsonDecode(
+              await rootBundle.loadString('assets/seed/grammar/fr/rules.json'),
+            )
+            as Map<String, dynamic>;
+    actualFrenchNegation = (frenchCatalog['rules'] as List)
+        .map((entry) => GrammarRule.fromJson(entry as Map<String, dynamic>))
+        .firstWhere((rule) => rule.id == 'fr-negation-ne-pas');
   });
 
   for (final paged in [false, true]) {
@@ -216,6 +225,104 @@ void main() {
     );
   }
 
+  for (final size in [const Size(568, 320), const Size(320, 568)]) {
+    testWidgets(
+      'actual KO to FR example popup scrolls its translation and close action at $size',
+      (tester) async {
+        await pumpScreen(
+          tester,
+          screen: AppShell(
+            child: GrammarLessonScreen(ruleId: actualFrenchNegation.id),
+          ),
+          overrides: [
+            defaultPairProvider.overrideWith(_KoreanToFrenchPair.new),
+            grammarRulesProvider.overrideWith(
+              (ref, lang) async => [actualFrenchNegation],
+            ),
+            pushOnReconnectProvider.overrideWith((ref) {}),
+            connectivityStreamProvider.overrideWith(
+              (ref) => Stream.value([ConnectivityResult.wifi]),
+            ),
+          ],
+        );
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        tester.platformDispatcher.textScaleFactorTestValue = 2;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        await tester.pumpAndSettle();
+        final example = actualFrenchNegation.workedExamples.first;
+        final opener = find.text(example.target);
+        await tester.ensureVisible(opener);
+        await tester.pumpAndSettle();
+        final readerScroll = tester.state<ScrollableState>(
+          find.descendant(
+            of: find.byType(ScrollAffordance),
+            matching: find.byType(Scrollable),
+          ),
+        );
+        final savedOffset = readerScroll.position.pixels;
+        final visibleTarget = tester
+            .getRect(opener)
+            .intersect(
+              tester.getRect(
+                find.descendant(
+                  of: find.byType(ScrollAffordance),
+                  matching: find.byType(Scrollable),
+                ),
+              ),
+            );
+        expect(visibleTarget.isEmpty, isFalse);
+        await tester.tapAt(visibleTarget.center);
+        await tester.pumpAndSettle();
+        final dialog = find.byType(Dialog);
+        final cue = find.descendant(
+          of: dialog,
+          matching: find.text('lesson.scroll_hint'.tr()),
+        );
+        expect(cue, findsOneWidget);
+        final scroll = find.descendant(
+          of: dialog,
+          matching: find.byType(Scrollable),
+        );
+        final position = tester.state<ScrollableState>(scroll).position;
+        expect(position.maxScrollExtent, greaterThan(0));
+        expect(
+          tester
+              .widget<AnimatedOpacity>(
+                find
+                    .ancestor(of: cue, matching: find.byType(AnimatedOpacity))
+                    .first,
+              )
+              .opacity,
+          1,
+        );
+        final translation = find.descendant(
+          of: dialog,
+          matching: find.text(example.translation('ko')),
+        );
+        await tester.ensureVisible(translation);
+        await tester.pumpAndSettle();
+        final viewport = tester.getRect(scroll);
+        final translatedRect = tester.getRect(translation);
+        expect(translatedRect.top, greaterThanOrEqualTo(viewport.top));
+        expect(translatedRect.bottom, lessThanOrEqualTo(viewport.bottom));
+        final close = find.descendant(
+          of: dialog,
+          matching: find.text('common.close'.tr()),
+        );
+        await tester.ensureVisible(close);
+        await tester.pumpAndSettle();
+        expect(close.hitTestable(), findsOneWidget);
+        await tester.tap(close);
+        await tester.pumpAndSettle();
+        expect(dialog, findsNothing);
+        expect(readerScroll.position.pixels, savedOffset);
+        expect(tester.takeException(), isNull);
+        await unmountScreen(tester);
+      },
+    );
+  }
+
   testWidgets('opens contextual example details without leaving the lesson', (
     tester,
   ) async {
@@ -239,7 +346,7 @@ void main() {
 
     expect(
       find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.byType(Dialog),
         matching: find.text('Je suis étudiant.'),
       ),
       findsOneWidget,
@@ -339,7 +446,7 @@ void main() {
     await tester.tap(find.text('le café'));
     await tester.pump(const Duration(milliseconds: 250));
     expect(
-      find.descendant(of: find.byType(AlertDialog), matching: find.text('커피')),
+      find.descendant(of: find.byType(Dialog), matching: find.text('커피')),
       findsOneWidget,
     );
     await tester.tap(find.text('common.close'.tr()));

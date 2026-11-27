@@ -5,6 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 
 import '../../core/utils/stt_debug_log.dart';
 import 'audio_ports.dart';
+import 'native_playback_player.dart';
 
 /// The tiny boundary around the platform audio player used for earcons.
 ///
@@ -13,7 +14,7 @@ import 'audio_ports.dart';
 /// crosses into the audioplayers plugin.
 abstract interface class SoundEffectPlayer {
   Future<void> prepare();
-  Future<void> play(Uint8List bytes);
+  Future<void> play(Uint8List bytes, {bool waitForCompletion = false});
   Future<void> stop();
   void dispose();
 }
@@ -22,9 +23,7 @@ abstract interface class SoundEffectPlayer {
 // Device adapter: Android/iOS audio-focus routing is exercised in hands-free
 // device smoke tests; its deterministic caller is unit-tested through the port.
 class _AudioPlayersSoundEffectPlayer implements SoundEffectPlayer {
-  _AudioPlayersSoundEffectPlayer() : _player = AudioPlayer();
-
-  final AudioPlayer _player;
+  final _player = NativePlaybackPlayer();
 
   @override
   Future<void> prepare() => _player.setAudioContext(
@@ -47,7 +46,10 @@ class _AudioPlayersSoundEffectPlayer implements SoundEffectPlayer {
   );
 
   @override
-  Future<void> play(Uint8List bytes) => _player.play(BytesSource(bytes));
+  Future<void> play(Uint8List bytes, {bool waitForCompletion = false}) {
+    final source = BytesSource(bytes);
+    return waitForCompletion ? _player.playToEnd(source) : _player.play(source);
+  }
 
   @override
   Future<void> stop() => _player.stop();
@@ -74,6 +76,8 @@ class SoundEffectsService {
   final SoundEffectPlayer? _injectedPlayer;
   SoundEffectPlayer? _playerInstance;
   Future<void>? _readyFuture;
+  Future<void>? _stopping;
+  bool _stopFailed = false;
   int _playbackGeneration = 0;
   bool _disposed = false;
 
@@ -86,12 +90,16 @@ class SoundEffectsService {
       Object error,
       StackTrace stack,
     ) {
-      _readyFuture = null;
-      // Native creation can leave an AudioPlayer permanently unusable.
-      // A fresh adapter also retries native preparation from scratch.
-      if (_injectedPlayer == null && identical(_playerInstance, player)) {
-        _playerInstance = null;
-        if (!_disposed) player.dispose();
+      if (identical(_playerInstance, player)) {
+        _readyFuture = null;
+        // Native creation can leave an AudioPlayer permanently unusable.
+        // A fresh adapter also retries native preparation from scratch.
+        if (_injectedPlayer == null && !_disposed) {
+          _playerInstance = null;
+          _stopping = null;
+          _stopFailed = false;
+          player.dispose();
+        }
       }
       Error.throwWithStackTrace(error, stack);
     });
@@ -192,12 +200,20 @@ class SoundEffectsService {
     final generation = _playbackGeneration;
     try {
       if (_disposed) throw const AudioPlaybackCancelled();
+      final stopping = _stopping;
+      if (stopping != null) {
+        await stopping;
+        if (generation != _playbackGeneration) {
+          throw const AudioPlaybackCancelled();
+        }
+        if (identical(stopping, _stopping)) _stopping = null;
+      }
       await _ready;
       if (generation != _playbackGeneration) {
         throw const AudioPlaybackCancelled();
       }
       sttLog('[SFX] 🎵 $label');
-      await _player.play(bytes());
+      await _player.play(bytes(), waitForCompletion: requirePlayback);
       if (generation != _playbackGeneration) {
         throw const AudioPlaybackCancelled();
       }
@@ -238,20 +254,39 @@ class SoundEffectsService {
   Future<void> stop() async {
     _playbackGeneration++;
     if (_disposed) return;
-    await _stopPlayer();
+    final player = _playerInstance;
+    if (player == null) return;
+    if (_stopping == null || _stopFailed) {
+      _stopFailed = false;
+      _stopping = _stopPlayer(player);
+    }
+    try {
+      await _stopping;
+    } catch (error) {
+      sttLog('[SFX] stop failed: $error');
+    }
   }
 
-  Future<void> _stopPlayer() async {
+  Future<void> _stopPlayer(SoundEffectPlayer player) async {
     try {
-      await _playerInstance?.stop();
-    } catch (_) {}
+      await player.stop();
+    } catch (_) {
+      if (identical(_playerInstance, player)) _stopFailed = true;
+      rethrow;
+    }
+    // Events are keyed by native player ID. Rotate a stopped native player so
+    // an already queued completion cannot finish a later opening cue.
+    if (_injectedPlayer == null && identical(_playerInstance, player)) {
+      _playerInstance = null;
+      _readyFuture = null;
+      player.dispose();
+    }
   }
 
   void dispose() {
     if (_disposed) return;
+    final stopping = stop();
     _disposed = true;
-    _playbackGeneration++;
-    unawaited(_stopPlayer());
-    _playerInstance?.dispose();
+    unawaited(stopping.then((_) => _playerInstance?.dispose()));
   }
 }

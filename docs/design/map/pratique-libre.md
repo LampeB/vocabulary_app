@@ -26,6 +26,8 @@ l'entrée vit sur le plateau Parcours, dans « Choisir une activité ».
   répéter une carte pour atteindre le plafond. Les cartes dues restent seules
   éligibles lorsque la source choisie est « cartes dues ».
   Il n'y a pas de quatrième sélecteur de quantité dans la feuille.
+  Le libellé de lancement indique des **cartes** : un concept jouable dans
+  les deux sens annonce et lance deux cartes, dans les trois locales V0.
 - Les choix initiaux sont cartes dues, deux sens et flashcards. La mémorisation
   des derniers choix et le réglage de quantité ne sont pas livrés.
 - Liste non étudiée → lancement immédiat possible ; Découvrir peut être

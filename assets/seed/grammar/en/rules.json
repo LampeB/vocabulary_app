@@ -204,6 +204,7 @@
             "irregulars": {
               "person": "people",
               "water": "water",
+              "kimchi": "kimchi",
               "milk": "milk",
               "bread": "bread",
               "meat": "meat",
@@ -235,6 +236,7 @@
           { "input": "person", "context": "irregular", "expected": "people" },
           { "input": "cell phone", "context": "compound", "expected": "cell phones" },
           { "input": "water", "context": "uncountable", "expected": "water" },
+          { "input": "kimchi", "context": "uncountable food", "expected": "kimchi" },
           { "input": "coffee", "context": "countable serving", "expected": "coffees" },
           { "input": "subway", "context": "vowel+y", "expected": "subways" },
           { "input": "vegetable", "context": "-s", "expected": "vegetables" }

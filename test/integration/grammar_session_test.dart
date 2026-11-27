@@ -1,11 +1,13 @@
 // ignore_for_file: invalid_use_of_internal_member
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/native.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
@@ -105,7 +107,37 @@ class _CountingPushSync implements PushSync {
 }
 
 void main() {
-  setUpAll(initTestLocalization);
+  late DrillWord catalogKimchi;
+  setUpAll(() async {
+    await initTestLocalization();
+    final layer =
+        jsonDecode(
+              await rootBundle.loadString('assets/seed/vocab/lang/en.json'),
+            )
+            as Map<String, dynamic>;
+    final registry =
+        jsonDecode(
+              await rootBundle.loadString('assets/seed/vocab/registry.json'),
+            )
+            as Map<String, dynamic>;
+    final entry =
+        (layer['entries'] as Map<String, dynamic>)['kimchi']
+            as Map<String, dynamic>;
+    final primary = (entry['words'] as List)
+        .cast<Map<String, dynamic>>()
+        .singleWhere((word) => word['is_primary'] == true);
+    final concept = (registry['concepts'] as List)
+        .cast<Map<String, dynamic>>()
+        .singleWhere((concept) => concept['id'] == 'kimchi');
+    final food = (registry['lists'] as List)
+        .cast<Map<String, dynamic>>()
+        .singleWhere((list) => list['id'] == 'starter-food');
+    expect(food['concepts'] as List, contains('kimchi'));
+    catalogKimchi = DrillWord(
+      word: primary['word'] as String,
+      category: concept['category'] as String,
+    );
+  });
 
   late AppDatabase db;
   late ProviderContainer container;
@@ -137,12 +169,12 @@ void main() {
             (ruleId: 'en-negation-dont', targetLang: 'en') => const [
               DrillWord(word: 'to work', category: 'verbe'),
             ],
-            (ruleId: 'en-plural-s-es', targetLang: 'en') => const [
-              DrillWord(word: 'water', category: 'nom'),
-              DrillWord(word: 'coffee', category: 'nom'),
-              DrillWord(word: 'milk', category: 'nom'),
-              DrillWord(word: 'bread', category: 'nom'),
-              DrillWord(word: 'apple', category: 'nom'),
+            (ruleId: 'en-plural-s-es', targetLang: 'en') => [
+              const DrillWord(word: 'water', category: 'nom'),
+              const DrillWord(word: 'coffee', category: 'nom'),
+              const DrillWord(word: 'milk', category: 'nom'),
+              const DrillWord(word: 'bread', category: 'nom'),
+              catalogKimchi,
             ],
             (ruleId: _, targetLang: 'fr') => const [
               DrillWord(word: 'pomme', category: 'nom'),
@@ -260,7 +292,7 @@ void main() {
 
   for (final voice in [false, true]) {
     test(
-      'English plural distinguishes uncountable water and servings of coffee, voice=$voice',
+      'English plural accepts catalog kimchi and distinguishes water and coffees, voice=$voice',
       () async {
         final sub = container.listen(_quiz, (_, _) {});
         final notifier = container.read(_quiz.notifier);
@@ -279,10 +311,16 @@ void main() {
         var rejectedWaterPlural = false;
         var acceptedWater = false;
         var acceptedCoffees = false;
+        var acceptedKimchi = false;
         while (!sub.read().isComplete) {
           final card = sub.read().currentCard!;
           expect(card.questionWord, contains('indénombrable inchangé'));
           final expected = card.answerWords.single;
+          if (card.questionWord.endsWith(catalogKimchi.word)) {
+            expect(expected, catalogKimchi.word);
+            expect(card.answerWords, isNot(contains('kimchis')));
+            acceptedKimchi = true;
+          }
           final reject = expected == 'water' && !rejectedWaterPlural;
           final answer = reject ? 'waters' : expected;
           if (voice) {
@@ -299,7 +337,13 @@ void main() {
           if (expected == 'coffees') acceptedCoffees = true;
           notifier.advance();
         }
-        expect(rejectedWaterPlural && acceptedWater && acceptedCoffees, isTrue);
+        expect(
+          rejectedWaterPlural &&
+              acceptedWater &&
+              acceptedCoffees &&
+              acceptedKimchi,
+          isTrue,
+        );
         final progress = await db.grammarProgressDao
             .watchByUser('u')
             .expand((rows) => rows)

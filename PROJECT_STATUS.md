@@ -97,22 +97,22 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **1 212 tests hôte passent**, avec **75,8 %**
+- L'analyse Flutter est propre ; les **1 218 tests hôte passent**, avec **75,9 %**
   de couverture sur le dernier lot du 27 novembre. Douze tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 25 tests ciblés. La sonde compilée en mode produit confirme le
   refus des diagnostics, même avec l'option fournie.
-- Sur `284f468`, les huit checks CI, dont les tests hôte, le wrapper SQL,
+- Sur `295bdcd`, les huit checks CI, dont les tests hôte, le wrapper SQL,
   Android et le simulateur iOS, sont verts. Le pont utilise le NDK 28.2 de
-  l'application. Les seize premières itérations des quatre relecteurs ont été
-  bloquées ; leurs corrections sont consignées dans
+  l'application. Les dix-sept premières itérations n'ont pas encore convergé ;
+  le profil sécurité est propre à la dix-septième. Les corrections sont consignées dans
   [le registre du 27 novembre](docs/reviews/2026-11-27-integration.md).
   Le sas exige deux revues propres sur le commit final ; les verdicts et les
   checks du candidat courant sont consignés dans la PR d'intégration.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **1 212** tests hôte réussis lors de la dernière validation locale
+- La suite compte **1 218** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - Les dix-sept suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
@@ -225,6 +225,15 @@ de contenu avant bêta pédagogique.
   Répéter. Une fermeture de lecteur refusée peut être réessayée sans répéter
   une fermeture déjà confirmée. Le garde de PR vérifie aussi les commits
   intermédiaires : ajouter puis retirer une capture ne contourne plus le sas.
+- Le signal d'ouverture attend sa fin native, pas seulement l'acceptation de
+  la commande. Erreur asynchrone, expiration ou annulation gardent le micro
+  fermé. Le lecteur distingue la libération audio acquise du nettoyage final,
+  retenté une fois s'il est refusé ; un objet déjà disposé n'est pas réutilisé.
+- Les boutons de lancement comptent des cartes : un concept dans les deux
+  sens annonce deux cartes. La popup d'exemple laisse défiler son titre,
+  sa traduction et Fermer à texte doublé, puis restitue la position de la
+  leçon. Le pluriel conserve `kimchi`, issu du catalogue, parmi ses noms
+  éligibles indénombrables ; les portions de café restent `coffees`.
 - Les imports superposés ne consomment leur résultat que sur leur propre
   route visible. Une route masquant le quiz interrompt son micro. Les tours
   mains-libres attendent le résultat du prompt, les transcriptions longues

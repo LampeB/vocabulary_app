@@ -359,7 +359,7 @@
   "start_session.start": "開始",
   "start_session.soon": "近日",
   "start_session.section_list": "リスト",
-  "start_session.start_with_count": "開始 · {count}語",
+  "start_session.start_with_count": "開始 · {count}枚のカード",
   "start_session.empty_lists": "まずリストを作成",
   "start_session.smart_due": "今すぐ復習",
   "start_session.smart_in_progress": "学習中",

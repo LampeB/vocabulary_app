@@ -126,6 +126,10 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   plus ancienne arrive après la suivante. Le record acquis est conservé.
 - Le bilan signale son défilement avant le premier geste lorsque son contenu
   dépasse l'écran ; Recommencer et Retour restent atteignables à texte doublé.
+- La popup d'exemple suit le même principe : titre, traduction et fermeture
+  défilent ensemble avec un signal visible en cas de débordement. Le libellé
+  d'approfondissement revient à la ligne si nécessaire ; fermer la popup
+  restitue la position de la leçon.
 - Le squelette du splash s'adapte au paysage. Le splash et le verdict peuvent
   défiler lorsque la hauteur ou le texte agrandi l'exigent, avec un signal de
   défilement ; Continuer reste atteignable à 320 × 568, texte doublé.

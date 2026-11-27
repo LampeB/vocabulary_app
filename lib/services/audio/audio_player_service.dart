@@ -5,56 +5,25 @@ import '../../core/utils/stt_debug_log.dart';
 import 'elevenlabs_service.dart';
 import 'flutter_tts_service.dart';
 import 'audio_ports.dart';
+import 'native_playback_player.dart';
 
 // coverage:ignore-start
 // Thin third-party adapter; behavior is exercised through [FileAudioPlayer]
 // fakes in AudioPlayerService tests. Native plugin calls need device coverage.
 class _AudioplayersFilePlayer implements FileAudioPlayer {
-  final _player = AudioPlayer();
-  Completer<void>? _completion;
+  final _player = NativePlaybackPlayer();
 
   @override
   Future<void> setPlaybackRate(double rate) => _player.setPlaybackRate(rate);
 
   @override
-  Future<void> playFile(String path, {bool waitForCompletion = false}) async {
-    if (!waitForCompletion) {
-      await _player.play(DeviceFileSource(path));
-      return;
-    }
-    final completion = _completion = Completer<void>();
-    final subscription = _player.onPlayerComplete.listen(
-      (_) {
-        if (!completion.isCompleted) completion.complete();
-      },
-      onError: (Object error, StackTrace stack) {
-        if (!completion.isCompleted) completion.completeError(error, stack);
-      },
-      onDone: () => _cancelCompletion(completion),
-    );
-    try {
-      await Future.wait<void>([
-        _player.play(DeviceFileSource(path)),
-        completion.future,
-      ], eagerError: true);
-    } finally {
-      if (identical(_completion, completion)) _completion = null;
-      await subscription.cancel();
-    }
+  Future<void> playFile(String path, {bool waitForCompletion = false}) {
+    final source = DeviceFileSource(path);
+    return waitForCompletion ? _player.playToEnd(source) : _player.play(source);
   }
 
   @override
-  Future<void> stop() async {
-    final completion = _completion;
-    await _player.stop();
-    _cancelCompletion(completion);
-  }
-
-  void _cancelCompletion(Completer<void>? completion) {
-    if (completion != null && !completion.isCompleted) {
-      completion.completeError(const AudioPlaybackCancelled());
-    }
-  }
+  Future<void> stop() => _player.stop();
 
   @override
   Future<PlayerState> get state async => _player.state;
@@ -63,10 +32,10 @@ class _AudioplayersFilePlayer implements FileAudioPlayer {
   bool get isPlaying => _player.state == PlayerState.playing;
 
   @override
-  Future<void> dispose() {
-    _cancelCompletion(_completion);
-    return _player.dispose();
-  }
+  Future<void> release() => _player.releaseForDisposal();
+
+  @override
+  Future<void> dispose() => _player.dispose();
 }
 // coverage:ignore-end
 
@@ -97,7 +66,7 @@ class AudioPlayerService {
   int _playbackEpoch = 0;
   Completer<void> _interrupted = Completer<void>();
   Future<void>? _disposal;
-  Future<void>? _fileDisposal;
+  Future<void>? _fileRelease;
   Future<void>? _speechDisposal;
   bool _disposalRefused = false;
 
@@ -197,11 +166,11 @@ class AudioPlayerService {
     _disposalRefused = false;
     return _disposal =
         Future.wait<void>([
-          _fileDisposal ??= Future<void>.sync(_player.dispose).onError((
+          _fileRelease ??= _releaseFilePlayer().onError((
             Object error,
             StackTrace stack,
           ) {
-            _fileDisposal = null;
+            _fileRelease = null;
             Error.throwWithStackTrace(error, stack);
           }),
           _speechDisposal ??= Future<void>.sync(_tts.dispose).onError((
@@ -218,6 +187,15 @@ class AudioPlayerService {
             Error.throwWithStackTrace(error, stack);
           },
         );
+  }
+
+  Future<void> _releaseFilePlayer() async {
+    await _player.release();
+    unawaited(
+      Future<void>.sync(_player.dispose).catchError((Object error) {
+        sttLog('[TTS] released file player cleanup failed: $error');
+      }),
+    );
   }
 
   void _invalidatePlayback() {
