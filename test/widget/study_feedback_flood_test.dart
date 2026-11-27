@@ -8,15 +8,19 @@ void main() {
       tester.pumpWidget(MaterialApp(home: w));
 
   Color floodColor(WidgetTester tester) => tester
-      .widget<Material>(find.descendant(
-        of: find.byType(StudyFeedbackFlood),
-        matching: find.byType(Material),
-      ))
+      .widget<Material>(
+        find.descendant(
+          of: find.byType(StudyFeedbackFlood),
+          matching: find.byType(Material),
+        ),
+      )
       .color!;
 
   testWidgets('correct → teal flood + check + label', (tester) async {
     await pump(
-        tester, const StudyFeedbackFlood(isCorrect: true, label: 'Juste !'));
+      tester,
+      const StudyFeedbackFlood(isCorrect: true, label: 'Juste !'),
+    );
     expect(find.byIcon(Icons.check_rounded), findsOneWidget);
     expect(find.text('Juste !'), findsOneWidget);
     expect(floodColor(tester), AppColors.feedbackCorrect);
@@ -26,17 +30,23 @@ void main() {
     await pump(
       tester,
       const StudyFeedbackFlood(
-          isCorrect: false, label: 'À revoir', answer: '사과'),
+        isCorrect: false,
+        label: 'À revoir',
+        answer: '사과',
+      ),
     );
     expect(find.byIcon(Icons.close_rounded), findsOneWidget);
     expect(find.text('사과'), findsOneWidget);
     expect(floodColor(tester), AppColors.feedbackWrong);
   });
 
-  testWidgets('no Continuer button unless onContinue is provided',
-      (tester) async {
+  testWidgets('no Continuer button unless onContinue is provided', (
+    tester,
+  ) async {
     await pump(
-        tester, const StudyFeedbackFlood(isCorrect: true, label: 'Juste !'));
+      tester,
+      const StudyFeedbackFlood(isCorrect: true, label: 'Juste !'),
+    );
     expect(find.text('Continuer'), findsNothing);
   });
 

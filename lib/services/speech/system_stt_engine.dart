@@ -11,7 +11,7 @@ import 'stt_engine.dart';
 /// the languages it supports, so register it first (priority order).
 class SystemSttEngine implements SttEngine {
   SystemSttEngine(this._service, {Set<String>? languages})
-      : _languages = languages ?? Languages.supported.toSet();
+    : _languages = languages ?? Languages.supported.toSet();
 
   final SystemSpeechCapture _service;
   final Set<String> _languages;
@@ -67,20 +67,24 @@ class SystemSttEngine implements SttEngine {
     }
     return _service.startListening(
       langCode: langCode,
-      onResult: (primary, candidates) => onHypothesis(SttHypothesis(
-        engineId: id,
-        transcript: primary,
-        candidates: candidates,
-        confidence: 0.9,
-        isFinal: true,
-      )),
-      onPartial: (primary, candidates) => onHypothesis(SttHypothesis(
-        engineId: id,
-        transcript: primary,
-        candidates: candidates,
-        confidence: 0.5,
-        isFinal: false,
-      )),
+      onResult: (primary, candidates) => onHypothesis(
+        SttHypothesis(
+          engineId: id,
+          transcript: primary,
+          candidates: candidates,
+          confidence: 0.9,
+          isFinal: true,
+        ),
+      ),
+      onPartial: (primary, candidates) => onHypothesis(
+        SttHypothesis(
+          engineId: id,
+          transcript: primary,
+          candidates: candidates,
+          confidence: 0.5,
+          isFinal: false,
+        ),
+      ),
     );
   }
 
@@ -89,8 +93,7 @@ class SystemSttEngine implements SttEngine {
     PcmSegment segment, {
     required String langCode,
     required List<String> promptHints,
-  }) async =>
-      null; // owns its own mic — never fed shared audio
+  }) async => null; // owns its own mic — never fed shared audio
 
   @override
   Future<void> stop() {
@@ -104,8 +107,10 @@ class SystemSttEngine implements SttEngine {
         _hooked = false;
         _restoreDone = null;
       } else {
-        sttLog('[RACE] "system" stale stop — newer session owns the handler, '
-            'not restoring');
+        sttLog(
+          '[RACE] "system" stale stop — newer session owns the handler, '
+          'not restoring',
+        );
       }
       _installedDone = null;
     }

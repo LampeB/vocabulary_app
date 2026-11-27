@@ -11,10 +11,12 @@ import '../audio/sound_effects_service.dart';
 /// Later steps move earcons/SFX and the mic hand-off here too, then the
 /// VoiceTurnMachine consumes this as its audio command surface.
 class AudioDirector {
-  AudioDirector(this._audio,
-      {SoundEffectsService? sfx, DateTime Function()? clock})
-      : _sfx = sfx ?? SoundEffectsService(),
-        _clock = clock ?? DateTime.now;
+  AudioDirector(
+    this._audio, {
+    SoundEffectsService? sfx,
+    DateTime Function()? clock,
+  }) : _sfx = sfx ?? SoundEffectsService(),
+       _clock = clock ?? DateTime.now;
 
   final AudioPlayerService _audio;
   final SoundEffectsService _sfx;
@@ -53,10 +55,13 @@ class AudioDirector {
 
   /// Speaks [text] after the current audio finishes (bounded by [timeout]) —
   /// the provider's historical `_speakWhenQuiet`.
-  Future<void> speakWhenQuiet(String text, String langCode,
-      {Duration timeout = const Duration(seconds: 5),
-      String? audioPath,
-      bool Function()? keepGoing}) async {
+  Future<void> speakWhenQuiet(
+    String text,
+    String langCode, {
+    Duration timeout = const Duration(seconds: 5),
+    String? audioPath,
+    bool Function()? keepGoing,
+  }) async {
     if (!(keepGoing?.call() ?? true)) return;
     await quiet(timeout: timeout);
     if (!(keepGoing?.call() ?? true)) return;
@@ -83,8 +88,9 @@ class AudioDirector {
   }) async {
     bool go() => keepGoing?.call() ?? true;
     for (var cycle = 0; cycle < cycles; cycle++) {
-      final startDeadline =
-          _clock().add(cycle == 0 ? firstStartWindow : nextStartWindow);
+      final startDeadline = _clock().add(
+        cycle == 0 ? firstStartWindow : nextStartWindow,
+      );
       while (go() && !_audio.isSpeaking && _clock().isBefore(startDeadline)) {
         await Future.delayed(const Duration(milliseconds: 50));
       }
@@ -110,8 +116,9 @@ class AudioDirector {
   /// Merely firing `stop()` and waiting a fixed delay let a late audio buffer
   /// (or a slow Samsung focus release) overlap the first STT frames, so some
   /// cards appeared to reject speech before the learner could answer.
-  Future<void> handOffToMic(
-      {Duration focusBeat = const Duration(milliseconds: 450)}) async {
+  Future<void> handOffToMic({
+    Duration focusBeat = const Duration(milliseconds: 450),
+  }) async {
     try {
       await _audio.stop().timeout(const Duration(milliseconds: 900));
     } catch (_) {
@@ -124,8 +131,9 @@ class AudioDirector {
   /// "Your turn" earcon followed by a clearance beat, so the recognizer never
   /// transcribes the earcon itself as an answer (double-bip field log
   /// 2026-07-07). Resolves when it is safe to open the mic.
-  Future<void> listenCue(
-      {Duration clearance = const Duration(milliseconds: 100)}) async {
+  Future<void> listenCue({
+    Duration clearance = const Duration(milliseconds: 100),
+  }) async {
     // Do not start the clearance clock until the platform accepted the sound.
     // `audioplayers.play` can be scheduled noticeably later than this Dart
     // call on Samsung. The long *pre-cue* hand-off already cleared TTS and

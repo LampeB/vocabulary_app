@@ -79,27 +79,29 @@ void main() {
       expect(hypotheses.last.isFinal, isTrue);
     });
 
-    test('restores the legacy done callback after stopping its own session',
-        () async {
-      final capture = _FakeSystemCapture();
-      var legacyCalls = 0;
-      capture.onListeningDone = () => legacyCalls++;
-      final engine = SystemSttEngine(capture);
-      var sessionEnds = 0;
+    test(
+      'restores the legacy done callback after stopping its own session',
+      () async {
+        final capture = _FakeSystemCapture();
+        var legacyCalls = 0;
+        capture.onListeningDone = () => legacyCalls++;
+        final engine = SystemSttEngine(capture);
+        var sessionEnds = 0;
 
-      await engine.start(
-        langCode: 'fr',
-        promptHints: const [],
-        onHypothesis: (_) {},
-        onSessionEnd: () => sessionEnds++,
-      );
-      capture.onListeningDone!();
-      expect(sessionEnds, 1);
-      await engine.stop();
-      expect(capture.stops, 1);
-      capture.onListeningDone!();
-      expect(legacyCalls, 1);
-    });
+        await engine.start(
+          langCode: 'fr',
+          promptHints: const [],
+          onHypothesis: (_) {},
+          onSessionEnd: () => sessionEnds++,
+        );
+        capture.onListeningDone!();
+        expect(sessionEnds, 1);
+        await engine.stop();
+        expect(capture.stops, 1);
+        capture.onListeningDone!();
+        expect(legacyCalls, 1);
+      },
+    );
 
     test('a stale stop cannot remove a newer session-end callback', () async {
       final capture = _FakeSystemCapture();
@@ -120,10 +122,14 @@ void main() {
       capture.onListeningDone!();
       expect(latestSessionEnds, 1);
       expect(
-          await engine.recognize(PcmSegment(Uint8List(8), 1, 0),
-              langCode: 'fr', promptHints: const []),
-          isNull,
-          reason: 'a mic owner is never fed shared audio');
+        await engine.recognize(
+          PcmSegment(Uint8List(8), 1, 0),
+          langCode: 'fr',
+          promptHints: const [],
+        ),
+        isNull,
+        reason: 'a mic owner is never fed shared audio',
+      );
       expect(engine.requiresNetwork, isFalse);
       engine.dispose();
       expect(capture.disposals, 1);

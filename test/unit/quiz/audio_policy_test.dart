@@ -12,11 +12,12 @@ void main() {
     });
 
     test(
-        'typing NEVER auto-speaks (on-demand speaker button instead, 2026-07-14)',
-        () {
-      expect(shouldSpeakAnswer(QuizMode.typing, correct: true), isFalse);
-      expect(shouldSpeakAnswer(QuizMode.typing, correct: false), isFalse);
-    });
+      'typing NEVER auto-speaks (on-demand speaker button instead, 2026-07-14)',
+      () {
+        expect(shouldSpeakAnswer(QuizMode.typing, correct: true), isFalse);
+        expect(shouldSpeakAnswer(QuizMode.typing, correct: false), isFalse);
+      },
+    );
 
     test('voice always speaks', () {
       expect(shouldSpeakAnswer(QuizMode.voice, correct: true), isTrue);

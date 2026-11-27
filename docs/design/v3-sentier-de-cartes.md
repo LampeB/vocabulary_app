@@ -30,7 +30,7 @@ La règle détaillée demeure [interaction-language.md](map/interaction-language
 | --- | --- | --- |
 | Préchargement | `SplashScreen` | attend la restauration d'authentification puis le seed local avant de quitter l'écran |
 | Entrée | `WelcomeScreen`, `AuthScreen` | V3, clair/sombre |
-| Plateau | `V3HomeScreen` via `ParcoursScreen` | paire active, activité du jour, parcours, listes et activité libre |
+| Plateau | `V3HomeScreen` | paire active, activité du jour, parcours, listes et activité libre |
 | Chemin du jour | `DailyPathScreen` | révisions dues, entrée de liste et entrée Leçons ; le chemin reste optionnel |
 | Liste/prérequis | `ListDetailScreen` | liste, pratique flashcards, mains-libres et ajout de mot |
 | Configuration | `StartSessionScreen` | langue → liste/source → mode → sens → quantité |
@@ -50,9 +50,14 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   jamais basculer dans le curriculum coréen.
 - Les flashcards gardent le glissement et proposent aussi deux boutons de
   notation localisés, accessibles au clavier et aux lecteurs d'écran.
+  Le bouton de révision associe un texte et un fond contrastés dans les deux
+  thèmes.
 - Le plateau distingue mots/listes disponibles et acquis. L'absence de cartes
   dues ne prouve aucune activité terminée : le chemin montre une recommandation
   sans faux compteur de complétion ni estimation de mots inédits.
+- Les feuilles papier du plateau utilisent une encre explicite dans les deux
+  thèmes. Les ondulations s'arrêtent avec la réduction des animations ou un
+  sous-arbre inactif ; le prototype de parcours sans route est retiré.
 
 ## Limites connues à corriger avant de qualifier V3 de complète
 

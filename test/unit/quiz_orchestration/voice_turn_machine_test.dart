@@ -83,8 +83,7 @@ void main() {
   });
 
   group('not-heard ladder (3 attempts, rescue engine last)', () {
-    test(
-        'silence retries with the prompt, and the LAST attempt uses the '
+    test('silence retries with the prompt, and the LAST attempt uses the '
         'rescue engine', () {
       final m = machine();
       toListening(m, 1); // attempt 1
@@ -105,8 +104,7 @@ void main() {
       expect((out.single as OpenMic).useRescueEngine, isTrue);
     });
 
-    test(
-        'silence NEVER grades wrong — ladder exhausted skips without '
+    test('silence NEVER grades wrong — ladder exhausted skips without '
         'grading (user feedback 2026-07-06)', () {
       final m = machine();
       toListening(m, 1);
@@ -130,8 +128,9 @@ void main() {
       // Ladder beat elapses fast — only ~0.9s since the mic opened.
       tick(const Duration(milliseconds: 900));
       final out = m.on(const WaitElapsed(1));
-      expect(out, [isA<WaitThenRetry>()],
-          reason: 'must NOT reopen the mic 0.9s after the last open');
+      expect(out, [
+        isA<WaitThenRetry>(),
+      ], reason: 'must NOT reopen the mic 0.9s after the last open');
       final wait = (out.single as WaitThenRetry).duration;
       expect(wait.inMilliseconds, closeTo(2600, 50)); // 3.5s − 0.9s
       // After the wait the mic opens normally.
@@ -198,8 +197,7 @@ void main() {
   });
 
   group('consecutive-silence auto-pause (environment failure)', () {
-    test(
-        'two silent-skipped cards in a row pause the session; real speech '
+    test('two silent-skipped cards in a row pause the session; real speech '
         'resets the streak', () {
       final m = machine();
 
@@ -236,8 +234,9 @@ void main() {
       expect(exhaust(1), [isA<SkipCard>()]);
       toListening(m, 2);
       m.on(const MatchHeard(2, 'ok')); // resets the streak
-      expect(exhaust(3), [isA<SkipCard>()],
-          reason: 'streak reset — this is silent card #1 again, not #2');
+      expect(exhaust(3), [
+        isA<SkipCard>(),
+      ], reason: 'streak reset — this is silent card #1 again, not #2');
     });
   });
 
@@ -257,8 +256,9 @@ void main() {
 
       expect(exhaust(1), [isA<SkipCard>()]); // silent #1
       m.resetSilenceStreak(); // user unpaused / resumed manually
-      expect(exhaust(2), [isA<SkipCard>()],
-          reason: 'streak reset — silent #1 again, not a pause');
+      expect(exhaust(2), [
+        isA<SkipCard>(),
+      ], reason: 'streak reset — silent #1 again, not a pause');
     });
   });
 

@@ -57,15 +57,21 @@ Le retour au premier plan reprend le tour interrompu si la session est
 active. Pendant un feedback, il reprend l'avance différée et conserve la
 notation déjà écrite. Une pause volontaire reste active jusqu'à la reprise
 par l'apprenant.
+L'arrêt d'un tour invalide les portions PCM en file pour le reconnaisseur du
+téléphone. Le pont Android annule et détruit le reconnaisseur actif et ferme
+ses deux descripteurs de capture. Le nouveau tour attend cette remise à zéro
+et peut décoder sans attendre une ancienne transcription.
 En Voix, passer au clavier ou révéler la réponse invalide également le tour
 et ferme sa capture. Une transcription reçue ensuite ne peut plus décider du
 résultat. L'arrêt de la synthèse et des signaux invalide les demandes audio
 en attente de configuration native avant qu'elles puissent jouer.
 Les cartes suivantes et reportées conservent leurs chemins de clips en cache.
 
-La notation **écrite de grammaire** préserve les formes attendues par le module :
-ni élision supprimée, ni rapprochement phonétique ne peut masquer un article
-ou un pluriel manquant. La tolérance du vocabulaire ne s'y applique pas.
+La notation **écrite et orale de grammaire** préserve les formes attendues
+par le module, y compris les articles élidés, les terminaisons et les
+particules. Le même contrôle s'applique à chaque hypothèse de la course et
+à l'enregistrement du verdict. La transcription orale peut ajouter de la
+ponctuation finale. Le vocabulaire conserve ses normalisations tolérantes.
 Les réponses de grammaire alimentent la maîtrise de la règle. Le feedback de
 vocabulaire annonce l'intervalle renvoyé par la notation FSRS enregistrée
 pour cette réponse. Les verdicts s'affichent dès la validation.
@@ -96,6 +102,10 @@ Le cloud n'analyse la capture qu'après la fin de la tentative locale et de
 ses segments en attente, sans réponse locale validée. Les demandes cloud
 d'un même tour sont sérialisées. Une validation locale n'envoie ni audio ni
 réponse attendue au fournisseur.
+Si une analyse réseau dépasse le délai du tour, la course abandonne les
+envois réseau restants de ce tour. Tant que la requête HTTP Scribe est encore
+en cours, le service réserve son emplacement et un tour ultérieur peut
+continuer avec les autres moteurs disponibles.
 
 Les routes `/stt-lab` et `/stt-lab/near-miss`, leurs liens, l'enregistrement
 de WAV, la persistance des transcriptions du corpus et le journal brut exigent

@@ -21,35 +21,33 @@ Future<void> _createFreshList(PatrolIntegrationTester $) async {
   // 'Nouvelle liste' is the FAB label — always visible regardless of list
   // count.  'Créer une liste' only appears in the empty-state body and is
   // absent whenever there are stale lists from a previous test run.
-  await $(find.text('Nouvelle liste')).waitUntilVisible(
-    timeout: const Duration(seconds: 15),
-  );
+  await $(
+    find.text('Nouvelle liste'),
+  ).waitUntilVisible(timeout: const Duration(seconds: 15));
   await $(find.text('Nouvelle liste')).tap();
   await $.pump(const Duration(milliseconds: 300));
   await $(TextField).enterText(_listName);
   await $(find.text('Créer')).tap();
 
-  await $(find.text(_listName)).waitUntilVisible(
-    timeout: const Duration(seconds: 30),
-  );
+  await $(
+    find.text(_listName),
+  ).waitUntilVisible(timeout: const Duration(seconds: 30));
 }
 
 /// Adds a word [fr]/[ko] via the "Ajouter" dialog, waits for it to close.
-Future<void> _addWord(
-  PatrolIntegrationTester $,
-  String fr,
-  String ko,
-) async {
+Future<void> _addWord(PatrolIntegrationTester $, String fr, String ko) async {
   await $(find.text('Ajouter')).first.tap();
   await $.pump(const Duration(milliseconds: 500));
 
   await $(TextField).at(0).enterText(fr);
   await $(TextField).at(1).enterText(ko);
 
-  await $(find.descendant(
-    of: find.byType(AlertDialog),
-    matching: find.text('Ajouter'),
-  )).tap();
+  await $(
+    find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.text('Ajouter'),
+    ),
+  ).tap();
 
   // Poll until the dialog closes — fixed pump avoids pumpAndSettle hanging on
   // Supabase realtime stream emitting after the write commits.
@@ -66,15 +64,18 @@ Future<void> _addWord(
 void main() {
   // ── Create list ───────────────────────────────────────────────────────────
 
-  isolatedPatrolTest('created list appears in Lists screen',
-      scenarioId: 'vocab_list.created_list_appears_in_lists_screen',
-      timeout: const Timeout(Duration(minutes: 3)), ($) async {
-    addTearDown(() => deleteListsByName($, _listName));
-    await launchAndSignIn($);
-    await _createFreshList($);
+  isolatedPatrolTest(
+    'created list appears in Lists screen',
+    scenarioId: 'vocab_list.created_list_appears_in_lists_screen',
+    timeout: const Timeout(Duration(minutes: 3)),
+    ($) async {
+      addTearDown(() => deleteListsByName($, _listName));
+      await launchAndSignIn($);
+      await _createFreshList($);
 
-    expect($(find.text(_listName)), findsAtLeastNWidgets(1));
-  });
+      expect($(find.text(_listName)), findsAtLeastNWidgets(1));
+    },
+  );
 
   // ── Add word then verify it appears in the detail screen ─────────────────
   //
@@ -83,58 +84,64 @@ void main() {
   // because importFromJson wasn't wrapped in a transaction and variants
   // could be inserted outside the right scope.
 
-  isolatedPatrolTest('word added to list is visible in detail screen',
-      scenarioId: 'vocab_list.word_added_to_list_is_visible_in_detail_screen',
-      timeout: const Timeout(Duration(minutes: 3)), ($) async {
-    addTearDown(() => deleteListsByName($, _listName));
-    await launchAndSignIn($);
-    await _createFreshList($);
+  isolatedPatrolTest(
+    'word added to list is visible in detail screen',
+    scenarioId: 'vocab_list.word_added_to_list_is_visible_in_detail_screen',
+    timeout: const Timeout(Duration(minutes: 3)),
+    ($) async {
+      addTearDown(() => deleteListsByName($, _listName));
+      await launchAndSignIn($);
+      await _createFreshList($);
 
-    // Open the list detail.
-    await $(find.text(_listName)).tap();
-    await $(find.text('Ajouter')).waitUntilVisible(
-      timeout: const Duration(seconds: 15),
-    );
+      // Open the list detail.
+      await $(find.text(_listName)).tap();
+      await $(
+        find.text('Ajouter'),
+      ).waitUntilVisible(timeout: const Duration(seconds: 15));
 
-    // Add a word.
-    await _addWord($, _frWord, _koWord);
+      // Add a word.
+      await _addWord($, _frWord, _koWord);
 
-    // The word must now be visible — not "Aucun mot pour l'instant".
-    expect($(find.text(_frWord)), findsAtLeastNWidgets(1));
-    expect($(find.text(_koWord)), findsAtLeastNWidgets(1));
-    expect($(find.text("Aucun mot pour l'instant")), findsNothing);
-  });
+      // The word must now be visible — not "Aucun mot pour l'instant".
+      expect($(find.text(_frWord)), findsAtLeastNWidgets(1));
+      expect($(find.text(_koWord)), findsAtLeastNWidgets(1));
+      expect($(find.text("Aucun mot pour l'instant")), findsNothing);
+    },
+  );
 
   // ── Word count in list view matches words in detail ───────────────────────
 
-  isolatedPatrolTest('word count in list view matches words in detail',
-      scenarioId: 'vocab_list.word_count_in_list_view_matches_words_in_detail',
-      timeout: const Timeout(Duration(minutes: 3)), ($) async {
-    addTearDown(() => deleteListsByName($, _listName));
-    await launchAndSignIn($);
-    await _createFreshList($);
+  isolatedPatrolTest(
+    'word count in list view matches words in detail',
+    scenarioId: 'vocab_list.word_count_in_list_view_matches_words_in_detail',
+    timeout: const Timeout(Duration(minutes: 3)),
+    ($) async {
+      addTearDown(() => deleteListsByName($, _listName));
+      await launchAndSignIn($);
+      await _createFreshList($);
 
-    // Open detail and add a word.
-    await $(find.text(_listName)).tap();
-    await $(find.text('Ajouter')).waitUntilVisible(
-      timeout: const Duration(seconds: 15),
-    );
-    await _addWord($, _frWord, _koWord);
+      // Open detail and add a word.
+      await $(find.text(_listName)).tap();
+      await $(
+        find.text('Ajouter'),
+      ).waitUntilVisible(timeout: const Duration(seconds: 15));
+      await _addWord($, _frWord, _koWord);
 
-    // On Samsung the soft keyboard can linger after the dialog closes, covering
-    // the bottom nav bar and making bookmark_border unhittable.  5 s gives the
-    // OS enough time to finish the keyboard-dismiss animation even on busy days.
-    await $.pump(const Duration(seconds: 5));
+      // On Samsung the soft keyboard can linger after the dialog closes, covering
+      // the bottom nav bar and making bookmark_border unhittable.  5 s gives the
+      // OS enough time to finish the keyboard-dismiss animation even on busy days.
+      await $.pump(const Duration(seconds: 5));
 
-    // Return to lists screen via the bottom nav.
-    await $(find.byIcon(Icons.bookmark_border)).tap();
+      // Return to lists screen via the bottom nav.
+      await $(find.byIcon(Icons.bookmark_border)).tap();
 
-    // Wait for the list card to appear with updated word count.
-    await $(find.text('1 mot')).waitUntilVisible(
-      timeout: const Duration(seconds: 15),
-    );
-    expect($(find.text('1 mot')), findsOneWidget);
-  });
+      // Wait for the list card to appear with updated word count.
+      await $(
+        find.text('1 mot'),
+      ).waitUntilVisible(timeout: const Duration(seconds: 15));
+      expect($(find.text('1 mot')), findsOneWidget);
+    },
+  );
 
   // ── Edit word ─────────────────────────────────────────────────────────────
   //
@@ -142,50 +149,54 @@ void main() {
   // Saving with new text updates the tile in-place.
 
   isolatedPatrolTest(
-      'tapping word tile opens pre-populated edit dialog and saves changes',
-      scenarioId:
-          'vocab_list.tapping_word_tile_opens_pre_populated_edit_dialog_and_saves_changes',
-      timeout: const Timeout(Duration(minutes: 3)), ($) async {
-    addTearDown(() => deleteListsByName($, _listName));
-    await launchAndSignIn($);
-    await _createFreshList($);
+    'tapping word tile opens pre-populated edit dialog and saves changes',
+    scenarioId:
+        'vocab_list.tapping_word_tile_opens_pre_populated_edit_dialog_and_saves_changes',
+    timeout: const Timeout(Duration(minutes: 3)),
+    ($) async {
+      addTearDown(() => deleteListsByName($, _listName));
+      await launchAndSignIn($);
+      await _createFreshList($);
 
-    await $(find.text(_listName)).tap();
-    await $(find.text('Ajouter')).waitUntilVisible(
-      timeout: const Duration(seconds: 15),
-    );
-    await _addWord($, _frWord, _koWord);
+      await $(find.text(_listName)).tap();
+      await $(
+        find.text('Ajouter'),
+      ).waitUntilVisible(timeout: const Duration(seconds: 15));
+      await _addWord($, _frWord, _koWord);
 
-    // Tap the word tile (anywhere except the trash icon) to open the edit dialog.
-    await $(find.text(_frWord)).tap();
-    await $.pump(const Duration(milliseconds: 500));
+      // Tap the word tile (anywhere except the trash icon) to open the edit dialog.
+      await $(find.text(_frWord)).tap();
+      await $.pump(const Duration(milliseconds: 500));
 
-    // Dialog title must be present.
-    expect($(find.text('Modifier le mot')), findsOneWidget);
+      // Dialog title must be present.
+      expect($(find.text('Modifier le mot')), findsOneWidget);
 
-    // Replace the FR word with a new value.
-    const newFrWord = 'Bonsoir';
-    await $(TextField).at(0).enterText(newFrWord);
+      // Replace the FR word with a new value.
+      const newFrWord = 'Bonsoir';
+      await $(TextField).at(0).enterText(newFrWord);
 
-    // Save.
-    await $(find.text('Enregistrer')).tap();
+      // Save.
+      await $(find.text('Enregistrer')).tap();
 
-    // Wait for the dialog to close.
-    final deadline = DateTime.now().add(const Duration(seconds: 10));
-    while (find.byType(AlertDialog).evaluate().isNotEmpty) {
-      if (DateTime.now().isAfter(deadline)) {
-        throw Exception('Edit dialog did not close after tapping Enregistrer');
+      // Wait for the dialog to close.
+      final deadline = DateTime.now().add(const Duration(seconds: 10));
+      while (find.byType(AlertDialog).evaluate().isNotEmpty) {
+        if (DateTime.now().isAfter(deadline)) {
+          throw Exception(
+            'Edit dialog did not close after tapping Enregistrer',
+          );
+        }
+        await $.pump(const Duration(milliseconds: 100));
       }
-      await $.pump(const Duration(milliseconds: 100));
-    }
-    await $.pump(const Duration(milliseconds: 500));
+      await $.pump(const Duration(milliseconds: 500));
 
-    // Updated word is visible; old word is gone.
-    expect($(find.text(newFrWord)), findsAtLeastNWidgets(1));
-    expect($(find.text(_frWord)), findsNothing);
-    // Korean word is unchanged.
-    expect($(find.text(_koWord)), findsAtLeastNWidgets(1));
-  });
+      // Updated word is visible; old word is gone.
+      expect($(find.text(newFrWord)), findsAtLeastNWidgets(1));
+      expect($(find.text(_frWord)), findsNothing);
+      // Korean word is unchanged.
+      expect($(find.text(_koWord)), findsAtLeastNWidgets(1));
+    },
+  );
 
   // ── Delete word via trash button + confirmation ───────────────────────────
   //
@@ -193,73 +204,81 @@ void main() {
   // Confirming removes the word tile from the list.
 
   isolatedPatrolTest(
-      'trash button + confirmation deletes word from detail screen',
-      scenarioId:
-          'vocab_list.trash_button_confirmation_deletes_word_from_detail_screen',
-      timeout: const Timeout(Duration(minutes: 3)), ($) async {
-    addTearDown(() => deleteListsByName($, _listName));
-    await launchAndSignIn($);
-    await _createFreshList($);
+    'trash button + confirmation deletes word from detail screen',
+    scenarioId:
+        'vocab_list.trash_button_confirmation_deletes_word_from_detail_screen',
+    timeout: const Timeout(Duration(minutes: 3)),
+    ($) async {
+      addTearDown(() => deleteListsByName($, _listName));
+      await launchAndSignIn($);
+      await _createFreshList($);
 
-    await $(find.text(_listName)).tap();
-    await $(find.text('Ajouter')).waitUntilVisible(
-      timeout: const Duration(seconds: 15),
-    );
-    await _addWord($, _frWord, _koWord);
+      await $(find.text(_listName)).tap();
+      await $(
+        find.text('Ajouter'),
+      ).waitUntilVisible(timeout: const Duration(seconds: 15));
+      await _addWord($, _frWord, _koWord);
 
-    // Verify the word is present before deletion.
-    expect($(find.text(_frWord)), findsAtLeastNWidgets(1));
+      // Verify the word is present before deletion.
+      expect($(find.text(_frWord)), findsAtLeastNWidgets(1));
 
-    // Tap the trash icon on the word tile.
-    await $(find.byIcon(Icons.delete_outline)).first.tap();
-    await $.pump(const Duration(milliseconds: 300));
+      // Tap the trash icon on the word tile.
+      await $(find.byIcon(Icons.delete_outline)).first.tap();
+      await $.pump(const Duration(milliseconds: 300));
 
-    // Confirmation dialog must appear.
-    expect($(find.text('Supprimer le mot ?')), findsOneWidget);
+      // Confirmation dialog must appear.
+      expect($(find.text('Supprimer le mot ?')), findsOneWidget);
 
-    // Tap the red 'Supprimer' button inside the dialog to confirm.
-    await $(find.descendant(
-      of: find.byType(AlertDialog),
-      matching: find.text('Supprimer'),
-    )).tap();
+      // Tap the red 'Supprimer' button inside the dialog to confirm.
+      await $(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('Supprimer'),
+        ),
+      ).tap();
 
-    await $.pump(const Duration(seconds: 1));
+      await $.pump(const Duration(seconds: 1));
 
-    // Word is gone; empty-state placeholder appears.
-    expect($(find.text(_frWord)), findsNothing);
-    expect($(find.text(_koWord)), findsNothing);
-    expect($(find.text("Aucun mot pour l'instant")), findsOneWidget);
-  });
+      // Word is gone; empty-state placeholder appears.
+      expect($(find.text(_frWord)), findsNothing);
+      expect($(find.text(_koWord)), findsNothing);
+      expect($(find.text("Aucun mot pour l'instant")), findsOneWidget);
+    },
+  );
 
   // ── Cancelling delete confirmation keeps the word ─────────────────────────
 
   isolatedPatrolTest(
-      'cancelling delete confirmation keeps word in detail screen',
-      scenarioId:
-          'vocab_list.cancelling_delete_confirmation_keeps_word_in_detail_screen',
-      timeout: const Timeout(Duration(minutes: 3)), ($) async {
-    addTearDown(() => deleteListsByName($, _listName));
-    await launchAndSignIn($);
-    await _createFreshList($);
+    'cancelling delete confirmation keeps word in detail screen',
+    scenarioId:
+        'vocab_list.cancelling_delete_confirmation_keeps_word_in_detail_screen',
+    timeout: const Timeout(Duration(minutes: 3)),
+    ($) async {
+      addTearDown(() => deleteListsByName($, _listName));
+      await launchAndSignIn($);
+      await _createFreshList($);
 
-    await $(find.text(_listName)).tap();
-    await $(find.text('Ajouter')).waitUntilVisible(
-      timeout: const Duration(seconds: 15),
-    );
-    await _addWord($, _frWord, _koWord);
+      await $(find.text(_listName)).tap();
+      await $(
+        find.text('Ajouter'),
+      ).waitUntilVisible(timeout: const Duration(seconds: 15));
+      await _addWord($, _frWord, _koWord);
 
-    // Tap trash icon.
-    await $(find.byIcon(Icons.delete_outline)).first.tap();
-    await $.pump(const Duration(milliseconds: 300));
+      // Tap trash icon.
+      await $(find.byIcon(Icons.delete_outline)).first.tap();
+      await $.pump(const Duration(milliseconds: 300));
 
-    // Tap 'Annuler' — word must survive.
-    await $(find.descendant(
-      of: find.byType(AlertDialog),
-      matching: find.text('Annuler'),
-    )).tap();
-    await $.pump(const Duration(milliseconds: 500));
+      // Tap 'Annuler' — word must survive.
+      await $(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('Annuler'),
+        ),
+      ).tap();
+      await $.pump(const Duration(milliseconds: 500));
 
-    expect($(find.text(_frWord)), findsAtLeastNWidgets(1));
-    expect($(find.text(_koWord)), findsAtLeastNWidgets(1));
-  });
+      expect($(find.text(_frWord)), findsAtLeastNWidgets(1));
+      expect($(find.text(_koWord)), findsAtLeastNWidgets(1));
+    },
+  );
 }

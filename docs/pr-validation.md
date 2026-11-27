@@ -131,15 +131,47 @@ Le propriétaire atteste cette preuve avec le statut de convergence dont la
 description est `reviews-v1:` suivi du SHA-256 du JSON canonique (clés triées,
 séparateurs `,`/`:`, `ensure_ascii=True`, encodage UTF-8). Le bot refuse une
 preuve altérée, un statut d'un autre auteur, une CI périmée ou issue d'une
-autre application, un fork, un brouillon ou une nouvelle tête/base.
+autre application, un fork, un brouillon ou une nouvelle tête/base. Il relie
+les six checks de PR au workflow `.github/workflows/pr-validation.yml`, à
+l'événement `pull_request`, au numéro de la PR et aux SHA exacts de tête et de
+base. Le check `test` doit provenir d'un `push` sur la même tête dans
+`.github/workflows/test.yml`. Le bot vérifie aussi que chaque check provient
+de la suite associée à l'exécution GitHub Actions correspondante. Le titre
+de l'exécution PR conserve les valeurs de l'événement d'origine, même si
+GitHub affiche ensuite les références courantes dans `pull_requests`.
 
 Le workflow manuel [d'approbation](../.github/workflows/approve-validated-pr.yml)
-ne s'exécute que sur `main`, à la demande du propriétaire. Il utilise son code
-fiable, jamais le code de la PR. Pour cette première intégration uniquement,
-l'orchestrateur peut préparer une référence d'exploitation temporaire issue
-de `main` avec le même script revu, déclenchable uniquement par le propriétaire
-et sur son SHA vérifié ; elle est retirée après l'approbation. Ce bootstrap
-ne dispense d'aucun contrôle et ne publie jamais de faux verdict propre.
+s'exécute sur `main` à la demande du propriétaire et charge le script de ce
+même commit.
+
+### Première activation
+
+Avant la première fusion, `approve-validated-pr.yml` est absent de la branche
+par défaut. GitHub exige un fichier déjà présent sur cette branche pour recevoir
+`workflow_dispatch`. Pour ce premier passage uniquement, utiliser le chemin
+du [workflow E2E existant](../.github/workflows/e2e.yml) sur une branche
+d'exploitation temporaire. Voir la [condition de déclenchement GitHub](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch).
+
+1. Créer `ops/bootstrap-pr-approval` depuis le SHA exact de `main` attesté dans
+   la preuve. Ce commit d'exploitation contient uniquement le script
+   `tool/approve_validated_pr.py` revu et le remplacement temporaire de
+   `.github/workflows/e2e.yml` par le workflow d'approbation revu adapté à cette
+   référence. Vérifier le parent, le diff des deux fichiers et le SHA complet
+   avant de publier cette branche.
+2. Sur cette branche, activer uniquement `workflow_dispatch` avec `pull_number`,
+   `expected_head` et `expected_ops_sha`. Reprendre les permissions limitées du
+   workflow d'approbation. Restreindre le job à
+   `refs/heads/ops/bootstrap-pr-approval`, au propriétaire en tant qu'acteur et
+   acteur déclencheur, et à `github.sha == inputs.expected_ops_sha`. Vérifier le
+   ref d'exploitation dans le job et charger le script au `github.sha` de ce job
+   avec `persist-credentials: false`. Vérifier le SHA du checkout avant de lancer
+   le script.
+3. Une fois la convergence réelle attestée et la CI verte, le propriétaire
+   vérifie que la branche publiée pointe vers le SHA d'exploitation revu et
+   déclenche `e2e.yml` avec la branche et les trois valeurs exactes. La preuve,
+   le statut de convergence et la CI font l'objet des mêmes contrôles que dans
+   le workflow permanent. Après confirmation de l'approbation sur la tête de
+   PR attendue, supprimer la branche temporaire.
 
 ## Garde-fous exécutables
 

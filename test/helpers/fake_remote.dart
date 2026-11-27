@@ -11,37 +11,43 @@ class FakeRemote implements VocabularyRemoteDataSource {
       const Success([]);
 
   @override
-  Future<Result<Map<String, dynamic>>> upsertList(Map<String, dynamic> data,
-          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
-      Success(data);
+  Future<Result<Map<String, dynamic>>> upsertList(
+    Map<String, dynamic> data, {
+    bool insertOnly = false,
+    Map<String, dynamic>? changes,
+  }) async => Success(data);
 
   @override
   Future<Result<void>> deleteList(String id) async => const Success(null);
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
-          String listId) async =>
-      const Success([]);
+    String listId,
+  ) async => const Success([]);
 
   @override
-  Future<Result<Map<String, dynamic>>> upsertConcept(Map<String, dynamic> data,
-          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
-      Success(data);
+  Future<Result<Map<String, dynamic>>> upsertConcept(
+    Map<String, dynamic> data, {
+    bool insertOnly = false,
+    Map<String, dynamic>? changes,
+  }) async => Success(data);
 
   @override
-  Future<Result<Map<String, dynamic>>> upsertVariant(Map<String, dynamic> data,
-          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
-      Success(data);
+  Future<Result<Map<String, dynamic>>> upsertVariant(
+    Map<String, dynamic> data, {
+    bool insertOnly = false,
+    Map<String, dynamic>? changes,
+  }) async => Success(data);
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchProgress(
-          String userId) async =>
-      const Success([]);
+    String userId,
+  ) async => const Success([]);
 
   @override
   Future<Result<Map<String, dynamic>>> upsertProgress(
-          Map<String, dynamic> data) async =>
-      Success(data);
+    Map<String, dynamic> data,
+  ) async => Success(data);
 
   @override
   Future<Result<void>> upsertReviewEvent(Map<String, dynamic> data) async =>
@@ -49,6 +55,6 @@ class FakeRemote implements VocabularyRemoteDataSource {
 
   @override
   Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(
-          String token) async =>
-      const Success(null);
+    String token,
+  ) async => const Success(null);
 }

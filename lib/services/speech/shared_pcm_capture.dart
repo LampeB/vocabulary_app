@@ -36,8 +36,8 @@ class SharedPcmCapture implements PcmCaptureSource {
   SharedPcmCapture({
     PcmMicrophone? microphone,
     PcmSegmenter Function()? segmenterFactory,
-  })  : _microphone = microphone ?? RecordPcmMicrophone(),
-        _segmenterFactory = segmenterFactory ?? _defaultSegmenter;
+  }) : _microphone = microphone ?? RecordPcmMicrophone(),
+       _segmenterFactory = segmenterFactory ?? _defaultSegmenter;
 
   /// 500ms of silence ends an answer: Scribe kept 38/38 corpus words at
   /// 450ms, Whisper's conservative setting was 700ms. An answer is a word or
@@ -68,11 +68,16 @@ class SharedPcmCapture implements PcmCaptureSource {
       sttLog('[CAP] ❌ mic permission denied');
       return null;
     }
-    final session =
-        _Session(this, _segmenterFactory(), onSpeechChange, onSegment);
+    final session = _Session(
+      this,
+      _segmenterFactory(),
+      onSpeechChange,
+      onSegment,
+    );
     _current = session;
-    final starting =
-        session._starting = Future.sync(_microphone.startVoiceStream);
+    final starting = session._starting = Future.sync(
+      _microphone.startVoiceStream,
+    );
     try {
       final stream = await starting;
       if (cancelled()) return null;
@@ -141,14 +146,18 @@ class _Session implements PcmCaptureSession {
     if (_segmenter.inSpeech != _wasInSpeech) {
       _wasInSpeech = _segmenter.inSpeech;
       if (_wasInSpeech) {
-        sttLog('[CAP] 🗣 speech onset  '
-            'floor=${_segmenter.noiseFloor.toStringAsFixed(0)}');
+        sttLog(
+          '[CAP] 🗣 speech onset  '
+          'floor=${_segmenter.noiseFloor.toStringAsFixed(0)}',
+        );
       }
       _onSpeechChange(_wasInSpeech);
     }
     for (final segment in segments) {
-      sttLog('[CAP] utterance ${segment.durationMs}ms  '
-          'peak=${segment.peakRms.toStringAsFixed(0)}');
+      sttLog(
+        '[CAP] utterance ${segment.durationMs}ms  '
+        'peak=${segment.peakRms.toStringAsFixed(0)}',
+      );
       _onSegment(segment);
     }
   }

@@ -56,12 +56,14 @@ class StudyFeedbackFlood extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        isCorrect ? AppColors.feedbackCorrect : AppColors.feedbackWrong;
+    final color = isCorrect
+        ? AppColors.feedbackCorrect
+        : AppColors.feedbackWrong;
 
     return Material(
       key: ValueKey(
-          isCorrect ? WidgetKeys.feedbackCorrect : WidgetKeys.feedbackWrong),
+        isCorrect ? WidgetKeys.feedbackCorrect : WidgetKeys.feedbackWrong,
+      ),
       color: color,
       child: SafeArea(
         child: Padding(
@@ -86,18 +88,23 @@ class StudyFeedbackFlood extends StatelessWidget {
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: AppTextStyles.grotesk(28, FontWeight.w700)
-                    .copyWith(color: Colors.white),
+                style: AppTextStyles.grotesk(
+                  28,
+                  FontWeight.w700,
+                ).copyWith(color: Colors.white),
               ),
               if (answer != null && answer!.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Text(
                   answer!,
                   textAlign: TextAlign.center,
-                  style: (answerIsKorean
-                          ? AppTextStyles.koreanPrompt.copyWith(fontSize: 40)
-                          : AppTextStyles.grotesk(40, FontWeight.w700))
-                      .copyWith(color: Colors.white),
+                  style:
+                      (answerIsKorean
+                              ? AppTextStyles.koreanPrompt.copyWith(
+                                  fontSize: 40,
+                                )
+                              : AppTextStyles.grotesk(40, FontWeight.w700))
+                          .copyWith(color: Colors.white),
                 ),
                 if (onPlayAudio != null) ...[
                   const SizedBox(height: 8),
@@ -105,8 +112,10 @@ class StudyFeedbackFlood extends StatelessWidget {
                     key: const ValueKey(WidgetKeys.feedbackPlayAudio),
                     onPressed: onPlayAudio,
                     iconSize: 32,
-                    icon: const Icon(Icons.volume_up_rounded,
-                        color: Colors.white),
+                    icon: const Icon(
+                      Icons.volume_up_rounded,
+                      color: Colors.white,
+                    ),
                     tooltip: 'quiz.play_audio'.tr(),
                   ),
                 ],
@@ -116,8 +125,10 @@ class StudyFeedbackFlood extends StatelessWidget {
                 Text(
                   detail!,
                   textAlign: TextAlign.center,
-                  style: AppTextStyles.fig(14, FontWeight.w500)
-                      .copyWith(color: Colors.white.withValues(alpha: 0.92)),
+                  style: AppTextStyles.fig(
+                    14,
+                    FontWeight.w500,
+                  ).copyWith(color: Colors.white.withValues(alpha: 0.92)),
                 ),
               ],
               const Spacer(),
@@ -136,8 +147,10 @@ class StudyFeedbackFlood extends StatelessWidget {
                       child: Center(
                         child: Text(
                           continueLabel ?? 'Continuer',
-                          style: AppTextStyles.fig(16, FontWeight.w700)
-                              .copyWith(color: color),
+                          style: AppTextStyles.fig(
+                            16,
+                            FontWeight.w700,
+                          ).copyWith(color: color),
                         ),
                       ),
                     ),

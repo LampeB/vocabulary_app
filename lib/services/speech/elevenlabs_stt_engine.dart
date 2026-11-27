@@ -16,7 +16,8 @@ abstract interface class CloudSpeechCapture {
 
   /// Sends one utterance captured by the race's shared microphone to Scribe.
   /// Returns the cleaned transcript, or null when Scribe heard nothing.
-  /// Throws on a transport/service failure (offline, timeout, 5xx).
+  /// Throws on a transport/service failure (offline, timeout, 5xx). The
+  /// future tracks completion of the underlying request.
   Future<String?> transcribeSegment({
     required Uint8List pcm16,
     required String langCode,
@@ -26,9 +27,8 @@ abstract interface class CloudSpeechCapture {
 }
 
 /// Adapter that makes cloud ElevenLabs Scribe available to [SttRace]. It
-/// consumes the race's shared capture, so it runs in PARALLEL with the other
-/// shared engines (on-device Whisper) on the very same utterance. It needs the
-/// network, so the registry never selects it offline.
+/// consumes the same shared capture as the local decoders. The race uses it
+/// as a serial fallback, and the registry never selects it offline.
 class ElevenLabsSttEngine implements SttEngine {
   ElevenLabsSttEngine(this._service);
 
@@ -59,19 +59,20 @@ class ElevenLabsSttEngine implements SttEngine {
     required List<String> promptHints,
     required void Function(SttHypothesis) onHypothesis,
     void Function()? onSessionEnd,
-  }) =>
-      _service.startListening(
-        langCode: langCode,
-        promptHints: promptHints,
-        onSessionEnd: onSessionEnd,
-        onFinal: (text, _) => onHypothesis(SttHypothesis(
-          engineId: id,
-          transcript: text,
-          candidates: [text],
-          confidence: 0.95,
-          isFinal: true,
-        )),
-      );
+  }) => _service.startListening(
+    langCode: langCode,
+    promptHints: promptHints,
+    onSessionEnd: onSessionEnd,
+    onFinal: (text, _) => onHypothesis(
+      SttHypothesis(
+        engineId: id,
+        transcript: text,
+        candidates: [text],
+        confidence: 0.95,
+        isFinal: true,
+      ),
+    ),
+  );
 
   @override
   Future<SttHypothesis?> recognize(

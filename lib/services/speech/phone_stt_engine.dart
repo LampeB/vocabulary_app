@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../core/languages.dart';
 import '../../core/utils/pcm_segmenter.dart';
 import '../../core/utils/stt_debug_log.dart';
@@ -13,7 +15,7 @@ import 'stt_engine.dart';
 /// It is marked [requiresNetwork]: Google's service transcribes fed audio
 /// online unless an offline pack is installed, so offline it would mostly
 /// fail.
-class PhoneSttEngine implements SttEngine {
+class PhoneSttEngine implements CancellablePcmSttEngine {
   PhoneSttEngine(this._recognizer);
 
   final PhonePcmRecognizer _recognizer;
@@ -21,6 +23,7 @@ class PhoneSttEngine implements SttEngine {
 
   /// The platform service handles one session at a time.
   Future<void> _chain = Future.value();
+  var _turnCancelled = Completer<List<String>>();
 
   @override
   String get id => 'phone';
@@ -49,12 +52,22 @@ class PhoneSttEngine implements SttEngine {
     required String langCode,
     required List<String> promptHints,
   }) {
+    final turn = _turnCancelled;
     final result = _chain.then((_) async {
+      if (turn.isCompleted) return null;
       final sw = Stopwatch()..start();
-      final texts = await _recognizer.recognize(
-          segment.bytes, Languages.speechLocaleFor(langCode));
-      sttLog('[PHN] ${segment.durationMs}ms in ${sw.elapsedMilliseconds}ms: '
-          '$texts');
+      final texts = await Future.any([
+        _recognizer.recognize(
+          segment.bytes,
+          Languages.speechLocaleFor(langCode),
+        ),
+        turn.future,
+      ]);
+      if (turn.isCompleted) return null;
+      sttLog(
+        '[PHN] ${segment.durationMs}ms in ${sw.elapsedMilliseconds}ms: '
+        '$texts',
+      );
       if (texts.isEmpty) return null;
       return SttHypothesis(
         engineId: id,
@@ -74,12 +87,19 @@ class PhoneSttEngine implements SttEngine {
     required List<String> promptHints,
     required void Function(SttHypothesis) onHypothesis,
     void Function()? onSessionEnd,
-  }) async =>
-      true; // shared engine — fed by the race's capture, never starts a mic
+  }) async => true; // shared engine — fed by the race's capture, never starts a mic
 
   @override
-  Future<void> stop() async {}
+  Future<void> stop() async {
+    _turnCancelled.complete(const []);
+    _turnCancelled = Completer<List<String>>();
+    // New work waits for native teardown, independent of the old queue.
+    _chain = _recognizer.cancel().catchError((Object error) {
+      sttLog('[PHN] cancel failed: $error');
+    });
+    await _chain;
+  }
 
   @override
-  void dispose() {}
+  void dispose() => unawaited(stop());
 }

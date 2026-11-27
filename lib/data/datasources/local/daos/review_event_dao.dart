@@ -10,20 +10,25 @@ class ReviewEventDao extends DatabaseAccessor<AppDatabase>
   ReviewEventDao(super.db);
 
   Future<void> insertEvent(ReviewEventsTableCompanion companion) =>
-      into(reviewEventsTable).insert(companion);
+      db.writeOutbound(
+        companion.userId.value,
+        () => into(reviewEventsTable).insert(companion),
+      );
 
   Future<List<ReviewEventsTableData>> getUnsynced({String? userId}) =>
-      (select(reviewEventsTable)
-            ..where((t) =>
+      (select(reviewEventsTable)..where(
+            (t) =>
                 t.isSynced.equals(false) &
                 (userId == null
                     ? const Constant(true)
-                    : t.userId.equals(userId))))
+                    : t.userId.equals(userId)),
+          ))
           .get();
 
   Future<int> markSynced(List<String> ids) =>
-      (update(reviewEventsTable)..where((t) => t.id.isIn(ids)))
-          .write(const ReviewEventsTableCompanion(isSynced: Value(true)));
+      (update(reviewEventsTable)..where((t) => t.id.isIn(ids))).write(
+        const ReviewEventsTableCompanion(isSynced: Value(true)),
+      );
 
   /// All events for a user, newest first — the stats dashboard's raw feed.
   Future<List<ReviewEventsTableData>> getByUser(String userId) =>

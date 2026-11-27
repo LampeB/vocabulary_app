@@ -41,8 +41,8 @@ Uint8List _tone(int ms, double amplitude) {
   final n = 16000 * ms ~/ 1000;
   final out = Int16List(n);
   for (var i = 0; i < n; i++) {
-    out[i] =
-        (math.sin(2 * math.pi * 300 * i / 16000) * amplitude * 32767).round();
+    out[i] = (math.sin(2 * math.pi * 300 * i / 16000) * amplitude * 32767)
+        .round();
   }
   return out.buffer.asUint8List();
 }
@@ -57,7 +57,9 @@ void main() {
       final changes = <bool>[];
       final segments = <PcmSegment>[];
       final session = await capture.open(
-          onSpeechChange: changes.add, onSegment: segments.add);
+        onSpeechChange: changes.add,
+        onSegment: segments.add,
+      );
       expect(session, isNotNull);
 
       mic.stream.add(_silence(300));
@@ -76,7 +78,9 @@ void main() {
       final mic = _FakeMicrophone();
       final capture = SharedPcmCapture(microphone: mic);
       final session = await capture.open(
-          onSpeechChange: (_) {}, onSegment: (_) => fail('not ended yet'));
+        onSpeechChange: (_) {},
+        onSegment: (_) => fail('not ended yet'),
+      );
       mic.stream.add(_silence(300));
       mic.stream.add(_tone(500, .4));
 
@@ -88,46 +92,60 @@ void main() {
 
     test('closing without flush drops a half-spoken answer', () async {
       final mic = _FakeMicrophone();
-      final session = await SharedPcmCapture(microphone: mic)
-          .open(onSpeechChange: (_) {}, onSegment: (_) {});
+      final session = await SharedPcmCapture(
+        microphone: mic,
+      ).open(onSpeechChange: (_) {}, onSegment: (_) {});
       mic.stream.add(_silence(300));
       mic.stream.add(_tone(500, .4));
       expect(await session!.close(), isNull);
     });
 
-    test('a stale window closing late never stops the newer window\'s mic',
-        () async {
-      final mic = _FakeMicrophone();
-      final capture = SharedPcmCapture(microphone: mic);
-      final first =
-          await capture.open(onSpeechChange: (_) {}, onSegment: (_) {});
-      final heard = <PcmSegment>[];
-      final second =
-          await capture.open(onSpeechChange: (_) {}, onSegment: heard.add);
-      final stopsAfterSecondOpen = mic.stops;
-      await first!.close();
-      expect(mic.stops, stopsAfterSecondOpen,
-          reason: 'the first window was already closed by the second open');
+    test(
+      'a stale window closing late never stops the newer window\'s mic',
+      () async {
+        final mic = _FakeMicrophone();
+        final capture = SharedPcmCapture(microphone: mic);
+        final first = await capture.open(
+          onSpeechChange: (_) {},
+          onSegment: (_) {},
+        );
+        final heard = <PcmSegment>[];
+        final second = await capture.open(
+          onSpeechChange: (_) {},
+          onSegment: heard.add,
+        );
+        final stopsAfterSecondOpen = mic.stops;
+        await first!.close();
+        expect(
+          mic.stops,
+          stopsAfterSecondOpen,
+          reason: 'the first window was already closed by the second open',
+        );
 
-      mic.stream.add(_silence(300));
-      mic.stream.add(_tone(400, .4));
-      mic.stream.add(_silence(700));
-      expect(heard.length, 1, reason: 'only the live window hears audio');
-      await second!.close();
-    });
+        mic.stream.add(_silence(300));
+        mic.stream.add(_tone(400, .4));
+        mic.stream.add(_silence(700));
+        expect(heard.length, 1, reason: 'only the live window hears audio');
+        await second!.close();
+      },
+    );
 
     test('permission denied or a busy mic opens nothing', () async {
       final denied = _FakeMicrophone()..permissionGranted = false;
       expect(
-          await SharedPcmCapture(microphone: denied)
-              .open(onSpeechChange: (_) {}, onSegment: (_) {}),
-          isNull);
+        await SharedPcmCapture(
+          microphone: denied,
+        ).open(onSpeechChange: (_) {}, onSegment: (_) {}),
+        isNull,
+      );
       expect(denied.starts, 0);
       final busy = _FakeMicrophone()..startError = StateError('busy');
       expect(
-          await SharedPcmCapture(microphone: busy)
-              .open(onSpeechChange: (_) {}, onSegment: (_) {}),
-          isNull);
+        await SharedPcmCapture(
+          microphone: busy,
+        ).open(onSpeechChange: (_) {}, onSegment: (_) {}),
+        isNull,
+      );
     });
 
     test('dispose releases the recorder', () async {
@@ -140,39 +158,43 @@ void main() {
       expect(mic.stops, 1);
     });
 
-    test('stopping invalidates an open awaiting microphone permission',
-        () async {
-      final permission = Completer<bool>();
-      final mic = _FakeMicrophone()..pendingPermission = permission;
-      final capture = SharedPcmCapture(microphone: mic);
-      final opening = capture.open(onSpeechChange: (_) {}, onSegment: (_) {});
-      await Future<void>.delayed(Duration.zero);
+    test(
+      'stopping invalidates an open awaiting microphone permission',
+      () async {
+        final permission = Completer<bool>();
+        final mic = _FakeMicrophone()..pendingPermission = permission;
+        final capture = SharedPcmCapture(microphone: mic);
+        final opening = capture.open(onSpeechChange: (_) {}, onSegment: (_) {});
+        await Future<void>.delayed(Duration.zero);
 
-      await capture.stop();
-      permission.complete(true);
+        await capture.stop();
+        permission.complete(true);
 
-      expect(await opening, isNull);
-      expect(mic.starts, 0);
-    });
+        expect(await opening, isNull);
+        expect(mic.starts, 0);
+      },
+    );
 
-    test('stopping during native startup waits for the recorder to release',
-        () async {
-      final startup = Completer<void>();
-      final mic = _FakeMicrophone()..pendingStart = startup;
-      final capture = SharedPcmCapture(microphone: mic);
-      final opening = capture.open(onSpeechChange: (_) {}, onSegment: (_) {});
-      await Future<void>.delayed(Duration.zero);
-      expect(mic.starts, 1);
+    test(
+      'stopping during native startup waits for the recorder to release',
+      () async {
+        final startup = Completer<void>();
+        final mic = _FakeMicrophone()..pendingStart = startup;
+        final capture = SharedPcmCapture(microphone: mic);
+        final opening = capture.open(onSpeechChange: (_) {}, onSegment: (_) {});
+        await Future<void>.delayed(Duration.zero);
+        expect(mic.starts, 1);
 
-      var released = false;
-      final stopping = capture.stop().then((_) => released = true);
-      await Future<void>.delayed(Duration.zero);
-      expect(released, isFalse);
-      startup.complete();
+        var released = false;
+        final stopping = capture.stop().then((_) => released = true);
+        await Future<void>.delayed(Duration.zero);
+        expect(released, isFalse);
+        startup.complete();
 
-      expect(await opening, isNull);
-      await stopping;
-      expect(mic.stops, 1);
-    });
+        expect(await opening, isNull);
+        await stopping;
+        expect(mic.stops, 1);
+      },
+    );
   });
 }

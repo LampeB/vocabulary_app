@@ -60,11 +60,10 @@ class _SpeechToTextRecognizer implements SystemSpeechRecognizer {
   Future<bool> initialize({
     required void Function(String message, bool permanent) onError,
     required void Function(String status) onStatus,
-  }) =>
-      _speech.initialize(
-        onError: (error) => onError(error.errorMsg, error.permanent),
-        onStatus: onStatus,
-      );
+  }) => _speech.initialize(
+    onError: (error) => onError(error.errorMsg, error.permanent),
+    onStatus: onStatus,
+  );
 
   @override
   Future<void> listen({
@@ -73,30 +72,31 @@ class _SpeechToTextRecognizer implements SystemSpeechRecognizer {
     required String localeId,
     required Duration pauseFor,
     required Duration listenFor,
-  }) =>
-      _speech.listen(
-        onSoundLevelChange: onSoundLevel,
-        onResult: (result) => onResult(SystemRecognitionResult(
-          words: result.recognizedWords,
-          isFinal: result.finalResult,
-          confidence: result.confidence,
-          alternates: [
-            for (final alternate in result.alternates)
-              (
-                words: alternate.recognizedWords,
-                confidence: alternate.confidence,
-              ),
-          ],
-        )),
-        listenOptions: stt.SpeechListenOptions(
-          cancelOnError: false,
-          listenMode: stt.ListenMode.search,
-          partialResults: true,
-          localeId: localeId,
-          listenFor: listenFor,
-          pauseFor: pauseFor,
-        ),
-      );
+  }) => _speech.listen(
+    onSoundLevelChange: onSoundLevel,
+    onResult: (result) => onResult(
+      SystemRecognitionResult(
+        words: result.recognizedWords,
+        isFinal: result.finalResult,
+        confidence: result.confidence,
+        alternates: [
+          for (final alternate in result.alternates)
+            (
+              words: alternate.recognizedWords,
+              confidence: alternate.confidence,
+            ),
+        ],
+      ),
+    ),
+    listenOptions: stt.SpeechListenOptions(
+      cancelOnError: false,
+      listenMode: stt.ListenMode.search,
+      partialResults: true,
+      localeId: localeId,
+      listenFor: listenFor,
+      pauseFor: pauseFor,
+    ),
+  );
 
   @override
   Future<void> stop() => _speech.stop();
@@ -108,9 +108,9 @@ class SpeechRecognitionService implements SystemSpeechCapture {
     SystemSpeechRecognizer? recognizer,
     DateTime Function()? clock,
     Future<void> Function(Duration duration)? delay,
-  })  : _speech = recognizer ?? _SpeechToTextRecognizer(),
-        _clock = clock ?? DateTime.now,
-        _delay = delay ?? Future<void>.delayed;
+  }) : _speech = recognizer ?? _SpeechToTextRecognizer(),
+       _clock = clock ?? DateTime.now,
+       _delay = delay ?? Future<void>.delayed;
 
   final SystemSpeechRecognizer _speech;
   final DateTime Function() _clock;
@@ -146,7 +146,8 @@ class SpeechRecognitionService implements SystemSpeechCapture {
     _initialized = await _speech.initialize(
       onError: (message, permanent) {
         sttLog(
-            '[STT] ❌ onError: "$message"  permanent=$permanent  elapsed=${listenElapsedMs}ms');
+          '[STT] ❌ onError: "$message"  permanent=$permanent  elapsed=${listenElapsedMs}ms',
+        );
         _isListening = false;
         lastError = message;
         // error_no_match = STT heard audio but found no matching words.
@@ -154,22 +155,26 @@ class SpeechRecognitionService implements SystemSpeechCapture {
         // Anything else (error_audio, error_network, etc.) is worth reporting.
         if (message != 'error_no_match') {
           sttLog(
-              '[STT] ⚠️ Forwarding hardware/network error to caller: $message');
+            '[STT] ⚠️ Forwarding hardware/network error to caller: $message',
+          );
           onError?.call(message);
         }
         if (!_sessionDone) {
           _sessionDone = true;
           sttLog(
-              '[STT] → onListeningDone (via onError, elapsed=${listenElapsedMs}ms)');
+            '[STT] → onListeningDone (via onError, elapsed=${listenElapsedMs}ms)',
+          );
           onListeningDone?.call();
         } else {
           sttLog(
-              '[STT] onError: sessionDone already set, skipping onListeningDone');
+            '[STT] onError: sessionDone already set, skipping onListeningDone',
+          );
         }
       },
       onStatus: (status) {
         sttLog(
-            '[STT] onStatus: "$status"  _isListening=$_isListening  elapsed=${listenElapsedMs}ms');
+          '[STT] onStatus: "$status"  _isListening=$_isListening  elapsed=${listenElapsedMs}ms',
+        );
         if (status == 'listening') {
           _isListening = true;
           _sessionDone = false;
@@ -180,11 +185,13 @@ class SpeechRecognitionService implements SystemSpeechCapture {
           if (!_sessionDone) {
             _sessionDone = true;
             sttLog(
-                '[STT] → onListeningDone (via status="$status", elapsed=${listenElapsedMs}ms)');
+              '[STT] → onListeningDone (via status="$status", elapsed=${listenElapsedMs}ms)',
+            );
             onListeningDone?.call();
           } else {
             sttLog(
-                '[STT] status="$status" but sessionDone already set, skipping');
+              '[STT] status="$status" but sessionDone already set, skipping',
+            );
           }
         }
       },
@@ -233,7 +240,8 @@ class SpeechRecognitionService implements SystemSpeechCapture {
           if (now.difference(rmsLastLogged).inMilliseconds >= 1000) {
             rmsLastLogged = now;
             sttLog(
-                '[STT] 🎚 level=${level.toStringAsFixed(1)}  min=${rmsMin.toStringAsFixed(1)}  max=${rmsMax.toStringAsFixed(1)}  elapsed=${listenElapsedMs}ms');
+              '[STT] 🎚 level=${level.toStringAsFixed(1)}  min=${rmsMin.toStringAsFixed(1)}  max=${rmsMax.toStringAsFixed(1)}  elapsed=${listenElapsedMs}ms',
+            );
           }
         },
         onResult: (result) {
@@ -252,10 +260,12 @@ class SpeechRecognitionService implements SystemSpeechCapture {
             for (final a in result.alternates) a.words,
           }.where((w) => w.trim().isNotEmpty).toList();
           sttLog(
-              '[STT] onResult: "${result.words}"  final=${result.isFinal}  confidence=${result.confidence.toStringAsFixed(2)}  elapsed=${listenElapsedMs}ms  alternates=[$alternates]');
+            '[STT] onResult: "${result.words}"  final=${result.isFinal}  confidence=${result.confidence.toStringAsFixed(2)}  elapsed=${listenElapsedMs}ms  alternates=[$alternates]',
+          );
           if (result.isFinal) {
             sttLog(
-                '[STT] ✅ Final result → forwarding ${candidates.length} candidate(s)');
+              '[STT] ✅ Final result → forwarding ${candidates.length} candidate(s)',
+            );
             onResult(result.words, candidates);
           } else if (result.words.isNotEmpty) {
             sttLog('[STT] ⏳ Partial: "${result.words}"');
@@ -268,7 +278,8 @@ class SpeechRecognitionService implements SystemSpeechCapture {
       );
       _isListening = true;
       sttLog(
-          '[STT] 🎙️ startListening() → started (locale=$localeId pauseFor=${pauseFor.inSeconds}s listenFor=${listenFor.inSeconds}s)');
+        '[STT] 🎙️ startListening() → started (locale=$localeId pauseFor=${pauseFor.inSeconds}s listenFor=${listenFor.inSeconds}s)',
+      );
       return true;
     } catch (e) {
       sttLog('[STT] 💥 startListening() exception: $e');

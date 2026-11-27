@@ -82,11 +82,12 @@ class GrammarRule {
       ],
       prerequisiteLists: (r['prerequisite_lists'] as List).cast<String>(),
       appliesToCategories: (r['applies_to_categories'] as List).cast<String>(),
-      minKnownWords: (r['min_known_words'] as Map<String, dynamic>? ?? {})
-          .map((k, v) => MapEntry(k, v as int)),
+      minKnownWords: (r['min_known_words'] as Map<String, dynamic>? ?? {}).map(
+        (k, v) => MapEntry(k, v as int),
+      ),
       mechanics:
           GrammarMechanics.fromJson(r['mechanics'] as Map<String, dynamic>) ??
-              const UnsupportedMechanics(),
+          const UnsupportedMechanics(),
       testVectors: [
         for (final v in (r['test_vectors'] as List? ?? []))
           TestVector(
@@ -113,11 +114,7 @@ class GrammarRule {
 /// instead of failing to load the entire curriculum. An example carries both
 /// a short source-language translation and an optional contextual popup detail.
 class LessonPage {
-  const LessonPage({
-    required this.type,
-    required this.texts,
-    this.example,
-  });
+  const LessonPage({required this.type, required this.texts, this.example});
 
   final String type;
   final Map<String, String> texts;
@@ -155,10 +152,10 @@ class LessonExample {
   String detail(String locale) => GrammarRule._resolve(details, locale);
 
   factory LessonExample.fromJson(Map<String, dynamic> json) => LessonExample(
-        target: json['target'] as String,
-        translations: GrammarRule._localeMap(json, 'translations'),
-        details: GrammarRule._localeMap(json, 'detail'),
-      );
+    target: json['target'] as String,
+    translations: GrammarRule._localeMap(json, 'translations'),
+    details: GrammarRule._localeMap(json, 'detail'),
+  );
 }
 
 class WorkedExample {
@@ -191,8 +188,11 @@ class WorkedExample {
 }
 
 class TestVector {
-  const TestVector(
-      {required this.input, required this.context, required this.expected});
+  const TestVector({
+    required this.input,
+    required this.context,
+    required this.expected,
+  });
   final String input;
   final String context;
   final String expected;
@@ -213,22 +213,27 @@ sealed class GrammarMechanics {
         // Single pair: {after_consonant, after_vowel}. Named pairs: the same
         // shape nested one level down, keyed by variant name.
         if (forms.containsKey('after_consonant')) {
-          return ParticleMechanics(variants: [
-            ParticleVariant(
-              key: 'default',
-              afterConsonant: forms['after_consonant'] as String,
-              afterVowel: forms['after_vowel'] as String,
-            ),
-          ]);
+          return ParticleMechanics(
+            variants: [
+              ParticleVariant(
+                key: 'default',
+                afterConsonant: forms['after_consonant'] as String,
+                afterVowel: forms['after_vowel'] as String,
+              ),
+            ],
+          );
         }
-        return ParticleMechanics(variants: [
-          for (final entry in forms.entries)
-            ParticleVariant(
-              key: entry.key,
-              afterConsonant: (entry.value as Map)['after_consonant'] as String,
-              afterVowel: (entry.value as Map)['after_vowel'] as String,
-            ),
-        ]);
+        return ParticleMechanics(
+          variants: [
+            for (final entry in forms.entries)
+              ParticleVariant(
+                key: entry.key,
+                afterConsonant:
+                    (entry.value as Map)['after_consonant'] as String,
+                afterVowel: (entry.value as Map)['after_vowel'] as String,
+              ),
+          ],
+        );
       case 'conjugation':
         final c = m['conjugation'] as Map<String, dynamic>;
         return ConjugationMechanics(
@@ -269,10 +274,11 @@ class UnsupportedMechanics extends GrammarMechanics {
 }
 
 class ParticleVariant {
-  const ParticleVariant(
-      {required this.key,
-      required this.afterConsonant,
-      required this.afterVowel});
+  const ParticleVariant({
+    required this.key,
+    required this.afterConsonant,
+    required this.afterVowel,
+  });
   final String key;
   final String afterConsonant;
   final String afterVowel;
@@ -287,8 +293,10 @@ class ParticleMechanics extends GrammarMechanics {
 }
 
 class ConjugationMechanics extends GrammarMechanics {
-  const ConjugationMechanics(
-      {required this.irregulars, this.persons = const []});
+  const ConjugationMechanics({
+    required this.irregulars,
+    this.persons = const [],
+  });
 
   /// Lexical exceptions. Keys are either a bare word ('하다' — single-form
   /// languages) or 'word|person' ('sein|p1sg' — person-based languages).

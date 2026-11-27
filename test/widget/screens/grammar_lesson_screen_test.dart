@@ -28,17 +28,20 @@ final _rule = GrammarRule(
   prerequisiteLists: const [],
   appliesToCategories: const ['nom'],
   minKnownWords: const {'nom': 5},
-  mechanics: const ParticleMechanics(variants: [
-    ParticleVariant(key: 'default', afterConsonant: '은', afterVowel: '는'),
-  ]),
+  mechanics: const ParticleMechanics(
+    variants: [
+      ParticleVariant(key: 'default', afterConsonant: '은', afterVowel: '는'),
+    ],
+  ),
   testVectors: const [],
 );
 
 void main() {
   setUpAll(initTestLocalization);
 
-  testWidgets('opens contextual example details without leaving the lesson',
-      (tester) async {
+  testWidgets('opens contextual example details without leaving the lesson', (
+    tester,
+  ) async {
     await pumpScreen(
       tester,
       screen: const GrammarLessonScreen(ruleId: 'ko-topic'),
@@ -48,8 +51,10 @@ void main() {
       settle: false,
     );
 
-    expect(find.byKey(const ValueKey(WidgetKeys.screenGrammarLesson)),
-        findsOneWidget);
+    expect(
+      find.byKey(const ValueKey(WidgetKeys.screenGrammarLesson)),
+      findsOneWidget,
+    );
     expect(find.byIcon(Icons.arrow_back_ios_new_rounded), findsNothing);
     expect(find.text(_rule.explanation('fr')), findsOneWidget);
     await tester.tap(find.text('저는 학생이에요.'));
@@ -64,12 +69,15 @@ void main() {
     );
     await tester.tap(find.text('common.close'.tr()));
     await tester.pump(const Duration(milliseconds: 250));
-    expect(find.byKey(const ValueKey(WidgetKeys.screenGrammarLesson)),
-        findsOneWidget);
+    expect(
+      find.byKey(const ValueKey(WidgetKeys.screenGrammarLesson)),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('continues from the final lesson page to practice',
-      (tester) async {
+  testWidgets('continues from the final lesson page to practice', (
+    tester,
+  ) async {
     String? route;
     await pumpScreen(
       tester,
@@ -89,17 +97,22 @@ void main() {
       settle: false,
     );
 
-    await tester
-        .tap(find.byKey(const ValueKey(WidgetKeys.grammarLessonPractice)));
+    await tester.tap(
+      find.byKey(const ValueKey(WidgetKeys.grammarLessonPractice)),
+    );
     await tester.pump(const Duration(milliseconds: 250));
     final destination = Uri.parse(route!);
     expect(destination.path, '/start-session-grammar');
-    expect(destination.queryParameters,
-        {'rule': 'ko-topic', 'langA': 'fr', 'langB': 'ko'});
+    expect(destination.queryParameters, {
+      'rule': 'ko-topic',
+      'langA': 'fr',
+      'langB': 'ko',
+    });
   });
 
-  testWidgets('French lesson practice preserves its rule and Korean base',
-      (tester) async {
+  testWidgets('French lesson practice preserves its rule and Korean base', (
+    tester,
+  ) async {
     Uri? destination;
     String? curriculum;
     final french = GrammarRule(
@@ -108,7 +121,7 @@ void main() {
       descriptions: const {'fr': 'Choisir un article.'},
       explanations: const {
         'fr': 'Le pour un nom masculin.',
-        'ko': '남성 명사 앞에는 le를 써요.'
+        'ko': '남성 명사 앞에는 le를 써요.',
       },
       workedExamples: const [
         WorkedExample(target: 'le café', translations: {'ko': '커피'}),
@@ -149,16 +162,20 @@ void main() {
     await tester.tap(find.text('le café'));
     await tester.pump(const Duration(milliseconds: 250));
     expect(
-        find.descendant(
-            of: find.byType(AlertDialog), matching: find.text('커피')),
-        findsOneWidget);
+      find.descendant(of: find.byType(AlertDialog), matching: find.text('커피')),
+      findsOneWidget,
+    );
     await tester.tap(find.text('common.close'.tr()));
     await tester.pump(const Duration(milliseconds: 250));
-    await tester
-        .tap(find.byKey(const ValueKey(WidgetKeys.grammarLessonPractice)));
+    await tester.tap(
+      find.byKey(const ValueKey(WidgetKeys.grammarLessonPractice)),
+    );
     await tester.pump(const Duration(milliseconds: 250));
     expect(destination!.path, '/start-session-grammar');
-    expect(destination!.queryParameters,
-        {'rule': 'fr-articles-le-la', 'langA': 'ko', 'langB': 'fr'});
+    expect(destination!.queryParameters, {
+      'rule': 'fr-articles-le-la',
+      'langA': 'ko',
+      'langB': 'fr',
+    });
   });
 }

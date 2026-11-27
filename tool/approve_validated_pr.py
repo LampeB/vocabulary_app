@@ -223,7 +223,21 @@ def validate_status(api, owner, head, description):
     raise ApprovalError("Independent review status is missing.")
 
 
-def validate_checks(api, head):
+def matches_pull(source, number, head, base):
+    pulls = source.get("pull_requests")
+    require(isinstance(pulls, list), "GitHub returned invalid check pull request metadata.")
+    for entry in pulls:
+        pull = object_data(entry)
+        if pull.get("number") != number:
+            continue
+        pull_head = object_data(pull.get("head"))
+        pull_base = object_data(pull.get("base"))
+        if pull_head.get("sha") == head and pull_base.get("sha") == base and pull_base.get("ref") == MAIN:
+            return True
+    return False
+
+
+def validate_checks(api, repository, number, head, base):
     latest = {}
     for check in api.pages(f"/commits/{head}/check-runs?filter=all", "check_runs"):
         name = check.get("name")
@@ -237,6 +251,8 @@ def validate_checks(api, head):
         elif run_id == previous["id"]:
             require(check == previous, f"{name} has conflicting results for the same check run.")
 
+    workflow_ids = {}
+    workflow_runs = {}
     for name in REQUIRED_CHECKS:
         require(name in latest, f"{name} is missing.")
         check = latest[name]
@@ -247,6 +263,51 @@ def validate_checks(api, head):
             check.get("status") == "completed" and check.get("conclusion") == "success",
             f"{name} has no successful latest check run.",
         )
+        filename, event = ("test.yml", "push") if name == "test" else ("pr-validation.yml", "pull_request")
+        workflow_path = f".github/workflows/{filename}"
+        if filename not in workflow_ids:
+            workflow = api.get(f"/actions/workflows/{filename}")
+            workflow_id = workflow.get("id")
+            require(
+                workflow.get("path") == workflow_path and type(workflow_id) is int and workflow_id > 0,
+                f"GitHub returned invalid metadata for {workflow_path}.",
+            )
+            workflow_ids[filename] = workflow_id
+
+        details = check.get("details_url")
+        match = isinstance(details, str) and re.fullmatch(
+            rf"https://github\.com/{re.escape(repository)}/actions/runs/([1-9][0-9]*)/job/{check['id']}",
+            details,
+            flags=re.IGNORECASE,
+        )
+        require(match, f"{name} does not identify a GitHub Actions job in this repository.")
+        run_id = int(match[1])
+        if run_id not in workflow_runs:
+            workflow_runs[run_id] = api.get(f"/actions/runs/{run_id}")
+        run = workflow_runs[run_id]
+        suite_id = object_data(check.get("check_suite")).get("id")
+        require(
+            type(suite_id) is int and suite_id > 0
+            and run.get("id") == run_id and run.get("check_suite_id") == suite_id,
+            f"{name} does not belong to the reported GitHub Actions run.",
+        )
+        require(
+            run.get("workflow_id") == workflow_ids[filename]
+            and run.get("path") == workflow_path and run.get("event") == event,
+            f"{name} is not from {workflow_path} on {event}.",
+        )
+        require(run.get("head_sha") == head, f"{name} workflow ran on a different head SHA.")
+        if event == "pull_request":
+            require(
+                matches_pull(check, number, head, base) and matches_pull(run, number, head, base),
+                f"{name} did not validate this pull request head against the current main base.",
+            )
+            # GitHub can return current PR refs in pull_requests on older
+            # runs. The run title captures the original event's tested pair.
+            require(
+                run.get("display_title") == f"PR #{number} {head} against {base}",
+                f"{name} run did not record this pull request head and base in its event title.",
+            )
 
 
 def is_actions_approval(review, head):
@@ -264,7 +325,7 @@ def approve(api, repository, owner, number, head):
     validate_pull(pull, number, repository, head, base)
     description = validate_evidence(pull.get("body"), head, base)
     validate_status(api, owner, head, description)
-    validate_checks(api, head)
+    validate_checks(api, repository, number, head, base)
     if any(is_actions_approval(review, head) for review in api.pages(reviews_path)):
         return False
 

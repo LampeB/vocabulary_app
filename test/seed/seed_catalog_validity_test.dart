@@ -37,10 +37,16 @@ void main() {
     for (final l in catalog.lists) {
       referenced.addAll(l.conceptIds);
     }
-    expect(referenced.toSet().length, referenced.length,
-        reason: 'a concept must belong to exactly one list');
-    expect(referenced.toSet(), conceptIds.toSet(),
-        reason: 'every registry concept must be reachable from a list');
+    expect(
+      referenced.toSet().length,
+      referenced.length,
+      reason: 'a concept must belong to exactly one list',
+    );
+    expect(
+      referenced.toSet(),
+      conceptIds.toSet(),
+      reason: 'every registry concept must be reachable from a list',
+    );
   });
 
   test('every studyable language fully covers the registry', () {
@@ -49,21 +55,33 @@ void main() {
       for (final id in catalog.conceptCategories.keys) {
         final entry = layer.entries[id];
         expect(entry, isNotNull, reason: '$lang is missing concept "$id"');
-        expect(entry!.words, isNotEmpty,
-            reason: '$lang concept "$id" has no words');
-        expect(entry.words.where((w) => w.isPrimary).length, 1,
-            reason: '$lang concept "$id" must have exactly one primary word');
+        expect(
+          entry!.words,
+          isNotEmpty,
+          reason: '$lang concept "$id" has no words',
+        );
+        expect(
+          entry.words.where((w) => w.isPrimary).length,
+          1,
+          reason: '$lang concept "$id" must have exactly one primary word',
+        );
         for (final w in entry.words) {
           expect(w.word.trim(), isNotEmpty);
         }
-        expect(entry.example?.trim(), isNot(equals('')),
-            reason: '$lang concept "$id": example present but empty');
+        expect(
+          entry.example?.trim(),
+          isNot(equals('')),
+          reason: '$lang concept "$id": example present but empty',
+        );
       }
-      final extra = layer.entries.keys
-          .toSet()
-          .difference(catalog.conceptCategories.keys.toSet());
-      expect(extra, isEmpty,
-          reason: '$lang has entries missing from the registry');
+      final extra = layer.entries.keys.toSet().difference(
+        catalog.conceptCategories.keys.toSet(),
+      );
+      expect(
+        extra,
+        isEmpty,
+        reason: '$lang has entries missing from the registry',
+      );
     }
   });
 
@@ -75,8 +93,11 @@ void main() {
         for (final MapEntry(key: lang, value: layer) in layers.entries)
           if (layer.entries[id]?.example != null) lang,
       ];
-      expect(withExample.length, anyOf(0, layers.length),
-          reason: 'concept "$id" has examples only in $withExample');
+      expect(
+        withExample.length,
+        anyOf(0, layers.length),
+        reason: 'concept "$id" has examples only in $withExample',
+      );
     }
   });
 
@@ -84,8 +105,11 @@ void main() {
     const uiLocales = {'fr', 'en', 'es', 'de', 'it', 'ja', 'ko'};
     for (final MapEntry(key: lang, value: layer) in layers.entries) {
       for (final MapEntry(key: id, value: entry) in layer.entries.entries) {
-        expect(uiLocales.containsAll(entry.notes.keys), isTrue,
-            reason: '$lang "$id" notes keys ${entry.notes.keys}');
+        expect(
+          uiLocales.containsAll(entry.notes.keys),
+          isTrue,
+          reason: '$lang "$id" notes keys ${entry.notes.keys}',
+        );
       }
     }
   });
@@ -96,8 +120,11 @@ void main() {
     final ko = layers['ko']!;
     for (final MapEntry(key: id, value: entry) in ko.entries.entries) {
       if (entry.notes.isEmpty) continue;
-      expect(entry.notes['en'], isNotNull,
-          reason: 'ko note for "$id" has no en fallback');
+      expect(
+        entry.notes['en'],
+        isNotNull,
+        reason: 'ko note for "$id" has no en fallback',
+      );
     }
   });
 
@@ -106,10 +133,16 @@ void main() {
     for (final locale in locales) {
       final translations = await SeedTranslations.load(rootBundle, [locale]);
       for (final l in catalog.lists) {
-        expect(translations.resolve(l.nameKey), isNot(equals(l.nameKey)),
-            reason: '$locale is missing ${l.nameKey}');
-        expect(translations.resolve(l.descKey), isNot(equals(l.descKey)),
-            reason: '$locale is missing ${l.descKey}');
+        expect(
+          translations.resolve(l.nameKey),
+          isNot(equals(l.nameKey)),
+          reason: '$locale is missing ${l.nameKey}',
+        );
+        expect(
+          translations.resolve(l.descKey),
+          isNot(equals(l.descKey)),
+          reason: '$locale is missing ${l.descKey}',
+        );
       }
     }
   });
@@ -117,55 +150,88 @@ void main() {
   test('target-scoped lists only reference languages that exist', () {
     for (final l in catalog.lists) {
       for (final lang in l.targetLangs ?? const <String>[]) {
-        expect(Languages.supported, contains(lang),
-            reason: 'list ${l.id} targets unknown language $lang');
+        expect(
+          Languages.supported,
+          contains(lang),
+          reason: 'list ${l.id} targets unknown language $lang',
+        );
       }
     }
   });
 
   test(
-      'grammar curricula: rules parse, mechanics supported, prerequisites '
-      'reference registry lists admitting the target, ids globally unique',
-      () async {
-    final seenIds = <String>{};
-    for (final lang in kGrammarCurricula) {
-      final raw = jsonDecode(await rootBundle.loadString(
-          'assets/seed/grammar/$lang/rules.json')) as Map<String, dynamic>;
-      expect(raw['lang'], lang);
-      for (final j in (raw['rules'] as List).cast<Map<String, dynamic>>()) {
-        final rule = GrammarRule.fromJson(j);
-        expect(seenIds.add(rule.id), isTrue,
-            reason: 'rule id ${rule.id} is not globally unique');
-        expect(rule.mechanics, isNot(isA<UnsupportedMechanics>()),
-            reason: '${rule.id}: mechanics failed to parse');
-        expect(rule.titles['en'], isNotNull,
-            reason: '${rule.id}: missing en title (fallback locale)');
-        expect(rule.explanations['en'], isNotNull,
-            reason: '${rule.id}: missing en explanation');
-        for (final e in rule.workedExamples) {
-          expect(e.translations['en'], isNotNull,
-              reason: '${rule.id}: worked example without en translation');
-        }
-        for (final prereq in rule.prerequisiteLists) {
-          final list = catalog.lists.where((l) => l.id == prereq).firstOrNull;
-          expect(list, isNotNull,
-              reason: '${rule.id}: unknown prerequisite list "$prereq"');
-          expect(list!.targetLangs == null || list.targetLangs!.contains(lang),
+    'grammar curricula: rules parse, mechanics supported, prerequisites '
+    'reference registry lists admitting the target, ids globally unique',
+    () async {
+      final seenIds = <String>{};
+      for (final lang in kGrammarCurricula) {
+        final raw =
+            jsonDecode(
+                  await rootBundle.loadString(
+                    'assets/seed/grammar/$lang/rules.json',
+                  ),
+                )
+                as Map<String, dynamic>;
+        expect(raw['lang'], lang);
+        for (final j in (raw['rules'] as List).cast<Map<String, dynamic>>()) {
+          final rule = GrammarRule.fromJson(j);
+          expect(
+            seenIds.add(rule.id),
+            isTrue,
+            reason: 'rule id ${rule.id} is not globally unique',
+          );
+          expect(
+            rule.mechanics,
+            isNot(isA<UnsupportedMechanics>()),
+            reason: '${rule.id}: mechanics failed to parse',
+          );
+          expect(
+            rule.titles['en'],
+            isNotNull,
+            reason: '${rule.id}: missing en title (fallback locale)',
+          );
+          expect(
+            rule.explanations['en'],
+            isNotNull,
+            reason: '${rule.id}: missing en explanation',
+          );
+          for (final e in rule.workedExamples) {
+            expect(
+              e.translations['en'],
+              isNotNull,
+              reason: '${rule.id}: worked example without en translation',
+            );
+          }
+          for (final prereq in rule.prerequisiteLists) {
+            final list = catalog.lists.where((l) => l.id == prereq).firstOrNull;
+            expect(
+              list,
+              isNotNull,
+              reason: '${rule.id}: unknown prerequisite list "$prereq"',
+            );
+            expect(
+              list!.targetLangs == null || list.targetLangs!.contains(lang),
               isTrue,
-              reason: '${rule.id}: prerequisite "$prereq" never seeds for '
-                  'target $lang');
+              reason:
+                  '${rule.id}: prerequisite "$prereq" never seeds for '
+                  'target $lang',
+            );
+          }
         }
       }
-    }
-  });
+    },
+  );
 
   test('gender tags are consistent word metadata', () {
     const known = {'m', 'f', 'n'};
     for (final MapEntry(key: lang, value: layer) in layers.entries) {
       for (final MapEntry(key: id, value: entry) in layer.entries.entries) {
         for (final w in entry.words) {
-          expect(known.containsAll(w.tags), isTrue,
-              reason: '$lang "$id" has unknown tags ${w.tags}');
+          expect(
+            known.containsAll(w.tags),
+            isTrue,
+            reason: '$lang "$id" has unknown tags ${w.tags}',
+          );
         }
       }
     }

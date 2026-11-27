@@ -25,18 +25,20 @@ void main() {
         responseTimeMs: const Value(1200),
       );
 
-  test('insert → getUnsynced returns only unsynced → markSynced clears them',
-      () async {
-    await db.reviewEventDao.insertEvent(evt('a'));
-    await db.reviewEventDao.insertEvent(evt('b'));
-    await db.reviewEventDao.insertEvent(evt('c', synced: true));
+  test(
+    'insert → getUnsynced returns only unsynced → markSynced clears them',
+    () async {
+      await db.reviewEventDao.insertEvent(evt('a'));
+      await db.reviewEventDao.insertEvent(evt('b'));
+      await db.reviewEventDao.insertEvent(evt('c', synced: true));
 
-    final unsynced = await db.reviewEventDao.getUnsynced();
-    expect(unsynced.map((e) => e.id).toSet(), {'a', 'b'});
+      final unsynced = await db.reviewEventDao.getUnsynced();
+      expect(unsynced.map((e) => e.id).toSet(), {'a', 'b'});
 
-    await db.reviewEventDao.markSynced(['a', 'b']);
-    expect(await db.reviewEventDao.getUnsynced(), isEmpty);
-  });
+      await db.reviewEventDao.markSynced(['a', 'b']);
+      expect(await db.reviewEventDao.getUnsynced(), isEmpty);
+    },
+  );
 
   test('getByUser returns the user rows, newest first', () async {
     await db.reviewEventDao.insertEvent(evt('a'));

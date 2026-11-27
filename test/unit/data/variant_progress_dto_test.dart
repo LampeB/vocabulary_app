@@ -67,8 +67,10 @@ void main() {
       expect(QuizDirection.parse('fr>ko'), QuizDirection.frToKo);
       expect(QuizDirection.parse('frToKo'), QuizDirection.frToKo);
       expect(QuizDirection.parse('koToFr'), QuizDirection.koToFr);
-      expect(QuizDirection.parse('en>es'),
-          const QuizDirection(questionLang: 'en', answerLang: 'es'));
+      expect(
+        QuizDirection.parse('en>es'),
+        const QuizDirection(questionLang: 'en', answerLang: 'es'),
+      );
     });
 
     test('newCard state serialises to "newCard"', () {

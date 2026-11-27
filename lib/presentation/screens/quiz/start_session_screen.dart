@@ -26,12 +26,13 @@ import '../../providers/settings/default_pair_provider.dart';
 /// count, no grammar anywhere. `grammar: true` (its own route, entered from
 /// the Home grammar card) swaps the flow to rule + quiz type + count.
 class StartSessionScreen extends ConsumerStatefulWidget {
-  const StartSessionScreen(
-      {super.key,
-      this.grammar = false,
-      this.initialRuleId,
-      this.initialLangA,
-      this.initialLangB});
+  const StartSessionScreen({
+    super.key,
+    this.grammar = false,
+    this.initialRuleId,
+    this.initialLangA,
+    this.initialLangB,
+  });
 
   final bool grammar;
   final String? initialRuleId, initialLangA, initialLangB;
@@ -128,16 +129,21 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('v3.configure'.tr(),
-                style: AppTextStyles.mono(10, FontWeight.w700)
-                    .copyWith(letterSpacing: 1.2, color: muted)),
             Text(
-                (_grammar
-                        ? 'start_session.title_grammar'
-                        : 'start_session.title')
-                    .tr(),
-                style: AppTextStyles.serif(24, FontWeight.w400)
-                    .copyWith(color: foreground)),
+              'v3.configure'.tr(),
+              style: AppTextStyles.mono(
+                10,
+                FontWeight.w700,
+              ).copyWith(letterSpacing: 1.2, color: muted),
+            ),
+            Text(
+              (_grammar ? 'start_session.title_grammar' : 'start_session.title')
+                  .tr(),
+              style: AppTextStyles.serif(
+                24,
+                FontWeight.w400,
+              ).copyWith(color: foreground),
+            ),
           ],
         ),
       ),
@@ -156,12 +162,12 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                   label: 'start_session.section_language'.tr(),
                   value: _langChosen
                       ? '${Languages.flagFor(_langA)} → ${Languages.flagFor(_langB)}  '
-                          '${_cap(Languages.displayName(_langB))}'
+                            '${_cap(Languages.displayName(_langB))}'
                       : '',
                   onHeaderTap: () => _select(0),
                   child: listsAsync.when(
                     loading: () => _loadingBox(),
-                    error: (_, __) => _errorBox(),
+                    error: (_, _) => _errorBox(),
                     data: (lists) => _languageOptions(lists),
                   ),
                 ),
@@ -171,17 +177,18 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
               _Section(
                 index: iList,
                 isOpen: _open == iList,
-                label: (_grammar
-                        ? 'start_session.section_rule'
-                        : 'start_session.section_list')
-                    .tr(),
+                label:
+                    (_grammar
+                            ? 'start_session.section_rule'
+                            : 'start_session.section_list')
+                        .tr(),
                 value: _grammar ? _ruleTitle : _listName,
                 onHeaderTap: () => _select(iList),
                 child: _grammar
                     ? _ruleOptions()
                     : listsAsync.when(
                         loading: () => _loadingBox(),
-                        error: (_, __) => _errorBox(),
+                        error: (_, _) => _errorBox(),
                         data: (lists) => _listOptions(lists),
                       ),
               ),
@@ -278,7 +285,8 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                 color: footer,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                    color: dark ? V3Colors.ruleDark : V3Colors.edgeWarm2),
+                  color: dark ? V3Colors.ruleDark : V3Colors.edgeWarm2,
+                ),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(6),
@@ -291,15 +299,17 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(11)),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
                     ),
                     onPressed: _canStart ? _start : null,
                     icon: const Icon(Icons.play_arrow_rounded, size: 22),
                     label: Text(
                       _count == null
                           ? 'start_session.start'.tr()
-                          : 'start_session.start_with_count'
-                              .tr(namedArgs: {'count': _count.toString()}),
+                          : 'start_session.start_with_count'.tr(
+                              namedArgs: {'count': _count.toString()},
+                            ),
                       style: AppTextStyles.fig(15, FontWeight.w700),
                     ),
                   ),
@@ -313,42 +323,47 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   }
 
   Widget _loadingBox() => const Padding(
-        padding: EdgeInsets.all(16),
-        child: Center(
-          child:
-              CircularProgressIndicator(color: AppColors.clay, strokeWidth: 2),
-        ),
-      );
+    padding: EdgeInsets.all(16),
+    child: Center(
+      child: CircularProgressIndicator(color: AppColors.clay, strokeWidth: 2),
+    ),
+  );
 
   Widget _errorBox() => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text('common.error'.tr()),
-      );
+    padding: const EdgeInsets.all(16),
+    child: Text('common.error'.tr()),
+  );
 
   Widget _groupLabel(String text) => Align(
-        alignment: Alignment.centerLeft,
-        child: Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 2),
-          child: Text(text.toUpperCase(),
-              style: AppTextStyles.eyebrowSm.copyWith(color: AppColors.muted)),
-        ),
-      );
+    alignment: Alignment.centerLeft,
+    child: Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 2),
+      child: Text(
+        text.toUpperCase(),
+        style: AppTextStyles.eyebrowSm.copyWith(color: AppColors.muted),
+      ),
+    ),
+  );
 
   /// Step ①: the distinct language pairs the user actually has lists for.
   /// Since langA is the user's own language, each row reads as the target
   /// language; selecting one reveals its lists in step ②.
   Widget _languageOptions(List<VocabularyList> lists) {
-    final pairs = <(String, String)>{
-      for (final l in lists) (l.langA, l.langB),
-    }.toList()
-      ..sort((a, b) =>
-          Languages.displayName(a.$2).compareTo(Languages.displayName(b.$2)));
+    final pairs =
+        <(String, String)>{for (final l in lists) (l.langA, l.langB)}.toList()
+          ..sort(
+            (a, b) => Languages.displayName(
+              a.$2,
+            ).compareTo(Languages.displayName(b.$2)),
+          );
 
     if (pairs.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(16),
-        child: Text('start_session.empty_lists'.tr(),
-            style: AppTextStyles.body.copyWith(color: AppColors.muted)),
+        child: Text(
+          'start_session.empty_lists'.tr(),
+          style: AppTextStyles.body.copyWith(color: AppColors.muted),
+        ),
       );
     }
     return Column(
@@ -357,7 +372,8 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
           if (i != 0) const SizedBox(height: 8),
           _OptionTile(
             key: ValueKey(WidgetKeys.startLanguagePair(p.$1, p.$2)),
-            label: '${Languages.flagFor(p.$1)} → ${Languages.flagFor(p.$2)}'
+            label:
+                '${Languages.flagFor(p.$1)} → ${Languages.flagFor(p.$2)}'
                 '   ${_cap(Languages.displayName(p.$2))}',
             selected: _langChosen && _langA == p.$1 && _langB == p.$2,
             onTap: () {
@@ -387,10 +403,10 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
     // Only this language's lists, STABLE alphabetical (the provider streams by
     // updatedAt; a background re-sort between glance and tap picks the wrong
     // list — field report 2026-07-07).
-    final lists = all
-        .where((l) => l.langA == _langA && l.langB == _langB)
-        .toList()
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    final lists =
+        all.where((l) => l.langA == _langA && l.langB == _langB).toList()..sort(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
     final studying = lists.where((l) => studied.contains(l.id)).toList();
     final fresh = lists.where((l) => !studied.contains(l.id)).toList();
 
@@ -413,35 +429,38 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
         label: 'start_session.smart_in_progress'.tr(),
         selected: _source == QuizSource.inProgress,
         onTap: () => _selectSmart(
-            QuizSource.inProgress, 'start_session.smart_in_progress'.tr()),
+          QuizSource.inProgress,
+          'start_session.smart_in_progress'.tr(),
+        ),
       ),
     ];
 
     if (lists.isEmpty && dueCount == 0) {
       return Padding(
         padding: const EdgeInsets.all(16),
-        child: Text('start_session.empty_lists'.tr(),
-            style: AppTextStyles.body.copyWith(color: AppColors.muted)),
+        child: Text(
+          'start_session.empty_lists'.tr(),
+          style: AppTextStyles.body.copyWith(color: AppColors.muted),
+        ),
       );
     }
 
     Widget tile(VocabularyList l) => _OptionTile(
-          label: l.name,
-          trailing: '${l.wordCount}',
-          onPreview:
-              l.wordCount > 0 ? () => _showListPreview(context, l) : null,
-          selected: _source == QuizSource.list && _listId == l.id,
-          onTap: () {
-            setState(() {
-              _source = QuizSource.list;
-              _listId = l.id;
-              _listName = l.name;
-              _langA = l.langA;
-              _langB = l.langB;
-            });
-            _select(2); // open the mode step
-          },
-        );
+      label: l.name,
+      trailing: '${l.wordCount}',
+      onPreview: l.wordCount > 0 ? () => _showListPreview(context, l) : null,
+      selected: _source == QuizSource.list && _listId == l.id,
+      onTap: () {
+        setState(() {
+          _source = QuizSource.list;
+          _listId = l.id;
+          _listName = l.name;
+          _langA = l.langA;
+          _langB = l.langB;
+        });
+        _select(2); // open the mode step
+      },
+    );
 
     return Column(
       children: [
@@ -466,11 +485,13 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
       loading: () => const Padding(
         padding: EdgeInsets.all(16),
         child: Center(
-          child:
-              CircularProgressIndicator(color: AppColors.clay, strokeWidth: 2),
+          child: CircularProgressIndicator(
+            color: AppColors.clay,
+            strokeWidth: 2,
+          ),
         ),
       ),
-      error: (_, __) => Padding(
+      error: (_, _) => Padding(
         padding: const EdgeInsets.all(16),
         child: Text('common.error'.tr()),
       ),
@@ -489,8 +510,9 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                 RuleAvailability.unlocked when !st.enoughWords =>
                   'start_session.rule_not_enough_words'.tr(),
                 RuleAvailability.unlocked => '${st.correct}/$ruleMasteryTarget',
-                RuleAvailability.locked => 'start_session.rule_locked'
-                    .tr(namedArgs: {'lists': st.missingLists.join(', ')}),
+                RuleAvailability.locked => 'start_session.rule_locked'.tr(
+                  namedArgs: {'lists': st.missingLists.join(', ')},
+                ),
               },
               onTap: () => _showLessonSheet(st.rule),
             ),
@@ -514,26 +536,39 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(rule.title(uiLocaleCode(ctx)),
-                    style: AppTextStyles.grotesk(22, FontWeight.w700)
-                        .copyWith(color: cs.onSurface)),
+                Text(
+                  rule.title(uiLocaleCode(ctx)),
+                  style: AppTextStyles.grotesk(
+                    22,
+                    FontWeight.w700,
+                  ).copyWith(color: cs.onSurface),
+                ),
                 const SizedBox(height: 12),
-                Text(rule.explanation(_langA),
-                    style: AppTextStyles.body.copyWith(color: cs.onSurface)),
+                Text(
+                  rule.explanation(_langA),
+                  style: AppTextStyles.body.copyWith(color: cs.onSurface),
+                ),
                 const SizedBox(height: 16),
-                Text('grammar.lesson.examples'.tr(),
-                    style:
-                        AppTextStyles.eyebrow.copyWith(color: AppColors.muted)),
+                Text(
+                  'grammar.lesson.examples'.tr(),
+                  style: AppTextStyles.eyebrow.copyWith(color: AppColors.muted),
+                ),
                 const SizedBox(height: 8),
                 for (final e in rule.workedExamples) ...[
-                  Text(e.target,
-                      style: (Languages.usesHangul(_langB)
-                              ? AppTextStyles.kr(16, FontWeight.w600)
-                              : AppTextStyles.fig(16, FontWeight.w600))
-                          .copyWith(color: cs.onSurface)),
-                  Text(e.translation(_langA),
-                      style: AppTextStyles.caption
-                          .copyWith(color: AppColors.muted)),
+                  Text(
+                    e.target,
+                    style:
+                        (Languages.usesHangul(_langB)
+                                ? AppTextStyles.kr(16, FontWeight.w600)
+                                : AppTextStyles.fig(16, FontWeight.w600))
+                            .copyWith(color: cs.onSurface),
+                  ),
+                  Text(
+                    e.translation(_langA),
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.muted,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                 ],
                 const SizedBox(height: 8),
@@ -583,11 +618,11 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   }
 
   String _modeLabel(QuizMode m) => switch (m) {
-        QuizMode.voice => 'quiz_setup.mode_voice_label'.tr(),
-        QuizMode.flashcard => 'quiz_setup.mode_flashcard_label'.tr(),
-        QuizMode.typing => 'quiz_setup.mode_typing_label'.tr(),
-        QuizMode.handsFree => 'quiz_setup.mode_hands_free_label'.tr(),
-      };
+    QuizMode.voice => 'quiz_setup.mode_voice_label'.tr(),
+    QuizMode.flashcard => 'quiz_setup.mode_flashcard_label'.tr(),
+    QuizMode.typing => 'quiz_setup.mode_typing_label'.tr(),
+    QuizMode.handsFree => 'quiz_setup.mode_hands_free_label'.tr(),
+  };
 
   // Direction labels are DERIVED from the selected list's language pair —
   // never hardcoded (generic-language-pairs epic). The enum values keep their
@@ -712,15 +747,21 @@ class _Section extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 children: [
-                  Text(label,
-                      style: AppTextStyles.eyebrow.copyWith(color: muted)),
+                  Text(
+                    label,
+                    style: AppTextStyles.eyebrow.copyWith(color: muted),
+                  ),
                   const Spacer(),
                   if (!isOpen && value.isNotEmpty)
                     Flexible(
-                      child: Text(value,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.fig(14, FontWeight.w600)
-                              .copyWith(color: foreground)),
+                      child: Text(
+                        value,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.fig(
+                          14,
+                          FontWeight.w600,
+                        ).copyWith(color: foreground),
+                      ),
                     ),
                   const SizedBox(width: 8),
                   AnimatedRotation(
@@ -780,10 +821,11 @@ class _OptionTile extends StatelessWidget {
     final fg = selected
         ? Colors.white
         : (disabled
-            ? (dark ? V3Colors.moss : V3Colors.edgeWarm2)
-            : (dark ? V3Colors.light : V3Colors.ink));
-    final background =
-        selected ? V3Colors.terra : (dark ? V3Colors.block2 : V3Colors.paper);
+              ? (dark ? V3Colors.moss : V3Colors.edgeWarm2)
+              : (dark ? V3Colors.light : V3Colors.ink));
+    final background = selected
+        ? V3Colors.terra
+        : (dark ? V3Colors.block2 : V3Colors.paper);
     final border = selected
         ? V3Colors.terra
         : (dark ? V3Colors.ruleDark : V3Colors.edgeWarm2);
@@ -802,31 +844,46 @@ class _OptionTile extends StatelessWidget {
                   backgroundColor: background,
                   foregroundColor: fg,
                   padding: EdgeInsetsDirectional.fromSTEB(
-                      16, 14, onPreview == null ? 16 : 56, 14),
+                    16,
+                    14,
+                    onPreview == null ? 16 : 56,
+                    14,
+                  ),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   side: BorderSide(color: border),
                 ),
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(label,
-                          style: AppTextStyles.fig(15, FontWeight.w600)
-                              .copyWith(color: fg)),
+                      child: Text(
+                        label,
+                        style: AppTextStyles.fig(
+                          15,
+                          FontWeight.w600,
+                        ).copyWith(color: fg),
+                      ),
                     ),
                     if (trailing != null)
                       Flexible(
-                        child: Text(trailing!,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.end,
-                            style: AppTextStyles.caption.copyWith(
-                                color: selected ? Colors.white70 : muted)),
+                        child: Text(
+                          trailing!,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.end,
+                          style: AppTextStyles.caption.copyWith(
+                            color: selected ? Colors.white70 : muted,
+                          ),
+                        ),
                       ),
                     if (selected)
                       const Padding(
                         padding: EdgeInsetsDirectional.only(start: 8),
-                        child: Icon(Icons.check_rounded,
-                            color: Colors.white, size: 18),
+                        child: Icon(
+                          Icons.check_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
                       ),
                   ],
                 ),
@@ -839,8 +896,11 @@ class _OptionTile extends StatelessWidget {
               child: IconButton(
                 tooltip: 'common.preview'.tr(),
                 onPressed: onPreview,
-                icon: Icon(Icons.visibility_outlined,
-                    size: 18, color: selected ? Colors.white70 : muted),
+                icon: Icon(
+                  Icons.visibility_outlined,
+                  size: 18,
+                  color: selected ? Colors.white70 : muted,
+                ),
               ),
             ),
         ],
@@ -852,11 +912,12 @@ class _OptionTile extends StatelessWidget {
 // ── Count chip ────────────────────────────────────────────────────────────────
 
 class _CountChip extends StatelessWidget {
-  const _CountChip(
-      {super.key,
-      required this.n,
-      required this.selected,
-      required this.onTap});
+  const _CountChip({
+    super.key,
+    required this.n,
+    required this.selected,
+    required this.onTap,
+  });
   final int n;
   final bool selected;
   final VoidCallback onTap;
@@ -875,16 +936,22 @@ class _CountChip extends StatelessWidget {
             backgroundColor: selected
                 ? V3Colors.terra
                 : (dark ? V3Colors.block2 : V3Colors.paper),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             side: BorderSide(
-                color: selected
-                    ? V3Colors.terra
-                    : (dark ? V3Colors.ruleDark : V3Colors.edgeWarm2)),
+              color: selected
+                  ? V3Colors.terra
+                  : (dark ? V3Colors.ruleDark : V3Colors.edgeWarm2),
+            ),
           ),
-          child: Text('$n',
-              style: AppTextStyles.fig(14, FontWeight.w700)
-                  .copyWith(color: selected ? Colors.white : muted)),
+          child: Text(
+            '$n',
+            style: AppTextStyles.fig(
+              14,
+              FontWeight.w700,
+            ).copyWith(color: selected ? Colors.white : muted),
+          ),
         ),
       ),
     );
@@ -904,8 +971,9 @@ class _ListPreviewSheet extends ConsumerWidget {
     final conceptsAsync = ref.watch(listDetailProvider(list.id));
     return SafeArea(
       child: ConstrainedBox(
-        constraints:
-            BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.7,
+        ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
           child: Column(
@@ -915,13 +983,16 @@ class _ListPreviewSheet extends ConsumerWidget {
               Row(
                 children: [
                   Expanded(
-                    child: Text(list.name,
-                        style: AppTextStyles.grotesk(20, FontWeight.w700)),
+                    child: Text(
+                      list.name,
+                      style: AppTextStyles.grotesk(20, FontWeight.w700),
+                    ),
                   ),
                   Text(
-                      '${Languages.flagFor(list.langA)} → '
-                      '${Languages.flagFor(list.langB)}',
-                      style: AppTextStyles.body),
+                    '${Languages.flagFor(list.langA)} → '
+                    '${Languages.flagFor(list.langB)}',
+                    style: AppTextStyles.body,
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -931,27 +1002,34 @@ class _ListPreviewSheet extends ConsumerWidget {
                     child: Padding(
                       padding: EdgeInsets.all(24),
                       child: CircularProgressIndicator(
-                          color: AppColors.clay, strokeWidth: 2),
+                        color: AppColors.clay,
+                        strokeWidth: 2,
+                      ),
                     ),
                   ),
-                  error: (_, __) => Text('common.error'.tr()),
+                  error: (_, _) => Text('common.error'.tr()),
                   data: (concepts) {
-                    final visible =
-                        concepts.where((c) => !c.isDeleted).toList();
+                    final visible = concepts
+                        .where((c) => !c.isDeleted)
+                        .toList();
                     if (visible.isEmpty) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 24),
-                        child: Text('start_session.empty_lists'.tr(),
-                            style: AppTextStyles.body
-                                .copyWith(color: AppColors.muted)),
+                        child: Text(
+                          'start_session.empty_lists'.tr(),
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.muted,
+                          ),
+                        ),
                       );
                     }
                     return ListView.separated(
                       shrinkWrap: true,
                       itemCount: visible.length,
-                      separatorBuilder: (_, __) => Divider(
-                          height: 1,
-                          color: Theme.of(context).colorScheme.outline),
+                      separatorBuilder: (_, _) => Divider(
+                        height: 1,
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
                       itemBuilder: (_, i) => _PreviewRow(
                         conceptId: visible[i].id,
                         langA: list.langA,
@@ -970,8 +1048,11 @@ class _ListPreviewSheet extends ConsumerWidget {
 }
 
 class _PreviewRow extends ConsumerWidget {
-  const _PreviewRow(
-      {required this.conceptId, required this.langA, required this.langB});
+  const _PreviewRow({
+    required this.conceptId,
+    required this.langA,
+    required this.langB,
+  });
   final String conceptId;
   final String langA;
   final String langB;
@@ -988,8 +1069,8 @@ class _PreviewRow extends ConsumerWidget {
 
     TextStyle styleFor(String lang, {Color? color}) =>
         Languages.usesHangul(lang)
-            ? AppTextStyles.koreanBody.copyWith(color: color)
-            : AppTextStyles.fig(15, FontWeight.w600).copyWith(color: color);
+        ? AppTextStyles.koreanBody.copyWith(color: color)
+        : AppTextStyles.fig(15, FontWeight.w600).copyWith(color: color);
 
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     return Padding(
@@ -1000,8 +1081,11 @@ class _PreviewRow extends ConsumerWidget {
           Expanded(child: Text(wordFor(langA), style: styleFor(langA))),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(wordFor(langB),
-                textAlign: TextAlign.end, style: styleFor(langB, color: muted)),
+            child: Text(
+              wordFor(langB),
+              textAlign: TextAlign.end,
+              style: styleFor(langB, color: muted),
+            ),
           ),
         ],
       ),

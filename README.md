@@ -12,8 +12,9 @@ locales) · fl_chart · Patrol (E2E).
 
 ## Prerequisites
 
-- **Flutter** stable with Dart SDK ≥ 3.4 (`flutter --version`)
-- **Android SDK** + `adb` for device runs (iOS builds via CI)
+- **Flutter** ≥ 3.44.0 with Dart ≥ 3.12.0. CI uses Flutter **3.44.9**
+  (Dart **3.12.2**). Check both versions with `flutter --version`.
+- **Android SDK** + `adb` for device runs. iOS delivery remains deferred.
 - **libsqlite3** — the test suite runs Drift against the native
   library:
   - Debian/Ubuntu/Mint: `sudo apt install libsqlite3-dev` (CI does this)
@@ -24,10 +25,13 @@ locales) · fl_chart · Patrol (E2E).
 ## Getting started
 
 ```bash
-git clone https://github.com/LampeB/vocabulary_app.git
+git clone --recurse-submodules https://github.com/LampeB/vocabulary_app.git
 cd vocabulary_app
 flutter pub get
 ```
+
+In an existing clone, run `git submodule update --init --recursive` from the
+repository root to install the pinned Whisper engine before building.
 
 Create **`.env.json`** at the repo root (gitignored — ask a teammate or
 take the values from the Supabase/RevenueCat dashboards):
@@ -58,7 +62,7 @@ Debug builds use the application id `com.vocabkr.vocab_kr.debug`
 ## Tests
 
 ```bash
-# host suite (unit + widget + integration; 746 at the last full local run)
+# host suite (unit + widget + integration; latest results in PROJECT_STATUS.md)
 LD_LIBRARY_PATH="$HOME/.local/lib:$LD_LIBRARY_PATH" flutter test
 ```
 
@@ -86,7 +90,7 @@ committing — never chain test+build+commit blindly.
 | `lib/services/` | quiz orchestration (VoiceTurnMachine, AudioDirector) + speech (SttRace engines) |
 | `assets/seed/` | starter curriculum: `vocab/registry.json` + `vocab/lang/<code>.json` layers, `grammar/<lang>/rules.json` |
 | `assets/translations/` | 7 UI locales (flat dotted keys) |
-| `supabase/` | SQL migrations (applied to the hosted project) + edge functions |
+| `supabase/` | SQL migrations and Edge functions; hosted activation is a separate operation |
 | `docs/` | all plans & design docs (see below) |
 | `tool/seed/` | one-shot content generators · `test/` mirrors lib layout |
 

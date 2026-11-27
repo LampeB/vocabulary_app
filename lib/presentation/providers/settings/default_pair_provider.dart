@@ -9,8 +9,8 @@ const _keyLangB = 'settings_default_lang_b';
 /// pair; this is only the default). Persisted across sessions.
 final defaultPairProvider =
     NotifierProvider<DefaultPairNotifier, (String, String)>(
-  DefaultPairNotifier.new,
-);
+      DefaultPairNotifier.new,
+    );
 
 class DefaultPairNotifier extends Notifier<(String, String)> {
   @override

@@ -14,81 +14,87 @@ import '../helpers/fake_remote.dart';
 const _kUserId = 'test-user-sync';
 
 Map<String, dynamic> _remoteList(String id, String name) => {
-      'id': id,
-      'owner_id': _kUserId,
-      'name': name,
-      'description': null,
-      'visibility': 'private',
-      'word_count': 1,
-      'share_token': null,
-      'lang_a': 'en',
-      'lang_b': 'es',
+  'id': id,
+  'owner_id': _kUserId,
+  'name': name,
+  'description': null,
+  'visibility': 'private',
+  'word_count': 1,
+  'share_token': null,
+  'lang_a': 'en',
+  'lang_b': 'es',
+  'is_deleted': false,
+  'created_at': '2026-07-01T10:00:00Z',
+  'updated_at': '2026-07-01T10:00:00Z',
+};
+
+Map<String, dynamic> _remoteConcept(
+  String id,
+  String listId, {
+  String fr = 'bonjour',
+  String ko = '안녕',
+}) => {
+  'id': id,
+  'list_id': listId,
+  'category': null,
+  'notes': null,
+  'image_url': null,
+  'example_fr': null,
+  'example_ko': null,
+  'is_deleted': false,
+  'created_at': '2026-07-01T10:00:00Z',
+  'updated_at': '2026-07-01T10:00:00Z',
+  'word_variants': [
+    {
+      'id': '$id-fr',
+      'concept_id': id,
+      'word': fr,
+      'lang_code': 'fr',
+      'is_primary': true,
+      'position': 0,
       'is_deleted': false,
       'created_at': '2026-07-01T10:00:00Z',
       'updated_at': '2026-07-01T10:00:00Z',
-    };
-
-Map<String, dynamic> _remoteConcept(String id, String listId,
-        {String fr = 'bonjour', String ko = '안녕'}) =>
+    },
     {
-      'id': id,
-      'list_id': listId,
-      'category': null,
-      'notes': null,
-      'image_url': null,
-      'example_fr': null,
-      'example_ko': null,
+      'id': '$id-ko',
+      'concept_id': id,
+      'word': ko,
+      'lang_code': 'ko',
+      'is_primary': true,
+      'position': 0,
       'is_deleted': false,
       'created_at': '2026-07-01T10:00:00Z',
       'updated_at': '2026-07-01T10:00:00Z',
-      'word_variants': [
-        {
-          'id': '$id-fr',
-          'concept_id': id,
-          'word': fr,
-          'lang_code': 'fr',
-          'is_primary': true,
-          'position': 0,
-          'is_deleted': false,
-          'created_at': '2026-07-01T10:00:00Z',
-          'updated_at': '2026-07-01T10:00:00Z',
-        },
-        {
-          'id': '$id-ko',
-          'concept_id': id,
-          'word': ko,
-          'lang_code': 'ko',
-          'is_primary': true,
-          'position': 0,
-          'is_deleted': false,
-          'created_at': '2026-07-01T10:00:00Z',
-          'updated_at': '2026-07-01T10:00:00Z',
-        },
-      ],
-    };
+    },
+  ],
+};
 
-Map<String, dynamic> _remoteProgress(String variantId,
-        {String direction = 'fr>ko', int reps = 7, double mastery = 0.8}) =>
-    {
-      'id': '$_kUserId|$variantId|$direction',
-      'user_id': _kUserId,
-      'variant_id': variantId,
-      'direction': direction,
-      'stability': 12.5,
-      'difficulty': 4.2,
-      'elapsed_days': 3,
-      'scheduled_days': 10,
-      'reps': reps,
-      'lapses': 1,
-      'state': 'review',
-      'last_review': '2026-07-01T10:00:00Z',
-      'next_review': '2026-07-11T10:00:00Z',
-      'times_shown': 20,
-      'times_correct': 17,
-      'mastery_level': mastery,
-      'created_at': '2026-06-01T10:00:00Z',
-      'updated_at': '2026-07-01T10:00:00Z',
-    };
+Map<String, dynamic> _remoteProgress(
+  String variantId, {
+  String direction = 'fr>ko',
+  int reps = 7,
+  double mastery = 0.8,
+}) => {
+  'id': '$_kUserId|$variantId|$direction',
+  'user_id': _kUserId,
+  'variant_id': variantId,
+  'direction': direction,
+  'stability': 12.5,
+  'difficulty': 4.2,
+  'elapsed_days': 3,
+  'scheduled_days': 10,
+  'reps': reps,
+  'lapses': 1,
+  'state': 'review',
+  'last_review': '2026-07-01T10:00:00Z',
+  'next_review': '2026-07-11T10:00:00Z',
+  'times_shown': 20,
+  'times_correct': 17,
+  'mastery_level': mastery,
+  'created_at': '2026-06-01T10:00:00Z',
+  'updated_at': '2026-07-01T10:00:00Z',
+};
 
 /// Remote with canned lists/concepts/progress, as Supabase would return them.
 class _SyncRemote extends FakeRemote {
@@ -112,57 +118,67 @@ class _SyncRemote extends FakeRemote {
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
-          String listId) async =>
-      Success(conceptsByList[listId] ?? []);
+    String listId,
+  ) async => Success(conceptsByList[listId] ?? []);
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchProgress(
-          String userId) async =>
-      Success(progress);
+    String userId,
+  ) async => Success(progress);
 }
 
 void main() {
   late AppDatabase db;
 
-  VocabularyRepositoryImpl repoWith(FakeRemote remote,
-          {String userId = _kUserId}) =>
-      VocabularyRepositoryImpl(
-          db.vocabularyListDao, db.conceptDao, remote, userId, db);
+  VocabularyRepositoryImpl repoWith(
+    FakeRemote remote, {
+    String userId = _kUserId,
+  }) => VocabularyRepositoryImpl(
+    db.vocabularyListDao,
+    db.conceptDao,
+    remote,
+    userId,
+    db,
+  );
 
   setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
   tearDown(() => db.close());
 
   group('syncFromRemote', () {
-    test('pulls remote lists, concepts and variants into the local DB',
-        () async {
-      final repo = repoWith(_SyncRemote(
-        lists: [_remoteList('rl1', 'Remote List')],
-        conceptsByList: {
-          'rl1': [_remoteConcept('rc1', 'rl1')],
-        },
-      ));
+    test(
+      'pulls remote lists, concepts and variants into the local DB',
+      () async {
+        final repo = repoWith(
+          _SyncRemote(
+            lists: [_remoteList('rl1', 'Remote List')],
+            conceptsByList: {
+              'rl1': [_remoteConcept('rc1', 'rl1')],
+            },
+          ),
+        );
 
-      await repo.syncFromRemote();
+        await repo.syncFromRemote();
 
-      final list = await db.vocabularyListDao.getById('rl1');
-      expect(list, isNotNull);
-      expect(list!.name, 'Remote List');
-      expect(list.langA, 'en'); // the pair round-trips through sync
-      expect(list.langB, 'es');
-      // Recount is derived data, not a fresh outbound mutation.
-      expect(list.wordCount, 1);
-      expect(list.isSynced, isTrue);
-      final concepts = await db.conceptDao.getConceptsByList('rl1');
-      expect(concepts.length, 1);
-      final variants = await db.conceptDao.getVariantsByConcept('rc1');
-      expect(variants.map((v) => v.word), containsAll(['bonjour', '안녕']));
-      expect(variants.every((v) => v.isSynced), isTrue);
-    });
+        final list = await db.vocabularyListDao.getById('rl1');
+        expect(list, isNotNull);
+        expect(list!.name, 'Remote List');
+        expect(list.langA, 'en'); // the pair round-trips through sync
+        expect(list.langB, 'es');
+        // Recount is derived data, not a fresh outbound mutation.
+        expect(list.wordCount, 1);
+        expect(list.isSynced, isTrue);
+        final concepts = await db.conceptDao.getConceptsByList('rl1');
+        expect(concepts.length, 1);
+        final variants = await db.conceptDao.getVariantsByConcept('rc1');
+        expect(variants.map((v) => v.word), containsAll(['bonjour', '안녕']));
+        expect(variants.every((v) => v.isSynced), isTrue);
+      },
+    );
 
     test('does not clobber a local-only (unsynced) list', () async {
-      final repo = repoWith(_SyncRemote(
-        lists: [_remoteList('rl1', 'Remote List')],
-      ));
+      final repo = repoWith(
+        _SyncRemote(lists: [_remoteList('rl1', 'Remote List')]),
+      );
       final local = (await repo.createList(name: 'Local Only')).valueOrNull!;
 
       await repo.syncFromRemote();
@@ -173,8 +189,7 @@ void main() {
       expect(await db.vocabularyListDao.getById('rl1'), isNotNull);
     });
 
-    test(
-        'server-side deletions propagate: a remotely deleted list is '
+    test('server-side deletions propagate: a remotely deleted list is '
         'tombstoned locally and disappears from the watch', () async {
       // First sync: the list exists.
       final live = _remoteList('rl1', 'Remote List');
@@ -182,15 +197,19 @@ void main() {
       final repo = repoWith(remote);
       await repo.syncFromRemote();
       expect(
-          (await repo.watchMyLists().first).map((l) => l.id), contains('rl1'));
+        (await repo.watchMyLists().first).map((l) => l.id),
+        contains('rl1'),
+      );
 
       // Second sync: the server says it's deleted.
       remote.lists.clear();
       remote.lists.add({...live, 'is_deleted': true});
       await repo.syncFromRemote();
 
-      expect((await repo.watchMyLists().first).map((l) => l.id),
-          isNot(contains('rl1')));
+      expect(
+        (await repo.watchMyLists().first).map((l) => l.id),
+        isNot(contains('rl1')),
+      );
     });
 
     test('re-running is idempotent (upserts, no duplicates)', () async {
@@ -212,158 +231,202 @@ void main() {
     });
 
     test(
-        'remote list deletion removes children and cannot restore stale progress',
-        () async {
-      final live = _remoteList('rl1', 'Remote');
-      final remote = _SyncRemote(lists: [
-        live
-      ], conceptsByList: {
-        'rl1': [_remoteConcept('rc1', 'rl1')],
-      }, progress: [
-        _remoteProgress('rc1-fr')
-      ]);
-      final repo = repoWith(remote);
-      await repo.syncFromRemote();
-      expect(await db.progressDao.getById('$_kUserId|rc1-fr|fr>ko'), isNotNull);
-      remote.lists[0] = {...live, 'is_deleted': true};
-      await repo.syncFromRemote();
-      expect((await db.conceptDao.getById('rc1'))!.isDeleted, isTrue);
-      expect((await db.conceptDao.getVariantById('rc1-fr'))!.isDeleted, isTrue);
-      expect(await db.progressDao.getById('$_kUserId|rc1-fr|fr>ko'), isNull);
-      expect(await db.progressDao.watchDueCount(_kUserId).first, 0);
-    });
+      'remote list deletion removes children and cannot restore stale progress',
+      () async {
+        final live = _remoteList('rl1', 'Remote');
+        final remote = _SyncRemote(
+          lists: [live],
+          conceptsByList: {
+            'rl1': [_remoteConcept('rc1', 'rl1')],
+          },
+          progress: [_remoteProgress('rc1-fr')],
+        );
+        final repo = repoWith(remote);
+        await repo.syncFromRemote();
+        expect(
+          await db.progressDao.getById('$_kUserId|rc1-fr|fr>ko'),
+          isNotNull,
+        );
+        remote.lists[0] = {...live, 'is_deleted': true};
+        await repo.syncFromRemote();
+        expect((await db.conceptDao.getById('rc1'))!.isDeleted, isTrue);
+        expect(
+          (await db.conceptDao.getVariantById('rc1-fr'))!.isDeleted,
+          isTrue,
+        );
+        expect(await db.progressDao.getById('$_kUserId|rc1-fr|fr>ko'), isNull);
+        expect(await db.progressDao.watchDueCount(_kUserId).first, 0);
+      },
+    );
 
-    test('pending content edits survive pull while other children are restored',
-        () async {
-      final remote = _SyncRemote(lists: [
-        _remoteList('rl1', 'Remote')
-      ], conceptsByList: {
-        'rl1': [_remoteConcept('rc1', 'rl1')],
-      });
-      final repo = repoWith(remote);
-      await repo.syncFromRemote();
-      await (db.update(db.vocabularyListsTable)
-            ..where((t) => t.id.equals('rl1')))
-          .write(const VocabularyListsTableCompanion(
-              name: Value('Local'), isSynced: Value(false)));
-      await (db.update(db.wordVariantsTable)
-            ..where((t) => t.id.equals('rc1-fr')))
-          .write(const WordVariantsTableCompanion(
-              word: Value('salut'), isSynced: Value(false)));
-      remote.conceptsByList['rl1']!.add(_remoteConcept('rc2', 'rl1'));
-      await repo.syncFromRemote();
-      expect((await db.vocabularyListDao.getById('rl1'))!.name, 'Local');
-      expect((await db.conceptDao.getVariantById('rc1-fr'))!.word, 'salut');
-      expect(await db.conceptDao.getById('rc2'), isNotNull);
-    });
+    test(
+      'pending content edits survive pull while other children are restored',
+      () async {
+        final remote = _SyncRemote(
+          lists: [_remoteList('rl1', 'Remote')],
+          conceptsByList: {
+            'rl1': [_remoteConcept('rc1', 'rl1')],
+          },
+        );
+        final repo = repoWith(remote);
+        await repo.syncFromRemote();
+        await (db.update(
+          db.vocabularyListsTable,
+        )..where((t) => t.id.equals('rl1'))).write(
+          const VocabularyListsTableCompanion(
+            name: Value('Local'),
+            isSynced: Value(false),
+          ),
+        );
+        await (db.update(
+          db.wordVariantsTable,
+        )..where((t) => t.id.equals('rc1-fr'))).write(
+          const WordVariantsTableCompanion(
+            word: Value('salut'),
+            isSynced: Value(false),
+          ),
+        );
+        remote.conceptsByList['rl1']!.add(_remoteConcept('rc2', 'rl1'));
+        await repo.syncFromRemote();
+        expect((await db.vocabularyListDao.getById('rl1'))!.name, 'Local');
+        expect((await db.conceptDao.getVariantById('rc1-fr'))!.word, 'salut');
+        expect(await db.conceptDao.getById('rc2'), isNotNull);
+      },
+    );
 
     for (final acknowledge in [false, true]) {
       test(
-          'a delayed pull preserves edits ${acknowledge ? 'already pushed' : 'still pending'}',
-          () async {
+        'a delayed pull preserves edits ${acknowledge ? 'already pushed' : 'still pending'}',
+        () async {
+          final remoteProgress = _remoteProgress('rc1-fr');
+          final remote = _SyncRemote(
+            lists: [_remoteList('rl1', 'Old')],
+            conceptsByList: {
+              'rl1': [_remoteConcept('rc1', 'rl1')],
+            },
+            progress: [remoteProgress],
+          );
+          final repo = repoWith(remote);
+          await repo.syncFromRemote();
+          final requested = Completer<void>();
+          final reply = Completer<void>();
+          remote.onLists = () {
+            requested.complete();
+            return reply.future;
+          };
+          remote.conceptsByList['rl1']!.add(_remoteConcept('fresh', 'rl1'));
+          final pull = repo.syncFromRemote();
+          try {
+            await requested.future;
+            // Keep existing timestamps to exercise edits made within the same
+            // SQLite second across metadata, content and progress.
+            await (db.update(
+              db.vocabularyListsTable,
+            )..where((t) => t.id.equals('rl1'))).write(
+              const VocabularyListsTableCompanion(
+                name: Value('Edited'),
+                isSynced: Value(false),
+              ),
+            );
+            await (db.update(
+              db.conceptsTable,
+            )..where((t) => t.id.equals('rc1'))).write(
+              const ConceptsTableCompanion(
+                notes: Value('New note'),
+                isSynced: Value(false),
+              ),
+            );
+            await (db.update(
+              db.wordVariantsTable,
+            )..where((t) => t.id.equals('rc1-fr'))).write(
+              const WordVariantsTableCompanion(
+                word: Value('salut'),
+                isSynced: Value(false),
+              ),
+            );
+            await db.progressDao.upsert(
+              variantProgressCompanionFromRemote(
+                remoteProgress,
+              ).copyWith(reps: const Value(12), isSynced: const Value(false)),
+            );
+            if (acknowledge) {
+              final push = PushSync(
+                db.vocabularyListDao,
+                db.conceptDao,
+                db.progressDao,
+                db.reviewEventDao,
+                remote,
+                userId: _kUserId,
+              );
+              expect(await push.pushAll(), 4);
+            }
+          } finally {
+            reply.complete();
+            await pull;
+          }
+
+          final list = (await db.vocabularyListDao.getById('rl1'))!;
+          final concept = (await db.conceptDao.getById('rc1'))!;
+          final variant = (await db.conceptDao.getVariantById('rc1-fr'))!;
+          final progress = (await db.progressDao.getById(
+            remoteProgress['id'] as String,
+          ))!;
+          expect(list.name, 'Edited');
+          expect(concept.notes, 'New note');
+          expect(variant.word, 'salut');
+          expect(progress.reps, 12);
+          expect([
+            list.isSynced,
+            concept.isSynced,
+            variant.isSynced,
+            progress.isSynced,
+          ], everyElement(acknowledge));
+          expect(await db.conceptDao.getById('fresh'), isNotNull);
+        },
+      );
+    }
+
+    test(
+      'a delayed list tombstone does not discard a review made during the pull',
+      () async {
+        final list = _remoteList('rl1', 'Live');
         final remoteProgress = _remoteProgress('rc1-fr');
         final remote = _SyncRemote(
-          lists: [_remoteList('rl1', 'Old')],
+          lists: [list],
           conceptsByList: {
-            'rl1': [_remoteConcept('rc1', 'rl1')]
+            'rl1': [_remoteConcept('rc1', 'rl1')],
           },
           progress: [remoteProgress],
         );
         final repo = repoWith(remote);
         await repo.syncFromRemote();
+        remote.lists[0] = {...list, 'is_deleted': true};
         final requested = Completer<void>();
         final reply = Completer<void>();
         remote.onLists = () {
           requested.complete();
           return reply.future;
         };
-        remote.conceptsByList['rl1']!.add(_remoteConcept('fresh', 'rl1'));
         final pull = repo.syncFromRemote();
         try {
           await requested.future;
-          // Keep existing timestamps to exercise edits made within the same
-          // SQLite second across metadata, content and progress.
-          await (db.update(db.vocabularyListsTable)
-                ..where((t) => t.id.equals('rl1')))
-              .write(const VocabularyListsTableCompanion(
-                  name: Value('Edited'), isSynced: Value(false)));
-          await (db.update(db.conceptsTable)..where((t) => t.id.equals('rc1')))
-              .write(const ConceptsTableCompanion(
-                  notes: Value('New note'), isSynced: Value(false)));
-          await (db.update(db.wordVariantsTable)
-                ..where((t) => t.id.equals('rc1-fr')))
-              .write(const WordVariantsTableCompanion(
-                  word: Value('salut'), isSynced: Value(false)));
           await db.progressDao.upsert(
-              variantProgressCompanionFromRemote(remoteProgress).copyWith(
-                  reps: const Value(12), isSynced: const Value(false)));
-          if (acknowledge) {
-            final push = PushSync(db.vocabularyListDao, db.conceptDao,
-                db.progressDao, db.reviewEventDao, remote,
-                userId: _kUserId);
-            expect(await push.pushAll(), 4);
-          }
+            variantProgressCompanionFromRemote(
+              remoteProgress,
+            ).copyWith(reps: const Value(12), isSynced: const Value(false)),
+          );
         } finally {
           reply.complete();
           await pull;
         }
 
-        final list = (await db.vocabularyListDao.getById('rl1'))!;
-        final concept = (await db.conceptDao.getById('rc1'))!;
-        final variant = (await db.conceptDao.getVariantById('rc1-fr'))!;
-        final progress =
-            (await db.progressDao.getById(remoteProgress['id'] as String))!;
-        expect(list.name, 'Edited');
-        expect(concept.notes, 'New note');
-        expect(variant.word, 'salut');
-        expect(progress.reps, 12);
-        expect([
-          list.isSynced,
-          concept.isSynced,
-          variant.isSynced,
-          progress.isSynced
-        ], everyElement(acknowledge));
-        expect(await db.conceptDao.getById('fresh'), isNotNull);
-      });
-    }
-
-    test(
-        'a delayed list tombstone does not discard a review made during the pull',
-        () async {
-      final list = _remoteList('rl1', 'Live');
-      final remoteProgress = _remoteProgress('rc1-fr');
-      final remote = _SyncRemote(
-        lists: [list],
-        conceptsByList: {
-          'rl1': [_remoteConcept('rc1', 'rl1')]
-        },
-        progress: [remoteProgress],
-      );
-      final repo = repoWith(remote);
-      await repo.syncFromRemote();
-      remote.lists[0] = {...list, 'is_deleted': true};
-      final requested = Completer<void>();
-      final reply = Completer<void>();
-      remote.onLists = () {
-        requested.complete();
-        return reply.future;
-      };
-      final pull = repo.syncFromRemote();
-      try {
-        await requested.future;
-        await db.progressDao.upsert(
-            variantProgressCompanionFromRemote(remoteProgress)
-                .copyWith(reps: const Value(12), isSynced: const Value(false)));
-      } finally {
-        reply.complete();
-        await pull;
-      }
-
-      expect((await db.vocabularyListDao.getById('rl1'))!.isDeleted, isFalse);
-      expect(
+        expect((await db.vocabularyListDao.getById('rl1'))!.isDeleted, isFalse);
+        expect(
           (await db.progressDao.getById(remoteProgress['id'] as String))!.reps,
-          12);
-    });
+          12,
+        );
+      },
+    );
 
     test('empty userId skips the remote entirely', () async {
       final remote = _SyncRemote(lists: [_remoteList('rl1', 'X')]);
@@ -386,35 +449,49 @@ void main() {
           progress: progress,
         );
 
-    test('pulls remote progress rows into the local DB, marked synced',
-        () async {
-      final repo = repoWith(remoteWithProgress([
-        _remoteProgress('rc1-ko'),
-        _remoteProgress('rc1-fr', direction: 'ko>fr', reps: 2, mastery: 0.3),
-      ]));
+    test(
+      'pulls remote progress rows into the local DB, marked synced',
+      () async {
+        final repo = repoWith(
+          remoteWithProgress([
+            _remoteProgress('rc1-ko'),
+            _remoteProgress(
+              'rc1-fr',
+              direction: 'ko>fr',
+              reps: 2,
+              mastery: 0.3,
+            ),
+          ]),
+        );
 
-      await repo.syncFromRemote();
+        await repo.syncFromRemote();
 
-      final restored = await db.progressDao.getById('$_kUserId|rc1-ko|fr>ko');
-      expect(restored, isNotNull);
-      expect(restored!.reps, 7);
-      expect(restored.masteryLevel, 0.8);
-      expect(restored.state, 'review');
-      expect(restored.direction, 'fr>ko');
-      // Drift returns local-time DateTimes; compare instants, not zones.
-      expect(
-          restored.nextReview!
-              .isAtSameMomentAs(DateTime.parse('2026-07-11T10:00:00Z')),
-          isTrue);
-      expect(restored.isSynced, isTrue); // restored rows must not re-push
+        final restored = await db.progressDao.getById('$_kUserId|rc1-ko|fr>ko');
+        expect(restored, isNotNull);
+        expect(restored!.reps, 7);
+        expect(restored.masteryLevel, 0.8);
+        expect(restored.state, 'review');
+        expect(restored.direction, 'fr>ko');
+        // Drift returns local-time DateTimes; compare instants, not zones.
+        expect(
+          restored.nextReview!.isAtSameMomentAs(
+            DateTime.parse('2026-07-11T10:00:00Z'),
+          ),
+          isTrue,
+        );
+        expect(restored.isSynced, isTrue); // restored rows must not re-push
 
-      expect(await db.progressDao.getById('$_kUserId|rc1-fr|ko>fr'), isNotNull);
-    });
+        expect(
+          await db.progressDao.getById('$_kUserId|rc1-fr|ko>fr'),
+          isNotNull,
+        );
+      },
+    );
 
     test('legacy direction spellings are normalized on the way in', () async {
-      final repo = repoWith(remoteWithProgress([
-        _remoteProgress('rc1-ko', direction: 'frToKo'),
-      ]));
+      final repo = repoWith(
+        remoteWithProgress([_remoteProgress('rc1-ko', direction: 'frToKo')]),
+      );
 
       await repo.syncFromRemote();
 
@@ -429,8 +506,9 @@ void main() {
       final remoteRow = _remoteProgress('rc1-ko');
       // Simulate offline reviews: same row id, more reps, not yet pushed.
       await db.progressDao.upsert(
-        variantProgressCompanionFromRemote(remoteRow)
-            .copyWith(reps: const Value(9), isSynced: const Value(false)),
+        variantProgressCompanionFromRemote(
+          remoteRow,
+        ).copyWith(reps: const Value(9), isSynced: const Value(false)),
       );
 
       await repo.syncFromRemote();
@@ -442,8 +520,9 @@ void main() {
 
     test('a malformed row is skipped without aborting the rest', () async {
       final bad = _remoteProgress('rc1-fr')..['state'] = 'not-a-state';
-      final repo =
-          repoWith(remoteWithProgress([bad, _remoteProgress('rc1-ko')]));
+      final repo = repoWith(
+        remoteWithProgress([bad, _remoteProgress('rc1-ko')]),
+      );
 
       await repo.syncFromRemote();
 
@@ -452,42 +531,50 @@ void main() {
     });
 
     test(
-        'unchanged restored progress performs no writes, while a legacy ID converges',
-        () async {
-      final old = _remoteProgress('rc1-ko')
-        ..['updated_at'] = '2026-07-01T19:00:00.750+09:00';
-      final remote = remoteWithProgress([old]);
-      final repo = repoWith(remote);
-      await repo.syncFromRemote();
-      await db.customStatement(
-          'CREATE TABLE progress_write_audit (operation TEXT NOT NULL)');
-      for (final operation in ['insert', 'delete', 'update']) {
+      'unchanged restored progress performs no writes, while a legacy ID converges',
+      () async {
+        final old = _remoteProgress('rc1-ko')
+          ..['updated_at'] = '2026-07-01T19:00:00.750+09:00';
+        final remote = remoteWithProgress([old]);
+        final repo = repoWith(remote);
+        await repo.syncFromRemote();
         await db.customStatement(
+          'CREATE TABLE progress_write_audit (operation TEXT NOT NULL)',
+        );
+        for (final operation in ['insert', 'delete', 'update']) {
+          await db.customStatement(
             'CREATE TRIGGER audit_progress_$operation AFTER $operation ON variant_progress '
-            "BEGIN INSERT INTO progress_write_audit VALUES ('$operation'); END");
-      }
+            "BEGIN INSERT INTO progress_write_audit VALUES ('$operation'); END",
+          );
+        }
 
-      await repo.syncFromRemote();
-      expect(
+        await repo.syncFromRemote();
+        expect(
           await db
               .customSelect('SELECT operation FROM progress_write_audit')
               .get(),
-          isEmpty);
+          isEmpty,
+        );
 
-      remote.progress[0] = {...old, 'id': 'remote-legacy-id', 'reps': 13};
-      await repo.syncFromRemote();
-      final row = await db.progressDao
-          .getByVariantAndDirection('rc1-ko', 'fr>ko', userId: _kUserId);
-      expect(row!.id, 'remote-legacy-id');
-      expect(row.reps, 13);
-      expect(
+        remote.progress[0] = {...old, 'id': 'remote-legacy-id', 'reps': 13};
+        await repo.syncFromRemote();
+        final row = await db.progressDao.getByVariantAndDirection(
+          'rc1-ko',
+          'fr>ko',
+          userId: _kUserId,
+        );
+        expect(row!.id, 'remote-legacy-id');
+        expect(row.reps, 13);
+        expect(
           (await db
                   .customSelect('SELECT operation FROM progress_write_audit')
                   .get())
               .single
               .read<String>('operation'),
-          'update');
-    });
+          'update',
+        );
+      },
+    );
   });
 
   group('getListByShareToken', () {

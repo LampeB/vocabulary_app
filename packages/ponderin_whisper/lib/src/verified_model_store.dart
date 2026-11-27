@@ -28,11 +28,16 @@ class VerifiedModelStore {
     _pending[key] = future;
     // Use a handled continuation: a failed download must be retryable without
     // creating a second unhandled Future error during cleanup.
-    unawaited(future.then<void>((_) {
-      _pending.remove(key);
-    }, onError: (Object _, StackTrace __) {
-      _pending.remove(key);
-    }));
+    unawaited(
+      future.then<void>(
+        (_) {
+          _pending.remove(key);
+        },
+        onError: (Object _, StackTrace _) {
+          _pending.remove(key);
+        },
+      ),
+    );
     return future;
   }
 
@@ -50,12 +55,14 @@ class VerifiedModelStore {
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 30);
     try {
-      final response = await (await client.getUrl(source))
-          .close()
-          .timeout(const Duration(seconds: 30));
+      final response = await (await client.getUrl(
+        source,
+      )).close().timeout(const Duration(seconds: 30));
       if (response.statusCode != HttpStatus.ok) {
-        throw HttpException('Model download failed (${response.statusCode})',
-            uri: source);
+        throw HttpException(
+          'Model download failed (${response.statusCode})',
+          uri: source,
+        );
       }
       var receivedBytes = 0;
       final chunks = response.timeout(const Duration(seconds: 30)).map((chunk) {

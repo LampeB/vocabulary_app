@@ -87,24 +87,24 @@ class SttCorpusSample {
   final Map<String, String> meta;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'word': word,
-        'langCode': langCode,
-        'path': path,
-        'recordedAt': recordedAt.toIso8601String(),
-        'listId': listId,
-        'conceptId': conceptId,
-        'whisperTranscript': whisperTranscript,
-        'whisperDurationMs': whisperDurationMs,
-        'whisperTestedAt': whisperTestedAt?.toIso8601String(),
-        'openAiTranscript': openAiTranscript,
-        'openAiDurationMs': openAiDurationMs,
-        'openAiTestedAt': openAiTestedAt?.toIso8601String(),
-        'elevenLabsTranscript': elevenLabsTranscript,
-        'elevenLabsDurationMs': elevenLabsDurationMs,
-        'elevenLabsTestedAt': elevenLabsTestedAt?.toIso8601String(),
-        if (meta.isNotEmpty) 'meta': meta,
-      };
+    'id': id,
+    'word': word,
+    'langCode': langCode,
+    'path': path,
+    'recordedAt': recordedAt.toIso8601String(),
+    'listId': listId,
+    'conceptId': conceptId,
+    'whisperTranscript': whisperTranscript,
+    'whisperDurationMs': whisperDurationMs,
+    'whisperTestedAt': whisperTestedAt?.toIso8601String(),
+    'openAiTranscript': openAiTranscript,
+    'openAiDurationMs': openAiDurationMs,
+    'openAiTestedAt': openAiTestedAt?.toIso8601String(),
+    'elevenLabsTranscript': elevenLabsTranscript,
+    'elevenLabsDurationMs': elevenLabsDurationMs,
+    'elevenLabsTestedAt': elevenLabsTestedAt?.toIso8601String(),
+    if (meta.isNotEmpty) 'meta': meta,
+  };
 
   factory SttCorpusSample.fromJson(Map<String, dynamic> json) =>
       SttCorpusSample(
@@ -130,82 +130,81 @@ class SttCorpusSample {
         elevenLabsTestedAt: json['elevenLabsTestedAt'] == null
             ? null
             : DateTime.parse(json['elevenLabsTestedAt'] as String),
-        meta: (json['meta'] as Map?)
-                ?.map((k, v) => MapEntry(k.toString(), v.toString())) ??
+        meta:
+            (json['meta'] as Map?)?.map(
+              (k, v) => MapEntry(k.toString(), v.toString()),
+            ) ??
             const {},
       );
 
   SttCorpusSample withWhisperResult({
     required String? transcript,
     required int? durationMs,
-  }) =>
-      SttCorpusSample(
-        id: id,
-        word: word,
-        langCode: langCode,
-        path: path,
-        recordedAt: recordedAt,
-        listId: listId,
-        conceptId: conceptId,
-        whisperTranscript: transcript,
-        whisperDurationMs: durationMs,
-        whisperTestedAt: DateTime.now(),
-        openAiTranscript: openAiTranscript,
-        openAiDurationMs: openAiDurationMs,
-        openAiTestedAt: openAiTestedAt,
-        elevenLabsTranscript: elevenLabsTranscript,
-        elevenLabsDurationMs: elevenLabsDurationMs,
-        elevenLabsTestedAt: elevenLabsTestedAt,
-        meta: meta,
-      );
+  }) => SttCorpusSample(
+    id: id,
+    word: word,
+    langCode: langCode,
+    path: path,
+    recordedAt: recordedAt,
+    listId: listId,
+    conceptId: conceptId,
+    whisperTranscript: transcript,
+    whisperDurationMs: durationMs,
+    whisperTestedAt: DateTime.now(),
+    openAiTranscript: openAiTranscript,
+    openAiDurationMs: openAiDurationMs,
+    openAiTestedAt: openAiTestedAt,
+    elevenLabsTranscript: elevenLabsTranscript,
+    elevenLabsDurationMs: elevenLabsDurationMs,
+    elevenLabsTestedAt: elevenLabsTestedAt,
+    meta: meta,
+  );
 
   SttCorpusSample withOpenAiResult({
     required String? transcript,
     required int? durationMs,
-  }) =>
-      SttCorpusSample(
-        id: id,
-        word: word,
-        langCode: langCode,
-        path: path,
-        recordedAt: recordedAt,
-        listId: listId,
-        conceptId: conceptId,
-        whisperTranscript: whisperTranscript,
-        whisperDurationMs: whisperDurationMs,
-        whisperTestedAt: whisperTestedAt,
-        openAiTranscript: transcript,
-        openAiDurationMs: durationMs,
-        openAiTestedAt: DateTime.now(),
-        elevenLabsTranscript: elevenLabsTranscript,
-        elevenLabsDurationMs: elevenLabsDurationMs,
-        elevenLabsTestedAt: elevenLabsTestedAt,
-        meta: meta,
-      );
+  }) => SttCorpusSample(
+    id: id,
+    word: word,
+    langCode: langCode,
+    path: path,
+    recordedAt: recordedAt,
+    listId: listId,
+    conceptId: conceptId,
+    whisperTranscript: whisperTranscript,
+    whisperDurationMs: whisperDurationMs,
+    whisperTestedAt: whisperTestedAt,
+    openAiTranscript: transcript,
+    openAiDurationMs: durationMs,
+    openAiTestedAt: DateTime.now(),
+    elevenLabsTranscript: elevenLabsTranscript,
+    elevenLabsDurationMs: elevenLabsDurationMs,
+    elevenLabsTestedAt: elevenLabsTestedAt,
+    meta: meta,
+  );
 
   SttCorpusSample withElevenLabsResult({
     required String? transcript,
     required int? durationMs,
-  }) =>
-      SttCorpusSample(
-        id: id,
-        word: word,
-        langCode: langCode,
-        path: path,
-        recordedAt: recordedAt,
-        listId: listId,
-        conceptId: conceptId,
-        whisperTranscript: whisperTranscript,
-        whisperDurationMs: whisperDurationMs,
-        whisperTestedAt: whisperTestedAt,
-        openAiTranscript: openAiTranscript,
-        openAiDurationMs: openAiDurationMs,
-        openAiTestedAt: openAiTestedAt,
-        elevenLabsTranscript: transcript,
-        elevenLabsDurationMs: durationMs,
-        elevenLabsTestedAt: DateTime.now(),
-        meta: meta,
-      );
+  }) => SttCorpusSample(
+    id: id,
+    word: word,
+    langCode: langCode,
+    path: path,
+    recordedAt: recordedAt,
+    listId: listId,
+    conceptId: conceptId,
+    whisperTranscript: whisperTranscript,
+    whisperDurationMs: whisperDurationMs,
+    whisperTestedAt: whisperTestedAt,
+    openAiTranscript: openAiTranscript,
+    openAiDurationMs: openAiDurationMs,
+    openAiTestedAt: openAiTestedAt,
+    elevenLabsTranscript: transcript,
+    elevenLabsDurationMs: durationMs,
+    elevenLabsTestedAt: DateTime.now(),
+    meta: meta,
+  );
 }
 
 /// Saves a small labelled corpus for an on-device STT bake-off.
@@ -220,12 +219,12 @@ class SttCorpusRecorder {
     CorpusAudioRecorder? recorder,
     Future<Directory> Function()? documentsDirectory,
     DateTime Function()? clock,
-  })  : _recorder = sttDiagnosticsEnabled
-            ? recorder ?? _RecordCorpusAudioRecorder()
-            : null,
-        _documentsDirectory =
-            documentsDirectory ?? getApplicationDocumentsDirectory,
-        _clock = clock ?? DateTime.now;
+  }) : _recorder = sttDiagnosticsEnabled
+           ? recorder ?? _RecordCorpusAudioRecorder()
+           : null,
+       _documentsDirectory =
+           documentsDirectory ?? getApplicationDocumentsDirectory,
+       _clock = clock ?? DateTime.now;
   // coverage:ignore-end
 
   final CorpusAudioRecorder? _recorder;
@@ -301,10 +300,9 @@ class SttCorpusRecorder {
     if (path == null || !await File(path).exists()) return null;
     final all = await samples();
     final manifest = await _manifest();
-    await manifest.writeAsString(jsonEncode([
-      pending.toJson(),
-      ...all.map((sample) => sample.toJson()),
-    ]));
+    await manifest.writeAsString(
+      jsonEncode([pending.toJson(), ...all.map((sample) => sample.toJson())]),
+    );
     return pending;
   }
 
@@ -317,17 +315,19 @@ class SttCorpusRecorder {
     if (!sttDiagnosticsEnabled) return;
     final all = await samples();
     final updated = all
-        .map((sample) => sample.id == sampleId
-            ? sample.withWhisperResult(
-                transcript: transcript,
-                durationMs: durationMs,
-              )
-            : sample)
+        .map(
+          (sample) => sample.id == sampleId
+              ? sample.withWhisperResult(
+                  transcript: transcript,
+                  durationMs: durationMs,
+                )
+              : sample,
+        )
         .toList();
     final manifest = await _manifest();
-    await manifest.writeAsString(jsonEncode(
-      updated.map((sample) => sample.toJson()).toList(),
-    ));
+    await manifest.writeAsString(
+      jsonEncode(updated.map((sample) => sample.toJson()).toList()),
+    );
   }
 
   /// Persists a cloud OpenAI benchmark alongside the local result.
@@ -339,17 +339,19 @@ class SttCorpusRecorder {
     if (!sttDiagnosticsEnabled) return;
     final all = await samples();
     final updated = all
-        .map((sample) => sample.id == sampleId
-            ? sample.withOpenAiResult(
-                transcript: transcript,
-                durationMs: durationMs,
-              )
-            : sample)
+        .map(
+          (sample) => sample.id == sampleId
+              ? sample.withOpenAiResult(
+                  transcript: transcript,
+                  durationMs: durationMs,
+                )
+              : sample,
+        )
         .toList();
     final manifest = await _manifest();
-    await manifest.writeAsString(jsonEncode(
-      updated.map((sample) => sample.toJson()).toList(),
-    ));
+    await manifest.writeAsString(
+      jsonEncode(updated.map((sample) => sample.toJson()).toList()),
+    );
   }
 
   /// Persists an ElevenLabs Scribe benchmark alongside the other engines.
@@ -361,23 +363,26 @@ class SttCorpusRecorder {
     if (!sttDiagnosticsEnabled) return;
     final all = await samples();
     final updated = all
-        .map((sample) => sample.id == sampleId
-            ? sample.withElevenLabsResult(
-                transcript: transcript,
-                durationMs: durationMs,
-              )
-            : sample)
+        .map(
+          (sample) => sample.id == sampleId
+              ? sample.withElevenLabsResult(
+                  transcript: transcript,
+                  durationMs: durationMs,
+                )
+              : sample,
+        )
         .toList();
     final manifest = await _manifest();
-    await manifest.writeAsString(jsonEncode(
-      updated.map((sample) => sample.toJson()).toList(),
-    ));
+    await manifest.writeAsString(
+      jsonEncode(updated.map((sample) => sample.toJson()).toList()),
+    );
   }
 
   Future<Directory> _directory() async {
     final docs = await _documentsDirectory();
-    final directory =
-        Directory('${docs.path}${Platform.pathSeparator}stt_corpus');
+    final directory = Directory(
+      '${docs.path}${Platform.pathSeparator}stt_corpus',
+    );
     if (!await directory.exists()) await directory.create(recursive: true);
     return directory;
   }

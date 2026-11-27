@@ -10,6 +10,9 @@ class VocabularyRemoteDataSource {
   VocabularyRemoteDataSource(this._client);
   final SupabaseClient _client;
 
+  static const deletedListKey = '_sync_deleted_list';
+  static const deletedConceptKey = '_sync_deleted_concept';
+
   Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async {
     try {
       // Deleted rows are fetched ON PURPOSE: pull-sync must propagate
@@ -26,16 +29,22 @@ class VocabularyRemoteDataSource {
     }
   }
 
-  Future<Result<Map<String, dynamic>>> upsertList(Map<String, dynamic> data,
-          {bool insertOnly = false, Map<String, dynamic>? changes}) =>
+  Future<Result<Map<String, dynamic>>> upsertList(
+    Map<String, dynamic> data, {
+    bool insertOnly = false,
+    Map<String, dynamic>? changes,
+  }) =>
       _upsertContent('vocabulary_lists', 'owner_id', data, insertOnly, changes);
 
   Future<Result<void>> deleteList(String id) async {
     try {
-      await _client.from('vocabulary_lists').update({
-        'is_deleted': true,
-        'updated_at': DateTime.now().toUtc().toIso8601String()
-      }).eq('id', id);
+      await _client
+          .from('vocabulary_lists')
+          .update({
+            'is_deleted': true,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', id);
       return const Success(null);
     } catch (e) {
       return Failure(NetworkException(e.toString()));
@@ -43,7 +52,8 @@ class VocabularyRemoteDataSource {
   }
 
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
-      String listId) async {
+    String listId,
+  ) async {
     try {
       // Includes deleted concepts — same tombstone-propagation rationale
       // as fetchLists (the local upsert carries the is_deleted flag).
@@ -58,28 +68,40 @@ class VocabularyRemoteDataSource {
     }
   }
 
-  Future<Result<Map<String, dynamic>>> upsertConcept(Map<String, dynamic> data,
-          {bool insertOnly = false, Map<String, dynamic>? changes}) =>
-      _upsertContent('concepts', 'list_id', data, insertOnly, changes);
+  Future<Result<Map<String, dynamic>>> upsertConcept(
+    Map<String, dynamic> data, {
+    bool insertOnly = false,
+    Map<String, dynamic>? changes,
+  }) => _upsertContent('concepts', 'list_id', data, insertOnly, changes);
 
-  Future<Result<Map<String, dynamic>>> upsertVariant(Map<String, dynamic> data,
-          {bool insertOnly = false, Map<String, dynamic>? changes}) =>
+  Future<Result<Map<String, dynamic>>> upsertVariant(
+    Map<String, dynamic> data, {
+    bool insertOnly = false,
+    Map<String, dynamic>? changes,
+  }) =>
       _upsertContent('word_variants', 'concept_id', data, insertOnly, changes);
 
   Future<Result<Map<String, dynamic>>> _upsertContent(
-      String table,
-      String parentColumn,
-      Map<String, dynamic> data,
-      bool insertOnly,
-      Map<String, dynamic>? changes) async {
+    String table,
+    String parentColumn,
+    Map<String, dynamic> data,
+    bool insertOnly,
+    Map<String, dynamic>? changes,
+  ) async {
     try {
       final write = _client
           .from(table)
           .upsert(data, ignoreDuplicates: insertOnly)
           .select();
-      if (!insertOnly) return Success(await write.single());
+      if (!insertOnly) {
+        return Success(
+          await _withAncestorTombstones(table, await write.single()),
+        );
+      }
       final inserted = await write;
-      if (inserted.isNotEmpty) return Success(inserted.single);
+      if (inserted.isNotEmpty) {
+        return Success(await _withAncestorTombstones(table, inserted.single));
+      }
 
       final id = data['id'] as String;
       final parent = data[parentColumn] as String;
@@ -93,17 +115,49 @@ class VocabularyRemoteDataSource {
             .eq(parentColumn, parent)
             .eq('is_deleted', false)
             .select();
-        if (updated.isNotEmpty) return Success(updated.single);
+        if (updated.isNotEmpty) {
+          return Success(await _withAncestorTombstones(table, updated.single));
+        }
       }
-      return Success(await _client
+      final existing = await _client
           .from(table)
           .select()
           .eq('id', id)
           .eq(parentColumn, parent)
-          .single());
+          .single();
+      return Success(await _withAncestorTombstones(table, existing));
     } catch (e) {
       return Failure(_writeFailure(e));
     }
+  }
+
+  /// The database write has already enforced tombstones. Read affected
+  /// ancestors only in the tombstone case so the device can hide the subtree.
+  Future<Map<String, dynamic>> _withAncestorTombstones(
+    String table,
+    Map<String, dynamic> row,
+  ) async {
+    if (row['is_deleted'] != true || table == 'vocabulary_lists') return row;
+    if (table == 'concepts') {
+      final list = await _client
+          .from('vocabulary_lists')
+          .select()
+          .eq('id', row['list_id'] as String)
+          .single();
+      return list['is_deleted'] == true ? {...row, deletedListKey: list} : row;
+    }
+
+    final concept = await _client
+        .from('concepts')
+        .select('*, vocabulary_lists(*)')
+        .eq('id', row['concept_id'] as String)
+        .single();
+    final list = concept.remove('vocabulary_lists') as Map<String, dynamic>?;
+    return {
+      ...row,
+      if (list?['is_deleted'] == true) deletedListKey: list,
+      if (concept['is_deleted'] == true) deletedConceptKey: concept,
+    };
   }
 
   AppException _writeFailure(Object error) {
@@ -120,7 +174,7 @@ class VocabularyRemoteDataSource {
           'PGRST003',
           '502',
           '503',
-          '504'
+          '504',
         }.contains(error.code)) {
       return NetworkException(error.toString());
     }
@@ -140,10 +194,13 @@ class VocabularyRemoteDataSource {
   }
 
   Future<Result<List<Map<String, dynamic>>>> fetchProgress(
-      String userId) async {
+    String userId,
+  ) async {
     try {
-      final data =
-          await _client.from('variant_progress').select().eq('user_id', userId);
+      final data = await _client
+          .from('variant_progress')
+          .select()
+          .eq('user_id', userId);
       return Success(List<Map<String, dynamic>>.from(data));
     } catch (e) {
       return Failure(NetworkException(e.toString()));
@@ -151,7 +208,8 @@ class VocabularyRemoteDataSource {
   }
 
   Future<Result<Map<String, dynamic>>> upsertProgress(
-      Map<String, dynamic> data) async {
+    Map<String, dynamic> data,
+  ) async {
     try {
       final result = await _client
           .from('variant_progress')
@@ -176,7 +234,8 @@ class VocabularyRemoteDataSource {
   // Fetches a public list (with its concepts and variants) by share token.
   // Requires vocabulary_lists to have visibility='public' and a matching RLS policy.
   Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(
-      String token) async {
+    String token,
+  ) async {
     try {
       final data = await _client
           .from('vocabulary_lists')

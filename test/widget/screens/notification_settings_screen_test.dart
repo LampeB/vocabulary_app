@@ -38,21 +38,24 @@ void main() {
   });
 
   Future<void> pump(WidgetTester tester) => pumpScreen(
-        tester,
-        screen: const NotificationSettingsScreen(),
-        overrides: [notificationServiceProvider.overrideWithValue(svc)],
-      );
+    tester,
+    screen: const NotificationSettingsScreen(),
+    overrides: [notificationServiceProvider.overrideWithValue(svc)],
+  );
 
-  ProviderContainer container(WidgetTester tester) =>
-      ProviderScope.containerOf(tester
-          .element(find.byKey(const ValueKey(WidgetKeys.screenNotifications))));
+  ProviderContainer container(WidgetTester tester) => ProviderScope.containerOf(
+    tester.element(find.byKey(const ValueKey(WidgetKeys.screenNotifications))),
+  );
 
-  testWidgets('renders with both toggles on by default and schedules 09:00',
-      (tester) async {
+  testWidgets('renders with both toggles on by default and schedules 09:00', (
+    tester,
+  ) async {
     await pump(tester);
 
-    expect(find.byKey(const ValueKey(WidgetKeys.screenNotifications)),
-        findsOneWidget);
+    expect(
+      find.byKey(const ValueKey(WidgetKeys.screenNotifications)),
+      findsOneWidget,
+    );
     final s = container(tester).read(notificationSettingsProvider);
     expect(s.dailyReminderEnabled, isTrue);
     expect(s.streakWarningEnabled, isTrue);
@@ -60,40 +63,41 @@ void main() {
     expect(svc.calls, contains('schedule:9:0'));
   });
 
-  testWidgets('turning the daily reminder off persists and cancels it',
-      (tester) async {
+  testWidgets('turning the daily reminder off persists and cancels it', (
+    tester,
+  ) async {
     await pump(tester);
 
     await tester.tap(find.byType(Switch).first);
     await tester.pumpAndSettle();
 
     expect(
-        container(tester)
-            .read(notificationSettingsProvider)
-            .dailyReminderEnabled,
-        isFalse);
+      container(tester).read(notificationSettingsProvider).dailyReminderEnabled,
+      isFalse,
+    );
     expect(svc.calls, contains('cancelDaily'));
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool('notif_daily_enabled'), isFalse);
   });
 
-  testWidgets('turning the streak warning off cancels the pending warning',
-      (tester) async {
+  testWidgets('turning the streak warning off cancels the pending warning', (
+    tester,
+  ) async {
     await pump(tester);
 
     await tester.tap(find.byType(Switch).last);
     await tester.pumpAndSettle();
 
     expect(
-        container(tester)
-            .read(notificationSettingsProvider)
-            .streakWarningEnabled,
-        isFalse);
+      container(tester).read(notificationSettingsProvider).streakWarningEnabled,
+      isFalse,
+    );
     expect(svc.calls, contains('cancelStreak'));
   });
 
-  testWidgets('picking a reminder time reschedules at the chosen time',
-      (tester) async {
+  testWidgets('picking a reminder time reschedules at the chosen time', (
+    tester,
+  ) async {
     await pump(tester);
 
     // Open the time tile (shows the current 09:00 label).
@@ -103,7 +107,9 @@ void main() {
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
 
-    expect(svc.calls.where((c) => c.startsWith('schedule:')).length,
-        greaterThanOrEqualTo(2)); // initial apply + reschedule
+    expect(
+      svc.calls.where((c) => c.startsWith('schedule:')).length,
+      greaterThanOrEqualTo(2),
+    ); // initial apply + reschedule
   });
 }

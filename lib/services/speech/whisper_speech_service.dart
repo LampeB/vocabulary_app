@@ -38,11 +38,12 @@ abstract interface class WhisperSpeechCapture {
   void dispose();
 }
 
-typedef WhisperSegmentTranscriber = Future<String> Function({
-  required Uint8List pcm16,
-  required String langCode,
-  required String prompt,
-});
+typedef WhisperSegmentTranscriber =
+    Future<String> Function({
+      required Uint8List pcm16,
+      required String langCode,
+      required String prompt,
+    });
 
 /// Device-independent recognition: OUR mic capture + OUR endpointing
 /// ([PcmSegmenter]) + on-device Whisper inference (whisper.cpp, ggml-base
@@ -58,13 +59,10 @@ typedef WhisperSegmentTranscriber = Future<String> Function({
 class WhisperSpeechService implements WhisperSpeechCapture {
   WhisperSpeechService({
     PcmMicrophone? microphone,
-    WhisperSegmentTranscriber? segmentTranscriber,
-    PonderinWhisper? whisper,
-    bool modelReady = false,
-  })  : _microphone = microphone ?? RecordPcmMicrophone(),
-        _segmentTranscriber = segmentTranscriber,
-        _whisper = whisper,
-        _modelReady = modelReady;
+    this._segmentTranscriber,
+    this._whisper,
+    this._modelReady = false,
+  }) : _microphone = microphone ?? RecordPcmMicrophone();
 
   /// ggml-base multilingual (~142MB): tiny's French on short words was
   /// garbage ("pomme" → "Bonne", field log 2026-07-10); base was accurate
@@ -130,8 +128,10 @@ class WhisperSpeechService implements WhisperSpeechCapture {
       );
       stopwatch.stop();
       final cleaned = cleanTranscript(response);
-      sttLog('[WSP][CORPUS] $langCode ${stopwatch.elapsedMilliseconds}ms '
-          'raw="$response" cleaned="${cleaned ?? '<discarded>'}"');
+      sttLog(
+        '[WSP][CORPUS] $langCode ${stopwatch.elapsedMilliseconds}ms '
+        'raw="$response" cleaned="${cleaned ?? '<discarded>'}"',
+      );
       return WhisperFileResult(
         rawText: response,
         cleanedText: cleaned,
@@ -157,7 +157,8 @@ class WhisperSpeechService implements WhisperSpeechCapture {
     try {
       _whisper ??= PonderinWhisper(model: _model);
       sttLog(
-          '[WSP] ensureModel — ${_model.fileName} (downloads ~142MB on first run)');
+        '[WSP] ensureModel — ${_model.fileName} (downloads ~142MB on first run)',
+      );
       final sw = Stopwatch()..start();
       final silence = pcm16ToWav(
         // 200ms of silence.
@@ -284,7 +285,8 @@ class WhisperSpeechService implements WhisperSpeechCapture {
         final segments = seg.feed(chunk);
         if (seg.inSpeech && !wasInSpeech) {
           sttLog(
-              '[WSP] 🗣 speech onset  floor=${seg.noiseFloor.toStringAsFixed(0)}');
+            '[WSP] 🗣 speech onset  floor=${seg.noiseFloor.toStringAsFixed(0)}',
+          );
           _onSpeechStart?.call();
         }
         wasInSpeech = seg.inSpeech;
@@ -292,11 +294,13 @@ class WhisperSpeechService implements WhisperSpeechCapture {
         if (now.difference(lastLevelLog).inMilliseconds >= 1000) {
           lastLevelLog = now;
           sttLog(
-              '[WSP] 🎚 floor=${seg.noiseFloor.toStringAsFixed(0)}  inSpeech=${seg.inSpeech}  elapsed=${listenElapsedMs}ms');
+            '[WSP] 🎚 floor=${seg.noiseFloor.toStringAsFixed(0)}  inSpeech=${seg.inSpeech}  elapsed=${listenElapsedMs}ms',
+          );
         }
         for (final s in segments) {
           sttLog(
-              '[WSP] segment complete: ${s.durationMs}ms  peak=${s.peakRms.toStringAsFixed(0)}');
+            '[WSP] segment complete: ${s.durationMs}ms  peak=${s.peakRms.toStringAsFixed(0)}',
+          );
           _onSegment?.call(); // utterance captured — inference starting
           _enqueueInference(s, langCode, windowSerial);
         }
@@ -304,7 +308,8 @@ class WhisperSpeechService implements WhisperSpeechCapture {
       _isListening = true;
       _listenStart = DateTime.now();
       sttLog(
-          '[WSP] 🎙️ startListening lang=$langCode (own capture, base model)');
+        '[WSP] 🎙️ startListening lang=$langCode (own capture, base model)',
+      );
       return true;
     } catch (e) {
       sttLog('[WSP] 💥 startListening failed: $e');
@@ -320,7 +325,8 @@ class WhisperSpeechService implements WhisperSpeechCapture {
     // comes first) — drop them when the queue is deep.
     if (_pendingInferences >= 3) {
       sttLog(
-          '[WSP] inference queue full ($_pendingInferences) — dropping ${segment.durationMs}ms segment');
+        '[WSP] inference queue full ($_pendingInferences) — dropping ${segment.durationMs}ms segment',
+      );
       return;
     }
     _pendingInferences++;
@@ -336,7 +342,8 @@ class WhisperSpeechService implements WhisperSpeechCapture {
         );
         final cleaned = cleanTranscript(raw);
         sttLog(
-            '[WSP] 📝 transcribed ${segment.durationMs}ms in ${sw.elapsedMilliseconds}ms: raw="$raw" cleaned="${cleaned ?? "<discarded>"}"');
+          '[WSP] 📝 transcribed ${segment.durationMs}ms in ${sw.elapsedMilliseconds}ms: raw="$raw" cleaned="${cleaned ?? "<discarded>"}"',
+        );
         if (cleaned == null) return;
         if (serial != _inferenceSerial) {
           sttLog('[WSP] transcript arrived after window closed — dropped');
@@ -369,11 +376,16 @@ class WhisperSpeechService implements WhisperSpeechCapture {
     final result = _sharedChain.then((_) async {
       final sw = Stopwatch()..start();
       final raw = await _transcribeSegment(
-          pcm16: pcm16, langCode: langCode, prompt: prompt);
+        pcm16: pcm16,
+        langCode: langCode,
+        prompt: prompt,
+      );
       final cleaned = cleanTranscript(raw);
-      sttLog('[WSP] 📝 shared ${pcm16.length ~/ 32}ms in '
-          '${sw.elapsedMilliseconds}ms: raw="$raw" '
-          'cleaned="${cleaned ?? "<discarded>"}"');
+      sttLog(
+        '[WSP] 📝 shared ${pcm16.length ~/ 32}ms in '
+        '${sw.elapsedMilliseconds}ms: raw="$raw" '
+        'cleaned="${cleaned ?? "<discarded>"}"',
+      );
       return cleaned;
     });
     _sharedChain = result.then((_) {}, onError: (_) {});
@@ -405,7 +417,8 @@ class WhisperSpeechService implements WhisperSpeechCapture {
   }) async {
     final dir = await getTemporaryDirectory();
     final file = File(
-        '${dir.path}/wsp_seg_${DateTime.now().microsecondsSinceEpoch}_${_captureId++}.wav');
+      '${dir.path}/wsp_seg_${DateTime.now().microsecondsSinceEpoch}_${_captureId++}.wav',
+    );
     await file.writeAsBytes(pcm16ToWav(pcm16), flush: true);
     try {
       return await _whisper!.transcribe(

@@ -12,130 +12,199 @@ class $VocabularyListsTableTable extends VocabularyListsTable
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
-      'id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _ownerIdMeta =
-      const VerificationMeta('ownerId');
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ownerIdMeta = const VerificationMeta(
+    'ownerId',
+  );
   @override
   late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
-      'owner_id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'owner_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
-      'name', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _descriptionMeta =
-      const VerificationMeta('description');
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
   @override
   late final GeneratedColumn<String> description = GeneratedColumn<String>(
-      'description', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _visibilityMeta =
-      const VerificationMeta('visibility');
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _visibilityMeta = const VerificationMeta(
+    'visibility',
+  );
   @override
   late final GeneratedColumn<String> visibility = GeneratedColumn<String>(
-      'visibility', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant('private'));
-  static const VerificationMeta _wordCountMeta =
-      const VerificationMeta('wordCount');
+    'visibility',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('private'),
+  );
+  static const VerificationMeta _wordCountMeta = const VerificationMeta(
+    'wordCount',
+  );
   @override
   late final GeneratedColumn<int> wordCount = GeneratedColumn<int>(
-      'word_count', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
-  static const VerificationMeta _shareTokenMeta =
-      const VerificationMeta('shareToken');
+    'word_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _shareTokenMeta = const VerificationMeta(
+    'shareToken',
+  );
   @override
   late final GeneratedColumn<String> shareToken = GeneratedColumn<String>(
-      'share_token', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
+    'share_token',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _importedFromShareTokenMeta =
       const VerificationMeta('importedFromShareToken');
   @override
   late final GeneratedColumn<String> importedFromShareToken =
-      GeneratedColumn<String>('imported_from_share_token', aliasedName, true,
-          type: DriftSqlType.string, requiredDuringInsert: false);
+      GeneratedColumn<String>(
+        'imported_from_share_token',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _langAMeta = const VerificationMeta('langA');
   @override
   late final GeneratedColumn<String> langA = GeneratedColumn<String>(
-      'lang_a', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant('fr'));
+    'lang_a',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('fr'),
+  );
   static const VerificationMeta _langBMeta = const VerificationMeta('langB');
   @override
   late final GeneratedColumn<String> langB = GeneratedColumn<String>(
-      'lang_b', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant('ko'));
+    'lang_b',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('ko'),
+  );
   static const VerificationMeta _originMeta = const VerificationMeta('origin');
   @override
   late final GeneratedColumn<String> origin = GeneratedColumn<String>(
-      'origin', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant('user'));
+    'origin',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('user'),
+  );
   static const VerificationMeta _seedIdMeta = const VerificationMeta('seedId');
   @override
   late final GeneratedColumn<String> seedId = GeneratedColumn<String>(
-      'seed_id', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _isSyncedMeta =
-      const VerificationMeta('isSynced');
+    'seed_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
   @override
   late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
-      'is_synced', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
-      defaultValue: const Constant(false));
-  static const VerificationMeta _isDeletedMeta =
-      const VerificationMeta('isDeleted');
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
   @override
   late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
-      'is_deleted', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('CHECK ("is_deleted" IN (0, 1))'),
-      defaultValue: const Constant(false));
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
   @override
   late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _updatedAtMeta =
-      const VerificationMeta('updatedAt');
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
   @override
   late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        ownerId,
-        name,
-        description,
-        visibility,
-        wordCount,
-        shareToken,
-        importedFromShareToken,
-        langA,
-        langB,
-        origin,
-        seedId,
-        isSynced,
-        isDeleted,
-        createdAt,
-        updatedAt
-      ];
+    id,
+    ownerId,
+    name,
+    description,
+    visibility,
+    wordCount,
+    shareToken,
+    importedFromShareToken,
+    langA,
+    langB,
+    origin,
+    seedId,
+    isSynced,
+    isDeleted,
+    createdAt,
+    updatedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -143,8 +212,9 @@ class $VocabularyListsTableTable extends VocabularyListsTable
   static const String $name = 'vocabulary_lists';
   @override
   VerificationContext validateIntegrity(
-      Insertable<VocabularyListsTableData> instance,
-      {bool isInserting = false}) {
+    Insertable<VocabularyListsTableData> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -153,78 +223,106 @@ class $VocabularyListsTableTable extends VocabularyListsTable
       context.missing(_idMeta);
     }
     if (data.containsKey('owner_id')) {
-      context.handle(_ownerIdMeta,
-          ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
+      context.handle(
+        _ownerIdMeta,
+        ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta),
+      );
     } else if (isInserting) {
       context.missing(_ownerIdMeta);
     }
     if (data.containsKey('name')) {
       context.handle(
-          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
     if (data.containsKey('description')) {
       context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
           _descriptionMeta,
-          description.isAcceptableOrUnknown(
-              data['description']!, _descriptionMeta));
+        ),
+      );
     }
     if (data.containsKey('visibility')) {
       context.handle(
-          _visibilityMeta,
-          visibility.isAcceptableOrUnknown(
-              data['visibility']!, _visibilityMeta));
+        _visibilityMeta,
+        visibility.isAcceptableOrUnknown(data['visibility']!, _visibilityMeta),
+      );
     }
     if (data.containsKey('word_count')) {
-      context.handle(_wordCountMeta,
-          wordCount.isAcceptableOrUnknown(data['word_count']!, _wordCountMeta));
+      context.handle(
+        _wordCountMeta,
+        wordCount.isAcceptableOrUnknown(data['word_count']!, _wordCountMeta),
+      );
     }
     if (data.containsKey('share_token')) {
       context.handle(
-          _shareTokenMeta,
-          shareToken.isAcceptableOrUnknown(
-              data['share_token']!, _shareTokenMeta));
+        _shareTokenMeta,
+        shareToken.isAcceptableOrUnknown(data['share_token']!, _shareTokenMeta),
+      );
     }
     if (data.containsKey('imported_from_share_token')) {
       context.handle(
+        _importedFromShareTokenMeta,
+        importedFromShareToken.isAcceptableOrUnknown(
+          data['imported_from_share_token']!,
           _importedFromShareTokenMeta,
-          importedFromShareToken.isAcceptableOrUnknown(
-              data['imported_from_share_token']!, _importedFromShareTokenMeta));
+        ),
+      );
     }
     if (data.containsKey('lang_a')) {
       context.handle(
-          _langAMeta, langA.isAcceptableOrUnknown(data['lang_a']!, _langAMeta));
+        _langAMeta,
+        langA.isAcceptableOrUnknown(data['lang_a']!, _langAMeta),
+      );
     }
     if (data.containsKey('lang_b')) {
       context.handle(
-          _langBMeta, langB.isAcceptableOrUnknown(data['lang_b']!, _langBMeta));
+        _langBMeta,
+        langB.isAcceptableOrUnknown(data['lang_b']!, _langBMeta),
+      );
     }
     if (data.containsKey('origin')) {
-      context.handle(_originMeta,
-          origin.isAcceptableOrUnknown(data['origin']!, _originMeta));
+      context.handle(
+        _originMeta,
+        origin.isAcceptableOrUnknown(data['origin']!, _originMeta),
+      );
     }
     if (data.containsKey('seed_id')) {
-      context.handle(_seedIdMeta,
-          seedId.isAcceptableOrUnknown(data['seed_id']!, _seedIdMeta));
+      context.handle(
+        _seedIdMeta,
+        seedId.isAcceptableOrUnknown(data['seed_id']!, _seedIdMeta),
+      );
     }
     if (data.containsKey('is_synced')) {
-      context.handle(_isSyncedMeta,
-          isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
     }
     if (data.containsKey('is_deleted')) {
-      context.handle(_isDeletedMeta,
-          isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta));
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
     }
     if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
     if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta,
-          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
@@ -234,43 +332,76 @@ class $VocabularyListsTableTable extends VocabularyListsTable
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  VocabularyListsTableData map(Map<String, dynamic> data,
-      {String? tablePrefix}) {
+  VocabularyListsTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return VocabularyListsTableData(
-      id: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      ownerId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}owner_id'])!,
-      name: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
-      description: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}description']),
-      visibility: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}visibility'])!,
-      wordCount: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}word_count'])!,
-      shareToken: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}share_token']),
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      ownerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      visibility: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}visibility'],
+      )!,
+      wordCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}word_count'],
+      )!,
+      shareToken: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}share_token'],
+      ),
       importedFromShareToken: attachedDatabase.typeMapping.read(
-          DriftSqlType.string,
-          data['${effectivePrefix}imported_from_share_token']),
-      langA: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}lang_a'])!,
-      langB: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}lang_b'])!,
-      origin: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}origin'])!,
-      seedId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}seed_id']),
-      isSynced: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
-      isDeleted: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}is_deleted'])!,
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
-      updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+        DriftSqlType.string,
+        data['${effectivePrefix}imported_from_share_token'],
+      ),
+      langA: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}lang_a'],
+      )!,
+      langB: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}lang_b'],
+      )!,
+      origin: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin'],
+      )!,
+      seedId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}seed_id'],
+      ),
+      isSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_synced'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
     );
   }
 
@@ -298,23 +429,24 @@ class VocabularyListsTableData extends DataClass
   final bool isDeleted;
   final DateTime createdAt;
   final DateTime updatedAt;
-  const VocabularyListsTableData(
-      {required this.id,
-      required this.ownerId,
-      required this.name,
-      this.description,
-      required this.visibility,
-      required this.wordCount,
-      this.shareToken,
-      this.importedFromShareToken,
-      required this.langA,
-      required this.langB,
-      required this.origin,
-      this.seedId,
-      required this.isSynced,
-      required this.isDeleted,
-      required this.createdAt,
-      required this.updatedAt});
+  const VocabularyListsTableData({
+    required this.id,
+    required this.ownerId,
+    required this.name,
+    this.description,
+    required this.visibility,
+    required this.wordCount,
+    this.shareToken,
+    this.importedFromShareToken,
+    required this.langA,
+    required this.langB,
+    required this.origin,
+    this.seedId,
+    required this.isSynced,
+    required this.isDeleted,
+    required this.createdAt,
+    required this.updatedAt,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -330,8 +462,9 @@ class VocabularyListsTableData extends DataClass
       map['share_token'] = Variable<String>(shareToken);
     }
     if (!nullToAbsent || importedFromShareToken != null) {
-      map['imported_from_share_token'] =
-          Variable<String>(importedFromShareToken);
+      map['imported_from_share_token'] = Variable<String>(
+        importedFromShareToken,
+      );
     }
     map['lang_a'] = Variable<String>(langA);
     map['lang_b'] = Variable<String>(langB);
@@ -365,8 +498,9 @@ class VocabularyListsTableData extends DataClass
       langA: Value(langA),
       langB: Value(langB),
       origin: Value(origin),
-      seedId:
-          seedId == null && nullToAbsent ? const Value.absent() : Value(seedId),
+      seedId: seedId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(seedId),
       isSynced: Value(isSynced),
       isDeleted: Value(isDeleted),
       createdAt: Value(createdAt),
@@ -374,8 +508,10 @@ class VocabularyListsTableData extends DataClass
     );
   }
 
-  factory VocabularyListsTableData.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
+  factory VocabularyListsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return VocabularyListsTableData(
       id: serializer.fromJson<String>(json['id']),
@@ -385,8 +521,9 @@ class VocabularyListsTableData extends DataClass
       visibility: serializer.fromJson<String>(json['visibility']),
       wordCount: serializer.fromJson<int>(json['wordCount']),
       shareToken: serializer.fromJson<String?>(json['shareToken']),
-      importedFromShareToken:
-          serializer.fromJson<String?>(json['importedFromShareToken']),
+      importedFromShareToken: serializer.fromJson<String?>(
+        json['importedFromShareToken'],
+      ),
       langA: serializer.fromJson<String>(json['langA']),
       langB: serializer.fromJson<String>(json['langB']),
       origin: serializer.fromJson<String>(json['origin']),
@@ -408,8 +545,9 @@ class VocabularyListsTableData extends DataClass
       'visibility': serializer.toJson<String>(visibility),
       'wordCount': serializer.toJson<int>(wordCount),
       'shareToken': serializer.toJson<String?>(shareToken),
-      'importedFromShareToken':
-          serializer.toJson<String?>(importedFromShareToken),
+      'importedFromShareToken': serializer.toJson<String?>(
+        importedFromShareToken,
+      ),
       'langA': serializer.toJson<String>(langA),
       'langB': serializer.toJson<String>(langB),
       'origin': serializer.toJson<String>(origin),
@@ -421,56 +559,60 @@ class VocabularyListsTableData extends DataClass
     };
   }
 
-  VocabularyListsTableData copyWith(
-          {String? id,
-          String? ownerId,
-          String? name,
-          Value<String?> description = const Value.absent(),
-          String? visibility,
-          int? wordCount,
-          Value<String?> shareToken = const Value.absent(),
-          Value<String?> importedFromShareToken = const Value.absent(),
-          String? langA,
-          String? langB,
-          String? origin,
-          Value<String?> seedId = const Value.absent(),
-          bool? isSynced,
-          bool? isDeleted,
-          DateTime? createdAt,
-          DateTime? updatedAt}) =>
-      VocabularyListsTableData(
-        id: id ?? this.id,
-        ownerId: ownerId ?? this.ownerId,
-        name: name ?? this.name,
-        description: description.present ? description.value : this.description,
-        visibility: visibility ?? this.visibility,
-        wordCount: wordCount ?? this.wordCount,
-        shareToken: shareToken.present ? shareToken.value : this.shareToken,
-        importedFromShareToken: importedFromShareToken.present
-            ? importedFromShareToken.value
-            : this.importedFromShareToken,
-        langA: langA ?? this.langA,
-        langB: langB ?? this.langB,
-        origin: origin ?? this.origin,
-        seedId: seedId.present ? seedId.value : this.seedId,
-        isSynced: isSynced ?? this.isSynced,
-        isDeleted: isDeleted ?? this.isDeleted,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+  VocabularyListsTableData copyWith({
+    String? id,
+    String? ownerId,
+    String? name,
+    Value<String?> description = const Value.absent(),
+    String? visibility,
+    int? wordCount,
+    Value<String?> shareToken = const Value.absent(),
+    Value<String?> importedFromShareToken = const Value.absent(),
+    String? langA,
+    String? langB,
+    String? origin,
+    Value<String?> seedId = const Value.absent(),
+    bool? isSynced,
+    bool? isDeleted,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => VocabularyListsTableData(
+    id: id ?? this.id,
+    ownerId: ownerId ?? this.ownerId,
+    name: name ?? this.name,
+    description: description.present ? description.value : this.description,
+    visibility: visibility ?? this.visibility,
+    wordCount: wordCount ?? this.wordCount,
+    shareToken: shareToken.present ? shareToken.value : this.shareToken,
+    importedFromShareToken: importedFromShareToken.present
+        ? importedFromShareToken.value
+        : this.importedFromShareToken,
+    langA: langA ?? this.langA,
+    langB: langB ?? this.langB,
+    origin: origin ?? this.origin,
+    seedId: seedId.present ? seedId.value : this.seedId,
+    isSynced: isSynced ?? this.isSynced,
+    isDeleted: isDeleted ?? this.isDeleted,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
   VocabularyListsTableData copyWithCompanion(
-      VocabularyListsTableCompanion data) {
+    VocabularyListsTableCompanion data,
+  ) {
     return VocabularyListsTableData(
       id: data.id.present ? data.id.value : this.id,
       ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
       name: data.name.present ? data.name.value : this.name,
-      description:
-          data.description.present ? data.description.value : this.description,
-      visibility:
-          data.visibility.present ? data.visibility.value : this.visibility,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      visibility: data.visibility.present
+          ? data.visibility.value
+          : this.visibility,
       wordCount: data.wordCount.present ? data.wordCount.value : this.wordCount,
-      shareToken:
-          data.shareToken.present ? data.shareToken.value : this.shareToken,
+      shareToken: data.shareToken.present
+          ? data.shareToken.value
+          : this.shareToken,
       importedFromShareToken: data.importedFromShareToken.present
           ? data.importedFromShareToken.value
           : this.importedFromShareToken,
@@ -510,22 +652,23 @@ class VocabularyListsTableData extends DataClass
 
   @override
   int get hashCode => Object.hash(
-      id,
-      ownerId,
-      name,
-      description,
-      visibility,
-      wordCount,
-      shareToken,
-      importedFromShareToken,
-      langA,
-      langB,
-      origin,
-      seedId,
-      isSynced,
-      isDeleted,
-      createdAt,
-      updatedAt);
+    id,
+    ownerId,
+    name,
+    description,
+    visibility,
+    wordCount,
+    shareToken,
+    importedFromShareToken,
+    langA,
+    langB,
+    origin,
+    seedId,
+    isSynced,
+    isDeleted,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -604,11 +747,11 @@ class VocabularyListsTableCompanion
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
-  })  : id = Value(id),
-        ownerId = Value(ownerId),
-        name = Value(name),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt);
+  }) : id = Value(id),
+       ownerId = Value(ownerId),
+       name = Value(name),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
   static Insertable<VocabularyListsTableData> custom({
     Expression<String>? id,
     Expression<String>? ownerId,
@@ -650,24 +793,25 @@ class VocabularyListsTableCompanion
     });
   }
 
-  VocabularyListsTableCompanion copyWith(
-      {Value<String>? id,
-      Value<String>? ownerId,
-      Value<String>? name,
-      Value<String?>? description,
-      Value<String>? visibility,
-      Value<int>? wordCount,
-      Value<String?>? shareToken,
-      Value<String?>? importedFromShareToken,
-      Value<String>? langA,
-      Value<String>? langB,
-      Value<String>? origin,
-      Value<String?>? seedId,
-      Value<bool>? isSynced,
-      Value<bool>? isDeleted,
-      Value<DateTime>? createdAt,
-      Value<DateTime>? updatedAt,
-      Value<int>? rowid}) {
+  VocabularyListsTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? ownerId,
+    Value<String>? name,
+    Value<String?>? description,
+    Value<String>? visibility,
+    Value<int>? wordCount,
+    Value<String?>? shareToken,
+    Value<String?>? importedFromShareToken,
+    Value<String>? langA,
+    Value<String>? langB,
+    Value<String>? origin,
+    Value<String?>? seedId,
+    Value<bool>? isSynced,
+    Value<bool>? isDeleted,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
     return VocabularyListsTableCompanion(
       id: id ?? this.id,
       ownerId: ownerId ?? this.ownerId,
@@ -715,8 +859,9 @@ class VocabularyListsTableCompanion
       map['share_token'] = Variable<String>(shareToken.value);
     }
     if (importedFromShareToken.present) {
-      map['imported_from_share_token'] =
-          Variable<String>(importedFromShareToken.value);
+      map['imported_from_share_token'] = Variable<String>(
+        importedFromShareToken.value,
+      );
     }
     if (langA.present) {
       map['lang_a'] = Variable<String>(langA.value);
@@ -782,105 +927,163 @@ class $ConceptsTableTable extends ConceptsTable
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
-      'id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _listIdMeta = const VerificationMeta('listId');
   @override
   late final GeneratedColumn<String> listId = GeneratedColumn<String>(
-      'list_id', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: true,
-      defaultConstraints: GeneratedColumn.constraintIsAlways(
-          'REFERENCES vocabulary_lists (id)'));
-  static const VerificationMeta _categoryMeta =
-      const VerificationMeta('category');
+    'list_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES vocabulary_lists (id)',
+    ),
+  );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
   @override
   late final GeneratedColumn<String> category = GeneratedColumn<String>(
-      'category', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
+    'category',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
-      'notes', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _imageUrlMeta =
-      const VerificationMeta('imageUrl');
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _imageUrlMeta = const VerificationMeta(
+    'imageUrl',
+  );
   @override
   late final GeneratedColumn<String> imageUrl = GeneratedColumn<String>(
-      'image_url', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _exampleFrMeta =
-      const VerificationMeta('exampleFr');
+    'image_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _exampleFrMeta = const VerificationMeta(
+    'exampleFr',
+  );
   @override
   late final GeneratedColumn<String> exampleFr = GeneratedColumn<String>(
-      'example_fr', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _exampleKoMeta =
-      const VerificationMeta('exampleKo');
+    'example_fr',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _exampleKoMeta = const VerificationMeta(
+    'exampleKo',
+  );
   @override
   late final GeneratedColumn<String> exampleKo = GeneratedColumn<String>(
-      'example_ko', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
+    'example_ko',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _seedIdMeta = const VerificationMeta('seedId');
   @override
   late final GeneratedColumn<String> seedId = GeneratedColumn<String>(
-      'seed_id', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _isSyncedMeta =
-      const VerificationMeta('isSynced');
+    'seed_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
   @override
   late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
-      'is_synced', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
-      defaultValue: const Constant(false));
-  static const VerificationMeta _isDeletedMeta =
-      const VerificationMeta('isDeleted');
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
   @override
   late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
-      'is_deleted', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('CHECK ("is_deleted" IN (0, 1))'),
-      defaultValue: const Constant(false));
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
   @override
   late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _updatedAtMeta =
-      const VerificationMeta('updatedAt');
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
   @override
   late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        listId,
-        category,
-        notes,
-        imageUrl,
-        exampleFr,
-        exampleKo,
-        seedId,
-        isSynced,
-        isDeleted,
-        createdAt,
-        updatedAt
-      ];
+    id,
+    listId,
+    category,
+    notes,
+    imageUrl,
+    exampleFr,
+    exampleKo,
+    seedId,
+    isSynced,
+    isDeleted,
+    createdAt,
+    updatedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'concepts';
   @override
-  VerificationContext validateIntegrity(Insertable<ConceptsTableData> instance,
-      {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<ConceptsTableData> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -889,52 +1092,74 @@ class $ConceptsTableTable extends ConceptsTable
       context.missing(_idMeta);
     }
     if (data.containsKey('list_id')) {
-      context.handle(_listIdMeta,
-          listId.isAcceptableOrUnknown(data['list_id']!, _listIdMeta));
+      context.handle(
+        _listIdMeta,
+        listId.isAcceptableOrUnknown(data['list_id']!, _listIdMeta),
+      );
     } else if (isInserting) {
       context.missing(_listIdMeta);
     }
     if (data.containsKey('category')) {
-      context.handle(_categoryMeta,
-          category.isAcceptableOrUnknown(data['category']!, _categoryMeta));
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
     }
     if (data.containsKey('notes')) {
       context.handle(
-          _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
     }
     if (data.containsKey('image_url')) {
-      context.handle(_imageUrlMeta,
-          imageUrl.isAcceptableOrUnknown(data['image_url']!, _imageUrlMeta));
+      context.handle(
+        _imageUrlMeta,
+        imageUrl.isAcceptableOrUnknown(data['image_url']!, _imageUrlMeta),
+      );
     }
     if (data.containsKey('example_fr')) {
-      context.handle(_exampleFrMeta,
-          exampleFr.isAcceptableOrUnknown(data['example_fr']!, _exampleFrMeta));
+      context.handle(
+        _exampleFrMeta,
+        exampleFr.isAcceptableOrUnknown(data['example_fr']!, _exampleFrMeta),
+      );
     }
     if (data.containsKey('example_ko')) {
-      context.handle(_exampleKoMeta,
-          exampleKo.isAcceptableOrUnknown(data['example_ko']!, _exampleKoMeta));
+      context.handle(
+        _exampleKoMeta,
+        exampleKo.isAcceptableOrUnknown(data['example_ko']!, _exampleKoMeta),
+      );
     }
     if (data.containsKey('seed_id')) {
-      context.handle(_seedIdMeta,
-          seedId.isAcceptableOrUnknown(data['seed_id']!, _seedIdMeta));
+      context.handle(
+        _seedIdMeta,
+        seedId.isAcceptableOrUnknown(data['seed_id']!, _seedIdMeta),
+      );
     }
     if (data.containsKey('is_synced')) {
-      context.handle(_isSyncedMeta,
-          isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
     }
     if (data.containsKey('is_deleted')) {
-      context.handle(_isDeletedMeta,
-          isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta));
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
     }
     if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
     if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta,
-          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
@@ -947,30 +1172,54 @@ class $ConceptsTableTable extends ConceptsTable
   ConceptsTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return ConceptsTableData(
-      id: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      listId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}list_id'])!,
-      category: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}category']),
-      notes: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}notes']),
-      imageUrl: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}image_url']),
-      exampleFr: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}example_fr']),
-      exampleKo: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}example_ko']),
-      seedId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}seed_id']),
-      isSynced: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
-      isDeleted: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}is_deleted'])!,
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
-      updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      listId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}list_id'],
+      )!,
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      imageUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_url'],
+      ),
+      exampleFr: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}example_fr'],
+      ),
+      exampleKo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}example_ko'],
+      ),
+      seedId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}seed_id'],
+      ),
+      isSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_synced'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
     );
   }
 
@@ -994,19 +1243,20 @@ class ConceptsTableData extends DataClass
   final bool isDeleted;
   final DateTime createdAt;
   final DateTime updatedAt;
-  const ConceptsTableData(
-      {required this.id,
-      required this.listId,
-      this.category,
-      this.notes,
-      this.imageUrl,
-      this.exampleFr,
-      this.exampleKo,
-      this.seedId,
-      required this.isSynced,
-      required this.isDeleted,
-      required this.createdAt,
-      required this.updatedAt});
+  const ConceptsTableData({
+    required this.id,
+    required this.listId,
+    this.category,
+    this.notes,
+    this.imageUrl,
+    this.exampleFr,
+    this.exampleKo,
+    this.seedId,
+    required this.isSynced,
+    required this.isDeleted,
+    required this.createdAt,
+    required this.updatedAt,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1044,8 +1294,9 @@ class ConceptsTableData extends DataClass
       category: category == null && nullToAbsent
           ? const Value.absent()
           : Value(category),
-      notes:
-          notes == null && nullToAbsent ? const Value.absent() : Value(notes),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
       imageUrl: imageUrl == null && nullToAbsent
           ? const Value.absent()
           : Value(imageUrl),
@@ -1055,8 +1306,9 @@ class ConceptsTableData extends DataClass
       exampleKo: exampleKo == null && nullToAbsent
           ? const Value.absent()
           : Value(exampleKo),
-      seedId:
-          seedId == null && nullToAbsent ? const Value.absent() : Value(seedId),
+      seedId: seedId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(seedId),
       isSynced: Value(isSynced),
       isDeleted: Value(isDeleted),
       createdAt: Value(createdAt),
@@ -1064,8 +1316,10 @@ class ConceptsTableData extends DataClass
     );
   }
 
-  factory ConceptsTableData.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
+  factory ConceptsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return ConceptsTableData(
       id: serializer.fromJson<String>(json['id']),
@@ -1101,33 +1355,33 @@ class ConceptsTableData extends DataClass
     };
   }
 
-  ConceptsTableData copyWith(
-          {String? id,
-          String? listId,
-          Value<String?> category = const Value.absent(),
-          Value<String?> notes = const Value.absent(),
-          Value<String?> imageUrl = const Value.absent(),
-          Value<String?> exampleFr = const Value.absent(),
-          Value<String?> exampleKo = const Value.absent(),
-          Value<String?> seedId = const Value.absent(),
-          bool? isSynced,
-          bool? isDeleted,
-          DateTime? createdAt,
-          DateTime? updatedAt}) =>
-      ConceptsTableData(
-        id: id ?? this.id,
-        listId: listId ?? this.listId,
-        category: category.present ? category.value : this.category,
-        notes: notes.present ? notes.value : this.notes,
-        imageUrl: imageUrl.present ? imageUrl.value : this.imageUrl,
-        exampleFr: exampleFr.present ? exampleFr.value : this.exampleFr,
-        exampleKo: exampleKo.present ? exampleKo.value : this.exampleKo,
-        seedId: seedId.present ? seedId.value : this.seedId,
-        isSynced: isSynced ?? this.isSynced,
-        isDeleted: isDeleted ?? this.isDeleted,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+  ConceptsTableData copyWith({
+    String? id,
+    String? listId,
+    Value<String?> category = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+    Value<String?> imageUrl = const Value.absent(),
+    Value<String?> exampleFr = const Value.absent(),
+    Value<String?> exampleKo = const Value.absent(),
+    Value<String?> seedId = const Value.absent(),
+    bool? isSynced,
+    bool? isDeleted,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => ConceptsTableData(
+    id: id ?? this.id,
+    listId: listId ?? this.listId,
+    category: category.present ? category.value : this.category,
+    notes: notes.present ? notes.value : this.notes,
+    imageUrl: imageUrl.present ? imageUrl.value : this.imageUrl,
+    exampleFr: exampleFr.present ? exampleFr.value : this.exampleFr,
+    exampleKo: exampleKo.present ? exampleKo.value : this.exampleKo,
+    seedId: seedId.present ? seedId.value : this.seedId,
+    isSynced: isSynced ?? this.isSynced,
+    isDeleted: isDeleted ?? this.isDeleted,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
   ConceptsTableData copyWithCompanion(ConceptsTableCompanion data) {
     return ConceptsTableData(
       id: data.id.present ? data.id.value : this.id,
@@ -1165,8 +1419,20 @@ class ConceptsTableData extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(id, listId, category, notes, imageUrl,
-      exampleFr, exampleKo, seedId, isSynced, isDeleted, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    listId,
+    category,
+    notes,
+    imageUrl,
+    exampleFr,
+    exampleKo,
+    seedId,
+    isSynced,
+    isDeleted,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1228,10 +1494,10 @@ class ConceptsTableCompanion extends UpdateCompanion<ConceptsTableData> {
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
-  })  : id = Value(id),
-        listId = Value(listId),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt);
+  }) : id = Value(id),
+       listId = Value(listId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
   static Insertable<ConceptsTableData> custom({
     Expression<String>? id,
     Expression<String>? listId,
@@ -1264,20 +1530,21 @@ class ConceptsTableCompanion extends UpdateCompanion<ConceptsTableData> {
     });
   }
 
-  ConceptsTableCompanion copyWith(
-      {Value<String>? id,
-      Value<String>? listId,
-      Value<String?>? category,
-      Value<String?>? notes,
-      Value<String?>? imageUrl,
-      Value<String?>? exampleFr,
-      Value<String?>? exampleKo,
-      Value<String?>? seedId,
-      Value<bool>? isSynced,
-      Value<bool>? isDeleted,
-      Value<DateTime>? createdAt,
-      Value<DateTime>? updatedAt,
-      Value<int>? rowid}) {
+  ConceptsTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? listId,
+    Value<String?>? category,
+    Value<String?>? notes,
+    Value<String?>? imageUrl,
+    Value<String?>? exampleFr,
+    Value<String?>? exampleKo,
+    Value<String?>? seedId,
+    Value<bool>? isSynced,
+    Value<bool>? isDeleted,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
     return ConceptsTableCompanion(
       id: id ?? this.id,
       listId: listId ?? this.listId,
@@ -1370,137 +1637,212 @@ class $WordVariantsTableTable extends WordVariantsTable
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
-      'id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _conceptIdMeta =
-      const VerificationMeta('conceptId');
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _conceptIdMeta = const VerificationMeta(
+    'conceptId',
+  );
   @override
   late final GeneratedColumn<String> conceptId = GeneratedColumn<String>(
-      'concept_id', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: true,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('REFERENCES concepts (id)'));
+    'concept_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES concepts (id)',
+    ),
+  );
   static const VerificationMeta _wordMeta = const VerificationMeta('word');
   @override
   late final GeneratedColumn<String> word = GeneratedColumn<String>(
-      'word', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _langCodeMeta =
-      const VerificationMeta('langCode');
+    'word',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _langCodeMeta = const VerificationMeta(
+    'langCode',
+  );
   @override
   late final GeneratedColumn<String> langCode = GeneratedColumn<String>(
-      'lang_code', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _registerTagMeta =
-      const VerificationMeta('registerTag');
+    'lang_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _registerTagMeta = const VerificationMeta(
+    'registerTag',
+  );
   @override
   late final GeneratedColumn<String> registerTag = GeneratedColumn<String>(
-      'register_tag', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant('neutral'));
-  static const VerificationMeta _contextTagsMeta =
-      const VerificationMeta('contextTags');
+    'register_tag',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('neutral'),
+  );
+  static const VerificationMeta _contextTagsMeta = const VerificationMeta(
+    'contextTags',
+  );
   @override
   late final GeneratedColumn<String> contextTags = GeneratedColumn<String>(
-      'context_tags', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant('[]'));
-  static const VerificationMeta _isPrimaryMeta =
-      const VerificationMeta('isPrimary');
+    'context_tags',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  static const VerificationMeta _isPrimaryMeta = const VerificationMeta(
+    'isPrimary',
+  );
   @override
   late final GeneratedColumn<bool> isPrimary = GeneratedColumn<bool>(
-      'is_primary', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('CHECK ("is_primary" IN (0, 1))'),
-      defaultValue: const Constant(false));
-  static const VerificationMeta _audioHashMeta =
-      const VerificationMeta('audioHash');
+    'is_primary',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_primary" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _audioHashMeta = const VerificationMeta(
+    'audioHash',
+  );
   @override
   late final GeneratedColumn<String> audioHash = GeneratedColumn<String>(
-      'audio_hash', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _audioVoiceIdMeta =
-      const VerificationMeta('audioVoiceId');
+    'audio_hash',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _audioVoiceIdMeta = const VerificationMeta(
+    'audioVoiceId',
+  );
   @override
   late final GeneratedColumn<String> audioVoiceId = GeneratedColumn<String>(
-      'audio_voice_id', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _audioPathMeta =
-      const VerificationMeta('audioPath');
+    'audio_voice_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _audioPathMeta = const VerificationMeta(
+    'audioPath',
+  );
   @override
   late final GeneratedColumn<String> audioPath = GeneratedColumn<String>(
-      'audio_path', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _positionMeta =
-      const VerificationMeta('position');
+    'audio_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _positionMeta = const VerificationMeta(
+    'position',
+  );
   @override
   late final GeneratedColumn<int> position = GeneratedColumn<int>(
-      'position', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
-  static const VerificationMeta _exampleMeta =
-      const VerificationMeta('example');
+    'position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _exampleMeta = const VerificationMeta(
+    'example',
+  );
   @override
   late final GeneratedColumn<String> example = GeneratedColumn<String>(
-      'example', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _isSyncedMeta =
-      const VerificationMeta('isSynced');
+    'example',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
   @override
   late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
-      'is_synced', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
-      defaultValue: const Constant(false));
-  static const VerificationMeta _isDeletedMeta =
-      const VerificationMeta('isDeleted');
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
   @override
   late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
-      'is_deleted', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('CHECK ("is_deleted" IN (0, 1))'),
-      defaultValue: const Constant(false));
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
   @override
   late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _updatedAtMeta =
-      const VerificationMeta('updatedAt');
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
   @override
   late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        conceptId,
-        word,
-        langCode,
-        registerTag,
-        contextTags,
-        isPrimary,
-        audioHash,
-        audioVoiceId,
-        audioPath,
-        position,
-        example,
-        isSynced,
-        isDeleted,
-        createdAt,
-        updatedAt
-      ];
+    id,
+    conceptId,
+    word,
+    langCode,
+    registerTag,
+    contextTags,
+    isPrimary,
+    audioHash,
+    audioVoiceId,
+    audioPath,
+    position,
+    example,
+    isSynced,
+    isDeleted,
+    createdAt,
+    updatedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1508,8 +1850,9 @@ class $WordVariantsTableTable extends WordVariantsTable
   static const String $name = 'word_variants';
   @override
   VerificationContext validateIntegrity(
-      Insertable<WordVariantsTableData> instance,
-      {bool isInserting = false}) {
+    Insertable<WordVariantsTableData> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -1518,78 +1861,111 @@ class $WordVariantsTableTable extends WordVariantsTable
       context.missing(_idMeta);
     }
     if (data.containsKey('concept_id')) {
-      context.handle(_conceptIdMeta,
-          conceptId.isAcceptableOrUnknown(data['concept_id']!, _conceptIdMeta));
+      context.handle(
+        _conceptIdMeta,
+        conceptId.isAcceptableOrUnknown(data['concept_id']!, _conceptIdMeta),
+      );
     } else if (isInserting) {
       context.missing(_conceptIdMeta);
     }
     if (data.containsKey('word')) {
       context.handle(
-          _wordMeta, word.isAcceptableOrUnknown(data['word']!, _wordMeta));
+        _wordMeta,
+        word.isAcceptableOrUnknown(data['word']!, _wordMeta),
+      );
     } else if (isInserting) {
       context.missing(_wordMeta);
     }
     if (data.containsKey('lang_code')) {
-      context.handle(_langCodeMeta,
-          langCode.isAcceptableOrUnknown(data['lang_code']!, _langCodeMeta));
+      context.handle(
+        _langCodeMeta,
+        langCode.isAcceptableOrUnknown(data['lang_code']!, _langCodeMeta),
+      );
     } else if (isInserting) {
       context.missing(_langCodeMeta);
     }
     if (data.containsKey('register_tag')) {
       context.handle(
+        _registerTagMeta,
+        registerTag.isAcceptableOrUnknown(
+          data['register_tag']!,
           _registerTagMeta,
-          registerTag.isAcceptableOrUnknown(
-              data['register_tag']!, _registerTagMeta));
+        ),
+      );
     }
     if (data.containsKey('context_tags')) {
       context.handle(
+        _contextTagsMeta,
+        contextTags.isAcceptableOrUnknown(
+          data['context_tags']!,
           _contextTagsMeta,
-          contextTags.isAcceptableOrUnknown(
-              data['context_tags']!, _contextTagsMeta));
+        ),
+      );
     }
     if (data.containsKey('is_primary')) {
-      context.handle(_isPrimaryMeta,
-          isPrimary.isAcceptableOrUnknown(data['is_primary']!, _isPrimaryMeta));
+      context.handle(
+        _isPrimaryMeta,
+        isPrimary.isAcceptableOrUnknown(data['is_primary']!, _isPrimaryMeta),
+      );
     }
     if (data.containsKey('audio_hash')) {
-      context.handle(_audioHashMeta,
-          audioHash.isAcceptableOrUnknown(data['audio_hash']!, _audioHashMeta));
+      context.handle(
+        _audioHashMeta,
+        audioHash.isAcceptableOrUnknown(data['audio_hash']!, _audioHashMeta),
+      );
     }
     if (data.containsKey('audio_voice_id')) {
       context.handle(
+        _audioVoiceIdMeta,
+        audioVoiceId.isAcceptableOrUnknown(
+          data['audio_voice_id']!,
           _audioVoiceIdMeta,
-          audioVoiceId.isAcceptableOrUnknown(
-              data['audio_voice_id']!, _audioVoiceIdMeta));
+        ),
+      );
     }
     if (data.containsKey('audio_path')) {
-      context.handle(_audioPathMeta,
-          audioPath.isAcceptableOrUnknown(data['audio_path']!, _audioPathMeta));
+      context.handle(
+        _audioPathMeta,
+        audioPath.isAcceptableOrUnknown(data['audio_path']!, _audioPathMeta),
+      );
     }
     if (data.containsKey('position')) {
-      context.handle(_positionMeta,
-          position.isAcceptableOrUnknown(data['position']!, _positionMeta));
+      context.handle(
+        _positionMeta,
+        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
+      );
     }
     if (data.containsKey('example')) {
-      context.handle(_exampleMeta,
-          example.isAcceptableOrUnknown(data['example']!, _exampleMeta));
+      context.handle(
+        _exampleMeta,
+        example.isAcceptableOrUnknown(data['example']!, _exampleMeta),
+      );
     }
     if (data.containsKey('is_synced')) {
-      context.handle(_isSyncedMeta,
-          isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
     }
     if (data.containsKey('is_deleted')) {
-      context.handle(_isDeletedMeta,
-          isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta));
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
     }
     if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
     if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta,
-          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
@@ -1602,38 +1978,70 @@ class $WordVariantsTableTable extends WordVariantsTable
   WordVariantsTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return WordVariantsTableData(
-      id: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      conceptId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}concept_id'])!,
-      word: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}word'])!,
-      langCode: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}lang_code'])!,
-      registerTag: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}register_tag'])!,
-      contextTags: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}context_tags'])!,
-      isPrimary: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}is_primary'])!,
-      audioHash: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}audio_hash']),
-      audioVoiceId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}audio_voice_id']),
-      audioPath: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}audio_path']),
-      position: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}position'])!,
-      example: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}example']),
-      isSynced: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
-      isDeleted: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}is_deleted'])!,
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
-      updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      conceptId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}concept_id'],
+      )!,
+      word: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}word'],
+      )!,
+      langCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}lang_code'],
+      )!,
+      registerTag: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}register_tag'],
+      )!,
+      contextTags: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}context_tags'],
+      )!,
+      isPrimary: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_primary'],
+      )!,
+      audioHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}audio_hash'],
+      ),
+      audioVoiceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}audio_voice_id'],
+      ),
+      audioPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}audio_path'],
+      ),
+      position: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position'],
+      )!,
+      example: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}example'],
+      ),
+      isSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_synced'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
     );
   }
 
@@ -1661,23 +2069,24 @@ class WordVariantsTableData extends DataClass
   final bool isDeleted;
   final DateTime createdAt;
   final DateTime updatedAt;
-  const WordVariantsTableData(
-      {required this.id,
-      required this.conceptId,
-      required this.word,
-      required this.langCode,
-      required this.registerTag,
-      required this.contextTags,
-      required this.isPrimary,
-      this.audioHash,
-      this.audioVoiceId,
-      this.audioPath,
-      required this.position,
-      this.example,
-      required this.isSynced,
-      required this.isDeleted,
-      required this.createdAt,
-      required this.updatedAt});
+  const WordVariantsTableData({
+    required this.id,
+    required this.conceptId,
+    required this.word,
+    required this.langCode,
+    required this.registerTag,
+    required this.contextTags,
+    required this.isPrimary,
+    this.audioHash,
+    this.audioVoiceId,
+    this.audioPath,
+    required this.position,
+    this.example,
+    required this.isSynced,
+    required this.isDeleted,
+    required this.createdAt,
+    required this.updatedAt,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1737,8 +2146,10 @@ class WordVariantsTableData extends DataClass
     );
   }
 
-  factory WordVariantsTableData.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
+  factory WordVariantsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return WordVariantsTableData(
       id: serializer.fromJson<String>(json['id']),
@@ -1782,52 +2193,53 @@ class WordVariantsTableData extends DataClass
     };
   }
 
-  WordVariantsTableData copyWith(
-          {String? id,
-          String? conceptId,
-          String? word,
-          String? langCode,
-          String? registerTag,
-          String? contextTags,
-          bool? isPrimary,
-          Value<String?> audioHash = const Value.absent(),
-          Value<String?> audioVoiceId = const Value.absent(),
-          Value<String?> audioPath = const Value.absent(),
-          int? position,
-          Value<String?> example = const Value.absent(),
-          bool? isSynced,
-          bool? isDeleted,
-          DateTime? createdAt,
-          DateTime? updatedAt}) =>
-      WordVariantsTableData(
-        id: id ?? this.id,
-        conceptId: conceptId ?? this.conceptId,
-        word: word ?? this.word,
-        langCode: langCode ?? this.langCode,
-        registerTag: registerTag ?? this.registerTag,
-        contextTags: contextTags ?? this.contextTags,
-        isPrimary: isPrimary ?? this.isPrimary,
-        audioHash: audioHash.present ? audioHash.value : this.audioHash,
-        audioVoiceId:
-            audioVoiceId.present ? audioVoiceId.value : this.audioVoiceId,
-        audioPath: audioPath.present ? audioPath.value : this.audioPath,
-        position: position ?? this.position,
-        example: example.present ? example.value : this.example,
-        isSynced: isSynced ?? this.isSynced,
-        isDeleted: isDeleted ?? this.isDeleted,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+  WordVariantsTableData copyWith({
+    String? id,
+    String? conceptId,
+    String? word,
+    String? langCode,
+    String? registerTag,
+    String? contextTags,
+    bool? isPrimary,
+    Value<String?> audioHash = const Value.absent(),
+    Value<String?> audioVoiceId = const Value.absent(),
+    Value<String?> audioPath = const Value.absent(),
+    int? position,
+    Value<String?> example = const Value.absent(),
+    bool? isSynced,
+    bool? isDeleted,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => WordVariantsTableData(
+    id: id ?? this.id,
+    conceptId: conceptId ?? this.conceptId,
+    word: word ?? this.word,
+    langCode: langCode ?? this.langCode,
+    registerTag: registerTag ?? this.registerTag,
+    contextTags: contextTags ?? this.contextTags,
+    isPrimary: isPrimary ?? this.isPrimary,
+    audioHash: audioHash.present ? audioHash.value : this.audioHash,
+    audioVoiceId: audioVoiceId.present ? audioVoiceId.value : this.audioVoiceId,
+    audioPath: audioPath.present ? audioPath.value : this.audioPath,
+    position: position ?? this.position,
+    example: example.present ? example.value : this.example,
+    isSynced: isSynced ?? this.isSynced,
+    isDeleted: isDeleted ?? this.isDeleted,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
   WordVariantsTableData copyWithCompanion(WordVariantsTableCompanion data) {
     return WordVariantsTableData(
       id: data.id.present ? data.id.value : this.id,
       conceptId: data.conceptId.present ? data.conceptId.value : this.conceptId,
       word: data.word.present ? data.word.value : this.word,
       langCode: data.langCode.present ? data.langCode.value : this.langCode,
-      registerTag:
-          data.registerTag.present ? data.registerTag.value : this.registerTag,
-      contextTags:
-          data.contextTags.present ? data.contextTags.value : this.contextTags,
+      registerTag: data.registerTag.present
+          ? data.registerTag.value
+          : this.registerTag,
+      contextTags: data.contextTags.present
+          ? data.contextTags.value
+          : this.contextTags,
       isPrimary: data.isPrimary.present ? data.isPrimary.value : this.isPrimary,
       audioHash: data.audioHash.present ? data.audioHash.value : this.audioHash,
       audioVoiceId: data.audioVoiceId.present
@@ -1868,22 +2280,23 @@ class WordVariantsTableData extends DataClass
 
   @override
   int get hashCode => Object.hash(
-      id,
-      conceptId,
-      word,
-      langCode,
-      registerTag,
-      contextTags,
-      isPrimary,
-      audioHash,
-      audioVoiceId,
-      audioPath,
-      position,
-      example,
-      isSynced,
-      isDeleted,
-      createdAt,
-      updatedAt);
+    id,
+    conceptId,
+    word,
+    langCode,
+    registerTag,
+    contextTags,
+    isPrimary,
+    audioHash,
+    audioVoiceId,
+    audioPath,
+    position,
+    example,
+    isSynced,
+    isDeleted,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1962,12 +2375,12 @@ class WordVariantsTableCompanion
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
-  })  : id = Value(id),
-        conceptId = Value(conceptId),
-        word = Value(word),
-        langCode = Value(langCode),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt);
+  }) : id = Value(id),
+       conceptId = Value(conceptId),
+       word = Value(word),
+       langCode = Value(langCode),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
   static Insertable<WordVariantsTableData> custom({
     Expression<String>? id,
     Expression<String>? conceptId,
@@ -2008,24 +2421,25 @@ class WordVariantsTableCompanion
     });
   }
 
-  WordVariantsTableCompanion copyWith(
-      {Value<String>? id,
-      Value<String>? conceptId,
-      Value<String>? word,
-      Value<String>? langCode,
-      Value<String>? registerTag,
-      Value<String>? contextTags,
-      Value<bool>? isPrimary,
-      Value<String?>? audioHash,
-      Value<String?>? audioVoiceId,
-      Value<String?>? audioPath,
-      Value<int>? position,
-      Value<String?>? example,
-      Value<bool>? isSynced,
-      Value<bool>? isDeleted,
-      Value<DateTime>? createdAt,
-      Value<DateTime>? updatedAt,
-      Value<int>? rowid}) {
+  WordVariantsTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? conceptId,
+    Value<String>? word,
+    Value<String>? langCode,
+    Value<String>? registerTag,
+    Value<String>? contextTags,
+    Value<bool>? isPrimary,
+    Value<String?>? audioHash,
+    Value<String?>? audioVoiceId,
+    Value<String?>? audioPath,
+    Value<int>? position,
+    Value<String?>? example,
+    Value<bool>? isSynced,
+    Value<bool>? isDeleted,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
     return WordVariantsTableCompanion(
       id: id ?? this.id,
       conceptId: conceptId ?? this.conceptId,
@@ -2138,161 +2552,241 @@ class $VariantProgressTableTable extends VariantProgressTable
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
-      'id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
   @override
   late final GeneratedColumn<String> userId = GeneratedColumn<String>(
-      'user_id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _variantIdMeta =
-      const VerificationMeta('variantId');
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _variantIdMeta = const VerificationMeta(
+    'variantId',
+  );
   @override
   late final GeneratedColumn<String> variantId = GeneratedColumn<String>(
-      'variant_id', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: true,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('REFERENCES word_variants (id)'));
-  static const VerificationMeta _directionMeta =
-      const VerificationMeta('direction');
+    'variant_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES word_variants (id)',
+    ),
+  );
+  static const VerificationMeta _directionMeta = const VerificationMeta(
+    'direction',
+  );
   @override
   late final GeneratedColumn<String> direction = GeneratedColumn<String>(
-      'direction', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _stabilityMeta =
-      const VerificationMeta('stability');
+    'direction',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stabilityMeta = const VerificationMeta(
+    'stability',
+  );
   @override
   late final GeneratedColumn<double> stability = GeneratedColumn<double>(
-      'stability', aliasedName, false,
-      type: DriftSqlType.double,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0.0));
-  static const VerificationMeta _difficultyMeta =
-      const VerificationMeta('difficulty');
+    'stability',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _difficultyMeta = const VerificationMeta(
+    'difficulty',
+  );
   @override
   late final GeneratedColumn<double> difficulty = GeneratedColumn<double>(
-      'difficulty', aliasedName, false,
-      type: DriftSqlType.double,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(5.0));
-  static const VerificationMeta _elapsedDaysMeta =
-      const VerificationMeta('elapsedDays');
+    'difficulty',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(5.0),
+  );
+  static const VerificationMeta _elapsedDaysMeta = const VerificationMeta(
+    'elapsedDays',
+  );
   @override
   late final GeneratedColumn<int> elapsedDays = GeneratedColumn<int>(
-      'elapsed_days', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
-  static const VerificationMeta _scheduledDaysMeta =
-      const VerificationMeta('scheduledDays');
+    'elapsed_days',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _scheduledDaysMeta = const VerificationMeta(
+    'scheduledDays',
+  );
   @override
   late final GeneratedColumn<int> scheduledDays = GeneratedColumn<int>(
-      'scheduled_days', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
+    'scheduled_days',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _repsMeta = const VerificationMeta('reps');
   @override
   late final GeneratedColumn<int> reps = GeneratedColumn<int>(
-      'reps', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
+    'reps',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _lapsesMeta = const VerificationMeta('lapses');
   @override
   late final GeneratedColumn<int> lapses = GeneratedColumn<int>(
-      'lapses', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
+    'lapses',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _stateMeta = const VerificationMeta('state');
   @override
   late final GeneratedColumn<String> state = GeneratedColumn<String>(
-      'state', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant('newCard'));
-  static const VerificationMeta _lastReviewMeta =
-      const VerificationMeta('lastReview');
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('newCard'),
+  );
+  static const VerificationMeta _lastReviewMeta = const VerificationMeta(
+    'lastReview',
+  );
   @override
   late final GeneratedColumn<DateTime> lastReview = GeneratedColumn<DateTime>(
-      'last_review', aliasedName, true,
-      type: DriftSqlType.dateTime, requiredDuringInsert: false);
-  static const VerificationMeta _nextReviewMeta =
-      const VerificationMeta('nextReview');
+    'last_review',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nextReviewMeta = const VerificationMeta(
+    'nextReview',
+  );
   @override
   late final GeneratedColumn<DateTime> nextReview = GeneratedColumn<DateTime>(
-      'next_review', aliasedName, true,
-      type: DriftSqlType.dateTime, requiredDuringInsert: false);
-  static const VerificationMeta _timesShownMeta =
-      const VerificationMeta('timesShown');
+    'next_review',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _timesShownMeta = const VerificationMeta(
+    'timesShown',
+  );
   @override
   late final GeneratedColumn<int> timesShown = GeneratedColumn<int>(
-      'times_shown', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
-  static const VerificationMeta _timesCorrectMeta =
-      const VerificationMeta('timesCorrect');
+    'times_shown',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _timesCorrectMeta = const VerificationMeta(
+    'timesCorrect',
+  );
   @override
   late final GeneratedColumn<int> timesCorrect = GeneratedColumn<int>(
-      'times_correct', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
-  static const VerificationMeta _masteryLevelMeta =
-      const VerificationMeta('masteryLevel');
+    'times_correct',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _masteryLevelMeta = const VerificationMeta(
+    'masteryLevel',
+  );
   @override
   late final GeneratedColumn<double> masteryLevel = GeneratedColumn<double>(
-      'mastery_level', aliasedName, false,
-      type: DriftSqlType.double,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0.0));
-  static const VerificationMeta _isSyncedMeta =
-      const VerificationMeta('isSynced');
+    'mastery_level',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
   @override
   late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
-      'is_synced', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
-      defaultValue: const Constant(false));
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
   @override
   late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _updatedAtMeta =
-      const VerificationMeta('updatedAt');
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
   @override
   late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        userId,
-        variantId,
-        direction,
-        stability,
-        difficulty,
-        elapsedDays,
-        scheduledDays,
-        reps,
-        lapses,
-        state,
-        lastReview,
-        nextReview,
-        timesShown,
-        timesCorrect,
-        masteryLevel,
-        isSynced,
-        createdAt,
-        updatedAt
-      ];
+    id,
+    userId,
+    variantId,
+    direction,
+    stability,
+    difficulty,
+    elapsedDays,
+    scheduledDays,
+    reps,
+    lapses,
+    state,
+    lastReview,
+    nextReview,
+    timesShown,
+    timesCorrect,
+    masteryLevel,
+    isSynced,
+    createdAt,
+    updatedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2300,8 +2794,9 @@ class $VariantProgressTableTable extends VariantProgressTable
   static const String $name = 'variant_progress';
   @override
   VerificationContext validateIntegrity(
-      Insertable<VariantProgressTableData> instance,
-      {bool isInserting = false}) {
+    Insertable<VariantProgressTableData> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -2310,100 +2805,132 @@ class $VariantProgressTableTable extends VariantProgressTable
       context.missing(_idMeta);
     }
     if (data.containsKey('user_id')) {
-      context.handle(_userIdMeta,
-          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
     } else if (isInserting) {
       context.missing(_userIdMeta);
     }
     if (data.containsKey('variant_id')) {
-      context.handle(_variantIdMeta,
-          variantId.isAcceptableOrUnknown(data['variant_id']!, _variantIdMeta));
+      context.handle(
+        _variantIdMeta,
+        variantId.isAcceptableOrUnknown(data['variant_id']!, _variantIdMeta),
+      );
     } else if (isInserting) {
       context.missing(_variantIdMeta);
     }
     if (data.containsKey('direction')) {
-      context.handle(_directionMeta,
-          direction.isAcceptableOrUnknown(data['direction']!, _directionMeta));
+      context.handle(
+        _directionMeta,
+        direction.isAcceptableOrUnknown(data['direction']!, _directionMeta),
+      );
     } else if (isInserting) {
       context.missing(_directionMeta);
     }
     if (data.containsKey('stability')) {
-      context.handle(_stabilityMeta,
-          stability.isAcceptableOrUnknown(data['stability']!, _stabilityMeta));
+      context.handle(
+        _stabilityMeta,
+        stability.isAcceptableOrUnknown(data['stability']!, _stabilityMeta),
+      );
     }
     if (data.containsKey('difficulty')) {
       context.handle(
-          _difficultyMeta,
-          difficulty.isAcceptableOrUnknown(
-              data['difficulty']!, _difficultyMeta));
+        _difficultyMeta,
+        difficulty.isAcceptableOrUnknown(data['difficulty']!, _difficultyMeta),
+      );
     }
     if (data.containsKey('elapsed_days')) {
       context.handle(
+        _elapsedDaysMeta,
+        elapsedDays.isAcceptableOrUnknown(
+          data['elapsed_days']!,
           _elapsedDaysMeta,
-          elapsedDays.isAcceptableOrUnknown(
-              data['elapsed_days']!, _elapsedDaysMeta));
+        ),
+      );
     }
     if (data.containsKey('scheduled_days')) {
       context.handle(
+        _scheduledDaysMeta,
+        scheduledDays.isAcceptableOrUnknown(
+          data['scheduled_days']!,
           _scheduledDaysMeta,
-          scheduledDays.isAcceptableOrUnknown(
-              data['scheduled_days']!, _scheduledDaysMeta));
+        ),
+      );
     }
     if (data.containsKey('reps')) {
       context.handle(
-          _repsMeta, reps.isAcceptableOrUnknown(data['reps']!, _repsMeta));
+        _repsMeta,
+        reps.isAcceptableOrUnknown(data['reps']!, _repsMeta),
+      );
     }
     if (data.containsKey('lapses')) {
-      context.handle(_lapsesMeta,
-          lapses.isAcceptableOrUnknown(data['lapses']!, _lapsesMeta));
+      context.handle(
+        _lapsesMeta,
+        lapses.isAcceptableOrUnknown(data['lapses']!, _lapsesMeta),
+      );
     }
     if (data.containsKey('state')) {
       context.handle(
-          _stateMeta, state.isAcceptableOrUnknown(data['state']!, _stateMeta));
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
     }
     if (data.containsKey('last_review')) {
       context.handle(
-          _lastReviewMeta,
-          lastReview.isAcceptableOrUnknown(
-              data['last_review']!, _lastReviewMeta));
+        _lastReviewMeta,
+        lastReview.isAcceptableOrUnknown(data['last_review']!, _lastReviewMeta),
+      );
     }
     if (data.containsKey('next_review')) {
       context.handle(
-          _nextReviewMeta,
-          nextReview.isAcceptableOrUnknown(
-              data['next_review']!, _nextReviewMeta));
+        _nextReviewMeta,
+        nextReview.isAcceptableOrUnknown(data['next_review']!, _nextReviewMeta),
+      );
     }
     if (data.containsKey('times_shown')) {
       context.handle(
-          _timesShownMeta,
-          timesShown.isAcceptableOrUnknown(
-              data['times_shown']!, _timesShownMeta));
+        _timesShownMeta,
+        timesShown.isAcceptableOrUnknown(data['times_shown']!, _timesShownMeta),
+      );
     }
     if (data.containsKey('times_correct')) {
       context.handle(
+        _timesCorrectMeta,
+        timesCorrect.isAcceptableOrUnknown(
+          data['times_correct']!,
           _timesCorrectMeta,
-          timesCorrect.isAcceptableOrUnknown(
-              data['times_correct']!, _timesCorrectMeta));
+        ),
+      );
     }
     if (data.containsKey('mastery_level')) {
       context.handle(
+        _masteryLevelMeta,
+        masteryLevel.isAcceptableOrUnknown(
+          data['mastery_level']!,
           _masteryLevelMeta,
-          masteryLevel.isAcceptableOrUnknown(
-              data['mastery_level']!, _masteryLevelMeta));
+        ),
+      );
     }
     if (data.containsKey('is_synced')) {
-      context.handle(_isSyncedMeta,
-          isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
     }
     if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
     if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta,
-          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
@@ -2413,48 +2940,88 @@ class $VariantProgressTableTable extends VariantProgressTable
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  VariantProgressTableData map(Map<String, dynamic> data,
-      {String? tablePrefix}) {
+  VariantProgressTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return VariantProgressTableData(
-      id: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      userId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
-      variantId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}variant_id'])!,
-      direction: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}direction'])!,
-      stability: attachedDatabase.typeMapping
-          .read(DriftSqlType.double, data['${effectivePrefix}stability'])!,
-      difficulty: attachedDatabase.typeMapping
-          .read(DriftSqlType.double, data['${effectivePrefix}difficulty'])!,
-      elapsedDays: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}elapsed_days'])!,
-      scheduledDays: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}scheduled_days'])!,
-      reps: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}reps'])!,
-      lapses: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}lapses'])!,
-      state: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}state'])!,
-      lastReview: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}last_review']),
-      nextReview: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}next_review']),
-      timesShown: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}times_shown'])!,
-      timesCorrect: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}times_correct'])!,
-      masteryLevel: attachedDatabase.typeMapping
-          .read(DriftSqlType.double, data['${effectivePrefix}mastery_level'])!,
-      isSynced: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
-      updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      variantId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}variant_id'],
+      )!,
+      direction: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}direction'],
+      )!,
+      stability: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}stability'],
+      )!,
+      difficulty: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}difficulty'],
+      )!,
+      elapsedDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}elapsed_days'],
+      )!,
+      scheduledDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}scheduled_days'],
+      )!,
+      reps: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reps'],
+      )!,
+      lapses: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}lapses'],
+      )!,
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      lastReview: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_review'],
+      ),
+      nextReview: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}next_review'],
+      ),
+      timesShown: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}times_shown'],
+      )!,
+      timesCorrect: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}times_correct'],
+      )!,
+      masteryLevel: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}mastery_level'],
+      )!,
+      isSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_synced'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
     );
   }
 
@@ -2485,26 +3052,27 @@ class VariantProgressTableData extends DataClass
   final bool isSynced;
   final DateTime createdAt;
   final DateTime updatedAt;
-  const VariantProgressTableData(
-      {required this.id,
-      required this.userId,
-      required this.variantId,
-      required this.direction,
-      required this.stability,
-      required this.difficulty,
-      required this.elapsedDays,
-      required this.scheduledDays,
-      required this.reps,
-      required this.lapses,
-      required this.state,
-      this.lastReview,
-      this.nextReview,
-      required this.timesShown,
-      required this.timesCorrect,
-      required this.masteryLevel,
-      required this.isSynced,
-      required this.createdAt,
-      required this.updatedAt});
+  const VariantProgressTableData({
+    required this.id,
+    required this.userId,
+    required this.variantId,
+    required this.direction,
+    required this.stability,
+    required this.difficulty,
+    required this.elapsedDays,
+    required this.scheduledDays,
+    required this.reps,
+    required this.lapses,
+    required this.state,
+    this.lastReview,
+    this.nextReview,
+    required this.timesShown,
+    required this.timesCorrect,
+    required this.masteryLevel,
+    required this.isSynced,
+    required this.createdAt,
+    required this.updatedAt,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2562,8 +3130,10 @@ class VariantProgressTableData extends DataClass
     );
   }
 
-  factory VariantProgressTableData.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
+  factory VariantProgressTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return VariantProgressTableData(
       id: serializer.fromJson<String>(json['id']),
@@ -2613,71 +3183,77 @@ class VariantProgressTableData extends DataClass
     };
   }
 
-  VariantProgressTableData copyWith(
-          {String? id,
-          String? userId,
-          String? variantId,
-          String? direction,
-          double? stability,
-          double? difficulty,
-          int? elapsedDays,
-          int? scheduledDays,
-          int? reps,
-          int? lapses,
-          String? state,
-          Value<DateTime?> lastReview = const Value.absent(),
-          Value<DateTime?> nextReview = const Value.absent(),
-          int? timesShown,
-          int? timesCorrect,
-          double? masteryLevel,
-          bool? isSynced,
-          DateTime? createdAt,
-          DateTime? updatedAt}) =>
-      VariantProgressTableData(
-        id: id ?? this.id,
-        userId: userId ?? this.userId,
-        variantId: variantId ?? this.variantId,
-        direction: direction ?? this.direction,
-        stability: stability ?? this.stability,
-        difficulty: difficulty ?? this.difficulty,
-        elapsedDays: elapsedDays ?? this.elapsedDays,
-        scheduledDays: scheduledDays ?? this.scheduledDays,
-        reps: reps ?? this.reps,
-        lapses: lapses ?? this.lapses,
-        state: state ?? this.state,
-        lastReview: lastReview.present ? lastReview.value : this.lastReview,
-        nextReview: nextReview.present ? nextReview.value : this.nextReview,
-        timesShown: timesShown ?? this.timesShown,
-        timesCorrect: timesCorrect ?? this.timesCorrect,
-        masteryLevel: masteryLevel ?? this.masteryLevel,
-        isSynced: isSynced ?? this.isSynced,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+  VariantProgressTableData copyWith({
+    String? id,
+    String? userId,
+    String? variantId,
+    String? direction,
+    double? stability,
+    double? difficulty,
+    int? elapsedDays,
+    int? scheduledDays,
+    int? reps,
+    int? lapses,
+    String? state,
+    Value<DateTime?> lastReview = const Value.absent(),
+    Value<DateTime?> nextReview = const Value.absent(),
+    int? timesShown,
+    int? timesCorrect,
+    double? masteryLevel,
+    bool? isSynced,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => VariantProgressTableData(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    variantId: variantId ?? this.variantId,
+    direction: direction ?? this.direction,
+    stability: stability ?? this.stability,
+    difficulty: difficulty ?? this.difficulty,
+    elapsedDays: elapsedDays ?? this.elapsedDays,
+    scheduledDays: scheduledDays ?? this.scheduledDays,
+    reps: reps ?? this.reps,
+    lapses: lapses ?? this.lapses,
+    state: state ?? this.state,
+    lastReview: lastReview.present ? lastReview.value : this.lastReview,
+    nextReview: nextReview.present ? nextReview.value : this.nextReview,
+    timesShown: timesShown ?? this.timesShown,
+    timesCorrect: timesCorrect ?? this.timesCorrect,
+    masteryLevel: masteryLevel ?? this.masteryLevel,
+    isSynced: isSynced ?? this.isSynced,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
   VariantProgressTableData copyWithCompanion(
-      VariantProgressTableCompanion data) {
+    VariantProgressTableCompanion data,
+  ) {
     return VariantProgressTableData(
       id: data.id.present ? data.id.value : this.id,
       userId: data.userId.present ? data.userId.value : this.userId,
       variantId: data.variantId.present ? data.variantId.value : this.variantId,
       direction: data.direction.present ? data.direction.value : this.direction,
       stability: data.stability.present ? data.stability.value : this.stability,
-      difficulty:
-          data.difficulty.present ? data.difficulty.value : this.difficulty,
-      elapsedDays:
-          data.elapsedDays.present ? data.elapsedDays.value : this.elapsedDays,
+      difficulty: data.difficulty.present
+          ? data.difficulty.value
+          : this.difficulty,
+      elapsedDays: data.elapsedDays.present
+          ? data.elapsedDays.value
+          : this.elapsedDays,
       scheduledDays: data.scheduledDays.present
           ? data.scheduledDays.value
           : this.scheduledDays,
       reps: data.reps.present ? data.reps.value : this.reps,
       lapses: data.lapses.present ? data.lapses.value : this.lapses,
       state: data.state.present ? data.state.value : this.state,
-      lastReview:
-          data.lastReview.present ? data.lastReview.value : this.lastReview,
-      nextReview:
-          data.nextReview.present ? data.nextReview.value : this.nextReview,
-      timesShown:
-          data.timesShown.present ? data.timesShown.value : this.timesShown,
+      lastReview: data.lastReview.present
+          ? data.lastReview.value
+          : this.lastReview,
+      nextReview: data.nextReview.present
+          ? data.nextReview.value
+          : this.nextReview,
+      timesShown: data.timesShown.present
+          ? data.timesShown.value
+          : this.timesShown,
       timesCorrect: data.timesCorrect.present
           ? data.timesCorrect.value
           : this.timesCorrect,
@@ -2718,25 +3294,26 @@ class VariantProgressTableData extends DataClass
 
   @override
   int get hashCode => Object.hash(
-      id,
-      userId,
-      variantId,
-      direction,
-      stability,
-      difficulty,
-      elapsedDays,
-      scheduledDays,
-      reps,
-      lapses,
-      state,
-      lastReview,
-      nextReview,
-      timesShown,
-      timesCorrect,
-      masteryLevel,
-      isSynced,
-      createdAt,
-      updatedAt);
+    id,
+    userId,
+    variantId,
+    direction,
+    stability,
+    difficulty,
+    elapsedDays,
+    scheduledDays,
+    reps,
+    lapses,
+    state,
+    lastReview,
+    nextReview,
+    timesShown,
+    timesCorrect,
+    masteryLevel,
+    isSynced,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2827,12 +3404,12 @@ class VariantProgressTableCompanion
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
-  })  : id = Value(id),
-        userId = Value(userId),
-        variantId = Value(variantId),
-        direction = Value(direction),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt);
+  }) : id = Value(id),
+       userId = Value(userId),
+       variantId = Value(variantId),
+       direction = Value(direction),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
   static Insertable<VariantProgressTableData> custom({
     Expression<String>? id,
     Expression<String>? userId,
@@ -2879,27 +3456,28 @@ class VariantProgressTableCompanion
     });
   }
 
-  VariantProgressTableCompanion copyWith(
-      {Value<String>? id,
-      Value<String>? userId,
-      Value<String>? variantId,
-      Value<String>? direction,
-      Value<double>? stability,
-      Value<double>? difficulty,
-      Value<int>? elapsedDays,
-      Value<int>? scheduledDays,
-      Value<int>? reps,
-      Value<int>? lapses,
-      Value<String>? state,
-      Value<DateTime?>? lastReview,
-      Value<DateTime?>? nextReview,
-      Value<int>? timesShown,
-      Value<int>? timesCorrect,
-      Value<double>? masteryLevel,
-      Value<bool>? isSynced,
-      Value<DateTime>? createdAt,
-      Value<DateTime>? updatedAt,
-      Value<int>? rowid}) {
+  VariantProgressTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? variantId,
+    Value<String>? direction,
+    Value<double>? stability,
+    Value<double>? difficulty,
+    Value<int>? elapsedDays,
+    Value<int>? scheduledDays,
+    Value<int>? reps,
+    Value<int>? lapses,
+    Value<String>? state,
+    Value<DateTime?>? lastReview,
+    Value<DateTime?>? nextReview,
+    Value<int>? timesShown,
+    Value<int>? timesCorrect,
+    Value<double>? masteryLevel,
+    Value<bool>? isSynced,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
     return VariantProgressTableCompanion(
       id: id ?? this.id,
       userId: userId ?? this.userId,
@@ -3027,79 +3605,130 @@ class $QuizSessionsTableTable extends QuizSessionsTable
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
-      'id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
   @override
   late final GeneratedColumn<String> userId = GeneratedColumn<String>(
-      'user_id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _listIdMeta = const VerificationMeta('listId');
   @override
   late final GeneratedColumn<String> listId = GeneratedColumn<String>(
-      'list_id', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _listNameMeta =
-      const VerificationMeta('listName');
+    'list_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _listNameMeta = const VerificationMeta(
+    'listName',
+  );
   @override
   late final GeneratedColumn<String> listName = GeneratedColumn<String>(
-      'list_name', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'list_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _modeMeta = const VerificationMeta('mode');
   @override
   late final GeneratedColumn<String> mode = GeneratedColumn<String>(
-      'mode', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _directionMeta =
-      const VerificationMeta('direction');
+    'mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _directionMeta = const VerificationMeta(
+    'direction',
+  );
   @override
   late final GeneratedColumn<String> direction = GeneratedColumn<String>(
-      'direction', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _cardCountMeta =
-      const VerificationMeta('cardCount');
+    'direction',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cardCountMeta = const VerificationMeta(
+    'cardCount',
+  );
   @override
   late final GeneratedColumn<int> cardCount = GeneratedColumn<int>(
-      'card_count', aliasedName, false,
-      type: DriftSqlType.int, requiredDuringInsert: true);
-  static const VerificationMeta _correctCountMeta =
-      const VerificationMeta('correctCount');
+    'card_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _correctCountMeta = const VerificationMeta(
+    'correctCount',
+  );
   @override
   late final GeneratedColumn<int> correctCount = GeneratedColumn<int>(
-      'correct_count', aliasedName, false,
-      type: DriftSqlType.int, requiredDuringInsert: true);
-  static const VerificationMeta _durationSecondsMeta =
-      const VerificationMeta('durationSeconds');
+    'correct_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _durationSecondsMeta = const VerificationMeta(
+    'durationSeconds',
+  );
   @override
   late final GeneratedColumn<int> durationSeconds = GeneratedColumn<int>(
-      'duration_seconds', aliasedName, false,
-      type: DriftSqlType.int, requiredDuringInsert: true);
-  static const VerificationMeta _masteredWordCountMeta =
-      const VerificationMeta('masteredWordCount');
+    'duration_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _masteredWordCountMeta = const VerificationMeta(
+    'masteredWordCount',
+  );
   @override
   late final GeneratedColumn<int> masteredWordCount = GeneratedColumn<int>(
-      'mastered_word_count', aliasedName, false,
-      type: DriftSqlType.int, requiredDuringInsert: true);
-  static const VerificationMeta _completedAtMeta =
-      const VerificationMeta('completedAt');
+    'mastered_word_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _completedAtMeta = const VerificationMeta(
+    'completedAt',
+  );
   @override
   late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
-      'completed_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+    'completed_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        userId,
-        listId,
-        listName,
-        mode,
-        direction,
-        cardCount,
-        correctCount,
-        durationSeconds,
-        masteredWordCount,
-        completedAt
-      ];
+    id,
+    userId,
+    listId,
+    listName,
+    mode,
+    direction,
+    cardCount,
+    correctCount,
+    durationSeconds,
+    masteredWordCount,
+    completedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -3107,8 +3736,9 @@ class $QuizSessionsTableTable extends QuizSessionsTable
   static const String $name = 'quiz_sessions';
   @override
   VerificationContext validateIntegrity(
-      Insertable<QuizSessionsTableData> instance,
-      {bool isInserting = false}) {
+    Insertable<QuizSessionsTableData> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -3117,68 +3747,92 @@ class $QuizSessionsTableTable extends QuizSessionsTable
       context.missing(_idMeta);
     }
     if (data.containsKey('user_id')) {
-      context.handle(_userIdMeta,
-          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
     } else if (isInserting) {
       context.missing(_userIdMeta);
     }
     if (data.containsKey('list_id')) {
-      context.handle(_listIdMeta,
-          listId.isAcceptableOrUnknown(data['list_id']!, _listIdMeta));
+      context.handle(
+        _listIdMeta,
+        listId.isAcceptableOrUnknown(data['list_id']!, _listIdMeta),
+      );
     }
     if (data.containsKey('list_name')) {
-      context.handle(_listNameMeta,
-          listName.isAcceptableOrUnknown(data['list_name']!, _listNameMeta));
+      context.handle(
+        _listNameMeta,
+        listName.isAcceptableOrUnknown(data['list_name']!, _listNameMeta),
+      );
     } else if (isInserting) {
       context.missing(_listNameMeta);
     }
     if (data.containsKey('mode')) {
       context.handle(
-          _modeMeta, mode.isAcceptableOrUnknown(data['mode']!, _modeMeta));
+        _modeMeta,
+        mode.isAcceptableOrUnknown(data['mode']!, _modeMeta),
+      );
     } else if (isInserting) {
       context.missing(_modeMeta);
     }
     if (data.containsKey('direction')) {
-      context.handle(_directionMeta,
-          direction.isAcceptableOrUnknown(data['direction']!, _directionMeta));
+      context.handle(
+        _directionMeta,
+        direction.isAcceptableOrUnknown(data['direction']!, _directionMeta),
+      );
     } else if (isInserting) {
       context.missing(_directionMeta);
     }
     if (data.containsKey('card_count')) {
-      context.handle(_cardCountMeta,
-          cardCount.isAcceptableOrUnknown(data['card_count']!, _cardCountMeta));
+      context.handle(
+        _cardCountMeta,
+        cardCount.isAcceptableOrUnknown(data['card_count']!, _cardCountMeta),
+      );
     } else if (isInserting) {
       context.missing(_cardCountMeta);
     }
     if (data.containsKey('correct_count')) {
       context.handle(
+        _correctCountMeta,
+        correctCount.isAcceptableOrUnknown(
+          data['correct_count']!,
           _correctCountMeta,
-          correctCount.isAcceptableOrUnknown(
-              data['correct_count']!, _correctCountMeta));
+        ),
+      );
     } else if (isInserting) {
       context.missing(_correctCountMeta);
     }
     if (data.containsKey('duration_seconds')) {
       context.handle(
+        _durationSecondsMeta,
+        durationSeconds.isAcceptableOrUnknown(
+          data['duration_seconds']!,
           _durationSecondsMeta,
-          durationSeconds.isAcceptableOrUnknown(
-              data['duration_seconds']!, _durationSecondsMeta));
+        ),
+      );
     } else if (isInserting) {
       context.missing(_durationSecondsMeta);
     }
     if (data.containsKey('mastered_word_count')) {
       context.handle(
+        _masteredWordCountMeta,
+        masteredWordCount.isAcceptableOrUnknown(
+          data['mastered_word_count']!,
           _masteredWordCountMeta,
-          masteredWordCount.isAcceptableOrUnknown(
-              data['mastered_word_count']!, _masteredWordCountMeta));
+        ),
+      );
     } else if (isInserting) {
       context.missing(_masteredWordCountMeta);
     }
     if (data.containsKey('completed_at')) {
       context.handle(
+        _completedAtMeta,
+        completedAt.isAcceptableOrUnknown(
+          data['completed_at']!,
           _completedAtMeta,
-          completedAt.isAcceptableOrUnknown(
-              data['completed_at']!, _completedAtMeta));
+        ),
+      );
     } else if (isInserting) {
       context.missing(_completedAtMeta);
     }
@@ -3191,28 +3845,50 @@ class $QuizSessionsTableTable extends QuizSessionsTable
   QuizSessionsTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return QuizSessionsTableData(
-      id: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      userId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
-      listId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}list_id']),
-      listName: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}list_name'])!,
-      mode: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}mode'])!,
-      direction: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}direction'])!,
-      cardCount: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}card_count'])!,
-      correctCount: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}correct_count'])!,
-      durationSeconds: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}duration_seconds'])!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      listId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}list_id'],
+      ),
+      listName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}list_name'],
+      )!,
+      mode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mode'],
+      )!,
+      direction: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}direction'],
+      )!,
+      cardCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}card_count'],
+      )!,
+      correctCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}correct_count'],
+      )!,
+      durationSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_seconds'],
+      )!,
       masteredWordCount: attachedDatabase.typeMapping.read(
-          DriftSqlType.int, data['${effectivePrefix}mastered_word_count'])!,
-      completedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}completed_at'])!,
+        DriftSqlType.int,
+        data['${effectivePrefix}mastered_word_count'],
+      )!,
+      completedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}completed_at'],
+      )!,
     );
   }
 
@@ -3245,18 +3921,19 @@ class QuizSessionsTableData extends DataClass
   /// Total mastered words across ALL lists at the moment the session ended.
   final int masteredWordCount;
   final DateTime completedAt;
-  const QuizSessionsTableData(
-      {required this.id,
-      required this.userId,
-      this.listId,
-      required this.listName,
-      required this.mode,
-      required this.direction,
-      required this.cardCount,
-      required this.correctCount,
-      required this.durationSeconds,
-      required this.masteredWordCount,
-      required this.completedAt});
+  const QuizSessionsTableData({
+    required this.id,
+    required this.userId,
+    this.listId,
+    required this.listName,
+    required this.mode,
+    required this.direction,
+    required this.cardCount,
+    required this.correctCount,
+    required this.durationSeconds,
+    required this.masteredWordCount,
+    required this.completedAt,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -3280,8 +3957,9 @@ class QuizSessionsTableData extends DataClass
     return QuizSessionsTableCompanion(
       id: Value(id),
       userId: Value(userId),
-      listId:
-          listId == null && nullToAbsent ? const Value.absent() : Value(listId),
+      listId: listId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(listId),
       listName: Value(listName),
       mode: Value(mode),
       direction: Value(direction),
@@ -3293,8 +3971,10 @@ class QuizSessionsTableData extends DataClass
     );
   }
 
-  factory QuizSessionsTableData.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
+  factory QuizSessionsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return QuizSessionsTableData(
       id: serializer.fromJson<String>(json['id']),
@@ -3328,31 +4008,31 @@ class QuizSessionsTableData extends DataClass
     };
   }
 
-  QuizSessionsTableData copyWith(
-          {String? id,
-          String? userId,
-          Value<String?> listId = const Value.absent(),
-          String? listName,
-          String? mode,
-          String? direction,
-          int? cardCount,
-          int? correctCount,
-          int? durationSeconds,
-          int? masteredWordCount,
-          DateTime? completedAt}) =>
-      QuizSessionsTableData(
-        id: id ?? this.id,
-        userId: userId ?? this.userId,
-        listId: listId.present ? listId.value : this.listId,
-        listName: listName ?? this.listName,
-        mode: mode ?? this.mode,
-        direction: direction ?? this.direction,
-        cardCount: cardCount ?? this.cardCount,
-        correctCount: correctCount ?? this.correctCount,
-        durationSeconds: durationSeconds ?? this.durationSeconds,
-        masteredWordCount: masteredWordCount ?? this.masteredWordCount,
-        completedAt: completedAt ?? this.completedAt,
-      );
+  QuizSessionsTableData copyWith({
+    String? id,
+    String? userId,
+    Value<String?> listId = const Value.absent(),
+    String? listName,
+    String? mode,
+    String? direction,
+    int? cardCount,
+    int? correctCount,
+    int? durationSeconds,
+    int? masteredWordCount,
+    DateTime? completedAt,
+  }) => QuizSessionsTableData(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    listId: listId.present ? listId.value : this.listId,
+    listName: listName ?? this.listName,
+    mode: mode ?? this.mode,
+    direction: direction ?? this.direction,
+    cardCount: cardCount ?? this.cardCount,
+    correctCount: correctCount ?? this.correctCount,
+    durationSeconds: durationSeconds ?? this.durationSeconds,
+    masteredWordCount: masteredWordCount ?? this.masteredWordCount,
+    completedAt: completedAt ?? this.completedAt,
+  );
   QuizSessionsTableData copyWithCompanion(QuizSessionsTableCompanion data) {
     return QuizSessionsTableData(
       id: data.id.present ? data.id.value : this.id,
@@ -3371,8 +4051,9 @@ class QuizSessionsTableData extends DataClass
       masteredWordCount: data.masteredWordCount.present
           ? data.masteredWordCount.value
           : this.masteredWordCount,
-      completedAt:
-          data.completedAt.present ? data.completedAt.value : this.completedAt,
+      completedAt: data.completedAt.present
+          ? data.completedAt.value
+          : this.completedAt,
     );
   }
 
@@ -3395,8 +4076,19 @@ class QuizSessionsTableData extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(id, userId, listId, listName, mode, direction,
-      cardCount, correctCount, durationSeconds, masteredWordCount, completedAt);
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    listId,
+    listName,
+    mode,
+    direction,
+    cardCount,
+    correctCount,
+    durationSeconds,
+    masteredWordCount,
+    completedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3455,16 +4147,16 @@ class QuizSessionsTableCompanion
     required int masteredWordCount,
     required DateTime completedAt,
     this.rowid = const Value.absent(),
-  })  : id = Value(id),
-        userId = Value(userId),
-        listName = Value(listName),
-        mode = Value(mode),
-        direction = Value(direction),
-        cardCount = Value(cardCount),
-        correctCount = Value(correctCount),
-        durationSeconds = Value(durationSeconds),
-        masteredWordCount = Value(masteredWordCount),
-        completedAt = Value(completedAt);
+  }) : id = Value(id),
+       userId = Value(userId),
+       listName = Value(listName),
+       mode = Value(mode),
+       direction = Value(direction),
+       cardCount = Value(cardCount),
+       correctCount = Value(correctCount),
+       durationSeconds = Value(durationSeconds),
+       masteredWordCount = Value(masteredWordCount),
+       completedAt = Value(completedAt);
   static Insertable<QuizSessionsTableData> custom({
     Expression<String>? id,
     Expression<String>? userId,
@@ -3495,19 +4187,20 @@ class QuizSessionsTableCompanion
     });
   }
 
-  QuizSessionsTableCompanion copyWith(
-      {Value<String>? id,
-      Value<String>? userId,
-      Value<String?>? listId,
-      Value<String>? listName,
-      Value<String>? mode,
-      Value<String>? direction,
-      Value<int>? cardCount,
-      Value<int>? correctCount,
-      Value<int>? durationSeconds,
-      Value<int>? masteredWordCount,
-      Value<DateTime>? completedAt,
-      Value<int>? rowid}) {
+  QuizSessionsTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String?>? listId,
+    Value<String>? listName,
+    Value<String>? mode,
+    Value<String>? direction,
+    Value<int>? cardCount,
+    Value<int>? correctCount,
+    Value<int>? durationSeconds,
+    Value<int>? masteredWordCount,
+    Value<DateTime>? completedAt,
+    Value<int>? rowid,
+  }) {
     return QuizSessionsTableCompanion(
       id: id ?? this.id,
       userId: userId ?? this.userId,
@@ -3595,73 +4288,112 @@ class $GrammarProgressTableTable extends GrammarProgressTable
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
-      'id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
   @override
   late final GeneratedColumn<String> userId = GeneratedColumn<String>(
-      'user_id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _ruleIdMeta = const VerificationMeta('ruleId');
   @override
   late final GeneratedColumn<String> ruleId = GeneratedColumn<String>(
-      'rule_id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'rule_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _shownMeta = const VerificationMeta('shown');
   @override
   late final GeneratedColumn<int> shown = GeneratedColumn<int>(
-      'shown', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
-  static const VerificationMeta _correctMeta =
-      const VerificationMeta('correct');
+    'shown',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _correctMeta = const VerificationMeta(
+    'correct',
+  );
   @override
   late final GeneratedColumn<int> correct = GeneratedColumn<int>(
-      'correct', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
-  static const VerificationMeta _masteredAtMeta =
-      const VerificationMeta('masteredAt');
+    'correct',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _masteredAtMeta = const VerificationMeta(
+    'masteredAt',
+  );
   @override
   late final GeneratedColumn<DateTime> masteredAt = GeneratedColumn<DateTime>(
-      'mastered_at', aliasedName, true,
-      type: DriftSqlType.dateTime, requiredDuringInsert: false);
-  static const VerificationMeta _isSyncedMeta =
-      const VerificationMeta('isSynced');
+    'mastered_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
   @override
   late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
-      'is_synced', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
-      defaultValue: const Constant(false));
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
   @override
   late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _updatedAtMeta =
-      const VerificationMeta('updatedAt');
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
   @override
   late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        userId,
-        ruleId,
-        shown,
-        correct,
-        masteredAt,
-        isSynced,
-        createdAt,
-        updatedAt
-      ];
+    id,
+    userId,
+    ruleId,
+    shown,
+    correct,
+    masteredAt,
+    isSynced,
+    createdAt,
+    updatedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -3669,8 +4401,9 @@ class $GrammarProgressTableTable extends GrammarProgressTable
   static const String $name = 'grammar_progress';
   @override
   VerificationContext validateIntegrity(
-      Insertable<GrammarProgressTableData> instance,
-      {bool isInserting = false}) {
+    Insertable<GrammarProgressTableData> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -3679,44 +4412,58 @@ class $GrammarProgressTableTable extends GrammarProgressTable
       context.missing(_idMeta);
     }
     if (data.containsKey('user_id')) {
-      context.handle(_userIdMeta,
-          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
     } else if (isInserting) {
       context.missing(_userIdMeta);
     }
     if (data.containsKey('rule_id')) {
-      context.handle(_ruleIdMeta,
-          ruleId.isAcceptableOrUnknown(data['rule_id']!, _ruleIdMeta));
+      context.handle(
+        _ruleIdMeta,
+        ruleId.isAcceptableOrUnknown(data['rule_id']!, _ruleIdMeta),
+      );
     } else if (isInserting) {
       context.missing(_ruleIdMeta);
     }
     if (data.containsKey('shown')) {
       context.handle(
-          _shownMeta, shown.isAcceptableOrUnknown(data['shown']!, _shownMeta));
+        _shownMeta,
+        shown.isAcceptableOrUnknown(data['shown']!, _shownMeta),
+      );
     }
     if (data.containsKey('correct')) {
-      context.handle(_correctMeta,
-          correct.isAcceptableOrUnknown(data['correct']!, _correctMeta));
+      context.handle(
+        _correctMeta,
+        correct.isAcceptableOrUnknown(data['correct']!, _correctMeta),
+      );
     }
     if (data.containsKey('mastered_at')) {
       context.handle(
-          _masteredAtMeta,
-          masteredAt.isAcceptableOrUnknown(
-              data['mastered_at']!, _masteredAtMeta));
+        _masteredAtMeta,
+        masteredAt.isAcceptableOrUnknown(data['mastered_at']!, _masteredAtMeta),
+      );
     }
     if (data.containsKey('is_synced')) {
-      context.handle(_isSyncedMeta,
-          isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
     }
     if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
     if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta,
-          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
@@ -3726,28 +4473,48 @@ class $GrammarProgressTableTable extends GrammarProgressTable
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  GrammarProgressTableData map(Map<String, dynamic> data,
-      {String? tablePrefix}) {
+  GrammarProgressTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return GrammarProgressTableData(
-      id: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      userId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
-      ruleId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}rule_id'])!,
-      shown: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}shown'])!,
-      correct: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}correct'])!,
-      masteredAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}mastered_at']),
-      isSynced: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
-      updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      ruleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rule_id'],
+      )!,
+      shown: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}shown'],
+      )!,
+      correct: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}correct'],
+      )!,
+      masteredAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}mastered_at'],
+      ),
+      isSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_synced'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
     );
   }
 
@@ -3768,16 +4535,17 @@ class GrammarProgressTableData extends DataClass
   final bool isSynced;
   final DateTime createdAt;
   final DateTime updatedAt;
-  const GrammarProgressTableData(
-      {required this.id,
-      required this.userId,
-      required this.ruleId,
-      required this.shown,
-      required this.correct,
-      this.masteredAt,
-      required this.isSynced,
-      required this.createdAt,
-      required this.updatedAt});
+  const GrammarProgressTableData({
+    required this.id,
+    required this.userId,
+    required this.ruleId,
+    required this.shown,
+    required this.correct,
+    this.masteredAt,
+    required this.isSynced,
+    required this.createdAt,
+    required this.updatedAt,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -3811,8 +4579,10 @@ class GrammarProgressTableData extends DataClass
     );
   }
 
-  factory GrammarProgressTableData.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
+  factory GrammarProgressTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return GrammarProgressTableData(
       id: serializer.fromJson<String>(json['id']),
@@ -3842,37 +4612,39 @@ class GrammarProgressTableData extends DataClass
     };
   }
 
-  GrammarProgressTableData copyWith(
-          {String? id,
-          String? userId,
-          String? ruleId,
-          int? shown,
-          int? correct,
-          Value<DateTime?> masteredAt = const Value.absent(),
-          bool? isSynced,
-          DateTime? createdAt,
-          DateTime? updatedAt}) =>
-      GrammarProgressTableData(
-        id: id ?? this.id,
-        userId: userId ?? this.userId,
-        ruleId: ruleId ?? this.ruleId,
-        shown: shown ?? this.shown,
-        correct: correct ?? this.correct,
-        masteredAt: masteredAt.present ? masteredAt.value : this.masteredAt,
-        isSynced: isSynced ?? this.isSynced,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+  GrammarProgressTableData copyWith({
+    String? id,
+    String? userId,
+    String? ruleId,
+    int? shown,
+    int? correct,
+    Value<DateTime?> masteredAt = const Value.absent(),
+    bool? isSynced,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => GrammarProgressTableData(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    ruleId: ruleId ?? this.ruleId,
+    shown: shown ?? this.shown,
+    correct: correct ?? this.correct,
+    masteredAt: masteredAt.present ? masteredAt.value : this.masteredAt,
+    isSynced: isSynced ?? this.isSynced,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
   GrammarProgressTableData copyWithCompanion(
-      GrammarProgressTableCompanion data) {
+    GrammarProgressTableCompanion data,
+  ) {
     return GrammarProgressTableData(
       id: data.id.present ? data.id.value : this.id,
       userId: data.userId.present ? data.userId.value : this.userId,
       ruleId: data.ruleId.present ? data.ruleId.value : this.ruleId,
       shown: data.shown.present ? data.shown.value : this.shown,
       correct: data.correct.present ? data.correct.value : this.correct,
-      masteredAt:
-          data.masteredAt.present ? data.masteredAt.value : this.masteredAt,
+      masteredAt: data.masteredAt.present
+          ? data.masteredAt.value
+          : this.masteredAt,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -3896,8 +4668,17 @@ class GrammarProgressTableData extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(id, userId, ruleId, shown, correct,
-      masteredAt, isSynced, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    ruleId,
+    shown,
+    correct,
+    masteredAt,
+    isSynced,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3948,11 +4729,11 @@ class GrammarProgressTableCompanion
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
-  })  : id = Value(id),
-        userId = Value(userId),
-        ruleId = Value(ruleId),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt);
+  }) : id = Value(id),
+       userId = Value(userId),
+       ruleId = Value(ruleId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
   static Insertable<GrammarProgressTableData> custom({
     Expression<String>? id,
     Expression<String>? userId,
@@ -3979,17 +4760,18 @@ class GrammarProgressTableCompanion
     });
   }
 
-  GrammarProgressTableCompanion copyWith(
-      {Value<String>? id,
-      Value<String>? userId,
-      Value<String>? ruleId,
-      Value<int>? shown,
-      Value<int>? correct,
-      Value<DateTime?>? masteredAt,
-      Value<bool>? isSynced,
-      Value<DateTime>? createdAt,
-      Value<DateTime>? updatedAt,
-      Value<int>? rowid}) {
+  GrammarProgressTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? ruleId,
+    Value<int>? shown,
+    Value<int>? correct,
+    Value<DateTime?>? masteredAt,
+    Value<bool>? isSynced,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
     return GrammarProgressTableCompanion(
       id: id ?? this.id,
       userId: userId ?? this.userId,
@@ -4067,92 +4849,147 @@ class $ReviewEventsTableTable extends ReviewEventsTable
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
-      'id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
   @override
   late final GeneratedColumn<String> userId = GeneratedColumn<String>(
-      'user_id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _variantIdMeta =
-      const VerificationMeta('variantId');
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _variantIdMeta = const VerificationMeta(
+    'variantId',
+  );
   @override
   late final GeneratedColumn<String> variantId = GeneratedColumn<String>(
-      'variant_id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _directionMeta =
-      const VerificationMeta('direction');
+    'variant_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _directionMeta = const VerificationMeta(
+    'direction',
+  );
   @override
   late final GeneratedColumn<String> direction = GeneratedColumn<String>(
-      'direction', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'direction',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _listIdMeta = const VerificationMeta('listId');
   @override
   late final GeneratedColumn<String> listId = GeneratedColumn<String>(
-      'list_id', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
+    'list_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _modeMeta = const VerificationMeta('mode');
   @override
   late final GeneratedColumn<String> mode = GeneratedColumn<String>(
-      'mode', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _correctMeta =
-      const VerificationMeta('correct');
+    'mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _correctMeta = const VerificationMeta(
+    'correct',
+  );
   @override
   late final GeneratedColumn<bool> correct = GeneratedColumn<bool>(
-      'correct', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: true,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('CHECK ("correct" IN (0, 1))'));
+    'correct',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("correct" IN (0, 1))',
+    ),
+  );
   static const VerificationMeta _ratingMeta = const VerificationMeta('rating');
   @override
   late final GeneratedColumn<String> rating = GeneratedColumn<String>(
-      'rating', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _responseTimeMsMeta =
-      const VerificationMeta('responseTimeMs');
+    'rating',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _responseTimeMsMeta = const VerificationMeta(
+    'responseTimeMs',
+  );
   @override
   late final GeneratedColumn<int> responseTimeMs = GeneratedColumn<int>(
-      'response_time_ms', aliasedName, true,
-      type: DriftSqlType.int, requiredDuringInsert: false);
-  static const VerificationMeta _retryCountMeta =
-      const VerificationMeta('retryCount');
+    'response_time_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _retryCountMeta = const VerificationMeta(
+    'retryCount',
+  );
   @override
   late final GeneratedColumn<int> retryCount = GeneratedColumn<int>(
-      'retry_count', aliasedName, true,
-      type: DriftSqlType.int, requiredDuringInsert: false);
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
+    'retry_count',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
   @override
   late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _isSyncedMeta =
-      const VerificationMeta('isSynced');
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
   @override
   late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
-      'is_synced', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
-      defaultValue: const Constant(false));
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
-        id,
-        userId,
-        variantId,
-        direction,
-        listId,
-        mode,
-        correct,
-        rating,
-        responseTimeMs,
-        retryCount,
-        createdAt,
-        isSynced
-      ];
+    id,
+    userId,
+    variantId,
+    direction,
+    listId,
+    mode,
+    correct,
+    rating,
+    responseTimeMs,
+    retryCount,
+    createdAt,
+    isSynced,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -4160,8 +4997,9 @@ class $ReviewEventsTableTable extends ReviewEventsTable
   static const String $name = 'review_events';
   @override
   VerificationContext validateIntegrity(
-      Insertable<ReviewEventsTableData> instance,
-      {bool isInserting = false}) {
+    Insertable<ReviewEventsTableData> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -4170,66 +5008,87 @@ class $ReviewEventsTableTable extends ReviewEventsTable
       context.missing(_idMeta);
     }
     if (data.containsKey('user_id')) {
-      context.handle(_userIdMeta,
-          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
     } else if (isInserting) {
       context.missing(_userIdMeta);
     }
     if (data.containsKey('variant_id')) {
-      context.handle(_variantIdMeta,
-          variantId.isAcceptableOrUnknown(data['variant_id']!, _variantIdMeta));
+      context.handle(
+        _variantIdMeta,
+        variantId.isAcceptableOrUnknown(data['variant_id']!, _variantIdMeta),
+      );
     } else if (isInserting) {
       context.missing(_variantIdMeta);
     }
     if (data.containsKey('direction')) {
-      context.handle(_directionMeta,
-          direction.isAcceptableOrUnknown(data['direction']!, _directionMeta));
+      context.handle(
+        _directionMeta,
+        direction.isAcceptableOrUnknown(data['direction']!, _directionMeta),
+      );
     } else if (isInserting) {
       context.missing(_directionMeta);
     }
     if (data.containsKey('list_id')) {
-      context.handle(_listIdMeta,
-          listId.isAcceptableOrUnknown(data['list_id']!, _listIdMeta));
+      context.handle(
+        _listIdMeta,
+        listId.isAcceptableOrUnknown(data['list_id']!, _listIdMeta),
+      );
     }
     if (data.containsKey('mode')) {
       context.handle(
-          _modeMeta, mode.isAcceptableOrUnknown(data['mode']!, _modeMeta));
+        _modeMeta,
+        mode.isAcceptableOrUnknown(data['mode']!, _modeMeta),
+      );
     } else if (isInserting) {
       context.missing(_modeMeta);
     }
     if (data.containsKey('correct')) {
-      context.handle(_correctMeta,
-          correct.isAcceptableOrUnknown(data['correct']!, _correctMeta));
+      context.handle(
+        _correctMeta,
+        correct.isAcceptableOrUnknown(data['correct']!, _correctMeta),
+      );
     } else if (isInserting) {
       context.missing(_correctMeta);
     }
     if (data.containsKey('rating')) {
-      context.handle(_ratingMeta,
-          rating.isAcceptableOrUnknown(data['rating']!, _ratingMeta));
+      context.handle(
+        _ratingMeta,
+        rating.isAcceptableOrUnknown(data['rating']!, _ratingMeta),
+      );
     } else if (isInserting) {
       context.missing(_ratingMeta);
     }
     if (data.containsKey('response_time_ms')) {
       context.handle(
+        _responseTimeMsMeta,
+        responseTimeMs.isAcceptableOrUnknown(
+          data['response_time_ms']!,
           _responseTimeMsMeta,
-          responseTimeMs.isAcceptableOrUnknown(
-              data['response_time_ms']!, _responseTimeMsMeta));
+        ),
+      );
     }
     if (data.containsKey('retry_count')) {
       context.handle(
-          _retryCountMeta,
-          retryCount.isAcceptableOrUnknown(
-              data['retry_count']!, _retryCountMeta));
+        _retryCountMeta,
+        retryCount.isAcceptableOrUnknown(data['retry_count']!, _retryCountMeta),
+      );
     }
     if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
     if (data.containsKey('is_synced')) {
-      context.handle(_isSyncedMeta,
-          isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
     }
     return context;
   }
@@ -4240,30 +5099,54 @@ class $ReviewEventsTableTable extends ReviewEventsTable
   ReviewEventsTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return ReviewEventsTableData(
-      id: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      userId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
-      variantId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}variant_id'])!,
-      direction: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}direction'])!,
-      listId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}list_id']),
-      mode: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}mode'])!,
-      correct: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}correct'])!,
-      rating: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}rating'])!,
-      responseTimeMs: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}response_time_ms']),
-      retryCount: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}retry_count']),
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
-      isSynced: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      variantId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}variant_id'],
+      )!,
+      direction: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}direction'],
+      )!,
+      listId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}list_id'],
+      ),
+      mode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mode'],
+      )!,
+      correct: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}correct'],
+      )!,
+      rating: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rating'],
+      )!,
+      responseTimeMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}response_time_ms'],
+      ),
+      retryCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}retry_count'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      isSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_synced'],
+      )!,
     );
   }
 
@@ -4287,19 +5170,20 @@ class ReviewEventsTableData extends DataClass
   final int? retryCount;
   final DateTime createdAt;
   final bool isSynced;
-  const ReviewEventsTableData(
-      {required this.id,
-      required this.userId,
-      required this.variantId,
-      required this.direction,
-      this.listId,
-      required this.mode,
-      required this.correct,
-      required this.rating,
-      this.responseTimeMs,
-      this.retryCount,
-      required this.createdAt,
-      required this.isSynced});
+  const ReviewEventsTableData({
+    required this.id,
+    required this.userId,
+    required this.variantId,
+    required this.direction,
+    this.listId,
+    required this.mode,
+    required this.correct,
+    required this.rating,
+    this.responseTimeMs,
+    this.retryCount,
+    required this.createdAt,
+    required this.isSynced,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -4330,8 +5214,9 @@ class ReviewEventsTableData extends DataClass
       userId: Value(userId),
       variantId: Value(variantId),
       direction: Value(direction),
-      listId:
-          listId == null && nullToAbsent ? const Value.absent() : Value(listId),
+      listId: listId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(listId),
       mode: Value(mode),
       correct: Value(correct),
       rating: Value(rating),
@@ -4346,8 +5231,10 @@ class ReviewEventsTableData extends DataClass
     );
   }
 
-  factory ReviewEventsTableData.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
+  factory ReviewEventsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return ReviewEventsTableData(
       id: serializer.fromJson<String>(json['id']),
@@ -4383,34 +5270,35 @@ class ReviewEventsTableData extends DataClass
     };
   }
 
-  ReviewEventsTableData copyWith(
-          {String? id,
-          String? userId,
-          String? variantId,
-          String? direction,
-          Value<String?> listId = const Value.absent(),
-          String? mode,
-          bool? correct,
-          String? rating,
-          Value<int?> responseTimeMs = const Value.absent(),
-          Value<int?> retryCount = const Value.absent(),
-          DateTime? createdAt,
-          bool? isSynced}) =>
-      ReviewEventsTableData(
-        id: id ?? this.id,
-        userId: userId ?? this.userId,
-        variantId: variantId ?? this.variantId,
-        direction: direction ?? this.direction,
-        listId: listId.present ? listId.value : this.listId,
-        mode: mode ?? this.mode,
-        correct: correct ?? this.correct,
-        rating: rating ?? this.rating,
-        responseTimeMs:
-            responseTimeMs.present ? responseTimeMs.value : this.responseTimeMs,
-        retryCount: retryCount.present ? retryCount.value : this.retryCount,
-        createdAt: createdAt ?? this.createdAt,
-        isSynced: isSynced ?? this.isSynced,
-      );
+  ReviewEventsTableData copyWith({
+    String? id,
+    String? userId,
+    String? variantId,
+    String? direction,
+    Value<String?> listId = const Value.absent(),
+    String? mode,
+    bool? correct,
+    String? rating,
+    Value<int?> responseTimeMs = const Value.absent(),
+    Value<int?> retryCount = const Value.absent(),
+    DateTime? createdAt,
+    bool? isSynced,
+  }) => ReviewEventsTableData(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    variantId: variantId ?? this.variantId,
+    direction: direction ?? this.direction,
+    listId: listId.present ? listId.value : this.listId,
+    mode: mode ?? this.mode,
+    correct: correct ?? this.correct,
+    rating: rating ?? this.rating,
+    responseTimeMs: responseTimeMs.present
+        ? responseTimeMs.value
+        : this.responseTimeMs,
+    retryCount: retryCount.present ? retryCount.value : this.retryCount,
+    createdAt: createdAt ?? this.createdAt,
+    isSynced: isSynced ?? this.isSynced,
+  );
   ReviewEventsTableData copyWithCompanion(ReviewEventsTableCompanion data) {
     return ReviewEventsTableData(
       id: data.id.present ? data.id.value : this.id,
@@ -4424,8 +5312,9 @@ class ReviewEventsTableData extends DataClass
       responseTimeMs: data.responseTimeMs.present
           ? data.responseTimeMs.value
           : this.responseTimeMs,
-      retryCount:
-          data.retryCount.present ? data.retryCount.value : this.retryCount,
+      retryCount: data.retryCount.present
+          ? data.retryCount.value
+          : this.retryCount,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
     );
@@ -4451,8 +5340,20 @@ class ReviewEventsTableData extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(id, userId, variantId, direction, listId,
-      mode, correct, rating, responseTimeMs, retryCount, createdAt, isSynced);
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    variantId,
+    direction,
+    listId,
+    mode,
+    correct,
+    rating,
+    responseTimeMs,
+    retryCount,
+    createdAt,
+    isSynced,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4515,14 +5416,14 @@ class ReviewEventsTableCompanion
     required DateTime createdAt,
     this.isSynced = const Value.absent(),
     this.rowid = const Value.absent(),
-  })  : id = Value(id),
-        userId = Value(userId),
-        variantId = Value(variantId),
-        direction = Value(direction),
-        mode = Value(mode),
-        correct = Value(correct),
-        rating = Value(rating),
-        createdAt = Value(createdAt);
+  }) : id = Value(id),
+       userId = Value(userId),
+       variantId = Value(variantId),
+       direction = Value(direction),
+       mode = Value(mode),
+       correct = Value(correct),
+       rating = Value(rating),
+       createdAt = Value(createdAt);
   static Insertable<ReviewEventsTableData> custom({
     Expression<String>? id,
     Expression<String>? userId,
@@ -4555,20 +5456,21 @@ class ReviewEventsTableCompanion
     });
   }
 
-  ReviewEventsTableCompanion copyWith(
-      {Value<String>? id,
-      Value<String>? userId,
-      Value<String>? variantId,
-      Value<String>? direction,
-      Value<String?>? listId,
-      Value<String>? mode,
-      Value<bool>? correct,
-      Value<String>? rating,
-      Value<int?>? responseTimeMs,
-      Value<int?>? retryCount,
-      Value<DateTime>? createdAt,
-      Value<bool>? isSynced,
-      Value<int>? rowid}) {
+  ReviewEventsTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? variantId,
+    Value<String>? direction,
+    Value<String?>? listId,
+    Value<String>? mode,
+    Value<bool>? correct,
+    Value<String>? rating,
+    Value<int?>? responseTimeMs,
+    Value<int?>? retryCount,
+    Value<DateTime>? createdAt,
+    Value<bool>? isSynced,
+    Value<int>? rowid,
+  }) {
     return ReviewEventsTableCompanion(
       id: id ?? this.id,
       userId: userId ?? this.userId,
@@ -4654,8 +5556,10 @@ class ReviewEventsTableCompanion
 
 class $SharedImportBootstrapTableTable extends SharedImportBootstrapTable
     with
-        TableInfo<$SharedImportBootstrapTableTable,
-            SharedImportBootstrapTableData> {
+        TableInfo<
+          $SharedImportBootstrapTableTable,
+          SharedImportBootstrapTableData
+        > {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -4663,14 +5567,23 @@ class $SharedImportBootstrapTableTable extends SharedImportBootstrapTable
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
-      'id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _snapshotMeta =
-      const VerificationMeta('snapshot');
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _snapshotMeta = const VerificationMeta(
+    'snapshot',
+  );
   @override
   late final GeneratedColumn<String> snapshot = GeneratedColumn<String>(
-      'snapshot', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+    'snapshot',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   @override
   List<GeneratedColumn> get $columns => [id, snapshot];
   @override
@@ -4680,8 +5593,9 @@ class $SharedImportBootstrapTableTable extends SharedImportBootstrapTable
   static const String $name = 'shared_import_bootstrap';
   @override
   VerificationContext validateIntegrity(
-      Insertable<SharedImportBootstrapTableData> instance,
-      {bool isInserting = false}) {
+    Insertable<SharedImportBootstrapTableData> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -4690,8 +5604,10 @@ class $SharedImportBootstrapTableTable extends SharedImportBootstrapTable
       context.missing(_idMeta);
     }
     if (data.containsKey('snapshot')) {
-      context.handle(_snapshotMeta,
-          snapshot.isAcceptableOrUnknown(data['snapshot']!, _snapshotMeta));
+      context.handle(
+        _snapshotMeta,
+        snapshot.isAcceptableOrUnknown(data['snapshot']!, _snapshotMeta),
+      );
     } else if (isInserting) {
       context.missing(_snapshotMeta);
     }
@@ -4701,14 +5617,20 @@ class $SharedImportBootstrapTableTable extends SharedImportBootstrapTable
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  SharedImportBootstrapTableData map(Map<String, dynamic> data,
-      {String? tablePrefix}) {
+  SharedImportBootstrapTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return SharedImportBootstrapTableData(
-      id: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      snapshot: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}snapshot'])!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      snapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}snapshot'],
+      )!,
     );
   }
 
@@ -4722,8 +5644,10 @@ class SharedImportBootstrapTableData extends DataClass
     implements Insertable<SharedImportBootstrapTableData> {
   final String id;
   final String snapshot;
-  const SharedImportBootstrapTableData(
-      {required this.id, required this.snapshot});
+  const SharedImportBootstrapTableData({
+    required this.id,
+    required this.snapshot,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -4739,8 +5663,10 @@ class SharedImportBootstrapTableData extends DataClass
     );
   }
 
-  factory SharedImportBootstrapTableData.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
+  factory SharedImportBootstrapTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return SharedImportBootstrapTableData(
       id: serializer.fromJson<String>(json['id']),
@@ -4762,7 +5688,8 @@ class SharedImportBootstrapTableData extends DataClass
         snapshot: snapshot ?? this.snapshot,
       );
   SharedImportBootstrapTableData copyWithCompanion(
-      SharedImportBootstrapTableCompanion data) {
+    SharedImportBootstrapTableCompanion data,
+  ) {
     return SharedImportBootstrapTableData(
       id: data.id.present ? data.id.value : this.id,
       snapshot: data.snapshot.present ? data.snapshot.value : this.snapshot,
@@ -4802,8 +5729,8 @@ class SharedImportBootstrapTableCompanion
     required String id,
     required String snapshot,
     this.rowid = const Value.absent(),
-  })  : id = Value(id),
-        snapshot = Value(snapshot);
+  }) : id = Value(id),
+       snapshot = Value(snapshot);
   static Insertable<SharedImportBootstrapTableData> custom({
     Expression<String>? id,
     Expression<String>? snapshot,
@@ -4816,8 +5743,11 @@ class SharedImportBootstrapTableCompanion
     });
   }
 
-  SharedImportBootstrapTableCompanion copyWith(
-      {Value<String>? id, Value<String>? snapshot, Value<int>? rowid}) {
+  SharedImportBootstrapTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? snapshot,
+    Value<int>? rowid,
+  }) {
     return SharedImportBootstrapTableCompanion(
       id: id ?? this.id,
       snapshot: snapshot ?? this.snapshot,
@@ -4869,91 +5799,109 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $ReviewEventsTableTable(this);
   late final $SharedImportBootstrapTableTable sharedImportBootstrapTable =
       $SharedImportBootstrapTableTable(this);
-  late final VocabularyListDao vocabularyListDao =
-      VocabularyListDao(this as AppDatabase);
+  late final VocabularyListDao vocabularyListDao = VocabularyListDao(
+    this as AppDatabase,
+  );
   late final ConceptDao conceptDao = ConceptDao(this as AppDatabase);
   late final ProgressDao progressDao = ProgressDao(this as AppDatabase);
-  late final QuizSessionDao quizSessionDao =
-      QuizSessionDao(this as AppDatabase);
-  late final GrammarProgressDao grammarProgressDao =
-      GrammarProgressDao(this as AppDatabase);
-  late final ReviewEventDao reviewEventDao =
-      ReviewEventDao(this as AppDatabase);
+  late final QuizSessionDao quizSessionDao = QuizSessionDao(
+    this as AppDatabase,
+  );
+  late final GrammarProgressDao grammarProgressDao = GrammarProgressDao(
+    this as AppDatabase,
+  );
+  late final ReviewEventDao reviewEventDao = ReviewEventDao(
+    this as AppDatabase,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
-        vocabularyListsTable,
-        conceptsTable,
-        wordVariantsTable,
-        variantProgressTable,
-        quizSessionsTable,
-        grammarProgressTable,
-        reviewEventsTable,
-        sharedImportBootstrapTable
-      ];
+    vocabularyListsTable,
+    conceptsTable,
+    wordVariantsTable,
+    variantProgressTable,
+    quizSessionsTable,
+    grammarProgressTable,
+    reviewEventsTable,
+    sharedImportBootstrapTable,
+  ];
 }
 
-typedef $$VocabularyListsTableTableCreateCompanionBuilder
-    = VocabularyListsTableCompanion Function({
-  required String id,
-  required String ownerId,
-  required String name,
-  Value<String?> description,
-  Value<String> visibility,
-  Value<int> wordCount,
-  Value<String?> shareToken,
-  Value<String?> importedFromShareToken,
-  Value<String> langA,
-  Value<String> langB,
-  Value<String> origin,
-  Value<String?> seedId,
-  Value<bool> isSynced,
-  Value<bool> isDeleted,
-  required DateTime createdAt,
-  required DateTime updatedAt,
-  Value<int> rowid,
-});
-typedef $$VocabularyListsTableTableUpdateCompanionBuilder
-    = VocabularyListsTableCompanion Function({
-  Value<String> id,
-  Value<String> ownerId,
-  Value<String> name,
-  Value<String?> description,
-  Value<String> visibility,
-  Value<int> wordCount,
-  Value<String?> shareToken,
-  Value<String?> importedFromShareToken,
-  Value<String> langA,
-  Value<String> langB,
-  Value<String> origin,
-  Value<String?> seedId,
-  Value<bool> isSynced,
-  Value<bool> isDeleted,
-  Value<DateTime> createdAt,
-  Value<DateTime> updatedAt,
-  Value<int> rowid,
-});
+typedef $$VocabularyListsTableTableCreateCompanionBuilder =
+    VocabularyListsTableCompanion Function({
+      required String id,
+      required String ownerId,
+      required String name,
+      Value<String?> description,
+      Value<String> visibility,
+      Value<int> wordCount,
+      Value<String?> shareToken,
+      Value<String?> importedFromShareToken,
+      Value<String> langA,
+      Value<String> langB,
+      Value<String> origin,
+      Value<String?> seedId,
+      Value<bool> isSynced,
+      Value<bool> isDeleted,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$VocabularyListsTableTableUpdateCompanionBuilder =
+    VocabularyListsTableCompanion Function({
+      Value<String> id,
+      Value<String> ownerId,
+      Value<String> name,
+      Value<String?> description,
+      Value<String> visibility,
+      Value<int> wordCount,
+      Value<String?> shareToken,
+      Value<String?> importedFromShareToken,
+      Value<String> langA,
+      Value<String> langB,
+      Value<String> origin,
+      Value<String?> seedId,
+      Value<bool> isSynced,
+      Value<bool> isDeleted,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
 
-final class $$VocabularyListsTableTableReferences extends BaseReferences<
-    _$AppDatabase, $VocabularyListsTableTable, VocabularyListsTableData> {
+final class $$VocabularyListsTableTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $VocabularyListsTableTable,
+          VocabularyListsTableData
+        > {
   $$VocabularyListsTableTableReferences(
-      super.$_db, super.$_table, super.$_typedResult);
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
 
   static MultiTypedResultKey<$ConceptsTableTable, List<ConceptsTableData>>
-      _conceptsTableRefsTable(_$AppDatabase db) =>
-          MultiTypedResultKey.fromTable(db.conceptsTable,
-              aliasName: $_aliasNameGenerator(
-                  db.vocabularyListsTable.id, db.conceptsTable.listId));
+  _conceptsTableRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.conceptsTable,
+    aliasName: $_aliasNameGenerator(
+      db.vocabularyListsTable.id,
+      db.conceptsTable.listId,
+    ),
+  );
 
   $$ConceptsTableTableProcessedTableManager get conceptsTableRefs {
-    final manager = $$ConceptsTableTableTableManager($_db, $_db.conceptsTable)
-        .filter((f) => f.listId.id.sqlEquals($_itemColumn<String>('id')!));
+    final manager = $$ConceptsTableTableTableManager(
+      $_db,
+      $_db.conceptsTable,
+    ).filter((f) => f.listId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_conceptsTableRefsTable($_db));
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: cache));
+      manager.$state.copyWith(prefetchedData: cache),
+    );
   }
 }
 
@@ -4967,72 +5915,107 @@ class $$VocabularyListsTableTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnFilters(column));
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get ownerId => $composableBuilder(
-      column: $table.ownerId, builder: (column) => ColumnFilters(column));
+    column: $table.ownerId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get name => $composableBuilder(
-      column: $table.name, builder: (column) => ColumnFilters(column));
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get description => $composableBuilder(
-      column: $table.description, builder: (column) => ColumnFilters(column));
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get visibility => $composableBuilder(
-      column: $table.visibility, builder: (column) => ColumnFilters(column));
+    column: $table.visibility,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get wordCount => $composableBuilder(
-      column: $table.wordCount, builder: (column) => ColumnFilters(column));
+    column: $table.wordCount,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get shareToken => $composableBuilder(
-      column: $table.shareToken, builder: (column) => ColumnFilters(column));
+    column: $table.shareToken,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get importedFromShareToken => $composableBuilder(
-      column: $table.importedFromShareToken,
-      builder: (column) => ColumnFilters(column));
+    column: $table.importedFromShareToken,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get langA => $composableBuilder(
-      column: $table.langA, builder: (column) => ColumnFilters(column));
+    column: $table.langA,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get langB => $composableBuilder(
-      column: $table.langB, builder: (column) => ColumnFilters(column));
+    column: $table.langB,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get origin => $composableBuilder(
-      column: $table.origin, builder: (column) => ColumnFilters(column));
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get seedId => $composableBuilder(
-      column: $table.seedId, builder: (column) => ColumnFilters(column));
+    column: $table.seedId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
-      column: $table.isSynced, builder: (column) => ColumnFilters(column));
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isDeleted => $composableBuilder(
-      column: $table.isDeleted, builder: (column) => ColumnFilters(column));
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   Expression<bool> conceptsTableRefs(
-      Expression<bool> Function($$ConceptsTableTableFilterComposer f) f) {
+    Expression<bool> Function($$ConceptsTableTableFilterComposer f) f,
+  ) {
     final $$ConceptsTableTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.id,
-        referencedTable: $db.conceptsTable,
-        getReferencedColumn: (t) => t.listId,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$ConceptsTableTableFilterComposer(
-              $db: $db,
-              $table: $db.conceptsTable,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.conceptsTable,
+      getReferencedColumn: (t) => t.listId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConceptsTableTableFilterComposer(
+            $db: $db,
+            $table: $db.conceptsTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 }
@@ -5047,53 +6030,84 @@ class $$VocabularyListsTableTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnOrderings(column));
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get ownerId => $composableBuilder(
-      column: $table.ownerId, builder: (column) => ColumnOrderings(column));
+    column: $table.ownerId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get name => $composableBuilder(
-      column: $table.name, builder: (column) => ColumnOrderings(column));
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get description => $composableBuilder(
-      column: $table.description, builder: (column) => ColumnOrderings(column));
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get visibility => $composableBuilder(
-      column: $table.visibility, builder: (column) => ColumnOrderings(column));
+    column: $table.visibility,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get wordCount => $composableBuilder(
-      column: $table.wordCount, builder: (column) => ColumnOrderings(column));
+    column: $table.wordCount,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get shareToken => $composableBuilder(
-      column: $table.shareToken, builder: (column) => ColumnOrderings(column));
+    column: $table.shareToken,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get importedFromShareToken => $composableBuilder(
-      column: $table.importedFromShareToken,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.importedFromShareToken,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get langA => $composableBuilder(
-      column: $table.langA, builder: (column) => ColumnOrderings(column));
+    column: $table.langA,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get langB => $composableBuilder(
-      column: $table.langB, builder: (column) => ColumnOrderings(column));
+    column: $table.langB,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get origin => $composableBuilder(
-      column: $table.origin, builder: (column) => ColumnOrderings(column));
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get seedId => $composableBuilder(
-      column: $table.seedId, builder: (column) => ColumnOrderings(column));
+    column: $table.seedId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isSynced => $composableBuilder(
-      column: $table.isSynced, builder: (column) => ColumnOrderings(column));
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isDeleted => $composableBuilder(
-      column: $table.isDeleted, builder: (column) => ColumnOrderings(column));
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$VocabularyListsTableTableAnnotationComposer
@@ -5115,19 +6129,27 @@ class $$VocabularyListsTableTableAnnotationComposer
       $composableBuilder(column: $table.name, builder: (column) => column);
 
   GeneratedColumn<String> get description => $composableBuilder(
-      column: $table.description, builder: (column) => column);
+    column: $table.description,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get visibility => $composableBuilder(
-      column: $table.visibility, builder: (column) => column);
+    column: $table.visibility,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get wordCount =>
       $composableBuilder(column: $table.wordCount, builder: (column) => column);
 
   GeneratedColumn<String> get shareToken => $composableBuilder(
-      column: $table.shareToken, builder: (column) => column);
+    column: $table.shareToken,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get importedFromShareToken => $composableBuilder(
-      column: $table.importedFromShareToken, builder: (column) => column);
+    column: $table.importedFromShareToken,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get langA =>
       $composableBuilder(column: $table.langA, builder: (column) => column);
@@ -5154,246 +6176,288 @@ class $$VocabularyListsTableTableAnnotationComposer
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
   Expression<T> conceptsTableRefs<T extends Object>(
-      Expression<T> Function($$ConceptsTableTableAnnotationComposer a) f) {
+    Expression<T> Function($$ConceptsTableTableAnnotationComposer a) f,
+  ) {
     final $$ConceptsTableTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.id,
-        referencedTable: $db.conceptsTable,
-        getReferencedColumn: (t) => t.listId,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$ConceptsTableTableAnnotationComposer(
-              $db: $db,
-              $table: $db.conceptsTable,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.conceptsTable,
+      getReferencedColumn: (t) => t.listId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConceptsTableTableAnnotationComposer(
+            $db: $db,
+            $table: $db.conceptsTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 }
 
-class $$VocabularyListsTableTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $VocabularyListsTableTable,
-    VocabularyListsTableData,
-    $$VocabularyListsTableTableFilterComposer,
-    $$VocabularyListsTableTableOrderingComposer,
-    $$VocabularyListsTableTableAnnotationComposer,
-    $$VocabularyListsTableTableCreateCompanionBuilder,
-    $$VocabularyListsTableTableUpdateCompanionBuilder,
-    (VocabularyListsTableData, $$VocabularyListsTableTableReferences),
-    VocabularyListsTableData,
-    PrefetchHooks Function({bool conceptsTableRefs})> {
+class $$VocabularyListsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $VocabularyListsTableTable,
+          VocabularyListsTableData,
+          $$VocabularyListsTableTableFilterComposer,
+          $$VocabularyListsTableTableOrderingComposer,
+          $$VocabularyListsTableTableAnnotationComposer,
+          $$VocabularyListsTableTableCreateCompanionBuilder,
+          $$VocabularyListsTableTableUpdateCompanionBuilder,
+          (VocabularyListsTableData, $$VocabularyListsTableTableReferences),
+          VocabularyListsTableData,
+          PrefetchHooks Function({bool conceptsTableRefs})
+        > {
   $$VocabularyListsTableTableTableManager(
-      _$AppDatabase db, $VocabularyListsTableTable table)
-      : super(TableManagerState(
+    _$AppDatabase db,
+    $VocabularyListsTableTable table,
+  ) : super(
+        TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
               $$VocabularyListsTableTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
               $$VocabularyListsTableTableOrderingComposer(
-                  $db: db, $table: table),
+                $db: db,
+                $table: table,
+              ),
           createComputedFieldComposer: () =>
               $$VocabularyListsTableTableAnnotationComposer(
-                  $db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<String> id = const Value.absent(),
-            Value<String> ownerId = const Value.absent(),
-            Value<String> name = const Value.absent(),
-            Value<String?> description = const Value.absent(),
-            Value<String> visibility = const Value.absent(),
-            Value<int> wordCount = const Value.absent(),
-            Value<String?> shareToken = const Value.absent(),
-            Value<String?> importedFromShareToken = const Value.absent(),
-            Value<String> langA = const Value.absent(),
-            Value<String> langB = const Value.absent(),
-            Value<String> origin = const Value.absent(),
-            Value<String?> seedId = const Value.absent(),
-            Value<bool> isSynced = const Value.absent(),
-            Value<bool> isDeleted = const Value.absent(),
-            Value<DateTime> createdAt = const Value.absent(),
-            Value<DateTime> updatedAt = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              VocabularyListsTableCompanion(
-            id: id,
-            ownerId: ownerId,
-            name: name,
-            description: description,
-            visibility: visibility,
-            wordCount: wordCount,
-            shareToken: shareToken,
-            importedFromShareToken: importedFromShareToken,
-            langA: langA,
-            langB: langB,
-            origin: origin,
-            seedId: seedId,
-            isSynced: isSynced,
-            isDeleted: isDeleted,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            rowid: rowid,
-          ),
-          createCompanionCallback: ({
-            required String id,
-            required String ownerId,
-            required String name,
-            Value<String?> description = const Value.absent(),
-            Value<String> visibility = const Value.absent(),
-            Value<int> wordCount = const Value.absent(),
-            Value<String?> shareToken = const Value.absent(),
-            Value<String?> importedFromShareToken = const Value.absent(),
-            Value<String> langA = const Value.absent(),
-            Value<String> langB = const Value.absent(),
-            Value<String> origin = const Value.absent(),
-            Value<String?> seedId = const Value.absent(),
-            Value<bool> isSynced = const Value.absent(),
-            Value<bool> isDeleted = const Value.absent(),
-            required DateTime createdAt,
-            required DateTime updatedAt,
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              VocabularyListsTableCompanion.insert(
-            id: id,
-            ownerId: ownerId,
-            name: name,
-            description: description,
-            visibility: visibility,
-            wordCount: wordCount,
-            shareToken: shareToken,
-            importedFromShareToken: importedFromShareToken,
-            langA: langA,
-            langB: langB,
-            origin: origin,
-            seedId: seedId,
-            isSynced: isSynced,
-            isDeleted: isDeleted,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            rowid: rowid,
-          ),
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> ownerId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<String> visibility = const Value.absent(),
+                Value<int> wordCount = const Value.absent(),
+                Value<String?> shareToken = const Value.absent(),
+                Value<String?> importedFromShareToken = const Value.absent(),
+                Value<String> langA = const Value.absent(),
+                Value<String> langB = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<String?> seedId = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => VocabularyListsTableCompanion(
+                id: id,
+                ownerId: ownerId,
+                name: name,
+                description: description,
+                visibility: visibility,
+                wordCount: wordCount,
+                shareToken: shareToken,
+                importedFromShareToken: importedFromShareToken,
+                langA: langA,
+                langB: langB,
+                origin: origin,
+                seedId: seedId,
+                isSynced: isSynced,
+                isDeleted: isDeleted,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String ownerId,
+                required String name,
+                Value<String?> description = const Value.absent(),
+                Value<String> visibility = const Value.absent(),
+                Value<int> wordCount = const Value.absent(),
+                Value<String?> shareToken = const Value.absent(),
+                Value<String?> importedFromShareToken = const Value.absent(),
+                Value<String> langA = const Value.absent(),
+                Value<String> langB = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<String?> seedId = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => VocabularyListsTableCompanion.insert(
+                id: id,
+                ownerId: ownerId,
+                name: name,
+                description: description,
+                visibility: visibility,
+                wordCount: wordCount,
+                shareToken: shareToken,
+                importedFromShareToken: importedFromShareToken,
+                langA: langA,
+                langB: langB,
+                origin: origin,
+                seedId: seedId,
+                isSynced: isSynced,
+                isDeleted: isDeleted,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (
-                    e.readTable(table),
-                    $$VocabularyListsTableTableReferences(db, table, e)
-                  ))
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$VocabularyListsTableTableReferences(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: ({conceptsTableRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
-                if (conceptsTableRefs) db.conceptsTable
+                if (conceptsTableRefs) db.conceptsTable,
               ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
                 return [
                   if (conceptsTableRefs)
-                    await $_getPrefetchedData<VocabularyListsTableData,
-                            $VocabularyListsTableTable, ConceptsTableData>(
-                        currentTable: table,
-                        referencedTable: $$VocabularyListsTableTableReferences
-                            ._conceptsTableRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$VocabularyListsTableTableReferences(db, table, p0)
-                                .conceptsTableRefs,
-                        referencedItemsForCurrentItem: (item,
-                                referencedItems) =>
-                            referencedItems.where((e) => e.listId == item.id),
-                        typedResults: items)
+                    await $_getPrefetchedData<
+                      VocabularyListsTableData,
+                      $VocabularyListsTableTable,
+                      ConceptsTableData
+                    >(
+                      currentTable: table,
+                      referencedTable: $$VocabularyListsTableTableReferences
+                          ._conceptsTableRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$VocabularyListsTableTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).conceptsTableRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.listId == item.id),
+                      typedResults: items,
+                    ),
                 ];
               },
             );
           },
-        ));
+        ),
+      );
 }
 
-typedef $$VocabularyListsTableTableProcessedTableManager
-    = ProcessedTableManager<
-        _$AppDatabase,
-        $VocabularyListsTableTable,
-        VocabularyListsTableData,
-        $$VocabularyListsTableTableFilterComposer,
-        $$VocabularyListsTableTableOrderingComposer,
-        $$VocabularyListsTableTableAnnotationComposer,
-        $$VocabularyListsTableTableCreateCompanionBuilder,
-        $$VocabularyListsTableTableUpdateCompanionBuilder,
-        (VocabularyListsTableData, $$VocabularyListsTableTableReferences),
-        VocabularyListsTableData,
-        PrefetchHooks Function({bool conceptsTableRefs})>;
-typedef $$ConceptsTableTableCreateCompanionBuilder = ConceptsTableCompanion
-    Function({
-  required String id,
-  required String listId,
-  Value<String?> category,
-  Value<String?> notes,
-  Value<String?> imageUrl,
-  Value<String?> exampleFr,
-  Value<String?> exampleKo,
-  Value<String?> seedId,
-  Value<bool> isSynced,
-  Value<bool> isDeleted,
-  required DateTime createdAt,
-  required DateTime updatedAt,
-  Value<int> rowid,
-});
-typedef $$ConceptsTableTableUpdateCompanionBuilder = ConceptsTableCompanion
-    Function({
-  Value<String> id,
-  Value<String> listId,
-  Value<String?> category,
-  Value<String?> notes,
-  Value<String?> imageUrl,
-  Value<String?> exampleFr,
-  Value<String?> exampleKo,
-  Value<String?> seedId,
-  Value<bool> isSynced,
-  Value<bool> isDeleted,
-  Value<DateTime> createdAt,
-  Value<DateTime> updatedAt,
-  Value<int> rowid,
-});
+typedef $$VocabularyListsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $VocabularyListsTableTable,
+      VocabularyListsTableData,
+      $$VocabularyListsTableTableFilterComposer,
+      $$VocabularyListsTableTableOrderingComposer,
+      $$VocabularyListsTableTableAnnotationComposer,
+      $$VocabularyListsTableTableCreateCompanionBuilder,
+      $$VocabularyListsTableTableUpdateCompanionBuilder,
+      (VocabularyListsTableData, $$VocabularyListsTableTableReferences),
+      VocabularyListsTableData,
+      PrefetchHooks Function({bool conceptsTableRefs})
+    >;
+typedef $$ConceptsTableTableCreateCompanionBuilder =
+    ConceptsTableCompanion Function({
+      required String id,
+      required String listId,
+      Value<String?> category,
+      Value<String?> notes,
+      Value<String?> imageUrl,
+      Value<String?> exampleFr,
+      Value<String?> exampleKo,
+      Value<String?> seedId,
+      Value<bool> isSynced,
+      Value<bool> isDeleted,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$ConceptsTableTableUpdateCompanionBuilder =
+    ConceptsTableCompanion Function({
+      Value<String> id,
+      Value<String> listId,
+      Value<String?> category,
+      Value<String?> notes,
+      Value<String?> imageUrl,
+      Value<String?> exampleFr,
+      Value<String?> exampleKo,
+      Value<String?> seedId,
+      Value<bool> isSynced,
+      Value<bool> isDeleted,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
 
-final class $$ConceptsTableTableReferences extends BaseReferences<_$AppDatabase,
-    $ConceptsTableTable, ConceptsTableData> {
+final class $$ConceptsTableTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $ConceptsTableTable, ConceptsTableData> {
   $$ConceptsTableTableReferences(
-      super.$_db, super.$_table, super.$_typedResult);
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
 
   static $VocabularyListsTableTable _listIdTable(_$AppDatabase db) =>
-      db.vocabularyListsTable.createAlias($_aliasNameGenerator(
-          db.conceptsTable.listId, db.vocabularyListsTable.id));
+      db.vocabularyListsTable.createAlias(
+        $_aliasNameGenerator(
+          db.conceptsTable.listId,
+          db.vocabularyListsTable.id,
+        ),
+      );
 
   $$VocabularyListsTableTableProcessedTableManager get listId {
     final $_column = $_itemColumn<String>('list_id')!;
 
-    final manager =
-        $$VocabularyListsTableTableTableManager($_db, $_db.vocabularyListsTable)
-            .filter((f) => f.id.sqlEquals($_column));
+    final manager = $$VocabularyListsTableTableTableManager(
+      $_db,
+      $_db.vocabularyListsTable,
+    ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_listIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: [item]));
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
   }
 
-  static MultiTypedResultKey<$WordVariantsTableTable,
-      List<WordVariantsTableData>> _wordVariantsTableRefsTable(
-          _$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(db.wordVariantsTable,
-          aliasName: $_aliasNameGenerator(
-              db.conceptsTable.id, db.wordVariantsTable.conceptId));
+  static MultiTypedResultKey<
+    $WordVariantsTableTable,
+    List<WordVariantsTableData>
+  >
+  _wordVariantsTableRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.wordVariantsTable,
+        aliasName: $_aliasNameGenerator(
+          db.conceptsTable.id,
+          db.wordVariantsTable.conceptId,
+        ),
+      );
 
   $$WordVariantsTableTableProcessedTableManager get wordVariantsTableRefs {
     final manager = $$WordVariantsTableTableTableManager(
-            $_db, $_db.wordVariantsTable)
-        .filter((f) => f.conceptId.id.sqlEquals($_itemColumn<String>('id')!));
+      $_db,
+      $_db.wordVariantsTable,
+    ).filter((f) => f.conceptId.id.sqlEquals($_itemColumn<String>('id')!));
 
-    final cache =
-        $_typedResult.readTableOrNull(_wordVariantsTableRefsTable($_db));
+    final cache = $_typedResult.readTableOrNull(
+      _wordVariantsTableRefsTable($_db),
+    );
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: cache));
+      manager.$state.copyWith(prefetchedData: cache),
+    );
   }
 }
 
@@ -5407,76 +6471,105 @@ class $$ConceptsTableTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnFilters(column));
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get category => $composableBuilder(
-      column: $table.category, builder: (column) => ColumnFilters(column));
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get notes => $composableBuilder(
-      column: $table.notes, builder: (column) => ColumnFilters(column));
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get imageUrl => $composableBuilder(
-      column: $table.imageUrl, builder: (column) => ColumnFilters(column));
+    column: $table.imageUrl,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get exampleFr => $composableBuilder(
-      column: $table.exampleFr, builder: (column) => ColumnFilters(column));
+    column: $table.exampleFr,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get exampleKo => $composableBuilder(
-      column: $table.exampleKo, builder: (column) => ColumnFilters(column));
+    column: $table.exampleKo,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get seedId => $composableBuilder(
-      column: $table.seedId, builder: (column) => ColumnFilters(column));
+    column: $table.seedId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
-      column: $table.isSynced, builder: (column) => ColumnFilters(column));
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isDeleted => $composableBuilder(
-      column: $table.isDeleted, builder: (column) => ColumnFilters(column));
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$VocabularyListsTableTableFilterComposer get listId {
     final $$VocabularyListsTableTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.listId,
-        referencedTable: $db.vocabularyListsTable,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$VocabularyListsTableTableFilterComposer(
-              $db: $db,
-              $table: $db.vocabularyListsTable,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.listId,
+      referencedTable: $db.vocabularyListsTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VocabularyListsTableTableFilterComposer(
+            $db: $db,
+            $table: $db.vocabularyListsTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 
   Expression<bool> wordVariantsTableRefs(
-      Expression<bool> Function($$WordVariantsTableTableFilterComposer f) f) {
+    Expression<bool> Function($$WordVariantsTableTableFilterComposer f) f,
+  ) {
     final $$WordVariantsTableTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.id,
-        referencedTable: $db.wordVariantsTable,
-        getReferencedColumn: (t) => t.conceptId,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$WordVariantsTableTableFilterComposer(
-              $db: $db,
-              $table: $db.wordVariantsTable,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.wordVariantsTable,
+      getReferencedColumn: (t) => t.conceptId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WordVariantsTableTableFilterComposer(
+            $db: $db,
+            $table: $db.wordVariantsTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 }
@@ -5491,56 +6584,81 @@ class $$ConceptsTableTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnOrderings(column));
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get category => $composableBuilder(
-      column: $table.category, builder: (column) => ColumnOrderings(column));
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get notes => $composableBuilder(
-      column: $table.notes, builder: (column) => ColumnOrderings(column));
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get imageUrl => $composableBuilder(
-      column: $table.imageUrl, builder: (column) => ColumnOrderings(column));
+    column: $table.imageUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get exampleFr => $composableBuilder(
-      column: $table.exampleFr, builder: (column) => ColumnOrderings(column));
+    column: $table.exampleFr,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get exampleKo => $composableBuilder(
-      column: $table.exampleKo, builder: (column) => ColumnOrderings(column));
+    column: $table.exampleKo,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get seedId => $composableBuilder(
-      column: $table.seedId, builder: (column) => ColumnOrderings(column));
+    column: $table.seedId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isSynced => $composableBuilder(
-      column: $table.isSynced, builder: (column) => ColumnOrderings(column));
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isDeleted => $composableBuilder(
-      column: $table.isDeleted, builder: (column) => ColumnOrderings(column));
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$VocabularyListsTableTableOrderingComposer get listId {
     final $$VocabularyListsTableTableOrderingComposer composer =
         $composerBuilder(
-            composer: this,
-            getCurrentColumn: (t) => t.listId,
-            referencedTable: $db.vocabularyListsTable,
-            getReferencedColumn: (t) => t.id,
-            builder: (joinBuilder,
-                    {$addJoinBuilderToRootComposer,
-                    $removeJoinBuilderFromRootComposer}) =>
-                $$VocabularyListsTableTableOrderingComposer(
-                  $db: $db,
-                  $table: $db.vocabularyListsTable,
-                  $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                  joinBuilder: joinBuilder,
-                  $removeJoinBuilderFromRootComposer:
-                      $removeJoinBuilderFromRootComposer,
-                ));
+          composer: this,
+          getCurrentColumn: (t) => t.listId,
+          referencedTable: $db.vocabularyListsTable,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$VocabularyListsTableTableOrderingComposer(
+                $db: $db,
+                $table: $db.vocabularyListsTable,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return composer;
   }
 }
@@ -5590,61 +6708,72 @@ class $$ConceptsTableTableAnnotationComposer
   $$VocabularyListsTableTableAnnotationComposer get listId {
     final $$VocabularyListsTableTableAnnotationComposer composer =
         $composerBuilder(
-            composer: this,
-            getCurrentColumn: (t) => t.listId,
-            referencedTable: $db.vocabularyListsTable,
-            getReferencedColumn: (t) => t.id,
-            builder: (joinBuilder,
-                    {$addJoinBuilderToRootComposer,
-                    $removeJoinBuilderFromRootComposer}) =>
-                $$VocabularyListsTableTableAnnotationComposer(
-                  $db: $db,
-                  $table: $db.vocabularyListsTable,
-                  $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                  joinBuilder: joinBuilder,
-                  $removeJoinBuilderFromRootComposer:
-                      $removeJoinBuilderFromRootComposer,
-                ));
+          composer: this,
+          getCurrentColumn: (t) => t.listId,
+          referencedTable: $db.vocabularyListsTable,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$VocabularyListsTableTableAnnotationComposer(
+                $db: $db,
+                $table: $db.vocabularyListsTable,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return composer;
   }
 
   Expression<T> wordVariantsTableRefs<T extends Object>(
-      Expression<T> Function($$WordVariantsTableTableAnnotationComposer a) f) {
+    Expression<T> Function($$WordVariantsTableTableAnnotationComposer a) f,
+  ) {
     final $$WordVariantsTableTableAnnotationComposer composer =
         $composerBuilder(
-            composer: this,
-            getCurrentColumn: (t) => t.id,
-            referencedTable: $db.wordVariantsTable,
-            getReferencedColumn: (t) => t.conceptId,
-            builder: (joinBuilder,
-                    {$addJoinBuilderToRootComposer,
-                    $removeJoinBuilderFromRootComposer}) =>
-                $$WordVariantsTableTableAnnotationComposer(
-                  $db: $db,
-                  $table: $db.wordVariantsTable,
-                  $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                  joinBuilder: joinBuilder,
-                  $removeJoinBuilderFromRootComposer:
-                      $removeJoinBuilderFromRootComposer,
-                ));
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.wordVariantsTable,
+          getReferencedColumn: (t) => t.conceptId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$WordVariantsTableTableAnnotationComposer(
+                $db: $db,
+                $table: $db.wordVariantsTable,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 }
 
-class $$ConceptsTableTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $ConceptsTableTable,
-    ConceptsTableData,
-    $$ConceptsTableTableFilterComposer,
-    $$ConceptsTableTableOrderingComposer,
-    $$ConceptsTableTableAnnotationComposer,
-    $$ConceptsTableTableCreateCompanionBuilder,
-    $$ConceptsTableTableUpdateCompanionBuilder,
-    (ConceptsTableData, $$ConceptsTableTableReferences),
-    ConceptsTableData,
-    PrefetchHooks Function({bool listId, bool wordVariantsTableRefs})> {
+class $$ConceptsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ConceptsTableTable,
+          ConceptsTableData,
+          $$ConceptsTableTableFilterComposer,
+          $$ConceptsTableTableOrderingComposer,
+          $$ConceptsTableTableAnnotationComposer,
+          $$ConceptsTableTableCreateCompanionBuilder,
+          $$ConceptsTableTableUpdateCompanionBuilder,
+          (ConceptsTableData, $$ConceptsTableTableReferences),
+          ConceptsTableData,
+          PrefetchHooks Function({bool listId, bool wordVariantsTableRefs})
+        > {
   $$ConceptsTableTableTableManager(_$AppDatabase db, $ConceptsTableTable table)
-      : super(TableManagerState(
+    : super(
+        TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -5653,217 +6782,262 @@ class $$ConceptsTableTableTableManager extends RootTableManager<
               $$ConceptsTableTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$ConceptsTableTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<String> id = const Value.absent(),
-            Value<String> listId = const Value.absent(),
-            Value<String?> category = const Value.absent(),
-            Value<String?> notes = const Value.absent(),
-            Value<String?> imageUrl = const Value.absent(),
-            Value<String?> exampleFr = const Value.absent(),
-            Value<String?> exampleKo = const Value.absent(),
-            Value<String?> seedId = const Value.absent(),
-            Value<bool> isSynced = const Value.absent(),
-            Value<bool> isDeleted = const Value.absent(),
-            Value<DateTime> createdAt = const Value.absent(),
-            Value<DateTime> updatedAt = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              ConceptsTableCompanion(
-            id: id,
-            listId: listId,
-            category: category,
-            notes: notes,
-            imageUrl: imageUrl,
-            exampleFr: exampleFr,
-            exampleKo: exampleKo,
-            seedId: seedId,
-            isSynced: isSynced,
-            isDeleted: isDeleted,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            rowid: rowid,
-          ),
-          createCompanionCallback: ({
-            required String id,
-            required String listId,
-            Value<String?> category = const Value.absent(),
-            Value<String?> notes = const Value.absent(),
-            Value<String?> imageUrl = const Value.absent(),
-            Value<String?> exampleFr = const Value.absent(),
-            Value<String?> exampleKo = const Value.absent(),
-            Value<String?> seedId = const Value.absent(),
-            Value<bool> isSynced = const Value.absent(),
-            Value<bool> isDeleted = const Value.absent(),
-            required DateTime createdAt,
-            required DateTime updatedAt,
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              ConceptsTableCompanion.insert(
-            id: id,
-            listId: listId,
-            category: category,
-            notes: notes,
-            imageUrl: imageUrl,
-            exampleFr: exampleFr,
-            exampleKo: exampleKo,
-            seedId: seedId,
-            isSynced: isSynced,
-            isDeleted: isDeleted,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            rowid: rowid,
-          ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> listId = const Value.absent(),
+                Value<String?> category = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<String?> imageUrl = const Value.absent(),
+                Value<String?> exampleFr = const Value.absent(),
+                Value<String?> exampleKo = const Value.absent(),
+                Value<String?> seedId = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ConceptsTableCompanion(
+                id: id,
+                listId: listId,
+                category: category,
+                notes: notes,
+                imageUrl: imageUrl,
+                exampleFr: exampleFr,
+                exampleKo: exampleKo,
+                seedId: seedId,
+                isSynced: isSynced,
+                isDeleted: isDeleted,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String listId,
+                Value<String?> category = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<String?> imageUrl = const Value.absent(),
+                Value<String?> exampleFr = const Value.absent(),
+                Value<String?> exampleKo = const Value.absent(),
+                Value<String?> seedId = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ConceptsTableCompanion.insert(
+                id: id,
+                listId: listId,
+                category: category,
+                notes: notes,
+                imageUrl: imageUrl,
+                exampleFr: exampleFr,
+                exampleKo: exampleKo,
+                seedId: seedId,
+                isSynced: isSynced,
+                isDeleted: isDeleted,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (
-                    e.readTable(table),
-                    $$ConceptsTableTableReferences(db, table, e)
-                  ))
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ConceptsTableTableReferences(db, table, e),
+                ),
+              )
               .toList(),
-          prefetchHooksCallback: (
-              {listId = false, wordVariantsTableRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (wordVariantsTableRefs) db.wordVariantsTable
-              ],
-              addJoins: <
-                  T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic>>(state) {
-                if (listId) {
-                  state = state.withJoin(
-                    currentTable: table,
-                    currentColumn: table.listId,
-                    referencedTable:
-                        $$ConceptsTableTableReferences._listIdTable(db),
-                    referencedColumn:
-                        $$ConceptsTableTableReferences._listIdTable(db).id,
-                  ) as T;
-                }
+          prefetchHooksCallback:
+              ({listId = false, wordVariantsTableRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (wordVariantsTableRefs) db.wordVariantsTable,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (listId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.listId,
+                                    referencedTable:
+                                        $$ConceptsTableTableReferences
+                                            ._listIdTable(db),
+                                    referencedColumn:
+                                        $$ConceptsTableTableReferences
+                                            ._listIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
 
-                return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (wordVariantsTableRefs)
+                        await $_getPrefetchedData<
+                          ConceptsTableData,
+                          $ConceptsTableTable,
+                          WordVariantsTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ConceptsTableTableReferences
+                              ._wordVariantsTableRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ConceptsTableTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).wordVariantsTableRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.conceptId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (wordVariantsTableRefs)
-                    await $_getPrefetchedData<ConceptsTableData,
-                            $ConceptsTableTable, WordVariantsTableData>(
-                        currentTable: table,
-                        referencedTable: $$ConceptsTableTableReferences
-                            ._wordVariantsTableRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$ConceptsTableTableReferences(db, table, p0)
-                                .wordVariantsTableRefs,
-                        referencedItemsForCurrentItem:
-                            (item, referencedItems) => referencedItems
-                                .where((e) => e.conceptId == item.id),
-                        typedResults: items)
-                ];
-              },
-            );
-          },
-        ));
+        ),
+      );
 }
 
-typedef $$ConceptsTableTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $ConceptsTableTable,
-    ConceptsTableData,
-    $$ConceptsTableTableFilterComposer,
-    $$ConceptsTableTableOrderingComposer,
-    $$ConceptsTableTableAnnotationComposer,
-    $$ConceptsTableTableCreateCompanionBuilder,
-    $$ConceptsTableTableUpdateCompanionBuilder,
-    (ConceptsTableData, $$ConceptsTableTableReferences),
-    ConceptsTableData,
-    PrefetchHooks Function({bool listId, bool wordVariantsTableRefs})>;
-typedef $$WordVariantsTableTableCreateCompanionBuilder
-    = WordVariantsTableCompanion Function({
-  required String id,
-  required String conceptId,
-  required String word,
-  required String langCode,
-  Value<String> registerTag,
-  Value<String> contextTags,
-  Value<bool> isPrimary,
-  Value<String?> audioHash,
-  Value<String?> audioVoiceId,
-  Value<String?> audioPath,
-  Value<int> position,
-  Value<String?> example,
-  Value<bool> isSynced,
-  Value<bool> isDeleted,
-  required DateTime createdAt,
-  required DateTime updatedAt,
-  Value<int> rowid,
-});
-typedef $$WordVariantsTableTableUpdateCompanionBuilder
-    = WordVariantsTableCompanion Function({
-  Value<String> id,
-  Value<String> conceptId,
-  Value<String> word,
-  Value<String> langCode,
-  Value<String> registerTag,
-  Value<String> contextTags,
-  Value<bool> isPrimary,
-  Value<String?> audioHash,
-  Value<String?> audioVoiceId,
-  Value<String?> audioPath,
-  Value<int> position,
-  Value<String?> example,
-  Value<bool> isSynced,
-  Value<bool> isDeleted,
-  Value<DateTime> createdAt,
-  Value<DateTime> updatedAt,
-  Value<int> rowid,
-});
+typedef $$ConceptsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ConceptsTableTable,
+      ConceptsTableData,
+      $$ConceptsTableTableFilterComposer,
+      $$ConceptsTableTableOrderingComposer,
+      $$ConceptsTableTableAnnotationComposer,
+      $$ConceptsTableTableCreateCompanionBuilder,
+      $$ConceptsTableTableUpdateCompanionBuilder,
+      (ConceptsTableData, $$ConceptsTableTableReferences),
+      ConceptsTableData,
+      PrefetchHooks Function({bool listId, bool wordVariantsTableRefs})
+    >;
+typedef $$WordVariantsTableTableCreateCompanionBuilder =
+    WordVariantsTableCompanion Function({
+      required String id,
+      required String conceptId,
+      required String word,
+      required String langCode,
+      Value<String> registerTag,
+      Value<String> contextTags,
+      Value<bool> isPrimary,
+      Value<String?> audioHash,
+      Value<String?> audioVoiceId,
+      Value<String?> audioPath,
+      Value<int> position,
+      Value<String?> example,
+      Value<bool> isSynced,
+      Value<bool> isDeleted,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$WordVariantsTableTableUpdateCompanionBuilder =
+    WordVariantsTableCompanion Function({
+      Value<String> id,
+      Value<String> conceptId,
+      Value<String> word,
+      Value<String> langCode,
+      Value<String> registerTag,
+      Value<String> contextTags,
+      Value<bool> isPrimary,
+      Value<String?> audioHash,
+      Value<String?> audioVoiceId,
+      Value<String?> audioPath,
+      Value<int> position,
+      Value<String?> example,
+      Value<bool> isSynced,
+      Value<bool> isDeleted,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
 
-final class $$WordVariantsTableTableReferences extends BaseReferences<
-    _$AppDatabase, $WordVariantsTableTable, WordVariantsTableData> {
+final class $$WordVariantsTableTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $WordVariantsTableTable,
+          WordVariantsTableData
+        > {
   $$WordVariantsTableTableReferences(
-      super.$_db, super.$_table, super.$_typedResult);
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
 
   static $ConceptsTableTable _conceptIdTable(_$AppDatabase db) =>
-      db.conceptsTable.createAlias($_aliasNameGenerator(
-          db.wordVariantsTable.conceptId, db.conceptsTable.id));
+      db.conceptsTable.createAlias(
+        $_aliasNameGenerator(
+          db.wordVariantsTable.conceptId,
+          db.conceptsTable.id,
+        ),
+      );
 
   $$ConceptsTableTableProcessedTableManager get conceptId {
     final $_column = $_itemColumn<String>('concept_id')!;
 
-    final manager = $$ConceptsTableTableTableManager($_db, $_db.conceptsTable)
-        .filter((f) => f.id.sqlEquals($_column));
+    final manager = $$ConceptsTableTableTableManager(
+      $_db,
+      $_db.conceptsTable,
+    ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_conceptIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: [item]));
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
   }
 
-  static MultiTypedResultKey<$VariantProgressTableTable,
-      List<VariantProgressTableData>> _variantProgressTableRefsTable(
-          _$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(db.variantProgressTable,
-          aliasName: $_aliasNameGenerator(
-              db.wordVariantsTable.id, db.variantProgressTable.variantId));
+  static MultiTypedResultKey<
+    $VariantProgressTableTable,
+    List<VariantProgressTableData>
+  >
+  _variantProgressTableRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.variantProgressTable,
+        aliasName: $_aliasNameGenerator(
+          db.wordVariantsTable.id,
+          db.variantProgressTable.variantId,
+        ),
+      );
 
   $$VariantProgressTableTableProcessedTableManager
-      get variantProgressTableRefs {
+  get variantProgressTableRefs {
     final manager = $$VariantProgressTableTableTableManager(
-            $_db, $_db.variantProgressTable)
-        .filter((f) => f.variantId.id.sqlEquals($_itemColumn<String>('id')!));
+      $_db,
+      $_db.variantProgressTable,
+    ).filter((f) => f.variantId.id.sqlEquals($_itemColumn<String>('id')!));
 
-    final cache =
-        $_typedResult.readTableOrNull(_variantProgressTableRefsTable($_db));
+    final cache = $_typedResult.readTableOrNull(
+      _variantProgressTableRefsTable($_db),
+    );
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: cache));
+      manager.$state.copyWith(prefetchedData: cache),
+    );
   }
 }
 
@@ -5877,89 +7051,125 @@ class $$WordVariantsTableTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnFilters(column));
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get word => $composableBuilder(
-      column: $table.word, builder: (column) => ColumnFilters(column));
+    column: $table.word,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get langCode => $composableBuilder(
-      column: $table.langCode, builder: (column) => ColumnFilters(column));
+    column: $table.langCode,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get registerTag => $composableBuilder(
-      column: $table.registerTag, builder: (column) => ColumnFilters(column));
+    column: $table.registerTag,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get contextTags => $composableBuilder(
-      column: $table.contextTags, builder: (column) => ColumnFilters(column));
+    column: $table.contextTags,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isPrimary => $composableBuilder(
-      column: $table.isPrimary, builder: (column) => ColumnFilters(column));
+    column: $table.isPrimary,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get audioHash => $composableBuilder(
-      column: $table.audioHash, builder: (column) => ColumnFilters(column));
+    column: $table.audioHash,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get audioVoiceId => $composableBuilder(
-      column: $table.audioVoiceId, builder: (column) => ColumnFilters(column));
+    column: $table.audioVoiceId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get audioPath => $composableBuilder(
-      column: $table.audioPath, builder: (column) => ColumnFilters(column));
+    column: $table.audioPath,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get position => $composableBuilder(
-      column: $table.position, builder: (column) => ColumnFilters(column));
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get example => $composableBuilder(
-      column: $table.example, builder: (column) => ColumnFilters(column));
+    column: $table.example,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
-      column: $table.isSynced, builder: (column) => ColumnFilters(column));
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isDeleted => $composableBuilder(
-      column: $table.isDeleted, builder: (column) => ColumnFilters(column));
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$ConceptsTableTableFilterComposer get conceptId {
     final $$ConceptsTableTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.conceptId,
-        referencedTable: $db.conceptsTable,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$ConceptsTableTableFilterComposer(
-              $db: $db,
-              $table: $db.conceptsTable,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.conceptId,
+      referencedTable: $db.conceptsTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConceptsTableTableFilterComposer(
+            $db: $db,
+            $table: $db.conceptsTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 
   Expression<bool> variantProgressTableRefs(
-      Expression<bool> Function($$VariantProgressTableTableFilterComposer f)
-          f) {
+    Expression<bool> Function($$VariantProgressTableTableFilterComposer f) f,
+  ) {
     final $$VariantProgressTableTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.id,
-        referencedTable: $db.variantProgressTable,
-        getReferencedColumn: (t) => t.variantId,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$VariantProgressTableTableFilterComposer(
-              $db: $db,
-              $table: $db.variantProgressTable,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.variantProgressTable,
+      getReferencedColumn: (t) => t.variantId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VariantProgressTableTableFilterComposer(
+            $db: $db,
+            $table: $db.variantProgressTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 }
@@ -5974,68 +7184,100 @@ class $$WordVariantsTableTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnOrderings(column));
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get word => $composableBuilder(
-      column: $table.word, builder: (column) => ColumnOrderings(column));
+    column: $table.word,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get langCode => $composableBuilder(
-      column: $table.langCode, builder: (column) => ColumnOrderings(column));
+    column: $table.langCode,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get registerTag => $composableBuilder(
-      column: $table.registerTag, builder: (column) => ColumnOrderings(column));
+    column: $table.registerTag,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get contextTags => $composableBuilder(
-      column: $table.contextTags, builder: (column) => ColumnOrderings(column));
+    column: $table.contextTags,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isPrimary => $composableBuilder(
-      column: $table.isPrimary, builder: (column) => ColumnOrderings(column));
+    column: $table.isPrimary,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get audioHash => $composableBuilder(
-      column: $table.audioHash, builder: (column) => ColumnOrderings(column));
+    column: $table.audioHash,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get audioVoiceId => $composableBuilder(
-      column: $table.audioVoiceId,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.audioVoiceId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get audioPath => $composableBuilder(
-      column: $table.audioPath, builder: (column) => ColumnOrderings(column));
+    column: $table.audioPath,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get position => $composableBuilder(
-      column: $table.position, builder: (column) => ColumnOrderings(column));
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get example => $composableBuilder(
-      column: $table.example, builder: (column) => ColumnOrderings(column));
+    column: $table.example,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isSynced => $composableBuilder(
-      column: $table.isSynced, builder: (column) => ColumnOrderings(column));
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isDeleted => $composableBuilder(
-      column: $table.isDeleted, builder: (column) => ColumnOrderings(column));
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$ConceptsTableTableOrderingComposer get conceptId {
     final $$ConceptsTableTableOrderingComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.conceptId,
-        referencedTable: $db.conceptsTable,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$ConceptsTableTableOrderingComposer(
-              $db: $db,
-              $table: $db.conceptsTable,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.conceptId,
+      referencedTable: $db.conceptsTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConceptsTableTableOrderingComposer(
+            $db: $db,
+            $table: $db.conceptsTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 }
@@ -6059,10 +7301,14 @@ class $$WordVariantsTableTableAnnotationComposer
       $composableBuilder(column: $table.langCode, builder: (column) => column);
 
   GeneratedColumn<String> get registerTag => $composableBuilder(
-      column: $table.registerTag, builder: (column) => column);
+    column: $table.registerTag,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get contextTags => $composableBuilder(
-      column: $table.contextTags, builder: (column) => column);
+    column: $table.contextTags,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get isPrimary =>
       $composableBuilder(column: $table.isPrimary, builder: (column) => column);
@@ -6071,7 +7317,9 @@ class $$WordVariantsTableTableAnnotationComposer
       $composableBuilder(column: $table.audioHash, builder: (column) => column);
 
   GeneratedColumn<String> get audioVoiceId => $composableBuilder(
-      column: $table.audioVoiceId, builder: (column) => column);
+    column: $table.audioVoiceId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get audioPath =>
       $composableBuilder(column: $table.audioPath, builder: (column) => column);
@@ -6096,63 +7344,77 @@ class $$WordVariantsTableTableAnnotationComposer
 
   $$ConceptsTableTableAnnotationComposer get conceptId {
     final $$ConceptsTableTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.conceptId,
-        referencedTable: $db.conceptsTable,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$ConceptsTableTableAnnotationComposer(
-              $db: $db,
-              $table: $db.conceptsTable,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.conceptId,
+      referencedTable: $db.conceptsTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConceptsTableTableAnnotationComposer(
+            $db: $db,
+            $table: $db.conceptsTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 
   Expression<T> variantProgressTableRefs<T extends Object>(
-      Expression<T> Function($$VariantProgressTableTableAnnotationComposer a)
-          f) {
+    Expression<T> Function($$VariantProgressTableTableAnnotationComposer a) f,
+  ) {
     final $$VariantProgressTableTableAnnotationComposer composer =
         $composerBuilder(
-            composer: this,
-            getCurrentColumn: (t) => t.id,
-            referencedTable: $db.variantProgressTable,
-            getReferencedColumn: (t) => t.variantId,
-            builder: (joinBuilder,
-                    {$addJoinBuilderToRootComposer,
-                    $removeJoinBuilderFromRootComposer}) =>
-                $$VariantProgressTableTableAnnotationComposer(
-                  $db: $db,
-                  $table: $db.variantProgressTable,
-                  $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                  joinBuilder: joinBuilder,
-                  $removeJoinBuilderFromRootComposer:
-                      $removeJoinBuilderFromRootComposer,
-                ));
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.variantProgressTable,
+          getReferencedColumn: (t) => t.variantId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$VariantProgressTableTableAnnotationComposer(
+                $db: $db,
+                $table: $db.variantProgressTable,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 }
 
-class $$WordVariantsTableTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $WordVariantsTableTable,
-    WordVariantsTableData,
-    $$WordVariantsTableTableFilterComposer,
-    $$WordVariantsTableTableOrderingComposer,
-    $$WordVariantsTableTableAnnotationComposer,
-    $$WordVariantsTableTableCreateCompanionBuilder,
-    $$WordVariantsTableTableUpdateCompanionBuilder,
-    (WordVariantsTableData, $$WordVariantsTableTableReferences),
-    WordVariantsTableData,
-    PrefetchHooks Function({bool conceptId, bool variantProgressTableRefs})> {
+class $$WordVariantsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $WordVariantsTableTable,
+          WordVariantsTableData,
+          $$WordVariantsTableTableFilterComposer,
+          $$WordVariantsTableTableOrderingComposer,
+          $$WordVariantsTableTableAnnotationComposer,
+          $$WordVariantsTableTableCreateCompanionBuilder,
+          $$WordVariantsTableTableUpdateCompanionBuilder,
+          (WordVariantsTableData, $$WordVariantsTableTableReferences),
+          WordVariantsTableData,
+          PrefetchHooks Function({
+            bool conceptId,
+            bool variantProgressTableRefs,
+          })
+        > {
   $$WordVariantsTableTableTableManager(
-      _$AppDatabase db, $WordVariantsTableTable table)
-      : super(TableManagerState(
+    _$AppDatabase db,
+    $WordVariantsTableTable table,
+  ) : super(
+        TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -6161,223 +7423,259 @@ class $$WordVariantsTableTableTableManager extends RootTableManager<
               $$WordVariantsTableTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$WordVariantsTableTableAnnotationComposer(
-                  $db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<String> id = const Value.absent(),
-            Value<String> conceptId = const Value.absent(),
-            Value<String> word = const Value.absent(),
-            Value<String> langCode = const Value.absent(),
-            Value<String> registerTag = const Value.absent(),
-            Value<String> contextTags = const Value.absent(),
-            Value<bool> isPrimary = const Value.absent(),
-            Value<String?> audioHash = const Value.absent(),
-            Value<String?> audioVoiceId = const Value.absent(),
-            Value<String?> audioPath = const Value.absent(),
-            Value<int> position = const Value.absent(),
-            Value<String?> example = const Value.absent(),
-            Value<bool> isSynced = const Value.absent(),
-            Value<bool> isDeleted = const Value.absent(),
-            Value<DateTime> createdAt = const Value.absent(),
-            Value<DateTime> updatedAt = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              WordVariantsTableCompanion(
-            id: id,
-            conceptId: conceptId,
-            word: word,
-            langCode: langCode,
-            registerTag: registerTag,
-            contextTags: contextTags,
-            isPrimary: isPrimary,
-            audioHash: audioHash,
-            audioVoiceId: audioVoiceId,
-            audioPath: audioPath,
-            position: position,
-            example: example,
-            isSynced: isSynced,
-            isDeleted: isDeleted,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            rowid: rowid,
-          ),
-          createCompanionCallback: ({
-            required String id,
-            required String conceptId,
-            required String word,
-            required String langCode,
-            Value<String> registerTag = const Value.absent(),
-            Value<String> contextTags = const Value.absent(),
-            Value<bool> isPrimary = const Value.absent(),
-            Value<String?> audioHash = const Value.absent(),
-            Value<String?> audioVoiceId = const Value.absent(),
-            Value<String?> audioPath = const Value.absent(),
-            Value<int> position = const Value.absent(),
-            Value<String?> example = const Value.absent(),
-            Value<bool> isSynced = const Value.absent(),
-            Value<bool> isDeleted = const Value.absent(),
-            required DateTime createdAt,
-            required DateTime updatedAt,
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              WordVariantsTableCompanion.insert(
-            id: id,
-            conceptId: conceptId,
-            word: word,
-            langCode: langCode,
-            registerTag: registerTag,
-            contextTags: contextTags,
-            isPrimary: isPrimary,
-            audioHash: audioHash,
-            audioVoiceId: audioVoiceId,
-            audioPath: audioPath,
-            position: position,
-            example: example,
-            isSynced: isSynced,
-            isDeleted: isDeleted,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            rowid: rowid,
-          ),
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> conceptId = const Value.absent(),
+                Value<String> word = const Value.absent(),
+                Value<String> langCode = const Value.absent(),
+                Value<String> registerTag = const Value.absent(),
+                Value<String> contextTags = const Value.absent(),
+                Value<bool> isPrimary = const Value.absent(),
+                Value<String?> audioHash = const Value.absent(),
+                Value<String?> audioVoiceId = const Value.absent(),
+                Value<String?> audioPath = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                Value<String?> example = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WordVariantsTableCompanion(
+                id: id,
+                conceptId: conceptId,
+                word: word,
+                langCode: langCode,
+                registerTag: registerTag,
+                contextTags: contextTags,
+                isPrimary: isPrimary,
+                audioHash: audioHash,
+                audioVoiceId: audioVoiceId,
+                audioPath: audioPath,
+                position: position,
+                example: example,
+                isSynced: isSynced,
+                isDeleted: isDeleted,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String conceptId,
+                required String word,
+                required String langCode,
+                Value<String> registerTag = const Value.absent(),
+                Value<String> contextTags = const Value.absent(),
+                Value<bool> isPrimary = const Value.absent(),
+                Value<String?> audioHash = const Value.absent(),
+                Value<String?> audioVoiceId = const Value.absent(),
+                Value<String?> audioPath = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                Value<String?> example = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => WordVariantsTableCompanion.insert(
+                id: id,
+                conceptId: conceptId,
+                word: word,
+                langCode: langCode,
+                registerTag: registerTag,
+                contextTags: contextTags,
+                isPrimary: isPrimary,
+                audioHash: audioHash,
+                audioVoiceId: audioVoiceId,
+                audioPath: audioPath,
+                position: position,
+                example: example,
+                isSynced: isSynced,
+                isDeleted: isDeleted,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (
-                    e.readTable(table),
-                    $$WordVariantsTableTableReferences(db, table, e)
-                  ))
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$WordVariantsTableTableReferences(db, table, e),
+                ),
+              )
               .toList(),
-          prefetchHooksCallback: (
-              {conceptId = false, variantProgressTableRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (variantProgressTableRefs) db.variantProgressTable
-              ],
-              addJoins: <
-                  T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic>>(state) {
-                if (conceptId) {
-                  state = state.withJoin(
-                    currentTable: table,
-                    currentColumn: table.conceptId,
-                    referencedTable:
-                        $$WordVariantsTableTableReferences._conceptIdTable(db),
-                    referencedColumn: $$WordVariantsTableTableReferences
-                        ._conceptIdTable(db)
-                        .id,
-                  ) as T;
-                }
+          prefetchHooksCallback:
+              ({conceptId = false, variantProgressTableRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (variantProgressTableRefs) db.variantProgressTable,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (conceptId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.conceptId,
+                                    referencedTable:
+                                        $$WordVariantsTableTableReferences
+                                            ._conceptIdTable(db),
+                                    referencedColumn:
+                                        $$WordVariantsTableTableReferences
+                                            ._conceptIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
 
-                return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (variantProgressTableRefs)
+                        await $_getPrefetchedData<
+                          WordVariantsTableData,
+                          $WordVariantsTableTable,
+                          VariantProgressTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WordVariantsTableTableReferences
+                              ._variantProgressTableRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WordVariantsTableTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).variantProgressTableRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.variantId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (variantProgressTableRefs)
-                    await $_getPrefetchedData<WordVariantsTableData,
-                            $WordVariantsTableTable, VariantProgressTableData>(
-                        currentTable: table,
-                        referencedTable: $$WordVariantsTableTableReferences
-                            ._variantProgressTableRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$WordVariantsTableTableReferences(db, table, p0)
-                                .variantProgressTableRefs,
-                        referencedItemsForCurrentItem:
-                            (item, referencedItems) => referencedItems
-                                .where((e) => e.variantId == item.id),
-                        typedResults: items)
-                ];
-              },
-            );
-          },
-        ));
+        ),
+      );
 }
 
-typedef $$WordVariantsTableTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $WordVariantsTableTable,
-    WordVariantsTableData,
-    $$WordVariantsTableTableFilterComposer,
-    $$WordVariantsTableTableOrderingComposer,
-    $$WordVariantsTableTableAnnotationComposer,
-    $$WordVariantsTableTableCreateCompanionBuilder,
-    $$WordVariantsTableTableUpdateCompanionBuilder,
-    (WordVariantsTableData, $$WordVariantsTableTableReferences),
-    WordVariantsTableData,
-    PrefetchHooks Function({bool conceptId, bool variantProgressTableRefs})>;
-typedef $$VariantProgressTableTableCreateCompanionBuilder
-    = VariantProgressTableCompanion Function({
-  required String id,
-  required String userId,
-  required String variantId,
-  required String direction,
-  Value<double> stability,
-  Value<double> difficulty,
-  Value<int> elapsedDays,
-  Value<int> scheduledDays,
-  Value<int> reps,
-  Value<int> lapses,
-  Value<String> state,
-  Value<DateTime?> lastReview,
-  Value<DateTime?> nextReview,
-  Value<int> timesShown,
-  Value<int> timesCorrect,
-  Value<double> masteryLevel,
-  Value<bool> isSynced,
-  required DateTime createdAt,
-  required DateTime updatedAt,
-  Value<int> rowid,
-});
-typedef $$VariantProgressTableTableUpdateCompanionBuilder
-    = VariantProgressTableCompanion Function({
-  Value<String> id,
-  Value<String> userId,
-  Value<String> variantId,
-  Value<String> direction,
-  Value<double> stability,
-  Value<double> difficulty,
-  Value<int> elapsedDays,
-  Value<int> scheduledDays,
-  Value<int> reps,
-  Value<int> lapses,
-  Value<String> state,
-  Value<DateTime?> lastReview,
-  Value<DateTime?> nextReview,
-  Value<int> timesShown,
-  Value<int> timesCorrect,
-  Value<double> masteryLevel,
-  Value<bool> isSynced,
-  Value<DateTime> createdAt,
-  Value<DateTime> updatedAt,
-  Value<int> rowid,
-});
+typedef $$WordVariantsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $WordVariantsTableTable,
+      WordVariantsTableData,
+      $$WordVariantsTableTableFilterComposer,
+      $$WordVariantsTableTableOrderingComposer,
+      $$WordVariantsTableTableAnnotationComposer,
+      $$WordVariantsTableTableCreateCompanionBuilder,
+      $$WordVariantsTableTableUpdateCompanionBuilder,
+      (WordVariantsTableData, $$WordVariantsTableTableReferences),
+      WordVariantsTableData,
+      PrefetchHooks Function({bool conceptId, bool variantProgressTableRefs})
+    >;
+typedef $$VariantProgressTableTableCreateCompanionBuilder =
+    VariantProgressTableCompanion Function({
+      required String id,
+      required String userId,
+      required String variantId,
+      required String direction,
+      Value<double> stability,
+      Value<double> difficulty,
+      Value<int> elapsedDays,
+      Value<int> scheduledDays,
+      Value<int> reps,
+      Value<int> lapses,
+      Value<String> state,
+      Value<DateTime?> lastReview,
+      Value<DateTime?> nextReview,
+      Value<int> timesShown,
+      Value<int> timesCorrect,
+      Value<double> masteryLevel,
+      Value<bool> isSynced,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$VariantProgressTableTableUpdateCompanionBuilder =
+    VariantProgressTableCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> variantId,
+      Value<String> direction,
+      Value<double> stability,
+      Value<double> difficulty,
+      Value<int> elapsedDays,
+      Value<int> scheduledDays,
+      Value<int> reps,
+      Value<int> lapses,
+      Value<String> state,
+      Value<DateTime?> lastReview,
+      Value<DateTime?> nextReview,
+      Value<int> timesShown,
+      Value<int> timesCorrect,
+      Value<double> masteryLevel,
+      Value<bool> isSynced,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
 
-final class $$VariantProgressTableTableReferences extends BaseReferences<
-    _$AppDatabase, $VariantProgressTableTable, VariantProgressTableData> {
+final class $$VariantProgressTableTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $VariantProgressTableTable,
+          VariantProgressTableData
+        > {
   $$VariantProgressTableTableReferences(
-      super.$_db, super.$_table, super.$_typedResult);
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
 
   static $WordVariantsTableTable _variantIdTable(_$AppDatabase db) =>
-      db.wordVariantsTable.createAlias($_aliasNameGenerator(
-          db.variantProgressTable.variantId, db.wordVariantsTable.id));
+      db.wordVariantsTable.createAlias(
+        $_aliasNameGenerator(
+          db.variantProgressTable.variantId,
+          db.wordVariantsTable.id,
+        ),
+      );
 
   $$WordVariantsTableTableProcessedTableManager get variantId {
     final $_column = $_itemColumn<String>('variant_id')!;
 
-    final manager =
-        $$WordVariantsTableTableTableManager($_db, $_db.wordVariantsTable)
-            .filter((f) => f.id.sqlEquals($_column));
+    final manager = $$WordVariantsTableTableTableManager(
+      $_db,
+      $_db.wordVariantsTable,
+    ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_variantIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: [item]));
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
   }
 }
 
@@ -6391,76 +7689,115 @@ class $$VariantProgressTableTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnFilters(column));
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get userId => $composableBuilder(
-      column: $table.userId, builder: (column) => ColumnFilters(column));
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get direction => $composableBuilder(
-      column: $table.direction, builder: (column) => ColumnFilters(column));
+    column: $table.direction,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get stability => $composableBuilder(
-      column: $table.stability, builder: (column) => ColumnFilters(column));
+    column: $table.stability,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get difficulty => $composableBuilder(
-      column: $table.difficulty, builder: (column) => ColumnFilters(column));
+    column: $table.difficulty,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get elapsedDays => $composableBuilder(
-      column: $table.elapsedDays, builder: (column) => ColumnFilters(column));
+    column: $table.elapsedDays,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get scheduledDays => $composableBuilder(
-      column: $table.scheduledDays, builder: (column) => ColumnFilters(column));
+    column: $table.scheduledDays,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get reps => $composableBuilder(
-      column: $table.reps, builder: (column) => ColumnFilters(column));
+    column: $table.reps,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get lapses => $composableBuilder(
-      column: $table.lapses, builder: (column) => ColumnFilters(column));
+    column: $table.lapses,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get state => $composableBuilder(
-      column: $table.state, builder: (column) => ColumnFilters(column));
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get lastReview => $composableBuilder(
-      column: $table.lastReview, builder: (column) => ColumnFilters(column));
+    column: $table.lastReview,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get nextReview => $composableBuilder(
-      column: $table.nextReview, builder: (column) => ColumnFilters(column));
+    column: $table.nextReview,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get timesShown => $composableBuilder(
-      column: $table.timesShown, builder: (column) => ColumnFilters(column));
+    column: $table.timesShown,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get timesCorrect => $composableBuilder(
-      column: $table.timesCorrect, builder: (column) => ColumnFilters(column));
+    column: $table.timesCorrect,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<double> get masteryLevel => $composableBuilder(
-      column: $table.masteryLevel, builder: (column) => ColumnFilters(column));
+    column: $table.masteryLevel,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
-      column: $table.isSynced, builder: (column) => ColumnFilters(column));
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$WordVariantsTableTableFilterComposer get variantId {
     final $$WordVariantsTableTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.variantId,
-        referencedTable: $db.wordVariantsTable,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$WordVariantsTableTableFilterComposer(
-              $db: $db,
-              $table: $db.wordVariantsTable,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.variantId,
+      referencedTable: $db.wordVariantsTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WordVariantsTableTableFilterComposer(
+            $db: $db,
+            $table: $db.wordVariantsTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 }
@@ -6475,79 +7812,115 @@ class $$VariantProgressTableTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnOrderings(column));
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get userId => $composableBuilder(
-      column: $table.userId, builder: (column) => ColumnOrderings(column));
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get direction => $composableBuilder(
-      column: $table.direction, builder: (column) => ColumnOrderings(column));
+    column: $table.direction,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get stability => $composableBuilder(
-      column: $table.stability, builder: (column) => ColumnOrderings(column));
+    column: $table.stability,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get difficulty => $composableBuilder(
-      column: $table.difficulty, builder: (column) => ColumnOrderings(column));
+    column: $table.difficulty,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get elapsedDays => $composableBuilder(
-      column: $table.elapsedDays, builder: (column) => ColumnOrderings(column));
+    column: $table.elapsedDays,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get scheduledDays => $composableBuilder(
-      column: $table.scheduledDays,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.scheduledDays,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get reps => $composableBuilder(
-      column: $table.reps, builder: (column) => ColumnOrderings(column));
+    column: $table.reps,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get lapses => $composableBuilder(
-      column: $table.lapses, builder: (column) => ColumnOrderings(column));
+    column: $table.lapses,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get state => $composableBuilder(
-      column: $table.state, builder: (column) => ColumnOrderings(column));
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get lastReview => $composableBuilder(
-      column: $table.lastReview, builder: (column) => ColumnOrderings(column));
+    column: $table.lastReview,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get nextReview => $composableBuilder(
-      column: $table.nextReview, builder: (column) => ColumnOrderings(column));
+    column: $table.nextReview,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get timesShown => $composableBuilder(
-      column: $table.timesShown, builder: (column) => ColumnOrderings(column));
+    column: $table.timesShown,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get timesCorrect => $composableBuilder(
-      column: $table.timesCorrect,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.timesCorrect,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<double> get masteryLevel => $composableBuilder(
-      column: $table.masteryLevel,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.masteryLevel,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isSynced => $composableBuilder(
-      column: $table.isSynced, builder: (column) => ColumnOrderings(column));
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$WordVariantsTableTableOrderingComposer get variantId {
     final $$WordVariantsTableTableOrderingComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.variantId,
-        referencedTable: $db.wordVariantsTable,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$WordVariantsTableTableOrderingComposer(
-              $db: $db,
-              $table: $db.wordVariantsTable,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
+      composer: this,
+      getCurrentColumn: (t) => t.variantId,
+      referencedTable: $db.wordVariantsTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WordVariantsTableTableOrderingComposer(
+            $db: $db,
+            $table: $db.wordVariantsTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return composer;
   }
 }
@@ -6574,13 +7947,19 @@ class $$VariantProgressTableTableAnnotationComposer
       $composableBuilder(column: $table.stability, builder: (column) => column);
 
   GeneratedColumn<double> get difficulty => $composableBuilder(
-      column: $table.difficulty, builder: (column) => column);
+    column: $table.difficulty,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get elapsedDays => $composableBuilder(
-      column: $table.elapsedDays, builder: (column) => column);
+    column: $table.elapsedDays,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get scheduledDays => $composableBuilder(
-      column: $table.scheduledDays, builder: (column) => column);
+    column: $table.scheduledDays,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get reps =>
       $composableBuilder(column: $table.reps, builder: (column) => column);
@@ -6592,19 +7971,29 @@ class $$VariantProgressTableTableAnnotationComposer
       $composableBuilder(column: $table.state, builder: (column) => column);
 
   GeneratedColumn<DateTime> get lastReview => $composableBuilder(
-      column: $table.lastReview, builder: (column) => column);
+    column: $table.lastReview,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get nextReview => $composableBuilder(
-      column: $table.nextReview, builder: (column) => column);
+    column: $table.nextReview,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get timesShown => $composableBuilder(
-      column: $table.timesShown, builder: (column) => column);
+    column: $table.timesShown,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get timesCorrect => $composableBuilder(
-      column: $table.timesCorrect, builder: (column) => column);
+    column: $table.timesCorrect,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get masteryLevel => $composableBuilder(
-      column: $table.masteryLevel, builder: (column) => column);
+    column: $table.masteryLevel,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
@@ -6618,150 +8007,165 @@ class $$VariantProgressTableTableAnnotationComposer
   $$WordVariantsTableTableAnnotationComposer get variantId {
     final $$WordVariantsTableTableAnnotationComposer composer =
         $composerBuilder(
-            composer: this,
-            getCurrentColumn: (t) => t.variantId,
-            referencedTable: $db.wordVariantsTable,
-            getReferencedColumn: (t) => t.id,
-            builder: (joinBuilder,
-                    {$addJoinBuilderToRootComposer,
-                    $removeJoinBuilderFromRootComposer}) =>
-                $$WordVariantsTableTableAnnotationComposer(
-                  $db: $db,
-                  $table: $db.wordVariantsTable,
-                  $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                  joinBuilder: joinBuilder,
-                  $removeJoinBuilderFromRootComposer:
-                      $removeJoinBuilderFromRootComposer,
-                ));
+          composer: this,
+          getCurrentColumn: (t) => t.variantId,
+          referencedTable: $db.wordVariantsTable,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$WordVariantsTableTableAnnotationComposer(
+                $db: $db,
+                $table: $db.wordVariantsTable,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return composer;
   }
 }
 
-class $$VariantProgressTableTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $VariantProgressTableTable,
-    VariantProgressTableData,
-    $$VariantProgressTableTableFilterComposer,
-    $$VariantProgressTableTableOrderingComposer,
-    $$VariantProgressTableTableAnnotationComposer,
-    $$VariantProgressTableTableCreateCompanionBuilder,
-    $$VariantProgressTableTableUpdateCompanionBuilder,
-    (VariantProgressTableData, $$VariantProgressTableTableReferences),
-    VariantProgressTableData,
-    PrefetchHooks Function({bool variantId})> {
+class $$VariantProgressTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $VariantProgressTableTable,
+          VariantProgressTableData,
+          $$VariantProgressTableTableFilterComposer,
+          $$VariantProgressTableTableOrderingComposer,
+          $$VariantProgressTableTableAnnotationComposer,
+          $$VariantProgressTableTableCreateCompanionBuilder,
+          $$VariantProgressTableTableUpdateCompanionBuilder,
+          (VariantProgressTableData, $$VariantProgressTableTableReferences),
+          VariantProgressTableData,
+          PrefetchHooks Function({bool variantId})
+        > {
   $$VariantProgressTableTableTableManager(
-      _$AppDatabase db, $VariantProgressTableTable table)
-      : super(TableManagerState(
+    _$AppDatabase db,
+    $VariantProgressTableTable table,
+  ) : super(
+        TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
               $$VariantProgressTableTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
               $$VariantProgressTableTableOrderingComposer(
-                  $db: db, $table: table),
+                $db: db,
+                $table: table,
+              ),
           createComputedFieldComposer: () =>
               $$VariantProgressTableTableAnnotationComposer(
-                  $db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<String> id = const Value.absent(),
-            Value<String> userId = const Value.absent(),
-            Value<String> variantId = const Value.absent(),
-            Value<String> direction = const Value.absent(),
-            Value<double> stability = const Value.absent(),
-            Value<double> difficulty = const Value.absent(),
-            Value<int> elapsedDays = const Value.absent(),
-            Value<int> scheduledDays = const Value.absent(),
-            Value<int> reps = const Value.absent(),
-            Value<int> lapses = const Value.absent(),
-            Value<String> state = const Value.absent(),
-            Value<DateTime?> lastReview = const Value.absent(),
-            Value<DateTime?> nextReview = const Value.absent(),
-            Value<int> timesShown = const Value.absent(),
-            Value<int> timesCorrect = const Value.absent(),
-            Value<double> masteryLevel = const Value.absent(),
-            Value<bool> isSynced = const Value.absent(),
-            Value<DateTime> createdAt = const Value.absent(),
-            Value<DateTime> updatedAt = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              VariantProgressTableCompanion(
-            id: id,
-            userId: userId,
-            variantId: variantId,
-            direction: direction,
-            stability: stability,
-            difficulty: difficulty,
-            elapsedDays: elapsedDays,
-            scheduledDays: scheduledDays,
-            reps: reps,
-            lapses: lapses,
-            state: state,
-            lastReview: lastReview,
-            nextReview: nextReview,
-            timesShown: timesShown,
-            timesCorrect: timesCorrect,
-            masteryLevel: masteryLevel,
-            isSynced: isSynced,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            rowid: rowid,
-          ),
-          createCompanionCallback: ({
-            required String id,
-            required String userId,
-            required String variantId,
-            required String direction,
-            Value<double> stability = const Value.absent(),
-            Value<double> difficulty = const Value.absent(),
-            Value<int> elapsedDays = const Value.absent(),
-            Value<int> scheduledDays = const Value.absent(),
-            Value<int> reps = const Value.absent(),
-            Value<int> lapses = const Value.absent(),
-            Value<String> state = const Value.absent(),
-            Value<DateTime?> lastReview = const Value.absent(),
-            Value<DateTime?> nextReview = const Value.absent(),
-            Value<int> timesShown = const Value.absent(),
-            Value<int> timesCorrect = const Value.absent(),
-            Value<double> masteryLevel = const Value.absent(),
-            Value<bool> isSynced = const Value.absent(),
-            required DateTime createdAt,
-            required DateTime updatedAt,
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              VariantProgressTableCompanion.insert(
-            id: id,
-            userId: userId,
-            variantId: variantId,
-            direction: direction,
-            stability: stability,
-            difficulty: difficulty,
-            elapsedDays: elapsedDays,
-            scheduledDays: scheduledDays,
-            reps: reps,
-            lapses: lapses,
-            state: state,
-            lastReview: lastReview,
-            nextReview: nextReview,
-            timesShown: timesShown,
-            timesCorrect: timesCorrect,
-            masteryLevel: masteryLevel,
-            isSynced: isSynced,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            rowid: rowid,
-          ),
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> variantId = const Value.absent(),
+                Value<String> direction = const Value.absent(),
+                Value<double> stability = const Value.absent(),
+                Value<double> difficulty = const Value.absent(),
+                Value<int> elapsedDays = const Value.absent(),
+                Value<int> scheduledDays = const Value.absent(),
+                Value<int> reps = const Value.absent(),
+                Value<int> lapses = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<DateTime?> lastReview = const Value.absent(),
+                Value<DateTime?> nextReview = const Value.absent(),
+                Value<int> timesShown = const Value.absent(),
+                Value<int> timesCorrect = const Value.absent(),
+                Value<double> masteryLevel = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => VariantProgressTableCompanion(
+                id: id,
+                userId: userId,
+                variantId: variantId,
+                direction: direction,
+                stability: stability,
+                difficulty: difficulty,
+                elapsedDays: elapsedDays,
+                scheduledDays: scheduledDays,
+                reps: reps,
+                lapses: lapses,
+                state: state,
+                lastReview: lastReview,
+                nextReview: nextReview,
+                timesShown: timesShown,
+                timesCorrect: timesCorrect,
+                masteryLevel: masteryLevel,
+                isSynced: isSynced,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String variantId,
+                required String direction,
+                Value<double> stability = const Value.absent(),
+                Value<double> difficulty = const Value.absent(),
+                Value<int> elapsedDays = const Value.absent(),
+                Value<int> scheduledDays = const Value.absent(),
+                Value<int> reps = const Value.absent(),
+                Value<int> lapses = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<DateTime?> lastReview = const Value.absent(),
+                Value<DateTime?> nextReview = const Value.absent(),
+                Value<int> timesShown = const Value.absent(),
+                Value<int> timesCorrect = const Value.absent(),
+                Value<double> masteryLevel = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => VariantProgressTableCompanion.insert(
+                id: id,
+                userId: userId,
+                variantId: variantId,
+                direction: direction,
+                stability: stability,
+                difficulty: difficulty,
+                elapsedDays: elapsedDays,
+                scheduledDays: scheduledDays,
+                reps: reps,
+                lapses: lapses,
+                state: state,
+                lastReview: lastReview,
+                nextReview: nextReview,
+                timesShown: timesShown,
+                timesCorrect: timesCorrect,
+                masteryLevel: masteryLevel,
+                isSynced: isSynced,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (
-                    e.readTable(table),
-                    $$VariantProgressTableTableReferences(db, table, e)
-                  ))
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$VariantProgressTableTableReferences(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: ({variantId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
-              addJoins: <
-                  T extends TableManagerState<
+              addJoins:
+                  <
+                    T extends TableManagerState<
                       dynamic,
                       dynamic,
                       dynamic,
@@ -6772,72 +8176,80 @@ class $$VariantProgressTableTableTableManager extends RootTableManager<
                       dynamic,
                       dynamic,
                       dynamic,
-                      dynamic>>(state) {
-                if (variantId) {
-                  state = state.withJoin(
-                    currentTable: table,
-                    currentColumn: table.variantId,
-                    referencedTable: $$VariantProgressTableTableReferences
-                        ._variantIdTable(db),
-                    referencedColumn: $$VariantProgressTableTableReferences
-                        ._variantIdTable(db)
-                        .id,
-                  ) as T;
-                }
+                      dynamic
+                    >
+                  >(state) {
+                    if (variantId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.variantId,
+                                referencedTable:
+                                    $$VariantProgressTableTableReferences
+                                        ._variantIdTable(db),
+                                referencedColumn:
+                                    $$VariantProgressTableTableReferences
+                                        ._variantIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
 
-                return state;
-              },
+                    return state;
+                  },
               getPrefetchedDataCallback: (items) async {
                 return [];
               },
             );
           },
-        ));
+        ),
+      );
 }
 
-typedef $$VariantProgressTableTableProcessedTableManager
-    = ProcessedTableManager<
-        _$AppDatabase,
-        $VariantProgressTableTable,
-        VariantProgressTableData,
-        $$VariantProgressTableTableFilterComposer,
-        $$VariantProgressTableTableOrderingComposer,
-        $$VariantProgressTableTableAnnotationComposer,
-        $$VariantProgressTableTableCreateCompanionBuilder,
-        $$VariantProgressTableTableUpdateCompanionBuilder,
-        (VariantProgressTableData, $$VariantProgressTableTableReferences),
-        VariantProgressTableData,
-        PrefetchHooks Function({bool variantId})>;
-typedef $$QuizSessionsTableTableCreateCompanionBuilder
-    = QuizSessionsTableCompanion Function({
-  required String id,
-  required String userId,
-  Value<String?> listId,
-  required String listName,
-  required String mode,
-  required String direction,
-  required int cardCount,
-  required int correctCount,
-  required int durationSeconds,
-  required int masteredWordCount,
-  required DateTime completedAt,
-  Value<int> rowid,
-});
-typedef $$QuizSessionsTableTableUpdateCompanionBuilder
-    = QuizSessionsTableCompanion Function({
-  Value<String> id,
-  Value<String> userId,
-  Value<String?> listId,
-  Value<String> listName,
-  Value<String> mode,
-  Value<String> direction,
-  Value<int> cardCount,
-  Value<int> correctCount,
-  Value<int> durationSeconds,
-  Value<int> masteredWordCount,
-  Value<DateTime> completedAt,
-  Value<int> rowid,
-});
+typedef $$VariantProgressTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $VariantProgressTableTable,
+      VariantProgressTableData,
+      $$VariantProgressTableTableFilterComposer,
+      $$VariantProgressTableTableOrderingComposer,
+      $$VariantProgressTableTableAnnotationComposer,
+      $$VariantProgressTableTableCreateCompanionBuilder,
+      $$VariantProgressTableTableUpdateCompanionBuilder,
+      (VariantProgressTableData, $$VariantProgressTableTableReferences),
+      VariantProgressTableData,
+      PrefetchHooks Function({bool variantId})
+    >;
+typedef $$QuizSessionsTableTableCreateCompanionBuilder =
+    QuizSessionsTableCompanion Function({
+      required String id,
+      required String userId,
+      Value<String?> listId,
+      required String listName,
+      required String mode,
+      required String direction,
+      required int cardCount,
+      required int correctCount,
+      required int durationSeconds,
+      required int masteredWordCount,
+      required DateTime completedAt,
+      Value<int> rowid,
+    });
+typedef $$QuizSessionsTableTableUpdateCompanionBuilder =
+    QuizSessionsTableCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String?> listId,
+      Value<String> listName,
+      Value<String> mode,
+      Value<String> direction,
+      Value<int> cardCount,
+      Value<int> correctCount,
+      Value<int> durationSeconds,
+      Value<int> masteredWordCount,
+      Value<DateTime> completedAt,
+      Value<int> rowid,
+    });
 
 class $$QuizSessionsTableTableFilterComposer
     extends Composer<_$AppDatabase, $QuizSessionsTableTable> {
@@ -6849,39 +8261,59 @@ class $$QuizSessionsTableTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnFilters(column));
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get userId => $composableBuilder(
-      column: $table.userId, builder: (column) => ColumnFilters(column));
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get listId => $composableBuilder(
-      column: $table.listId, builder: (column) => ColumnFilters(column));
+    column: $table.listId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get listName => $composableBuilder(
-      column: $table.listName, builder: (column) => ColumnFilters(column));
+    column: $table.listName,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get mode => $composableBuilder(
-      column: $table.mode, builder: (column) => ColumnFilters(column));
+    column: $table.mode,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get direction => $composableBuilder(
-      column: $table.direction, builder: (column) => ColumnFilters(column));
+    column: $table.direction,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get cardCount => $composableBuilder(
-      column: $table.cardCount, builder: (column) => ColumnFilters(column));
+    column: $table.cardCount,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get correctCount => $composableBuilder(
-      column: $table.correctCount, builder: (column) => ColumnFilters(column));
+    column: $table.correctCount,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get durationSeconds => $composableBuilder(
-      column: $table.durationSeconds,
-      builder: (column) => ColumnFilters(column));
+    column: $table.durationSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get masteredWordCount => $composableBuilder(
-      column: $table.masteredWordCount,
-      builder: (column) => ColumnFilters(column));
+    column: $table.masteredWordCount,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get completedAt => $composableBuilder(
-      column: $table.completedAt, builder: (column) => ColumnFilters(column));
+    column: $table.completedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$QuizSessionsTableTableOrderingComposer
@@ -6894,40 +8326,59 @@ class $$QuizSessionsTableTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnOrderings(column));
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get userId => $composableBuilder(
-      column: $table.userId, builder: (column) => ColumnOrderings(column));
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get listId => $composableBuilder(
-      column: $table.listId, builder: (column) => ColumnOrderings(column));
+    column: $table.listId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get listName => $composableBuilder(
-      column: $table.listName, builder: (column) => ColumnOrderings(column));
+    column: $table.listName,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get mode => $composableBuilder(
-      column: $table.mode, builder: (column) => ColumnOrderings(column));
+    column: $table.mode,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get direction => $composableBuilder(
-      column: $table.direction, builder: (column) => ColumnOrderings(column));
+    column: $table.direction,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get cardCount => $composableBuilder(
-      column: $table.cardCount, builder: (column) => ColumnOrderings(column));
+    column: $table.cardCount,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get correctCount => $composableBuilder(
-      column: $table.correctCount,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.correctCount,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get durationSeconds => $composableBuilder(
-      column: $table.durationSeconds,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.durationSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get masteredWordCount => $composableBuilder(
-      column: $table.masteredWordCount,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.masteredWordCount,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get completedAt => $composableBuilder(
-      column: $table.completedAt, builder: (column) => ColumnOrderings(column));
+    column: $table.completedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$QuizSessionsTableTableAnnotationComposer
@@ -6961,37 +8412,53 @@ class $$QuizSessionsTableTableAnnotationComposer
       $composableBuilder(column: $table.cardCount, builder: (column) => column);
 
   GeneratedColumn<int> get correctCount => $composableBuilder(
-      column: $table.correctCount, builder: (column) => column);
+    column: $table.correctCount,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get durationSeconds => $composableBuilder(
-      column: $table.durationSeconds, builder: (column) => column);
+    column: $table.durationSeconds,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get masteredWordCount => $composableBuilder(
-      column: $table.masteredWordCount, builder: (column) => column);
+    column: $table.masteredWordCount,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get completedAt => $composableBuilder(
-      column: $table.completedAt, builder: (column) => column);
+    column: $table.completedAt,
+    builder: (column) => column,
+  );
 }
 
-class $$QuizSessionsTableTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $QuizSessionsTableTable,
-    QuizSessionsTableData,
-    $$QuizSessionsTableTableFilterComposer,
-    $$QuizSessionsTableTableOrderingComposer,
-    $$QuizSessionsTableTableAnnotationComposer,
-    $$QuizSessionsTableTableCreateCompanionBuilder,
-    $$QuizSessionsTableTableUpdateCompanionBuilder,
-    (
-      QuizSessionsTableData,
-      BaseReferences<_$AppDatabase, $QuizSessionsTableTable,
-          QuizSessionsTableData>
-    ),
-    QuizSessionsTableData,
-    PrefetchHooks Function()> {
+class $$QuizSessionsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $QuizSessionsTableTable,
+          QuizSessionsTableData,
+          $$QuizSessionsTableTableFilterComposer,
+          $$QuizSessionsTableTableOrderingComposer,
+          $$QuizSessionsTableTableAnnotationComposer,
+          $$QuizSessionsTableTableCreateCompanionBuilder,
+          $$QuizSessionsTableTableUpdateCompanionBuilder,
+          (
+            QuizSessionsTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $QuizSessionsTableTable,
+              QuizSessionsTableData
+            >,
+          ),
+          QuizSessionsTableData,
+          PrefetchHooks Function()
+        > {
   $$QuizSessionsTableTableTableManager(
-      _$AppDatabase db, $QuizSessionsTableTable table)
-      : super(TableManagerState(
+    _$AppDatabase db,
+    $QuizSessionsTableTable table,
+  ) : super(
+        TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -7000,112 +8467,120 @@ class $$QuizSessionsTableTableTableManager extends RootTableManager<
               $$QuizSessionsTableTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$QuizSessionsTableTableAnnotationComposer(
-                  $db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<String> id = const Value.absent(),
-            Value<String> userId = const Value.absent(),
-            Value<String?> listId = const Value.absent(),
-            Value<String> listName = const Value.absent(),
-            Value<String> mode = const Value.absent(),
-            Value<String> direction = const Value.absent(),
-            Value<int> cardCount = const Value.absent(),
-            Value<int> correctCount = const Value.absent(),
-            Value<int> durationSeconds = const Value.absent(),
-            Value<int> masteredWordCount = const Value.absent(),
-            Value<DateTime> completedAt = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              QuizSessionsTableCompanion(
-            id: id,
-            userId: userId,
-            listId: listId,
-            listName: listName,
-            mode: mode,
-            direction: direction,
-            cardCount: cardCount,
-            correctCount: correctCount,
-            durationSeconds: durationSeconds,
-            masteredWordCount: masteredWordCount,
-            completedAt: completedAt,
-            rowid: rowid,
-          ),
-          createCompanionCallback: ({
-            required String id,
-            required String userId,
-            Value<String?> listId = const Value.absent(),
-            required String listName,
-            required String mode,
-            required String direction,
-            required int cardCount,
-            required int correctCount,
-            required int durationSeconds,
-            required int masteredWordCount,
-            required DateTime completedAt,
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              QuizSessionsTableCompanion.insert(
-            id: id,
-            userId: userId,
-            listId: listId,
-            listName: listName,
-            mode: mode,
-            direction: direction,
-            cardCount: cardCount,
-            correctCount: correctCount,
-            durationSeconds: durationSeconds,
-            masteredWordCount: masteredWordCount,
-            completedAt: completedAt,
-            rowid: rowid,
-          ),
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String?> listId = const Value.absent(),
+                Value<String> listName = const Value.absent(),
+                Value<String> mode = const Value.absent(),
+                Value<String> direction = const Value.absent(),
+                Value<int> cardCount = const Value.absent(),
+                Value<int> correctCount = const Value.absent(),
+                Value<int> durationSeconds = const Value.absent(),
+                Value<int> masteredWordCount = const Value.absent(),
+                Value<DateTime> completedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => QuizSessionsTableCompanion(
+                id: id,
+                userId: userId,
+                listId: listId,
+                listName: listName,
+                mode: mode,
+                direction: direction,
+                cardCount: cardCount,
+                correctCount: correctCount,
+                durationSeconds: durationSeconds,
+                masteredWordCount: masteredWordCount,
+                completedAt: completedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                Value<String?> listId = const Value.absent(),
+                required String listName,
+                required String mode,
+                required String direction,
+                required int cardCount,
+                required int correctCount,
+                required int durationSeconds,
+                required int masteredWordCount,
+                required DateTime completedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => QuizSessionsTableCompanion.insert(
+                id: id,
+                userId: userId,
+                listId: listId,
+                listName: listName,
+                mode: mode,
+                direction: direction,
+                cardCount: cardCount,
+                correctCount: correctCount,
+                durationSeconds: durationSeconds,
+                masteredWordCount: masteredWordCount,
+                completedAt: completedAt,
+                rowid: rowid,
+              ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
-        ));
+        ),
+      );
 }
 
-typedef $$QuizSessionsTableTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $QuizSessionsTableTable,
-    QuizSessionsTableData,
-    $$QuizSessionsTableTableFilterComposer,
-    $$QuizSessionsTableTableOrderingComposer,
-    $$QuizSessionsTableTableAnnotationComposer,
-    $$QuizSessionsTableTableCreateCompanionBuilder,
-    $$QuizSessionsTableTableUpdateCompanionBuilder,
-    (
+typedef $$QuizSessionsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $QuizSessionsTableTable,
       QuizSessionsTableData,
-      BaseReferences<_$AppDatabase, $QuizSessionsTableTable,
-          QuizSessionsTableData>
-    ),
-    QuizSessionsTableData,
-    PrefetchHooks Function()>;
-typedef $$GrammarProgressTableTableCreateCompanionBuilder
-    = GrammarProgressTableCompanion Function({
-  required String id,
-  required String userId,
-  required String ruleId,
-  Value<int> shown,
-  Value<int> correct,
-  Value<DateTime?> masteredAt,
-  Value<bool> isSynced,
-  required DateTime createdAt,
-  required DateTime updatedAt,
-  Value<int> rowid,
-});
-typedef $$GrammarProgressTableTableUpdateCompanionBuilder
-    = GrammarProgressTableCompanion Function({
-  Value<String> id,
-  Value<String> userId,
-  Value<String> ruleId,
-  Value<int> shown,
-  Value<int> correct,
-  Value<DateTime?> masteredAt,
-  Value<bool> isSynced,
-  Value<DateTime> createdAt,
-  Value<DateTime> updatedAt,
-  Value<int> rowid,
-});
+      $$QuizSessionsTableTableFilterComposer,
+      $$QuizSessionsTableTableOrderingComposer,
+      $$QuizSessionsTableTableAnnotationComposer,
+      $$QuizSessionsTableTableCreateCompanionBuilder,
+      $$QuizSessionsTableTableUpdateCompanionBuilder,
+      (
+        QuizSessionsTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $QuizSessionsTableTable,
+          QuizSessionsTableData
+        >,
+      ),
+      QuizSessionsTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$GrammarProgressTableTableCreateCompanionBuilder =
+    GrammarProgressTableCompanion Function({
+      required String id,
+      required String userId,
+      required String ruleId,
+      Value<int> shown,
+      Value<int> correct,
+      Value<DateTime?> masteredAt,
+      Value<bool> isSynced,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$GrammarProgressTableTableUpdateCompanionBuilder =
+    GrammarProgressTableCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> ruleId,
+      Value<int> shown,
+      Value<int> correct,
+      Value<DateTime?> masteredAt,
+      Value<bool> isSynced,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
 
 class $$GrammarProgressTableTableFilterComposer
     extends Composer<_$AppDatabase, $GrammarProgressTableTable> {
@@ -7117,31 +8592,49 @@ class $$GrammarProgressTableTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnFilters(column));
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get userId => $composableBuilder(
-      column: $table.userId, builder: (column) => ColumnFilters(column));
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get ruleId => $composableBuilder(
-      column: $table.ruleId, builder: (column) => ColumnFilters(column));
+    column: $table.ruleId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get shown => $composableBuilder(
-      column: $table.shown, builder: (column) => ColumnFilters(column));
+    column: $table.shown,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get correct => $composableBuilder(
-      column: $table.correct, builder: (column) => ColumnFilters(column));
+    column: $table.correct,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get masteredAt => $composableBuilder(
-      column: $table.masteredAt, builder: (column) => ColumnFilters(column));
+    column: $table.masteredAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
-      column: $table.isSynced, builder: (column) => ColumnFilters(column));
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$GrammarProgressTableTableOrderingComposer
@@ -7154,31 +8647,49 @@ class $$GrammarProgressTableTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnOrderings(column));
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get userId => $composableBuilder(
-      column: $table.userId, builder: (column) => ColumnOrderings(column));
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get ruleId => $composableBuilder(
-      column: $table.ruleId, builder: (column) => ColumnOrderings(column));
+    column: $table.ruleId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get shown => $composableBuilder(
-      column: $table.shown, builder: (column) => ColumnOrderings(column));
+    column: $table.shown,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get correct => $composableBuilder(
-      column: $table.correct, builder: (column) => ColumnOrderings(column));
+    column: $table.correct,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get masteredAt => $composableBuilder(
-      column: $table.masteredAt, builder: (column) => ColumnOrderings(column));
+    column: $table.masteredAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isSynced => $composableBuilder(
-      column: $table.isSynced, builder: (column) => ColumnOrderings(column));
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$GrammarProgressTableTableAnnotationComposer
@@ -7206,7 +8717,9 @@ class $$GrammarProgressTableTableAnnotationComposer
       $composableBuilder(column: $table.correct, builder: (column) => column);
 
   GeneratedColumn<DateTime> get masteredAt => $composableBuilder(
-      column: $table.masteredAt, builder: (column) => column);
+    column: $table.masteredAt,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
@@ -7218,139 +8731,156 @@ class $$GrammarProgressTableTableAnnotationComposer
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
 
-class $$GrammarProgressTableTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $GrammarProgressTableTable,
-    GrammarProgressTableData,
-    $$GrammarProgressTableTableFilterComposer,
-    $$GrammarProgressTableTableOrderingComposer,
-    $$GrammarProgressTableTableAnnotationComposer,
-    $$GrammarProgressTableTableCreateCompanionBuilder,
-    $$GrammarProgressTableTableUpdateCompanionBuilder,
-    (
-      GrammarProgressTableData,
-      BaseReferences<_$AppDatabase, $GrammarProgressTableTable,
-          GrammarProgressTableData>
-    ),
-    GrammarProgressTableData,
-    PrefetchHooks Function()> {
+class $$GrammarProgressTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $GrammarProgressTableTable,
+          GrammarProgressTableData,
+          $$GrammarProgressTableTableFilterComposer,
+          $$GrammarProgressTableTableOrderingComposer,
+          $$GrammarProgressTableTableAnnotationComposer,
+          $$GrammarProgressTableTableCreateCompanionBuilder,
+          $$GrammarProgressTableTableUpdateCompanionBuilder,
+          (
+            GrammarProgressTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $GrammarProgressTableTable,
+              GrammarProgressTableData
+            >,
+          ),
+          GrammarProgressTableData,
+          PrefetchHooks Function()
+        > {
   $$GrammarProgressTableTableTableManager(
-      _$AppDatabase db, $GrammarProgressTableTable table)
-      : super(TableManagerState(
+    _$AppDatabase db,
+    $GrammarProgressTableTable table,
+  ) : super(
+        TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
               $$GrammarProgressTableTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
               $$GrammarProgressTableTableOrderingComposer(
-                  $db: db, $table: table),
+                $db: db,
+                $table: table,
+              ),
           createComputedFieldComposer: () =>
               $$GrammarProgressTableTableAnnotationComposer(
-                  $db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<String> id = const Value.absent(),
-            Value<String> userId = const Value.absent(),
-            Value<String> ruleId = const Value.absent(),
-            Value<int> shown = const Value.absent(),
-            Value<int> correct = const Value.absent(),
-            Value<DateTime?> masteredAt = const Value.absent(),
-            Value<bool> isSynced = const Value.absent(),
-            Value<DateTime> createdAt = const Value.absent(),
-            Value<DateTime> updatedAt = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              GrammarProgressTableCompanion(
-            id: id,
-            userId: userId,
-            ruleId: ruleId,
-            shown: shown,
-            correct: correct,
-            masteredAt: masteredAt,
-            isSynced: isSynced,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            rowid: rowid,
-          ),
-          createCompanionCallback: ({
-            required String id,
-            required String userId,
-            required String ruleId,
-            Value<int> shown = const Value.absent(),
-            Value<int> correct = const Value.absent(),
-            Value<DateTime?> masteredAt = const Value.absent(),
-            Value<bool> isSynced = const Value.absent(),
-            required DateTime createdAt,
-            required DateTime updatedAt,
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              GrammarProgressTableCompanion.insert(
-            id: id,
-            userId: userId,
-            ruleId: ruleId,
-            shown: shown,
-            correct: correct,
-            masteredAt: masteredAt,
-            isSynced: isSynced,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            rowid: rowid,
-          ),
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> ruleId = const Value.absent(),
+                Value<int> shown = const Value.absent(),
+                Value<int> correct = const Value.absent(),
+                Value<DateTime?> masteredAt = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => GrammarProgressTableCompanion(
+                id: id,
+                userId: userId,
+                ruleId: ruleId,
+                shown: shown,
+                correct: correct,
+                masteredAt: masteredAt,
+                isSynced: isSynced,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String ruleId,
+                Value<int> shown = const Value.absent(),
+                Value<int> correct = const Value.absent(),
+                Value<DateTime?> masteredAt = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => GrammarProgressTableCompanion.insert(
+                id: id,
+                userId: userId,
+                ruleId: ruleId,
+                shown: shown,
+                correct: correct,
+                masteredAt: masteredAt,
+                isSynced: isSynced,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
-        ));
+        ),
+      );
 }
 
-typedef $$GrammarProgressTableTableProcessedTableManager
-    = ProcessedTableManager<
-        _$AppDatabase,
-        $GrammarProgressTableTable,
+typedef $$GrammarProgressTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $GrammarProgressTableTable,
+      GrammarProgressTableData,
+      $$GrammarProgressTableTableFilterComposer,
+      $$GrammarProgressTableTableOrderingComposer,
+      $$GrammarProgressTableTableAnnotationComposer,
+      $$GrammarProgressTableTableCreateCompanionBuilder,
+      $$GrammarProgressTableTableUpdateCompanionBuilder,
+      (
         GrammarProgressTableData,
-        $$GrammarProgressTableTableFilterComposer,
-        $$GrammarProgressTableTableOrderingComposer,
-        $$GrammarProgressTableTableAnnotationComposer,
-        $$GrammarProgressTableTableCreateCompanionBuilder,
-        $$GrammarProgressTableTableUpdateCompanionBuilder,
-        (
-          GrammarProgressTableData,
-          BaseReferences<_$AppDatabase, $GrammarProgressTableTable,
-              GrammarProgressTableData>
-        ),
-        GrammarProgressTableData,
-        PrefetchHooks Function()>;
-typedef $$ReviewEventsTableTableCreateCompanionBuilder
-    = ReviewEventsTableCompanion Function({
-  required String id,
-  required String userId,
-  required String variantId,
-  required String direction,
-  Value<String?> listId,
-  required String mode,
-  required bool correct,
-  required String rating,
-  Value<int?> responseTimeMs,
-  Value<int?> retryCount,
-  required DateTime createdAt,
-  Value<bool> isSynced,
-  Value<int> rowid,
-});
-typedef $$ReviewEventsTableTableUpdateCompanionBuilder
-    = ReviewEventsTableCompanion Function({
-  Value<String> id,
-  Value<String> userId,
-  Value<String> variantId,
-  Value<String> direction,
-  Value<String?> listId,
-  Value<String> mode,
-  Value<bool> correct,
-  Value<String> rating,
-  Value<int?> responseTimeMs,
-  Value<int?> retryCount,
-  Value<DateTime> createdAt,
-  Value<bool> isSynced,
-  Value<int> rowid,
-});
+        BaseReferences<
+          _$AppDatabase,
+          $GrammarProgressTableTable,
+          GrammarProgressTableData
+        >,
+      ),
+      GrammarProgressTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$ReviewEventsTableTableCreateCompanionBuilder =
+    ReviewEventsTableCompanion Function({
+      required String id,
+      required String userId,
+      required String variantId,
+      required String direction,
+      Value<String?> listId,
+      required String mode,
+      required bool correct,
+      required String rating,
+      Value<int?> responseTimeMs,
+      Value<int?> retryCount,
+      required DateTime createdAt,
+      Value<bool> isSynced,
+      Value<int> rowid,
+    });
+typedef $$ReviewEventsTableTableUpdateCompanionBuilder =
+    ReviewEventsTableCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> variantId,
+      Value<String> direction,
+      Value<String?> listId,
+      Value<String> mode,
+      Value<bool> correct,
+      Value<String> rating,
+      Value<int?> responseTimeMs,
+      Value<int?> retryCount,
+      Value<DateTime> createdAt,
+      Value<bool> isSynced,
+      Value<int> rowid,
+    });
 
 class $$ReviewEventsTableTableFilterComposer
     extends Composer<_$AppDatabase, $ReviewEventsTableTable> {
@@ -7362,41 +8892,64 @@ class $$ReviewEventsTableTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnFilters(column));
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get userId => $composableBuilder(
-      column: $table.userId, builder: (column) => ColumnFilters(column));
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get variantId => $composableBuilder(
-      column: $table.variantId, builder: (column) => ColumnFilters(column));
+    column: $table.variantId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get direction => $composableBuilder(
-      column: $table.direction, builder: (column) => ColumnFilters(column));
+    column: $table.direction,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get listId => $composableBuilder(
-      column: $table.listId, builder: (column) => ColumnFilters(column));
+    column: $table.listId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get mode => $composableBuilder(
-      column: $table.mode, builder: (column) => ColumnFilters(column));
+    column: $table.mode,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get correct => $composableBuilder(
-      column: $table.correct, builder: (column) => ColumnFilters(column));
+    column: $table.correct,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get rating => $composableBuilder(
-      column: $table.rating, builder: (column) => ColumnFilters(column));
+    column: $table.rating,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get responseTimeMs => $composableBuilder(
-      column: $table.responseTimeMs,
-      builder: (column) => ColumnFilters(column));
+    column: $table.responseTimeMs,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get retryCount => $composableBuilder(
-      column: $table.retryCount, builder: (column) => ColumnFilters(column));
+    column: $table.retryCount,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
-      column: $table.isSynced, builder: (column) => ColumnFilters(column));
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$ReviewEventsTableTableOrderingComposer
@@ -7409,41 +8962,64 @@ class $$ReviewEventsTableTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnOrderings(column));
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get userId => $composableBuilder(
-      column: $table.userId, builder: (column) => ColumnOrderings(column));
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get variantId => $composableBuilder(
-      column: $table.variantId, builder: (column) => ColumnOrderings(column));
+    column: $table.variantId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get direction => $composableBuilder(
-      column: $table.direction, builder: (column) => ColumnOrderings(column));
+    column: $table.direction,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get listId => $composableBuilder(
-      column: $table.listId, builder: (column) => ColumnOrderings(column));
+    column: $table.listId,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get mode => $composableBuilder(
-      column: $table.mode, builder: (column) => ColumnOrderings(column));
+    column: $table.mode,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get correct => $composableBuilder(
-      column: $table.correct, builder: (column) => ColumnOrderings(column));
+    column: $table.correct,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get rating => $composableBuilder(
-      column: $table.rating, builder: (column) => ColumnOrderings(column));
+    column: $table.rating,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get responseTimeMs => $composableBuilder(
-      column: $table.responseTimeMs,
-      builder: (column) => ColumnOrderings(column));
+    column: $table.responseTimeMs,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<int> get retryCount => $composableBuilder(
-      column: $table.retryCount, builder: (column) => ColumnOrderings(column));
+    column: $table.retryCount,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<bool> get isSynced => $composableBuilder(
-      column: $table.isSynced, builder: (column) => ColumnOrderings(column));
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ReviewEventsTableTableAnnotationComposer
@@ -7480,10 +9056,14 @@ class $$ReviewEventsTableTableAnnotationComposer
       $composableBuilder(column: $table.rating, builder: (column) => column);
 
   GeneratedColumn<int> get responseTimeMs => $composableBuilder(
-      column: $table.responseTimeMs, builder: (column) => column);
+    column: $table.responseTimeMs,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get retryCount => $composableBuilder(
-      column: $table.retryCount, builder: (column) => column);
+    column: $table.retryCount,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -7492,25 +9072,33 @@ class $$ReviewEventsTableTableAnnotationComposer
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
 }
 
-class $$ReviewEventsTableTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $ReviewEventsTableTable,
-    ReviewEventsTableData,
-    $$ReviewEventsTableTableFilterComposer,
-    $$ReviewEventsTableTableOrderingComposer,
-    $$ReviewEventsTableTableAnnotationComposer,
-    $$ReviewEventsTableTableCreateCompanionBuilder,
-    $$ReviewEventsTableTableUpdateCompanionBuilder,
-    (
-      ReviewEventsTableData,
-      BaseReferences<_$AppDatabase, $ReviewEventsTableTable,
-          ReviewEventsTableData>
-    ),
-    ReviewEventsTableData,
-    PrefetchHooks Function()> {
+class $$ReviewEventsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ReviewEventsTableTable,
+          ReviewEventsTableData,
+          $$ReviewEventsTableTableFilterComposer,
+          $$ReviewEventsTableTableOrderingComposer,
+          $$ReviewEventsTableTableAnnotationComposer,
+          $$ReviewEventsTableTableCreateCompanionBuilder,
+          $$ReviewEventsTableTableUpdateCompanionBuilder,
+          (
+            ReviewEventsTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $ReviewEventsTableTable,
+              ReviewEventsTableData
+            >,
+          ),
+          ReviewEventsTableData,
+          PrefetchHooks Function()
+        > {
   $$ReviewEventsTableTableTableManager(
-      _$AppDatabase db, $ReviewEventsTableTable table)
-      : super(TableManagerState(
+    _$AppDatabase db,
+    $ReviewEventsTableTable table,
+  ) : super(
+        TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -7519,102 +9107,110 @@ class $$ReviewEventsTableTableTableManager extends RootTableManager<
               $$ReviewEventsTableTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$ReviewEventsTableTableAnnotationComposer(
-                  $db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<String> id = const Value.absent(),
-            Value<String> userId = const Value.absent(),
-            Value<String> variantId = const Value.absent(),
-            Value<String> direction = const Value.absent(),
-            Value<String?> listId = const Value.absent(),
-            Value<String> mode = const Value.absent(),
-            Value<bool> correct = const Value.absent(),
-            Value<String> rating = const Value.absent(),
-            Value<int?> responseTimeMs = const Value.absent(),
-            Value<int?> retryCount = const Value.absent(),
-            Value<DateTime> createdAt = const Value.absent(),
-            Value<bool> isSynced = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              ReviewEventsTableCompanion(
-            id: id,
-            userId: userId,
-            variantId: variantId,
-            direction: direction,
-            listId: listId,
-            mode: mode,
-            correct: correct,
-            rating: rating,
-            responseTimeMs: responseTimeMs,
-            retryCount: retryCount,
-            createdAt: createdAt,
-            isSynced: isSynced,
-            rowid: rowid,
-          ),
-          createCompanionCallback: ({
-            required String id,
-            required String userId,
-            required String variantId,
-            required String direction,
-            Value<String?> listId = const Value.absent(),
-            required String mode,
-            required bool correct,
-            required String rating,
-            Value<int?> responseTimeMs = const Value.absent(),
-            Value<int?> retryCount = const Value.absent(),
-            required DateTime createdAt,
-            Value<bool> isSynced = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              ReviewEventsTableCompanion.insert(
-            id: id,
-            userId: userId,
-            variantId: variantId,
-            direction: direction,
-            listId: listId,
-            mode: mode,
-            correct: correct,
-            rating: rating,
-            responseTimeMs: responseTimeMs,
-            retryCount: retryCount,
-            createdAt: createdAt,
-            isSynced: isSynced,
-            rowid: rowid,
-          ),
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> variantId = const Value.absent(),
+                Value<String> direction = const Value.absent(),
+                Value<String?> listId = const Value.absent(),
+                Value<String> mode = const Value.absent(),
+                Value<bool> correct = const Value.absent(),
+                Value<String> rating = const Value.absent(),
+                Value<int?> responseTimeMs = const Value.absent(),
+                Value<int?> retryCount = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReviewEventsTableCompanion(
+                id: id,
+                userId: userId,
+                variantId: variantId,
+                direction: direction,
+                listId: listId,
+                mode: mode,
+                correct: correct,
+                rating: rating,
+                responseTimeMs: responseTimeMs,
+                retryCount: retryCount,
+                createdAt: createdAt,
+                isSynced: isSynced,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String variantId,
+                required String direction,
+                Value<String?> listId = const Value.absent(),
+                required String mode,
+                required bool correct,
+                required String rating,
+                Value<int?> responseTimeMs = const Value.absent(),
+                Value<int?> retryCount = const Value.absent(),
+                required DateTime createdAt,
+                Value<bool> isSynced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReviewEventsTableCompanion.insert(
+                id: id,
+                userId: userId,
+                variantId: variantId,
+                direction: direction,
+                listId: listId,
+                mode: mode,
+                correct: correct,
+                rating: rating,
+                responseTimeMs: responseTimeMs,
+                retryCount: retryCount,
+                createdAt: createdAt,
+                isSynced: isSynced,
+                rowid: rowid,
+              ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
-        ));
+        ),
+      );
 }
 
-typedef $$ReviewEventsTableTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $ReviewEventsTableTable,
-    ReviewEventsTableData,
-    $$ReviewEventsTableTableFilterComposer,
-    $$ReviewEventsTableTableOrderingComposer,
-    $$ReviewEventsTableTableAnnotationComposer,
-    $$ReviewEventsTableTableCreateCompanionBuilder,
-    $$ReviewEventsTableTableUpdateCompanionBuilder,
-    (
+typedef $$ReviewEventsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ReviewEventsTableTable,
       ReviewEventsTableData,
-      BaseReferences<_$AppDatabase, $ReviewEventsTableTable,
-          ReviewEventsTableData>
-    ),
-    ReviewEventsTableData,
-    PrefetchHooks Function()>;
-typedef $$SharedImportBootstrapTableTableCreateCompanionBuilder
-    = SharedImportBootstrapTableCompanion Function({
-  required String id,
-  required String snapshot,
-  Value<int> rowid,
-});
-typedef $$SharedImportBootstrapTableTableUpdateCompanionBuilder
-    = SharedImportBootstrapTableCompanion Function({
-  Value<String> id,
-  Value<String> snapshot,
-  Value<int> rowid,
-});
+      $$ReviewEventsTableTableFilterComposer,
+      $$ReviewEventsTableTableOrderingComposer,
+      $$ReviewEventsTableTableAnnotationComposer,
+      $$ReviewEventsTableTableCreateCompanionBuilder,
+      $$ReviewEventsTableTableUpdateCompanionBuilder,
+      (
+        ReviewEventsTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $ReviewEventsTableTable,
+          ReviewEventsTableData
+        >,
+      ),
+      ReviewEventsTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$SharedImportBootstrapTableTableCreateCompanionBuilder =
+    SharedImportBootstrapTableCompanion Function({
+      required String id,
+      required String snapshot,
+      Value<int> rowid,
+    });
+typedef $$SharedImportBootstrapTableTableUpdateCompanionBuilder =
+    SharedImportBootstrapTableCompanion Function({
+      Value<String> id,
+      Value<String> snapshot,
+      Value<int> rowid,
+    });
 
 class $$SharedImportBootstrapTableTableFilterComposer
     extends Composer<_$AppDatabase, $SharedImportBootstrapTableTable> {
@@ -7626,10 +9222,14 @@ class $$SharedImportBootstrapTableTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnFilters(column));
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get snapshot => $composableBuilder(
-      column: $table.snapshot, builder: (column) => ColumnFilters(column));
+    column: $table.snapshot,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$SharedImportBootstrapTableTableOrderingComposer
@@ -7642,10 +9242,14 @@ class $$SharedImportBootstrapTableTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnOrderings(column));
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   ColumnOrderings<String> get snapshot => $composableBuilder(
-      column: $table.snapshot, builder: (column) => ColumnOrderings(column));
+    column: $table.snapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SharedImportBootstrapTableTableAnnotationComposer
@@ -7664,80 +9268,99 @@ class $$SharedImportBootstrapTableTableAnnotationComposer
       $composableBuilder(column: $table.snapshot, builder: (column) => column);
 }
 
-class $$SharedImportBootstrapTableTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $SharedImportBootstrapTableTable,
-    SharedImportBootstrapTableData,
-    $$SharedImportBootstrapTableTableFilterComposer,
-    $$SharedImportBootstrapTableTableOrderingComposer,
-    $$SharedImportBootstrapTableTableAnnotationComposer,
-    $$SharedImportBootstrapTableTableCreateCompanionBuilder,
-    $$SharedImportBootstrapTableTableUpdateCompanionBuilder,
-    (
-      SharedImportBootstrapTableData,
-      BaseReferences<_$AppDatabase, $SharedImportBootstrapTableTable,
-          SharedImportBootstrapTableData>
-    ),
-    SharedImportBootstrapTableData,
-    PrefetchHooks Function()> {
+class $$SharedImportBootstrapTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SharedImportBootstrapTableTable,
+          SharedImportBootstrapTableData,
+          $$SharedImportBootstrapTableTableFilterComposer,
+          $$SharedImportBootstrapTableTableOrderingComposer,
+          $$SharedImportBootstrapTableTableAnnotationComposer,
+          $$SharedImportBootstrapTableTableCreateCompanionBuilder,
+          $$SharedImportBootstrapTableTableUpdateCompanionBuilder,
+          (
+            SharedImportBootstrapTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $SharedImportBootstrapTableTable,
+              SharedImportBootstrapTableData
+            >,
+          ),
+          SharedImportBootstrapTableData,
+          PrefetchHooks Function()
+        > {
   $$SharedImportBootstrapTableTableTableManager(
-      _$AppDatabase db, $SharedImportBootstrapTableTable table)
-      : super(TableManagerState(
+    _$AppDatabase db,
+    $SharedImportBootstrapTableTable table,
+  ) : super(
+        TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
               $$SharedImportBootstrapTableTableFilterComposer(
-                  $db: db, $table: table),
+                $db: db,
+                $table: table,
+              ),
           createOrderingComposer: () =>
               $$SharedImportBootstrapTableTableOrderingComposer(
-                  $db: db, $table: table),
+                $db: db,
+                $table: table,
+              ),
           createComputedFieldComposer: () =>
               $$SharedImportBootstrapTableTableAnnotationComposer(
-                  $db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<String> id = const Value.absent(),
-            Value<String> snapshot = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              SharedImportBootstrapTableCompanion(
-            id: id,
-            snapshot: snapshot,
-            rowid: rowid,
-          ),
-          createCompanionCallback: ({
-            required String id,
-            required String snapshot,
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              SharedImportBootstrapTableCompanion.insert(
-            id: id,
-            snapshot: snapshot,
-            rowid: rowid,
-          ),
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> snapshot = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SharedImportBootstrapTableCompanion(
+                id: id,
+                snapshot: snapshot,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String snapshot,
+                Value<int> rowid = const Value.absent(),
+              }) => SharedImportBootstrapTableCompanion.insert(
+                id: id,
+                snapshot: snapshot,
+                rowid: rowid,
+              ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
-        ));
+        ),
+      );
 }
 
-typedef $$SharedImportBootstrapTableTableProcessedTableManager
-    = ProcessedTableManager<
-        _$AppDatabase,
-        $SharedImportBootstrapTableTable,
+typedef $$SharedImportBootstrapTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SharedImportBootstrapTableTable,
+      SharedImportBootstrapTableData,
+      $$SharedImportBootstrapTableTableFilterComposer,
+      $$SharedImportBootstrapTableTableOrderingComposer,
+      $$SharedImportBootstrapTableTableAnnotationComposer,
+      $$SharedImportBootstrapTableTableCreateCompanionBuilder,
+      $$SharedImportBootstrapTableTableUpdateCompanionBuilder,
+      (
         SharedImportBootstrapTableData,
-        $$SharedImportBootstrapTableTableFilterComposer,
-        $$SharedImportBootstrapTableTableOrderingComposer,
-        $$SharedImportBootstrapTableTableAnnotationComposer,
-        $$SharedImportBootstrapTableTableCreateCompanionBuilder,
-        $$SharedImportBootstrapTableTableUpdateCompanionBuilder,
-        (
-          SharedImportBootstrapTableData,
-          BaseReferences<_$AppDatabase, $SharedImportBootstrapTableTable,
-              SharedImportBootstrapTableData>
-        ),
-        SharedImportBootstrapTableData,
-        PrefetchHooks Function()>;
+        BaseReferences<
+          _$AppDatabase,
+          $SharedImportBootstrapTableTable,
+          SharedImportBootstrapTableData
+        >,
+      ),
+      SharedImportBootstrapTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7757,7 +9380,9 @@ class $AppDatabaseManager {
   $$ReviewEventsTableTableTableManager get reviewEventsTable =>
       $$ReviewEventsTableTableTableManager(_db, _db.reviewEventsTable);
   $$SharedImportBootstrapTableTableTableManager
-      get sharedImportBootstrapTable =>
-          $$SharedImportBootstrapTableTableTableManager(
-              _db, _db.sharedImportBootstrapTable);
+  get sharedImportBootstrapTable =>
+      $$SharedImportBootstrapTableTableTableManager(
+        _db,
+        _db.sharedImportBootstrapTable,
+      );
 }

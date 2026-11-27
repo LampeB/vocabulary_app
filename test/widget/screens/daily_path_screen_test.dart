@@ -19,8 +19,9 @@ import '../../helpers/pump_screen.dart';
 void main() {
   setUpAll(initTestLocalization);
 
-  testWidgets('shows an optional daily plan and keeps free practice visible',
-      (tester) async {
+  testWidgets('shows an optional daily plan and keeps free practice visible', (
+    tester,
+  ) async {
     await pumpScreen(
       tester,
       screen: const DailyPathScreen(),
@@ -29,25 +30,34 @@ void main() {
         dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(3)),
       ],
       routes: [
-        GoRoute(path: '/grammar', builder: (_, __) => const SizedBox()),
-        GoRoute(path: '/lists', builder: (_, __) => const SizedBox()),
-        GoRoute(path: '/quiz', builder: (_, __) => const SizedBox()),
+        GoRoute(path: '/grammar', builder: (_, _) => const SizedBox()),
+        GoRoute(path: '/lists', builder: (_, _) => const SizedBox()),
+        GoRoute(path: '/quiz', builder: (_, _) => const SizedBox()),
       ],
     );
 
     expect(
-        find.byKey(const ValueKey(WidgetKeys.screenDailyPath)), findsOneWidget);
+      find.byKey(const ValueKey(WidgetKeys.screenDailyPath)),
+      findsOneWidget,
+    );
     expect(
-        find.byKey(const ValueKey(WidgetKeys.dailyPathReview)), findsOneWidget);
-    expect(find.byKey(const ValueKey(WidgetKeys.dailyPathLessons)),
-        findsOneWidget);
-    expect(find.byKey(const ValueKey(WidgetKeys.dailyPathPractice)),
-        findsOneWidget);
+      find.byKey(const ValueKey(WidgetKeys.dailyPathReview)),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey(WidgetKeys.dailyPathLessons)),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey(WidgetKeys.dailyPathPractice)),
+      findsOneWidget,
+    );
     expect(find.text('TES CARTES DU JOUR'), findsOneWidget);
   });
 
-  testWidgets('passes the active pair into an all-due review session',
-      (tester) async {
+  testWidgets('passes the active pair into an all-due review session', (
+    tester,
+  ) async {
     QuizArgs? args;
     await pumpScreen(
       tester,
@@ -79,12 +89,17 @@ void main() {
     expect(args!.langB, 'ko');
   });
 
-  testWidgets('no due cards do not imply a completed daily activity',
-      (tester) async {
-    await pumpScreen(tester, screen: const DailyPathScreen(), overrides: [
-      myListsProvider.overrideWith((ref) => Stream.value([])),
-      dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(0)),
-    ]);
+  testWidgets('no due cards do not imply a completed daily activity', (
+    tester,
+  ) async {
+    await pumpScreen(
+      tester,
+      screen: const DailyPathScreen(),
+      overrides: [
+        myListsProvider.overrideWith((ref) => Stream.value([])),
+        dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(0)),
+      ],
+    );
     expect(find.text('Aucune révision à échéance'), findsOneWidget);
     expect(find.text('1 / 4'), findsNothing);
     expect(find.text('Révisions terminées'), findsNothing);
@@ -92,35 +107,49 @@ void main() {
   });
 
   for (final locale in ['fr', 'en', 'ko']) {
-    testWidgets('small screen and large text keep the path usable in $locale',
-        (tester) async {
-      final translations = Translations(jsonDecode((await tester.runAsync(() =>
-              rootBundle.loadString('assets/translations/$locale.json')))!)
-          as Map<String, dynamic>);
-      Localization.load(Locale(locale),
-          translations: translations, fallbackTranslations: translations);
+    testWidgets('small screen and large text keep the path usable in $locale', (
+      tester,
+    ) async {
+      final translations = Translations(
+        jsonDecode(
+              (await tester.runAsync(
+                () => rootBundle.loadString('assets/translations/$locale.json'),
+              ))!,
+            )
+            as Map<String, dynamic>,
+      );
+      Localization.load(
+        Locale(locale),
+        translations: translations,
+        fallbackTranslations: translations,
+      );
       addTearDown(initTestLocalization);
 
       var openedLessons = false;
-      await pumpScreen(tester,
-          screen: Builder(
-              builder: (context) => MediaQuery(
-                  data: MediaQuery.of(context)
-                      .copyWith(textScaler: const TextScaler.linear(2)),
-                  child: const DailyPathScreen())),
-          overrides: [
-            myListsProvider.overrideWith((ref) => Stream.value([])),
-            dueCountForPairProvider
-                .overrideWith((ref, pair) => Stream.value(3)),
-          ],
-          routes: [
-            GoRoute(
-                path: '/grammar',
-                builder: (_, __) {
-                  openedLessons = true;
-                  return const SizedBox();
-                })
-          ]);
+      await pumpScreen(
+        tester,
+        screen: Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(2)),
+            child: const DailyPathScreen(),
+          ),
+        ),
+        overrides: [
+          myListsProvider.overrideWith((ref) => Stream.value([])),
+          dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(3)),
+        ],
+        routes: [
+          GoRoute(
+            path: '/grammar',
+            builder: (_, _) {
+              openedLessons = true;
+              return const SizedBox();
+            },
+          ),
+        ],
+      );
       tester.view.physicalSize = const Size(960, 1704); // 320 × 568
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);

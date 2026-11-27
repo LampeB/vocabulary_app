@@ -30,15 +30,23 @@ class _ObservedDueDao extends ProgressDao {
   final cancelled = Completer<void>();
 
   @override
-  Stream<int> watchDueCountForPair(String userId, String langA, String langB,
-      {Duration refreshEvery = const Duration(minutes: 1)}) {
+  Stream<int> watchDueCountForPair(
+    String userId,
+    String langA,
+    String langB, {
+    Duration refreshEvery = const Duration(minutes: 1),
+  }) {
     late StreamController<int> controller;
     late StreamSubscription<int> subscription;
     controller = StreamController<int>(
       onListen: () {
         subscription = super
-            .watchDueCountForPair(userId, langA, langB,
-                refreshEvery: refreshEvery)
+            .watchDueCountForPair(
+              userId,
+              langA,
+              langB,
+              refreshEvery: refreshEvery,
+            )
             .listen(controller.add, onError: controller.addError);
       },
       onCancel: () async {
@@ -58,8 +66,10 @@ void main() {
   /// Seeds a word in [listName] and returns its FR variant id.
   Future<String> seedWord(String listId, String fr, String ko) async {
     final concept = (await vocabRepo.addConceptWithVariants(
-            listId: listId, wordA: fr, wordB: ko))
-        .valueOrNull!;
+      listId: listId,
+      wordA: fr,
+      wordB: ko,
+    )).valueOrNull!;
     final variants = await db.conceptDao.getVariantsByConcept(concept.id);
     return variants.firstWhere((v) => v.langCode == 'fr').id;
   }
@@ -68,29 +78,38 @@ void main() {
     String variantId, {
     required String state,
     DateTime? nextReview,
-  }) =>
-      db.progressDao.upsert(VariantProgressTableCompanion.insert(
-        id: 'p-$variantId',
-        userId: _kUserId,
-        variantId: variantId,
-        direction: QuizDirection.frToKo.name,
-        state: Value(state),
-        nextReview: Value(nextReview),
-        createdAt: _now,
-        updatedAt: _now,
-      ));
+  }) => db.progressDao.upsert(
+    VariantProgressTableCompanion.insert(
+      id: 'p-$variantId',
+      userId: _kUserId,
+      variantId: variantId,
+      direction: QuizDirection.frToKo.name,
+      state: Value(state),
+      nextReview: Value(nextReview),
+      createdAt: _now,
+      updatedAt: _now,
+    ),
+  );
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     vocabRepo = VocabularyRepositoryImpl(
-        db.vocabularyListDao, db.conceptDao, FakeRemote(), _kUserId, db);
+      db.vocabularyListDao,
+      db.conceptDao,
+      FakeRemote(),
+      _kUserId,
+      db,
+    );
     progressRepo = ProgressRepositoryImpl(
-        db.progressDao, db.conceptDao, FakeRemote(), _kUserId);
+      db.progressDao,
+      db.conceptDao,
+      FakeRemote(),
+      _kUserId,
+    );
   });
   tearDown(() => db.close());
 
-  test(
-      'getAllDueCards: due cards from BOTH lists; future-scheduled, '
+  test('getAllDueCards: due cards from BOTH lists; future-scheduled, '
       'never-studied and deleted words are excluded', () async {
     final l1 = (await vocabRepo.createList(name: 'A')).valueOrNull!;
     final l2 = (await vocabRepo.createList(name: 'B')).valueOrNull!;
@@ -109,21 +128,25 @@ void main() {
     await db.conceptDao.softDeleteVariant(deleted);
 
     final result = await progressRepo.getAllDueCards(
-        userId: _kUserId, direction: QuizDirection.frToKo);
+      userId: _kUserId,
+      direction: QuizDirection.frToKo,
+    );
 
     final ids = result.valueOrNull!.map((p) => p.variantId).toSet();
     expect(ids, {dueA, dueB});
   });
 
-  test(
-      'getInProgressCards: started cards across lists whether due or not; '
+  test('getInProgressCards: started cards across lists whether due or not; '
       'new-state and never-studied words are excluded', () async {
     final l1 = (await vocabRepo.createList(name: 'A')).valueOrNull!;
     final future = DateTime.now().add(const Duration(days: 30));
 
     final started = await seedWord(l1.id, 'chat', '고양이');
-    await seedProgress(started,
-        state: 'learning', nextReview: _now.subtract(const Duration(days: 1)));
+    await seedProgress(
+      started,
+      state: 'learning',
+      nextReview: _now.subtract(const Duration(days: 1)),
+    );
     final scheduled = await seedWord(l1.id, 'maison', '집');
     await seedProgress(scheduled, state: 'review', nextReview: future);
     final newState = await seedWord(l1.id, 'pain', '빵');
@@ -131,7 +154,9 @@ void main() {
     await seedWord(l1.id, 'lait', '우유'); // never studied
 
     final result = await progressRepo.getInProgressCards(
-        userId: _kUserId, direction: QuizDirection.frToKo);
+      userId: _kUserId,
+      direction: QuizDirection.frToKo,
+    );
 
     final ids = result.valueOrNull!.map((p) => p.variantId).toSet();
     expect(ids, {started, scheduled});
@@ -140,119 +165,158 @@ void main() {
   test('the use case routes each QuizSource to the right query', () async {
     final l1 = (await vocabRepo.createList(name: 'A')).valueOrNull!;
     final due = await seedWord(l1.id, 'chat', '고양이');
-    await seedProgress(due,
-        state: 'review', nextReview: _now.subtract(const Duration(days: 1)));
+    await seedProgress(
+      due,
+      state: 'review',
+      nextReview: _now.subtract(const Duration(days: 1)),
+    );
     final futureCard = await seedWord(l1.id, 'maison', '집');
-    await seedProgress(futureCard,
-        state: 'review',
-        nextReview: DateTime.now().add(const Duration(days: 30)));
+    await seedProgress(
+      futureCard,
+      state: 'review',
+      nextReview: DateTime.now().add(const Duration(days: 30)),
+    );
 
     final usecase = GetDueCardsUseCase(progressRepo);
 
     final allDue = await usecase.call(
-        userId: _kUserId,
-        source: QuizSource.allDue,
-        direction: QuizDirection.frToKo);
+      userId: _kUserId,
+      source: QuizSource.allDue,
+      direction: QuizDirection.frToKo,
+    );
     expect(allDue.valueOrNull!.map((p) => p.variantId), [due]);
 
     final inProgress = await usecase.call(
-        userId: _kUserId,
-        source: QuizSource.inProgress,
-        direction: QuizDirection.frToKo);
-    expect(inProgress.valueOrNull!.map((p) => p.variantId).toSet(),
-        {due, futureCard});
+      userId: _kUserId,
+      source: QuizSource.inProgress,
+      direction: QuizDirection.frToKo,
+    );
+    expect(inProgress.valueOrNull!.map((p) => p.variantId).toSet(), {
+      due,
+      futureCard,
+    });
 
     // list source still works and includes new cards (existing behaviour).
     final listCards = await usecase.call(
-        userId: _kUserId, listId: l1.id, direction: QuizDirection.frToKo);
+      userId: _kUserId,
+      listId: l1.id,
+      direction: QuizDirection.frToKo,
+    );
     expect(listCards.isSuccess, isTrue);
   });
 
   test(
-      'repository concept deletion removes due and in-progress cards and counts',
-      () async {
-    final list =
-        (await vocabRepo.createList(name: 'Deleted word')).valueOrNull!;
-    final variantId = await seedWord(list.id, 'chat', '고양이');
-    await seedProgress(variantId, state: 'review', nextReview: _now);
-    final variant = await db.conceptDao.getVariantById(variantId);
-    await vocabRepo.deleteConcept(variant!.conceptId);
-    expect(
+    'repository concept deletion removes due and in-progress cards and counts',
+    () async {
+      final list = (await vocabRepo.createList(
+        name: 'Deleted word',
+      )).valueOrNull!;
+      final variantId = await seedWord(list.id, 'chat', '고양이');
+      await seedProgress(variantId, state: 'review', nextReview: _now);
+      final variant = await db.conceptDao.getVariantById(variantId);
+      await vocabRepo.deleteConcept(variant!.conceptId);
+      expect(
         (await progressRepo.getAllDueCards(
-                userId: _kUserId, direction: QuizDirection.frToKo))
-            .valueOrNull,
-        isEmpty);
-    expect(
+          userId: _kUserId,
+          direction: QuizDirection.frToKo,
+        )).valueOrNull,
+        isEmpty,
+      );
+      expect(
         (await progressRepo.getInProgressCards(
-                userId: _kUserId, direction: QuizDirection.frToKo))
-            .valueOrNull,
-        isEmpty);
-    expect(
+          userId: _kUserId,
+          direction: QuizDirection.frToKo,
+        )).valueOrNull,
+        isEmpty,
+      );
+      expect(
         await db.progressDao.watchDueCountForPair(_kUserId, 'fr', 'ko').first,
-        0);
-  });
+        0,
+      );
+    },
+  );
 
-  test('opposite ordered language pairs do not share smart-list cards',
-      () async {
-    final a = (await vocabRepo.createList(name: 'FRKO')).valueOrNull!;
-    final b =
-        (await vocabRepo.createList(name: 'KOFR', langA: 'ko', langB: 'fr'))
-            .valueOrNull!;
-    final first = await seedWord(a.id, 'chat', '고양이');
-    final second = await seedWord(b.id, 'chien', '개');
-    await seedProgress(first, state: 'review', nextReview: _now);
-    await seedProgress(second, state: 'review', nextReview: _now);
-    final result = await GetDueCardsUseCase(progressRepo).call(
+  test(
+    'opposite ordered language pairs do not share smart-list cards',
+    () async {
+      final a = (await vocabRepo.createList(name: 'FRKO')).valueOrNull!;
+      final b = (await vocabRepo.createList(
+        name: 'KOFR',
+        langA: 'ko',
+        langB: 'fr',
+      )).valueOrNull!;
+      final first = await seedWord(a.id, 'chat', '고양이');
+      final second = await seedWord(b.id, 'chien', '개');
+      await seedProgress(first, state: 'review', nextReview: _now);
+      await seedProgress(second, state: 'review', nextReview: _now);
+      final result = await GetDueCardsUseCase(progressRepo).call(
         userId: _kUserId,
         source: QuizSource.allDue,
         direction: QuizDirection.frToKo,
         langA: 'ko',
-        langB: 'fr');
-    expect(result.valueOrNull!.map((row) => row.variantId), [second]);
-    expect(
+        langB: 'fr',
+      );
+      expect(result.valueOrNull!.map((row) => row.variantId), [second]);
+      expect(
         await db.progressDao.watchDueCountForPair(_kUserId, 'ko', 'fr').first,
-        1);
-  });
+        1,
+      );
+    },
+  );
 
-  test('an open daily counter observes a due time without a database write',
-      () async {
-    final list = (await vocabRepo.createList(name: 'Due soon')).valueOrNull!;
-    final variant = await seedWord(list.id, 'chat', '고양이');
-    await seedProgress(variant,
+  test(
+    'an open daily counter observes a due time without a database write',
+    () async {
+      final list = (await vocabRepo.createList(name: 'Due soon')).valueOrNull!;
+      final variant = await seedWord(list.id, 'chat', '고양이');
+      await seedProgress(
+        variant,
         state: 'review',
-        nextReview: DateTime.now().add(const Duration(seconds: 2)));
-    final counts = db.progressDao
-        .watchDueCountForPair(_kUserId, 'fr', 'ko',
-            refreshEvery: const Duration(milliseconds: 40))
-        .asBroadcastStream(onCancel: (subscription) => subscription.cancel());
-    final due = counts.firstWhere((count) => count == 1);
-    expect(await counts.first, 0);
-    expect(await due.timeout(const Duration(seconds: 5)), 1);
-  });
+        nextReview: DateTime.now().add(const Duration(seconds: 2)),
+      );
+      final counts = db.progressDao
+          .watchDueCountForPair(
+            _kUserId,
+            'fr',
+            'ko',
+            refreshEvery: const Duration(milliseconds: 40),
+          )
+          .asBroadcastStream(onCancel: (subscription) => subscription.cancel());
+      final due = counts.firstWhere((count) => count == 1);
+      expect(await counts.first, 0);
+      expect(await due.timeout(const Duration(seconds: 5)), 1);
+    },
+  );
 
-  test('the pair counter releases its stream when its last listener leaves',
-      () async {
-    final dao = _ObservedDueDao(db);
-    final container = ProviderContainer(overrides: [
-      progressDaoProvider.overrideWithValue(dao),
-      currentUserProvider.overrideWithValue(AppUser(
-        id: _kUserId,
-        email: 'u@example.test',
-        username: 'u',
-        createdAt: _now,
-      )),
-    ]);
-    addTearDown(container.dispose);
-    final counter = dueCountForPairProvider(('fr', 'ko'));
-    final first = container.listen(counter, (_, __) {});
-    final second = container.listen(counter, (_, __) {});
-    expect(await container.read(counter.future), 0);
+  test(
+    'the pair counter releases its stream when its last listener leaves',
+    () async {
+      final dao = _ObservedDueDao(db);
+      final container = ProviderContainer(
+        overrides: [
+          progressDaoProvider.overrideWithValue(dao),
+          currentUserProvider.overrideWithValue(
+            AppUser(
+              id: _kUserId,
+              email: 'u@example.test',
+              username: 'u',
+              createdAt: _now,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final counter = dueCountForPairProvider(('fr', 'ko'));
+      final first = container.listen(counter, (_, _) {});
+      final second = container.listen(counter, (_, _) {});
+      expect(await container.read(counter.future), 0);
 
-    first.close();
-    await container.pump();
-    expect(dao.cancelled.isCompleted, isFalse);
-    second.close();
-    await container.pump();
-    await dao.cancelled.future.timeout(const Duration(seconds: 1));
-  });
+      first.close();
+      await container.pump();
+      expect(dao.cancelled.isCompleted, isFalse);
+      second.close();
+      await container.pump();
+      await dao.cancelled.future.timeout(const Duration(seconds: 1));
+    },
+  );
 }

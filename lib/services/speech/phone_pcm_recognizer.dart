@@ -10,6 +10,9 @@ abstract interface class PhonePcmRecognizer {
   /// alternative, best first; empty when nothing was understood. Throws a
   /// [PlatformException] on a recognizer failure.
   Future<List<String>> recognize(Uint8List pcm16, String locale);
+
+  /// Finishes the active request and releases the native recognizer.
+  Future<void> cancel();
 }
 
 class MethodChannelPhonePcmRecognizer implements PhonePcmRecognizer {
@@ -28,11 +31,16 @@ class MethodChannelPhonePcmRecognizer implements PhonePcmRecognizer {
 
   @override
   Future<List<String>> recognize(Uint8List pcm16, String locale) async {
-    final reply = await _channel.invokeMapMethod<String, dynamic>(
-      'recognize',
-      {'pcm': pcm16, 'locale': locale, 'sampleRate': 16000, 'timeoutMs': 6000},
-    );
+    final reply = await _channel.invokeMapMethod<String, dynamic>('recognize', {
+      'pcm': pcm16,
+      'locale': locale,
+      'sampleRate': 16000,
+      'timeoutMs': 6000,
+    });
     final texts = reply?['texts'];
     return texts is List ? texts.whereType<String>().toList() : const [];
   }
+
+  @override
+  Future<void> cancel() => _channel.invokeMethod<void>('cancel');
 }

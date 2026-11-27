@@ -37,8 +37,11 @@ class PonderinWhisper {
 
   Future<void> ensureModel() {
     if (!isSupported) {
-      return Future.error(UnsupportedError(
-          'Ponderin Whisper currently ships an Android bridge only'));
+      return Future.error(
+        UnsupportedError(
+          'Ponderin Whisper currently ships an Android bridge only',
+        ),
+      );
     }
     if (_modelPath != null) return Future.value();
     return _preparing ??= _prepareModel().whenComplete(() => _preparing = null);
@@ -46,8 +49,9 @@ class PonderinWhisper {
 
   Future<void> _prepareModel() async {
     final directory = await getApplicationSupportDirectory();
-    final destination =
-        File(path.join(directory.path, 'ponderin-whisper', model.fileName));
+    final destination = File(
+      path.join(directory.path, 'ponderin-whisper', model.fileName),
+    );
     await VerifiedModelStore().ensure(
       destination: destination,
       source: Uri.parse(model.downloadUrl),
@@ -67,12 +71,14 @@ class PonderinWhisper {
     // cross isolates. The native context remains cached process-wide behind
     // its mutex, while model loading and inference cannot block the UI.
     final modelPath = _modelPath!;
-    return Isolate.run(() => _PonderinWhisperBindings.open().transcribe(
-          modelPath: modelPath,
-          audioPath: audioPath,
-          language: language,
-          initialPrompt: initialPrompt,
-        ));
+    return Isolate.run(
+      () => _PonderinWhisperBindings.open().transcribe(
+        modelPath: modelPath,
+        audioPath: audioPath,
+        language: language,
+        initialPrompt: initialPrompt,
+      ),
+    );
   }
 }
 
@@ -88,26 +94,27 @@ class _PonderinWhisperBindings {
     final library = DynamicLibrary.open('libponderin_whisper.so');
     return _PonderinWhisperBindings._(
       library.lookupFunction<
-          Pointer<Utf8> Function(
-            Pointer<Utf8>,
-            Pointer<Utf8>,
-            Pointer<Utf8>,
-            Pointer<Utf8>,
-          ),
-          Pointer<Utf8> Function(
-            Pointer<Utf8>,
-            Pointer<Utf8>,
-            Pointer<Utf8>,
-            Pointer<Utf8>,
-          )>('ponderin_whisper_transcribe'),
-      library.lookupFunction<Void Function(Pointer<Utf8>),
-          void Function(Pointer<Utf8>)>(
-        'ponderin_whisper_free',
-      ),
+        Pointer<Utf8> Function(
+          Pointer<Utf8>,
+          Pointer<Utf8>,
+          Pointer<Utf8>,
+          Pointer<Utf8>,
+        ),
+        Pointer<Utf8> Function(
+          Pointer<Utf8>,
+          Pointer<Utf8>,
+          Pointer<Utf8>,
+          Pointer<Utf8>,
+        )
+      >('ponderin_whisper_transcribe'),
+      library.lookupFunction<
+        Void Function(Pointer<Utf8>),
+        void Function(Pointer<Utf8>)
+      >('ponderin_whisper_free'),
       library
           .lookupFunction<Pointer<Utf8> Function(), Pointer<Utf8> Function()>(
-        'ponderin_whisper_last_error',
-      ),
+            'ponderin_whisper_last_error',
+          ),
     );
   }
 
@@ -116,7 +123,8 @@ class _PonderinWhisperBindings {
     Pointer<Utf8>,
     Pointer<Utf8>,
     Pointer<Utf8>,
-  ) _transcribe;
+  )
+  _transcribe;
   final void Function(Pointer<Utf8>) _free;
   final Pointer<Utf8> Function() _lastError;
 
@@ -131,12 +139,17 @@ class _PonderinWhisperBindings {
     final nativeLanguage = language.toNativeUtf8();
     final nativePrompt = initialPrompt.toNativeUtf8();
     try {
-      final result =
-          _transcribe(nativeModel, nativeAudio, nativeLanguage, nativePrompt);
+      final result = _transcribe(
+        nativeModel,
+        nativeAudio,
+        nativeLanguage,
+        nativePrompt,
+      );
       if (result == nullptr) {
         final error = _lastError().toDartString();
         throw StateError(
-            error.isEmpty ? 'Whisper transcription failed' : error);
+          error.isEmpty ? 'Whisper transcription failed' : error,
+        );
       }
       try {
         return result.toDartString();

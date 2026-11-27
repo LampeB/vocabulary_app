@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.2";
 import { boundedJson, boundedText } from "../_shared/request_limits.ts";
+import { canPublishSeedAudio } from "./authorization.ts";
 
 // This endpoint is a publishing tool, never an app endpoint. It accepts only
 // Supabase's server key, so the ElevenLabs key remains solely in Supabase
@@ -33,18 +34,7 @@ Deno.serve(async (req) => {
   if (!supabaseUrl || !anonKey || !serviceRoleKey || !elevenLabsKey) {
     return json({ error: "Server is not configured" }, 503);
   }
-  const authorization = req.headers.get("Authorization") ?? "";
-  // Accept either Supabase's legacy service_role JWT or a modern secret key.
-  // GoTrue verifies the credential and only permits this admin route to a
-  // service-level key; no locally duplicated comparison secret is needed.
-  const callerCheck = await fetch(
-    `${supabaseUrl}/auth/v1/admin/users?page=1&per_page=1`,
-    {
-      signal: AbortSignal.timeout(10_000),
-      headers: { apikey: anonKey, Authorization: authorization },
-    },
-  );
-  if (!callerCheck.ok) {
+  if (!await canPublishSeedAudio(req.headers, supabaseUrl, anonKey)) {
     return json({ error: "Forbidden" }, 403);
   }
 

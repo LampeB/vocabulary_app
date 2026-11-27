@@ -28,25 +28,33 @@ void main() {
   ];
 
   setUpAll(() async {
-    final raw =
-        await rootBundle.loadString('assets/seed/grammar/ko/rules.json');
+    final raw = await rootBundle.loadString(
+      'assets/seed/grammar/ko/rules.json',
+    );
     rules = [
       for (final j
           in (jsonDecode(raw) as Map<String, dynamic>)['rules'] as List)
         GrammarRule.fromJson(j as Map<String, dynamic>),
     ];
-    final conjugation =
-        rules.map((r) => r.mechanics).whereType<ConjugationMechanics>().first;
+    final conjugation = rules
+        .map((r) => r.mechanics)
+        .whereType<ConjugationMechanics>()
+        .first;
     generator = GrammarDrillGenerator(
-        KoreanGrammarModule(conjugationIrregulars: conjugation.irregulars));
+      KoreanGrammarModule(conjugationIrregulars: conjugation.irregulars),
+    );
   });
 
   GrammarRule rule(String idPrefix) =>
       rules.firstWhere((r) => r.id.startsWith(idPrefix));
 
   test('particle drills apply the rule correctly to eligible words', () {
-    final exercises = generator.generate(rule('particule-theme'), mastered,
-        count: 8, random: Random(1));
+    final exercises = generator.generate(
+      rule('particule-theme'),
+      mastered,
+      count: 8,
+      random: Random(1),
+    );
 
     expect(exercises, hasLength(8));
     for (final e in exercises) {
@@ -58,8 +66,12 @@ void main() {
   });
 
   test('multi-variant rules cycle variants and label the hint', () {
-    final exercises = generator.generate(rule('particules-sujet'), mastered,
-        count: 6, random: Random(2));
+    final exercises = generator.generate(
+      rule('particules-sujet'),
+      mastered,
+      count: 6,
+      random: Random(2),
+    );
 
     final keys = exercises.map((e) => e.variantKey).toSet();
     expect(keys, {'subject', 'object'});
@@ -70,8 +82,12 @@ void main() {
   });
 
   test('conjugation drills use only verbs and conjugate correctly', () {
-    final exercises = generator.generate(rule('present-poli'), mastered,
-        count: 6, random: Random(3));
+    final exercises = generator.generate(
+      rule('present-poli'),
+      mastered,
+      count: 6,
+      random: Random(3),
+    );
 
     for (final e in exercises) {
       expect(['먹다', '가다'], contains(e.promptParams['word']));
@@ -88,7 +104,9 @@ void main() {
 
   test('no eligible words → no exercises (never crashes)', () {
     final onlyVerbs = [const DrillWord(word: '먹다', category: 'verbe')];
-    expect(generator.generate(rule('particule-theme'), onlyVerbs, count: 5),
-        isEmpty);
+    expect(
+      generator.generate(rule('particule-theme'), onlyVerbs, count: 5),
+      isEmpty,
+    );
   });
 }

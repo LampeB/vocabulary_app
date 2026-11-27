@@ -17,7 +17,9 @@ for (const name of required) {
 const url = process.env.SUPABASE_URL.replace(/\/$/, "");
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const languages = (process.env.AUDIO_LANGS ?? "fr,en,ko").split(",").map((x) => x.trim());
-const headers = { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey };
+const headers = serviceKey.startsWith("sb_secret_")
+  ? { apikey: serviceKey }
+  : { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey };
 
 const items = [];
 for (const lang of languages) {

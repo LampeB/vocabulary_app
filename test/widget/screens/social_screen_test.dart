@@ -20,12 +20,12 @@ import '../../helpers/pump_screen.dart';
 final _now = DateTime(2026, 7, 3);
 
 AppUserSummary _summary(String id, String name) => AppUserSummary(
-      id: id,
-      username: name,
-      displayName: name,
-      currentStreak: 3,
-      totalWordsMastered: 10,
-    );
+  id: id,
+  username: name,
+  displayName: name,
+  currentStreak: 3,
+  totalWordsMastered: 10,
+);
 
 class _FakeSocialRepo implements SocialRepository {
   final accepted = <String>[];
@@ -66,37 +66,38 @@ class _FakeSocialRepo implements SocialRepository {
 
   @override
   Future<Result<List<AppUser>>> searchUsers(String query) async => Success([
-        AppUser(
-          id: 'found-user',
-          email: '',
-          username: 'claire',
-          subscriptionType: SubscriptionType.free,
-          createdAt: _now,
-        ),
-      ]);
+    AppUser(
+      id: 'found-user',
+      email: '',
+      username: 'claire',
+      subscriptionType: SubscriptionType.free,
+      createdAt: _now,
+    ),
+  ]);
 
   @override
   Future<Result<List<LeaderboardEntry>>> getLeaderboard({
     required LeaderboardPeriod period,
     int limit = 100,
     bool friendsOnly = false,
-  }) async =>
-      Success([
-        LeaderboardEntry(
-            userId: 'a',
-            username: 'ann',
-            period: period.name,
-            score: 90,
-            wordsMastered: 90,
-            rank: 1),
-        LeaderboardEntry(
-            userId: 'me',
-            username: 'thomas',
-            period: period.name,
-            score: 42,
-            wordsMastered: 42,
-            rank: 2),
-      ]);
+  }) async => Success([
+    LeaderboardEntry(
+      userId: 'a',
+      username: 'ann',
+      period: period.name,
+      score: 90,
+      wordsMastered: 90,
+      rank: 1,
+    ),
+    LeaderboardEntry(
+      userId: 'me',
+      username: 'thomas',
+      period: period.name,
+      score: 42,
+      wordsMastered: 42,
+      rank: 2,
+    ),
+  ]);
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -122,13 +123,15 @@ void main() {
       overrides: [
         socialRepositoryProvider.overrideWithValue(repo),
         socialRemoteDataSourceProvider.overrideWithValue(_FakeSocialRemote()),
-        currentUserProvider.overrideWithValue(AppUser(
-          id: 'me',
-          email: 't@t.fr',
-          username: 'thomas',
-          subscriptionType: SubscriptionType.free,
-          createdAt: _now,
-        )),
+        currentUserProvider.overrideWithValue(
+          AppUser(
+            id: 'me',
+            email: 't@t.fr',
+            username: 'thomas',
+            subscriptionType: SubscriptionType.free,
+            createdAt: _now,
+          ),
+        ),
       ],
     );
   }
@@ -151,15 +154,11 @@ void main() {
     expect(find.text('bob'), findsWidgets);
   });
 
-  testWidgets('accepting a pending request calls the repository',
-      (tester) async {
+  testWidgets('accepting a pending request calls the repository', (
+    tester,
+  ) async {
     repo.pending = [
-      FriendRequest(
-        id: 'r1',
-        fromUserId: 'b',
-        toUserId: 'me',
-        createdAt: _now,
-      ),
+      FriendRequest(id: 'r1', fromUserId: 'b', toUserId: 'me', createdAt: _now),
     ];
     await pump(tester);
 
@@ -172,8 +171,9 @@ void main() {
     expect(repo.accepted, ['r1']);
   });
 
-  testWidgets('declining a pending request calls the repository',
-      (tester) async {
+  testWidgets('declining a pending request calls the repository', (
+    tester,
+  ) async {
     repo.pending = [
       FriendRequest(id: 'r2', fromUserId: 'b', toUserId: 'me', createdAt: _now),
     ];
@@ -185,15 +185,17 @@ void main() {
     expect(repo.declined, ['r2']);
   });
 
-  testWidgets('removing a friend confirms first, then calls the repository',
-      (tester) async {
+  testWidgets('removing a friend confirms first, then calls the repository', (
+    tester,
+  ) async {
     repo.friends = [
       Friendship(
-          id: 'f1',
-          userAId: 'me',
-          userBId: 'b',
-          friend: _summary('b', 'bob'),
-          createdAt: _now),
+        id: 'f1',
+        userAId: 'me',
+        userBId: 'b',
+        friend: _summary('b', 'bob'),
+        createdAt: _now,
+      ),
     ];
     await pump(tester);
 
@@ -209,8 +211,9 @@ void main() {
     expect(repo.removed, ['f1']);
   });
 
-  testWidgets('searching a user and tapping add sends a friend request',
-      (tester) async {
+  testWidgets('searching a user and tapping add sends a friend request', (
+    tester,
+  ) async {
     await pump(tester);
 
     await tester.tap(find.text('social.add_friend_button'.tr()));
@@ -227,8 +230,9 @@ void main() {
     expect(repo.sentTo, ['found-user']);
   });
 
-  testWidgets('leaderboard tab shows entries with ranks and my score',
-      (tester) async {
+  testWidgets('leaderboard tab shows entries with ranks and my score', (
+    tester,
+  ) async {
     await pump(tester);
 
     // Switch to the leaderboard tab (custom pill, found by its label).

@@ -39,8 +39,11 @@ class _FakeAudio implements AudioPlayerService {
   }
 
   @override
-  Future<void> prefetch(String text, String langCode,
-      {String? audioPath}) async {
+  Future<void> prefetch(
+    String text,
+    String langCode, {
+    String? audioPath,
+  }) async {
     prefetched.add('$text|$langCode');
   }
 
@@ -81,33 +84,43 @@ void main() {
     test('a stuck isSpeaking never wedges the caller (timeout cap)', () async {
       final audio = _FakeAudio()..speaking = true; // never ends
       final sw = Stopwatch()..start();
-      await AudioDirector(audio, sfx: _FakeSfx())
-          .quiet(timeout: const Duration(milliseconds: 200));
+      await AudioDirector(
+        audio,
+        sfx: _FakeSfx(),
+      ).quiet(timeout: const Duration(milliseconds: 200));
       expect(sw.elapsedMilliseconds, lessThan(1000));
     });
   });
 
   group('speakWhenQuiet', () {
-    test('keeps the immutable clip path when playing a queued prompt',
-        () async {
-      final audio = _FakeAudio();
-      await AudioDirector(audio, sfx: _FakeSfx())
-          .speakWhenQuiet('bonjour', 'fr', audioPath: 'seed/v1/fr/bonjour.mp3');
-      expect(audio.spokenPaths, ['seed/v1/fr/bonjour.mp3']);
-    });
+    test(
+      'keeps the immutable clip path when playing a queued prompt',
+      () async {
+        final audio = _FakeAudio();
+        await AudioDirector(
+          audio,
+          sfx: _FakeSfx(),
+        ).speakWhenQuiet('bonjour', 'fr', audioPath: 'seed/v1/fr/bonjour.mp3');
+        expect(audio.spokenPaths, ['seed/v1/fr/bonjour.mp3']);
+      },
+    );
 
-    test('does not start a queued prompt after lifecycle cancellation',
-        () async {
-      final audio = _FakeAudio()..speaking = true;
-      var active = true;
-      final future = AudioDirector(audio, sfx: _FakeSfx())
-          .speakWhenQuiet('bonjour', 'fr', keepGoing: () => active);
-      await Future<void>.delayed(const Duration(milliseconds: 120));
-      active = false;
-      audio.speaking = false;
-      await future;
-      expect(audio.spoken, isEmpty);
-    });
+    test(
+      'does not start a queued prompt after lifecycle cancellation',
+      () async {
+        final audio = _FakeAudio()..speaking = true;
+        var active = true;
+        final future = AudioDirector(
+          audio,
+          sfx: _FakeSfx(),
+        ).speakWhenQuiet('bonjour', 'fr', keepGoing: () => active);
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+        active = false;
+        audio.speaking = false;
+        await future;
+        expect(audio.spoken, isEmpty);
+      },
+    );
 
     test('speaks only after the channel is free', () async {
       final audio = _FakeAudio()..speaking = true;
@@ -133,8 +146,10 @@ void main() {
     test('handOffToMic stops app audio and waits the focus beat', () async {
       final audio = _FakeAudio()..speaking = true;
       final sw = Stopwatch()..start();
-      await AudioDirector(audio, sfx: _FakeSfx())
-          .handOffToMic(focusBeat: const Duration(milliseconds: 100));
+      await AudioDirector(
+        audio,
+        sfx: _FakeSfx(),
+      ).handOffToMic(focusBeat: const Duration(milliseconds: 100));
       expect(audio.speaking, isFalse, reason: 'stop() must have fired');
       expect(sw.elapsedMilliseconds, greaterThanOrEqualTo(95));
     });
@@ -143,11 +158,16 @@ void main() {
       final audio = _FakeAudio();
       final sfx = _FakeSfx();
       final sw = Stopwatch()..start();
-      await AudioDirector(audio, sfx: sfx)
-          .listenCue(clearance: const Duration(milliseconds: 100));
+      await AudioDirector(
+        audio,
+        sfx: sfx,
+      ).listenCue(clearance: const Duration(milliseconds: 100));
       expect(sfx.played, ['cue']);
-      expect(sw.elapsedMilliseconds, greaterThanOrEqualTo(95),
-          reason: 'the recognizer must not transcribe the earcon');
+      expect(
+        sw.elapsedMilliseconds,
+        greaterThanOrEqualTo(95),
+        reason: 'the recognizer must not transcribe the earcon',
+      );
     });
   });
 
@@ -155,15 +175,15 @@ void main() {
     test('ends after a start-window with no new speech', () async {
       final audio = _FakeAudio(); // silent throughout
       final sw = Stopwatch()..start();
-      await AudioDirector(audio, sfx: _FakeSfx()).chainQuiet(
-        firstStartWindow: const Duration(milliseconds: 100),
-      );
+      await AudioDirector(
+        audio,
+        sfx: _FakeSfx(),
+      ).chainQuiet(firstStartWindow: const Duration(milliseconds: 100));
       // One start-window, no speech → done; never enters later cycles.
       expect(sw.elapsedMilliseconds, lessThan(600));
     });
 
-    test(
-        'waits out an utterance that starts inside the window, then the '
+    test('waits out an utterance that starts inside the window, then the '
         'follow-up check ends the chain', () async {
       final audio = _FakeAudio();
       final director = AudioDirector(audio, sfx: _FakeSfx());
@@ -181,8 +201,10 @@ void main() {
     test('keepGoing=false aborts the wait', () async {
       final audio = _FakeAudio()..speaking = true;
       var alive = true;
-      final future = AudioDirector(audio, sfx: _FakeSfx())
-          .chainQuiet(keepGoing: () => alive);
+      final future = AudioDirector(
+        audio,
+        sfx: _FakeSfx(),
+      ).chainQuiet(keepGoing: () => alive);
       await Future<void>.delayed(const Duration(milliseconds: 100));
       alive = false; // e.g. screen unmounted
       final sw = Stopwatch()..start();

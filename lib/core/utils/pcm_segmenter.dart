@@ -76,8 +76,10 @@ class PcmSegmenter {
   bool get inSpeech => _inSpeech;
 
   static double frameRms(Uint8List frame) {
-    final samples =
-        frame.buffer.asInt16List(frame.offsetInBytes, frame.lengthInBytes ~/ 2);
+    final samples = frame.buffer.asInt16List(
+      frame.offsetInBytes,
+      frame.lengthInBytes ~/ 2,
+    );
     if (samples.isEmpty) return 0;
     double sum = 0;
     for (final s in samples) {
@@ -112,8 +114,10 @@ class PcmSegmenter {
     }
 
     if (!_inSpeech) {
-      final threshold =
-          (_noiseFloor * startFactor).clamp(minStartRms, double.infinity);
+      final threshold = (_noiseFloor * startFactor).clamp(
+        minStartRms,
+        double.infinity,
+      );
       if (rms >= threshold) {
         _inSpeech = true;
         _speechFrames = 1;

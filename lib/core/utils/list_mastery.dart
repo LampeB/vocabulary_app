@@ -43,8 +43,9 @@ bool arePrerequisitesKnown(
 }) {
   final values = progress.toList(growable: false);
   if (values.isEmpty) return true;
-  if (values
-      .any((value) => value.total <= 0 || value.fraction < minimumPerList)) {
+  if (values.any(
+    (value) => value.total <= 0 || value.fraction < minimumPerList,
+  )) {
     return false;
   }
   final known = values.fold<int>(0, (sum, value) => sum + value.known);

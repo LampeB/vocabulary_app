@@ -26,18 +26,13 @@ import '../../services/audio/audio_asset_path.dart';
 ///   every variant (snake_case/camelCase key mismatch).
 class StarterSeeder {
   StarterSeeder({
-    required AssetBundle bundle,
-    required VocabularyRepository repo,
-    required VocabularyListDao listDao,
-    required ConceptDao conceptDao,
-    required String userId,
-    String? uiLocale,
-  })  : _bundle = bundle,
-        _repo = repo,
-        _listDao = listDao,
-        _conceptDao = conceptDao,
-        _userId = userId,
-        _uiLocale = uiLocale;
+    required this._bundle,
+    required this._repo,
+    required this._listDao,
+    required this._conceptDao,
+    required this._userId,
+    this._uiLocale,
+  });
 
   final AssetBundle _bundle;
   final VocabularyRepository _repo;
@@ -91,8 +86,12 @@ class StarterSeeder {
       return;
     }
     final uiLocale = _uiLocale;
-    final names = await SeedTranslations.load(
-        _bundle, [if (uiLocale != null) uiLocale, source, 'en', 'fr']);
+    final names = await SeedTranslations.load(_bundle, [
+      ?uiLocale,
+      source,
+      'en',
+      'fr',
+    ]);
 
     if (source == 'fr' && target == 'ko') {
       await _adoptLegacyFrKoLists(catalog, sourceLayer, targetLayer);
@@ -110,12 +109,19 @@ class StarterSeeder {
       if (existing == null) {
         final imported = await _repo.importFromJson(
           _composeListJson(
-              seedList, seedId, catalog, sourceLayer, targetLayer, names),
+            seedList,
+            seedId,
+            catalog,
+            sourceLayer,
+            targetLayer,
+            names,
+          ),
           origin: 'starter',
         );
         if (imported.isFailure) {
           throw StateError(
-              'Starter import failed: ${imported.exceptionOrNull?.message}');
+            'Starter import failed: ${imported.exceptionOrNull?.message}',
+          );
         }
       } else {
         await _topUp(existing.id, seedList, catalog, sourceLayer, targetLayer);
@@ -130,45 +136,55 @@ class StarterSeeder {
   /// variant-less concepts — those were produced by the broken pre-v3 import
   /// and, having no variants, can carry no progress, so deleting them and
   /// re-seeding via top-up is lossless.
-  Future<void> _adoptLegacyFrKoLists(SeedCatalog catalog,
-      SeedLanguageLayer frLayer, SeedLanguageLayer koLayer) async {
+  Future<void> _adoptLegacyFrKoLists(
+    SeedCatalog catalog,
+    SeedLanguageLayer frLayer,
+    SeedLanguageLayer koLayer,
+  ) async {
     final myLists = await _listDao.watchByOwner(_userId).first;
     for (final list in myLists) {
       if (list.seedId != null || list.origin != 'starter') continue;
       final curriculumId = legacyFrKoNames[list.name];
       if (curriculumId == null) continue;
-      await _listDao.stampSeedIdentity(
-          list.id, '$curriculumId:fr>ko', 'fr', 'ko');
+      await _listDao.attachedDatabase.writeOutbound(_userId, () async {
+        await _listDao.stampSeedIdentity(
+          list.id,
+          '$curriculumId:fr>ko',
+          'fr',
+          'ko',
+        );
 
-      final seedList =
-          catalog.lists.where((l) => l.id == curriculumId).firstOrNull;
-      if (seedList == null) continue;
-      // Registry id → every known word for that concept in either language.
-      final wordIndex = {
-        for (final id in seedList.conceptIds)
-          id: {
-            ...?frLayer.entries[id]?.words.map((w) => w.word),
-            ...?koLayer.entries[id]?.words.map((w) => w.word),
-          },
-      };
+        final seedList = catalog.lists
+            .where((l) => l.id == curriculumId)
+            .firstOrNull;
+        if (seedList == null) return;
+        // Registry id → every known word for that concept in either language.
+        final wordIndex = {
+          for (final id in seedList.conceptIds)
+            id: {
+              ...?frLayer.entries[id]?.words.map((w) => w.word),
+              ...?koLayer.entries[id]?.words.map((w) => w.word),
+            },
+        };
 
-      final concepts = await _conceptDao.getConceptsByList(list.id);
-      for (final concept in concepts) {
-        final variants = await _conceptDao.getVariantsByConcept(concept.id);
-        if (variants.isEmpty) {
-          await _conceptDao.softDelete(concept.id);
-        } else if (concept.seedId == null) {
-          // Healthy pre-catalog concept: recover its registry id by matching
-          // any of its words in either language so top-up won't duplicate it.
-          final registryId = wordIndex.entries
-              .where((e) => variants.any((v) => e.value.contains(v.word)))
-              .map((e) => e.key)
-              .firstOrNull;
-          if (registryId != null) {
-            await _conceptDao.stampSeedId(concept.id, registryId);
+        final concepts = await _conceptDao.getConceptsByList(list.id);
+        for (final concept in concepts) {
+          final variants = await _conceptDao.getVariantsByConcept(concept.id);
+          if (variants.isEmpty) {
+            await _conceptDao.softDelete(concept.id);
+          } else if (concept.seedId == null) {
+            // Healthy pre-catalog concept: recover its registry id by matching
+            // any of its words in either language so top-up won't duplicate it.
+            final registryId = wordIndex.entries
+                .where((e) => variants.any((v) => e.value.contains(v.word)))
+                .map((e) => e.key)
+                .firstOrNull;
+            if (registryId != null) {
+              await _conceptDao.stampSeedId(concept.id, registryId);
+            }
           }
         }
-      }
+      });
     }
   }
 
@@ -181,28 +197,28 @@ class StarterSeeder {
     SeedLanguageLayer sourceLayer,
     SeedLanguageLayer targetLayer,
     SeedTranslations names,
-  ) =>
-      {
-        'list': {
-          'name': names.resolve(seedList.nameKey),
-          'description': names.resolve(seedList.descKey),
-          'lang_a': sourceLayer.lang,
-          'lang_b': targetLayer.lang,
-          'seed_id': seedId,
-          'concepts': [
-            for (final conceptId in seedList.conceptIds)
-              if (sourceLayer.entries[conceptId] != null &&
-                  targetLayer.entries[conceptId] != null)
-                _composeConceptJson(
-                    conceptId,
-                    catalog,
-                    sourceLayer.entries[conceptId]!,
-                    sourceLayer.lang,
-                    targetLayer.entries[conceptId]!,
-                    targetLayer.lang),
-          ],
-        },
-      };
+  ) => {
+    'list': {
+      'name': names.resolve(seedList.nameKey),
+      'description': names.resolve(seedList.descKey),
+      'lang_a': sourceLayer.lang,
+      'lang_b': targetLayer.lang,
+      'seed_id': seedId,
+      'concepts': [
+        for (final conceptId in seedList.conceptIds)
+          if (sourceLayer.entries[conceptId] != null &&
+              targetLayer.entries[conceptId] != null)
+            _composeConceptJson(
+              conceptId,
+              catalog,
+              sourceLayer.entries[conceptId]!,
+              sourceLayer.lang,
+              targetLayer.entries[conceptId]!,
+              targetLayer.lang,
+            ),
+      ],
+    },
+  };
 
   Map<String, dynamic> _composeConceptJson(
     String conceptId,
@@ -211,29 +227,28 @@ class StarterSeeder {
     String sourceLang,
     SeedEntry targetEntry,
     String targetLang,
-  ) =>
-      {
-        'category': catalog.conceptCategories[conceptId],
-        'seed_id': conceptId,
-        'notes': targetEntry.noteFor(sourceLang),
-        'word_variants': [
-          ..._variantJsons(sourceEntry, sourceLang),
-          ..._variantJsons(targetEntry, targetLang),
-        ],
-      };
+  ) => {
+    'category': catalog.conceptCategories[conceptId],
+    'seed_id': conceptId,
+    'notes': targetEntry.noteFor(sourceLang),
+    'word_variants': [
+      ..._variantJsons(sourceEntry, sourceLang),
+      ..._variantJsons(targetEntry, targetLang),
+    ],
+  };
 
   List<Map<String, dynamic>> _variantJsons(SeedEntry entry, String lang) => [
-        for (final w in entry.words)
-          {
-            'word': w.word,
-            'lang_code': lang,
-            'is_primary': w.isPrimary,
-            'position': w.position,
-            if (w.tags.isNotEmpty) 'context_tags': w.tags,
-            // The example sentence belongs to the primary word.
-            if (w.isPrimary && entry.example != null) 'example': entry.example,
-          },
-      ];
+    for (final w in entry.words)
+      {
+        'word': w.word,
+        'lang_code': lang,
+        'is_primary': w.isPrimary,
+        'position': w.position,
+        if (w.tags.isNotEmpty) 'context_tags': w.tags,
+        // The example sentence belongs to the primary word.
+        if (w.isPrimary && entry.example != null) 'example': entry.example,
+      },
+  ];
 
   /// Adds whatever an existing seeded list is missing — new registry concepts,
   /// or a missing language variant on an existing concept (the healing path
@@ -244,7 +259,7 @@ class StarterSeeder {
     SeedCatalog catalog,
     SeedLanguageLayer sourceLayer,
     SeedLanguageLayer targetLayer,
-  ) async {
+  ) => _listDao.transaction(() async {
     final now = DateTime.now();
     final concepts = await _conceptDao.getConceptsByList(listId);
     final bySeedId = {
@@ -262,19 +277,21 @@ class StarterSeeder {
       if (existing == null) {
         added = true;
         final newConceptId = _uuid.v4();
-        await _conceptDao.upsert(ConceptsTableCompanion(
-          id: Value(newConceptId),
-          listId: Value(listId),
-          category: Value(catalog.conceptCategories[conceptId]),
-          notes: Value(targetEntry.noteFor(sourceLayer.lang)),
-          seedId: Value(conceptId),
-          isDeleted: const Value(false),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-        ));
+        await _conceptDao.upsert(
+          ConceptsTableCompanion(
+            id: Value(newConceptId),
+            listId: Value(listId),
+            category: Value(catalog.conceptCategories[conceptId]),
+            notes: Value(targetEntry.noteFor(sourceLayer.lang)),
+            seedId: Value(conceptId),
+            isDeleted: const Value(false),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+          ),
+        );
         for (final entry in [
           (sourceEntry, sourceLayer.lang),
-          (targetEntry, targetLayer.lang)
+          (targetEntry, targetLayer.lang),
         ]) {
           await _insertVariants(newConceptId, entry.$1, entry.$2, now);
         }
@@ -284,12 +301,20 @@ class StarterSeeder {
         if (!presentLangs.contains(sourceLayer.lang)) {
           added = true;
           await _insertVariants(
-              existing.id, sourceEntry, sourceLayer.lang, now);
+            existing.id,
+            sourceEntry,
+            sourceLayer.lang,
+            now,
+          );
         }
         if (!presentLangs.contains(targetLayer.lang)) {
           added = true;
           await _insertVariants(
-              existing.id, targetEntry, targetLayer.lang, now);
+            existing.id,
+            targetEntry,
+            targetLayer.lang,
+            now,
+          );
         }
       }
     }
@@ -297,26 +322,33 @@ class StarterSeeder {
     if (added) {
       final count = await _conceptDao.countByList(listId);
       await _listDao.updateWordCount(listId, count);
+      _listDao.attachedDatabase.notifyOutboundMutation(_userId);
     }
-  }
+  });
 
   Future<void> _insertVariants(
-      String conceptId, SeedEntry entry, String lang, DateTime now) async {
+    String conceptId,
+    SeedEntry entry,
+    String lang,
+    DateTime now,
+  ) async {
     for (final w in entry.words) {
-      await _conceptDao.upsertVariant(WordVariantsTableCompanion(
-        id: Value(_uuid.v4()),
-        conceptId: Value(conceptId),
-        word: Value(w.word),
-        langCode: Value(lang),
-        contextTags: Value(jsonEncode(w.tags)),
-        isPrimary: Value(w.isPrimary),
-        position: Value(w.position),
-        example: Value(w.isPrimary ? entry.example : null),
-        audioPath: Value(AudioAssetPath.seed(text: w.word, langCode: lang)),
-        isDeleted: const Value(false),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-      ));
+      await _conceptDao.upsertVariant(
+        WordVariantsTableCompanion(
+          id: Value(_uuid.v4()),
+          conceptId: Value(conceptId),
+          word: Value(w.word),
+          langCode: Value(lang),
+          contextTags: Value(jsonEncode(w.tags)),
+          isPrimary: Value(w.isPrimary),
+          position: Value(w.position),
+          example: Value(w.isPrimary ? entry.example : null),
+          audioPath: Value(AudioAssetPath.seed(text: w.word, langCode: lang)),
+          isDeleted: const Value(false),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+        ),
+      );
     }
   }
 }

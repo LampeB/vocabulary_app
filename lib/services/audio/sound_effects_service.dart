@@ -26,22 +26,24 @@ class _AudioPlayersSoundEffectPlayer implements SoundEffectPlayer {
   final AudioPlayer _player;
 
   @override
-  Future<void> prepare() => _player.setAudioContext(AudioContext(
-        // Earcons must NEVER take Android audio focus: the default (GAIN)
-        // contests focus with SpeechRecognizer and kills young listen sessions
-        // within tens of ms — field log 2026-07-07: every hands-free retry
-        // beeped, instantly lost the mic, and the card was skipped ("it bips a
-        // few times then skips"). FOCUS_NONE plays the beep on top of whatever
-        // holds audio without contesting it. Usage stays MEDIA on purpose:
-        // assistanceSonification routes to Samsung's system-sounds stream,
-        // which is silent for most users ("all the bips disappeared").
-        android: const AudioContextAndroid(
-          contentType: AndroidContentType.sonification,
-          usageType: AndroidUsageType.media,
-          audioFocus: AndroidAudioFocus.none,
-        ),
-        iOS: AudioContextIOS(category: AVAudioSessionCategory.ambient),
-      ));
+  Future<void> prepare() => _player.setAudioContext(
+    AudioContext(
+      // Earcons must NEVER take Android audio focus: the default (GAIN)
+      // contests focus with SpeechRecognizer and kills young listen sessions
+      // within tens of ms — field log 2026-07-07: every hands-free retry
+      // beeped, instantly lost the mic, and the card was skipped ("it bips a
+      // few times then skips"). FOCUS_NONE plays the beep on top of whatever
+      // holds audio without contesting it. Usage stays MEDIA on purpose:
+      // assistanceSonification routes to Samsung's system-sounds stream,
+      // which is silent for most users ("all the bips disappeared").
+      android: const AudioContextAndroid(
+        contentType: AndroidContentType.sonification,
+        usageType: AndroidUsageType.media,
+        audioFocus: AndroidAudioFocus.none,
+      ),
+      iOS: AudioContextIOS(category: AVAudioSessionCategory.ambient),
+    ),
+  );
 
   @override
   Future<void> play(Uint8List bytes) => _player.play(BytesSource(bytes));
@@ -88,8 +90,11 @@ class SoundEffectsService {
   Uint8List? _doneBytes;
 
   // Generates a PCM WAV file in memory — avoids the empty asset placeholders.
-  Uint8List _makeBeep(double freqHz, double durationSec,
-      {double volume = 0.55}) {
+  Uint8List _makeBeep(
+    double freqHz,
+    double durationSec, {
+    double volume = 0.55,
+  }) {
     const sampleRate = 22050;
     final numSamples = (sampleRate * durationSec).round();
     final dataSize = numSamples * 2; // 16-bit mono
@@ -144,8 +149,12 @@ class SoundEffectsService {
   /// near-identical sine beeps users hear an undifferentiated "bip bip"
   /// between cards (field report 2026-07-07: the correct-ding of card N
   /// followed by card N+1's listen cue read as "two bips").
-  Uint8List _makeTwoTone(double f1, double f2, double durationSec,
-      {double volume = 0.55}) {
+  Uint8List _makeTwoTone(
+    double f1,
+    double f2,
+    double durationSec, {
+    double volume = 0.55,
+  }) {
     final half = durationSec / 2;
     final a = _makeBeep(f1, half, volume: volume);
     final b = _makeBeep(f2, half, volume: volume);
@@ -173,22 +182,30 @@ class SoundEffectsService {
     } catch (_) {}
   }
 
-  Future<void> playCorrect() => _play('playCorrect (rising chirp)',
-      () => _correctBytes ??= _makeTwoTone(660, 990, 0.22));
+  Future<void> playCorrect() => _play(
+    'playCorrect (rising chirp)',
+    () => _correctBytes ??= _makeTwoTone(660, 990, 0.22),
+  );
 
-  Future<void> playIncorrect() => _play('playIncorrect (falling buzz)',
-      () => _incorrectBytes ??= _makeTwoTone(330, 220, 0.28));
+  Future<void> playIncorrect() => _play(
+    'playIncorrect (falling buzz)',
+    () => _incorrectBytes ??= _makeTwoTone(330, 220, 0.28),
+  );
 
   /// Short soft cue marking the start of listening — the hands-free "your turn"
   /// earcon (paired with a haptic so it's catchable eyes-off).
-  Future<void> playListenCue() => _play('playListenCue (soft tick)',
-      () => _cueBytes ??= _makeBeep(620, 0.07, volume: 0.4));
+  Future<void> playListenCue() => _play(
+    'playListenCue (soft tick)',
+    () => _cueBytes ??= _makeBeep(620, 0.07, volume: 0.4),
+  );
 
   /// Mirror of [playListenCue]: lower soft tick marking that the mic has
   /// CLOSED and the answer is being analyzed — the eyes-off signal to stop
   /// talking (hands-free protocol, user request 2026-07-08).
-  Future<void> playListenDone() => _play('playListenDone (soft low tick)',
-      () => _doneBytes ??= _makeBeep(440, 0.07, volume: 0.4));
+  Future<void> playListenDone() => _play(
+    'playListenDone (soft low tick)',
+    () => _doneBytes ??= _makeBeep(440, 0.07, volume: 0.4),
+  );
 
   /// Stops an in-flight earcon without disposing the player. Used when the
   /// app backgrounds: a cue must never keep playing after the quiz is paused.

@@ -10,15 +10,14 @@ sb.User _user({
   String id = 'u1',
   String email = 'learner@example.com',
   Map<String, dynamic>? metadata,
-}) =>
-    sb.User(
-      id: id,
-      appMetadata: const {},
-      userMetadata: metadata,
-      aud: 'authenticated',
-      email: email,
-      createdAt: '2026-01-02T03:04:05.000Z',
-    );
+}) => sb.User(
+  id: id,
+  appMetadata: const {},
+  userMetadata: metadata,
+  aud: 'authenticated',
+  email: email,
+  createdAt: '2026-01-02T03:04:05.000Z',
+);
 
 class _FakeAuthRemote implements AuthRemote {
   _FakeAuthRemote({
@@ -27,12 +26,11 @@ class _FakeAuthRemote implements AuthRemote {
     Result<Map<String, dynamic>>? profileResult,
     this.upsertResult,
     this.usernameExists = false,
-  })  : signInResult =
-            signInResult ?? const Failure(AuthException('bad login')),
-        signUpResult =
-            signUpResult ?? const Failure(AuthException('bad sign up')),
-        profileResult =
-            profileResult ?? const Failure(UnknownException('profile missing'));
+  }) : signInResult = signInResult ?? const Failure(AuthException('bad login')),
+       signUpResult =
+           signUpResult ?? const Failure(AuthException('bad sign up')),
+       profileResult =
+           profileResult ?? const Failure(UnknownException('profile missing'));
 
   @override
   sb.User? currentUser;
@@ -66,7 +64,10 @@ class _FakeAuthRemote implements AuthRemote {
 
   @override
   Future<Result<sb.User>> signUpWithEmail(
-      String email, String password, String username) async {
+    String email,
+    String password,
+    String username,
+  ) async {
     signUpCalls++;
     return signUpResult;
   }
@@ -85,7 +86,8 @@ class _FakeAuthRemote implements AuthRemote {
 
   @override
   Future<Result<Map<String, dynamic>>> upsertProfile(
-      Map<String, dynamic> data) async {
+    Map<String, dynamic> data,
+  ) async {
     upserts.add(data);
     return upsertResult ?? Success(data);
   }
@@ -99,64 +101,67 @@ class _FakeAuthRemote implements AuthRemote {
 
 void main() {
   group('AuthRepositoryImpl', () {
-    test('sign-in maps the server profile onto the authenticated user',
-        () async {
-      final user = _user(metadata: {'username': 'fallback'});
-      final remote = _FakeAuthRemote(
-        signInResult: Success(user),
-        profileResult: const Success({
-          'username': 'marie',
-          'display_name': 'Marie K.',
-          'avatar_url': 'https://example.com/a.png',
-          'bio': 'Bonjour',
-          'total_words_mastered': 12,
-          'current_streak': 4,
-          'longest_streak': 9,
-          'subscription_type': 'premium',
-        }),
-      );
-      final repository = AuthRepositoryImpl(remote);
+    test(
+      'sign-in maps the server profile onto the authenticated user',
+      () async {
+        final user = _user(metadata: {'username': 'fallback'});
+        final remote = _FakeAuthRemote(
+          signInResult: Success(user),
+          profileResult: const Success({
+            'username': 'marie',
+            'display_name': 'Marie K.',
+            'avatar_url': 'https://example.com/a.png',
+            'bio': 'Bonjour',
+            'total_words_mastered': 12,
+            'current_streak': 4,
+            'longest_streak': 9,
+            'subscription_type': 'premium',
+          }),
+        );
+        final repository = AuthRepositoryImpl(remote);
 
-      final result = await repository.signInWithEmail(
-        email: 'learner@example.com',
-        password: 'secret',
-      );
-      final appUser = result.valueOrNull!;
-      expect(appUser.id, 'u1');
-      expect(appUser.username, 'marie');
-      expect(appUser.displayName, 'Marie K.');
-      expect(appUser.totalWordsMastered, 12);
-      expect(appUser.currentStreak, 4);
-      expect(appUser.subscriptionType, SubscriptionType.premium);
-    });
+        final result = await repository.signInWithEmail(
+          email: 'learner@example.com',
+          password: 'secret',
+        );
+        final appUser = result.valueOrNull!;
+        expect(appUser.id, 'u1');
+        expect(appUser.username, 'marie');
+        expect(appUser.displayName, 'Marie K.');
+        expect(appUser.totalWordsMastered, 12);
+        expect(appUser.currentStreak, 4);
+        expect(appUser.subscriptionType, SubscriptionType.premium);
+      },
+    );
 
     test('sign-in repairs a missing profile using a safe username', () async {
       final remote = _FakeAuthRemote(
         signInResult: Success(_user(email: 'ab@example.com')),
       );
-      final result = await AuthRepositoryImpl(remote).signInWithEmail(
-        email: 'ab@example.com',
-        password: 'secret',
-      );
+      final result = await AuthRepositoryImpl(
+        remote,
+      ).signInWithEmail(email: 'ab@example.com', password: 'secret');
 
       expect(result.valueOrNull?.username, '');
       expect(remote.upserts, [
-        {'id': 'u1', 'username': 'ab_', 'display_name': 'ab_'}
+        {'id': 'u1', 'username': 'ab_', 'display_name': 'ab_'},
       ]);
     });
 
-    test('sign-up rejects an occupied username before contacting Supabase',
-        () async {
-      final remote = _FakeAuthRemote(usernameExists: true);
-      final result = await AuthRepositoryImpl(remote).signUpWithEmail(
-        email: 'a@b.com',
-        password: 'secret',
-        username: '  Taken  ',
-      );
+    test(
+      'sign-up rejects an occupied username before contacting Supabase',
+      () async {
+        final remote = _FakeAuthRemote(usernameExists: true);
+        final result = await AuthRepositoryImpl(remote).signUpWithEmail(
+          email: 'a@b.com',
+          password: 'secret',
+          username: '  Taken  ',
+        );
 
-      expect(result.exceptionOrNull, isA<ValidationException>());
-      expect(remote.signUpCalls, 0);
-    });
+        expect(result.exceptionOrNull, isA<ValidationException>());
+        expect(remote.signUpCalls, 0);
+      },
+    );
 
     test('sign-up normalizes the username and repairs the profile', () async {
       final remote = _FakeAuthRemote(signUpResult: Success(_user()));
@@ -173,8 +178,9 @@ void main() {
 
     test('localizes the already-registered Supabase error', () async {
       final remote = _FakeAuthRemote(
-        signUpResult:
-            const Failure(AuthException('User already registered with email')),
+        signUpResult: const Failure(
+          AuthException('User already registered with email'),
+        ),
       );
       final result = await AuthRepositoryImpl(remote).signUpWithEmail(
         email: 'a@b.com',
@@ -190,10 +196,9 @@ void main() {
       final signInRemote = _FakeAuthRemote(
         signInResult: const Failure(NetworkException('offline')),
       );
-      final signIn = await AuthRepositoryImpl(signInRemote).signInWithEmail(
-        email: 'a@b.com',
-        password: 'secret',
-      );
+      final signIn = await AuthRepositoryImpl(
+        signInRemote,
+      ).signInWithEmail(email: 'a@b.com', password: 'secret');
       expect(signIn.exceptionOrNull, isA<NetworkException>());
 
       final signUpRemote = _FakeAuthRemote(
@@ -207,16 +212,20 @@ void main() {
       expect(signUp.exceptionOrNull?.message, 'invalid password');
     });
 
-    test('requires an authenticated user for profile and streak mutations',
-        () async {
-      final remote = _FakeAuthRemote();
-      final repository = AuthRepositoryImpl(remote);
+    test(
+      'requires an authenticated user for profile and streak mutations',
+      () async {
+        final remote = _FakeAuthRemote();
+        final repository = AuthRepositoryImpl(remote);
 
-      expect((await repository.updateProfile(displayName: 'Marie')).isFailure,
-          isTrue);
-      expect((await repository.reloadProfile()).isFailure, isTrue);
-      expect((await repository.updateStreak()).isFailure, isTrue);
-    });
+        expect(
+          (await repository.updateProfile(displayName: 'Marie')).isFailure,
+          isTrue,
+        );
+        expect((await repository.reloadProfile()).isFailure, isTrue);
+        expect((await repository.updateStreak()).isFailure, isTrue);
+      },
+    );
 
     test('maps the current user and persists profile changes', () async {
       final remote = _FakeAuthRemote()..currentUser = _user();
@@ -242,8 +251,9 @@ void main() {
         upsertResult: const Failure(NetworkException('offline')),
       )..currentUser = _user();
 
-      final result =
-          await AuthRepositoryImpl(remote).updateProfile(displayName: 'Marie');
+      final result = await AuthRepositoryImpl(
+        remote,
+      ).updateProfile(displayName: 'Marie');
       expect(result.exceptionOrNull, isA<NetworkException>());
     });
 
@@ -263,18 +273,22 @@ void main() {
       expect(remote.upserts.last['username'], 'metadata_name');
     });
 
-    test('forwards sign-out, reset and streak actions to the remote boundary',
-        () async {
-      final remote = _FakeAuthRemote()..currentUser = _user();
-      final repository = AuthRepositoryImpl(remote);
+    test(
+      'forwards sign-out, reset and streak actions to the remote boundary',
+      () async {
+        final remote = _FakeAuthRemote()..currentUser = _user();
+        final repository = AuthRepositoryImpl(remote);
 
-      expect((await repository.signOut()).isSuccess, isTrue);
-      expect((await repository.sendPasswordResetEmail('a@b.com')).isSuccess,
-          isTrue);
-      expect((await repository.updateStreak()).isSuccess, isTrue);
-      expect(remote.signOutCalls, 1);
-      expect(remote.resetCalls, 1);
-      expect(remote.streakCalls, 1);
-    });
+        expect((await repository.signOut()).isSuccess, isTrue);
+        expect(
+          (await repository.sendPasswordResetEmail('a@b.com')).isSuccess,
+          isTrue,
+        );
+        expect((await repository.updateStreak()).isSuccess, isTrue);
+        expect(remote.signOutCalls, 1);
+        expect(remote.resetCalls, 1);
+        expect(remote.streakCalls, 1);
+      },
+    );
   });
 }

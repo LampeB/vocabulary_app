@@ -178,3 +178,57 @@ résultat des sept jobs de l'application GitHub Actions officielle, la preuve
 des huit rapports et son empreinte attestée par le propriétaire, puis relit
 la tête de PR avant `APPROVE`. Les tests ne publient aucun verdict synthétique
 sur GitHub. Son premier dispatch réel reste subordonné à la convergence.
+
+## Cinquième itération — `602835c`
+
+Les quatre profils ont rendu `BLOQUÉ` sur
+`602835cb8115addb98d3ccca3db7df7059fc3be7`, avant toute correction.
+Ils remontent **14 Important distincts**, aucun Bloquant et trois Suggestions.
+Le contournement du planificateur par le quiz, commun à qualité et correction,
+est compté une seule fois, en conservant son type Important.
+
+| Type | Constat regroupé | Correction et preuve ciblée du lot |
+| --- | --- | --- |
+| Important | Minimums de verbes inatteignables pour les particules coréennes | Compter le vocabulaire de préparation du pool prérequis sans le transformer ; catalogue réel maîtrisé à 100 % |
+| Important | Particule sujet de 저 produisant 저가 | Contractions des pronoms sujets et conservation des autres particules |
+| Important | Article élidé supprimé lors de la validation orale de grammaire | Même comparaison morphologique stricte dans la course et la confirmation |
+| Important | Titres papier et notation flashcards illisibles en sombre | Paires encre/fond explicites, contraste dans les deux thèmes |
+| Important | Profil A tardif rétablissant A après passage à B | Génération et identité courantes sur tous les retours asynchrones, abonnement annulé au démontage |
+| Important | Accusé canonique non répercuté dans le détail déjà ouvert | Providers réactifs aux modifications de contenu ; détail et variantes après ACK |
+| Important | Écriture ordinaire ressuscitant une suppression distante | Dominance atomique du tombstone, aussi après l'import initial |
+| Important | Réponse de quiz lançant un drain hors du planificateur | Événement durable seul, aucun envoi hors ligne, reprise regroupée au réseau |
+| Important | Timeout cloud laissant la requête active puis autorisant un chevauchement | Barrière de requête réelle ou arrêt du secours cloud pour le tour expiré |
+| Important | Clé moderne sb_secret_ envoyée dans le mauvais en-tête GoTrue | Authentification moderne et JWT historique distinguées et testées |
+| Important | Bot acceptant des checks d'un autre workflow ou d'une ancienne base | Provenance workflow, événement, PR, tête et base testées |
+| Important | Démarrage documenté sans sous-module ni SDK compatible | Clone récursif, initialisation existante, contraintes SDK alignées sur le verrou et la CI |
+| Important | Signal de drain recompilant cinq COUNT tous comptes à chaque ACK | Notification de mutation locale par compte, sans lecture de l'arriéré ni déclenchement sur ACK |
+| Important | Annulation PCM laissant le décodage natif et sa file actifs | Génération de tour, file périmée écartée, annulation native et reprise indépendante |
+
+Les trois Suggestions sont traitées dans ce même lot : procédure de premier
+dispatch réutilisant un chemin déjà présent sur main, arrêt des tickers pour
+la réduction des animations et retrait du prototype de parcours non routé.
+
+Les tests ciblés passent : 137 cas data, 106 cas voix/quiz/widgets, ainsi que
+les régressions d'identité et de catalogue coréen. Les six suites SQL passent
+sous PostgreSQL 16.11 réel, dont la migration 014 ; deux sessions confirment
+toujours l'isolation du reset. Les seize tests Deno, les vingt-et-un tests du
+bot et les sept bundles Edge figés passent. Kotlin compile avec l'annulation
+PCM. La migration reste à appliquer sur le projet hébergé avant activation.
+
+La contrainte SDK est alignée sur les dépendances déjà verrouillées et le
+SDK CI existant : Flutter 3.44 et Dart 3.12 au minimum. Ce changement de version
+de langage impose son formatage Dart et les corrections automatiques du
+linter ; ces modifications mécaniques accompagnent le lot fonctionnel.
+
+La suite hôte complète finale passe : **967 réussis**, huit diagnostics
+positifs exclus sans opt-in, couverture **69,0 %** (11 799 / 17 088 lignes).
+L'analyse Flutter, le garde documentaire/formatage, la licence, actionlint et
+zizmor sont propres. La passe complète a aussi révélé un montage du décor dans
+un sous-arbre initialement inactif : il reste statique avant la création du
+contrôleur, et les deux parcours de navigation concernés passent désormais.
+Les cinq tests Python E2E et vingt-et-un tests du bot passent également.
+
+Les sept checks CI et la compilation Android de `602835c` sont verts.
+Cela ne constitue pas une passe propre d'agents. Cinq itérations complètes
+ont désormais rendu `BLOQUÉ` ; aucun compteur propre n'est acquis. La prochaine
+relecture sera l'itération **6**, avec le plafond de vingt inchangé.

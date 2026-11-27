@@ -41,8 +41,10 @@ class NotificationService {
   Future<bool> requestPermissions() async {
     var granted = false;
 
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (android != null) {
       final ok = await android.requestNotificationsPermission();
       // Request exact alarms separately (Android 12+).
@@ -50,11 +52,16 @@ class NotificationService {
       granted = ok ?? false;
     }
 
-    final ios = _plugin.resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>();
+    final ios = _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
     if (ios != null) {
-      final ok =
-          await ios.requestPermissions(alert: true, badge: true, sound: true);
+      final ok = await ios.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
       granted = ok ?? false;
     }
 
@@ -68,8 +75,14 @@ class NotificationService {
 
     final now = tz.TZDateTime.now(tz.local);
     final target = nextDailyReminder(now, hour, minute);
-    final next = tz.TZDateTime(tz.local, target.year, target.month, target.day,
-        target.hour, target.minute);
+    final next = tz.TZDateTime(
+      tz.local,
+      target.year,
+      target.month,
+      target.day,
+      target.hour,
+      target.minute,
+    );
 
     try {
       await _plugin.zonedSchedule(
@@ -112,7 +125,13 @@ class NotificationService {
     final slot = streakWarningSlot(now, streakDays);
     if (slot == null) return; // no streak, or already past 8 PM — skip
     final warning = tz.TZDateTime(
-        tz.local, slot.year, slot.month, slot.day, slot.hour, slot.minute);
+      tz.local,
+      slot.year,
+      slot.month,
+      slot.day,
+      slot.hour,
+      slot.minute,
+    );
 
     try {
       await _plugin.zonedSchedule(

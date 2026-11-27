@@ -12,9 +12,9 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Stream<AppUser?> get authStateChanges => _remote.authStateChanges.map(
-        (state) =>
-            state.session?.user != null ? _mapUser(state.session!.user) : null,
-      );
+    (state) =>
+        state.session?.user != null ? _mapUser(state.session!.user) : null,
+  );
 
   @override
   AppUser? get currentUser {
@@ -36,7 +36,9 @@ class AuthRepositoryImpl implements AuthRepository {
           onFailure: (_) async {
             // Profile row missing — create it now (e.g. account pre-dates trigger).
             final username = _safeUsername(
-                user.userMetadata?['username'] as String?, user.email);
+              user.userMetadata?['username'] as String?,
+              user.email,
+            );
             await _remote.upsertProfile({
               'id': user.id,
               'username': username,
@@ -76,7 +78,8 @@ class AuthRepositoryImpl implements AuthRepository {
         if (e is AuthException &&
             e.message.toLowerCase().contains('already registered')) {
           return const Failure(
-              AuthException('Cette adresse e-mail est déjà utilisée.'));
+            AuthException('Cette adresse e-mail est déjà utilisée.'),
+          );
         }
         return Failure(e);
       },
@@ -111,9 +114,9 @@ class AuthRepositoryImpl implements AuthRepository {
     if (user == null) return const Failure(AuthException('Not signed in'));
     final data = {
       'id': user.id,
-      if (displayName != null) 'display_name': displayName,
-      if (avatarUrl != null) 'avatar_url': avatarUrl,
-      if (bio != null) 'bio': bio,
+      'display_name': ?displayName,
+      'avatar_url': ?avatarUrl,
+      'bio': ?bio,
       'updated_at': DateTime.now().toIso8601String(),
     };
     final result = await _remote.upsertProfile(data);
@@ -133,7 +136,9 @@ class AuthRepositoryImpl implements AuthRepository {
       onFailure: (_) async {
         // Auto-create missing profile row.
         final username = _safeUsername(
-            user.userMetadata?['username'] as String?, user.email);
+          user.userMetadata?['username'] as String?,
+          user.email,
+        );
         await _remote.upsertProfile({
           'id': user.id,
           'username': username,
@@ -161,15 +166,16 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Result<void>> deleteAccount() async {
     // Requires Supabase admin call — implement via Edge Function
     return const Failure(
-        UnknownException('Account deletion not yet implemented'));
+      UnknownException('Account deletion not yet implemented'),
+    );
   }
 
   AppUser _mapUser(sb.User user) => AppUser(
-        id: user.id,
-        email: user.email ?? '',
-        username: user.userMetadata?['username'] as String? ?? '',
-        createdAt: DateTime.tryParse(user.createdAt) ?? DateTime.now(),
-      );
+    id: user.id,
+    email: user.email ?? '',
+    username: user.userMetadata?['username'] as String? ?? '',
+    createdAt: DateTime.tryParse(user.createdAt) ?? DateTime.now(),
+  );
 
   AppUser _mapUserWithProfile(sb.User user, Map<String, dynamic> profile) =>
       AppUser(
@@ -183,7 +189,8 @@ class AuthRepositoryImpl implements AuthRepository {
         currentStreak: profile['current_streak'] as int? ?? 0,
         longestStreak: profile['longest_streak'] as int? ?? 0,
         subscriptionType: SubscriptionType.fromString(
-            profile['subscription_type'] as String?),
+          profile['subscription_type'] as String?,
+        ),
         createdAt: DateTime.tryParse(user.createdAt) ?? DateTime.now(),
       );
 }

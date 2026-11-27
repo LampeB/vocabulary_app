@@ -42,74 +42,98 @@ class AppDatabase extends _$AppDatabase {
 
   AppDatabase.forTesting(super.e);
 
+  static String _outboundMutationKey(String userId) => 'outbound:$userId';
+
+  Stream<void> watchOutboundMutations(String userId) => tableUpdates(
+    TableUpdateQuery.onTableName(_outboundMutationKey(userId)),
+  ).map((_) {});
+
+  /// Drift publishes this account-scoped event when the outer transaction
+  /// commits. The key has no backing table and requires no query from listeners.
+  void notifyOutboundMutation(String userId) {
+    if (userId.isNotEmpty) {
+      notifyUpdates({TableUpdate(_outboundMutationKey(userId))});
+    }
+  }
+
+  Future<T> writeOutbound<T>(String userId, Future<T> Function() write) =>
+      transaction(() async {
+        final result = await write();
+        notifyOutboundMutation(userId);
+        return result;
+      });
+
   @override
   int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) async {
-          await m.createAll();
-          await _createIndexes();
-        },
-        onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            await m.createTable(quizSessionsTable);
-            await customStatement(
-                'CREATE INDEX IF NOT EXISTS idx_sessions_user '
-                'ON quiz_sessions(user_id, completed_at)');
-          }
-          if (from < 3) {
-            // Language pair per list (generic-language-pairs epic); existing
-            // lists are all FR/KR.
-            await m.addColumn(vocabularyListsTable, vocabularyListsTable.langA);
-            await m.addColumn(vocabularyListsTable, vocabularyListsTable.langB);
-          }
-          if (from < 4) {
-            // Generic direction storage ('fr>ko') replaces the legacy enum
-            // names. QuizDirection.parse still accepts the old form, but
-            // queries compare exact strings — so rewrite in place.
-            await customStatement(
-                "UPDATE variant_progress SET direction = 'fr>ko' WHERE direction = 'frToKo'");
-            await customStatement(
-                "UPDATE variant_progress SET direction = 'ko>fr' WHERE direction = 'koToFr'");
-          }
-          if (from < 5) {
-            // The sync_queue table never got a consumer — the isSynced flags
-            // won as the outbound-queue mechanism (see data/sync/push_sync).
-            await customStatement('DROP TABLE IF EXISTS sync_queue');
-          }
-          if (from < 6) {
-            // List origin: user-created vs seeded starter vs premium packs.
-            // Only 'user' lists count against the free quota.
-            await m.addColumn(
-                vocabularyListsTable, vocabularyListsTable.origin);
-          }
-          if (from < 7) {
-            // Per-rule grammar mastery (the grammar feature's stage-2 gate).
-            await m.createTable(grammarProgressTable);
-          }
-          if (from < 8) {
-            // Per-answer review-event log (stats dashboard observability).
-            await m.createTable(reviewEventsTable);
-            await customStatement(
-                'CREATE INDEX IF NOT EXISTS idx_review_events_user '
-                'ON review_events(user_id, created_at)');
-            await customStatement(
-                'CREATE INDEX IF NOT EXISTS idx_review_events_unsynced '
-                'ON review_events(is_synced)');
-          }
-          if (from < 9) {
-            // Multi-language seed epic: per-variant example sentences (in the
-            // variant's own language) replace the fr/ko-specific columns on
-            // concepts; seed ids give seeded lists/concepts a stable identity
-            // for dedup and top-up.
-            await m.addColumn(wordVariantsTable, wordVariantsTable.example);
-            await m.addColumn(
-                vocabularyListsTable, vocabularyListsTable.seedId);
-            await m.addColumn(conceptsTable, conceptsTable.seedId);
-            // Backfill: copy the legacy per-concept examples onto the primary
-            // fr/ko variants they belong to.
-            await customStatement('''
+    onCreate: (m) async {
+      await m.createAll();
+      await _createIndexes();
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.createTable(quizSessionsTable);
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_sessions_user '
+          'ON quiz_sessions(user_id, completed_at)',
+        );
+      }
+      if (from < 3) {
+        // Language pair per list (generic-language-pairs epic); existing
+        // lists are all FR/KR.
+        await m.addColumn(vocabularyListsTable, vocabularyListsTable.langA);
+        await m.addColumn(vocabularyListsTable, vocabularyListsTable.langB);
+      }
+      if (from < 4) {
+        // Generic direction storage ('fr>ko') replaces the legacy enum
+        // names. QuizDirection.parse still accepts the old form, but
+        // queries compare exact strings — so rewrite in place.
+        await customStatement(
+          "UPDATE variant_progress SET direction = 'fr>ko' WHERE direction = 'frToKo'",
+        );
+        await customStatement(
+          "UPDATE variant_progress SET direction = 'ko>fr' WHERE direction = 'koToFr'",
+        );
+      }
+      if (from < 5) {
+        // The sync_queue table never got a consumer — the isSynced flags
+        // won as the outbound-queue mechanism (see data/sync/push_sync).
+        await customStatement('DROP TABLE IF EXISTS sync_queue');
+      }
+      if (from < 6) {
+        // List origin: user-created vs seeded starter vs premium packs.
+        // Only 'user' lists count against the free quota.
+        await m.addColumn(vocabularyListsTable, vocabularyListsTable.origin);
+      }
+      if (from < 7) {
+        // Per-rule grammar mastery (the grammar feature's stage-2 gate).
+        await m.createTable(grammarProgressTable);
+      }
+      if (from < 8) {
+        // Per-answer review-event log (stats dashboard observability).
+        await m.createTable(reviewEventsTable);
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_review_events_user '
+          'ON review_events(user_id, created_at)',
+        );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_review_events_unsynced '
+          'ON review_events(is_synced)',
+        );
+      }
+      if (from < 9) {
+        // Multi-language seed epic: per-variant example sentences (in the
+        // variant's own language) replace the fr/ko-specific columns on
+        // concepts; seed ids give seeded lists/concepts a stable identity
+        // for dedup and top-up.
+        await m.addColumn(wordVariantsTable, wordVariantsTable.example);
+        await m.addColumn(vocabularyListsTable, vocabularyListsTable.seedId);
+        await m.addColumn(conceptsTable, conceptsTable.seedId);
+        // Backfill: copy the legacy per-concept examples onto the primary
+        // fr/ko variants they belong to.
+        await customStatement('''
               UPDATE word_variants SET example = (
                 SELECT CASE word_variants.lang_code
                   WHEN 'fr' THEN c.example_fr
@@ -121,48 +145,60 @@ class AppDatabase extends _$AppDatabase {
                 AND is_primary = 1
                 AND lang_code IN ('fr', 'ko')
             ''');
-          }
-          if (from < 10) {
-            // Server-rendered audio is immutable and addressed by its Storage
-            // object path. Keeping it on the variant lets every quiz use the
-            // file directly, without a per-card TTS request.
-            await m.addColumn(wordVariantsTable, wordVariantsTable.audioPath);
-          }
-          if (from < 11) {
-            await m.addColumn(vocabularyListsTable,
-                vocabularyListsTable.importedFromShareToken);
-            await customStatement(
-                "UPDATE vocabulary_lists SET imported_from_share_token = share_token, share_token = NULL, is_synced = 0 WHERE visibility = 'private' AND share_token IS NOT NULL");
-            // Keep the latest pending local version of a business key. Older
-            // duplicate UUIDs arose when two devices first reviewed offline.
-            await customStatement(
-                '''DELETE FROM variant_progress WHERE id NOT IN (
+      }
+      if (from < 10) {
+        // Server-rendered audio is immutable and addressed by its Storage
+        // object path. Keeping it on the variant lets every quiz use the
+        // file directly, without a per-card TTS request.
+        await m.addColumn(wordVariantsTable, wordVariantsTable.audioPath);
+      }
+      if (from < 11) {
+        await m.addColumn(
+          vocabularyListsTable,
+          vocabularyListsTable.importedFromShareToken,
+        );
+        await customStatement(
+          "UPDATE vocabulary_lists SET imported_from_share_token = share_token, share_token = NULL, is_synced = 0 WHERE visibility = 'private' AND share_token IS NOT NULL",
+        );
+        // Keep the latest pending local version of a business key. Older
+        // duplicate UUIDs arose when two devices first reviewed offline.
+        await customStatement('''DELETE FROM variant_progress WHERE id NOT IN (
               SELECT id FROM (SELECT id, ROW_NUMBER() OVER (
                 PARTITION BY user_id, variant_id, direction
                 ORDER BY is_synced ASC, updated_at DESC, reps DESC, id) AS rank
                 FROM variant_progress) WHERE rank = 1)''');
-            await customStatement(
-                'CREATE UNIQUE INDEX IF NOT EXISTS idx_progress_identity ON variant_progress(user_id, variant_id, direction)');
-          }
-          if (from < 12) await m.createTable(sharedImportBootstrapTable);
-        },
-      );
+        await customStatement(
+          'CREATE UNIQUE INDEX IF NOT EXISTS idx_progress_identity ON variant_progress(user_id, variant_id, direction)',
+        );
+      }
+      if (from < 12) await m.createTable(sharedImportBootstrapTable);
+    },
+  );
 
   Future<void> _createIndexes() async {
     await customStatement(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_progress_identity ON variant_progress(user_id, variant_id, direction)');
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_progress_identity ON variant_progress(user_id, variant_id, direction)',
+    );
     await customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_concepts_list_id ON concepts(list_id)');
+      'CREATE INDEX IF NOT EXISTS idx_concepts_list_id ON concepts(list_id)',
+    );
     await customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_variants_concept_id ON word_variants(concept_id, lang_code)');
+      'CREATE INDEX IF NOT EXISTS idx_variants_concept_id ON word_variants(concept_id, lang_code)',
+    );
     await customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_progress_user_next ON variant_progress(user_id, next_review)');
+      'CREATE INDEX IF NOT EXISTS idx_progress_user_next ON variant_progress(user_id, next_review)',
+    );
     await customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_progress_unsynced ON variant_progress(is_synced)');
-    await customStatement('CREATE INDEX IF NOT EXISTS idx_sessions_user '
-        'ON quiz_sessions(user_id, completed_at)');
-    await customStatement('CREATE INDEX IF NOT EXISTS idx_review_events_user '
-        'ON review_events(user_id, created_at)');
+      'CREATE INDEX IF NOT EXISTS idx_progress_unsynced ON variant_progress(is_synced)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_sessions_user '
+      'ON quiz_sessions(user_id, completed_at)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_review_events_user '
+      'ON review_events(user_id, created_at)',
+    );
   }
 
   static QueryExecutor _openConnection() {

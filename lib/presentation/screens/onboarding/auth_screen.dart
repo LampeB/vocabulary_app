@@ -55,9 +55,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'auth.reset_dialog_body'.tr(),
-            ),
+            Text('auth.reset_dialog_body'.tr()),
             const SizedBox(height: 16),
             TextField(
               key: const ValueKey(WidgetKeys.authResetEmail),
@@ -85,21 +83,29 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   .read(authStateProvider.notifier)
                   .sendPasswordReset(email);
               if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(
-                  result.isSuccess
-                      ? 'auth.reset_snackbar_success'.tr()
-                      : 'auth.reset_snackbar_error'.tr(),
-                  key: ValueKey(result.isSuccess
-                      ? WidgetKeys.authResetSuccess
-                      : WidgetKeys.authResetError),
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    result.isSuccess
+                        ? 'auth.reset_snackbar_success'.tr()
+                        : 'auth.reset_snackbar_error'.tr(),
+                    key: ValueKey(
+                      result.isSuccess
+                          ? WidgetKeys.authResetSuccess
+                          : WidgetKeys.authResetError,
+                    ),
+                  ),
+                  behavior: SnackBarBehavior.floating,
                 ),
-                behavior: SnackBarBehavior.floating,
-              ));
+              );
             },
-            child: Text('auth.reset_send'.tr(),
-                style: AppTextStyles.fig(14, FontWeight.w600)
-                    .copyWith(color: AppColors.teal)),
+            child: Text(
+              'auth.reset_send'.tr(),
+              style: AppTextStyles.fig(
+                14,
+                FontWeight.w600,
+              ).copyWith(color: AppColors.teal),
+            ),
           ),
         ],
       ),
@@ -166,17 +172,22 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         labelStyle: AppTextStyles.fig(14, FontWeight.w400, color: muted),
         prefixIconColor: muted,
         suffixIconColor: muted,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 18,
+        ),
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(13),
-            borderSide: BorderSide(color: fieldRule)),
+          borderRadius: BorderRadius.circular(13),
+          borderSide: BorderSide(color: fieldRule),
+        ),
         enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(13),
-            borderSide: BorderSide(color: fieldRule)),
+          borderRadius: BorderRadius.circular(13),
+          borderSide: BorderSide(color: fieldRule),
+        ),
         focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(13),
-            borderSide: const BorderSide(color: V3Colors.amber, width: 1.5)),
+          borderRadius: BorderRadius.circular(13),
+          borderSide: const BorderSide(color: V3Colors.amber, width: 1.5),
+        ),
       ),
     );
 
@@ -196,36 +207,50 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Row(children: [
-                          IconButton(
-                            tooltip: 'common.back'.tr(),
-                            onPressed: () => context.go('/welcome'),
-                            icon: Icon(Icons.arrow_back_rounded,
-                                color: foreground),
-                          ),
-                          const SizedBox(width: 13),
-                          Text(
+                        Row(
+                          children: [
+                            IconButton(
+                              tooltip: 'common.back'.tr(),
+                              onPressed: () => context.go('/welcome'),
+                              icon: Icon(
+                                Icons.arrow_back_rounded,
+                                color: foreground,
+                              ),
+                            ),
+                            const SizedBox(width: 13),
+                            Text(
                               _isSignIn
                                   ? 'v3.signin_label'.tr()
                                   : 'v3.signup_label'.tr(),
-                              style: AppTextStyles.mono(12, FontWeight.w400,
-                                  letterSpacing: 1.1, color: muted)),
-                        ]),
+                              style: AppTextStyles.mono(
+                                12,
+                                FontWeight.w400,
+                                letterSpacing: 1.1,
+                                color: muted,
+                              ),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 34),
                         Text(
                           _isSignIn
                               ? 'auth.title_signin'.tr()
                               : 'auth.title_signup'.tr(),
-                          style: AppTextStyles.serif(34, FontWeight.w400,
-                              color: foreground),
+                          style: AppTextStyles.serif(
+                            34,
+                            FontWeight.w400,
+                            color: foreground,
+                          ),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           _isSignIn
                               ? 'auth.subtitle_signin'.tr()
                               : 'auth.subtitle_signup'.tr(),
-                          style: AppTextStyles.fig(14, FontWeight.w400)
-                              .copyWith(color: muted),
+                          style: AppTextStyles.fig(
+                            14,
+                            FontWeight.w400,
+                          ).copyWith(color: muted),
                         ),
                         const SizedBox(height: 32),
                         // ── Username (sign-up only) ──────────────────────────────
@@ -272,9 +297,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               tooltip: _obscure
                                   ? 'v3.show_password'.tr()
                                   : 'v3.hide_password'.tr(),
-                              icon: Icon(_obscure
-                                  ? Icons.visibility_off
-                                  : Icons.visibility),
+                              icon: Icon(
+                                _obscure
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
                               onPressed: () =>
                                   setState(() => _obscure = !_obscure),
                             ),
@@ -293,8 +320,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              key:
-                                  const ValueKey(WidgetKeys.authForgotPassword),
+                              key: const ValueKey(
+                                WidgetKeys.authForgotPassword,
+                              ),
                               onPressed: () => _showForgotPassword(),
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
@@ -303,8 +331,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               ),
                               child: Text(
                                 'auth.forgot_password'.tr(),
-                                style: AppTextStyles.fig(13, FontWeight.w500)
-                                    .copyWith(color: accent),
+                                style: AppTextStyles.fig(
+                                  13,
+                                  FontWeight.w500,
+                                ).copyWith(color: accent),
                               ),
                             ),
                           ),
@@ -312,9 +342,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         // ── Error message ─────────────────────────────────────────
                         if (_errorMsg != null) ...[
                           const SizedBox(height: 12),
-                          Text(_errorMsg!,
-                              style: AppTextStyles.fig(13, FontWeight.w500)
-                                  .copyWith(color: AppColors.rose)),
+                          Text(
+                            _errorMsg!,
+                            style: AppTextStyles.fig(
+                              13,
+                              FontWeight.w500,
+                            ).copyWith(color: AppColors.rose),
+                          ),
                         ],
                         const SizedBox(height: 28),
                         // ── Submit ────────────────────────────────────────────────
@@ -335,15 +369,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                       height: 20,
                                       width: 20,
                                       child: CircularProgressIndicator(
-                                          strokeWidth: 2, color: Colors.white),
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
                                     )
                                   : Text(
                                       _isSignIn
                                           ? 'auth.button_signin'.tr()
                                           : 'auth.button_signup'.tr(),
-                                      style:
-                                          AppTextStyles.fig(15, FontWeight.w700)
-                                              .copyWith(color: V3Colors.paper),
+                                      style: AppTextStyles.fig(
+                                        15,
+                                        FontWeight.w700,
+                                      ).copyWith(color: V3Colors.paper),
                                     ),
                             ),
                           ),
@@ -358,8 +395,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               _isSignIn
                                   ? 'auth.toggle_to_signup'.tr()
                                   : 'auth.toggle_to_signin'.tr(),
-                              style: AppTextStyles.fig(13, FontWeight.w500)
-                                  .copyWith(color: accent),
+                              style: AppTextStyles.fig(
+                                13,
+                                FontWeight.w500,
+                              ).copyWith(color: accent),
                             ),
                           ),
                         ),

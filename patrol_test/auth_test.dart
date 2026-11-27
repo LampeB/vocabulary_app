@@ -7,14 +7,17 @@ import 'helpers/test_helpers.dart';
 void main() {
   // ── Sign-in flow ──────────────────────────────────────────────────────────
 
-  isolatedPatrolTest('sign-in lands on Today screen',
-      scenarioId: 'auth.sign_in_lands_on_today_screen',
-      timeout: const Timeout(Duration(minutes: 3)), ($) async {
-    await launchAndSignIn($);
+  isolatedPatrolTest(
+    'sign-in lands on Today screen',
+    scenarioId: 'auth.sign_in_lands_on_today_screen',
+    timeout: const Timeout(Duration(minutes: 3)),
+    ($) async {
+      await launchAndSignIn($);
 
-    // The shell's bottom nav shows 'ACCUEIL' as the first tab.
-    expect($(find.text('ACCUEIL')), findsOneWidget);
-  });
+      // The shell's bottom nav shows 'ACCUEIL' as the first tab.
+      expect($(find.text('ACCUEIL')), findsOneWidget);
+    },
+  );
 
   // ── Profile screen shows username ─────────────────────────────────────────
   //
@@ -26,19 +29,22 @@ void main() {
   // mid-layout Scaffold animation assertions in Flutter's test binding,
   // which fail the test before any assertion can run.
 
-  isolatedPatrolTest('profile data is loaded after sign-in',
-      scenarioId: 'auth.profile_data_is_loaded_after_sign_in',
-      timeout: const Timeout(Duration(minutes: 3)), ($) async {
-    await launchAndSignIn($);
+  isolatedPatrolTest(
+    'profile data is loaded after sign-in',
+    scenarioId: 'auth.profile_data_is_loaded_after_sign_in',
+    timeout: const Timeout(Duration(minutes: 3)),
+    ($) async {
+      await launchAndSignIn($);
 
-    // MaterialApp is a child of ProviderScope, so its element's context can
-    // walk up to the scope. ProviderScope itself is not a valid context here.
-    final container = ProviderScope.containerOf(
-      $.tester.element(find.byType(MaterialApp)),
-    );
-    final user = container.read(currentUserProvider);
+      // MaterialApp is a child of ProviderScope, so its element's context can
+      // walk up to the scope. ProviderScope itself is not a valid context here.
+      final container = ProviderScope.containerOf(
+        $.tester.element(find.byType(MaterialApp)),
+      );
+      final user = container.read(currentUserProvider);
 
-    expect(user, isNotNull);
-    expect(user!.username, isNotEmpty);
-  });
+      expect(user, isNotNull);
+      expect(user!.username, isNotEmpty);
+    },
+  );
 }

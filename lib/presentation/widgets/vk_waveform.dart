@@ -95,10 +95,7 @@ class _VkWaveformState extends State<VkWaveform>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-    );
+    _ctrl = AnimationController(vsync: this, duration: widget.duration);
     if (widget.isAnimating && !_kTestMode) _ctrl.repeat();
   }
 
@@ -109,7 +106,8 @@ class _VkWaveformState extends State<VkWaveform>
       _ctrl.duration = widget.duration;
       if (_ctrl.isAnimating) _ctrl.repeat(); // restart at the new speed
     }
-    final shouldAnimate = widget.isAnimating &&
+    final shouldAnimate =
+        widget.isAnimating &&
         !MediaQuery.of(context).disableAnimations &&
         !_kTestMode;
     if (shouldAnimate && !_ctrl.isAnimating) {
@@ -137,7 +135,7 @@ class _VkWaveformState extends State<VkWaveform>
       opacity: widget.opacity,
       child: AnimatedBuilder(
         animation: _ctrl,
-        builder: (_, __) {
+        builder: (_, _) {
           final t = animating ? _ctrl.value : 0.5;
           return SizedBox(
             height: widget.height,
@@ -159,8 +157,9 @@ class _VkWaveformState extends State<VkWaveform>
 
                 return Padding(
                   padding: EdgeInsets.only(
-                      left: i == 0 ? 0 : widget.gap / 2,
-                      right: i == _heights.length - 1 ? 0 : widget.gap / 2),
+                    left: i == 0 ? 0 : widget.gap / 2,
+                    right: i == _heights.length - 1 ? 0 : widget.gap / 2,
+                  ),
                   child: Container(
                     width: widget.barWidth,
                     height: barH.clamp(widget.barWidth, widget.height),

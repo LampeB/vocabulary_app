@@ -4,8 +4,9 @@ import '../../../services/quiz_orchestration/audio_director.dart';
 import '../../../core/config/app_config.dart';
 import '../settings/audio_settings_provider.dart';
 
-final audioPlayerServiceProvider =
-    Provider.autoDispose<AudioPlayerService>((ref) {
+final audioPlayerServiceProvider = Provider.autoDispose<AudioPlayerService>((
+  ref,
+) {
   final settings = ref.watch(audioSettingsProvider);
   final service = AudioPlayerService(
     usePremium: AppConfig.enableElevenLabsTTS,

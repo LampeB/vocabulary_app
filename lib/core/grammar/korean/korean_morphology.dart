@@ -36,10 +36,12 @@ abstract final class KoreanMorphology {
   }
 
   static String _compose(int initial, int medial, int fin) =>
-      String.fromCharCode(_base +
-          initial * _medialsCount * _finalsCount +
-          medial * _finalsCount +
-          fin);
+      String.fromCharCode(
+        _base +
+            initial * _medialsCount * _finalsCount +
+            medial * _finalsCount +
+            fin,
+      );
 
   /// Attaches a phonologically alternating particle (은/는, 이/가, 을/를 …).
   /// Invariant particles simply pass the same string for both forms.
@@ -47,8 +49,15 @@ abstract final class KoreanMorphology {
     String word, {
     required String afterConsonant,
     required String afterVowel,
-  }) =>
-      word + (hasBatchim(word) ? afterConsonant : afterVowel);
+  }) {
+    if (afterConsonant == '이' && afterVowel == '가') {
+      // Subject forms contract only for these standalone pronouns.
+      const subjects = {'저': '제가', '나': '내가', '너': '네가', '누구': '누가'};
+      final subject = subjects[word];
+      if (subject != null) return subject;
+    }
+    return word + (hasBatchim(word) ? afterConsonant : afterVowel);
+  }
 
   /// Present polite (아요/어요) from the dictionary form (…다).
   ///
@@ -64,8 +73,10 @@ abstract final class KoreanMorphology {
     final override = irregulars[dictionaryForm];
     if (override != null) return override;
 
-    assert(dictionaryForm.endsWith('다'),
-        'expected a dictionary form ending in 다: $dictionaryForm');
+    assert(
+      dictionaryForm.endsWith('다'),
+      'expected a dictionary form ending in 다: $dictionaryForm',
+    );
     final stem = dictionaryForm.substring(0, dictionaryForm.length - 1);
 
     // …하다 → …해요 (covers 하다 itself and every compound).

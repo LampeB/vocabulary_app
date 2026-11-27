@@ -28,33 +28,33 @@ extension VariantProgressDto on VariantProgress {
       );
 
   Map<String, dynamic> toRemoteMap() => {
-        'id': id,
-        'user_id': userId,
-        'variant_id': variantId,
-        'direction': direction.name,
-        'stability': stability,
-        'difficulty': difficulty,
-        'elapsed_days': elapsedDays,
-        'scheduled_days': scheduledDays,
-        'reps': reps,
-        'lapses': lapses,
-        'state': state.name,
-        'last_review': lastReview?.toUtc().toIso8601String(),
-        'next_review': nextReview?.toUtc().toIso8601String(),
-        'times_shown': timesShown,
-        'times_correct': timesCorrect,
-        'mastery_level': masteryLevel,
-        'created_at': createdAt.toUtc().toIso8601String(),
-        'updated_at': updatedAt.toUtc().toIso8601String(),
-      };
+    'id': id,
+    'user_id': userId,
+    'variant_id': variantId,
+    'direction': direction.name,
+    'stability': stability,
+    'difficulty': difficulty,
+    'elapsed_days': elapsedDays,
+    'scheduled_days': scheduledDays,
+    'reps': reps,
+    'lapses': lapses,
+    'state': state.name,
+    'last_review': lastReview?.toUtc().toIso8601String(),
+    'next_review': nextReview?.toUtc().toIso8601String(),
+    'times_shown': timesShown,
+    'times_correct': timesCorrect,
+    'mastery_level': masteryLevel,
+    'created_at': createdAt.toUtc().toIso8601String(),
+    'updated_at': updatedAt.toUtc().toIso8601String(),
+  };
 }
 
 /// Maps a remote `variant_progress` row to a local companion, normalizing
 /// legacy direction spellings and marking the row synced (it just came from
 /// the server). Inverse of [VariantProgressDto.toRemoteMap].
 VariantProgressTableCompanion variantProgressCompanionFromRemote(
-        Map<String, dynamic> row) =>
-    variantProgressFromRemote(row).toCompanion(false);
+  Map<String, dynamic> row,
+) => variantProgressFromRemote(row).toCompanion(false);
 
 VariantProgressTableData variantProgressFromRemote(Map<String, dynamic> row) =>
     VariantProgressTableData(
@@ -84,29 +84,30 @@ DateTime? _localDateTime(String? value) {
   if (value == null) return null;
   final time = DateTime.parse(value);
   return DateTime.fromMillisecondsSinceEpoch(
-      (time.millisecondsSinceEpoch ~/ 1000) * 1000);
+    (time.millisecondsSinceEpoch ~/ 1000) * 1000,
+  );
 }
 
 extension VariantProgressFromLocal on VariantProgressTableData {
   VariantProgress toDomain() => VariantProgress(
-        id: id,
-        userId: userId,
-        variantId: variantId,
-        direction: QuizDirection.parse(direction),
-        stability: stability,
-        difficulty: difficulty,
-        elapsedDays: elapsedDays,
-        scheduledDays: scheduledDays,
-        reps: reps,
-        lapses: lapses,
-        state: CardState.values.byName(state),
-        lastReview: lastReview,
-        nextReview: nextReview,
-        timesShown: timesShown,
-        timesCorrect: timesCorrect,
-        masteryLevel: masteryLevel,
-        isSynced: isSynced,
-        createdAt: createdAt,
-        updatedAt: updatedAt,
-      );
+    id: id,
+    userId: userId,
+    variantId: variantId,
+    direction: QuizDirection.parse(direction),
+    stability: stability,
+    difficulty: difficulty,
+    elapsedDays: elapsedDays,
+    scheduledDays: scheduledDays,
+    reps: reps,
+    lapses: lapses,
+    state: CardState.values.byName(state),
+    lastReview: lastReview,
+    nextReview: nextReview,
+    timesShown: timesShown,
+    timesCorrect: timesCorrect,
+    masteryLevel: masteryLevel,
+    isSynced: isSynced,
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+  );
 }

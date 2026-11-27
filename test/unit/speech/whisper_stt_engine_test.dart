@@ -119,25 +119,34 @@ void main() {
       expect(capture.disposals, 1);
     });
 
-    test('transcribes a shared-capture utterance into a final hypothesis',
-        () async {
-      final capture = _FakeWhisperCapture()..segmentReply = '고양이';
-      final engine = WhisperSttEngine(capture);
-      final pcm = Uint8List(64);
-      final h = await engine.recognize(PcmSegment(pcm, 2, 0),
-          langCode: 'ko', promptHints: const ['고양이']);
-      expect(capture.segmentPcm, same(pcm));
-      expect(capture.segmentLang, 'ko');
-      expect(capture.segmentHints, ['고양이']);
-      expect(h!.engineId, 'whisper');
-      expect(h.transcript, '고양이');
-      expect(h.confidence, .7);
+    test(
+      'transcribes a shared-capture utterance into a final hypothesis',
+      () async {
+        final capture = _FakeWhisperCapture()..segmentReply = '고양이';
+        final engine = WhisperSttEngine(capture);
+        final pcm = Uint8List(64);
+        final h = await engine.recognize(
+          PcmSegment(pcm, 2, 0),
+          langCode: 'ko',
+          promptHints: const ['고양이'],
+        );
+        expect(capture.segmentPcm, same(pcm));
+        expect(capture.segmentLang, 'ko');
+        expect(capture.segmentHints, ['고양이']);
+        expect(h!.engineId, 'whisper');
+        expect(h.transcript, '고양이');
+        expect(h.confidence, .7);
 
-      capture.segmentReply = null;
-      expect(
-          await engine.recognize(PcmSegment(pcm, 2, 0),
-              langCode: 'ko', promptHints: const []),
-          isNull);
-    });
+        capture.segmentReply = null;
+        expect(
+          await engine.recognize(
+            PcmSegment(pcm, 2, 0),
+            langCode: 'ko',
+            promptHints: const [],
+          ),
+          isNull,
+        );
+      },
+    );
   });
 }

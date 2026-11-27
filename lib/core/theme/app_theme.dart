@@ -71,8 +71,11 @@ abstract final class AppTheme {
           // Labels: large = Figtree buttons; small = Space Mono eyebrows.
           labelLarge: AppTextStyles.fig(14, FontWeight.w600),
           labelMedium: AppTextStyles.fig(12, FontWeight.w600),
-          labelSmall:
-              AppTextStyles.mono(11, FontWeight.w700, letterSpacing: 1.8),
+          labelSmall: AppTextStyles.mono(
+            11,
+            FontWeight.w700,
+            letterSpacing: 1.8,
+          ),
         )
         .apply(bodyColor: inkCol, displayColor: inkCol);
 
@@ -90,8 +93,10 @@ abstract final class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
-        titleTextStyle:
-            AppTextStyles.grotesk(22, FontWeight.w700).copyWith(color: inkCol),
+        titleTextStyle: AppTextStyles.grotesk(
+          22,
+          FontWeight.w700,
+        ).copyWith(color: inkCol),
         iconTheme: IconThemeData(color: inkCol, size: 22),
       ),
 
@@ -144,12 +149,18 @@ abstract final class AppTheme {
         ),
         filled: true,
         fillColor: cardCol,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        labelStyle:
-            AppTextStyles.fig(14, FontWeight.w500).copyWith(color: mutedCol),
-        hintStyle: AppTextStyles.fig(14, FontWeight.w400)
-            .copyWith(color: AppColors.faint),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 16,
+        ),
+        labelStyle: AppTextStyles.fig(
+          14,
+          FontWeight.w500,
+        ).copyWith(color: mutedCol),
+        hintStyle: AppTextStyles.fig(
+          14,
+          FontWeight.w400,
+        ).copyWith(color: AppColors.faint),
       ),
 
       // ── Buttons ─────────────────────────────────────────────────────────
@@ -159,8 +170,9 @@ abstract final class AppTheme {
           backgroundColor: AppColors.tealButton,
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(52),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           elevation: 0,
           textStyle: AppTextStyles.fig(15, FontWeight.w700),
         ),
@@ -171,8 +183,9 @@ abstract final class AppTheme {
           backgroundColor: AppColors.clayButton,
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(52),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           elevation: 0,
           textStyle: AppTextStyles.fig(15, FontWeight.w700),
         ),
@@ -184,8 +197,9 @@ abstract final class AppTheme {
           side: BorderSide(color: lineCol),
           backgroundColor: Colors.white.withValues(alpha: 0.5),
           minimumSize: const Size.fromHeight(52),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           textStyle: AppTextStyles.fig(14, FontWeight.w600),
         ),
       ),
@@ -202,9 +216,10 @@ abstract final class AppTheme {
 
       snackBarTheme: SnackBarThemeData(
         backgroundColor: isDark ? AppColors.card : AppColors.ink,
-        contentTextStyle: AppTextStyles.fig(14, FontWeight.w500).copyWith(
-          color: isDark ? AppColors.ink : AppColors.onDark,
-        ),
+        contentTextStyle: AppTextStyles.fig(
+          14,
+          FontWeight.w500,
+        ).copyWith(color: isDark ? AppColors.ink : AppColors.onDark),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
@@ -222,10 +237,14 @@ abstract final class AppTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: isDark ? AppColors.cardDark : AppColors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        titleTextStyle:
-            AppTextStyles.grotesk(20, FontWeight.w700).copyWith(color: inkCol),
-        contentTextStyle:
-            AppTextStyles.fig(15, FontWeight.w400).copyWith(color: mutedCol),
+        titleTextStyle: AppTextStyles.grotesk(
+          20,
+          FontWeight.w700,
+        ).copyWith(color: inkCol),
+        contentTextStyle: AppTextStyles.fig(
+          15,
+          FontWeight.w400,
+        ).copyWith(color: mutedCol),
         elevation: 0,
       ),
 

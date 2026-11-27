@@ -65,6 +65,10 @@ Relire le diff du verrou et repasser le script sans projet avant de commiter.
 - Le provisionnement utilisateur écrit exclusivement sous `users/<UUID>/`.
   Le champ `origin` d'une liste n'autorise jamais une publication sous `seed/`.
   Seul `seed-audio-publish`, administrateur, publie le catalogue partagé.
+  Envoyer une clé moderne `sb_secret_…` dans `apikey`, ou un JWT historique
+  `service_role` dans `Authorization: Bearer …`. La fonction vérifie la clé
+  présentée sur la route d'administration Supabase Auth avant toute publication.
+  [Authentification des routes administrateur Supabase](https://supabase.com/kb/troubleshooting/auth-error-401-unauthorized_missing_api_key-on-admin-endpoints-ac2afd).
   La lecture partagée exige aussi une entrée dans `published_audio_assets`,
   écrite uniquement par ce publieur. Après migration, republier le catalogue
   pour établir ce manifeste : les anciens objets sous `seed/` non attestés

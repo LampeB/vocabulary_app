@@ -10,12 +10,12 @@ import 'package:vocab_kr/presentation/providers/purchases/purchase_provider.dart
 /// Supabase-granted tier (student / manual premium). This pins the OR.
 
 AppUser _user(SubscriptionType sub) => AppUser(
-      id: 'u',
-      email: 't@t.fr',
-      username: 'thomas',
-      subscriptionType: sub,
-      createdAt: DateTime(2026),
-    );
+  id: 'u',
+  email: 't@t.fr',
+  username: 'thomas',
+  subscriptionType: sub,
+  createdAt: DateTime(2026),
+);
 
 /// Minimal RevenueCat CustomerInfo built from JSON (the models are
 /// json-constructible; no plugin needed).
@@ -56,18 +56,18 @@ CustomerInfo _customerInfo({required bool premiumActive}) {
   });
 }
 
-ProviderContainer _container({
-  CustomerInfo? info,
-  AppUser? user,
-}) {
-  final c = ProviderContainer(overrides: [
-    customerInfoProvider.overrideWith(
-        (ref) => info == null ? const Stream.empty() : Stream.value(info)),
-    currentUserProvider.overrideWithValue(user),
-  ]);
+ProviderContainer _container({CustomerInfo? info, AppUser? user}) {
+  final c = ProviderContainer(
+    overrides: [
+      customerInfoProvider.overrideWith(
+        (ref) => info == null ? const Stream.empty() : Stream.value(info),
+      ),
+      currentUserProvider.overrideWithValue(user),
+    ],
+  );
   addTearDown(c.dispose);
   // Providers are lazy: subscribe now so the stream has emitted by _settle().
-  c.listen(customerInfoProvider, (_, __) {});
+  c.listen(customerInfoProvider, (_, _) {});
   return c;
 }
 
@@ -81,30 +81,38 @@ void main() {
     expect(c.read(isPremiumProvider), isFalse);
   });
 
-  test('no RevenueCat info + student tier → premium (Supabase-granted)',
-      () async {
-    final c = _container(user: _user(SubscriptionType.student));
-    await _settle();
-    expect(c.read(isPremiumProvider), isTrue);
-  });
+  test(
+    'no RevenueCat info + student tier → premium (Supabase-granted)',
+    () async {
+      final c = _container(user: _user(SubscriptionType.student));
+      await _settle();
+      expect(c.read(isPremiumProvider), isTrue);
+    },
+  );
 
-  test('active RevenueCat entitlement → premium even for a free-tier user',
-      () async {
-    final c = _container(
+  test(
+    'active RevenueCat entitlement → premium even for a free-tier user',
+    () async {
+      final c = _container(
         info: _customerInfo(premiumActive: true),
-        user: _user(SubscriptionType.free));
-    await _settle();
-    expect(c.read(isPremiumProvider), isTrue);
-  });
+        user: _user(SubscriptionType.free),
+      );
+      await _settle();
+      expect(c.read(isPremiumProvider), isTrue);
+    },
+  );
 
-  test('RevenueCat info without the entitlement falls back to the tier',
-      () async {
-    final c = _container(
+  test(
+    'RevenueCat info without the entitlement falls back to the tier',
+    () async {
+      final c = _container(
         info: _customerInfo(premiumActive: false),
-        user: _user(SubscriptionType.free));
-    await _settle();
-    expect(c.read(isPremiumProvider), isFalse);
-  });
+        user: _user(SubscriptionType.free),
+      );
+      await _settle();
+      expect(c.read(isPremiumProvider), isFalse);
+    },
+  );
 
   test('signed out → not premium', () async {
     final c = _container();

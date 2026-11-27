@@ -23,14 +23,14 @@ void main() {
     delayedMethod = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_channel, (call) async {
-      calls.add(call);
-      if (call.method == delayedMethod) await configurationGate!.future;
-      if (call.method == 'getEngines') return engines;
-      if (call.method == 'speak' && speakGate != null) {
-        await speakGate!.future;
-      }
-      return 1;
-    });
+          calls.add(call);
+          if (call.method == delayedMethod) await configurationGate!.future;
+          if (call.method == 'getEngines') return engines;
+          if (call.method == 'speak' && speakGate != null) {
+            await speakGate!.future;
+          }
+          return 1;
+        });
   });
 
   tearDown(() {
@@ -40,86 +40,102 @@ void main() {
 
   List<String> names() => calls.map((call) => call.method).toList();
 
-  test('warm-up picks Samsung Korean then configures its locale and pace',
-      () async {
-    final tts = FlutterTtsService(speechRate: .7, pitch: 1.1);
+  test(
+    'warm-up picks Samsung Korean then configures its locale and pace',
+    () async {
+      final tts = FlutterTtsService(speechRate: .7, pitch: 1.1);
 
-    await tts.warmUp('ko');
+      await tts.warmUp('ko');
 
-    expect(names(), [
-      'getEngines',
-      'setEngine',
-      'setVolume',
-      'awaitSpeakCompletion',
-      'setLanguage',
-      'setSpeechRate',
-      'setPitch',
-    ]);
-    expect(calls[1].arguments, 'com.samsung.SMT');
-    expect(calls[4].arguments, 'ko-KR');
-    expect(calls[5].arguments, .7);
-    expect(calls[6].arguments, 1.1);
-  });
-
-  test('warm-up never repeats native configuration for the active language',
-      () async {
-    final tts = FlutterTtsService();
-
-    await tts.warmUp('fr');
-    final firstSetupCount = calls.length;
-    await tts.warmUp('fr');
-
-    expect(calls, hasLength(firstSetupCount));
-  });
-
-  test('languages without a preferred installed engine use Google when present',
-      () async {
-    final tts = FlutterTtsService();
-
-    await tts.warmUp('en');
-
-    expect(calls.where((c) => c.method == 'setEngine').single.arguments,
-        'com.google.android.tts');
-    expect(calls.where((c) => c.method == 'setLanguage').single.arguments,
-        'en-US');
-  });
+      expect(names(), [
+        'getEngines',
+        'setEngine',
+        'setVolume',
+        'awaitSpeakCompletion',
+        'setLanguage',
+        'setSpeechRate',
+        'setPitch',
+      ]);
+      expect(calls[1].arguments, 'com.samsung.SMT');
+      expect(calls[4].arguments, 'ko-KR');
+      expect(calls[5].arguments, .7);
+      expect(calls[6].arguments, 1.1);
+    },
+  );
 
   test(
-      'engine discovery failure still configures TTS with the platform default',
-      () async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(_channel, (call) async {
-      calls.add(call);
-      if (call.method == 'getEngines') throw PlatformException(code: 'offline');
-      return 1;
-    });
-    final tts = FlutterTtsService();
+    'warm-up never repeats native configuration for the active language',
+    () async {
+      final tts = FlutterTtsService();
 
-    await tts.warmUp('fr');
+      await tts.warmUp('fr');
+      final firstSetupCount = calls.length;
+      await tts.warmUp('fr');
 
-    expect(
-        names(), containsAll(['getEngines', 'setLanguage', 'setSpeechRate']));
-    expect(names(), isNot(contains('setEngine')));
-  });
+      expect(calls, hasLength(firstSetupCount));
+    },
+  );
 
   test(
-      'speak tracks its active lifetime and stop reaches every initialized voice',
-      () async {
-    final tts = FlutterTtsService();
-    await tts.warmUp('fr');
-    await tts.warmUp('ko');
-    calls.clear();
-    speakGate = Completer<void>();
+    'languages without a preferred installed engine use Google when present',
+    () async {
+      final tts = FlutterTtsService();
 
-    final speaking = tts.speak('bonjour', 'fr');
-    await Future<void>.delayed(Duration.zero);
-    expect(tts.isSpeaking, isTrue);
-    await tts.stop();
-    expect(names().where((name) => name == 'stop'), hasLength(2));
-    speakGate!.complete();
-    await speaking;
-    expect(tts.isSpeaking, isFalse);
-  });
+      await tts.warmUp('en');
+
+      expect(
+        calls.where((c) => c.method == 'setEngine').single.arguments,
+        'com.google.android.tts',
+      );
+      expect(
+        calls.where((c) => c.method == 'setLanguage').single.arguments,
+        'en-US',
+      );
+    },
+  );
+
+  test(
+    'engine discovery failure still configures TTS with the platform default',
+    () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(_channel, (call) async {
+            calls.add(call);
+            if (call.method == 'getEngines') {
+              throw PlatformException(code: 'offline');
+            }
+            return 1;
+          });
+      final tts = FlutterTtsService();
+
+      await tts.warmUp('fr');
+
+      expect(
+        names(),
+        containsAll(['getEngines', 'setLanguage', 'setSpeechRate']),
+      );
+      expect(names(), isNot(contains('setEngine')));
+    },
+  );
+
+  test(
+    'speak tracks its active lifetime and stop reaches every initialized voice',
+    () async {
+      final tts = FlutterTtsService();
+      await tts.warmUp('fr');
+      await tts.warmUp('ko');
+      calls.clear();
+      speakGate = Completer<void>();
+
+      final speaking = tts.speak('bonjour', 'fr');
+      await Future<void>.delayed(Duration.zero);
+      expect(tts.isSpeaking, isTrue);
+      await tts.stop();
+      expect(names().where((name) => name == 'stop'), hasLength(2));
+      speakGate!.complete();
+      await speaking;
+      expect(tts.isSpeaking, isFalse);
+    },
+  );
 
   test('dispose stops every created native voice', () async {
     final tts = FlutterTtsService();
@@ -135,39 +151,41 @@ void main() {
 
   for (final dispose in [false, true]) {
     for (final method in ['getEngines', 'setLanguage']) {
-      test('${dispose ? 'dispose' : 'stop'} cancels speak waiting for $method',
-          () async {
-        final tts = FlutterTtsService();
-        if (method == 'setLanguage') {
-          await tts.warmUp('fr');
-          await tts.warmUp('ko');
+      test(
+        '${dispose ? 'dispose' : 'stop'} cancels speak waiting for $method',
+        () async {
+          final tts = FlutterTtsService();
+          if (method == 'setLanguage') {
+            await tts.warmUp('fr');
+            await tts.warmUp('ko');
+            calls.clear();
+          }
+          delayedMethod = method;
+          final gate = configurationGate = Completer<void>();
+          final speaking = tts.speak('bonjour', 'fr');
+          await Future<void>.delayed(Duration.zero);
+          expect(names(), [method]);
+
+          if (dispose) {
+            tts.dispose();
+          } else {
+            await tts.stop();
+          }
+          gate.complete();
+          await speaking;
+          expect(names().where((name) => name != 'stop'), [method]);
+          expect(tts.isSpeaking, isFalse);
+
           calls.clear();
-        }
-        delayedMethod = method;
-        final gate = configurationGate = Completer<void>();
-        final speaking = tts.speak('bonjour', 'fr');
-        await Future<void>.delayed(Duration.zero);
-        expect(names(), [method]);
-
-        if (dispose) {
-          tts.dispose();
-        } else {
-          await tts.stop();
-        }
-        gate.complete();
-        await speaking;
-        expect(names().where((name) => name != 'stop'), [method]);
-        expect(tts.isSpeaking, isFalse);
-
-        calls.clear();
-        await tts.speak('안녕', 'ko');
-        if (dispose) {
-          expect(names(), isEmpty);
-        } else {
-          // A cancelled language switch left the native language unknown.
-          expect(names(), containsAll(['setLanguage', 'speak']));
-        }
-      });
+          await tts.speak('안녕', 'ko');
+          if (dispose) {
+            expect(names(), isEmpty);
+          } else {
+            // A cancelled language switch left the native language unknown.
+            expect(names(), containsAll(['setLanguage', 'speak']));
+          }
+        },
+      );
     }
   }
 }

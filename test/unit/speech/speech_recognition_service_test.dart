@@ -51,20 +51,22 @@ class _FakeRecognizer implements SystemSpeechRecognizer {
 
 void main() {
   test(
-      'initializes once and translates partial/final hypotheses with alternates',
-      () async {
-    final native = _FakeRecognizer();
-    final service = SpeechRecognitionService(recognizer: native);
-    final partials = <(String, List<String>)>[];
-    final finals = <(String, List<String>)>[];
+    'initializes once and translates partial/final hypotheses with alternates',
+    () async {
+      final native = _FakeRecognizer();
+      final service = SpeechRecognitionService(recognizer: native);
+      final partials = <(String, List<String>)>[];
+      final finals = <(String, List<String>)>[];
 
-    expect(await service.startListening(langCode: 'ko', onResult: (_, __) {}),
-        isFalse);
-    expect(await service.initialize(), isTrue);
-    expect(await service.initialize(), isTrue);
-    expect(native.initializeCalls, 1);
+      expect(
+        await service.startListening(langCode: 'ko', onResult: (_, _) {}),
+        isFalse,
+      );
+      expect(await service.initialize(), isTrue);
+      expect(await service.initialize(), isTrue);
+      expect(native.initializeCalls, 1);
 
-    expect(
+      expect(
         await service.startListening(
           langCode: 'ko',
           onResult: (word, candidates) => finals.add((word, candidates)),
@@ -72,102 +74,118 @@ void main() {
           pauseFor: const Duration(seconds: 2),
           listenFor: const Duration(seconds: 7),
         ),
-        isTrue);
-    expect(native.localeId, 'ko-KR');
-    expect(native.pauseFor, const Duration(seconds: 2));
-    expect(native.listenFor, const Duration(seconds: 7));
+        isTrue,
+      );
+      expect(native.localeId, 'ko-KR');
+      expect(native.pauseFor, const Duration(seconds: 2));
+      expect(native.listenFor, const Duration(seconds: 7));
 
-    native.onResult!(const SystemRecognitionResult(
-      words: '고양',
-      isFinal: false,
-      confidence: .4,
-      alternates: [(words: '고양이', confidence: .9), (words: '', confidence: 0)],
-    ));
-    native.onResult!(const SystemRecognitionResult(
-      words: '고양이',
-      isFinal: true,
-      confidence: .95,
-      alternates: [(words: '고양', confidence: .2)],
-    ));
+      native.onResult!(
+        const SystemRecognitionResult(
+          words: '고양',
+          isFinal: false,
+          confidence: .4,
+          alternates: [
+            (words: '고양이', confidence: .9),
+            (words: '', confidence: 0),
+          ],
+        ),
+      );
+      native.onResult!(
+        const SystemRecognitionResult(
+          words: '고양이',
+          isFinal: true,
+          confidence: .95,
+          alternates: [(words: '고양', confidence: .2)],
+        ),
+      );
 
-    expect(partials.single.$1, '고양');
-    expect(partials.single.$2, ['고양', '고양이']);
-    expect(finals.single.$1, '고양이');
-    expect(finals.single.$2, ['고양이', '고양']);
-  });
+      expect(partials.single.$1, '고양');
+      expect(partials.single.$2, ['고양', '고양이']);
+      expect(finals.single.$1, '고양이');
+      expect(finals.single.$2, ['고양이', '고양']);
+    },
+  );
 
   test(
-      'deduplicates session-end statuses and handles normal versus real errors',
-      () async {
-    final native = _FakeRecognizer();
-    var now = DateTime.utc(2026, 9, 17, 12);
-    final service = SpeechRecognitionService(
-      recognizer: native,
-      clock: () => now,
-    );
-    var done = 0;
-    final errors = <String>[];
-    service.onListeningDone = () => done++;
-    service.onError = errors.add;
-    await service.initialize();
+    'deduplicates session-end statuses and handles normal versus real errors',
+    () async {
+      final native = _FakeRecognizer();
+      var now = DateTime.utc(2026, 9, 17, 12);
+      final service = SpeechRecognitionService(
+        recognizer: native,
+        clock: () => now,
+      );
+      var done = 0;
+      final errors = <String>[];
+      service.onListeningDone = () => done++;
+      service.onError = errors.add;
+      await service.initialize();
 
-    native.onStatus!('listening');
-    now = now.add(const Duration(milliseconds: 350));
-    expect(service.isListening, isTrue);
-    expect(service.listenElapsedMs, 350);
-    native.onStatus!('notListening');
-    native.onStatus!('done');
-    expect(service.isListening, isFalse);
-    expect(done, 1);
+      native.onStatus!('listening');
+      now = now.add(const Duration(milliseconds: 350));
+      expect(service.isListening, isTrue);
+      expect(service.listenElapsedMs, 350);
+      native.onStatus!('notListening');
+      native.onStatus!('done');
+      expect(service.isListening, isFalse);
+      expect(done, 1);
 
-    await service.startListening(langCode: 'fr', onResult: (_, __) {});
-    native.onError!('error_no_match', false);
-    native.onError!('error_no_match', false);
-    expect(errors, isEmpty);
-    expect(done, 2);
+      await service.startListening(langCode: 'fr', onResult: (_, _) {});
+      native.onError!('error_no_match', false);
+      native.onError!('error_no_match', false);
+      expect(errors, isEmpty);
+      expect(done, 2);
 
-    await service.startListening(langCode: 'fr', onResult: (_, __) {});
-    native.onSoundLevel!(1.2);
-    now = now.add(const Duration(seconds: 1));
-    native.onSoundLevel!(4.8);
-    native.onError!('error_audio', true);
-    expect(errors, ['error_audio']);
-    expect(service.lastError, 'error_audio');
-    expect(done, 3);
-  });
+      await service.startListening(langCode: 'fr', onResult: (_, _) {});
+      native.onSoundLevel!(1.2);
+      now = now.add(const Duration(seconds: 1));
+      native.onSoundLevel!(4.8);
+      native.onError!('error_audio', true);
+      expect(errors, ['error_audio']);
+      expect(service.lastError, 'error_audio');
+      expect(done, 3);
+    },
+  );
 
-  test('releases a stale session, absorbs platform failures, and disposes',
-      () async {
-    final native = _FakeRecognizer();
-    final delays = <Duration>[];
-    final service = SpeechRecognitionService(
-      recognizer: native,
-      delay: (duration) async => delays.add(duration),
-    );
-    await service.initialize();
-    native.onStatus!('listening');
-    native.throwOnStop = true;
-    native.throwOnListen = true;
+  test(
+    'releases a stale session, absorbs platform failures, and disposes',
+    () async {
+      final native = _FakeRecognizer();
+      final delays = <Duration>[];
+      final service = SpeechRecognitionService(
+        recognizer: native,
+        delay: (duration) async => delays.add(duration),
+      );
+      await service.initialize();
+      native.onStatus!('listening');
+      native.throwOnStop = true;
+      native.throwOnListen = true;
 
-    expect(await service.startListening(langCode: 'en', onResult: (_, __) {}),
-        isFalse);
-    expect(native.stopCalls, 1);
-    expect(delays, [const Duration(milliseconds: 200)]);
-    expect(service.isListening, isFalse);
+      expect(
+        await service.startListening(langCode: 'en', onResult: (_, _) {}),
+        isFalse,
+      );
+      expect(native.stopCalls, 1);
+      expect(delays, [const Duration(milliseconds: 200)]);
+      expect(service.isListening, isFalse);
 
-    native.throwOnStop = false;
-    service.dispose();
-    await Future<void>.delayed(Duration.zero);
-    expect(native.stopCalls, 2);
-    expect(service.isListening, isFalse);
-  });
+      native.throwOnStop = false;
+      service.dispose();
+      await Future<void>.delayed(Duration.zero);
+      expect(native.stopCalls, 2);
+      expect(service.isListening, isFalse);
+    },
+  );
 
   test('keeps the service unready when native initialization fails', () async {
     final native = _FakeRecognizer()..initializeResult = false;
     final service = SpeechRecognitionService(recognizer: native);
 
     expect(await service.initialize(), isFalse);
-    expect(await service.startListening(langCode: 'fr', onResult: (_, __) {}),
-        isFalse);
+    expect(
+      await service.startListening(langCode: 'fr', onResult: (_, _) {}),
+      isFalse,
+    );
   });
 }

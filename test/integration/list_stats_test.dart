@@ -24,8 +24,10 @@ void main() {
 
   Future<String> seedWord(String listId, String fr, String ko) async {
     final concept = (await vocabRepo.addConceptWithVariants(
-            listId: listId, wordA: fr, wordB: ko))
-        .valueOrNull!;
+      listId: listId,
+      wordA: fr,
+      wordB: ko,
+    )).valueOrNull!;
     final variants = await db.conceptDao.getVariantsByConcept(concept.id);
     return variants.firstWhere((v) => v.langCode == 'fr').id;
   }
@@ -35,25 +37,35 @@ void main() {
     required String state,
     int scheduledDays = 0,
     DateTime? nextReview,
-  }) =>
-      db.progressDao.upsert(VariantProgressTableCompanion.insert(
-        id: 'p-$variantId',
-        userId: _kUserId,
-        variantId: variantId,
-        direction: QuizDirection.frToKo.name,
-        state: Value(state),
-        scheduledDays: Value(scheduledDays),
-        nextReview: Value(nextReview),
-        createdAt: _now,
-        updatedAt: _now,
-      ));
+  }) => db.progressDao.upsert(
+    VariantProgressTableCompanion.insert(
+      id: 'p-$variantId',
+      userId: _kUserId,
+      variantId: variantId,
+      direction: QuizDirection.frToKo.name,
+      state: Value(state),
+      scheduledDays: Value(scheduledDays),
+      nextReview: Value(nextReview),
+      createdAt: _now,
+      updatedAt: _now,
+    ),
+  );
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     vocabRepo = VocabularyRepositoryImpl(
-        db.vocabularyListDao, db.conceptDao, FakeRemote(), _kUserId, db);
+      db.vocabularyListDao,
+      db.conceptDao,
+      FakeRemote(),
+      _kUserId,
+      db,
+    );
     progressRepo = ProgressRepositoryImpl(
-        db.progressDao, db.conceptDao, FakeRemote(), _kUserId);
+      db.progressDao,
+      db.conceptDao,
+      FakeRemote(),
+      _kUserId,
+    );
   });
   tearDown(() => db.close());
 
@@ -64,14 +76,26 @@ void main() {
       final future = DateTime.now().add(const Duration(days: 30));
 
       final mastered = await seedWord(list.id, 'chat', '고양이');
-      await seedProgress(mastered,
-          state: 'review', scheduledDays: 30, nextReview: future);
+      await seedProgress(
+        mastered,
+        state: 'review',
+        scheduledDays: 30,
+        nextReview: future,
+      );
       final learningDue = await seedWord(list.id, 'chien', '개');
-      await seedProgress(learningDue,
-          state: 'learning', scheduledDays: 1, nextReview: past);
+      await seedProgress(
+        learningDue,
+        state: 'learning',
+        scheduledDays: 1,
+        nextReview: past,
+      );
       final reviewNotMastered = await seedWord(list.id, 'maison', '집');
-      await seedProgress(reviewNotMastered,
-          state: 'review', scheduledDays: 10, nextReview: future);
+      await seedProgress(
+        reviewNotMastered,
+        state: 'review',
+        scheduledDays: 10,
+        nextReview: future,
+      );
       await seedWord(list.id, 'pain', '빵'); // never studied
 
       final stats = (await progressRepo.getListStats(list.id)).valueOrNull!;
@@ -84,17 +108,19 @@ void main() {
       expect(stats['due'], 1); // only the past-scheduled learning card
     });
 
-    test('a relearning (lapsed) word still counts as known, not mastered',
-        () async {
-      final list = (await vocabRepo.createList(name: 'A')).valueOrNull!;
-      final lapsed = await seedWord(list.id, 'chat', '고양이');
-      await seedProgress(lapsed, state: 'relearning', scheduledDays: 1);
+    test(
+      'a relearning (lapsed) word still counts as known, not mastered',
+      () async {
+        final list = (await vocabRepo.createList(name: 'A')).valueOrNull!;
+        final lapsed = await seedWord(list.id, 'chat', '고양이');
+        await seedProgress(lapsed, state: 'relearning', scheduledDays: 1);
 
-      final stats = (await progressRepo.getListStats(list.id)).valueOrNull!;
+        final stats = (await progressRepo.getListStats(list.id)).valueOrNull!;
 
-      expect(stats['known'], 1); // it graduated once — the user learned it
-      expect(stats['mastered'], 0);
-    });
+        expect(stats['known'], 1); // it graduated once — the user learned it
+        expect(stats['mastered'], 0);
+      },
+    );
 
     test('a mastered word in ANOTHER list does not leak in', () async {
       final a = (await vocabRepo.createList(name: 'A')).valueOrNull!;
@@ -122,8 +148,9 @@ void main() {
       final v = await seedWord(list.id, 'chat', '고양이');
       await seedProgress(v, state: 'review', scheduledDays: 30);
       expect(
-          (await progressRepo.getListStats(list.id)).valueOrNull!['mastered'],
-          1);
+        (await progressRepo.getListStats(list.id)).valueOrNull!['mastered'],
+        1,
+      );
 
       final result = await progressRepo.resetProgress(list.id);
 
@@ -145,47 +172,62 @@ void main() {
       await progressRepo.resetProgress(a.id);
 
       expect(
-          (await progressRepo.getListStats(b.id)).valueOrNull!['mastered'], 1);
+        (await progressRepo.getListStats(b.id)).valueOrNull!['mastered'],
+        1,
+      );
     });
   });
 
   group('deleteList mastery loss (product decision 2026-07-04)', () {
-    test('deleting a list removes its words from mastery and smart lists',
-        () async {
-      final list = (await vocabRepo.createList(name: 'A')).valueOrNull!;
-      final v = await seedWord(list.id, 'chat', '고양이');
-      await seedProgress(v,
+    test(
+      'deleting a list removes its words from mastery and smart lists',
+      () async {
+        final list = (await vocabRepo.createList(name: 'A')).valueOrNull!;
+        final v = await seedWord(list.id, 'chat', '고양이');
+        await seedProgress(
+          v,
           state: 'review',
           scheduledDays: 30,
-          nextReview: _now.subtract(const Duration(days: 1)));
-      // Mastered and due before deletion…
-      expect(
-          (await progressRepo.getMasteredVariants(_kUserId))
-              .valueOrNull!
-              .length,
-          1);
-      expect(
+          nextReview: _now.subtract(const Duration(days: 1)),
+        );
+        // Mastered and due before deletion…
+        expect(
+          (await progressRepo.getMasteredVariants(
+            _kUserId,
+          )).valueOrNull!.length,
+          1,
+        );
+        expect(
           (await progressRepo.getAllDueCards(
-                  userId: _kUserId, direction: QuizDirection.frToKo))
-              .valueOrNull!,
-          isNotEmpty);
+            userId: _kUserId,
+            direction: QuizDirection.frToKo,
+          )).valueOrNull!,
+          isNotEmpty,
+        );
 
-      await vocabRepo.deleteList(list.id);
+        await vocabRepo.deleteList(list.id);
 
-      // …gone everywhere after: mastery deleted, smart lists empty.
-      expect((await progressRepo.getMasteredVariants(_kUserId)).valueOrNull!,
-          isEmpty);
-      expect(
+        // …gone everywhere after: mastery deleted, smart lists empty.
+        expect(
+          (await progressRepo.getMasteredVariants(_kUserId)).valueOrNull!,
+          isEmpty,
+        );
+        expect(
           (await progressRepo.getAllDueCards(
-                  userId: _kUserId, direction: QuizDirection.frToKo))
-              .valueOrNull!,
-          isEmpty);
-      expect(
+            userId: _kUserId,
+            direction: QuizDirection.frToKo,
+          )).valueOrNull!,
+          isEmpty,
+        );
+        expect(
           (await progressRepo.getInProgressCards(
-                  userId: _kUserId, direction: QuizDirection.frToKo))
-              .valueOrNull!,
-          isEmpty);
-    });
+            userId: _kUserId,
+            direction: QuizDirection.frToKo,
+          )).valueOrNull!,
+          isEmpty,
+        );
+      },
+    );
   });
 
   group('arePrerequisitesKnown (grammar prerequisite gate)', () {
@@ -203,11 +245,13 @@ void main() {
       expect(arePrerequisitesKnown([p(10, 10), p(6, 10)]), isFalse);
     });
 
-    test('weighted total prevents a short complete list masking a longer one',
-        () {
-      // Average = 85%, but 10/10 + 21/30 is only 77.5% of all words.
-      expect(arePrerequisitesKnown([p(10, 10), p(21, 30)]), isFalse);
-    });
+    test(
+      'weighted total prevents a short complete list masking a longer one',
+      () {
+        // Average = 85%, but 10/10 + 21/30 is only 77.5% of all words.
+        expect(arePrerequisitesKnown([p(10, 10), p(21, 30)]), isFalse);
+      },
+    );
 
     test('a missing prerequisite cannot open a lesson', () {
       expect(arePrerequisitesKnown([p(10, 10), p(0, 0)]), isFalse);

@@ -19,29 +19,29 @@ class GetDueCardsUseCase {
     String? langA,
     String? langB,
     int limit = 20,
-  }) =>
-      switch (source) {
-        QuizSource.grammar =>
-          throw StateError('grammar cards are generated, not fetched'),
-        QuizSource.list => _repo.getDueCards(
-            userId: userId,
-            listId: listId!,
-            direction: direction,
-            limit: limit,
-          ),
-        QuizSource.allDue => _repo.getAllDueCards(
-            userId: userId,
-            direction: direction,
-            langA: langA,
-            langB: langB,
-            limit: limit,
-          ),
-        QuizSource.inProgress => _repo.getInProgressCards(
-            userId: userId,
-            direction: direction,
-            langA: langA,
-            langB: langB,
-            limit: limit,
-          ),
-      };
+  }) => switch (source) {
+    QuizSource.grammar => throw StateError(
+      'grammar cards are generated, not fetched',
+    ),
+    QuizSource.list => _repo.getDueCards(
+      userId: userId,
+      listId: listId!,
+      direction: direction,
+      limit: limit,
+    ),
+    QuizSource.allDue => _repo.getAllDueCards(
+      userId: userId,
+      direction: direction,
+      langA: langA,
+      langB: langB,
+      limit: limit,
+    ),
+    QuizSource.inProgress => _repo.getInProgressCards(
+      userId: userId,
+      direction: direction,
+      langA: langA,
+      langB: langB,
+      limit: limit,
+    ),
+  };
 }

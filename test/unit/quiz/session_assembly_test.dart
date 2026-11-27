@@ -17,17 +17,21 @@ void main() {
 
   group('interleaveAndCap', () {
     test('alternates a, b, a, b for equal lengths', () {
-      expect(
-        interleaveAndCap(['f1', 'f2'], ['k1', 'k2'], 10),
-        ['f1', 'k1', 'f2', 'k2'],
-      );
+      expect(interleaveAndCap(['f1', 'f2'], ['k1', 'k2'], 10), [
+        'f1',
+        'k1',
+        'f2',
+        'k2',
+      ]);
     });
 
     test('unequal lengths: the longer tail runs out consecutively', () {
-      expect(
-        interleaveAndCap(['f1', 'f2', 'f3'], ['k1'], 10),
-        ['f1', 'k1', 'f2', 'f3'],
-      );
+      expect(interleaveAndCap(['f1', 'f2', 'f3'], ['k1'], 10), [
+        'f1',
+        'k1',
+        'f2',
+        'f3',
+      ]);
     });
 
     test('one empty side degrades to the other list', () {
@@ -40,26 +44,29 @@ void main() {
     });
 
     test('caps at the limit, keeping the interleaved prefix', () {
-      expect(
-        interleaveAndCap(['f1', 'f2', 'f3'], ['k1', 'k2', 'k3'], 5),
-        ['f1', 'k1', 'f2', 'k2', 'f3'],
-      );
+      expect(interleaveAndCap(['f1', 'f2', 'f3'], ['k1', 'k2', 'k3'], 5), [
+        'f1',
+        'k1',
+        'f2',
+        'k2',
+        'f3',
+      ]);
     });
 
     test('odd limit with halfLimit fetches still fills exactly', () {
       // limit 5 → halfLimit 3 per side → 6 interleaved → capped to 5.
-      final result =
-          interleaveAndCap(['f1', 'f2', 'f3'], ['k1', 'k2', 'k3'], 5);
+      final result = interleaveAndCap(
+        ['f1', 'f2', 'f3'],
+        ['k1', 'k2', 'k3'],
+        5,
+      );
       expect(result.length, 5);
     });
   });
 
   group('padCyclically', () {
     test('repeats cards in order until the limit', () {
-      expect(
-        padCyclically(['a', 'b', 'c'], 5),
-        ['a', 'b', 'c', 'a', 'b'],
-      );
+      expect(padCyclically(['a', 'b', 'c'], 5), ['a', 'b', 'c', 'a', 'b']);
     });
 
     test('a single card fills the whole session', () {
@@ -101,15 +108,25 @@ void main() {
 
     test('adjacent same-concept pair gets ≥2 cards between its directions', () {
       // Interleaved deal: a1, a2 are the same concept back-to-back.
-      final out =
-          spaceOutDuplicates(['a1', 'a2', 'b1', 'b2', 'c1', 'c2'], keyOf);
+      final out = spaceOutDuplicates([
+        'a1',
+        'a2',
+        'b1',
+        'b2',
+        'c1',
+        'c2',
+      ], keyOf);
       expect(out.toSet(), {'a1', 'a2', 'b1', 'b2', 'c1', 'c2'});
       expect(minDistance(out), greaterThanOrEqualTo(3));
     });
 
     test('keeps order stable when nothing conflicts', () {
-      expect(spaceOutDuplicates(['a1', 'b1', 'c1', 'a2'], keyOf),
-          ['a1', 'b1', 'c1', 'a2']);
+      expect(spaceOutDuplicates(['a1', 'b1', 'c1', 'a2'], keyOf), [
+        'a1',
+        'b1',
+        'c1',
+        'a2',
+      ]);
     });
 
     test('degrades gracefully when spacing is impossible (tiny list)', () {
@@ -118,8 +135,12 @@ void main() {
     });
 
     test('null keys never conflict', () {
-      final out = spaceOutDuplicates(
-          ['a1', 'a2', 'x', 'y'], (s) => s == 'x' || s == 'y' ? null : 'a');
+      final out = spaceOutDuplicates([
+        'a1',
+        'a2',
+        'x',
+        'y',
+      ], (s) => s == 'x' || s == 'y' ? null : 'a');
       expect(out.length, 4);
     });
   });

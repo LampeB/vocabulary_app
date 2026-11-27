@@ -44,8 +44,12 @@ class _ImportFromLinkScreenState extends ConsumerState<ImportFromLinkScreen> {
             : 'import.error_generic'.tr();
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
-          ..showSnackBar(SnackBar(
-              content: Text(message), behavior: SnackBarBehavior.floating));
+          ..showSnackBar(
+            SnackBar(
+              content: Text(message),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         if (context.canPop()) {
           context.pop();
         } else {
@@ -75,12 +79,18 @@ class _ImportFromLinkScreenState extends ConsumerState<ImportFromLinkScreen> {
                   child: VkWaveform(isAnimating: true, opacity: 1),
                 ),
                 const SizedBox(height: 24),
-                Text('import.loading_title'.tr(),
-                    style: AppTextStyles.grotesk(18, FontWeight.w600)
-                        .copyWith(color: cs.onSurface)),
+                Text(
+                  'import.loading_title'.tr(),
+                  style: AppTextStyles.grotesk(
+                    18,
+                    FontWeight.w600,
+                  ).copyWith(color: cs.onSurface),
+                ),
                 const SizedBox(height: 8),
-                Text('import.loading_subtitle'.tr(),
-                    style: AppTextStyles.caption.copyWith(color: muted)),
+                Text(
+                  'import.loading_subtitle'.tr(),
+                  style: AppTextStyles.caption.copyWith(color: muted),
+                ),
               ],
             ),
           ),

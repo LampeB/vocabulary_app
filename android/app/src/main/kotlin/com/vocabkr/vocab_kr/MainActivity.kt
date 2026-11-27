@@ -14,6 +14,10 @@ class MainActivity : FlutterActivity() {
                 when (call.method) {
                     "isSupported" ->
                         result.success(PcmSpeechRecognizer.isSupported(applicationContext))
+                    "cancel" -> {
+                        recognizer.cancel()
+                        result.success(null)
+                    }
                     "recognize" -> {
                         val pcm = call.argument<ByteArray>("pcm")
                         val locale = call.argument<String>("locale")

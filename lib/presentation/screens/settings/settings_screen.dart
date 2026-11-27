@@ -50,8 +50,10 @@ class SettingsScreen extends ConsumerWidget {
               _EyebrowSection('settings.section_account'.tr()),
               FrostedBox(
                 borderRadius: BorderRadius.circular(18),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 child: Row(
                   children: [
                     _SmallAvatar(
@@ -65,12 +67,15 @@ class SettingsScreen extends ConsumerWidget {
                         children: [
                           Text(
                             user?.displayName ?? user?.username ?? '—',
-                            style: AppTextStyles.fig(15, FontWeight.w600)
-                                .copyWith(color: cs.onSurface),
+                            style: AppTextStyles.fig(
+                              15,
+                              FontWeight.w600,
+                            ).copyWith(color: cs.onSurface),
                           ),
-                          Text('@${user?.username ?? ''}',
-                              style:
-                                  AppTextStyles.caption.copyWith(color: faint)),
+                          Text(
+                            '@${user?.username ?? ''}',
+                            style: AppTextStyles.caption.copyWith(color: faint),
+                          ),
                         ],
                       ),
                     ),
@@ -92,14 +97,21 @@ class SettingsScreen extends ConsumerWidget {
                         color: cs.outline.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(Icons.brightness_6_outlined,
-                          color: muted, size: 18),
+                      child: Icon(
+                        Icons.brightness_6_outlined,
+                        color: muted,
+                        size: 18,
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
-                      child: Text('settings.theme_label'.tr(),
-                          style: AppTextStyles.fig(15, FontWeight.w500)
-                              .copyWith(color: cs.onSurface)),
+                      child: Text(
+                        'settings.theme_label'.tr(),
+                        style: AppTextStyles.fig(
+                          15,
+                          FontWeight.w500,
+                        ).copyWith(color: cs.onSurface),
+                      ),
                     ),
                     // Theme pill buttons
                     Row(
@@ -200,13 +212,15 @@ class SettingsScreen extends ConsumerWidget {
                         'settings.stt_engine_race'.tr(),
                       ],
                       values: const [0, 1],
-                      current:
-                          ref.watch(sttEngineModeProvider).index.toDouble(),
+                      current: ref
+                          .watch(sttEngineModeProvider)
+                          .index
+                          .toDouble(),
                       onSelect: (v) => ref
                           .read(sttEngineModeProvider.notifier)
-                          .set(v == 0
-                              ? SttEngineMode.system
-                              : SttEngineMode.race),
+                          .set(
+                            v == 0 ? SttEngineMode.system : SttEngineMode.race,
+                          ),
                     ),
                     const SizedBox(height: 12),
                     // How long a voice quiz listens for the answer (user
@@ -258,14 +272,18 @@ class SettingsScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                              isPremium
-                                  ? 'settings.subscription_premium'.tr()
-                                  : 'settings.subscription_free'.tr(),
-                              style: AppTextStyles.fig(15, FontWeight.w500)
-                                  .copyWith(color: cs.onSurface)),
-                          Text(_subscriptionLabel(ref),
-                              style:
-                                  AppTextStyles.caption.copyWith(color: muted)),
+                            isPremium
+                                ? 'settings.subscription_premium'.tr()
+                                : 'settings.subscription_free'.tr(),
+                            style: AppTextStyles.fig(
+                              15,
+                              FontWeight.w500,
+                            ).copyWith(color: cs.onSurface),
+                          ),
+                          Text(
+                            _subscriptionLabel(ref),
+                            style: AppTextStyles.caption.copyWith(color: muted),
+                          ),
                         ],
                       ),
                     ),
@@ -274,14 +292,20 @@ class SettingsScreen extends ConsumerWidget {
                         onTap: () => context.push('/paywall'),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 7),
+                            horizontal: 12,
+                            vertical: 7,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.clay,
                             borderRadius: BorderRadius.circular(999),
                           ),
-                          child: Text('settings.upgrade_button'.tr(),
-                              style: AppTextStyles.fig(12, FontWeight.w700)
-                                  .copyWith(color: Colors.white)),
+                          child: Text(
+                            'settings.upgrade_button'.tr(),
+                            style: AppTextStyles.fig(
+                              12,
+                              FontWeight.w700,
+                            ).copyWith(color: Colors.white),
+                          ),
                         ),
                       ),
                   ],
@@ -296,8 +320,9 @@ class SettingsScreen extends ConsumerWidget {
                 // Localizations.localeOf == context.locale in the app (MaterialApp
                 // gets its locale from EasyLocalization) but doesn't require the
                 // EasyLocalization ancestor, so the screen stays widget-testable.
-                subtitle:
-                    _languageName(Localizations.localeOf(context).languageCode),
+                subtitle: _languageName(
+                  Localizations.localeOf(context).languageCode,
+                ),
                 onTap: () => _showLanguagePicker(context),
               ),
               // ── Dev (debug builds only) ──────────────────────────────────
@@ -314,12 +339,19 @@ class SettingsScreen extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Debug-only tooling — deliberately not localized.
-                            Text('Grammaire : tout débloquer',
-                                style: AppTextStyles.fig(15, FontWeight.w500)
-                                    .copyWith(color: cs.onSurface)),
-                            Text('Ignore les prérequis (test uniquement)',
-                                style: AppTextStyles.caption
-                                    .copyWith(color: muted)),
+                            Text(
+                              'Grammaire : tout débloquer',
+                              style: AppTextStyles.fig(
+                                15,
+                                FontWeight.w500,
+                              ).copyWith(color: cs.onSurface),
+                            ),
+                            Text(
+                              'Ignore les prérequis (test uniquement)',
+                              style: AppTextStyles.caption.copyWith(
+                                color: muted,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -366,14 +398,19 @@ class SettingsScreen extends ConsumerWidget {
         content: Text('settings.signout_dialog_body'.tr()),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('common.cancel'.tr())),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('common.cancel'.tr()),
+          ),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: AppColors.rose),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('settings.signout_confirm'.tr(),
-                style: AppTextStyles.fig(14, FontWeight.w600)
-                    .copyWith(color: AppColors.rose)),
+            child: Text(
+              'settings.signout_confirm'.tr(),
+              style: AppTextStyles.fig(
+                14,
+                FontWeight.w600,
+              ).copyWith(color: AppColors.rose),
+            ),
           ),
         ],
       ),
@@ -502,17 +539,26 @@ class _NavTile extends StatelessWidget {
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(label,
-                            style: AppTextStyles.fig(15, FontWeight.w500)
-                                .copyWith(color: color)),
-                        Text(subtitle!,
-                            style:
-                                AppTextStyles.caption.copyWith(color: muted)),
+                        Text(
+                          label,
+                          style: AppTextStyles.fig(
+                            15,
+                            FontWeight.w500,
+                          ).copyWith(color: color),
+                        ),
+                        Text(
+                          subtitle!,
+                          style: AppTextStyles.caption.copyWith(color: muted),
+                        ),
                       ],
                     )
-                  : Text(label,
-                      style: AppTextStyles.fig(15, FontWeight.w500)
-                          .copyWith(color: color)),
+                  : Text(
+                      label,
+                      style: AppTextStyles.fig(
+                        15,
+                        FontWeight.w500,
+                      ).copyWith(color: color),
+                    ),
             ),
             if (!destructive)
               Icon(Icons.chevron_right_rounded, color: faint, size: 20),
@@ -560,9 +606,13 @@ class _AudioSettingRow extends StatelessWidget {
         ),
         const SizedBox(width: 14),
         Expanded(
-          child: Text(label,
-              style: AppTextStyles.fig(15, FontWeight.w500)
-                  .copyWith(color: cs.onSurface)),
+          child: Text(
+            label,
+            style: AppTextStyles.fig(
+              15,
+              FontWeight.w500,
+            ).copyWith(color: cs.onSurface),
+          ),
         ),
         // Flexible + FittedBox: the three pills exceed the remaining width on
         // narrow (360dp) screens; scale them down instead of overflowing.
@@ -614,15 +664,21 @@ class _ListenTimeSlider extends StatelessWidget {
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Text('settings.listen_time_label'.tr(),
-                  style: AppTextStyles.fig(15, FontWeight.w500)
-                      .copyWith(color: cs.onSurface)),
+              child: Text(
+                'settings.listen_time_label'.tr(),
+                style: AppTextStyles.fig(
+                  15,
+                  FontWeight.w500,
+                ).copyWith(color: cs.onSurface),
+              ),
             ),
             Text(
               'settings.listen_time_value'.tr(namedArgs: {'n': '$seconds'}),
               key: const ValueKey('listen_time_value'),
-              style: AppTextStyles.fig(15, FontWeight.w700)
-                  .copyWith(color: AppColors.teal),
+              style: AppTextStyles.fig(
+                15,
+                FontWeight.w700,
+              ).copyWith(color: AppColors.teal),
             ),
           ],
         ),
@@ -666,14 +722,14 @@ class _AudioPill extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? AppColors.teal : cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected ? AppColors.teal : cs.outline,
-          ),
+          border: Border.all(color: selected ? AppColors.teal : cs.outline),
         ),
         child: Text(
           label,
-          style: AppTextStyles.fig(12, FontWeight.w600)
-              .copyWith(color: selected ? Colors.white : faint),
+          style: AppTextStyles.fig(
+            12,
+            FontWeight.w600,
+          ).copyWith(color: selected ? Colors.white : faint),
         ),
       ),
     );
@@ -707,9 +763,7 @@ class _ThemePill extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? AppColors.teal : cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected ? AppColors.teal : cs.outline,
-          ),
+          border: Border.all(color: selected ? AppColors.teal : cs.outline),
         ),
         child: Icon(icon, size: 16, color: selected ? Colors.white : faint),
       ),
@@ -730,12 +784,17 @@ class _SmallAvatar extends StatelessWidget {
     return CircleAvatar(
       radius: 20,
       backgroundColor: AppColors.clay.withValues(alpha: 0.15),
-      backgroundImage:
-          url != null && url!.isNotEmpty ? NetworkImage(url!) : null,
+      backgroundImage: url != null && url!.isNotEmpty
+          ? NetworkImage(url!)
+          : null,
       child: url == null || url!.isEmpty
-          ? Text(initial,
-              style: AppTextStyles.fig(16, FontWeight.w700)
-                  .copyWith(color: AppColors.clayDeep))
+          ? Text(
+              initial,
+              style: AppTextStyles.fig(
+                16,
+                FontWeight.w700,
+              ).copyWith(color: AppColors.clayDeep),
+            )
           : null,
     );
   }

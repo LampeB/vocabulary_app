@@ -3,8 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/presentation/widgets/scroll_affordance.dart';
 
 void main() {
-  testWidgets('announces when a reading surface continues below the fold',
-      (tester) async {
+  testWidgets('announces when a reading surface continues below the fold', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(

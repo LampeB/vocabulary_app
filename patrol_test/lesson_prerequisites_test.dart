@@ -12,45 +12,51 @@ const _unrelatedList = 'starter-daily-life';
 
 void main() {
   isolatedPatrolTest(
-      'Lessons — unrelated vocabulary does not unlock a locked prerequisite lesson',
-      scenarioId:
-          'lesson_prerequisites.lessons_unrelated_vocabulary_does_not_unlock_a_locked_prerequisite_lesson',
-      timeout: const Timeout(Duration(minutes: 3)),
-      config: kFastSettle, ($) async {
-    final app = Steps($);
-    addTearDown(() => cleanupAfterTest($));
+    'Lessons — unrelated vocabulary does not unlock a locked prerequisite lesson',
+    scenarioId:
+        'lesson_prerequisites.lessons_unrelated_vocabulary_does_not_unlock_a_locked_prerequisite_lesson',
+    timeout: const Timeout(Duration(minutes: 3)),
+    config: kFastSettle,
+    ($) async {
+      final app = Steps($);
+      addTearDown(() => cleanupAfterTest($));
 
-    await app.given.signedIn();
-    await app.given.theFrenchKoreanStarterCurriculum();
-    await app.given.theStarterListIsKnown(_unrelatedList);
+      await app.given.signedIn();
+      await app.given.theFrenchKoreanStarterCurriculum();
+      await app.given.theStarterListIsKnown(_unrelatedList);
 
-    // A completed C list must not compensate for missing A and B.
-    await app.when.tapsNavTab(NavTab.grammar);
-    await app.then.grammarRuleIsLocked(_ruleId);
+      // A completed C list must not compensate for missing A and B.
+      await app.when.tapsNavTab(NavTab.grammar);
+      await app.then.grammarRuleIsLocked(_ruleId);
 
-    // The locked card points specifically to a prerequisite list, not C.
-    await app.when
-        .opensGrammarPrerequisite(ruleId: _ruleId, token: _prerequisites.first);
-    await app.then.onScreen(Screen.listDetail);
-  });
+      // The locked card points specifically to a prerequisite list, not C.
+      await app.when.opensGrammarPrerequisite(
+        ruleId: _ruleId,
+        token: _prerequisites.first,
+      );
+      await app.then.onScreen(Screen.listDetail);
+    },
+  );
 
   isolatedPatrolTest(
-      'Lessons — graduated required vocabulary unlocks and opens the real lesson',
-      scenarioId:
-          'lesson_prerequisites.lessons_graduated_required_vocabulary_unlocks_and_opens_the_real_lesson',
-      timeout: const Timeout(Duration(minutes: 3)),
-      config: kFastSettle, ($) async {
-    final app = Steps($);
-    addTearDown(() => cleanupAfterTest($));
+    'Lessons — graduated required vocabulary unlocks and opens the real lesson',
+    scenarioId:
+        'lesson_prerequisites.lessons_graduated_required_vocabulary_unlocks_and_opens_the_real_lesson',
+    timeout: const Timeout(Duration(minutes: 3)),
+    config: kFastSettle,
+    ($) async {
+      final app = Steps($);
+      addTearDown(() => cleanupAfterTest($));
 
-    await app.given.signedIn();
-    await app.given.theFrenchKoreanStarterCurriculum();
-    for (final token in _prerequisites) {
-      await app.given.theStarterListIsKnown(token);
-    }
+      await app.given.signedIn();
+      await app.given.theFrenchKoreanStarterCurriculum();
+      for (final token in _prerequisites) {
+        await app.given.theStarterListIsKnown(token);
+      }
 
-    await app.when.tapsNavTab(NavTab.grammar);
-    await app.when.opensGrammarLesson(_ruleId);
-    await app.then.onScreen(Screen.grammarLesson);
-  });
+      await app.when.tapsNavTab(NavTab.grammar);
+      await app.when.opensGrammarLesson(_ruleId);
+      await app.then.onScreen(Screen.grammarLesson);
+    },
+  );
 }

@@ -25,8 +25,10 @@ class WordPairSuggestion {
 
 /// Response of the `translate` mode.
 class TranslateAssist {
-  const TranslateAssist(
-      {required this.translations, required this.voiceFriendly});
+  const TranslateAssist({
+    required this.translations,
+    required this.voiceFriendly,
+  });
   final List<TranslationSuggestion> translations;
 
   /// Longer natural forms when a side is too short for reliable STT
@@ -55,30 +57,36 @@ class VocabAssistantDataSource {
     List<String> existingWords = const [],
   }) async {
     try {
-      final res = await _client.functions.invoke('vocab-assistant', body: {
-        'mode': 'translate',
-        'word': word,
-        'sourceLang': sourceLang,
-        'targetLang': targetLang,
-        'theme': theme,
-        'existingWords': existingWords,
-      });
+      final res = await _client.functions.invoke(
+        'vocab-assistant',
+        body: {
+          'mode': 'translate',
+          'word': word,
+          'sourceLang': sourceLang,
+          'targetLang': targetLang,
+          'theme': theme,
+          'existingWords': existingWords,
+        },
+      );
       final data = res.data;
       if (data is! Map<String, dynamic>) {
         return const Failure(UnknownException('réponse invalide'));
       }
-      return Success(TranslateAssist(
-        translations: [
-          if (data['translations'] is List)
-            for (final t in data['translations'] as List)
-              if (t is Map && (t['text'] as String?)?.trim().isNotEmpty == true)
-                TranslationSuggestion(
-                  text: (t['text'] as String).trim(),
-                  note: (t['note'] as String? ?? '').trim(),
-                ),
-        ],
-        voiceFriendly: _pairs(data['voiceFriendly']),
-      ));
+      return Success(
+        TranslateAssist(
+          translations: [
+            if (data['translations'] is List)
+              for (final t in data['translations'] as List)
+                if (t is Map &&
+                    (t['text'] as String?)?.trim().isNotEmpty == true)
+                  TranslationSuggestion(
+                    text: (t['text'] as String).trim(),
+                    note: (t['note'] as String? ?? '').trim(),
+                  ),
+          ],
+          voiceFriendly: _pairs(data['voiceFriendly']),
+        ),
+      );
     } catch (e) {
       return Failure(UnknownException('$e'));
     }
@@ -91,38 +99,43 @@ class VocabAssistantDataSource {
     int count = 8,
   }) async {
     try {
-      final res = await _client.functions.invoke('vocab-assistant', body: {
-        'mode': 'suggest',
-        'sourceLang': sourceLang,
-        'targetLang': targetLang,
-        'existingPairs': [
-          for (final p in existingPairs)
-            {'source': p.source, 'target': p.target},
-        ],
-        'count': count,
-      });
+      final res = await _client.functions.invoke(
+        'vocab-assistant',
+        body: {
+          'mode': 'suggest',
+          'sourceLang': sourceLang,
+          'targetLang': targetLang,
+          'existingPairs': [
+            for (final p in existingPairs)
+              {'source': p.source, 'target': p.target},
+          ],
+          'count': count,
+        },
+      );
       final data = res.data;
       if (data is! Map<String, dynamic>) {
         return const Failure(UnknownException('réponse invalide'));
       }
-      return Success(ThemedSuggestions(
-        theme: (data['theme'] as String? ?? '').trim(),
-        pairs: _pairs(data['suggestions']),
-      ));
+      return Success(
+        ThemedSuggestions(
+          theme: (data['theme'] as String? ?? '').trim(),
+          pairs: _pairs(data['suggestions']),
+        ),
+      );
     } catch (e) {
       return Failure(UnknownException('$e'));
     }
   }
 
   static List<WordPairSuggestion> _pairs(dynamic raw) => [
-        if (raw is List)
-          for (final p in raw)
-            if (p is Map &&
-                (p['source'] as String?)?.trim().isNotEmpty == true &&
-                (p['target'] as String?)?.trim().isNotEmpty == true)
-              WordPairSuggestion(
-                source: (p['source'] as String).trim(),
-                target: (p['target'] as String).trim(),
-              ),
-      ];
+    if (raw is List)
+      for (final p in raw)
+        if (p is Map &&
+            (p['source'] as String?)?.trim().isNotEmpty == true &&
+            (p['target'] as String?)?.trim().isNotEmpty == true)
+          WordPairSuggestion(
+            source: (p['source'] as String).trim(),
+            target: (p['target'] as String).trim(),
+          ),
+  ];
 }

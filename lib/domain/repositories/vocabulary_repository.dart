@@ -6,6 +6,7 @@ import '../../core/errors/failure.dart';
 abstract interface class VocabularyRepository {
   // Lists
   Stream<List<VocabularyList>> watchMyLists();
+  Stream<VocabularyList?> watchListById(String listId);
 
   /// [langA]/[langB] are the list's learning-language pair (generic-language-
   /// pairs epic). Defaults keep pre-multi-language callers on FR↔KO.
@@ -48,6 +49,7 @@ abstract interface class VocabularyRepository {
 
   // Variants
   Future<Result<List<WordVariant>>> getVariants(String conceptId);
+  Stream<List<WordVariant>> watchVariants(String conceptId);
   Future<Result<WordVariant>> createVariant({
     required String conceptId,
     required String word,
@@ -61,8 +63,10 @@ abstract interface class VocabularyRepository {
   // Import / Export
   /// [origin] tags the created list: 'user' (default, counts against the
   /// free quota), 'starter' or 'premium' (quota-exempt content).
-  Future<Result<VocabularyList>> importFromJson(Map<String, dynamic> json,
-      {String origin = 'user'});
+  Future<Result<VocabularyList>> importFromJson(
+    Map<String, dynamic> json, {
+    String origin = 'user',
+  });
   Future<Result<Map<String, dynamic>>> exportToJson(String listId);
   Future<Result<String>> generateShareLink(String listId);
   Future<Result<VocabularyList>> importFromShareToken(String token);

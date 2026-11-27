@@ -77,19 +77,6 @@ bool shouldSpeakAnswer(QuizMode mode, {required bool correct}) =>
     mode != QuizMode.typing && // typing: on-demand speaker button instead
     (mode != QuizMode.handsFree || !correct);
 
-/// A written grammar exercise tests the form itself. Vocabulary's phonetic,
-/// article and elision tolerance would erase the distinction being taught.
-bool isWrittenGrammarAnswer(String answer, List<String> acceptedAnswers) {
-  String normalize(String text) => text
-      .trim()
-      .toLowerCase()
-      .replaceAll('’', "'")
-      .replaceAll(RegExp(r'\s+'), ' ');
-  final input = normalize(answer);
-  return input.isNotEmpty &&
-      acceptedAnswers.any((word) => normalize(word) == input);
-}
-
 /// UI-level direction choice. `both` means load cards in both FR→KR and KR→FR
 /// directions — each individual card still has a single concrete direction.
 /// Never stored in the DB; only used in QuizArgs.
@@ -106,10 +93,14 @@ class QuizArgs {
     this.langB = 'ko',
     this.ruleId,
     this.ruleTitle,
-  })  : assert(source != QuizSource.list || listId != null,
-            'a list-sourced session needs a listId'),
-        assert(source != QuizSource.grammar || ruleId != null,
-            'a grammar session needs a ruleId');
+  }) : assert(
+         source != QuizSource.list || listId != null,
+         'a list-sourced session needs a listId',
+       ),
+       assert(
+         source != QuizSource.grammar || ruleId != null,
+         'a grammar session needs a ruleId',
+       );
 
   /// The list to study — required when [source] is [QuizSource.list],
   /// ignored for the cross-list smart sources.
@@ -218,22 +209,20 @@ class QuizState {
     String? errorMessage,
     int? scheduledDays,
     bool clearSchedule = false,
-  }) =>
-      QuizState(
-        cards: cards ?? this.cards,
-        currentIndex: currentIndex ?? this.currentIndex,
-        answerState: answerState ?? this.answerState,
-        userAnswer: userAnswer ?? this.userAnswer,
-        partialTranscript: partialTranscript ?? this.partialTranscript,
-        isFlipped: isFlipped ?? this.isFlipped,
-        isListening: isListening ?? this.isListening,
-        isLoading: isLoading ?? this.isLoading,
-        correctCount: correctCount ?? this.correctCount,
-        isComplete: isComplete ?? this.isComplete,
-        errorMessage: errorMessage,
-        scheduledDays:
-            clearSchedule ? null : scheduledDays ?? this.scheduledDays,
-      );
+  }) => QuizState(
+    cards: cards ?? this.cards,
+    currentIndex: currentIndex ?? this.currentIndex,
+    answerState: answerState ?? this.answerState,
+    userAnswer: userAnswer ?? this.userAnswer,
+    partialTranscript: partialTranscript ?? this.partialTranscript,
+    isFlipped: isFlipped ?? this.isFlipped,
+    isListening: isListening ?? this.isListening,
+    isLoading: isLoading ?? this.isLoading,
+    correctCount: correctCount ?? this.correctCount,
+    isComplete: isComplete ?? this.isComplete,
+    errorMessage: errorMessage,
+    scheduledDays: clearSchedule ? null : scheduledDays ?? this.scheduledDays,
+  );
 }
 
 // Injected by test env files; false in production.
@@ -259,8 +248,9 @@ final submitAnswerUseCaseProvider = Provider<SubmitAnswerUseCase>(
   (ref) => SubmitAnswerUseCase(ref.watch(progressRepositoryProvider)),
 );
 
-final quizProvider =
-    NotifierProvider.autoDispose<QuizNotifier, QuizState>(QuizNotifier.new);
+final quizProvider = NotifierProvider.autoDispose<QuizNotifier, QuizState>(
+  QuizNotifier.new,
+);
 
 // ─── Notifier ─────────────────────────────────────────────────────────────────
 
@@ -401,24 +391,31 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
 
     // Enrich each VariantProgress with question/answer word text.
     final conceptDao = ref.read(conceptDaoProvider);
-    final questionVariantIds =
-        progressList.map((p) => p.variantId).toSet().toList();
+    final questionVariantIds = progressList
+        .map((p) => p.variantId)
+        .toSet()
+        .toList();
 
     // Look up question variants by ID (deduplicated).
-    final questionVariants =
-        await conceptDao.getVariantsByIds(questionVariantIds);
+    final questionVariants = await conceptDao.getVariantsByIds(
+      questionVariantIds,
+    );
     if (!_isCurrentSession(epoch)) return;
     final questionById = {for (final row in questionVariants) row.id: row};
 
     // Fetch answer variants for both languages of the session's pair —
     // needed for mixed-direction "both" mode.
-    final allConceptIds =
-        questionVariants.map((row) => row.conceptId).toSet().toList();
+    final allConceptIds = questionVariants
+        .map((row) => row.conceptId)
+        .toSet()
+        .toList();
     final answerByConceptAndLang =
         <String, Map<String, List<WordVariantsTableData>>>{};
     for (final langCode in {args.langA, args.langB}) {
-      final rows =
-          await conceptDao.getVariantsByConceptIds(allConceptIds, langCode);
+      final rows = await conceptDao.getVariantsByConceptIds(
+        allConceptIds,
+        langCode,
+      );
       if (!_isCurrentSession(epoch)) return;
       for (final v in rows) {
         ((answerByConceptAndLang[v.conceptId] ??= {})[langCode] ??= []).add(v);
@@ -439,18 +436,24 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         // (field log 2026-07-06: "singe" had no KO word; the user's correct
         // 원숭이 scored 0 against an empty list). Never deal such a card.
         sttLog(
-            '[QUIZ] dropping unanswerable card "${question.word}" — no $answerLang variant');
+          '[QUIZ] dropping unanswerable card "${question.word}" — no $answerLang variant',
+        );
         continue;
       }
-      quizCards.add(QuizCard(
-        progress: p,
-        questionWord: question.word,
-        questionAudioPath: question.audioPath,
-        answerWords: answerVariants.map((v) => v.word).toList(),
-        answerAudioPath: answerVariants
-            .firstWhere((v) => v.isPrimary, orElse: () => answerVariants.first)
-            .audioPath,
-      ));
+      quizCards.add(
+        QuizCard(
+          progress: p,
+          questionWord: question.word,
+          questionAudioPath: question.audioPath,
+          answerWords: answerVariants.map((v) => v.word).toList(),
+          answerAudioPath: answerVariants
+              .firstWhere(
+                (v) => v.isPrimary,
+                orElse: () => answerVariants.first,
+              )
+              .audioPath,
+        ),
+      );
     }
 
     // Same concept, languages swapped, back-to-back ("morning" → "matin")
@@ -484,8 +487,13 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         !_kTestMode) {
       final first = quizCards.first;
       final firstLang = first.progress.direction.questionLang;
-      unawaited(_audio?.speak(first.questionWord, firstLang,
-          audioPath: first.questionAudioPath));
+      unawaited(
+        _audio?.speak(
+          first.questionWord,
+          firstLang,
+          audioPath: first.questionAudioPath,
+        ),
+      );
     }
   }
 
@@ -495,12 +503,16 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     for (final card in cards) {
       if (!_isCurrentSession(epoch)) return;
       await audio.prefetch(
-          card.questionWord, card.progress.direction.questionLang,
-          audioPath: card.questionAudioPath);
+        card.questionWord,
+        card.progress.direction.questionLang,
+        audioPath: card.questionAudioPath,
+      );
       if (_isCurrentSession(epoch) && card.answerWords.isNotEmpty) {
         await audio.prefetch(
-            card.answerWords.first, card.progress.direction.answerLang,
-            audioPath: card.answerAudioPath);
+          card.answerWords.first,
+          card.progress.direction.answerLang,
+          audioPath: card.answerAudioPath,
+        );
       }
     }
   }
@@ -510,7 +522,10 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   /// the answer is validated against the module's accepted forms; answers
   /// record grammar progress instead of FSRS.
   Future<void> _loadGrammarCards(
-      QuizArgs args, int epoch, String userId) async {
+    QuizArgs args,
+    int epoch,
+    String userId,
+  ) async {
     final rules = await ref.read(grammarRulesProvider(args.langB).future);
     if (!_isCurrentSession(epoch)) return;
     final rule = rules.firstWhere((r) => r.id == args.ruleId);
@@ -530,8 +545,10 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       return;
     }
     final words = await ref.read(
-      ruleDrillWordsProvider((ruleId: args.ruleId!, targetLang: args.langB))
-          .future,
+      ruleDrillWordsProvider((
+        ruleId: args.ruleId!,
+        targetLang: args.langB,
+      )).future,
     );
     if (!_isCurrentSession(epoch)) return;
 
@@ -559,10 +576,12 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
             createdAt: now,
             updatedAt: now,
           ),
-          questionWord: e.promptKey.tr(namedArgs: {
-            for (final entry in e.promptParams.entries)
-              entry.key: entry.key == 'hint' ? entry.value.tr() : entry.value,
-          }),
+          questionWord: e.promptKey.tr(
+            namedArgs: {
+              for (final entry in e.promptParams.entries)
+                entry.key: entry.key == 'hint' ? entry.value.tr() : entry.value,
+            },
+          ),
           answerWords: e.accepted,
         ),
     ];
@@ -584,8 +603,13 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       final card = state.currentCard;
       if (card != null && card.answerWords.isNotEmpty) {
         final answerLang = card.progress.direction.answerLang;
-        unawaited(_audio?.speak(card.answerWords.first, answerLang,
-            audioPath: card.answerAudioPath));
+        unawaited(
+          _audio?.speak(
+            card.answerWords.first,
+            answerLang,
+            audioPath: card.answerAudioPath,
+          ),
+        );
       }
     }
   }
@@ -602,8 +626,9 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     final isCorrect = rating == FsrsRating.good || rating == FsrsRating.easy;
     _recordReviewEvent(card, correct: isCorrect, rating: rating);
     state = state.copyWith(
-      answerState:
-          isCorrect ? QuizAnswerState.correct : QuizAnswerState.incorrect,
+      answerState: isCorrect
+          ? QuizAnswerState.correct
+          : QuizAnswerState.incorrect,
     );
     // Grammar flashcards are practice and leave rule mastery unchanged.
     if (_lastArgs?.source != QuizSource.grammar) {
@@ -624,18 +649,18 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         state.answerState != QuizAnswerState.idle) {
       return;
     }
-    final correct = _lastArgs?.source == QuizSource.grammar
-        ? isWrittenGrammarAnswer(answer, card.answerWords)
-        : AnswerValidator.validate(
-            userAnswer: answer,
-            acceptedAnswers: card.answerWords,
-          ).isCorrect;
+    final correct = AnswerValidator.validate(
+      userAnswer: answer,
+      acceptedAnswers: card.answerWords,
+      preserveGrammar: _lastArgs?.source == QuizSource.grammar,
+    ).isCorrect;
     final rating = correct ? FsrsRating.good : FsrsRating.again;
     _recordReviewEvent(card, correct: correct, rating: rating);
     state = state.copyWith(
       userAnswer: answer,
-      answerState:
-          correct ? QuizAnswerState.correct : QuizAnswerState.incorrect,
+      answerState: correct
+          ? QuizAnswerState.correct
+          : QuizAnswerState.incorrect,
     );
     unawaited(_persistRating(card, rating));
     // Advance is triggered by user tapping "Continuer" on the feedback screen.
@@ -653,6 +678,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       userAnswer: transcript,
       acceptedAnswers: card.answerWords,
       isDrivingMode: isDrivingMode,
+      preserveGrammar: _lastArgs?.source == QuizSource.grammar,
     );
     final rating = result.isCorrect ? FsrsRating.good : FsrsRating.again;
     _recordReviewEvent(card, correct: result.isCorrect, rating: rating);
@@ -665,8 +691,10 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     );
     unawaited(_persistRating(card, rating));
     if (isDrivingMode) {
-      _pendingAutoAdvance =
-          (index: state.currentIndex, correct: result.isCorrect);
+      _pendingAutoAdvance = (
+        index: state.currentIndex,
+        correct: result.isCorrect,
+      );
       unawaited(_advanceAfterAudio(isCorrect: result.isCorrect));
     }
     // Otherwise: advance is triggered by "Continuer" on the feedback screen.
@@ -753,27 +781,29 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       final rt = _cardShownAt == null
           ? null
           : now.difference(_cardShownAt!).inMilliseconds;
-      unawaited(ref
-          .read(appDatabaseProvider)
-          .reviewEventDao
-          .insertEvent(ReviewEventsTableCompanion.insert(
-            id: _uuid.v4(),
-            userId: userId,
-            variantId: card.progress.variantId,
-            direction: card.progress.direction.name,
-            listId: Value(_lastArgs?.listId),
-            mode: (_lastArgs?.mode ?? QuizMode.flashcard).name,
-            correct: correct,
-            rating: rating.name,
-            responseTimeMs: Value(rt),
-            retryCount: Value(retryCount),
-            createdAt: now,
-          ))
-          .then((_) => ref.read(pushSyncProvider).pushAll())
-          .catchError((Object e) {
-        sttLog('[QUIZ] ⚠️ review-event record failed: $e');
-        return 0;
-      }));
+      unawaited(
+        ref
+            .read(appDatabaseProvider)
+            .reviewEventDao
+            .insertEvent(
+              ReviewEventsTableCompanion.insert(
+                id: _uuid.v4(),
+                userId: userId,
+                variantId: card.progress.variantId,
+                direction: card.progress.direction.name,
+                listId: Value(_lastArgs?.listId),
+                mode: (_lastArgs?.mode ?? QuizMode.flashcard).name,
+                correct: correct,
+                rating: rating.name,
+                responseTimeMs: Value(rt),
+                retryCount: Value(retryCount),
+                createdAt: now,
+              ),
+            )
+            .catchError((Object e) {
+              sttLog('[QUIZ] ⚠️ review-event record failed: $e');
+            }),
+      );
     } catch (e) {
       sttLog('[QUIZ] ⚠️ review-event record failed (sync): $e');
     }
@@ -822,19 +852,21 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       };
       final masteredResult = await progress.getMasteredVariants(userId);
       final masteredCount = (masteredResult.valueOrNull ?? []).length;
-      await dao.insertSession(QuizSessionsTableCompanion.insert(
-        id: _uuid.v4(),
-        userId: userId,
-        listId: Value(args.listId),
-        listName: listName,
-        mode: args.mode.name,
-        direction: args.direction.name,
-        cardCount: completed.displayTotal,
-        correctCount: completed.correctCount,
-        durationSeconds: duration,
-        masteredWordCount: masteredCount,
-        completedAt: completedAt,
-      ));
+      await dao.insertSession(
+        QuizSessionsTableCompanion.insert(
+          id: _uuid.v4(),
+          userId: userId,
+          listId: Value(args.listId),
+          listName: listName,
+          mode: args.mode.name,
+          direction: args.direction.name,
+          cardCount: completed.displayTotal,
+          correctCount: completed.correctCount,
+          durationSeconds: duration,
+          masteredWordCount: masteredCount,
+          completedAt: completedAt,
+        ),
+      );
     } catch (_) {
       // Session recording is best-effort; never crash the quiz.
     }
@@ -870,7 +902,10 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         // Grammar typing and voice answers count toward rule mastery.
         final userId = ref.read(currentUserProvider)?.id ?? '';
         if (userId.isEmpty) return;
-        await ref.read(appDatabaseProvider).grammarProgressDao.recordAnswer(
+        await ref
+            .read(appDatabaseProvider)
+            .grammarProgressDao
+            .recordAnswer(
               userId: userId,
               ruleId: args!.ruleId!,
               correct: rating != FsrsRating.again,
@@ -918,17 +953,19 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     if (requeue) {
       // The copy is flagged: it replays (cards.length grows) but does not
       // inflate the user-facing displayTotal.
-      state = state.copyWith(cards: [
-        ...state.cards,
-        QuizCard(
-          progress: card.progress,
-          questionWord: card.questionWord,
-          answerWords: card.answerWords,
-          questionAudioPath: card.questionAudioPath,
-          answerAudioPath: card.answerAudioPath,
-          isRequeue: true,
-        ),
-      ]);
+      state = state.copyWith(
+        cards: [
+          ...state.cards,
+          QuizCard(
+            progress: card.progress,
+            questionWord: card.questionWord,
+            answerWords: card.answerWords,
+            questionAudioPath: card.questionAudioPath,
+            answerAudioPath: card.answerAudioPath,
+            isRequeue: true,
+          ),
+        ],
+      );
     }
     _advance(isCorrect: false);
   }
@@ -965,8 +1002,13 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
           !_kTestMode &&
           _lastArgs?.source != QuizSource.grammar) {
         final nextLang = nextCard.progress.direction.questionLang;
-        unawaited(_speakWhenQuiet(nextCard.questionWord, nextLang,
-            audioPath: nextCard.questionAudioPath));
+        unawaited(
+          _speakWhenQuiet(
+            nextCard.questionWord,
+            nextLang,
+            audioPath: nextCard.questionAudioPath,
+          ),
+        );
       }
     }
   }
@@ -975,17 +1017,23 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   /// can still be playing when the session advances, and starting the next
   /// question over it produced overlapping audio (field log 2026-07-09,
   /// TTS active=2 near the end of the session).
-  Future<void> _speakWhenQuiet(String text, String langCode,
-      {String? audioPath}) async {
+  Future<void> _speakWhenQuiet(
+    String text,
+    String langCode, {
+    String? audioPath,
+  }) async {
     final epoch = _lifecycleEpoch;
     final index = state.currentIndex;
     // Wait/speak semantics owned by AudioDirector (refactor step 1).
-    await _director?.speakWhenQuiet(text, langCode,
-        audioPath: audioPath,
-        keepGoing: () =>
-            _alive &&
-            _canPlay &&
-            epoch == _lifecycleEpoch &&
-            state.currentIndex == index);
+    await _director?.speakWhenQuiet(
+      text,
+      langCode,
+      audioPath: audioPath,
+      keepGoing: () =>
+          _alive &&
+          _canPlay &&
+          epoch == _lifecycleEpoch &&
+          state.currentIndex == index,
+    );
   }
 }

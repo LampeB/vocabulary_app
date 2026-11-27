@@ -13,7 +13,8 @@ _$WordVariantImpl _$$WordVariantImplFromJson(Map<String, dynamic> json) =>
       word: json['word'] as String,
       langCode: json['langCode'] as String,
       registerTag: json['registerTag'] as String? ?? 'neutral',
-      contextTags: (json['contextTags'] as List<dynamic>?)
+      contextTags:
+          (json['contextTags'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           const [],

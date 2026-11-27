@@ -16,6 +16,8 @@ import '../../../core/stt_simulator.dart';
 import '../../../core/utils/stt_debug_log.dart';
 import '../../../core/utils/fsrs_algorithm.dart';
 import '../../../core/widget_keys.dart';
+import '../../../domain/usecases/quiz/get_due_cards_usecase.dart'
+    show QuizSource;
 import '../../../services/speech/speech_recognition_service.dart';
 import '../../../services/speech/whisper_speech_service.dart';
 import '../../../services/speech/elevenlabs_speech_service.dart';
@@ -141,7 +143,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _usesRealStt = !SttSimulator.isOn &&
+    _usesRealStt =
+        !SttSimulator.isOn &&
         (widget.args.mode == QuizMode.handsFree ||
             widget.args.mode == QuizMode.voice);
     if (_usesRealStt) {
@@ -149,8 +152,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _elevenLabs = ref.read(elevenLabsSpeechProvider);
     }
     // Duration mirrors SpeechRecognitionService.startListening's listenFor.
-    _listenBarCtrl =
-        AnimationController(vsync: this, duration: const Duration(seconds: 10));
+    _listenBarCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       await _loadSession();
@@ -159,10 +164,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         final ok = await _stt.initialize();
         if (!mounted || _quitting) return;
         if (!ok && _appForeground) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('quiz.stt_unavailable'.tr()),
-            behavior: SnackBarBehavior.floating,
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('quiz.stt_unavailable'.tr()),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         }
       }
       // All voice sessions are machine/race-managed (refactor 4c): engine
@@ -176,7 +183,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       // used to live here).
       _stt.onListeningDone = () {
         sttLog(
-            '[STT] stale onListeningDone outside a race-managed session — ignored');
+          '[STT] stale onListeningDone outside a race-managed session — ignored',
+        );
       };
     });
   }
@@ -258,18 +266,22 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     ref.read(quizProvider.notifier).setListening(false);
     final pending = _interruption;
     final capture = _sharedCapture;
-    return _interruption = Future.wait<void>([
-      if (pending != null) pending,
-      if (capture != null) capture.stop(),
-      if (_usesRealStt) ...[
-        _stt.stopListening(),
-        _whisper.stopListening(),
-        _elevenLabs.stopListening(),
-      ],
-      ref.read(audioDirectorProvider).stopAll(),
-    ]).then<void>((_) {}, onError: (Object error) {
-      sttLog('[QUIZ] audio or microphone stop failed: $error');
-    });
+    return _interruption =
+        Future.wait<void>([
+          ?pending,
+          if (capture != null) capture.stop(),
+          if (_usesRealStt) ...[
+            _stt.stopListening(),
+            _whisper.stopListening(),
+            _elevenLabs.stopListening(),
+          ],
+          ref.read(audioDirectorProvider).stopAll(),
+        ]).then<void>(
+          (_) {},
+          onError: (Object error) {
+            sttLog('[QUIZ] audio or microphone stop failed: $error');
+          },
+        );
   }
 
   Future<void> _resumeHandsFree() async {
@@ -280,9 +292,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (pending != null) await pending;
     if (_turnStale(token, card)) return;
     if (!_kTestMode) {
-      unawaited(ref.read(audioDirectorProvider).speak(
-          card.questionWord, card.progress.direction.questionLang,
-          audioPath: card.questionAudioPath));
+      unawaited(
+        ref
+            .read(audioDirectorProvider)
+            .speak(
+              card.questionWord,
+              card.progress.direction.questionLang,
+              audioPath: card.questionAudioPath,
+            ),
+      );
     }
     await _waitForSpeechThenListen(card);
   }
@@ -304,7 +322,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (stale()) return;
     final speechWaitMs = DateTime.now().difference(waitStart).inMilliseconds;
     sttLog(
-        '[HF] waited ${speechWaitMs}ms for TTS chain (isSpeaking=${director.isSpeaking}) — starting 250ms echo tail');
+      '[HF] waited ${speechWaitMs}ms for TTS chain (isSpeaking=${director.isSpeaking}) — starting 250ms echo tail',
+    );
     // Echo tail: let the room go quiet before the mic opens.
     await Future.delayed(const Duration(milliseconds: 250));
     if (stale()) return;
@@ -314,7 +333,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       // our TTS and validate against the wrong card) — stop it, then start
       // fresh. Never skip: skipping left cards without their own session.
       sttLog(
-          '[HF] stale session still open — stopping it before this card\'s listen');
+        '[HF] stale session still open — stopping it before this card\'s listen',
+      );
       _cancelActiveRace();
       await _stt.stopListening();
       await _whisper.stopListening();
@@ -406,12 +426,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   VoiceTurnMachine? _turnMachine;
 
   Future<void> _startRaceListening(
-      QuizCard card, String langCode, int sessionToken) async {
+    QuizCard card,
+    String langCode,
+    int sessionToken,
+  ) async {
     _raceSystemEngine ??= SystemSttEngine(_stt);
     _raceWhisperEngine ??= WhisperSttEngine(_whisper);
     _raceElevenLabsEngine ??= ElevenLabsSttEngine(_elevenLabs);
-    _racePhoneEngine ??=
-        PhoneSttEngine(const MethodChannelPhonePcmRecognizer());
+    _racePhoneEngine ??= PhoneSttEngine(
+      const MethodChannelPhonePcmRecognizer(),
+    );
     // Compatible shared decoders use one recording. The registry prefers that
     // lane when a local decoder is ready and otherwise can use the system mic.
     _sttRegistry ??= SttEngineRegistry()
@@ -469,7 +493,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// voice-orchestration refactor): policy lives in [VoiceTurnMachine], this
   /// is pure mechanism.
   Future<void> _runTurnCommands(
-      List<TurnCommand> cmds, QuizCard card, String langCode) async {
+    List<TurnCommand> cmds,
+    QuizCard card,
+    String langCode,
+  ) async {
     final m = _turnMachine!;
     final turn = m.turn;
     if (_turnStale(turn, card)) return;
@@ -497,11 +524,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               });
             }
           } else if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('quiz.stt_not_recognised'.tr()),
-              duration: const Duration(seconds: 3),
-              behavior: SnackBarBehavior.floating,
-            ));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('quiz.stt_not_recognised'.tr()),
+                duration: const Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
           }
         case WaitThenRetry(:final duration):
           // Voice mode has no auto-retry protocol — the user re-taps the mic
@@ -510,7 +539,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           Future.delayed(duration, () {
             if (_turnStale(turn, card)) return;
             unawaited(
-                _runTurnCommands(m.on(WaitElapsed(turn)), card, langCode));
+              _runTurnCommands(m.on(WaitElapsed(turn)), card, langCode),
+            );
           });
         case GradeCorrect(:final candidate):
           _listenBarCtrl.stop();
@@ -543,8 +573,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   /// One listen attempt. Outcomes go back to the machine for grading,
   /// retries, skipping or pausing.
-  Future<void> _runRaceLanes(QuizCard card, String langCode,
-      {required bool rescue}) async {
+  Future<void> _runRaceLanes(
+    QuizCard card,
+    String langCode, {
+    required bool rescue,
+  }) async {
     final m = _turnMachine!;
     final turn = m.turn;
     if (_turnStale(turn, card)) return;
@@ -572,13 +605,21 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (upcoming != null && m.attempt == 0) {
       final audio = ref.read(audioPlayerServiceProvider);
       unawaited(audio.warmUp(upcoming.progress.direction.questionLang));
-      unawaited(audio.prefetch(
-          upcoming.questionWord, upcoming.progress.direction.questionLang,
-          audioPath: upcoming.questionAudioPath));
+      unawaited(
+        audio.prefetch(
+          upcoming.questionWord,
+          upcoming.progress.direction.questionLang,
+          audioPath: upcoming.questionAudioPath,
+        ),
+      );
       if (upcoming.answerWords.isNotEmpty) {
-        unawaited(audio.prefetch(
-            upcoming.answerWords.first, upcoming.progress.direction.answerLang,
-            audioPath: upcoming.answerAudioPath));
+        unawaited(
+          audio.prefetch(
+            upcoming.answerWords.first,
+            upcoming.progress.direction.answerLang,
+            audioPath: upcoming.answerAudioPath,
+          ),
+        );
       }
     }
     void runBar() {
@@ -593,24 +634,30 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final online = !isOffline(await Connectivity().checkConnectivity());
     if (_turnStale(turn, card)) return;
     final engines = courseMode
-        ? _sttRegistry!
-            .select(langCode: langCode, online: online, rescue: rescue)
+        ? _sttRegistry!.select(
+            langCode: langCode,
+            online: online,
+            rescue: rescue,
+          )
         : [_raceSystemEngine!];
-    sttLog('[RACE][HF] engines=${engines.map((e) => e.id).join("+")} '
-        'online=$online turn=$turn attempt=${m.attempt} rescue=$rescue '
-        'lang=$langCode');
+    sttLog(
+      '[RACE][HF] engines=${engines.map((e) => e.id).join("+")} '
+      'online=$online turn=$turn attempt=${m.attempt} rescue=$rescue '
+      'lang=$langCode',
+    );
     _activeRace?.cancel(); // never two attempts alive at once
     final capture =
         engines.any((engine) => engine.capture == SttCapture.sharedPcm)
-            ? _sharedCapture ??= ref.read(sharedPcmCaptureProvider)
-            : null;
+        ? _sharedCapture ??= ref.read(sharedPcmCaptureProvider)
+        : null;
     final race = SttRace(engines, capture: capture);
     _activeRace = race;
     _analysisBipPlayed = false;
     // User-tunable (Réglages → Temps d'écoute). The bar drains over exactly
     // this window, starting when the mic is really open.
-    final listenWindow =
-        Duration(seconds: ref.read(audioSettingsProvider).listenSeconds);
+    final listenWindow = Duration(
+      seconds: ref.read(audioSettingsProvider).listenSeconds,
+    );
     _listenBarCtrl
       ..stop()
       ..reset()
@@ -625,6 +672,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final outcome = await race.run(
       langCode: langCode,
       acceptedAnswers: card.answerWords,
+      preserveGrammar: widget.args.source == QuizSource.grammar,
       promptHints: card.answerWords,
       // Shared capture: time to START answering — the window never cuts a
       // learner mid-word and awaits every analysis in flight. The phone
@@ -634,7 +682,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       restartOnSessionEnd: false,
       onStatus: (status) {
         if (!identical(_activeRace, race) || _turnStale(turn, card)) return;
-        final micOpen = status.phase == SttPhase.listening ||
+        final micOpen =
+            status.phase == SttPhase.listening ||
             status.phase == SttPhase.speaking;
         if (micOpen && !barStarted) {
           barStarted = true;
@@ -646,7 +695,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       onMicClosedPending: () {
         if (_turnStale(turn, card)) return;
         unawaited(
-            _runTurnCommands(m.micClosedPendingVerdict(turn), card, langCode));
+          _runTurnCommands(m.micClosedPendingVerdict(turn), card, langCode),
+        );
       },
       onPartial: (h) {
         if (!_turnStale(turn, card)) {
@@ -663,8 +713,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final TurnEvent verdictEvent = outcome.matched
         ? MatchHeard(turn, outcome.matchedCandidate!)
         : (heard != null && heard.trim().isNotEmpty)
-            ? WrongHeard(turn, heard)
-            : NothingHeard(turn, hadRealWindow: hadReal);
+        ? WrongHeard(turn, heard)
+        : NothingHeard(turn, hadRealWindow: hadReal);
     await _runTurnCommands(m.on(verdictEvent), card, langCode);
   }
 
@@ -679,7 +729,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
     _cancelActiveRace(); // the previous attempt's timers must not touch this one
     sttLog(
-        '[HF] _startListening  token=$token  question="${card.questionWord}"  answerWords=${card.answerWords}');
+      '[HF] _startListening  token=$token  question="${card.questionWord}"  answerWords=${card.answerWords}',
+    );
     ref.read(quizProvider.notifier).setListening(true);
 
     if (SttSimulator.isOn) {
@@ -690,9 +741,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         'wrong' => '__wrong__',
         _ => '',
       };
-      ref.read(quizProvider.notifier).submitVoiceAnswer(
+      ref
+          .read(quizProvider.notifier)
+          .submitVoiceAnswer(
             answer,
-            isDrivingMode: widget.args.mode == QuizMode.handsFree ||
+            isDrivingMode:
+                widget.args.mode == QuizMode.handsFree ||
                 widget.args.mode == QuizMode.voice,
           );
       return;
@@ -717,7 +771,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
     if (widget.args.mode == QuizMode.handsFree && !_kTestMode) {
       sttLog(
-          '[HF] 🔔 playing listen earcon (mic opens after verified clearance)');
+        '[HF] 🔔 playing listen earcon (mic opens after verified clearance)',
+      );
       HapticFeedback.selectionClick();
       await ref.read(audioDirectorProvider).listenCue();
       if (stale()) return;
@@ -737,13 +792,21 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (card == null || _kTestMode) return;
     final audio = ref.read(audioPlayerServiceProvider);
     unawaited(audio.warmUp(card.progress.direction.questionLang));
-    unawaited(audio.prefetch(
-        card.questionWord, card.progress.direction.questionLang,
-        audioPath: card.questionAudioPath));
+    unawaited(
+      audio.prefetch(
+        card.questionWord,
+        card.progress.direction.questionLang,
+        audioPath: card.questionAudioPath,
+      ),
+    );
     if (card.answerWords.isNotEmpty) {
-      unawaited(audio.prefetch(
-          card.answerWords.first, card.progress.direction.answerLang,
-          audioPath: card.answerAudioPath));
+      unawaited(
+        audio.prefetch(
+          card.answerWords.first,
+          card.progress.direction.answerLang,
+          audioPath: card.answerAudioPath,
+        ),
+      );
     }
   }
 
@@ -777,15 +840,22 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         }
         // Auto-speak the revealed answer — see shouldSpeakAnswer for the policy.
         // (Also muted in TEST_MODE, same emulator-audio rationale as above.)
-        final shouldSpeak = !_kTestMode &&
+        final shouldSpeak =
+            !_kTestMode &&
             shouldSpeakAnswer(widget.args.mode, correct: correct);
         if (shouldSpeak) {
           final card = next.currentCard;
           if (card != null && card.answerWords.isNotEmpty) {
             final answerLang = card.progress.direction.answerLang;
-            unawaited(ref.read(audioPlayerServiceProvider).speak(
-                card.answerWords.first, answerLang,
-                audioPath: card.answerAudioPath));
+            unawaited(
+              ref
+                  .read(audioPlayerServiceProvider)
+                  .speak(
+                    card.answerWords.first,
+                    answerLang,
+                    audioPath: card.answerAudioPath,
+                  ),
+            );
           }
         }
         // Hands-free renders the full-screen StudyFeedbackFlood in build()
@@ -796,7 +866,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         final cardChanged = prev?.currentIndex != next.currentIndex;
         final justLoaded = prev?.isLoading == true && !next.isLoading;
         // Backup trigger: cards appeared without an isLoading transition.
-        final cardsJustAppeared = !justLoaded &&
+        final cardsJustAppeared =
+            !justLoaded &&
             (prev?.cards.isEmpty ?? true) &&
             next.cards.isNotEmpty;
         final card = next.currentCard;
@@ -804,7 +875,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             card != null &&
             !next.isComplete) {
           sttLog(
-              '[HF] Card trigger: cardChanged=$cardChanged justLoaded=$justLoaded cardsJustAppeared=$cardsJustAppeared  idx=${next.currentIndex}  question="${card.questionWord}"  answers=${card.answerWords}');
+            '[HF] Card trigger: cardChanged=$cardChanged justLoaded=$justLoaded cardsJustAppeared=$cardsJustAppeared  idx=${next.currentIndex}  question="${card.questionWord}"  answers=${card.answerWords}',
+          );
           // Invalidate the previous card's session NOW: a session left open
           // across the transition hears the new card's TTS question and
           // grades it against the old card (field log 2026-07-06 — "mouton"
@@ -845,8 +917,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (!_sessionStarted || quizState.isLoading) {
       return const Scaffold(
         body: Center(
-          child:
-              CircularProgressIndicator(color: AppColors.clay, strokeWidth: 2),
+          child: CircularProgressIndicator(
+            color: AppColors.clay,
+            strokeWidth: 2,
+          ),
         ),
       );
     }
@@ -859,25 +933,36 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline,
-                    size: 48, color: AppColors.rose),
+                const Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: AppColors.rose,
+                ),
                 const SizedBox(height: 16),
-                Text(quizState.errorMessage!,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.body.copyWith(color: AppColors.muted)),
+                Text(
+                  quizState.errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.body.copyWith(color: AppColors.muted),
+                ),
                 const SizedBox(height: 24),
                 GestureDetector(
                   onTap: _quit,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 14),
+                      horizontal: 24,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.teal,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Text('quiz.go_home_button'.tr(),
-                        style: AppTextStyles.fig(15, FontWeight.w700)
-                            .copyWith(color: Colors.white)),
+                    child: Text(
+                      'quiz.go_home_button'.tr(),
+                      style: AppTextStyles.fig(
+                        15,
+                        FontWeight.w700,
+                      ).copyWith(color: Colors.white),
+                    ),
                   ),
                 ),
               ],
@@ -900,8 +985,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (card == null) {
       return const Scaffold(
         body: Center(
-          child:
-              CircularProgressIndicator(color: AppColors.clay, strokeWidth: 2),
+          child: CircularProgressIndicator(
+            color: AppColors.clay,
+            strokeWidth: 2,
+          ),
         ),
       );
     }
@@ -953,18 +1040,24 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// while listening), oversized Répéter/Passer, tap-centre to pause, and the
   /// transient full-screen flood for grading.
   Widget _buildHandsFreeStudy(
-      BuildContext context, QuizState s, QuizCard card) {
-    final questionIsHangul =
-        Languages.usesHangul(card.progress.direction.questionLang);
-    final answerIsHangul =
-        Languages.usesHangul(card.progress.direction.answerLang);
+    BuildContext context,
+    QuizState s,
+    QuizCard card,
+  ) {
+    final questionIsHangul = Languages.usesHangul(
+      card.progress.direction.questionLang,
+    );
+    final answerIsHangul = Languages.usesHangul(
+      card.progress.direction.answerLang,
+    );
 
     if (s.answerState != QuizAnswerState.idle) {
       final correct = s.answerState == QuizAnswerState.correct;
       return StudyFeedbackFlood(
         isCorrect: correct,
-        label:
-            correct ? 'quiz.feedback_correct'.tr() : 'quiz.feedback_wrong'.tr(),
+        label: correct
+            ? 'quiz.feedback_correct'.tr()
+            : 'quiz.feedback_wrong'.tr(),
         answer: correct ? null : card.answerWords.join(' / '),
         answerIsKorean: answerIsHangul,
         // No onContinue → transient; the provider auto-advances (driving mode).
@@ -1005,10 +1098,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       HfCue.listening => 'quiz.stt_listening'.tr(namedArgs: {'lang': langName}),
       HfCue.hearing => 'quiz.stt_hearing'.tr(),
       HfCue.analyzing => 'quiz.hf_analyzing'.tr(),
-      HfCue.notHeard => 'quiz.hf_not_heard_retry'.tr(namedArgs: {
-          'attempt': '${_notHeardRetries + 1}',
-          'total': '3',
-        }),
+      HfCue.notHeard => 'quiz.hf_not_heard_retry'.tr(
+        namedArgs: {'attempt': '${_notHeardRetries + 1}', 'total': '3'},
+      ),
     };
     final accent = dark ? V3Colors.amber : V3Colors.terraInk;
     final cueColor = micLive || hfCue == HfCue.countdown ? accent : muted;
@@ -1056,8 +1148,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                       child: Text(
                         '$_hfCountdown',
                         key: const ValueKey('hf_countdown'),
-                        style: AppTextStyles.grotesk(64, FontWeight.w700)
-                            .copyWith(color: accent),
+                        style: AppTextStyles.grotesk(
+                          64,
+                          FontWeight.w700,
+                        ).copyWith(color: accent),
                       ),
                     ),
                   // Which engines are working on the answer, and what each
@@ -1081,7 +1175,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                       padding: const EdgeInsets.only(bottom: 16),
                       child: AnimatedBuilder(
                         animation: _listenBarCtrl,
-                        builder: (_, __) => ClipRRect(
+                        builder: (_, _) => ClipRRect(
                           borderRadius: BorderRadius.circular(3),
                           child: LinearProgressIndicator(
                             value: 1 - _listenBarCtrl.value,
@@ -1131,24 +1225,32 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                            _hfAutoPausedSilence
-                                ? Icons.hearing_disabled_rounded
-                                : Icons.pause_rounded,
-                            size: 56,
-                            color: V3Colors.inkLight),
+                          _hfAutoPausedSilence
+                              ? Icons.hearing_disabled_rounded
+                              : Icons.pause_rounded,
+                          size: 56,
+                          color: V3Colors.inkLight,
+                        ),
                         const SizedBox(height: 10),
                         Text(
-                            (_hfAutoPausedSilence
-                                    ? 'quiz.hf_paused_silence'
-                                    : 'quiz.hf_paused')
-                                .tr(),
-                            textAlign: TextAlign.center,
-                            style: AppTextStyles.grotesk(28, FontWeight.w700)
-                                .copyWith(color: V3Colors.inkLight)),
+                          (_hfAutoPausedSilence
+                                  ? 'quiz.hf_paused_silence'
+                                  : 'quiz.hf_paused')
+                              .tr(),
+                          textAlign: TextAlign.center,
+                          style: AppTextStyles.grotesk(
+                            28,
+                            FontWeight.w700,
+                          ).copyWith(color: V3Colors.inkLight),
+                        ),
                         const SizedBox(height: 6),
-                        Text('quiz.hf_resume_hint'.tr(),
-                            style: AppTextStyles.fig(14, FontWeight.w500)
-                                .copyWith(color: V3Colors.inkLight70)),
+                        Text(
+                          'quiz.hf_resume_hint'.tr(),
+                          style: AppTextStyles.fig(
+                            14,
+                            FontWeight.w500,
+                          ).copyWith(color: V3Colors.inkLight70),
+                        ),
                       ],
                     ),
                   ),
@@ -1179,28 +1281,27 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   String _answerLangCode(QuizCard card) => card.progress.direction.answerLang;
 
   SttStatusLabels _sttLabels() => SttStatusLabels(
-        engineName: (id) => switch (id) {
-          'elevenlabs' => 'ElevenLabs',
-          'whisper' => 'Whisper',
-          'system' || 'phone' => 'quiz.stt_engine_system'.tr(),
-          _ => id,
-        },
-        waiting: 'quiz.stt_engine_waiting'.tr(),
-        sending: 'quiz.stt_engine_sending'.tr(),
-        analyzing: 'quiz.stt_engine_analyzing'.tr(),
-        empty: 'quiz.stt_engine_empty'.tr(),
-        failed: 'quiz.stt_engine_failed'.tr(),
-        offline: 'quiz.stt_offline'.tr(),
-        noEngine: 'quiz.stt_no_engine'.tr(),
-      );
+    engineName: (id) => switch (id) {
+      'elevenlabs' => 'ElevenLabs',
+      'whisper' => 'Whisper',
+      'system' || 'phone' => 'quiz.stt_engine_system'.tr(),
+      _ => id,
+    },
+    waiting: 'quiz.stt_engine_waiting'.tr(),
+    sending: 'quiz.stt_engine_sending'.tr(),
+    analyzing: 'quiz.stt_engine_analyzing'.tr(),
+    empty: 'quiz.stt_engine_empty'.tr(),
+    failed: 'quiz.stt_engine_failed'.tr(),
+    offline: 'quiz.stt_offline'.tr(),
+    noEngine: 'quiz.stt_no_engine'.tr(),
+  );
 
   String? _nextReviewText(int? scheduledDays) => switch (scheduledDays) {
-        null => null,
-        0 => 'quiz.next_review_soon'.tr(),
-        1 => 'quiz.next_review_tomorrow'.tr(),
-        final days =>
-          'quiz.next_review_in_days'.tr(namedArgs: {'days': '$days'}),
-      };
+    null => null,
+    0 => 'quiz.next_review_soon'.tr(),
+    1 => 'quiz.next_review_tomorrow'.tr(),
+    final days => 'quiz.next_review_in_days'.tr(namedArgs: {'days': '$days'}),
+  };
 
   Future<void> _dismissFlashcard({required bool knew}) async {
     final quiz = ref.read(quizProvider);
@@ -1233,10 +1334,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   /// Cartes — one stable physical stack: tap to turn, swipe to peel away.
   Widget _buildCartesStudy(BuildContext context, QuizState s, QuizCard card) {
-    final questionIsHangul =
-        Languages.usesHangul(card.progress.direction.questionLang);
-    final answerIsHangul =
-        Languages.usesHangul(card.progress.direction.answerLang);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final questionIsHangul = Languages.usesHangul(
+      card.progress.direction.questionLang,
+    );
+    final answerIsHangul = Languages.usesHangul(
+      card.progress.direction.answerLang,
+    );
 
     final showBack = s.isFlipped;
     final dragAmount = _flashcardDragProgress.abs();
@@ -1268,9 +1372,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(back ? 'v3.card_answer'.tr() : 'v3.card_take'.tr(),
-                            textAlign: TextAlign.center,
-                            style: V3Text.mono(12)),
+                        Text(
+                          back ? 'v3.card_answer'.tr() : 'v3.card_take'.tr(),
+                          textAlign: TextAlign.center,
+                          style: V3Text.mono(12),
+                        ),
                         const SizedBox(height: 26),
                         Text(
                           word,
@@ -1319,11 +1425,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                         onHorizontalDragUpdate: !showBack || _flashcardExiting
                             ? null
                             : (details) => setState(() {
-                                  _flashcardDragProgress =
-                                      (_flashcardDragProgress +
-                                              details.delta.dx / cardWidth)
-                                          .clamp(-1.0, 1.0);
-                                }),
+                                _flashcardDragProgress =
+                                    (_flashcardDragProgress +
+                                            details.delta.dx / cardWidth)
+                                        .clamp(-1.0, 1.0);
+                              }),
                         onHorizontalDragCancel: !showBack || _flashcardExiting
                             ? null
                             : () => setState(() => _flashcardDragProgress = 0),
@@ -1339,14 +1445,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                                 }
                                 unawaited(
                                   _dismissFlashcard(
-                                      knew: progress.abs() >= 0.05
-                                          ? progress > 0
-                                          : velocity > 0),
+                                    knew: progress.abs() >= 0.05
+                                        ? progress > 0
+                                        : velocity > 0,
+                                  ),
                                 );
                               },
                         child: V3CardStack(
-                          remaining: (s.displayTotal - s.position + 1)
-                              .clamp(1, s.displayTotal),
+                          remaining: (s.displayTotal - s.position + 1).clamp(
+                            1,
+                            s.displayTotal,
+                          ),
                           total: s.displayTotal,
                           cardId: card.progress.variantId,
                           isExiting: _flashcardExiting,
@@ -1367,26 +1476,46 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             ),
             if (showBack) ...[
               const SizedBox(height: 12),
-              Row(children: [
-                Expanded(
+              Row(
+                children: [
+                  Expanded(
                     child: OutlinedButton(
-                  key: const ValueKey(WidgetKeys.gradeAgain),
-                  onPressed: _flashcardExiting
-                      ? null
-                      : () => unawaited(_dismissFlashcard(knew: false)),
-                  child:
-                      Text('v3.card_again'.tr(), textAlign: TextAlign.center),
-                )),
-                const SizedBox(width: 12),
-                Expanded(
+                      key: const ValueKey(WidgetKeys.gradeAgain),
+                      onPressed: _flashcardExiting
+                          ? null
+                          : () => unawaited(_dismissFlashcard(knew: false)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: dark
+                            ? V3Colors.inkLight
+                            : V3Colors.ink,
+                        backgroundColor: dark
+                            ? V3Colors.block
+                            : V3Colors.paperPanel,
+                        side: BorderSide(
+                          color: dark ? V3Colors.ruleDark : V3Colors.edge2,
+                        ),
+                      ),
+                      child: Text(
+                        'v3.card_again'.tr(),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
                     child: FilledButton(
-                  key: const ValueKey(WidgetKeys.gradeKnew),
-                  onPressed: _flashcardExiting
-                      ? null
-                      : () => unawaited(_dismissFlashcard(knew: true)),
-                  child: Text('v3.card_knew'.tr(), textAlign: TextAlign.center),
-                )),
-              ]),
+                      key: const ValueKey(WidgetKeys.gradeKnew),
+                      onPressed: _flashcardExiting
+                          ? null
+                          : () => unawaited(_dismissFlashcard(knew: true)),
+                      child: Text(
+                        'v3.card_knew'.tr(),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ],
         ),
@@ -1396,10 +1525,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   /// Écrire — word-in-wave + native text input + Valider, with the flood.
   Widget _buildEcrireStudy(BuildContext context, QuizState s, QuizCard card) {
-    final questionIsHangul =
-        Languages.usesHangul(card.progress.direction.questionLang);
-    final answerIsHangul =
-        Languages.usesHangul(card.progress.direction.answerLang);
+    final questionIsHangul = Languages.usesHangul(
+      card.progress.direction.questionLang,
+    );
+    final answerIsHangul = Languages.usesHangul(
+      card.progress.direction.answerLang,
+    );
 
     if (s.answerState != QuizAnswerState.idle) {
       final correct = s.answerState == QuizAnswerState.correct;
@@ -1407,11 +1538,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         isCorrect: correct,
         onPlayAudio: card.answerWords.isEmpty
             ? null
-            : () => unawaited(ref.read(audioPlayerServiceProvider).speak(
-                card.answerWords.first, card.progress.direction.answerLang,
-                audioPath: card.answerAudioPath)),
-        label:
-            correct ? 'quiz.feedback_correct'.tr() : 'quiz.feedback_wrong'.tr(),
+            : () => unawaited(
+                ref
+                    .read(audioPlayerServiceProvider)
+                    .speak(
+                      card.answerWords.first,
+                      card.progress.direction.answerLang,
+                      audioPath: card.answerAudioPath,
+                    ),
+              ),
+        label: correct
+            ? 'quiz.feedback_correct'.tr()
+            : 'quiz.feedback_wrong'.tr(),
         answer: card.answerWords.join(' / '),
         answerIsKorean: answerIsHangul,
         detail: _nextReviewText(s.scheduledDays),
@@ -1436,10 +1574,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       current: s.position,
       total: s.displayTotal,
       counterOverride: s.inReviewTail
-          ? 'quiz.review_tail'.tr(namedArgs: {
-              'n': '${s.reviewPosition}',
-              'm': '${s.reviewTotal}',
-            })
+          ? 'quiz.review_tail'.tr(
+              namedArgs: {'n': '${s.reviewPosition}', 'm': '${s.reviewTotal}'},
+            )
           : null,
       onQuit: _quit,
       child: Padding(
@@ -1465,8 +1602,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               textAlign: TextAlign.center,
               textInputAction: TextInputAction.done,
               cursorColor: AppColors.clay,
-              style: AppTextStyles.fig(22, FontWeight.w600)
-                  .copyWith(color: cs.onSurface),
+              style: AppTextStyles.fig(
+                22,
+                FontWeight.w600,
+              ).copyWith(color: cs.onSurface),
               decoration: InputDecoration(
                 filled: false,
                 hintText: 'quiz.typing_hint'.tr(),
@@ -1498,17 +1637,20 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// Voix — the unified dark study canvas: word-in-wave + mic + escape pills,
   /// with the full-screen flood once answered.
   Widget _buildVoiceStudy(BuildContext context, QuizState s, QuizCard card) {
-    final questionIsHangul =
-        Languages.usesHangul(card.progress.direction.questionLang);
-    final answerIsHangul =
-        Languages.usesHangul(card.progress.direction.answerLang);
+    final questionIsHangul = Languages.usesHangul(
+      card.progress.direction.questionLang,
+    );
+    final answerIsHangul = Languages.usesHangul(
+      card.progress.direction.answerLang,
+    );
 
     if (s.answerState != QuizAnswerState.idle) {
       final correct = s.answerState == QuizAnswerState.correct;
       return StudyFeedbackFlood(
         isCorrect: correct,
-        label:
-            correct ? 'quiz.feedback_correct'.tr() : 'quiz.feedback_wrong'.tr(),
+        label: correct
+            ? 'quiz.feedback_correct'.tr()
+            : 'quiz.feedback_wrong'.tr(),
         answer: card.answerWords.join(' / '),
         answerIsKorean: answerIsHangul, // answer is Korean when FR→KO
         detail: _nextReviewText(s.scheduledDays),
@@ -1529,10 +1671,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       current: s.position,
       total: s.displayTotal,
       counterOverride: s.inReviewTail
-          ? 'quiz.review_tail'.tr(namedArgs: {
-              'n': '${s.reviewPosition}',
-              'm': '${s.reviewTotal}',
-            })
+          ? 'quiz.review_tail'.tr(
+              namedArgs: {'n': '${s.reviewPosition}', 'm': '${s.reviewTotal}'},
+            )
           : null,
       onQuit: _quit,
       child: Padding(
@@ -1564,7 +1705,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 s.partialTranscript,
                 textAlign: TextAlign.center,
                 style: AppTextStyles.fig(16, FontWeight.w500).copyWith(
-                    color: isDark ? AppColors.onDarkMuted : AppColors.muted),
+                  color: isDark ? AppColors.onDarkMuted : AppColors.muted,
+                ),
               ),
               const SizedBox(height: 14),
             ],
@@ -1645,8 +1787,9 @@ class _EscapePill extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color:
-              cs.surfaceContainerHighest.withValues(alpha: isDark ? 0.5 : 0.7),
+          color: cs.surfaceContainerHighest.withValues(
+            alpha: isDark ? 0.5 : 0.7,
+          ),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: cs.outline),
         ),
@@ -1656,10 +1799,14 @@ class _EscapePill extends StatelessWidget {
             Icon(icon, size: 16, color: fg),
             const SizedBox(width: 6),
             Flexible(
-              child: Text(label,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.fig(13, FontWeight.w600)
-                      .copyWith(color: fg)),
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.fig(
+                  13,
+                  FontWeight.w600,
+                ).copyWith(color: fg),
+              ),
             ),
           ],
         ),
@@ -1684,27 +1831,27 @@ class _FlashcardSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => TweenAnimationBuilder<double>(
-        tween: Tween(end: isBack ? 1 : 0),
-        duration: const Duration(milliseconds: 360),
-        curve: Curves.easeInOutCubic,
-        builder: (context, value, _) {
-          final backFace = value >= 0.5;
-          final transform = Matrix4.identity()
-            ..setEntry(3, 2, 0.001)
-            ..rotateY(value * math.pi);
-          return Transform(
-            alignment: Alignment.center,
-            transform: transform,
-            child: backFace
-                ? Transform(
-                    alignment: Alignment.center,
-                    transform: Matrix4.rotationY(math.pi),
-                    child: back,
-                  )
-                : front,
-          );
-        },
+    tween: Tween(end: isBack ? 1 : 0),
+    duration: const Duration(milliseconds: 360),
+    curve: Curves.easeInOutCubic,
+    builder: (context, value, _) {
+      final backFace = value >= 0.5;
+      final transform = Matrix4.identity()
+        ..setEntry(3, 2, 0.001)
+        ..rotateY(value * math.pi);
+      return Transform(
+        alignment: Alignment.center,
+        transform: transform,
+        child: backFace
+            ? Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.rotationY(math.pi),
+                child: back,
+              )
+            : front,
       );
+    },
+  );
 }
 
 // ── Hands-free oversized control ──────────────────────────────────────────────
@@ -1718,18 +1865,18 @@ class _ScrollablePrompt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) => Scrollbar(
-          thumbVisibility: true,
-          child: SingleChildScrollView(
-            key: const ValueKey(WidgetKeys.quizPrompt),
-            primary: true,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Center(child: child),
-            ),
-          ),
+    builder: (context, constraints) => Scrollbar(
+      thumbVisibility: true,
+      child: SingleChildScrollView(
+        key: const ValueKey(WidgetKeys.quizPrompt),
+        primary: true,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(child: child),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _ReadingPulse extends StatefulWidget {
@@ -1748,9 +1895,9 @@ class _ReadingPulseState extends State<_ReadingPulse>
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-        animation: _pulse,
-        builder: (_, __) => _ReadingGlow(progress: _pulse.value),
-      );
+    animation: _pulse,
+    builder: (_, _) => _ReadingGlow(progress: _pulse.value),
+  );
 
   @override
   void dispose() {
@@ -1766,16 +1913,16 @@ class _ReadingGlow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            radius: 1.1,
-            colors: [
-              AppColors.clay.withValues(alpha: 0.04 + 0.10 * progress),
-              Colors.transparent,
-            ],
-          ),
-        ),
-      );
+    decoration: BoxDecoration(
+      gradient: RadialGradient(
+        radius: 1.1,
+        colors: [
+          AppColors.clay.withValues(alpha: 0.04 + 0.10 * progress),
+          Colors.transparent,
+        ],
+      ),
+    ),
+  );
 }
 
 class _HfButton extends StatelessWidget {
@@ -1809,9 +1956,11 @@ class _HfButton extends StatelessWidget {
         children: [
           Icon(icon, size: 32),
           const SizedBox(height: 8),
-          Text(label,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.fig(15, FontWeight.w700)),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.fig(15, FontWeight.w700),
+          ),
         ],
       ),
     );
@@ -1848,8 +1997,11 @@ class _VoiceKeyboardInput extends StatelessWidget {
               color: AppColors.clay,
               borderRadius: BorderRadius.circular(14),
             ),
-            child:
-                const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+            child: const Icon(
+              Icons.send_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
         ),
       ],
@@ -1880,8 +2032,9 @@ class _SummaryScreen extends StatelessWidget {
     final muted = dark ? V3Colors.inkLight70 : V3Colors.ink60;
     final surface = dark ? V3Colors.block : V3Colors.paperPanel;
     final accent = dark ? V3Colors.amber : V3Colors.terraInk;
-    final shape =
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(12));
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    );
     const padding = EdgeInsets.symmetric(vertical: 12, horizontal: 8);
     const buttonSize = Size(0, 52);
 
@@ -1904,22 +2057,30 @@ class _SummaryScreen extends StatelessWidget {
                     opacity: isGreat ? 1.0 : 0.4,
                   ),
                   const SizedBox(height: 32),
-                  Text('quiz.summary_label'.tr(),
-                      style: V3Text.mono(12, color: muted)),
+                  Text(
+                    'quiz.summary_label'.tr(),
+                    style: V3Text.mono(12, color: muted),
+                  ),
                   const SizedBox(height: 12),
                   Text(
                     '$pct %',
-                    style:
-                        V3Text.title(64, color: isGreat ? accent : foreground),
+                    style: V3Text.title(
+                      64,
+                      color: isGreat ? accent : foreground,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'quiz.summary_correct_count'.tr(namedArgs: {
-                      'correct': correct.toString(),
-                      'total': total.toString()
-                    }),
-                    style: AppTextStyles.fig(16, FontWeight.w500)
-                        .copyWith(color: muted),
+                    'quiz.summary_correct_count'.tr(
+                      namedArgs: {
+                        'correct': correct.toString(),
+                        'total': total.toString(),
+                      },
+                    ),
+                    style: AppTextStyles.fig(
+                      16,
+                      FontWeight.w500,
+                    ).copyWith(color: muted),
                   ),
                   const SizedBox(height: 48),
                   Row(
@@ -1935,12 +2096,14 @@ class _SummaryScreen extends StatelessWidget {
                             backgroundColor: surface,
                             foregroundColor: foreground,
                             side: BorderSide(
-                                color:
-                                    dark ? V3Colors.ruleDark : V3Colors.edge2),
+                              color: dark ? V3Colors.ruleDark : V3Colors.edge2,
+                            ),
                           ),
-                          child: Text('quiz.summary_restart'.tr(),
-                              textAlign: TextAlign.center,
-                              style: AppTextStyles.fig(14, FontWeight.w600)),
+                          child: Text(
+                            'quiz.summary_restart'.tr(),
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.fig(14, FontWeight.w600),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -1956,12 +2119,13 @@ class _SummaryScreen extends StatelessWidget {
                             foregroundColor: Colors.white,
                           ),
                           child: Text(
-                              (context.canPop()
-                                      ? 'common.back'
-                                      : 'quiz.summary_home')
-                                  .tr(),
-                              textAlign: TextAlign.center,
-                              style: AppTextStyles.fig(14, FontWeight.w700)),
+                            (context.canPop()
+                                    ? 'common.back'
+                                    : 'quiz.summary_home')
+                                .tr(),
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.fig(14, FontWeight.w700),
+                          ),
                         ),
                       ),
                     ],

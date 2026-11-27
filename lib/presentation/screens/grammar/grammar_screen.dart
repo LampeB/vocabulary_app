@@ -43,9 +43,11 @@ class GrammarScreen extends ConsumerWidget {
           statusesAsync.when(
             loading: () => const Center(
               child: CircularProgressIndicator(
-                  color: AppColors.clay, strokeWidth: 2),
+                color: AppColors.clay,
+                strokeWidth: 2,
+              ),
             ),
-            error: (_, __) => Center(child: Text('common.error'.tr())),
+            error: (_, _) => Center(child: Text('common.error'.tr())),
             data: (statuses) => statuses.isEmpty
                 // Studyable language without a curriculum yet — lists and
                 // quizzes work, grammar arrives later (progressive delivery).
@@ -55,8 +57,9 @@ class GrammarScreen extends ConsumerWidget {
                       child: Text(
                         'grammar.no_curriculum'.tr(),
                         textAlign: TextAlign.center,
-                        style:
-                            AppTextStyles.body.copyWith(color: AppColors.muted),
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.muted,
+                        ),
                       ),
                     ),
                   )
@@ -100,26 +103,28 @@ class _RuleCard extends StatelessWidget {
                 mastered
                     ? Icons.verified_rounded
                     : locked
-                        ? Icons.lock_outline_rounded
-                        : Icons.lock_open_rounded,
+                    ? Icons.lock_outline_rounded
+                    : Icons.lock_open_rounded,
                 size: 18,
                 color: mastered
                     ? AppColors.teal
                     : locked
-                        ? muted
-                        : AppColors.clay,
+                    ? muted
+                    : AppColors.clay,
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(status.rule.title(uiLocaleCode(context)),
-                    style: AppTextStyles.fig(16, FontWeight.w700)),
+                child: Text(
+                  status.rule.title(uiLocaleCode(context)),
+                  style: AppTextStyles.fig(16, FontWeight.w700),
+                ),
               ),
               Text(
                 (mastered
                         ? 'grammar.status_mastered'
                         : locked
-                            ? 'grammar.status_locked'
-                            : 'grammar.status_unlocked')
+                        ? 'grammar.status_locked'
+                        : 'grammar.status_unlocked')
                     .tr(),
                 style: AppTextStyles.caption.copyWith(color: muted),
               ),
@@ -149,17 +154,20 @@ class _RuleCard extends StatelessWidget {
                 dense: true,
                 onTap: status.prereqListIds[name] == null
                     ? null
-                    : () => context
-                        .push('/lists/${status.prereqListIds[name] ?? ''}'),
+                    : () => context.push(
+                        '/lists/${status.prereqListIds[name] ?? ''}',
+                      ),
               ),
               const SizedBox(height: 6),
             ],
           ] else ...[
             _Bar(
-              label: 'grammar.mastery_progress'.tr(namedArgs: {
-                'correct': status.correct.toString(),
-                'target': ruleMasteryTarget.toString(),
-              }),
+              label: 'grammar.mastery_progress'.tr(
+                namedArgs: {
+                  'correct': status.correct.toString(),
+                  'target': ruleMasteryTarget.toString(),
+                },
+              ),
               fraction: (status.correct / ruleMasteryTarget).clamp(0.0, 1.0),
               color: mastered ? AppColors.teal : AppColors.clay,
             ),
@@ -169,7 +177,8 @@ class _RuleCard extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 child: FilledButton.icon(
                   key: ValueKey(
-                      WidgetKeys.grammarRuleOpenLesson(status.rule.id)),
+                    WidgetKeys.grammarRuleOpenLesson(status.rule.id),
+                  ),
                   onPressed: () => context.push('/grammar/${status.rule.id}'),
                   icon: const Icon(Icons.menu_book_rounded, size: 18),
                   label: Text('grammar.open_lesson'.tr()),
@@ -208,16 +217,18 @@ class _Bar extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: Text(label,
-                  overflow: TextOverflow.ellipsis,
-                  style: dense
-                      ? AppTextStyles.caption
-                          .copyWith(color: cs.onSurfaceVariant)
-                      : AppTextStyles.fig(13, FontWeight.w600)),
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: dense
+                    ? AppTextStyles.caption.copyWith(color: cs.onSurfaceVariant)
+                    : AppTextStyles.fig(13, FontWeight.w600),
+              ),
             ),
-            Text('$pct%',
-                style:
-                    AppTextStyles.caption.copyWith(color: cs.onSurfaceVariant)),
+            Text(
+              '$pct%',
+              style: AppTextStyles.caption.copyWith(color: cs.onSurfaceVariant),
+            ),
           ],
         ),
         const SizedBox(height: 4),

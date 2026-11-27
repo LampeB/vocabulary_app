@@ -36,13 +36,17 @@ class StatsScreen extends ConsumerWidget {
           const DottedGround(),
           historyAsync.when(
             loading: () => const Center(
-                child: CircularProgressIndicator(
-                    color: AppColors.clay, strokeWidth: 2)),
+              child: CircularProgressIndicator(
+                color: AppColors.clay,
+                strokeWidth: 2,
+              ),
+            ),
             error: (e, _) => Center(child: Text('$e')),
             data: (sessions) {
               final totalCards = sessions.fold(0, (s, e) => s + e.cardCount);
-              final currentMastered =
-                  sessions.isEmpty ? 0 : sessions.first.masteredWordCount;
+              final currentMastered = sessions.isEmpty
+                  ? 0
+                  : sessions.first.masteredWordCount;
 
               return ListView(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -51,24 +55,28 @@ class StatsScreen extends ConsumerWidget {
                   Row(
                     children: [
                       _StatChip(
-                          label: 'stats.chip_sessions'.tr(),
-                          value: '${sessions.length}',
-                          color: AppColors.clay),
+                        label: 'stats.chip_sessions'.tr(),
+                        value: '${sessions.length}',
+                        color: AppColors.clay,
+                      ),
                       const SizedBox(width: 10),
                       _StatChip(
-                          label: 'stats.chip_cards'.tr(),
-                          value: '$totalCards',
-                          color: AppColors.teal),
+                        label: 'stats.chip_cards'.tr(),
+                        value: '$totalCards',
+                        color: AppColors.teal,
+                      ),
                       const SizedBox(width: 10),
                       _StatChip(
-                          label: 'stats.chip_mastered'.tr(),
-                          value: '$currentMastered',
-                          color: const Color(0xFF7C5CBF)),
+                        label: 'stats.chip_mastered'.tr(),
+                        value: '$currentMastered',
+                        color: const Color(0xFF7C5CBF),
+                      ),
                       const SizedBox(width: 10),
                       _StatChip(
-                          label: 'stats.chip_streak'.tr(),
-                          value: '$streak j',
-                          color: AppColors.rose),
+                        label: 'stats.chip_streak'.tr(),
+                        value: '$streak j',
+                        color: AppColors.rose,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 28),
@@ -78,11 +86,15 @@ class StatsScreen extends ConsumerWidget {
                   const SizedBox(height: 12),
                   masteredAsync.when(
                     loading: () => const SizedBox(
-                        height: 160,
-                        child: Center(
-                            child: CircularProgressIndicator(
-                                color: AppColors.clay, strokeWidth: 2))),
-                    error: (_, __) => const SizedBox.shrink(),
+                      height: 160,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.clay,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                    ),
+                    error: (_, _) => const SizedBox.shrink(),
                     data: (points) => _MasteredChart(points: points),
                   ),
                   const SizedBox(height: 28),
@@ -99,8 +111,9 @@ class StatsScreen extends ConsumerWidget {
                         child: Text(
                           'stats.sessions_empty'.tr(),
                           textAlign: TextAlign.center,
-                          style: AppTextStyles.body
-                              .copyWith(color: AppColors.muted),
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.muted,
+                          ),
                         ),
                       ),
                     ),
@@ -117,8 +130,11 @@ class StatsScreen extends ConsumerWidget {
 // ── Summary chip ──────────────────────────────────────────────────────────────
 
 class _StatChip extends StatelessWidget {
-  const _StatChip(
-      {required this.label, required this.value, required this.color});
+  const _StatChip({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
   final String label;
   final String value;
   final Color color;
@@ -131,13 +147,19 @@ class _StatChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Column(
           children: [
-            Text(value,
-                style: AppTextStyles.grotesk(20, FontWeight.w800)
-                    .copyWith(color: color)),
+            Text(
+              value,
+              style: AppTextStyles.grotesk(
+                20,
+                FontWeight.w800,
+              ).copyWith(color: color),
+            ),
             const SizedBox(height: 2),
-            Text(label,
-                style: AppTextStyles.eyebrowSm.copyWith(color: AppColors.muted),
-                textAlign: TextAlign.center),
+            Text(
+              label,
+              style: AppTextStyles.eyebrowSm.copyWith(color: AppColors.muted),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -153,8 +175,10 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(text,
-        style: AppTextStyles.eyebrowSm.copyWith(color: AppColors.muted));
+    return Text(
+      text,
+      style: AppTextStyles.eyebrowSm.copyWith(color: AppColors.muted),
+    );
   }
 }
 
@@ -171,9 +195,11 @@ class _MasteredChart extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         padding: const EdgeInsets.all(24),
         child: Center(
-          child: Text('stats.chart_empty'.tr(),
-              textAlign: TextAlign.center,
-              style: AppTextStyles.body.copyWith(color: AppColors.muted)),
+          child: Text(
+            'stats.chart_empty'.tr(),
+            textAlign: TextAlign.center,
+            style: AppTextStyles.body.copyWith(color: AppColors.muted),
+          ),
         ),
       );
     }
@@ -186,8 +212,9 @@ class _MasteredChart extends StatelessWidget {
     final maxY = points.map((p) => p.$2).reduce((a, b) => a > b ? a : b);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final lineColor = const Color(0xFF7C5CBF);
-    final gridColor =
-        (isDark ? Colors.white : Colors.black).withValues(alpha: 0.07);
+    final gridColor = (isDark ? Colors.white : Colors.black).withValues(
+      alpha: 0.07,
+    );
 
     return FrostedBox(
       borderRadius: BorderRadius.circular(16),
@@ -203,8 +230,10 @@ class _MasteredChart extends StatelessWidget {
             gridData: FlGridData(
               show: true,
               drawVerticalLine: false,
-              horizontalInterval:
-                  ((maxY / 4).clamp(1, double.infinity)).roundToDouble(),
+              horizontalInterval: ((maxY / 4).clamp(
+                1,
+                double.infinity,
+              )).roundToDouble(),
               getDrawingHorizontalLine: (_) =>
                   FlLine(color: gridColor, strokeWidth: 1),
             ),
@@ -214,12 +243,16 @@ class _MasteredChart extends StatelessWidget {
                 sideTitles: SideTitles(
                   showTitles: true,
                   reservedSize: 32,
-                  interval:
-                      ((maxY / 4).clamp(1, double.infinity)).roundToDouble(),
+                  interval: ((maxY / 4).clamp(
+                    1,
+                    double.infinity,
+                  )).roundToDouble(),
                   getTitlesWidget: (v, _) => Text(
                     '${v.toInt()}',
-                    style: AppTextStyles.eyebrowSm
-                        .copyWith(color: AppColors.muted, fontSize: 10),
+                    style: AppTextStyles.eyebrowSm.copyWith(
+                      color: AppColors.muted,
+                      fontSize: 10,
+                    ),
                   ),
                 ),
               ),
@@ -236,16 +269,20 @@ class _MasteredChart extends StatelessWidget {
                     final d = points[idx].$1;
                     return Text(
                       '${d.day}/${d.month}',
-                      style: AppTextStyles.eyebrowSm
-                          .copyWith(color: AppColors.muted, fontSize: 10),
+                      style: AppTextStyles.eyebrowSm.copyWith(
+                        color: AppColors.muted,
+                        fontSize: 10,
+                      ),
                     );
                   },
                 ),
               ),
-              topTitles:
-                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              rightTitles:
-                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
             ),
             lineBarsData: [
               LineChartBarData(
@@ -256,7 +293,7 @@ class _MasteredChart extends StatelessWidget {
                 barWidth: 2.5,
                 dotData: FlDotData(
                   show: spots.length <= 12,
-                  getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
+                  getDotPainter: (_, _, _, _) => FlDotCirclePainter(
                     radius: 3,
                     color: lineColor,
                     strokeColor: Colors.transparent,
@@ -289,27 +326,26 @@ class _SessionTile extends StatelessWidget {
   final QuizSession session;
 
   IconData _modeIcon(QuizMode m) => switch (m) {
-        QuizMode.voice => Icons.mic_rounded,
-        QuizMode.handsFree => Icons.headphones_rounded,
-        QuizMode.flashcard => Icons.style_rounded,
-        QuizMode.typing => Icons.keyboard_rounded,
-      };
+    QuizMode.voice => Icons.mic_rounded,
+    QuizMode.handsFree => Icons.headphones_rounded,
+    QuizMode.flashcard => Icons.style_rounded,
+    QuizMode.typing => Icons.keyboard_rounded,
+  };
 
   String _dirLabel(QuizDirectionChoice d) => switch (d) {
-        QuizDirectionChoice.frToKo => 'stats.session_dir_fr_to_kr'.tr(),
-        QuizDirectionChoice.koToFr => 'stats.session_dir_kr_to_fr'.tr(),
-        QuizDirectionChoice.both => 'stats.session_dir_both'.tr(),
-      };
+    QuizDirectionChoice.frToKo => 'stats.session_dir_fr_to_kr'.tr(),
+    QuizDirectionChoice.koToFr => 'stats.session_dir_kr_to_fr'.tr(),
+    QuizDirectionChoice.both => 'stats.session_dir_both'.tr(),
+  };
 
   // Localized short date (no intl dependency): month names come from the
   // active UI language and the {day}/{month} template lets each locale set its
   // own order (e.g. Korean "1월 5일", Japanese "1月5日").
   String _formatDate(DateTime d) {
     final months = 'date.months_short'.tr().split(',');
-    return 'date.day_month'.tr(namedArgs: {
-      'day': '${d.day}',
-      'month': months[d.month - 1],
-    });
+    return 'date.day_month'.tr(
+      namedArgs: {'day': '${d.day}', 'month': months[d.month - 1]},
+    );
   }
 
   @override
@@ -318,46 +354,56 @@ class _SessionTile extends StatelessWidget {
     final Color scoreColor = pct >= 80
         ? AppColors.teal
         : pct >= 50
-            ? AppColors.clay
-            : AppColors.rose;
+        ? AppColors.clay
+        : AppColors.rose;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: FrostedBox(
         borderRadius: BorderRadius.circular(14),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Builder(builder: (ctx) {
-          final isDark = Theme.of(ctx).brightness == Brightness.dark;
-          final ink = isDark ? AppColors.onDark : AppColors.ink;
-          final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
-          return Row(
-            children: [
-              Icon(_modeIcon(session.mode), size: 18, color: AppColors.clay),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(session.listName,
-                        style: AppTextStyles.fig(14, FontWeight.w600)
-                            .copyWith(color: ink),
+        child: Builder(
+          builder: (ctx) {
+            final isDark = Theme.of(ctx).brightness == Brightness.dark;
+            final ink = isDark ? AppColors.onDark : AppColors.ink;
+            final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
+            return Row(
+              children: [
+                Icon(_modeIcon(session.mode), size: 18, color: AppColors.clay),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        session.listName,
+                        style: AppTextStyles.fig(
+                          14,
+                          FontWeight.w600,
+                        ).copyWith(color: ink),
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${_dirLabel(session.direction)} · ${session.cardCount} ${'stats.session_cards_unit'.tr()} · ${_formatDate(session.completedAt)}',
-                      style: AppTextStyles.caption.copyWith(color: muted),
-                    ),
-                  ],
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${_dirLabel(session.direction)} · ${session.cardCount} ${'stats.session_cards_unit'.tr()} · ${_formatDate(session.completedAt)}',
+                        style: AppTextStyles.caption.copyWith(color: muted),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Text('$pct %',
-                  style: AppTextStyles.fig(16, FontWeight.w800)
-                      .copyWith(color: scoreColor)),
-            ],
-          );
-        }),
+                const SizedBox(width: 12),
+                Text(
+                  '$pct %',
+                  style: AppTextStyles.fig(
+                    16,
+                    FontWeight.w800,
+                  ).copyWith(color: scoreColor),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

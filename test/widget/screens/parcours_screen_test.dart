@@ -9,7 +9,7 @@ import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/grammar/grammar_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
-import 'package:vocab_kr/presentation/screens/home/parcours_screen.dart';
+import 'package:vocab_kr/presentation/screens/home/v3_home_screen.dart';
 
 import '../../helpers/pump_screen.dart';
 
@@ -34,20 +34,21 @@ void main() {
     updatedAt: now,
   );
 
-  testWidgets('connects the path hero to the exact prerequisite list',
-      (tester) async {
+  testWidgets('connects the path hero to the exact prerequisite list', (
+    tester,
+  ) async {
     String? route;
     GoRoute stub(String path) => GoRoute(
-          path: path,
-          builder: (_, state) {
-            route = state.uri.toString();
-            return const SizedBox();
-          },
-        );
+      path: path,
+      builder: (_, state) {
+        route = state.uri.toString();
+        return const SizedBox();
+      },
+    );
 
     await pumpScreen(
       tester,
-      screen: const ParcoursScreen(),
+      screen: const V3HomeScreen(),
       overrides: [
         currentUserProvider.overrideWithValue(learner),
         myListsProvider.overrideWith((ref) => Stream.value([prerequisite])),
@@ -65,14 +66,17 @@ void main() {
     await tester.pump();
 
     expect(
-        find.byKey(const ValueKey(WidgetKeys.homeDailyPath)), findsOneWidget);
+      find.byKey(const ValueKey(WidgetKeys.homeDailyPath)),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey(WidgetKeys.homeGrammar)), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey(WidgetKeys.homeGrammar)));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
-    final resumeList =
-        find.text('v3.resume_list'.tr(namedArgs: {'name': prerequisite.name}));
+    final resumeList = find.text(
+      'v3.resume_list'.tr(namedArgs: {'name': prerequisite.name}),
+    );
     expect(resumeList, findsOneWidget);
 
     await tester.tap(resumeList);

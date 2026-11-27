@@ -21,8 +21,9 @@ class SeedCatalog {
   static const registryAsset = 'assets/seed/vocab/registry.json';
 
   static Future<SeedCatalog> load(AssetBundle bundle) async {
-    final raw = jsonDecode(await bundle.loadString(registryAsset))
-        as Map<String, dynamic>;
+    final raw =
+        jsonDecode(await bundle.loadString(registryAsset))
+            as Map<String, dynamic>;
     final lists = [
       for (final l in (raw['lists'] as List).cast<Map<String, dynamic>>())
         SeedList(
@@ -44,9 +45,9 @@ class SeedCatalog {
   /// universal lists plus any scoped to that language (e.g. the Korean
   /// particles list only exists for ko).
   List<SeedList> listsForTarget(String targetLang) => [
-        for (final l in lists)
-          if (l.targetLangs == null || l.targetLangs!.contains(targetLang)) l,
-      ];
+    for (final l in lists)
+      if (l.targetLangs == null || l.targetLangs!.contains(targetLang)) l,
+  ];
 }
 
 class SeedList {
@@ -80,8 +81,9 @@ class SeedLanguageLayer {
   static String assetFor(String lang) => 'assets/seed/vocab/lang/$lang.json';
 
   static Future<SeedLanguageLayer> load(AssetBundle bundle, String lang) async {
-    final raw = jsonDecode(await bundle.loadString(assetFor(lang)))
-        as Map<String, dynamic>;
+    final raw =
+        jsonDecode(await bundle.loadString(assetFor(lang)))
+            as Map<String, dynamic>;
     final entries = <String, SeedEntry>{};
     for (final MapEntry(key: id, value: e)
         in (raw['entries'] as Map<String, dynamic>).entries) {
@@ -99,11 +101,13 @@ class SeedLanguageLayer {
         example: map['example'] as String?,
         notes:
             (map['notes'] as Map<String, dynamic>?)?.cast<String, String>() ??
-                const {},
+            const {},
       );
     }
     return SeedLanguageLayer(
-        lang: raw['lang'] as String? ?? lang, entries: entries);
+      lang: raw['lang'] as String? ?? lang,
+      entries: entries,
+    );
   }
 }
 
@@ -156,16 +160,19 @@ class SeedTranslations {
   final List<Map<String, dynamic>> _maps;
 
   static Future<SeedTranslations> load(
-      AssetBundle bundle, List<String> localePriority) async {
+    AssetBundle bundle,
+    List<String> localePriority,
+  ) async {
     final maps = <Map<String, dynamic>>[];
     final seen = <String>{};
     for (final locale in localePriority) {
       final code = locale.split('_').first;
       if (!seen.add(code)) continue;
       try {
-        maps.add(jsonDecode(
-                await bundle.loadString('assets/translations/$code.json'))
-            as Map<String, dynamic>);
+        maps.add(
+          jsonDecode(await bundle.loadString('assets/translations/$code.json'))
+              as Map<String, dynamic>,
+        );
       } catch (_) {
         // Not a UI locale (or missing file) — try the next candidate.
       }

@@ -94,21 +94,24 @@ void main() {
     _FakeCache? cache,
     _FakeTts? tts,
     _FakeFilePlayer? player,
-  }) =>
-      AudioPlayerService(
-        usePremium: premium,
-        speechRate: speechRate,
-        assetCache: cache ?? _FakeCache(path: cachedPath),
-        tts: tts ?? _FakeTts(),
-        filePlayer: player ?? _FakeFilePlayer(),
-      );
+  }) => AudioPlayerService(
+    usePremium: premium,
+    speechRate: speechRate,
+    assetCache: cache ?? _FakeCache(path: cachedPath),
+    tts: tts ?? _FakeTts(),
+    filePlayer: player ?? _FakeFilePlayer(),
+  );
 
   test('non-premium playback always uses the device voice', () async {
     final cache = _FakeCache(path: '/cache/bonjour.mp3');
     final tts = _FakeTts();
     final player = _FakeFilePlayer();
-    final audio =
-        service(premium: false, cache: cache, tts: tts, player: player);
+    final audio = service(
+      premium: false,
+      cache: cache,
+      tts: tts,
+      player: player,
+    );
 
     await audio.speak('bonjour', 'fr', audioPath: 'seed/v1/fr/bonjour.mp3');
 
@@ -118,55 +121,64 @@ void main() {
     expect(cache.cleanupScheduled, 0);
   });
 
-  test('premium playback falls back to device TTS when no asset is published',
-      () async {
-    final cache = _FakeCache(path: '/cache/unused.mp3');
-    final tts = _FakeTts();
-    final audio = service(premium: true, cache: cache, tts: tts);
+  test(
+    'premium playback falls back to device TTS when no asset is published',
+    () async {
+      final cache = _FakeCache(path: '/cache/unused.mp3');
+      final tts = _FakeTts();
+      final audio = service(premium: true, cache: cache, tts: tts);
 
-    await audio.speak('salut', 'fr');
+      await audio.speak('salut', 'fr');
 
-    expect(tts.spoken, ['salut|fr']);
-    expect(cache.requested, isEmpty);
-    expect(cache.cleanupScheduled, 1);
-  });
+      expect(tts.spoken, ['salut|fr']);
+      expect(cache.requested, isEmpty);
+      expect(cache.cleanupScheduled, 1);
+    },
+  );
 
   test(
-      'premium playback uses a cached Storage clip at the chosen language rate',
-      () async {
-    final cache = _FakeCache(path: '/cache/annyeong.mp3');
-    final tts = _FakeTts();
-    final player = _FakeFilePlayer();
-    final audio = service(
-      premium: true,
-      cache: cache,
-      tts: tts,
-      player: player,
-      speechRate: .8,
-    );
+    'premium playback uses a cached Storage clip at the chosen language rate',
+    () async {
+      final cache = _FakeCache(path: '/cache/annyeong.mp3');
+      final tts = _FakeTts();
+      final player = _FakeFilePlayer();
+      final audio = service(
+        premium: true,
+        cache: cache,
+        tts: tts,
+        player: player,
+        speechRate: .8,
+      );
 
-    await audio.speak('안녕하세요', 'ko', audioPath: 'seed/v1/ko/a.mp3');
+      await audio.speak('안녕하세요', 'ko', audioPath: 'seed/v1/ko/a.mp3');
 
-    expect(cache.requested, ['seed/v1/ko/a.mp3']);
-    expect(player.rates.single, closeTo(.656, .0001));
-    expect(player.played, ['/cache/annyeong.mp3']);
-    expect(tts.spoken, isEmpty);
-  });
+      expect(cache.requested, ['seed/v1/ko/a.mp3']);
+      expect(player.rates.single, closeTo(.656, .0001));
+      expect(player.played, ['/cache/annyeong.mp3']);
+      expect(tts.spoken, isEmpty);
+    },
+  );
 
-  test('a premium cache miss keeps playback responsive with device TTS',
-      () async {
-    final cache = _FakeCache();
-    final tts = _FakeTts();
-    final player = _FakeFilePlayer();
-    final audio =
-        service(premium: true, cache: cache, tts: tts, player: player);
+  test(
+    'a premium cache miss keeps playback responsive with device TTS',
+    () async {
+      final cache = _FakeCache();
+      final tts = _FakeTts();
+      final player = _FakeFilePlayer();
+      final audio = service(
+        premium: true,
+        cache: cache,
+        tts: tts,
+        player: player,
+      );
 
-    await audio.speak('house', 'en', audioPath: 'seed/v1/en/house.mp3');
+      await audio.speak('house', 'en', audioPath: 'seed/v1/en/house.mp3');
 
-    expect(cache.requested, ['seed/v1/en/house.mp3']);
-    expect(tts.spoken, ['house|en']);
-    expect(player.played, isEmpty);
-  });
+      expect(cache.requested, ['seed/v1/en/house.mp3']);
+      expect(tts.spoken, ['house|en']);
+      expect(player.played, isEmpty);
+    },
+  );
 
   test('prefetch only downloads published premium assets', () async {
     final cache = _FakeCache(path: '/cache/word.mp3');
@@ -182,15 +194,18 @@ void main() {
 
   for (final dispose in [false, true]) {
     for (final cacheHit in [false, true]) {
-      test(
-          '${dispose ? 'dispose' : 'stop'} cancels a pending cache lookup '
+      test('${dispose ? 'dispose' : 'stop'} cancels a pending cache lookup '
           '(${cacheHit ? 'hit' : 'miss'})', () async {
         final download = Completer<String?>();
         final cache = _FakeCache()..pendingDownload = download;
         final tts = _FakeTts();
         final player = _FakeFilePlayer();
-        final audio =
-            service(premium: true, cache: cache, tts: tts, player: player);
+        final audio = service(
+          premium: true,
+          cache: cache,
+          tts: tts,
+          player: player,
+        );
 
         final speaking = audio.speak('house', 'en', audioPath: 'house.mp3');
         if (dispose) {
@@ -207,46 +222,53 @@ void main() {
       });
     }
 
-    test('${dispose ? 'dispose' : 'stop'} cancels playback pending its rate',
-        () async {
-      final rate = Completer<void>();
-      final player = _FakeFilePlayer()..pendingRate = rate;
-      final audio =
-          service(premium: true, cachedPath: '/cache/mot.mp3', player: player);
-      final speaking = audio.speak('mot', 'fr', audioPath: 'mot.mp3');
-      await Future<void>.delayed(Duration.zero);
-      expect(player.rates, hasLength(1));
+    test(
+      '${dispose ? 'dispose' : 'stop'} cancels playback pending its rate',
+      () async {
+        final rate = Completer<void>();
+        final player = _FakeFilePlayer()..pendingRate = rate;
+        final audio = service(
+          premium: true,
+          cachedPath: '/cache/mot.mp3',
+          player: player,
+        );
+        final speaking = audio.speak('mot', 'fr', audioPath: 'mot.mp3');
+        await Future<void>.delayed(Duration.zero);
+        expect(player.rates, hasLength(1));
 
-      if (dispose) {
-        audio.dispose();
-      } else {
-        await audio.stop();
-      }
-      rate.complete();
-      await speaking;
-      expect(player.played, isEmpty);
-    });
+        if (dispose) {
+          audio.dispose();
+        } else {
+          await audio.stop();
+        }
+        rate.complete();
+        await speaking;
+        expect(player.played, isEmpty);
+      },
+    );
   }
 
-  test('warm-up, state, stop, and disposal delegate to their engines',
-      () async {
-    final tts = _FakeTts()..speaking = true;
-    final player = _FakeFilePlayer();
-    final audio = service(premium: true, tts: tts, player: player);
+  test(
+    'warm-up, state, stop, and disposal delegate to their engines',
+    () async {
+      final tts = _FakeTts()..speaking = true;
+      final player = _FakeFilePlayer();
+      final audio = service(premium: true, tts: tts, player: player);
 
-    await audio.warmUp('ko');
-    expect(audio.isSpeaking, isTrue);
-    expect(await audio.state, PlayerState.stopped);
-    player.playing = true;
-    expect(audio.isSpeaking, isTrue);
-    expect(await audio.state, PlayerState.playing);
-    await audio.stop();
-    audio.dispose();
+      await audio.warmUp('ko');
+      expect(audio.isSpeaking, isTrue);
+      expect(await audio.state, PlayerState.stopped);
+      player.playing = true;
+      expect(audio.isSpeaking, isTrue);
+      expect(await audio.state, PlayerState.playing);
+      await audio.stop();
+      audio.dispose();
 
-    expect(tts.warmed, ['ko']);
-    expect(tts.stopped, 1);
-    expect(player.stopped, 1);
-    expect(tts.disposed, 1);
-    expect(player.disposed, 1);
-  });
+      expect(tts.warmed, ['ko']);
+      expect(tts.stopped, 1);
+      expect(player.stopped, 1);
+      expect(tts.disposed, 1);
+      expect(player.disposed, 1);
+    },
+  );
 }

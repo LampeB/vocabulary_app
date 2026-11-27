@@ -17,8 +17,8 @@ enum SttEngineMode { system, race }
 
 final sttEngineModeProvider =
     NotifierProvider<SttEngineModeNotifier, SttEngineMode>(
-  SttEngineModeNotifier.new,
-);
+      SttEngineModeNotifier.new,
+    );
 
 class SttEngineModeNotifier extends Notifier<SttEngineMode> {
   @override

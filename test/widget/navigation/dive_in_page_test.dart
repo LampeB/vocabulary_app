@@ -3,8 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/presentation/navigation/dive_in_page.dart';
 
 void main() {
-  testWidgets('uses a spatial scale transition when motion is enabled',
-      (tester) async {
+  testWidgets('uses a spatial scale transition when motion is enabled', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Navigator(

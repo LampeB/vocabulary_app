@@ -7,7 +7,10 @@ void main() {
   group('computeStreak', () {
     test('first ever study → streak 1', () {
       final u = computeStreak(
-          today: DateTime(2026, 7, 2), lastStudyDate: null, currentStreak: 0);
+        today: DateTime(2026, 7, 2),
+        lastStudyDate: null,
+        currentStreak: 0,
+      );
       expect(u.streak, 1);
       expect(u.alreadyCountedToday, isFalse);
     });

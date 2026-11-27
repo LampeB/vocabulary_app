@@ -32,9 +32,7 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       key: const ValueKey(WidgetKeys.screenProfile),
       // Background from AppTheme.scaffoldBackgroundColor.
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-      ),
+      appBar: AppBar(automaticallyImplyLeading: false),
       body: Stack(
         children: [
           const DottedGround(),
@@ -48,22 +46,23 @@ class ProfileScreen extends ConsumerWidget {
                 Center(
                   child: Column(
                     children: [
-                      _LargeAvatar(
-                        name: name,
-                        avatarUrl: user?.avatarUrl,
-                      ),
+                      _LargeAvatar(name: name, avatarUrl: user?.avatarUrl),
                       const SizedBox(height: 16),
                       Text(
                         name,
-                        style: AppTextStyles.grotesk(26, FontWeight.w700)
-                            .copyWith(color: cs.onSurface),
+                        style: AppTextStyles.grotesk(
+                          26,
+                          FontWeight.w700,
+                        ).copyWith(color: cs.onSurface),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '@$username',
                         key: const Key('profile_username'),
-                        style: AppTextStyles.mono(13, FontWeight.w400)
-                            .copyWith(color: faint),
+                        style: AppTextStyles.mono(
+                          13,
+                          FontWeight.w400,
+                        ).copyWith(color: faint),
                       ),
                     ],
                   ),
@@ -72,8 +71,10 @@ class ProfileScreen extends ConsumerWidget {
                 // ── Streak block ─────────────────────────────────────────────
                 FrostedBox(
                   borderRadius: BorderRadius.circular(20),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 20,
+                  ),
                   child: Row(
                     children: [
                       Icon(
@@ -95,18 +96,24 @@ class ProfileScreen extends ConsumerWidget {
                                 Text(
                                   '$streak',
                                   style:
-                                      AppTextStyles.grotesk(36, FontWeight.w700)
-                                          .copyWith(
-                                    color: streak > 0 ? AppColors.clay : faint,
-                                  ),
+                                      AppTextStyles.grotesk(
+                                        36,
+                                        FontWeight.w700,
+                                      ).copyWith(
+                                        color: streak > 0
+                                            ? AppColors.clay
+                                            : faint,
+                                      ),
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
                                   streak == 1
                                       ? 'home.streak_days_one'.tr()
                                       : 'home.streak_days_other'.tr(),
-                                  style: AppTextStyles.fig(16, FontWeight.w600)
-                                      .copyWith(color: muted),
+                                  style: AppTextStyles.fig(
+                                    16,
+                                    FontWeight.w600,
+                                  ).copyWith(color: muted),
                                 ),
                               ],
                             ),
@@ -114,8 +121,9 @@ class ProfileScreen extends ConsumerWidget {
                               streak > 0
                                   ? 'profile.streak_active'.tr()
                                   : 'profile.streak_inactive'.tr(),
-                              style:
-                                  AppTextStyles.caption.copyWith(color: faint),
+                              style: AppTextStyles.caption.copyWith(
+                                color: faint,
+                              ),
                             ),
                           ],
                         ),
@@ -174,13 +182,16 @@ class ProfileScreen extends ConsumerWidget {
                               isPremium
                                   ? 'common.premium'.tr()
                                   : 'common.free'.tr(),
-                              style: AppTextStyles.fig(15, FontWeight.w600)
-                                  .copyWith(color: cs.onSurface),
+                              style: AppTextStyles.fig(
+                                15,
+                                FontWeight.w600,
+                              ).copyWith(color: cs.onSurface),
                             ),
                             Text(
                               _subscriptionLabel(ref),
-                              style:
-                                  AppTextStyles.caption.copyWith(color: muted),
+                              style: AppTextStyles.caption.copyWith(
+                                color: muted,
+                              ),
                             ),
                           ],
                         ),
@@ -190,14 +201,20 @@ class ProfileScreen extends ConsumerWidget {
                           onTap: () => context.push('/paywall'),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 8),
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.clay,
                               borderRadius: BorderRadius.circular(999),
                             ),
-                            child: Text('profile.upgrade_button'.tr(),
-                                style: AppTextStyles.fig(12, FontWeight.w700)
-                                    .copyWith(color: Colors.white)),
+                            child: Text(
+                              'profile.upgrade_button'.tr(),
+                              style: AppTextStyles.fig(
+                                12,
+                                FontWeight.w700,
+                              ).copyWith(color: Colors.white),
+                            ),
                           ),
                         ),
                     ],
@@ -254,15 +271,20 @@ class ProfileScreen extends ConsumerWidget {
         content: Text('profile.signout_dialog_body'.tr()),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('common.cancel'.tr())),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('common.cancel'.tr()),
+          ),
           TextButton(
             key: const ValueKey(WidgetKeys.signOutConfirm),
             style: TextButton.styleFrom(foregroundColor: AppColors.rose),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('profile.signout_confirm'.tr(),
-                style: AppTextStyles.fig(14, FontWeight.w600)
-                    .copyWith(color: AppColors.rose)),
+            child: Text(
+              'profile.signout_confirm'.tr(),
+              style: AppTextStyles.fig(
+                14,
+                FontWeight.w600,
+              ).copyWith(color: AppColors.rose),
+            ),
           ),
         ],
       ),
@@ -305,9 +327,7 @@ class _LargeAvatar extends StatelessWidget {
               child: Image.network(
                 avatarUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Center(
-                  child: _initial(initial),
-                ),
+                errorBuilder: (_, _, _) => Center(child: _initial(initial)),
               ),
             )
           : Center(child: _initial(initial)),
@@ -315,10 +335,12 @@ class _LargeAvatar extends StatelessWidget {
   }
 
   Widget _initial(String letter) => Text(
-        letter,
-        style: AppTextStyles.grotesk(36, FontWeight.w700)
-            .copyWith(color: AppColors.clayDeep),
-      );
+    letter,
+    style: AppTextStyles.grotesk(
+      36,
+      FontWeight.w700,
+    ).copyWith(color: AppColors.clayDeep),
+  );
 }
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
@@ -353,13 +375,19 @@ class _StatCard extends StatelessWidget {
               children: [
                 Text(
                   value,
-                  style: AppTextStyles.grotesk(32, FontWeight.w700)
-                      .copyWith(color: accent),
+                  style: AppTextStyles.grotesk(
+                    32,
+                    FontWeight.w700,
+                  ).copyWith(color: accent),
                 ),
                 if (suffix.isNotEmpty)
-                  Text(suffix,
-                      style: AppTextStyles.fig(14, FontWeight.w600)
-                          .copyWith(color: accent)),
+                  Text(
+                    suffix,
+                    style: AppTextStyles.fig(
+                      14,
+                      FontWeight.w600,
+                    ).copyWith(color: accent),
+                  ),
               ],
             ),
             const SizedBox(height: 2),
@@ -428,9 +456,13 @@ class _ActionTile extends StatelessWidget {
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Text(label,
-                  style: AppTextStyles.fig(15, FontWeight.w500)
-                      .copyWith(color: color)),
+              child: Text(
+                label,
+                style: AppTextStyles.fig(
+                  15,
+                  FontWeight.w500,
+                ).copyWith(color: color),
+              ),
             ),
             if (!destructive)
               Icon(Icons.chevron_right_rounded, color: faint, size: 20),

@@ -99,7 +99,7 @@ void main() {
         await service.startListening(
           langCode: 'fr',
           promptHints: const ['thé'],
-          onFinal: (_, __) {},
+          onFinal: (_, _) {},
         ),
         isFalse,
       );
@@ -116,7 +116,7 @@ void main() {
         await service.startListening(
           langCode: 'fr',
           promptHints: const [],
-          onFinal: (_, __) {},
+          onFinal: (_, _) {},
         ),
         isFalse,
       );
@@ -170,7 +170,7 @@ void main() {
         await service.startListening(
           langCode: 'ko',
           promptHints: const [],
-          onFinal: (_, __) => fail('a bad transcript must not be final'),
+          onFinal: (_, _) => fail('a bad transcript must not be final'),
           onSessionEnd: sessionEnded.complete,
         );
         _emitUtterance(mic);
@@ -182,59 +182,62 @@ void main() {
     });
 
     test(
-        'stops an existing capture before opening the next one and disposes it',
-        () async {
-      final mic = _FakeMicrophone();
-      final service = ElevenLabsSpeechService(microphone: mic);
+      'stops an existing capture before opening the next one and disposes it',
+      () async {
+        final mic = _FakeMicrophone();
+        final service = ElevenLabsSpeechService(microphone: mic);
 
-      await service.startListening(
-        langCode: 'en',
-        promptHints: const [],
-        onFinal: (_, __) {},
-      );
-      await service.startListening(
-        langCode: 'ko',
-        promptHints: const [],
-        onFinal: (_, __) {},
-      );
-      expect(mic.starts, 2);
-      expect(mic.stops, 1);
+        await service.startListening(
+          langCode: 'en',
+          promptHints: const [],
+          onFinal: (_, _) {},
+        );
+        await service.startListening(
+          langCode: 'ko',
+          promptHints: const [],
+          onFinal: (_, _) {},
+        );
+        expect(mic.starts, 2);
+        expect(mic.stops, 1);
 
-      service.dispose();
-      await Future<void>.delayed(Duration.zero);
-      expect(mic.stops, 2);
-      expect(mic.disposals, 1);
-      mic.stream.close();
-    });
+        service.dispose();
+        await Future<void>.delayed(Duration.zero);
+        expect(mic.stops, 2);
+        expect(mic.disposals, 1);
+        mic.stream.close();
+      },
+    );
 
-    test('drops excess completed segments while cloud work is backlogged',
-        () async {
-      final mic = _FakeMicrophone();
-      final pending = Completer<String?>();
-      final cloud = _FakeTranscriber(pendingResponse: pending.future);
-      final service = ElevenLabsSpeechService(
-        microphone: mic,
-        transcriber: cloud,
-      );
-      await service.startListening(
-        langCode: 'fr',
-        promptHints: const [],
-        onFinal: (_, __) {},
-      );
+    test(
+      'drops excess completed segments while cloud work is backlogged',
+      () async {
+        final mic = _FakeMicrophone();
+        final pending = Completer<String?>();
+        final cloud = _FakeTranscriber(pendingResponse: pending.future);
+        final service = ElevenLabsSpeechService(
+          microphone: mic,
+          transcriber: cloud,
+        );
+        await service.startListening(
+          langCode: 'fr',
+          promptHints: const [],
+          onFinal: (_, _) {},
+        );
 
-      _emitUtterance(mic);
-      _emitUtterance(mic);
-      _emitUtterance(mic);
-      await Future<void>.delayed(Duration.zero);
-      expect(cloud.calls, hasLength(1));
+        _emitUtterance(mic);
+        _emitUtterance(mic);
+        _emitUtterance(mic);
+        await Future<void>.delayed(Duration.zero);
+        expect(cloud.calls, hasLength(1));
 
-      pending.complete('pomme');
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
-      expect(cloud.calls, hasLength(2));
-      await service.stopListening();
-      mic.stream.close();
-    });
+        pending.complete('pomme');
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+        expect(cloud.calls, hasLength(2));
+        await service.stopListening();
+        mic.stream.close();
+      },
+    );
 
     test('swallows a microphone stop error', () async {
       final mic = _FakeMicrophone(stopError: StateError('already closed'));
@@ -242,7 +245,7 @@ void main() {
       await service.startListening(
         langCode: 'fr',
         promptHints: const [],
-        onFinal: (_, __) {},
+        onFinal: (_, _) {},
       );
 
       await service.stopListening();
@@ -253,35 +256,52 @@ void main() {
   });
 
   group('ElevenLabsSpeechService.transcribeSegment (shared capture)', () {
-    test('sends the PCM with language and expected word; cleans the text',
-        () async {
-      final transcriber = _FakeTranscriber(response: '가다.');
-      final service = ElevenLabsSpeechService(
-          microphone: _FakeMicrophone(), transcriber: transcriber);
-      final pcm = Uint8List(64);
-      final text = await service.transcribeSegment(
-          pcm16: pcm, langCode: 'ko', expectedWord: '가다');
-      expect(text, '가다');
-      expect(transcriber.calls.single.pcm16, same(pcm));
-      expect(transcriber.calls.single.langCode, 'ko');
-      expect(transcriber.calls.single.expectedWord, '가다');
-    });
+    test(
+      'sends the PCM with language and expected word; cleans the text',
+      () async {
+        final transcriber = _FakeTranscriber(response: '가다.');
+        final service = ElevenLabsSpeechService(
+          microphone: _FakeMicrophone(),
+          transcriber: transcriber,
+        );
+        final pcm = Uint8List(64);
+        final text = await service.transcribeSegment(
+          pcm16: pcm,
+          langCode: 'ko',
+          expectedWord: '가다',
+        );
+        expect(text, '가다');
+        expect(transcriber.calls.single.pcm16, same(pcm));
+        expect(transcriber.calls.single.langCode, 'ko');
+        expect(transcriber.calls.single.expectedWord, '가다');
+      },
+    );
 
     test('an empty reply is null; a transport failure is rethrown', () async {
       final empty = ElevenLabsSpeechService(
-          microphone: _FakeMicrophone(),
-          transcriber: _FakeTranscriber(response: null));
+        microphone: _FakeMicrophone(),
+        transcriber: _FakeTranscriber(response: null),
+      );
       expect(
-          await empty.transcribeSegment(
-              pcm16: Uint8List(8), langCode: 'fr', expectedWord: ''),
-          isNull);
+        await empty.transcribeSegment(
+          pcm16: Uint8List(8),
+          langCode: 'fr',
+          expectedWord: '',
+        ),
+        isNull,
+      );
       final broken = ElevenLabsSpeechService(
-          microphone: _FakeMicrophone(),
-          transcriber: _FakeTranscriber(error: Exception('offline')));
+        microphone: _FakeMicrophone(),
+        transcriber: _FakeTranscriber(error: Exception('offline')),
+      );
       expect(
-          broken.transcribeSegment(
-              pcm16: Uint8List(8), langCode: 'fr', expectedWord: ''),
-          throwsException);
+        broken.transcribeSegment(
+          pcm16: Uint8List(8),
+          langCode: 'fr',
+          expectedWord: '',
+        ),
+        throwsException,
+      );
     });
   });
 }

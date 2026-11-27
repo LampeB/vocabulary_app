@@ -57,8 +57,10 @@ class _NearMissSessionScreenState extends State<NearMissSessionScreen>
   late final SttCorpusRecorder _recorder =
       widget.recorder ?? SttCorpusRecorder();
   final _speaker = TextEditingController();
-  late final AnimationController _bar =
-      AnimationController(vsync: this, duration: widget.takeDuration);
+  late final AnimationController _bar = AnimationController(
+    vsync: this,
+    duration: widget.takeDuration,
+  );
 
   String _lang = 'ko';
   String _condition = 'calme';
@@ -107,10 +109,12 @@ class _NearMissSessionScreenState extends State<NearMissSessionScreen>
     final prompts = nearMissPromptsFor(_lang, speaker);
     // Resume where this participant stopped (same language + condition).
     final done = (await _recorder.samples())
-        .where((s) =>
-            s.meta['speaker'] == speaker &&
-            s.meta['condition'] == _condition &&
-            s.langCode == _lang)
+        .where(
+          (s) =>
+              s.meta['speaker'] == speaker &&
+              s.meta['condition'] == _condition &&
+              s.langCode == _lang,
+        )
         .map((s) => s.word)
         .toSet();
     final first = prompts.indexWhere((p) => !done.contains(p.spoken));
@@ -186,14 +190,17 @@ class _NearMissSessionScreenState extends State<NearMissSessionScreen>
     return ListView(
       children: [
         const Text(
-            'Un participant par séance. Le nom sert à retrouver ses prises '
-            '(P1, P2… suffit).'),
+          'Un participant par séance. Le nom sert à retrouver ses prises '
+          '(P1, P2… suffit).',
+        ),
         const SizedBox(height: 16),
         TextField(
           key: const ValueKey('near_miss_speaker'),
           controller: _speaker,
-          decoration:
-              const InputDecoration(labelText: 'Participant', hintText: 'P1'),
+          decoration: const InputDecoration(
+            labelText: 'Participant',
+            hintText: 'P1',
+          ),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 16),
@@ -234,9 +241,11 @@ class _NearMissSessionScreenState extends State<NearMissSessionScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(_doneLabel.of(_lang),
-              textAlign: TextAlign.center,
-              style: theme.textTheme.headlineMedium),
+          Text(
+            _doneLabel.of(_lang),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.headlineMedium,
+          ),
           const SizedBox(height: 24),
           FilledButton(
             onPressed: () {
@@ -255,8 +264,11 @@ class _NearMissSessionScreenState extends State<NearMissSessionScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('${_index + 1} / ${prompts.length}',
-            textAlign: TextAlign.center, style: theme.textTheme.titleMedium),
+        Text(
+          '${_index + 1} / ${prompts.length}',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.titleMedium,
+        ),
         const SizedBox(height: 8),
         Text(_instruction.of(_lang), textAlign: TextAlign.center),
         Expanded(
@@ -265,15 +277,16 @@ class _NearMissSessionScreenState extends State<NearMissSessionScreen>
               child: Text(
                 p.spoken,
                 key: const ValueKey('near_miss_word'),
-                style: theme.textTheme.displayLarge
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style: theme.textTheme.displayLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
         ),
         AnimatedBuilder(
           animation: _bar,
-          builder: (_, __) => LinearProgressIndicator(
+          builder: (_, _) => LinearProgressIndicator(
             value: _recording ? _bar.value : 0,
             minHeight: 6,
           ),
@@ -311,12 +324,17 @@ class _NearMissSessionScreenState extends State<NearMissSessionScreen>
           ],
         ),
         if (_error != null)
-          Text(_error!,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: theme.colorScheme.error)),
+          Text(
+            _error!,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: theme.colorScheme.error),
+          ),
         const SizedBox(height: 8),
-        Text(_consent.of(_lang),
-            textAlign: TextAlign.center, style: theme.textTheme.bodySmall),
+        Text(
+          _consent.of(_lang),
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall,
+        ),
       ],
     );
   }
@@ -333,8 +351,10 @@ class _ProgressBoard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (rows.isEmpty) {
-      return Text('Aucun participant pour l\'instant.',
-          style: theme.textTheme.bodyMedium);
+      return Text(
+        'Aucun participant pour l\'instant.',
+        style: theme.textTheme.bodyMedium,
+      );
     }
     final people = rows.map((r) => r.speaker).toSet().length;
     final complete = rows.where((r) => r.complete).length;
@@ -346,8 +366,9 @@ class _ProgressBoard extends StatelessWidget {
         Text('Participants', style: theme.textTheme.titleMedium),
         const SizedBox(height: 4),
         Text(
-            '${_n(people, 'personne')} · ${_n(complete, 'séance complète', 'séances complètes')} · '
-            '${_n(takes, 'mot enregistré', 'mots enregistrés')}'),
+          '${_n(people, 'personne')} · ${_n(complete, 'séance complète', 'séances complètes')} · '
+          '${_n(takes, 'mot enregistré', 'mots enregistrés')}',
+        ),
         const SizedBox(height: 8),
         for (final r in rows)
           ListTile(
@@ -359,19 +380,24 @@ class _ProgressBoard extends StatelessWidget {
                   : Icons.radio_button_unchecked,
               color: r.complete ? Colors.green.shade600 : null,
             ),
-            title: Text('${r.speaker} · '
-                '${r.langCode == 'ko' ? '한국어' : 'Français'}'
-                '${r.condition.isEmpty ? '' : ' · ${r.condition}'}'),
+            title: Text(
+              '${r.speaker} · '
+              '${r.langCode == 'ko' ? '한국어' : 'Français'}'
+              '${r.condition.isEmpty ? '' : ' · ${r.condition}'}',
+            ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 4),
                 LinearProgressIndicator(
-                    value: r.total == 0 ? 0 : r.done / r.total),
+                  value: r.total == 0 ? 0 : r.done / r.total,
+                ),
                 const SizedBox(height: 4),
-                Text('${r.done} / ${r.total} · dernière prise '
-                    '${TimeOfDay.fromDateTime(r.lastTakeAt.toLocal()).format(context)}'
-                    '${r.complete ? '' : ' · toucher pour reprendre'}'),
+                Text(
+                  '${r.done} / ${r.total} · dernière prise '
+                  '${TimeOfDay.fromDateTime(r.lastTakeAt.toLocal()).format(context)}'
+                  '${r.complete ? '' : ' · toucher pour reprendre'}',
+                ),
               ],
             ),
           ),

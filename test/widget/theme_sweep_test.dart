@@ -55,20 +55,23 @@ import '../helpers/pump_screen.dart';
 final _now = DateTime(2026, 7, 4);
 
 AppUser _user() => AppUser(
-      id: 'u',
-      email: 't@t.fr',
-      username: 'thomas',
-      currentStreak: 3,
-      subscriptionType: SubscriptionType.free,
-      createdAt: _now,
-    );
+  id: 'u',
+  email: 't@t.fr',
+  username: 'thomas',
+  currentStreak: 3,
+  subscriptionType: SubscriptionType.free,
+  createdAt: _now,
+);
 
 class _NoopAudio implements AudioPlayerService {
   @override
   Future<void> warmUp(String langCode) async {}
   @override
-  Future<void> prefetch(String text, String langCode,
-      {String? audioPath}) async {}
+  Future<void> prefetch(
+    String text,
+    String langCode, {
+    String? audioPath,
+  }) async {}
   @override
   Future<void> speak(String text, String langCode, {String? audioPath}) async {}
   @override
@@ -123,8 +126,7 @@ class _FakeSocialRepo implements SocialRepository {
     required LeaderboardPeriod period,
     int limit = 100,
     bool friendsOnly = false,
-  }) async =>
-      const Success([]);
+  }) async => const Success([]);
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -141,8 +143,7 @@ class _EmptyProgressRepo implements ProgressRepository {
     required String listId,
     required QuizDirection direction,
     int limit = 20,
-  }) async =>
-      const Success([]);
+  }) async => const Success([]);
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -168,46 +169,57 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     vocabRepo = VocabularyRepositoryImpl(
-        db.vocabularyListDao, db.conceptDao, FakeRemote(), 'u', db);
+      db.vocabularyListDao,
+      db.conceptDao,
+      FakeRemote(),
+      'u',
+      db,
+    );
   });
   tearDown(() => SttSimulator.mode = '');
 
   List<Override> overrides() => [
-        currentUserProvider.overrideWithValue(_user()),
-        authStateProvider.overrideWith(_FakeAuthNotifier.new),
-        authRepositoryProvider.overrideWithValue(_FakeAuthRepo()),
-        isPremiumProvider.overrideWithValue(false),
-        customerInfoProvider.overrideWith((ref) => const Stream.empty()),
-        offeringsProvider.overrideWith((ref) async => null),
-        vocabularyRepositoryProvider.overrideWithValue(vocabRepo),
-        appDatabaseProvider.overrideWithValue(db),
-        vocabularyRemoteProvider.overrideWithValue(FakeRemote()),
-        progressRepositoryProvider.overrideWithValue(_EmptyProgressRepo()),
-        getDueCardsUseCaseProvider
-            .overrideWithValue(GetDueCardsUseCase(_EmptyProgressRepo())),
-        audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
-        notificationSettingsProvider.overrideWith(_FakeNotifSettings.new),
-        notificationServiceProvider.overrideWithValue(_FakeNotifService()),
-        socialRepositoryProvider.overrideWithValue(_FakeSocialRepo()),
-        socialRemoteDataSourceProvider.overrideWithValue(_FakeSocialRemote()),
-        syncOnLoginProvider.overrideWith((ref) async {}),
-        myListsProvider.overrideWith((ref) => Stream.value(const [])),
-        dueCountProvider.overrideWith((ref) => Stream.value(0)),
-        quizHistoryProvider.overrideWith((ref) async => const []),
-        masteredOverTimeProvider.overrideWith((ref) async => const []),
-        connectivityStreamProvider
-            .overrideWith((ref) => Stream.value([ConnectivityResult.wifi])),
-      ];
+    currentUserProvider.overrideWithValue(_user()),
+    authStateProvider.overrideWith(_FakeAuthNotifier.new),
+    authRepositoryProvider.overrideWithValue(_FakeAuthRepo()),
+    isPremiumProvider.overrideWithValue(false),
+    customerInfoProvider.overrideWith((ref) => const Stream.empty()),
+    offeringsProvider.overrideWith((ref) async => null),
+    vocabularyRepositoryProvider.overrideWithValue(vocabRepo),
+    appDatabaseProvider.overrideWithValue(db),
+    vocabularyRemoteProvider.overrideWithValue(FakeRemote()),
+    progressRepositoryProvider.overrideWithValue(_EmptyProgressRepo()),
+    getDueCardsUseCaseProvider.overrideWithValue(
+      GetDueCardsUseCase(_EmptyProgressRepo()),
+    ),
+    audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
+    notificationSettingsProvider.overrideWith(_FakeNotifSettings.new),
+    notificationServiceProvider.overrideWithValue(_FakeNotifService()),
+    socialRepositoryProvider.overrideWithValue(_FakeSocialRepo()),
+    socialRemoteDataSourceProvider.overrideWithValue(_FakeSocialRemote()),
+    syncOnLoginProvider.overrideWith((ref) async {}),
+    myListsProvider.overrideWith((ref) => Stream.value(const [])),
+    dueCountProvider.overrideWith((ref) => Stream.value(0)),
+    quizHistoryProvider.overrideWith((ref) async => const []),
+    masteredOverTimeProvider.overrideWith((ref) async => const []),
+    connectivityStreamProvider.overrideWith(
+      (ref) => Stream.value([ConnectivityResult.wifi]),
+    ),
+  ];
 
   final specs = <_ScreenSpec>[
     _ScreenSpec('HomeScreen', () => const HomeScreen(), settle: false),
     _ScreenSpec('ListsScreen', () => const ListsScreen()),
     _ScreenSpec(
-        'ListDetailScreen', () => const ListDetailScreen(listId: 'missing')),
+      'ListDetailScreen',
+      () => const ListDetailScreen(listId: 'missing'),
+    ),
     _ScreenSpec('StartSessionScreen', () => const StartSessionScreen()),
     _ScreenSpec('SettingsScreen', () => const SettingsScreen()),
     _ScreenSpec(
-        'NotificationSettingsScreen', () => const NotificationSettingsScreen()),
+      'NotificationSettingsScreen',
+      () => const NotificationSettingsScreen(),
+    ),
     _ScreenSpec('ProfileScreen', () => const ProfileScreen()),
     _ScreenSpec('StatsScreen', () => const StatsScreen()),
     _ScreenSpec('SocialScreen', () => const SocialScreen()),
@@ -215,26 +227,31 @@ void main() {
     _ScreenSpec('AuthScreen', () => const AuthScreen()),
     _ScreenSpec('WelcomeScreen', () => const WelcomeScreen(), settle: false),
     _ScreenSpec(
-        'QuizScreen (summary state)',
-        () => const QuizScreen(
-              args: QuizArgs(
-                listId: 'l',
-                mode: QuizMode.flashcard,
-                direction: QuizDirectionChoice.frToKo,
-                cardLimit: 1,
-              ),
-            ),
-        settle: false),
-    _ScreenSpec('AppShell', () => const AppShell(child: SizedBox()),
-        settle: false),
+      'QuizScreen (summary state)',
+      () => const QuizScreen(
+        args: QuizArgs(
+          listId: 'l',
+          mode: QuizMode.flashcard,
+          direction: QuizDirectionChoice.frToKo,
+          cardLimit: 1,
+        ),
+      ),
+      settle: false,
+    ),
+    _ScreenSpec(
+      'AppShell',
+      () => const AppShell(child: SizedBox()),
+      settle: false,
+    ),
   ];
 
   for (final mode in [ThemeMode.light, ThemeMode.dark]) {
     final isDark = mode == ThemeMode.dark;
     group('${mode.name} mode', () {
       for (final spec in specs) {
-        testWidgets('${spec.name} renders and follows the theme',
-            (tester) async {
+        testWidgets('${spec.name} renders and follows the theme', (
+          tester,
+        ) async {
           await pumpScreen(
             tester,
             screen: spec.build(),
@@ -249,13 +266,15 @@ void main() {
           // Effective background of the first Scaffold must match the theme.
           final scaffoldFinder = find.byType(Scaffold).first;
           final scaffold = tester.widget<Scaffold>(scaffoldFinder);
-          final bg = scaffold.backgroundColor ??
+          final bg =
+              scaffold.backgroundColor ??
               Theme.of(tester.element(scaffoldFinder)).scaffoldBackgroundColor;
           final luminance = bg.computeLuminance();
           expect(
             isDark ? luminance < 0.5 : luminance > 0.5,
             isTrue,
-            reason: '${spec.name} in ${mode.name} mode has scaffold '
+            reason:
+                '${spec.name} in ${mode.name} mode has scaffold '
                 'background $bg (luminance ${luminance.toStringAsFixed(2)}) — '
                 'not following the theme',
           );

@@ -19,8 +19,10 @@ import '../../helpers/pump_screen.dart';
 void main() {
   setUpAll(initTestLocalization);
 
-  Future<void> pump(WidgetTester tester,
-      {required FutureOr<dynamic> Function() offerings}) {
+  Future<void> pump(
+    WidgetTester tester, {
+    required FutureOr<dynamic> Function() offerings,
+  }) {
     return pumpScreen(
       tester,
       screen: const PaywallScreen(),
@@ -38,21 +40,25 @@ void main() {
     await pump(tester, offerings: () => null);
 
     expect(
-        find.byKey(const ValueKey(WidgetKeys.screenPaywall)), findsOneWidget);
+      find.byKey(const ValueKey(WidgetKeys.screenPaywall)),
+      findsOneWidget,
+    );
     expect(find.text('paywall.title'.tr()), findsOneWidget);
     expect(find.byIcon(Icons.workspace_premium_outlined), findsOneWidget);
   });
 
-  testWidgets('null offerings (store unreachable) shows the fallback message',
-      (tester) async {
+  testWidgets('null offerings (store unreachable) shows the fallback message', (
+    tester,
+  ) async {
     await pump(tester, offerings: () => null);
     await tester.pump();
 
     expect(find.text('paywall.offerings_unavailable'.tr()), findsOneWidget);
   });
 
-  testWidgets('offerings error also degrades to the fallback message',
-      (tester) async {
+  testWidgets('offerings error also degrades to the fallback message', (
+    tester,
+  ) async {
     await pump(tester, offerings: () => throw Exception('store down'));
     await tester.pump();
 

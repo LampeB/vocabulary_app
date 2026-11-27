@@ -85,9 +85,9 @@ abstract final class Languages {
   /// binary `isKorean` checks. Extend as non-Latin languages are added
   /// (ja → kana/kanji, zh → han, ru → cyrillic…).
   static Script scriptFor(String langCode) => switch (langCode) {
-        'ko' => Script.hangul,
-        _ => Script.latin,
-      };
+    'ko' => Script.hangul,
+    _ => Script.latin,
+  };
 
   /// True when [langCode] is written in Hangul and needs the Korean font +
   /// jamo-aware answer scoring. The single source of truth for what used to be

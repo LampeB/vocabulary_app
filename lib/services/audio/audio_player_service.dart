@@ -38,11 +38,11 @@ class AudioPlayerService {
     AudioAssetCache? assetCache,
     DeviceSpeech? tts,
     FileAudioPlayer? filePlayer,
-  })  : _elevenlabs = ElevenLabsService(voiceIds: voiceIds),
-        _tts = tts ?? FlutterTtsService(speechRate: speechRate, pitch: pitch),
-        _player = filePlayer ?? _AudioplayersFilePlayer(),
-        _speechRate = speechRate,
-        _usePremium = usePremium {
+  }) : _elevenlabs = ElevenLabsService(voiceIds: voiceIds),
+       _tts = tts ?? FlutterTtsService(speechRate: speechRate, pitch: pitch),
+       _player = filePlayer ?? _AudioplayersFilePlayer(),
+       _speechRate = speechRate,
+       _usePremium = usePremium {
     _assetCache = assetCache ?? _elevenlabs;
     if (usePremium) _assetCache.scheduleIdleCacheCleanup();
   }
@@ -91,8 +91,11 @@ class AudioPlayerService {
 
   /// Downloads [audioPath] without playing it. This is intentionally a
   /// Storage-only operation: no quiz can create a paid TTS render.
-  Future<void> prefetch(String text, String langCode,
-      {String? audioPath}) async {
+  Future<void> prefetch(
+    String text,
+    String langCode, {
+    String? audioPath,
+  }) async {
     if (!_usePremium || audioPath == null) return;
     await _assetCache.downloadAndCache(audioPath);
   }

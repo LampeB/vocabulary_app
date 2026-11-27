@@ -29,17 +29,19 @@ void main() {
       late LatinGrammarModule module;
 
       setUpAll(() async {
-        final raw =
-            await rootBundle.loadString('assets/seed/grammar/$lang/rules.json');
+        final raw = await rootBundle.loadString(
+          'assets/seed/grammar/$lang/rules.json',
+        );
         rules = [
           for (final j
               in (jsonDecode(raw) as Map<String, dynamic>)['rules'] as List)
             GrammarRule.fromJson(j as Map<String, dynamic>),
         ];
         final irregulars = {
-          for (final m in rules
-              .map((r) => r.mechanics)
-              .whereType<ConjugationMechanics>())
+          for (final m
+              in rules
+                  .map((r) => r.mechanics)
+                  .whereType<ConjugationMechanics>())
             ...m.irregulars,
         };
         module = makeModule(irregulars);
@@ -51,8 +53,11 @@ void main() {
           expect(r.mechanics, isNot(isA<UnsupportedMechanics>()), reason: r.id);
           expect(r.title('en'), isNotEmpty, reason: r.id);
           expect(r.explanation('en'), isNotEmpty, reason: r.id);
-          expect(r.testVectors.length, greaterThanOrEqualTo(8),
-              reason: '${r.id} is under-specified');
+          expect(
+            r.testVectors.length,
+            greaterThanOrEqualTo(8),
+            reason: '${r.id} is under-specified',
+          );
         }
       });
 
@@ -61,19 +66,30 @@ void main() {
         for (final rule in rules) {
           for (final v in rule.testVectors) {
             final first = v.context.isEmpty ? '' : v.context.split(' ').first;
-            final variantKey =
-                RegExp(r'^p[123]sg$').hasMatch(first) ? first : null;
+            final variantKey = RegExp(r'^p[123]sg$').hasMatch(first)
+                ? first
+                : null;
             final tags = ['m', 'f', 'n'].contains(first) ? [first] : <String>[];
-            final answer =
-                module.apply(rule, v.input, variantKey: variantKey, tags: tags);
-            expect(answer.expected, v.expected,
-                reason: '$lang/${rule.id}: ${v.input} (${v.context})');
+            final answer = module.apply(
+              rule,
+              v.input,
+              variantKey: variantKey,
+              tags: tags,
+            );
+            expect(
+              answer.expected,
+              v.expected,
+              reason: '$lang/${rule.id}: ${v.input} (${v.context})',
+            );
             expect(answer.accepted, contains(v.expected));
             checked++;
           }
         }
-        expect(checked, greaterThanOrEqualTo(30),
-            reason: '$lang curriculum has too few vectors');
+        expect(
+          checked,
+          greaterThanOrEqualTo(30),
+          reason: '$lang curriculum has too few vectors',
+        );
       });
     });
   }

@@ -14,7 +14,7 @@ _$VocabularyListImpl _$$VocabularyListImplFromJson(Map<String, dynamic> json) =>
       description: json['description'] as String?,
       visibility:
           $enumDecodeNullable(_$ListVisibilityEnumMap, json['visibility']) ??
-              ListVisibility.private,
+          ListVisibility.private,
       wordCount: (json['wordCount'] as num?)?.toInt() ?? 0,
       shareToken: json['shareToken'] as String?,
       importedFromShareToken: json['importedFromShareToken'] as String?,
@@ -29,25 +29,25 @@ _$VocabularyListImpl _$$VocabularyListImplFromJson(Map<String, dynamic> json) =>
     );
 
 Map<String, dynamic> _$$VocabularyListImplToJson(
-        _$VocabularyListImpl instance) =>
-    <String, dynamic>{
-      'id': instance.id,
-      'ownerId': instance.ownerId,
-      'name': instance.name,
-      'description': instance.description,
-      'visibility': _$ListVisibilityEnumMap[instance.visibility]!,
-      'wordCount': instance.wordCount,
-      'shareToken': instance.shareToken,
-      'importedFromShareToken': instance.importedFromShareToken,
-      'langA': instance.langA,
-      'langB': instance.langB,
-      'origin': instance.origin,
-      'seedId': instance.seedId,
-      'isSynced': instance.isSynced,
-      'isDeleted': instance.isDeleted,
-      'createdAt': instance.createdAt.toIso8601String(),
-      'updatedAt': instance.updatedAt.toIso8601String(),
-    };
+  _$VocabularyListImpl instance,
+) => <String, dynamic>{
+  'id': instance.id,
+  'ownerId': instance.ownerId,
+  'name': instance.name,
+  'description': instance.description,
+  'visibility': _$ListVisibilityEnumMap[instance.visibility]!,
+  'wordCount': instance.wordCount,
+  'shareToken': instance.shareToken,
+  'importedFromShareToken': instance.importedFromShareToken,
+  'langA': instance.langA,
+  'langB': instance.langB,
+  'origin': instance.origin,
+  'seedId': instance.seedId,
+  'isSynced': instance.isSynced,
+  'isDeleted': instance.isDeleted,
+  'createdAt': instance.createdAt.toIso8601String(),
+  'updatedAt': instance.updatedAt.toIso8601String(),
+};
 
 const _$ListVisibilityEnumMap = {
   ListVisibility.private: 'private',

@@ -12,7 +12,8 @@ part of 'concept.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
+  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
+);
 
 Concept _$ConceptFromJson(Map<String, dynamic> json) {
   return _Concept.fromJson(json);
@@ -49,19 +50,20 @@ abstract class $ConceptCopyWith<$Res> {
   factory $ConceptCopyWith(Concept value, $Res Function(Concept) then) =
       _$ConceptCopyWithImpl<$Res, Concept>;
   @useResult
-  $Res call(
-      {String id,
-      String listId,
-      String? category,
-      String? notes,
-      String? imageUrl,
-      String? exampleFr,
-      String? exampleKo,
-      String? seedId,
-      bool isSynced,
-      bool isDeleted,
-      DateTime createdAt,
-      DateTime updatedAt});
+  $Res call({
+    String id,
+    String listId,
+    String? category,
+    String? notes,
+    String? imageUrl,
+    String? exampleFr,
+    String? exampleKo,
+    String? seedId,
+    bool isSynced,
+    bool isDeleted,
+    DateTime createdAt,
+    DateTime updatedAt,
+  });
 }
 
 /// @nodoc
@@ -92,79 +94,84 @@ class _$ConceptCopyWithImpl<$Res, $Val extends Concept>
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
-    return _then(_value.copyWith(
-      id: null == id
-          ? _value.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      listId: null == listId
-          ? _value.listId
-          : listId // ignore: cast_nullable_to_non_nullable
-              as String,
-      category: freezed == category
-          ? _value.category
-          : category // ignore: cast_nullable_to_non_nullable
-              as String?,
-      notes: freezed == notes
-          ? _value.notes
-          : notes // ignore: cast_nullable_to_non_nullable
-              as String?,
-      imageUrl: freezed == imageUrl
-          ? _value.imageUrl
-          : imageUrl // ignore: cast_nullable_to_non_nullable
-              as String?,
-      exampleFr: freezed == exampleFr
-          ? _value.exampleFr
-          : exampleFr // ignore: cast_nullable_to_non_nullable
-              as String?,
-      exampleKo: freezed == exampleKo
-          ? _value.exampleKo
-          : exampleKo // ignore: cast_nullable_to_non_nullable
-              as String?,
-      seedId: freezed == seedId
-          ? _value.seedId
-          : seedId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      isSynced: null == isSynced
-          ? _value.isSynced
-          : isSynced // ignore: cast_nullable_to_non_nullable
-              as bool,
-      isDeleted: null == isDeleted
-          ? _value.isDeleted
-          : isDeleted // ignore: cast_nullable_to_non_nullable
-              as bool,
-      createdAt: null == createdAt
-          ? _value.createdAt
-          : createdAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-      updatedAt: null == updatedAt
-          ? _value.updatedAt
-          : updatedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-    ) as $Val);
+    return _then(
+      _value.copyWith(
+            id: null == id
+                ? _value.id
+                : id // ignore: cast_nullable_to_non_nullable
+                      as String,
+            listId: null == listId
+                ? _value.listId
+                : listId // ignore: cast_nullable_to_non_nullable
+                      as String,
+            category: freezed == category
+                ? _value.category
+                : category // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            notes: freezed == notes
+                ? _value.notes
+                : notes // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            imageUrl: freezed == imageUrl
+                ? _value.imageUrl
+                : imageUrl // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            exampleFr: freezed == exampleFr
+                ? _value.exampleFr
+                : exampleFr // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            exampleKo: freezed == exampleKo
+                ? _value.exampleKo
+                : exampleKo // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            seedId: freezed == seedId
+                ? _value.seedId
+                : seedId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            isSynced: null == isSynced
+                ? _value.isSynced
+                : isSynced // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            isDeleted: null == isDeleted
+                ? _value.isDeleted
+                : isDeleted // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            createdAt: null == createdAt
+                ? _value.createdAt
+                : createdAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime,
+            updatedAt: null == updatedAt
+                ? _value.updatedAt
+                : updatedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime,
+          )
+          as $Val,
+    );
   }
 }
 
 /// @nodoc
 abstract class _$$ConceptImplCopyWith<$Res> implements $ConceptCopyWith<$Res> {
   factory _$$ConceptImplCopyWith(
-          _$ConceptImpl value, $Res Function(_$ConceptImpl) then) =
-      __$$ConceptImplCopyWithImpl<$Res>;
+    _$ConceptImpl value,
+    $Res Function(_$ConceptImpl) then,
+  ) = __$$ConceptImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call(
-      {String id,
-      String listId,
-      String? category,
-      String? notes,
-      String? imageUrl,
-      String? exampleFr,
-      String? exampleKo,
-      String? seedId,
-      bool isSynced,
-      bool isDeleted,
-      DateTime createdAt,
-      DateTime updatedAt});
+  $Res call({
+    String id,
+    String listId,
+    String? category,
+    String? notes,
+    String? imageUrl,
+    String? exampleFr,
+    String? exampleKo,
+    String? seedId,
+    bool isSynced,
+    bool isDeleted,
+    DateTime createdAt,
+    DateTime updatedAt,
+  });
 }
 
 /// @nodoc
@@ -172,8 +179,9 @@ class __$$ConceptImplCopyWithImpl<$Res>
     extends _$ConceptCopyWithImpl<$Res, _$ConceptImpl>
     implements _$$ConceptImplCopyWith<$Res> {
   __$$ConceptImplCopyWithImpl(
-      _$ConceptImpl _value, $Res Function(_$ConceptImpl) _then)
-      : super(_value, _then);
+    _$ConceptImpl _value,
+    $Res Function(_$ConceptImpl) _then,
+  ) : super(_value, _then);
 
   /// Create a copy of Concept
   /// with the given fields replaced by the non-null parameter values.
@@ -193,75 +201,78 @@ class __$$ConceptImplCopyWithImpl<$Res>
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
-    return _then(_$ConceptImpl(
-      id: null == id
-          ? _value.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      listId: null == listId
-          ? _value.listId
-          : listId // ignore: cast_nullable_to_non_nullable
-              as String,
-      category: freezed == category
-          ? _value.category
-          : category // ignore: cast_nullable_to_non_nullable
-              as String?,
-      notes: freezed == notes
-          ? _value.notes
-          : notes // ignore: cast_nullable_to_non_nullable
-              as String?,
-      imageUrl: freezed == imageUrl
-          ? _value.imageUrl
-          : imageUrl // ignore: cast_nullable_to_non_nullable
-              as String?,
-      exampleFr: freezed == exampleFr
-          ? _value.exampleFr
-          : exampleFr // ignore: cast_nullable_to_non_nullable
-              as String?,
-      exampleKo: freezed == exampleKo
-          ? _value.exampleKo
-          : exampleKo // ignore: cast_nullable_to_non_nullable
-              as String?,
-      seedId: freezed == seedId
-          ? _value.seedId
-          : seedId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      isSynced: null == isSynced
-          ? _value.isSynced
-          : isSynced // ignore: cast_nullable_to_non_nullable
-              as bool,
-      isDeleted: null == isDeleted
-          ? _value.isDeleted
-          : isDeleted // ignore: cast_nullable_to_non_nullable
-              as bool,
-      createdAt: null == createdAt
-          ? _value.createdAt
-          : createdAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-      updatedAt: null == updatedAt
-          ? _value.updatedAt
-          : updatedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-    ));
+    return _then(
+      _$ConceptImpl(
+        id: null == id
+            ? _value.id
+            : id // ignore: cast_nullable_to_non_nullable
+                  as String,
+        listId: null == listId
+            ? _value.listId
+            : listId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        category: freezed == category
+            ? _value.category
+            : category // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        notes: freezed == notes
+            ? _value.notes
+            : notes // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        imageUrl: freezed == imageUrl
+            ? _value.imageUrl
+            : imageUrl // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        exampleFr: freezed == exampleFr
+            ? _value.exampleFr
+            : exampleFr // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        exampleKo: freezed == exampleKo
+            ? _value.exampleKo
+            : exampleKo // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        seedId: freezed == seedId
+            ? _value.seedId
+            : seedId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        isSynced: null == isSynced
+            ? _value.isSynced
+            : isSynced // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        isDeleted: null == isDeleted
+            ? _value.isDeleted
+            : isDeleted // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        createdAt: null == createdAt
+            ? _value.createdAt
+            : createdAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime,
+        updatedAt: null == updatedAt
+            ? _value.updatedAt
+            : updatedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime,
+      ),
+    );
   }
 }
 
 /// @nodoc
 @JsonSerializable()
 class _$ConceptImpl implements _Concept {
-  const _$ConceptImpl(
-      {required this.id,
-      required this.listId,
-      this.category,
-      this.notes,
-      this.imageUrl,
-      this.exampleFr,
-      this.exampleKo,
-      this.seedId,
-      this.isSynced = false,
-      this.isDeleted = false,
-      required this.createdAt,
-      required this.updatedAt});
+  const _$ConceptImpl({
+    required this.id,
+    required this.listId,
+    this.category,
+    this.notes,
+    this.imageUrl,
+    this.exampleFr,
+    this.exampleKo,
+    this.seedId,
+    this.isSynced = false,
+    this.isDeleted = false,
+    required this.createdAt,
+    required this.updatedAt,
+  });
 
   factory _$ConceptImpl.fromJson(Map<String, dynamic> json) =>
       _$$ConceptImplFromJson(json);
@@ -330,19 +341,20 @@ class _$ConceptImpl implements _Concept {
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
-      runtimeType,
-      id,
-      listId,
-      category,
-      notes,
-      imageUrl,
-      exampleFr,
-      exampleKo,
-      seedId,
-      isSynced,
-      isDeleted,
-      createdAt,
-      updatedAt);
+    runtimeType,
+    id,
+    listId,
+    category,
+    notes,
+    imageUrl,
+    exampleFr,
+    exampleKo,
+    seedId,
+    isSynced,
+    isDeleted,
+    createdAt,
+    updatedAt,
+  );
 
   /// Create a copy of Concept
   /// with the given fields replaced by the non-null parameter values.
@@ -354,26 +366,25 @@ class _$ConceptImpl implements _Concept {
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$ConceptImplToJson(
-      this,
-    );
+    return _$$ConceptImplToJson(this);
   }
 }
 
 abstract class _Concept implements Concept {
-  const factory _Concept(
-      {required final String id,
-      required final String listId,
-      final String? category,
-      final String? notes,
-      final String? imageUrl,
-      final String? exampleFr,
-      final String? exampleKo,
-      final String? seedId,
-      final bool isSynced,
-      final bool isDeleted,
-      required final DateTime createdAt,
-      required final DateTime updatedAt}) = _$ConceptImpl;
+  const factory _Concept({
+    required final String id,
+    required final String listId,
+    final String? category,
+    final String? notes,
+    final String? imageUrl,
+    final String? exampleFr,
+    final String? exampleKo,
+    final String? seedId,
+    final bool isSynced,
+    final bool isDeleted,
+    required final DateTime createdAt,
+    required final DateTime updatedAt,
+  }) = _$ConceptImpl;
 
   factory _Concept.fromJson(Map<String, dynamic> json) = _$ConceptImpl.fromJson;
 

@@ -94,46 +94,50 @@ void main() {
     expect(outputFailure.played, isEmpty);
   });
 
-  test('stops and disposes safely, including a platform stop failure',
-      () async {
-    final player = _FakePlayer()..failStop = true;
-    final service = SoundEffectsService(player: player);
-    await service.playListenCue();
+  test(
+    'stops and disposes safely, including a platform stop failure',
+    () async {
+      final player = _FakePlayer()..failStop = true;
+      final service = SoundEffectsService(player: player);
+      await service.playListenCue();
 
-    await service.stop();
-    service.dispose();
-    await Future<void>.delayed(Duration.zero);
+      await service.stop();
+      service.dispose();
+      await Future<void>.delayed(Duration.zero);
 
-    expect(player.stopped, 2);
-    expect(player.disposed, 1);
-  });
+      expect(player.stopped, 2);
+      expect(player.disposed, 1);
+    },
+  );
 
   for (final dispose in [false, true]) {
-    test('${dispose ? 'dispose' : 'stop'} cancels earcons waiting for prepare',
-        () async {
-      final gate = Completer<void>();
-      final player = _FakePlayer()..pendingPrepare = gate;
-      final service = SoundEffectsService(player: player);
-      final pending = Future.wait([
-        service.playCorrect(),
-        service.playIncorrect(),
-        service.playListenCue(),
-        service.playListenDone(),
-      ]);
-      expect(player.prepared, 1);
+    test(
+      '${dispose ? 'dispose' : 'stop'} cancels earcons waiting for prepare',
+      () async {
+        final gate = Completer<void>();
+        final player = _FakePlayer()..pendingPrepare = gate;
+        final service = SoundEffectsService(player: player);
+        final pending = Future.wait([
+          service.playCorrect(),
+          service.playIncorrect(),
+          service.playListenCue(),
+          service.playListenDone(),
+        ]);
+        expect(player.prepared, 1);
 
-      if (dispose) {
-        service.dispose();
-      } else {
-        await service.stop();
-      }
-      gate.complete();
-      await pending;
-      expect(player.played, isEmpty);
-      expect(player.stopped, 1);
+        if (dispose) {
+          service.dispose();
+        } else {
+          await service.stop();
+        }
+        gate.complete();
+        await pending;
+        expect(player.played, isEmpty);
+        expect(player.stopped, 1);
 
-      await service.playListenCue();
-      expect(player.played, hasLength(dispose ? 0 : 1));
-    });
+        await service.playListenCue();
+        expect(player.played, hasLength(dispose ? 0 : 1));
+      },
+    );
   }
 }

@@ -65,11 +65,11 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
   }
 
   bool _hasCapture(_CorpusPair pair, String langCode) => _samples.any(
-        (sample) =>
-            sample.listId == pair.listId &&
-            sample.conceptId == pair.conceptId &&
-            sample.langCode == langCode,
-      );
+    (sample) =>
+        sample.listId == pair.listId &&
+        sample.conceptId == pair.conceptId &&
+        sample.langCode == langCode,
+  );
 
   bool _isComplete(_CorpusPair pair) =>
       _hasCapture(pair, 'fr') && _hasCapture(pair, 'ko');
@@ -108,9 +108,11 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
       conceptId: pair.conceptId,
     );
     if (!mounted) return;
-    setState(() => _message = ok
-        ? 'Parle naturellement, puis touche Terminer.'
-        : 'Micro indisponible.');
+    setState(
+      () => _message = ok
+          ? 'Parle naturellement, puis touche Terminer.'
+          : 'Micro indisponible.',
+    );
   }
 
   void _openPair(_CorpusPair pair) {
@@ -122,8 +124,9 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
   }
 
   Future<void> _runWhisperBenchmark(String listId) async {
-    final captures =
-        _samples.where((sample) => sample.listId == listId).toList();
+    final captures = _samples
+        .where((sample) => sample.listId == listId)
+        .toList();
     if (captures.isEmpty || _isBenchmarking) return;
     setState(() {
       _isBenchmarking = true;
@@ -141,7 +144,8 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
         promptHints: [sample.word],
       );
       final transcript = result?.cleanedText;
-      final accepted = transcript != null &&
+      final accepted =
+          transcript != null &&
           AnswerValidator.validate(
             userAnswer: transcript,
             acceptedAnswers: [sample.word],
@@ -156,7 +160,8 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
       if (mounted) {
         setState(() {
           _benchmarkDone = index + 1;
-          _message = 'Analyse Whisper : ${index + 1}/${captures.length} '
+          _message =
+              'Analyse Whisper : ${index + 1}/${captures.length} '
               '· $correct reconnue(s)';
         });
       }
@@ -170,8 +175,9 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
   }
 
   Future<void> _runOpenAiBenchmark(String listId) async {
-    final captures =
-        _samples.where((sample) => sample.listId == listId).toList();
+    final captures = _samples
+        .where((sample) => sample.listId == listId)
+        .toList();
     if (captures.isEmpty || _isBenchmarking) return;
     setState(() {
       _isBenchmarking = true;
@@ -187,21 +193,26 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
         final startedAt = DateTime.now();
         String? transcript;
         try {
-          final response =
-              await client.functions.invoke('whisper-proxy', body: {
-            'audio_base64': base64Encode(await File(sample.path).readAsBytes()),
-            'language': sample.langCode,
-            // The Edge Function turns this known quiz answer into a
-            // transcription hint. Keep this key in lockstep with its API.
-            'expected_word': sample.word,
-          });
+          final response = await client.functions.invoke(
+            'whisper-proxy',
+            body: {
+              'audio_base64': base64Encode(
+                await File(sample.path).readAsBytes(),
+              ),
+              'language': sample.langCode,
+              // The Edge Function turns this known quiz answer into a
+              // transcription hint. Keep this key in lockstep with its API.
+              'expected_word': sample.word,
+            },
+          );
           final data = response.data;
           if (data is Map) transcript = data['text'] as String?;
         } catch (_) {
           // A missing result is persisted so the corpus remains diagnostic.
         }
         final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
-        final accepted = transcript != null &&
+        final accepted =
+            transcript != null &&
             AnswerValidator.validate(
               userAnswer: transcript,
               acceptedAnswers: [sample.word],
@@ -216,23 +227,27 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
         if (mounted) {
           setState(() {
             _benchmarkDone = index + 1;
-            _message = 'Analyse OpenAI : ${index + 1}/${captures.length} '
+            _message =
+                'Analyse OpenAI : ${index + 1}/${captures.length} '
                 '· $correct reconnue(s)';
           });
         }
       }
       await _reload();
       if (!mounted) return;
-      setState(() =>
-          _message = 'OpenAI : $correct/${captures.length} prises reconnues.');
+      setState(
+        () =>
+            _message = 'OpenAI : $correct/${captures.length} prises reconnues.',
+      );
     } finally {
       if (mounted) setState(() => _isBenchmarking = false);
     }
   }
 
   Future<void> _runElevenLabsBenchmark(String listId) async {
-    final captures =
-        _samples.where((sample) => sample.listId == listId).toList();
+    final captures = _samples
+        .where((sample) => sample.listId == listId)
+        .toList();
     if (captures.isEmpty || _isBenchmarking) return;
     setState(() {
       _isBenchmarking = true;
@@ -249,19 +264,24 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
         final startedAt = DateTime.now();
         String? transcript;
         try {
-          final response =
-              await client.functions.invoke('elevenlabs-stt-proxy', body: {
-            'audio_base64': base64Encode(await File(sample.path).readAsBytes()),
-            'language': sample.langCode,
-            'expected_word': sample.word,
-          });
+          final response = await client.functions.invoke(
+            'elevenlabs-stt-proxy',
+            body: {
+              'audio_base64': base64Encode(
+                await File(sample.path).readAsBytes(),
+              ),
+              'language': sample.langCode,
+              'expected_word': sample.word,
+            },
+          );
           final data = response.data;
           if (data is Map) transcript = data['text'] as String?;
         } catch (_) {
           failures++;
         }
         final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
-        final accepted = transcript != null &&
+        final accepted =
+            transcript != null &&
             AnswerValidator.validate(
               userAnswer: transcript,
               acceptedAnswers: [sample.word],
@@ -276,17 +296,20 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
         if (mounted) {
           setState(() {
             _benchmarkDone = index + 1;
-            _message = 'Analyse ElevenLabs : ${index + 1}/${captures.length} '
+            _message =
+                'Analyse ElevenLabs : ${index + 1}/${captures.length} '
                 '· $correct reconnue(s)';
           });
         }
       }
       await _reload();
       if (!mounted) return;
-      setState(() => _message = failures == 0
-          ? 'ElevenLabs : $correct/${captures.length} prises reconnues.'
-          : 'ElevenLabs : $correct/${captures.length} prises reconnues '
-              '($failures erreur(s) de service).');
+      setState(
+        () => _message = failures == 0
+            ? 'ElevenLabs : $correct/${captures.length} prises reconnues.'
+            : 'ElevenLabs : $correct/${captures.length} prises reconnues '
+                  '($failures erreur(s) de service).',
+      );
     } finally {
       if (mounted) setState(() => _isBenchmarking = false);
     }
@@ -314,9 +337,9 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
                 onPressed: _recorder.isRecording
                     ? null
                     : () => setState(() {
-                          _activePair = null;
-                          _phase = 0;
-                        }),
+                        _activePair = null;
+                        _phase = 0;
+                      }),
               ),
       ),
       body: lists.when(
@@ -351,75 +374,82 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
   }
 
   Widget _listView(List<VocabularyList> lists, String selectedListId) => Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-            child: DropdownButtonFormField<String>(
-              initialValue: selectedListId,
-              decoration: const InputDecoration(
-                labelText: 'Liste à enregistrer',
-                border: OutlineInputBorder(),
-              ),
-              items: [
-                for (final list in lists)
-                  DropdownMenuItem(value: list.id, child: Text(list.name)),
-              ],
-              onChanged: _selectList,
-            ),
+    children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+        child: DropdownButtonFormField<String>(
+          initialValue: selectedListId,
+          decoration: const InputDecoration(
+            labelText: 'Liste à enregistrer',
+            border: OutlineInputBorder(),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-            child: FilledButton.icon(
-              onPressed: _isBenchmarking
-                  ? null
-                  : () => _runOpenAiBenchmark(selectedListId),
-              icon: const Icon(Icons.cloud_upload_outlined),
-              label: Text(_isBenchmarking
-                  ? 'Analyse $_benchmarkDone / $_benchmarkTotal'
-                  : 'Analyser OpenAI (${_samples.where((s) => s.listId == selectedListId).length} prises)'),
-            ),
+          items: [
+            for (final list in lists)
+              DropdownMenuItem(value: list.id, child: Text(list.name)),
+          ],
+          onChanged: _selectList,
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+        child: FilledButton.icon(
+          onPressed: _isBenchmarking
+              ? null
+              : () => _runOpenAiBenchmark(selectedListId),
+          icon: const Icon(Icons.cloud_upload_outlined),
+          label: Text(
+            _isBenchmarking
+                ? 'Analyse $_benchmarkDone / $_benchmarkTotal'
+                : 'Analyser OpenAI (${_samples.where((s) => s.listId == selectedListId).length} prises)',
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-            child: OutlinedButton.icon(
-              onPressed: _isBenchmarking
-                  ? null
-                  : () => _runElevenLabsBenchmark(selectedListId),
-              icon: const Icon(Icons.record_voice_over_outlined),
-              label: Text(_isBenchmarking
-                  ? 'Analyse $_benchmarkDone / $_benchmarkTotal'
-                  : 'Analyser ElevenLabs (${_samples.where((s) => s.listId == selectedListId).length} prises)'),
-            ),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+        child: OutlinedButton.icon(
+          onPressed: _isBenchmarking
+              ? null
+              : () => _runElevenLabsBenchmark(selectedListId),
+          icon: const Icon(Icons.record_voice_over_outlined),
+          label: Text(
+            _isBenchmarking
+                ? 'Analyse $_benchmarkDone / $_benchmarkTotal'
+                : 'Analyser ElevenLabs (${_samples.where((s) => s.listId == selectedListId).length} prises)',
           ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 8, 20, 12),
-            child: Text(
-              'Touche un mot : tu enregistres d’abord le français, puis le coréen. Les WAV restent sur ce téléphone de test.',
-            ),
+        ),
+      ),
+      const Padding(
+        padding: EdgeInsets.fromLTRB(20, 8, 20, 12),
+        child: Text(
+          'Touche un mot : tu enregistres d’abord le français, puis le coréen. Les WAV restent sur ce téléphone de test.',
+        ),
+      ),
+      Expanded(
+        child: _ConceptPairs(listId: selectedListId, onTap: _openPair),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+        child: OutlinedButton.icon(
+          onPressed: _isBenchmarking
+              ? null
+              : () => _runWhisperBenchmark(selectedListId),
+          icon: _isBenchmarking
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.analytics_outlined),
+          label: Text(
+            _isBenchmarking
+                ? 'Analyse $_benchmarkDone / $_benchmarkTotal'
+                : 'Analyser Whisper (${_samples.where((s) => s.listId == selectedListId).length} prises)',
           ),
-          Expanded(
-            child: _ConceptPairs(listId: selectedListId, onTap: _openPair),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-            child: OutlinedButton.icon(
-              onPressed: _isBenchmarking
-                  ? null
-                  : () => _runWhisperBenchmark(selectedListId),
-              icon: _isBenchmarking
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.analytics_outlined),
-              label: Text(_isBenchmarking
-                  ? 'Analyse $_benchmarkDone / $_benchmarkTotal'
-                  : 'Analyser Whisper (${_samples.where((s) => s.listId == selectedListId).length} prises)'),
-            ),
-          ),
-          if (_message != null)
-            Padding(padding: const EdgeInsets.all(16), child: Text(_message!)),
-        ],
-      );
+        ),
+      ),
+      if (_message != null)
+        Padding(padding: const EdgeInsets.all(16), child: Text(_message!)),
+    ],
+  );
 
   Widget _captureView(_CorpusPair pair) {
     final french = _phase == 0;
@@ -429,26 +459,34 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('${_phase + 1} / 2 · ${french ? 'Français' : 'Coréen'}',
-              style: Theme.of(context).textTheme.labelLarge),
+          Text(
+            '${_phase + 1} / 2 · ${french ? 'Français' : 'Coréen'}',
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
           const Spacer(),
-          Text(word,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.displaySmall),
+          Text(
+            word,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.displaySmall,
+          ),
           const SizedBox(height: 12),
-          Text(french ? pair.korean : pair.french,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            french ? pair.korean : pair.french,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const Spacer(),
           FilledButton.icon(
             onPressed: _toggleRecording,
             icon: Icon(
-                _recorder.isRecording ? Icons.stop_rounded : Icons.mic_rounded),
+              _recorder.isRecording ? Icons.stop_rounded : Icons.mic_rounded,
+            ),
             label: Text(_recorder.isRecording ? 'Terminer' : 'Enregistrer'),
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(58),
-              backgroundColor:
-                  _recorder.isRecording ? Colors.red.shade700 : null,
+              backgroundColor: _recorder.isRecording
+                  ? Colors.red.shade700
+                  : null,
             ),
           ),
           if (_message != null) ...[
@@ -506,7 +544,7 @@ class _ConceptPairRow extends ConsumerWidget {
     final variants = ref.watch(variantsProvider(concept.id));
     return variants.when(
       loading: () => const ListTile(title: LinearProgressIndicator()),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
       data: (values) {
         final french = _primary(values, 'fr');
         final korean = _primary(values, 'ko');

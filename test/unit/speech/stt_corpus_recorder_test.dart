@@ -43,12 +43,12 @@ void main() {
   const recordedAt = '2026-09-13T12:00:00.000Z';
 
   SttCorpusSample sample() => SttCorpusSample(
-        id: 'sample_fr',
-        word: 'bonjour',
-        langCode: 'fr',
-        path: '/tmp/sample.wav',
-        recordedAt: DateTime.parse(recordedAt),
-      );
+    id: 'sample_fr',
+    word: 'bonjour',
+    langCode: 'fr',
+    path: '/tmp/sample.wav',
+    recordedAt: DateTime.parse(recordedAt),
+  );
 
   test('keeps an OpenAI result when a Whisper result is saved afterwards', () {
     final withOpenAi = sample().withOpenAiResult(
@@ -75,28 +75,40 @@ void main() {
   Future<Directory> tempDirectory() =>
       Directory.systemTemp.createTemp('stt-corpus-test-');
 
-  test('without opt-in the recorder touches neither microphone nor files',
-      () async {
-    final native = _FakeRecorder();
-    final recorder = SttCorpusRecorder(
-      recorder: native,
-      documentsDirectory: () => throw StateError('Corpus accessed disk'),
-    );
-    expect(await recorder.start(word: 'bonjour', langCode: 'fr'), isFalse);
-    expect(await recorder.stop(), isNull);
-    expect(await recorder.samples(), isEmpty);
-    await recorder.saveWhisperResult(
-        sampleId: 'sample', transcript: 'bonjour', durationMs: 900);
-    await recorder.saveOpenAiResult(
-        sampleId: 'sample', transcript: 'bonjour', durationMs: 800);
-    await recorder.saveElevenLabsResult(
-        sampleId: 'sample', transcript: 'bonjour', durationMs: 700);
-    recorder.dispose();
-    expect(native.permissionCalls, 0);
-    expect(native.startedPath, isNull);
-    expect(native.stopCalls, 0);
-    expect(native.disposeCalls, 0);
-  }, skip: optedIn);
+  test(
+    'without opt-in the recorder touches neither microphone nor files',
+    () async {
+      final native = _FakeRecorder();
+      final recorder = SttCorpusRecorder(
+        recorder: native,
+        documentsDirectory: () => throw StateError('Corpus accessed disk'),
+      );
+      expect(await recorder.start(word: 'bonjour', langCode: 'fr'), isFalse);
+      expect(await recorder.stop(), isNull);
+      expect(await recorder.samples(), isEmpty);
+      await recorder.saveWhisperResult(
+        sampleId: 'sample',
+        transcript: 'bonjour',
+        durationMs: 900,
+      );
+      await recorder.saveOpenAiResult(
+        sampleId: 'sample',
+        transcript: 'bonjour',
+        durationMs: 800,
+      );
+      await recorder.saveElevenLabsResult(
+        sampleId: 'sample',
+        transcript: 'bonjour',
+        durationMs: 700,
+      );
+      recorder.dispose();
+      expect(native.permissionCalls, 0);
+      expect(native.startedPath, isNull);
+      expect(native.stopCalls, 0);
+      expect(native.disposeCalls, 0);
+    },
+    skip: optedIn,
+  );
 
   test('captures a labelled WAV then persists all benchmark results', () async {
     final directory = await tempDirectory();
@@ -110,13 +122,14 @@ void main() {
     );
 
     expect(
-        await recorder.start(
-          word: '  안녕하세요  ',
-          langCode: 'ko',
-          listId: 'food',
-          conceptId: 'hello',
-        ),
-        isTrue);
+      await recorder.start(
+        word: '  안녕하세요  ',
+        langCode: 'ko',
+        listId: 'food',
+        conceptId: 'hello',
+      ),
+      isTrue,
+    );
     expect(recorder.isRecording, isTrue);
     expect(native.startedPath, endsWith('_ko.wav'));
 
@@ -128,11 +141,20 @@ void main() {
     expect(recorder.isRecording, isFalse);
 
     await recorder.saveWhisperResult(
-        sampleId: saved.id, transcript: '안녕하세요', durationMs: 2100);
+      sampleId: saved.id,
+      transcript: '안녕하세요',
+      durationMs: 2100,
+    );
     await recorder.saveOpenAiResult(
-        sampleId: saved.id, transcript: '안녕하세요', durationMs: 700);
+      sampleId: saved.id,
+      transcript: '안녕하세요',
+      durationMs: 700,
+    );
     await recorder.saveElevenLabsResult(
-        sampleId: saved.id, transcript: '안녕하세요', durationMs: 280);
+      sampleId: saved.id,
+      transcript: '안녕하세요',
+      durationMs: 280,
+    );
 
     final loaded = await recorder.samples();
     expect(loaded, hasLength(1));
@@ -161,11 +183,20 @@ void main() {
     expect(saved!.meta, meta);
 
     await recorder.saveWhisperResult(
-        sampleId: saved.id, transcript: '달기', durationMs: 900);
+      sampleId: saved.id,
+      transcript: '달기',
+      durationMs: 900,
+    );
     await recorder.saveOpenAiResult(
-        sampleId: saved.id, transcript: '딸기', durationMs: 600);
+      sampleId: saved.id,
+      transcript: '딸기',
+      durationMs: 600,
+    );
     await recorder.saveElevenLabsResult(
-        sampleId: saved.id, transcript: '달기', durationMs: 300);
+      sampleId: saved.id,
+      transcript: '달기',
+      durationMs: 300,
+    );
     expect((await recorder.samples()).single.meta, meta);
   }, skip: !optedIn);
 
@@ -181,63 +212,73 @@ void main() {
     expect(sample.toJson().containsKey('meta'), isFalse);
   });
 
-  test('rejects empty words, denied permission, and overlapping captures',
-      () async {
-    final directory = await tempDirectory();
-    addTearDown(() => directory.delete(recursive: true));
-    final native = _FakeRecorder();
-    final recorder = SttCorpusRecorder(
-      recorder: native,
-      documentsDirectory: () async => directory,
-    );
+  test(
+    'rejects empty words, denied permission, and overlapping captures',
+    () async {
+      final directory = await tempDirectory();
+      addTearDown(() => directory.delete(recursive: true));
+      final native = _FakeRecorder();
+      final recorder = SttCorpusRecorder(
+        recorder: native,
+        documentsDirectory: () async => directory,
+      );
 
-    expect(await recorder.samples(), isEmpty);
-    expect(await recorder.start(word: ' ', langCode: 'fr'), isFalse);
-    expect(native.permissionCalls, 0);
-    native.permission = false;
-    expect(await recorder.start(word: 'bonjour', langCode: 'fr'), isFalse);
-    native.permission = true;
-    expect(await recorder.start(word: 'bonjour', langCode: 'fr'), isTrue);
-    expect(await recorder.start(word: 'encore', langCode: 'fr'), isFalse);
-    expect(native.permissionCalls, 2);
-  }, skip: !optedIn);
-
-  test('does not add a sample when native stop returns no usable file',
-      () async {
-    final directory = await tempDirectory();
-    addTearDown(() => directory.delete(recursive: true));
-    final native = _FakeRecorder()..writeCapture = false;
-    final recorder = SttCorpusRecorder(
-      recorder: native,
-      documentsDirectory: () async => directory,
-    );
-
-    expect(await recorder.stop(), isNull);
-    await recorder.start(word: 'bonjour', langCode: 'fr');
-    expect(await recorder.stop(), isNull);
-    expect(await recorder.samples(), isEmpty);
-  }, skip: !optedIn);
+      expect(await recorder.samples(), isEmpty);
+      expect(await recorder.start(word: ' ', langCode: 'fr'), isFalse);
+      expect(native.permissionCalls, 0);
+      native.permission = false;
+      expect(await recorder.start(word: 'bonjour', langCode: 'fr'), isFalse);
+      native.permission = true;
+      expect(await recorder.start(word: 'bonjour', langCode: 'fr'), isTrue);
+      expect(await recorder.start(word: 'encore', langCode: 'fr'), isFalse);
+      expect(native.permissionCalls, 2);
+    },
+    skip: !optedIn,
+  );
 
   test(
-      'returns an empty corpus for a malformed manifest and disposes native audio',
-      () async {
-    final directory = await tempDirectory();
-    addTearDown(() => directory.delete(recursive: true));
-    final corpus =
-        Directory('${directory.path}${Platform.pathSeparator}stt_corpus');
-    await corpus.create();
-    await File('${corpus.path}${Platform.pathSeparator}manifest.json')
-        .writeAsString('{not json');
-    final native = _FakeRecorder();
-    final recorder = SttCorpusRecorder(
-      recorder: native,
-      documentsDirectory: () async => directory,
-    );
+    'does not add a sample when native stop returns no usable file',
+    () async {
+      final directory = await tempDirectory();
+      addTearDown(() => directory.delete(recursive: true));
+      final native = _FakeRecorder()..writeCapture = false;
+      final recorder = SttCorpusRecorder(
+        recorder: native,
+        documentsDirectory: () async => directory,
+      );
 
-    expect(await recorder.samples(), isEmpty);
-    recorder.dispose();
-    expect(native.disposeCalls, 1);
-  }, skip: !optedIn);
+      expect(await recorder.stop(), isNull);
+      await recorder.start(word: 'bonjour', langCode: 'fr');
+      expect(await recorder.stop(), isNull);
+      expect(await recorder.samples(), isEmpty);
+    },
+    skip: !optedIn,
+  );
+
+  test(
+    'returns an empty corpus for a malformed manifest and disposes native audio',
+    () async {
+      final directory = await tempDirectory();
+      addTearDown(() => directory.delete(recursive: true));
+      final corpus = Directory(
+        '${directory.path}${Platform.pathSeparator}stt_corpus',
+      );
+      await corpus.create();
+      await File(
+        '${corpus.path}${Platform.pathSeparator}manifest.json',
+      ).writeAsString('{not json');
+      final native = _FakeRecorder();
+      final recorder = SttCorpusRecorder(
+        recorder: native,
+        documentsDirectory: () async => directory,
+      );
+
+      expect(await recorder.samples(), isEmpty);
+      recorder.dispose();
+      expect(native.disposeCalls, 1);
+    },
+    skip: !optedIn,
+  );
 
   test('serializes sample metadata with null benchmark fields', () {
     final decoded =

@@ -13,6 +13,7 @@ class _FakeRecognizer implements PhonePcmRecognizer {
   Object? error;
   final calls = <(Uint8List, String)>[];
   Completer<void>? gate;
+  int cancellations = 0;
 
   @override
   Future<bool> isSupported() async => supported;
@@ -24,6 +25,9 @@ class _FakeRecognizer implements PhonePcmRecognizer {
     if (error != null) throw error!;
     return reply;
   }
+
+  @override
+  Future<void> cancel() async => cancellations++;
 }
 
 PcmSegment _seg() => PcmSegment(Uint8List(64), 2, 0);
@@ -46,56 +50,95 @@ void main() {
       expect(engine.isReady, isTrue);
     });
 
-    test(
-        'sends the utterance with the speech locale; every alternative is '
+    test('sends the utterance with the speech locale; every alternative is '
         'a candidate', () async {
       final rec = _FakeRecognizer()..reply = ['꽃비', '커피'];
       final engine = PhoneSttEngine(rec);
-      final h = await engine
-          .recognize(_seg(), langCode: 'ko', promptHints: const ['커피']);
+      final h = await engine.recognize(
+        _seg(),
+        langCode: 'ko',
+        promptHints: const ['커피'],
+      );
       expect(rec.calls.single.$2, 'ko-KR');
       expect(h!.engineId, 'phone');
       expect(h.transcript, '꽃비');
-      expect(h.candidates, ['꽃비', '커피'],
-          reason: 'the right answer is often an alternate');
+      expect(h.candidates, [
+        '꽃비',
+        '커피',
+      ], reason: 'the right answer is often an alternate');
     });
 
     test('nothing understood is null; a platform error throws', () async {
       final rec = _FakeRecognizer();
       final engine = PhoneSttEngine(rec);
       expect(
-          await engine.recognize(_seg(), langCode: 'fr', promptHints: const []),
-          isNull);
+        await engine.recognize(_seg(), langCode: 'fr', promptHints: const []),
+        isNull,
+      );
       rec.error = PlatformException(code: 'error_2');
-      expect(engine.recognize(_seg(), langCode: 'fr', promptHints: const []),
-          throwsA(isA<PlatformException>()));
-    });
-
-    test('one recognition at a time; a failure does not jam the queue',
-        () async {
-      final rec = _FakeRecognizer()..reply = ['thé'];
-      final engine = PhoneSttEngine(rec);
-      rec.gate = Completer<void>();
-      final first =
-          engine.recognize(_seg(), langCode: 'fr', promptHints: const []);
-      final second =
-          engine.recognize(_seg(), langCode: 'fr', promptHints: const []);
-      await Future<void>.delayed(Duration.zero);
-      expect(rec.calls.length, 1, reason: 'second waits for the first');
-      rec.gate!.complete();
-      expect((await first)!.transcript, 'thé');
-      expect((await second)!.transcript, 'thé');
-      expect(rec.calls.length, 2);
-    });
-
-    test('start/stop are no-ops for a shared engine', () async {
-      final engine = PhoneSttEngine(_FakeRecognizer());
       expect(
-          await engine.start(
-              langCode: 'fr', promptHints: const [], onHypothesis: (_) {}),
-          isTrue);
+        engine.recognize(_seg(), langCode: 'fr', promptHints: const []),
+        throwsA(isA<PlatformException>()),
+      );
+    });
+
+    test(
+      'one recognition at a time; a failure does not jam the queue',
+      () async {
+        final rec = _FakeRecognizer()..reply = ['thé'];
+        final engine = PhoneSttEngine(rec);
+        rec.gate = Completer<void>();
+        final first = engine.recognize(
+          _seg(),
+          langCode: 'fr',
+          promptHints: const [],
+        );
+        final second = engine.recognize(
+          _seg(),
+          langCode: 'fr',
+          promptHints: const [],
+        );
+        await Future<void>.delayed(Duration.zero);
+        expect(rec.calls.length, 1, reason: 'second waits for the first');
+        rec.gate!.complete();
+        expect((await first)!.transcript, 'thé');
+        expect((await second)!.transcript, 'thé');
+        expect(rec.calls.length, 2);
+      },
+    );
+
+    test('stop drops due and queued segments before restarting', () async {
+      final gate = Completer<void>();
+      final rec = _FakeRecognizer()
+        ..reply = ['thé']
+        ..gate = gate;
+      final engine = PhoneSttEngine(rec);
+      final old = engine.recognize(
+        _seg(),
+        langCode: 'ko',
+        promptHints: const [],
+      );
+      final queued = engine.recognize(
+        _seg(),
+        langCode: 'ko',
+        promptHints: const [],
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(rec.calls, hasLength(1));
+
       await engine.stop();
-      engine.dispose();
+      rec.gate = null;
+      expect(await old, isNull);
+      expect(await queued, isNull);
+      expect(rec.cancellations, 1);
+      final resumed = await engine.recognize(
+        _seg(),
+        langCode: 'fr',
+        promptHints: const [],
+      );
+      expect(resumed!.transcript, 'thé');
+      expect(rec.calls.map((call) => call.$2), ['ko-KR', 'fr-FR']);
+      gate.complete();
     });
   });
 

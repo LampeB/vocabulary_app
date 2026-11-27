@@ -38,12 +38,14 @@ abstract final class AnswerValidator {
     required List<String> candidates,
     required List<String> acceptedAnswers,
     bool isDrivingMode = false,
+    bool preserveGrammar = false,
   }) {
     for (final candidate in candidates) {
       final v = validate(
         userAnswer: candidate,
         acceptedAnswers: acceptedAnswers,
         isDrivingMode: isDrivingMode,
+        preserveGrammar: preserveGrammar,
       );
       if (v.isCorrect) return candidate;
     }
@@ -64,7 +66,15 @@ abstract final class AnswerValidator {
     required String userAnswer,
     required List<String> acceptedAnswers,
     bool isDrivingMode = false,
+    bool preserveGrammar = false,
   }) {
+    if (preserveGrammar) {
+      return _validateGrammar(
+        userAnswer,
+        acceptedAnswers,
+        spoken: isDrivingMode,
+      );
+    }
     // Expand the accepted answers before scoring; matching ANY form counts:
     //  - annotation-stripped: "café (boisson)" → "café"
     //  - slash-alternatives:  "riz / repas"    → "riz", "repas"
@@ -75,7 +85,8 @@ abstract final class AnswerValidator {
         ...a.split('/').map((p) => stripAnnotations(p)),
     }.where((a) => a.trim().isNotEmpty).toList();
     sttLog(
-        '[VAL] validate: transcript="$userAnswer"  accepted=$acceptedAnswers  isDrivingMode=$isDrivingMode');
+      '[VAL] validate: transcript="$userAnswer"  accepted=$acceptedAnswers  isDrivingMode=$isDrivingMode',
+    );
 
     if (userAnswer.trim().isEmpty) {
       sttLog('[VAL] → empty transcript → incorrect');
@@ -86,8 +97,9 @@ abstract final class AnswerValidator {
       );
     }
 
-    final threshold =
-        isDrivingMode ? drivingThreshold : AppConstants.fuzzyThresholdTyping;
+    final threshold = isDrivingMode
+        ? drivingThreshold
+        : AppConstants.fuzzyThresholdTyping;
 
     final normalizedUser = _normalize(userAnswer);
     sttLog('[VAL] normalized: "$normalizedUser"  threshold=$threshold');
@@ -96,8 +108,11 @@ abstract final class AnswerValidator {
     String? bestMatch;
 
     for (final answer in acceptedAnswers) {
-      final score = _scoreAgainst(normalizedUser, _normalize(answer),
-          spoken: isDrivingMode);
+      final score = _scoreAgainst(
+        normalizedUser,
+        _normalize(answer),
+        spoken: isDrivingMode,
+      );
       sttLog('[VAL]   vs "$answer" → score=${score.toStringAsFixed(3)}');
       if (score > bestScore) {
         bestScore = score;
@@ -105,14 +120,18 @@ abstract final class AnswerValidator {
       }
     }
     sttLog(
-        '[VAL] After main loop: bestScore=${bestScore.toStringAsFixed(3)}  bestMatch="$bestMatch"');
+      '[VAL] After main loop: bestScore=${bestScore.toStringAsFixed(3)}  bestMatch="$bestMatch"',
+    );
 
     if (bestScore < threshold && normalizedUser.contains(' ')) {
       for (final word in normalizedUser.split(RegExp(r'\s+'))) {
         if (word.isEmpty) continue;
         for (final answer in acceptedAnswers) {
-          final score =
-              _scoreAgainst(word, _normalize(answer), spoken: isDrivingMode);
+          final score = _scoreAgainst(
+            word,
+            _normalize(answer),
+            spoken: isDrivingMode,
+          );
           if (score > bestScore) {
             bestScore = score;
             bestMatch = answer;
@@ -135,20 +154,29 @@ abstract final class AnswerValidator {
         final normAnswer = _normalize(answer);
         if (normAnswer.length >= 2 && normalizedUser.startsWith(normAnswer)) {
           sttLog(
-              '[VAL]   prefix match: "$normalizedUser" starts with "$normAnswer" → score=1.0');
+            '[VAL]   prefix match: "$normalizedUser" starts with "$normAnswer" → score=1.0',
+          );
           bestScore = 1.0;
           bestMatch = answer;
           break outer;
         }
-        for (int strip = 1;
-            strip <= 2 && strip < normalizedUser.length;
-            strip++) {
-          final stripped =
-              normalizedUser.substring(0, normalizedUser.length - strip);
-          final score =
-              _scoreAgainst(stripped, normAnswer, spoken: isDrivingMode);
+        for (
+          int strip = 1;
+          strip <= 2 && strip < normalizedUser.length;
+          strip++
+        ) {
+          final stripped = normalizedUser.substring(
+            0,
+            normalizedUser.length - strip,
+          );
+          final score = _scoreAgainst(
+            stripped,
+            normAnswer,
+            spoken: isDrivingMode,
+          );
           sttLog(
-              '[VAL]   strip=$strip → "$stripped" vs "$normAnswer" = ${score.toStringAsFixed(3)}');
+            '[VAL]   strip=$strip → "$stripped" vs "$normAnswer" = ${score.toStringAsFixed(3)}',
+          );
           if (score > bestScore) {
             bestScore = score;
             bestMatch = answer;
@@ -156,7 +184,8 @@ abstract final class AnswerValidator {
         }
       }
       sttLog(
-          '[VAL] After particle-strip pass: bestScore=${bestScore.toStringAsFixed(3)}  bestMatch="$bestMatch"');
+        '[VAL] After particle-strip pass: bestScore=${bestScore.toStringAsFixed(3)}  bestMatch="$bestMatch"',
+      );
     }
 
     if (bestScore >= 0.98) {
@@ -180,12 +209,51 @@ abstract final class AnswerValidator {
       );
     }
     sttLog(
-        '[VAL] ❌ INCORRECT  score=${bestScore.toStringAsFixed(3)}  threshold=$threshold');
+      '[VAL] ❌ INCORRECT  score=${bestScore.toStringAsFixed(3)}  threshold=$threshold',
+    );
     return ValidationResult(
       isCorrect: false,
       score: bestScore,
       type: ValidationResultType.incorrect,
       matchedWord: bestMatch,
+    );
+  }
+
+  /// Grammar drills test the form itself, including articles, elisions,
+  /// endings and particles. Speech recognition may add sentence punctuation.
+  static ValidationResult _validateGrammar(
+    String userAnswer,
+    List<String> acceptedAnswers, {
+    required bool spoken,
+  }) {
+    String normalize(String text) {
+      if (spoken) {
+        text = text.trimRight().replaceFirst(RegExp(r'[.!?…]+$'), '');
+      }
+      return text
+          .trim()
+          .toLowerCase()
+          .replaceAll('’', "'")
+          .replaceAll(RegExp(r'\s+'), ' ');
+    }
+
+    final input = normalize(userAnswer);
+    if (input.isNotEmpty) {
+      for (final answer in acceptedAnswers) {
+        if (normalize(answer) == input) {
+          return ValidationResult(
+            isCorrect: true,
+            score: 1,
+            type: ValidationResultType.exact,
+            matchedWord: answer,
+          );
+        }
+      }
+    }
+    return const ValidationResult(
+      isCorrect: false,
+      score: 0,
+      type: ValidationResultType.incorrect,
     );
   }
 
@@ -214,7 +282,8 @@ abstract final class AnswerValidator {
   static double _scoreAgainst(String a, String b, {bool spoken = false}) {
     if (a == b) return 1.0;
 
-    final isKorean = HangulDecomposer.containsHangul(a) ||
+    final isKorean =
+        HangulDecomposer.containsHangul(a) ||
         HangulDecomposer.containsHangul(b);
 
     final directScore = a.similarityTo(b);
@@ -227,8 +296,9 @@ abstract final class AnswerValidator {
       if (jamoScore > best) best = jamoScore;
       if (spoken) {
         // Capped below 1.0 so phonetic equivalence can't claim EXACT.
-        final laxScore =
-            _laxKorean(jamoA).similarityTo(_laxKorean(jamoB)).clamp(0.0, 0.95);
+        final laxScore = _laxKorean(
+          jamoA,
+        ).similarityTo(_laxKorean(jamoB)).clamp(0.0, 0.95);
         if (laxScore > best) best = laxScore;
       }
       return best;
@@ -237,9 +307,9 @@ abstract final class AnswerValidator {
     // Latin text: also score in sound-space — STT errors are phonetic
     // ("Mauvi" for "mauvais" shares no bigrams but the same sounds).
     // Capped at 0.97 so only orthographic identity reaches the EXACT tier.
-    final phoneticScore = FrenchPhonetics.encode(a)
-        .similarityTo(FrenchPhonetics.encode(b))
-        .clamp(0.0, 0.97);
+    final phoneticScore = FrenchPhonetics.encode(
+      a,
+    ).similarityTo(FrenchPhonetics.encode(b)).clamp(0.0, 0.97);
     return directScore > phoneticScore ? directScore : phoneticScore;
   }
 
@@ -249,10 +319,9 @@ abstract final class AnswerValidator {
     // scored "l'eau" vs "eau" at 0.67 and failed the card over and over
     // (field log 2026-07-19: the water card was unanswerable). Stripping the
     // elided prefix makes the word-split pass see the bare word.
-    return text
-        .trim()
-        .toLowerCase()
-        .removeAccents()
-        .replaceAll(RegExp(r"\b(?:l|d|j|m|n|s|t|c|qu)['’]"), '');
+    return text.trim().toLowerCase().removeAccents().replaceAll(
+      RegExp(r"\b(?:l|d|j|m|n|s|t|c|qu)['’]"),
+      '',
+    );
   }
 }

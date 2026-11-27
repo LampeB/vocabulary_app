@@ -46,8 +46,9 @@ class V3CardStack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final edges =
-        remaining <= 1 ? 0 : (remaining - 1).clamp(0, maxVisibleEdges).toInt();
+    final edges = remaining <= 1
+        ? 0
+        : (remaining - 1).clamp(0, maxVisibleEdges).toInt();
     final topIndex = total <= 0
         ? 0
         : (total - remaining).clamp(0, _tilts.length - 1).toInt();
@@ -87,8 +88,10 @@ class V3CardStack extends StatelessWidget {
                 ),
               ),
               child: Center(
-                child: Text(emptyLabel ?? 'v3.stack_empty'.tr(),
-                    style: V3Text.mono(12)),
+                child: Text(
+                  emptyLabel ?? 'v3.stack_empty'.tr(),
+                  style: V3Text.mono(12),
+                ),
               ),
             ),
           )
@@ -111,7 +114,8 @@ class V3CardStack extends StatelessWidget {
                         ? (exitTilt - dragTilt) / (2 * 3.141592653589793)
                         : 0,
                     child: Transform.rotate(
-                      angle: _tilts[topIndex] * (3.141592653589793 / 180) +
+                      angle:
+                          _tilts[topIndex] * (3.141592653589793 / 180) +
                           dragTilt,
                       alignment: Alignment.bottomCenter,
                       child: child,
@@ -139,8 +143,12 @@ class V3StackCounter extends StatelessWidget {
       1 => 'v3.stack_last'.tr(),
       _ => 'v3.stack_remaining'.tr(namedArgs: {'count': '$remaining'}),
     };
-    return Text(label,
-        style: V3Text.mono(12,
-            color: dark ? V3Colors.inkLight70 : V3Colors.ink60));
+    return Text(
+      label,
+      style: V3Text.mono(
+        12,
+        color: dark ? V3Colors.inkLight70 : V3Colors.ink60,
+      ),
+    );
   }
 }

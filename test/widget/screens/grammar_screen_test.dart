@@ -19,14 +19,18 @@ GrammarRule _rule(String id, String title, {List<String> prereqs = const []}) =>
       explanations: const {'fr': 'Une explication.'},
       workedExamples: const [
         WorkedExample(
-            target: '저는 학생이에요', translations: {'fr': 'Je suis étudiant'})
+          target: '저는 학생이에요',
+          translations: {'fr': 'Je suis étudiant'},
+        ),
       ],
       prerequisiteLists: prereqs,
       appliesToCategories: const ['nom'],
       minKnownWords: const {'nom': 5},
-      mechanics: const ParticleMechanics(variants: [
-        ParticleVariant(key: 'default', afterConsonant: '은', afterVowel: '는'),
-      ]),
+      mechanics: const ParticleMechanics(
+        variants: [
+          ParticleVariant(key: 'default', afterConsonant: '은', afterVowel: '는'),
+        ],
+      ),
       testVectors: const [],
     );
 
@@ -58,40 +62,52 @@ void main() {
   testWidgets('a tab-root lesson hub has no pop action', (tester) async {
     await pump(tester, []);
     expect(
-        find.byKey(const ValueKey(WidgetKeys.screenGrammar)), findsOneWidget);
+      find.byKey(const ValueKey(WidgetKeys.screenGrammar)),
+      findsOneWidget,
+    );
     expect(find.byIcon(Icons.arrow_back_ios_new_rounded), findsNothing);
     expect(tester.widget<AppBar>(find.byType(AppBar)).leading, isNull);
   });
 
   testWidgets(
-      'a locked rule shows the unlock bar plus one bar per prerequisite '
-      'list, and no start button', (tester) async {
-    await pump(tester, [
-      RuleStatus(
-        rule: _rule('r1', 'La particule de thème',
-            prereqs: ['Salutations', 'La nourriture']),
-        availability: RuleAvailability.locked,
-        missingLists: const ['La nourriture'],
-        enoughWords: true,
-        correct: 0,
-        prereqProgress: const {'Salutations': 0.9, 'La nourriture': 0.45},
-        prereqTotals: const {'Salutations': 20, 'La nourriture': 20},
-      ),
-    ]);
+    'a locked rule shows the unlock bar plus one bar per prerequisite '
+    'list, and no start button',
+    (tester) async {
+      await pump(tester, [
+        RuleStatus(
+          rule: _rule(
+            'r1',
+            'La particule de thème',
+            prereqs: ['Salutations', 'La nourriture'],
+          ),
+          availability: RuleAvailability.locked,
+          missingLists: const ['La nourriture'],
+          enoughWords: true,
+          correct: 0,
+          prereqProgress: const {'Salutations': 0.9, 'La nourriture': 0.45},
+          prereqTotals: const {'Salutations': 20, 'La nourriture': 20},
+        ),
+      ]);
 
-    expect(
-        find.byKey(ValueKey(WidgetKeys.grammarRuleCard('r1'))), findsOneWidget);
-    // Both prerequisite lists are named with their own progress bar.
-    expect(find.text('Salutations'), findsOneWidget);
-    expect(find.text('La nourriture'), findsOneWidget);
-    // Equal-sized lists: (18 + 9) / (20 + 20) = 67.5%.
-    expect(find.text('68%'), findsOneWidget);
-    expect(
-        find.byKey(ValueKey(WidgetKeys.grammarRuleStart('r1'))), findsNothing);
-  });
+      expect(
+        find.byKey(ValueKey(WidgetKeys.grammarRuleCard('r1'))),
+        findsOneWidget,
+      );
+      // Both prerequisite lists are named with their own progress bar.
+      expect(find.text('Salutations'), findsOneWidget);
+      expect(find.text('La nourriture'), findsOneWidget);
+      // Equal-sized lists: (18 + 9) / (20 + 20) = 67.5%.
+      expect(find.text('68%'), findsOneWidget);
+      expect(
+        find.byKey(ValueKey(WidgetKeys.grammarRuleStart('r1'))),
+        findsNothing,
+      );
+    },
+  );
 
-  testWidgets('an unlocked rule shows mastery progress and opens its lesson',
-      (tester) async {
+  testWidgets('an unlocked rule shows mastery progress and opens its lesson', (
+    tester,
+  ) async {
     await pump(tester, [
       RuleStatus(
         rule: _rule('r2', 'Le présent poli'),
@@ -102,14 +118,16 @@ void main() {
       ),
     ]);
 
-    await tester
-        .tap(find.byKey(ValueKey(WidgetKeys.grammarRuleOpenLesson('r2'))));
+    await tester.tap(
+      find.byKey(ValueKey(WidgetKeys.grammarRuleOpenLesson('r2'))),
+    );
     await tester.pumpAndSettle();
     expect(navigatedTo, '/grammar/r2');
   });
 
-  testWidgets('a mastered rule shows the badge and no start button',
-      (tester) async {
+  testWidgets('a mastered rule shows the badge and no start button', (
+    tester,
+  ) async {
     await pump(tester, [
       RuleStatus(
         rule: _rule('r3', 'La négation'),
@@ -121,8 +139,10 @@ void main() {
     ]);
 
     expect(find.byIcon(Icons.verified_rounded), findsOneWidget);
-    expect(find.byKey(ValueKey(WidgetKeys.grammarRuleOpenLesson('r3'))),
-        findsNothing);
+    expect(
+      find.byKey(ValueKey(WidgetKeys.grammarRuleOpenLesson('r3'))),
+      findsNothing,
+    );
   });
 
   group('RuleStatus.unlockFraction (unlock math)', () {

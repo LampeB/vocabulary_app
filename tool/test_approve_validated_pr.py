@@ -18,6 +18,11 @@ REVIEWS_PATH = f"{PULL_PATH}/reviews"
 MAIN_PATH = "/git/ref/heads/main"
 STATUSES_PATH = f"/commits/{HEAD}/statuses"
 CHECKS_PATH = f"/commits/{HEAD}/check-runs?filter=all"
+PR_RUN = 2001
+PUSH_RUN = 2002
+PR_WORKFLOW = ".github/workflows/pr-validation.yml"
+PUSH_WORKFLOW = ".github/workflows/test.yml"
+WORKFLOW_PATHS = {PR_RUN: PR_WORKFLOW, PUSH_RUN: PUSH_WORKFLOW}
 
 
 def clean_evidence():
@@ -75,17 +80,25 @@ class FakeGitHub(approval.GitHub):
             "state": "success",
             "description": approval.evidence_description(evidence),
         }
-        self.check_runs = [
-            {
+        self.pr_association = {
+            "number": PULL,
+            "head": {"sha": HEAD},
+            "base": {"sha": BASE, "ref": "main"},
+        }
+        self.check_runs = []
+        for index, name in enumerate(approval.REQUIRED_CHECKS, 1):
+            run_id = PUSH_RUN if name == "test" else PR_RUN
+            self.check_runs.append({
                 "id": index,
                 "name": name,
                 "app": approval.ACTIONS_APP.copy(),
                 "status": "completed",
                 "conclusion": "success",
                 "head_sha": HEAD,
-            }
-            for index, name in enumerate(approval.REQUIRED_CHECKS, 1)
-        ]
+                "details_url": f"https://github.com/{REPOSITORY}/actions/runs/{run_id}/job/{index}",
+                "check_suite": {"id": run_id + 1000},
+                "pull_requests": [] if run_id == PUSH_RUN else [copy.deepcopy(self.pr_association)],
+            })
         self.responses = {
             MAIN_PATH: [(self.main, False)],
             PULL_PATH: [(self.pull, False)],
@@ -93,6 +106,22 @@ class FakeGitHub(approval.GitHub):
             paged(CHECKS_PATH, 1): [({"check_runs": self.check_runs}, False)],
             paged(REVIEWS_PATH, 1): [([], False)],
         }
+        self.action_runs = {}
+        for run_id, path in WORKFLOW_PATHS.items():
+            workflow_id = run_id + 2000
+            run = {
+                "id": run_id,
+                "check_suite_id": run_id + 1000,
+                "workflow_id": workflow_id,
+                "path": path,
+                "event": "push" if run_id == PUSH_RUN else "pull_request",
+                "head_sha": HEAD,
+                "pull_requests": [] if run_id == PUSH_RUN else [copy.deepcopy(self.pr_association)],
+                "display_title": "Push title" if run_id == PUSH_RUN else f"PR #{PULL} {HEAD} against {BASE}",
+            }
+            self.action_runs[run_id] = run
+            self.responses[f"/actions/runs/{run_id}"] = [(run, False)]
+            self.responses[f"/actions/workflows/{path.rsplit('/', 1)[1]}"] = [({"id": workflow_id, "path": path}, False)]
         self.requests = []
         self.posts = []
         self.review_response = actions_review()
@@ -219,7 +248,12 @@ class ApprovalTest(unittest.TestCase):
                 api = FakeGitHub()
                 old = api.check_runs[0]
                 old["conclusion"] = old_conclusion
-                new = {**old, "id": 1000, "conclusion": new_conclusion}
+                new = {
+                    **old,
+                    "id": 1000,
+                    "details_url": old["details_url"].rsplit("/", 1)[0] + "/1000",
+                    "conclusion": new_conclusion,
+                }
                 api.responses[paged(CHECKS_PATH, 1)] = [({"check_runs": api.check_runs}, True)]
                 api.responses[paged(CHECKS_PATH, 2)] = [({"check_runs": [new]}, False)]
                 if new_conclusion == "failure":
@@ -232,6 +266,46 @@ class ApprovalTest(unittest.TestCase):
         first = api.check_runs[0]
         api.check_runs.append({**first, "conclusion": "failure"})
         self.assert_refused(api, "conflicting results")
+
+    def test_success_from_wrong_pr_or_base_cannot_satisfy_pr_checks(self):
+        for source in ("check", "workflow run"):
+            for field, value in (("number", PULL + 1), ("base", {"sha": OLD, "ref": "main"}), ("head", {"sha": OLD})):
+                with self.subTest(source=source, field=field):
+                    api = FakeGitHub()
+                    metadata = api.check_runs[0] if source == "check" else api.action_runs[PR_RUN]
+                    metadata["pull_requests"][0][field] = value
+                    self.assert_refused(api, "did not validate this pull request head against the current main base")
+
+    def test_homonymous_workflows_and_wrong_events_cannot_supply_checks(self):
+        for run_id, changes in (
+            (PR_RUN, {"path": ".github/workflows/homonym.yml"}),
+            (PR_RUN, {"workflow_id": 90000}),
+            (PR_RUN, {"event": "pull_request_target"}),
+            (PUSH_RUN, {"path": ".github/workflows/homonym.yml"}),
+            (PUSH_RUN, {"event": "workflow_dispatch"}),
+        ):
+            with self.subTest(run_id=run_id, changes=changes):
+                api = FakeGitHub()
+                api.action_runs[run_id].update(changes)
+                self.assert_refused(api, f"is not from {WORKFLOW_PATHS[run_id]}")
+
+    def test_current_pull_metadata_does_not_mask_an_older_tested_base(self):
+        api = FakeGitHub()
+        api.action_runs[PR_RUN]["display_title"] = f"PR #{PULL} {HEAD} against {OLD}"
+        self.assert_refused(api, "run did not record this pull request head and base in its event title")
+
+    def test_checks_must_belong_to_the_reported_run_and_head(self):
+        api = FakeGitHub()
+        api.check_runs[0]["details_url"] = f"https://other.invalid/{REPOSITORY}/actions/runs/{PR_RUN}/job/1"
+        self.assert_refused(api, "does not identify a GitHub Actions job in this repository")
+
+        api = FakeGitHub()
+        api.action_runs[PR_RUN]["check_suite_id"] = 90000
+        self.assert_refused(api, "does not belong to the reported GitHub Actions run")
+
+        api = FakeGitHub()
+        api.action_runs[PUSH_RUN]["head_sha"] = OLD
+        self.assert_refused(api, "workflow ran on a different head SHA")
 
     def test_rejects_missing_ambiguous_unterminated_and_duplicate_json_data(self):
         known = json.dumps(clean_evidence())

@@ -32,8 +32,11 @@ class _NoopAudio implements AudioPlayerService {
   @override
   Future<void> warmUp(String langCode) async {}
   @override
-  Future<void> prefetch(String text, String langCode,
-      {String? audioPath}) async {
+  Future<void> prefetch(
+    String text,
+    String langCode, {
+    String? audioPath,
+  }) async {
     prefetchedPaths.add(audioPath);
   }
 
@@ -98,14 +101,21 @@ void main() {
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     final repo = VocabularyRepositoryImpl(
-        db.vocabularyListDao, db.conceptDao, FakeRemote(), 'u', db);
+      db.vocabularyListDao,
+      db.conceptDao,
+      FakeRemote(),
+      'u',
+      db,
+    );
     final list = (await repo.createList(name: 'Quiz List')).valueOrNull!;
     frVariantId = {};
     koVariantId = {};
     for (final (fr, ko) in words) {
       final concept = (await repo.addConceptWithVariants(
-              listId: list.id, wordA: fr, wordB: ko))
-          .valueOrNull!;
+        listId: list.id,
+        wordA: fr,
+        wordB: ko,
+      )).valueOrNull!;
       final variants = await db.conceptDao.getVariantsByConcept(concept.id);
       frVariantId[fr] = variants.firstWhere((v) => v.langCode == 'fr').id;
       koVariantId[ko] = variants.firstWhere((v) => v.langCode == 'ko').id;
@@ -115,17 +125,21 @@ void main() {
 
   /// Container wired for loadCards; keeps the autoDispose notifier alive.
   (ProviderContainer, ProviderSubscription<QuizState>) harness(
-      Map<QuizDirection, Result<List<VariantProgress>>> responses,
-      {Completer<void>? delayed}) {
-    final container = ProviderContainer(overrides: [
-      getDueCardsUseCaseProvider.overrideWithValue(
-          GetDueCardsUseCase(_FakeProgressRepo(responses, delayed: delayed))),
-      conceptDaoProvider.overrideWithValue(db.conceptDao),
-      currentUserProvider.overrideWithValue(null),
-      audioPlayerServiceProvider.overrideWithValue(audio = _NoopAudio()),
-    ]);
+    Map<QuizDirection, Result<List<VariantProgress>>> responses, {
+    Completer<void>? delayed,
+  }) {
+    final container = ProviderContainer(
+      overrides: [
+        getDueCardsUseCaseProvider.overrideWithValue(
+          GetDueCardsUseCase(_FakeProgressRepo(responses, delayed: delayed)),
+        ),
+        conceptDaoProvider.overrideWithValue(db.conceptDao),
+        currentUserProvider.overrideWithValue(null),
+        audioPlayerServiceProvider.overrideWithValue(audio = _NoopAudio()),
+      ],
+    );
     addTearDown(container.dispose);
-    final sub = container.listen(quizProvider, (_, __) {});
+    final sub = container.listen(quizProvider, (_, _) {});
     return (container, sub);
   }
 
@@ -133,114 +147,125 @@ void main() {
     QuizDirectionChoice direction = QuizDirectionChoice.frToKo,
     int cardLimit = 3,
     String listId = 'ignored-by-fake',
-  }) =>
-      QuizArgs(
-        listId: listId,
-        mode: QuizMode.flashcard,
-        direction: direction,
-        cardLimit: cardLimit,
-      );
-
-  test('a direct reload clears previous state and discards a stale load',
-      () async {
-    final delayed = Completer<void>();
-    final (container, sub) = harness({
-      QuizDirection.frToKo:
-          Success([_due(frVariantId['chat']!, QuizDirection.frToKo)]),
-      QuizDirection.koToFr:
-          Success([_due(koVariantId['개']!, QuizDirection.koToFr)]),
-    }, delayed: delayed);
-    final quiz = container.read(quizProvider.notifier);
-    await quiz.loadCards(args(cardLimit: 1));
-    quiz.flipCard();
-    quiz.setListening(true);
-    quiz.setPartialTranscript('old transcript');
-    quiz.setForeground(false);
-    quiz.setPaused(true);
-    expect(sub.read().isFlipped, isTrue);
-
-    final oldLoad = quiz.loadCards(args(listId: 'slow', cardLimit: 1));
-    expect(sub.read().cards, isEmpty);
-    expect(sub.read().isLoading, isTrue);
-    expect(sub.read().isFlipped, isFalse);
-    expect(sub.read().isListening, isFalse);
-    expect(sub.read().partialTranscript, isEmpty);
-    audio.spokenPaths.clear();
-
-    await quiz
-        .loadCards(args(direction: QuizDirectionChoice.koToFr, cardLimit: 1));
-    expect(sub.read().currentCard!.questionWord, '개');
-    expect(audio.spokenPaths, [sub.read().currentCard!.questionAudioPath]);
-    delayed.complete();
-    await oldLoad;
-
-    expect(sub.read().currentCard!.questionWord, '개');
-    expect(audio.spokenPaths, hasLength(1));
-  });
-
-  test('single direction: cards are enriched with question + answer words',
-      () async {
-    final (container, sub) = harness({
-      QuizDirection.frToKo: Success([
-        _due(frVariantId['chat']!, QuizDirection.frToKo),
-        _due(frVariantId['chien']!, QuizDirection.frToKo),
-        _due(frVariantId['maison']!, QuizDirection.frToKo),
-      ]),
-    });
-
-    await container.read(quizProvider.notifier).loadCards(args());
-
-    final state = sub.read();
-    expect(state.isLoading, isFalse);
-    expect(state.errorMessage, isNull);
-    expect(state.cards.length, 3);
-    expect(state.cards.map((c) => c.questionWord),
-        containsAll(['chat', 'chien', 'maison']));
-    final chat = state.cards.firstWhere((c) => c.questionWord == 'chat');
-    expect(chat.answerWords, contains('고양이'));
-    expect(chat.questionAudioPath, startsWith('users/u/'));
-    expect(chat.answerAudioPath, startsWith('users/u/'));
-  });
-
-  test('a loaded session prefetches every published prompt and answer',
-      () async {
-    final (container, _) = harness({
-      QuizDirection.frToKo: Success([
-        _due(frVariantId['chat']!, QuizDirection.frToKo),
-        _due(frVariantId['chien']!, QuizDirection.frToKo),
-        _due(frVariantId['maison']!, QuizDirection.frToKo),
-      ]),
-    });
-
-    await container.read(quizProvider.notifier).loadCards(args());
-    await Future<void>.delayed(Duration.zero);
-
-    expect(audio.prefetchedPaths, hasLength(6));
-    expect(audio.prefetchedPaths, everyElement(startsWith('users/u/')));
-  });
-
-  test('subsequent and postponed cards retain the published audio clip',
-      () async {
-    final (container, sub) = harness({
-      QuizDirection.frToKo: Success([
-        _due(frVariantId['chat']!, QuizDirection.frToKo),
-        _due(frVariantId['chien']!, QuizDirection.frToKo),
-      ])
-    });
-    final notifier = container.read(quizProvider.notifier);
-    await notifier.loadCards(args(cardLimit: 2));
-    final first = sub.read().currentCard!;
-    expect(audio.spokenPaths.single, first.questionAudioPath);
-    notifier.skipCurrentCard();
-    await Future<void>.delayed(Duration.zero);
-    final next = sub.read().currentCard!;
-    expect(audio.spokenPaths.last, next.questionAudioPath);
-    expect(sub.read().cards.last.questionAudioPath, first.questionAudioPath);
-    expect(sub.read().cards.last.answerAudioPath, first.answerAudioPath);
-  });
+  }) => QuizArgs(
+    listId: listId,
+    mode: QuizMode.flashcard,
+    direction: direction,
+    cardLimit: cardLimit,
+  );
 
   test(
-      'both directions: cards mix WITHOUT the same concept back-to-back '
+    'a direct reload clears previous state and discards a stale load',
+    () async {
+      final delayed = Completer<void>();
+      final (container, sub) = harness({
+        QuizDirection.frToKo: Success([
+          _due(frVariantId['chat']!, QuizDirection.frToKo),
+        ]),
+        QuizDirection.koToFr: Success([
+          _due(koVariantId['개']!, QuizDirection.koToFr),
+        ]),
+      }, delayed: delayed);
+      final quiz = container.read(quizProvider.notifier);
+      await quiz.loadCards(args(cardLimit: 1));
+      quiz.flipCard();
+      quiz.setListening(true);
+      quiz.setPartialTranscript('old transcript');
+      quiz.setForeground(false);
+      quiz.setPaused(true);
+      expect(sub.read().isFlipped, isTrue);
+
+      final oldLoad = quiz.loadCards(args(listId: 'slow', cardLimit: 1));
+      expect(sub.read().cards, isEmpty);
+      expect(sub.read().isLoading, isTrue);
+      expect(sub.read().isFlipped, isFalse);
+      expect(sub.read().isListening, isFalse);
+      expect(sub.read().partialTranscript, isEmpty);
+      audio.spokenPaths.clear();
+
+      await quiz.loadCards(
+        args(direction: QuizDirectionChoice.koToFr, cardLimit: 1),
+      );
+      expect(sub.read().currentCard!.questionWord, '개');
+      expect(audio.spokenPaths, [sub.read().currentCard!.questionAudioPath]);
+      delayed.complete();
+      await oldLoad;
+
+      expect(sub.read().currentCard!.questionWord, '개');
+      expect(audio.spokenPaths, hasLength(1));
+    },
+  );
+
+  test(
+    'single direction: cards are enriched with question + answer words',
+    () async {
+      final (container, sub) = harness({
+        QuizDirection.frToKo: Success([
+          _due(frVariantId['chat']!, QuizDirection.frToKo),
+          _due(frVariantId['chien']!, QuizDirection.frToKo),
+          _due(frVariantId['maison']!, QuizDirection.frToKo),
+        ]),
+      });
+
+      await container.read(quizProvider.notifier).loadCards(args());
+
+      final state = sub.read();
+      expect(state.isLoading, isFalse);
+      expect(state.errorMessage, isNull);
+      expect(state.cards.length, 3);
+      expect(
+        state.cards.map((c) => c.questionWord),
+        containsAll(['chat', 'chien', 'maison']),
+      );
+      final chat = state.cards.firstWhere((c) => c.questionWord == 'chat');
+      expect(chat.answerWords, contains('고양이'));
+      expect(chat.questionAudioPath, startsWith('users/u/'));
+      expect(chat.answerAudioPath, startsWith('users/u/'));
+    },
+  );
+
+  test(
+    'a loaded session prefetches every published prompt and answer',
+    () async {
+      final (container, _) = harness({
+        QuizDirection.frToKo: Success([
+          _due(frVariantId['chat']!, QuizDirection.frToKo),
+          _due(frVariantId['chien']!, QuizDirection.frToKo),
+          _due(frVariantId['maison']!, QuizDirection.frToKo),
+        ]),
+      });
+
+      await container.read(quizProvider.notifier).loadCards(args());
+      await Future<void>.delayed(Duration.zero);
+
+      expect(audio.prefetchedPaths, hasLength(6));
+      expect(audio.prefetchedPaths, everyElement(startsWith('users/u/')));
+    },
+  );
+
+  test(
+    'subsequent and postponed cards retain the published audio clip',
+    () async {
+      final (container, sub) = harness({
+        QuizDirection.frToKo: Success([
+          _due(frVariantId['chat']!, QuizDirection.frToKo),
+          _due(frVariantId['chien']!, QuizDirection.frToKo),
+        ]),
+      });
+      final notifier = container.read(quizProvider.notifier);
+      await notifier.loadCards(args(cardLimit: 2));
+      final first = sub.read().currentCard!;
+      expect(audio.spokenPaths.single, first.questionAudioPath);
+      notifier.skipCurrentCard();
+      await Future<void>.delayed(Duration.zero);
+      final next = sub.read().currentCard!;
+      expect(audio.spokenPaths.last, next.questionAudioPath);
+      expect(sub.read().cards.last.questionAudioPath, first.questionAudioPath);
+      expect(sub.read().cards.last.answerAudioPath, first.answerAudioPath);
+    },
+  );
+
+  test('both directions: cards mix WITHOUT the same concept back-to-back '
       '(the old strict alternation dealt "chat" then "고양이" — the same '
       'word with the languages swapped; user report 2026-07-21)', () async {
     final (container, sub) = harness({
@@ -260,36 +285,45 @@ void main() {
 
     final cards = sub.read().cards;
     // Both directions are present…
-    expect(cards.map((c) => c.progress.direction).toSet(),
-        {QuizDirection.frToKo, QuizDirection.koToFr});
+    expect(cards.map((c) => c.progress.direction).toSet(), {
+      QuizDirection.frToKo,
+      QuizDirection.koToFr,
+    });
     // …and the two directions of one concept are spaced as far apart as a
     // 2-concept deck allows (greedy: both FR fronts, then both KO fronts).
-    expect(cards.map((c) => c.questionWord).toList(),
-        ['chat', 'chien', '고양이', '개']);
+    expect(cards.map((c) => c.questionWord).toList(), [
+      'chat',
+      'chien',
+      '고양이',
+      '개',
+    ]);
   });
 
-  test('both mode: one side failing still builds a session from the other',
-      () async {
-    final (container, sub) = harness({
-      QuizDirection.frToKo: const Failure(NetworkException('down')),
-      QuizDirection.koToFr: Success([
-        _due(koVariantId['고양이']!, QuizDirection.koToFr),
-        _due(koVariantId['개']!, QuizDirection.koToFr),
-      ]),
-    });
+  test(
+    'both mode: one side failing still builds a session from the other',
+    () async {
+      final (container, sub) = harness({
+        QuizDirection.frToKo: const Failure(NetworkException('down')),
+        QuizDirection.koToFr: Success([
+          _due(koVariantId['고양이']!, QuizDirection.koToFr),
+          _due(koVariantId['개']!, QuizDirection.koToFr),
+        ]),
+      });
 
-    await container
-        .read(quizProvider.notifier)
-        .loadCards(args(direction: QuizDirectionChoice.both, cardLimit: 4));
+      await container
+          .read(quizProvider.notifier)
+          .loadCards(args(direction: QuizDirectionChoice.both, cardLimit: 4));
 
-    final state = sub.read();
-    expect(state.errorMessage, isNull);
-    // 2 KO cards padded cyclically to the limit of 4.
-    expect(state.cards.length, 4);
-    expect(
+      final state = sub.read();
+      expect(state.errorMessage, isNull);
+      // 2 KO cards padded cyclically to the limit of 4.
+      expect(state.cards.length, 4);
+      expect(
         state.cards.every((c) => c.progress.direction == QuizDirection.koToFr),
-        isTrue);
-  });
+        isTrue,
+      );
+    },
+  );
 
   test('both mode: both sides failing → error state, no session', () async {
     final (container, sub) = harness({
@@ -318,9 +352,7 @@ void main() {
   });
 
   test('no due cards → session immediately complete, no error', () async {
-    final (container, sub) = harness({
-      QuizDirection.frToKo: const Success([]),
-    });
+    final (container, sub) = harness({QuizDirection.frToKo: const Success([])});
 
     await container.read(quizProvider.notifier).loadCards(args());
 
@@ -330,37 +362,41 @@ void main() {
     expect(state.cards, isEmpty);
   });
 
-  test('a progress row pointing at a missing variant is dropped, not crashed',
-      () async {
-    final (container, sub) = harness({
-      QuizDirection.frToKo: Success([
-        _due(frVariantId['chat']!, QuizDirection.frToKo),
-        _due('no-such-variant', QuizDirection.frToKo),
-      ]),
-    });
+  test(
+    'a progress row pointing at a missing variant is dropped, not crashed',
+    () async {
+      final (container, sub) = harness({
+        QuizDirection.frToKo: Success([
+          _due(frVariantId['chat']!, QuizDirection.frToKo),
+          _due('no-such-variant', QuizDirection.frToKo),
+        ]),
+      });
 
-    await container.read(quizProvider.notifier).loadCards(args(cardLimit: 2));
+      await container.read(quizProvider.notifier).loadCards(args(cardLimit: 2));
 
-    final state = sub.read();
-    expect(state.errorMessage, isNull);
-    // The broken row is dropped; the survivor is padded up to the limit.
-    expect(state.cards.length, 2);
-    expect(state.cards.every((c) => c.questionWord == 'chat'), isTrue);
-  });
+      final state = sub.read();
+      expect(state.errorMessage, isNull);
+      // The broken row is dropped; the survivor is padded up to the limit.
+      expect(state.cards.length, 2);
+      expect(state.cards.every((c) => c.questionWord == 'chat'), isTrue);
+    },
+  );
 
-  test('fewer due cards than the limit → padded cyclically to the limit',
-      () async {
-    final (container, sub) = harness({
-      QuizDirection.frToKo: Success([
-        _due(frVariantId['chat']!, QuizDirection.frToKo),
-      ]),
-    });
+  test(
+    'fewer due cards than the limit → padded cyclically to the limit',
+    () async {
+      final (container, sub) = harness({
+        QuizDirection.frToKo: Success([
+          _due(frVariantId['chat']!, QuizDirection.frToKo),
+        ]),
+      });
 
-    await container.read(quizProvider.notifier).loadCards(args(cardLimit: 3));
+      await container.read(quizProvider.notifier).loadCards(args(cardLimit: 3));
 
-    final state = sub.read();
-    expect(state.cards.length, 3);
-    expect(state.cards.every((c) => c.questionWord == 'chat'), isTrue);
-    expect(state.isComplete, isFalse);
-  });
+      final state = sub.read();
+      expect(state.cards.length, 3);
+      expect(state.cards.every((c) => c.questionWord == 'chat'), isTrue);
+      expect(state.isComplete, isFalse);
+    },
+  );
 }

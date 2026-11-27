@@ -27,10 +27,10 @@ void main() {
   late Directory dir;
   var tick = 0;
   SttCorpusRecorder recorder() => SttCorpusRecorder(
-        recorder: _FakeAudio(),
-        documentsDirectory: () async => dir,
-        clock: () => DateTime.utc(2026, 10, 3).add(Duration(seconds: tick++)),
-      );
+    recorder: _FakeAudio(),
+    documentsDirectory: () async => dir,
+    clock: () => DateTime.utc(2026, 10, 3).add(Duration(seconds: tick++)),
+  );
 
   setUp(() async {
     dir = await Directory.systemTemp.createTemp('near_miss');
@@ -45,14 +45,18 @@ void main() {
   });
 
   Future<void> start(WidgetTester tester, SttCorpusRecorder rec) async {
-    await tester.pumpWidget(MaterialApp(
-      home: NearMissSessionScreen(
-        recorder: rec,
-        takeDuration: const Duration(milliseconds: 20),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NearMissSessionScreen(
+          recorder: rec,
+          takeDuration: const Duration(milliseconds: 20),
+        ),
       ),
-    ));
+    );
     await tester.enterText(
-        find.byKey(const ValueKey('near_miss_speaker')), 'P1');
+      find.byKey(const ValueKey('near_miss_speaker')),
+      'P1',
+    );
     await tester.pump();
     await tester.runAsync(() async {
       await tester.tap(find.text('Commencer'));
@@ -64,8 +68,9 @@ void main() {
   String shownWord(WidgetTester tester) =>
       tester.widget<Text>(find.byKey(const ValueKey('near_miss_word'))).data!;
 
-  testWidgets('a Korean session records a labelled take and moves on',
-      (tester) async {
+  testWidgets('a Korean session records a labelled take and moves on', (
+    tester,
+  ) async {
     final rec = recorder();
     await start(tester, rec);
     final prompts = nearMissPromptsFor('ko', 'P1');
@@ -88,16 +93,18 @@ void main() {
     expect(take.meta['condition'], 'calme');
   }, skip: !optedIn);
 
-  testWidgets('a returning participant resumes at the first missing word',
-      (tester) async {
+  testWidgets('a returning participant resumes at the first missing word', (
+    tester,
+  ) async {
     final rec = recorder();
     final prompts = nearMissPromptsFor('ko', 'P1');
     await tester.runAsync(() async {
       for (final p in prompts.take(3)) {
         await rec.start(
-            word: p.spoken,
-            langCode: 'ko',
-            meta: {'speaker': 'P1', 'condition': 'calme'});
+          word: p.spoken,
+          langCode: 'ko',
+          meta: {'speaker': 'P1', 'condition': 'calme'},
+        );
         await rec.stop();
       }
     });
@@ -106,32 +113,38 @@ void main() {
     expect(find.text('4 / ${prompts.length}'), findsOneWidget);
   }, skip: !optedIn);
 
-  testWidgets('the participant board lists progress and resumes on tap',
-      (tester) async {
+  testWidgets('the participant board lists progress and resumes on tap', (
+    tester,
+  ) async {
     final rec = recorder();
     final prompts = nearMissPromptsFor('ko', 'P7');
     await tester.runAsync(() async {
       for (final p in prompts.take(5)) {
         await rec.start(
-            word: p.spoken,
-            langCode: 'ko',
-            meta: {'speaker': 'P7', 'condition': 'bruit'});
+          word: p.spoken,
+          langCode: 'ko',
+          meta: {'speaker': 'P7', 'condition': 'bruit'},
+        );
         await rec.stop();
       }
     });
     await tester.runAsync(() async {
-      await tester.pumpWidget(MaterialApp(
-        home: NearMissSessionScreen(
-          recorder: rec,
-          takeDuration: const Duration(milliseconds: 20),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: NearMissSessionScreen(
+            recorder: rec,
+            takeDuration: const Duration(milliseconds: 20),
+          ),
         ),
-      ));
+      );
       await Future<void>.delayed(const Duration(milliseconds: 100));
     });
     await tester.pump();
 
-    expect(find.text('1 personne · 0 séance complète · 5 mots enregistrés'),
-        findsOneWidget);
+    expect(
+      find.text('1 personne · 0 séance complète · 5 mots enregistrés'),
+      findsOneWidget,
+    );
     expect(find.text('P7 · 한국어 · bruit'), findsOneWidget);
     expect(find.textContaining('5 / ${prompts.length}'), findsOneWidget);
 

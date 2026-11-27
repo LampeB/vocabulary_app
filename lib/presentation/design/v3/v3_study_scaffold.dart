@@ -50,10 +50,7 @@ class V3StudyScaffold extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 Expanded(child: child),
-                if (footer != null) ...[
-                  const SizedBox(height: 18),
-                  footer!,
-                ],
+                if (footer != null) ...[const SizedBox(height: 18), footer!],
               ],
             ),
           ),

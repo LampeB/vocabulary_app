@@ -21,13 +21,30 @@ class _V3PondState extends State<V3Pond> with SingleTickerProviderStateMixin {
   AnimationController? _controller;
 
   @override
-  void initState() {
-    super.initState();
-    if (widget.animate) {
-      _controller = AnimationController(
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _updateMotion();
+  }
+
+  @override
+  void didUpdateWidget(V3Pond oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.animate != widget.animate) _updateMotion();
+  }
+
+  void _updateMotion() {
+    final animate =
+        widget.animate &&
+        !MediaQuery.disableAnimationsOf(context) &&
+        TickerMode.valuesOf(context).enabled;
+    if (animate) {
+      _controller ??= AnimationController(
         vsync: this,
         duration: const Duration(seconds: 23),
-      )..repeat();
+      );
+      if (!_controller!.isAnimating) _controller!.repeat();
+    } else {
+      _controller?.stop();
     }
   }
 
@@ -40,14 +57,15 @@ class _V3PondState extends State<V3Pond> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     if (MediaQuery.disableAnimationsOf(context)) return const SizedBox.expand();
-    if (!widget.animate) {
+    if (!widget.animate || _controller == null) {
       return const IgnorePointer(
-          child: CustomPaint(painter: _PondPainter(0), size: Size.infinite));
+        child: CustomPaint(painter: _PondPainter(0), size: Size.infinite),
+      );
     }
     return IgnorePointer(
       child: AnimatedBuilder(
         animation: _controller!,
-        builder: (_, __) => CustomPaint(
+        builder: (_, _) => CustomPaint(
           painter: _PondPainter(_controller!.value),
           size: Size.infinite,
         ),

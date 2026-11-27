@@ -16,8 +16,9 @@ const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
 /// Public so widget tests can override it (the plugin stream doesn't exist on
 /// the host); behavior unchanged.
-final connectivityStreamProvider =
-    StreamProvider<List<ConnectivityResult>>((ref) {
+final connectivityStreamProvider = StreamProvider<List<ConnectivityResult>>((
+  ref,
+) {
   if (_kTestMode) return Stream.value([ConnectivityResult.wifi]);
   return Connectivity().onConnectivityChanged;
 });
@@ -40,9 +41,10 @@ final pushOnReconnectProvider = Provider<void>((ref) {
 
   Timer? drainTimer;
   ref.onDispose(() => drainTimer?.cancel());
-  ref.listen(pendingWritesProvider, (previous, next) {
+  ref.listen(outboundMutationsProvider, (previous, next) {
+    if (!next.hasValue) return;
     drainTimer?.cancel();
-    if ((next.valueOrNull ?? 0) == 0 || !online()) return;
+    if (!online()) return;
     drainTimer = Timer(const Duration(milliseconds: 300), () {
       drain();
     });
@@ -66,13 +68,7 @@ class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.child});
   final Widget child;
 
-  static const _routes = [
-    '/home',
-    '/lists',
-    '/grammar',
-    '/stats',
-    '/profile',
-  ];
+  static const _routes = ['/home', '/lists', '/grammar', '/stats', '/profile'];
 
   int _selectedIndex(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
@@ -86,7 +82,8 @@ class AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(pushOnReconnectProvider);
     final connectivityAsync = ref.watch(connectivityStreamProvider);
-    final offline = connectivityAsync.valueOrNull != null &&
+    final offline =
+        connectivityAsync.valueOrNull != null &&
         isOffline(connectivityAsync.valueOrNull!);
     final selected = _selectedIndex(context);
     final inSession = GoRouterState.of(context).uri.path == '/quiz';
@@ -109,11 +106,16 @@ class AppShell extends ConsumerWidget {
                       width: double.infinity,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                            vertical: 6, horizontal: 16),
+                          vertical: 6,
+                          horizontal: 16,
+                        ),
                         child: Row(
                           children: [
-                            const Icon(Icons.wifi_off,
-                                size: 16, color: Colors.white),
+                            const Icon(
+                              Icons.wifi_off,
+                              size: 16,
+                              color: Colors.white,
+                            ),
                             const SizedBox(width: 8),
                             // Expanded: the banner message is wider than any
                             // phone screen — let it wrap instead of clipping.
@@ -121,7 +123,9 @@ class AppShell extends ConsumerWidget {
                               child: Text(
                                 'shell.offline_banner'.tr(),
                                 style: const TextStyle(
-                                    color: Colors.white, fontSize: 12),
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
                           ],
@@ -133,7 +137,8 @@ class AppShell extends ConsumerWidget {
               Expanded(
                 child: Padding(
                   padding: EdgeInsets.only(
-                      bottom: inSession ? 0 : _kBarHeight + safeBottom),
+                    bottom: inSession ? 0 : _kBarHeight + safeBottom,
+                  ),
                   child: child,
                 ),
               ),
@@ -163,10 +168,7 @@ const _kBarHeight = 72.0;
 // ── Nav widget ─────────────────────────────────────────────────────────────────
 
 class _VkBottomNav extends StatelessWidget {
-  const _VkBottomNav({
-    required this.selectedIndex,
-    required this.onTap,
-  });
+  const _VkBottomNav({required this.selectedIndex, required this.onTap});
 
   final int selectedIndex;
   final void Function(int index) onTap;
@@ -176,8 +178,11 @@ class _VkBottomNav extends StatelessWidget {
     _SlotDef(Icons.bookmark_border, Icons.bookmark, 'shell.nav_lists'),
     _SlotDef(Icons.menu_book_outlined, Icons.menu_book, 'shell.nav_lessons'),
     _SlotDef(Icons.insights_outlined, Icons.insights, 'shell.nav_progress'),
-    _SlotDef(Icons.person_outline_rounded, Icons.person_rounded,
-        'shell.nav_profile'),
+    _SlotDef(
+      Icons.person_outline_rounded,
+      Icons.person_rounded,
+      'shell.nav_profile',
+    ),
   ];
   static const _tabNames = ['home', 'lists', 'grammar', 'stats', 'profile'];
 

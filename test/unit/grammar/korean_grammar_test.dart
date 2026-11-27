@@ -31,24 +31,28 @@ void main() {
   late KoreanGrammarModule module;
 
   setUpAll(() async {
-    final raw =
-        await rootBundle.loadString('assets/seed/grammar/ko/rules.json');
+    final raw = await rootBundle.loadString(
+      'assets/seed/grammar/ko/rules.json',
+    );
     rules = [
       for (final j
           in (jsonDecode(raw) as Map<String, dynamic>)['rules'] as List)
         GrammarRule.fromJson(j as Map<String, dynamic>),
     ];
-    final conjugation = rules
-        .firstWhere((r) => r.mechanics is ConjugationMechanics)
-        .mechanics as ConjugationMechanics;
+    final conjugation =
+        rules.firstWhere((r) => r.mechanics is ConjugationMechanics).mechanics
+            as ConjugationMechanics;
     module = KoreanGrammarModule(conjugationIrregulars: conjugation.irregulars);
   });
 
   test('the bundled content parses: 5 rules, every one with vectors', () {
     expect(rules, hasLength(5));
     for (final r in rules) {
-      expect(r.testVectors.length, greaterThanOrEqualTo(12),
-          reason: '${r.id} is under-specified');
+      expect(
+        r.testVectors.length,
+        greaterThanOrEqualTo(12),
+        reason: '${r.id} is under-specified',
+      );
       expect(r.explanation('fr'), isNotEmpty);
       expect(r.prerequisiteLists, isNotEmpty);
     }
@@ -58,10 +62,16 @@ void main() {
     var checked = 0;
     for (final rule in rules) {
       for (final v in rule.testVectors) {
-        final answer = module.apply(rule, v.input,
-            variantKey: variantFor(rule, v.context));
-        expect(answer.expected, v.expected,
-            reason: '${rule.id}: ${v.input} (${v.context})');
+        final answer = module.apply(
+          rule,
+          v.input,
+          variantKey: variantFor(rule, v.context),
+        );
+        expect(
+          answer.expected,
+          v.expected,
+          reason: '${rule.id}: ${v.input} (${v.context})',
+        );
         expect(answer.accepted, contains(v.expected));
         checked++;
       }
@@ -107,26 +117,76 @@ void main() {
       // Without the map the regular algorithm applies — this is exactly why
       // irregularity is data (per-word), not code.
       expect(conj('듣다'), isNot('들어요'));
-      expect(KoreanMorphology.presentPolite('듣다', irregulars: {'듣다': '들어요'}),
-          '들어요');
+      expect(
+        KoreanMorphology.presentPolite('듣다', irregulars: {'듣다': '들어요'}),
+        '들어요',
+      );
     });
 
     test('particle attachment follows batchim', () {
-      String topic(String w) => KoreanMorphology.attachParticle(w,
-          afterConsonant: '은', afterVowel: '는');
+      String topic(String w) => KoreanMorphology.attachParticle(
+        w,
+        afterConsonant: '은',
+        afterVowel: '는',
+      );
       expect(topic('학생'), '학생은');
       expect(topic('친구'), '친구는');
       expect(KoreanMorphology.hasBatchim('물'), isTrue);
       expect(KoreanMorphology.hasBatchim('커피'), isFalse);
     });
 
+    test(
+      'subject pronouns contract without changing their other particles',
+      () {
+        for (final entry in {
+          '저': '제가',
+          '나': '내가',
+          '너': '네가',
+          '누구': '누가',
+        }.entries) {
+          expect(
+            KoreanMorphology.attachParticle(
+              entry.key,
+              afterConsonant: '이',
+              afterVowel: '가',
+            ),
+            entry.value,
+          );
+        }
+        expect(
+          KoreanMorphology.attachParticle(
+            '저',
+            afterConsonant: '은',
+            afterVowel: '는',
+          ),
+          '저는',
+        );
+        expect(
+          KoreanMorphology.attachParticle(
+            '저',
+            afterConsonant: '을',
+            afterVowel: '를',
+          ),
+          '저를',
+        );
+        expect(
+          KoreanMorphology.attachParticle(
+            '친구',
+            afterConsonant: '이',
+            afterVowel: '가',
+          ),
+          '친구가',
+        );
+      },
+    );
+
     test('negation: compounds split, others prefix', () {
       expect(KoreanMorphology.negatePresent('공부하다'), '공부 안 해요');
       expect(KoreanMorphology.negatePresent('가다'), '안 가요');
       expect(
-          KoreanMorphology.negatePresent('좋아하다',
-              irregulars: {'좋아하다': '안 좋아해요'}),
-          '안 좋아해요');
+        KoreanMorphology.negatePresent('좋아하다', irregulars: {'좋아하다': '안 좋아해요'}),
+        '안 좋아해요',
+      );
     });
   });
 

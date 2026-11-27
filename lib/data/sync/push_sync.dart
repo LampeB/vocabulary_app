@@ -27,10 +27,14 @@ import '../models/word_variant_dto.dart';
 /// remote writer for local mutations, so an unsynced row cannot be clobbered
 /// by a competing fire-and-forget repository write.
 class PushSync {
-  PushSync(this._listDao, this._conceptDao, this._progressDao,
-      this._reviewEventDao, this._remote,
-      {String? userId})
-      : _userId = userId;
+  PushSync(
+    this._listDao,
+    this._conceptDao,
+    this._progressDao,
+    this._reviewEventDao,
+    this._remote, {
+    this._userId,
+  });
 
   final VocabularyListDao _listDao;
   final ConceptDao _conceptDao;
@@ -97,20 +101,21 @@ class PushSync {
       run,
       rows: () => _reviewEventDao.getUnsynced(userId: _userId),
       push: (r) => _sendThenAcknowledge(
-          _remote.upsertReviewEvent({
-            'id': r.id,
-            'user_id': r.userId,
-            'variant_id': r.variantId,
-            'direction': r.direction,
-            'list_id': r.listId,
-            'mode': r.mode,
-            'correct': r.correct,
-            'rating': r.rating,
-            'response_time_ms': r.responseTimeMs,
-            'retry_count': r.retryCount,
-            'created_at': r.createdAt.toUtc().toIso8601String(),
-          }),
-          () => _reviewEventDao.markSynced([r.id])),
+        _remote.upsertReviewEvent({
+          'id': r.id,
+          'user_id': r.userId,
+          'variant_id': r.variantId,
+          'direction': r.direction,
+          'list_id': r.listId,
+          'mode': r.mode,
+          'correct': r.correct,
+          'rating': r.rating,
+          'response_time_ms': r.responseTimeMs,
+          'retry_count': r.retryCount,
+          'created_at': r.createdAt.toUtc().toIso8601String(),
+        }),
+        () => _reviewEventDao.markSynced([r.id]),
+      ),
     );
     return run;
   }
@@ -156,10 +161,12 @@ class PushSync {
             push: _remote.upsertList,
             acknowledge: _listDao.acknowledge,
             load: _listDao.getById,
-            save: (row, synced) => _listDao.upsert(row
-                .toVocabularyListDomain()
-                .copyWith(isSynced: synced)
-                .toLocalCompanion()),
+            save: (row, synced) => _listDao.upsert(
+              row
+                  .toVocabularyListDomain()
+                  .copyWith(isSynced: synced)
+                  .toLocalCompanion(),
+            ),
             onTombstone: () =>
                 _conceptDao.tombstoneListContents(r.id, r.ownerId),
           ),
@@ -177,8 +184,9 @@ class PushSync {
           push: _remote.upsertConcept,
           acknowledge: _conceptDao.acknowledgeConcept,
           load: _conceptDao.getById,
-          save: (row, synced) => _conceptDao
-              .upsert(conceptCompanionFromRemote(row, isSynced: synced)),
+          save: (row, synced) => _conceptDao.upsert(
+            conceptCompanionFromRemote(row, isSynced: synced),
+          ),
           onTombstone: () =>
               _conceptDao.tombstoneConceptContents([r.id], list.ownerId),
         ),
@@ -196,9 +204,12 @@ class PushSync {
           acknowledge: _conceptDao.acknowledgeVariant,
           load: _conceptDao.getVariantById,
           save: (row, synced) => _conceptDao.upsertVariant(
-              wordVariantCompanionFromRemote(row, isSynced: synced)),
+            wordVariantCompanionFromRemote(row, isSynced: synced),
+          ),
           onTombstone: () => _progressDao.deleteProgressForVariants(
-              userId: list.ownerId, variantIds: [r.id]),
+            userId: list.ownerId,
+            variantIds: [r.id],
+          ),
           afterAck: (row) {
             if (row['is_deleted'] != true && row['audio_path'] != null) {
               _queueAudio(r.id);
@@ -216,9 +227,12 @@ class PushSync {
     required String id,
     required R Function(Map<String, dynamic>) fromLocalJson,
     required Map<String, dynamic> Function(R) toRemote,
-    required Future<Result<Map<String, dynamic>>> Function(Map<String, dynamic>,
-            {bool insertOnly, Map<String, dynamic>? changes})
-        push,
+    required Future<Result<Map<String, dynamic>>> Function(
+      Map<String, dynamic>, {
+      bool insertOnly,
+      Map<String, dynamic>? changes,
+    })
+    push,
     required Future<int> Function(R) acknowledge,
     required Future<R?> Function(String) load,
     required Future<int> Function(Map<String, dynamic>, bool isSynced) save,
@@ -227,18 +241,41 @@ class PushSync {
   }) async {
     final payload = toRemote(submitted);
     final base = await _listDao.getSharedImportBase(id);
-    if (base == null) {
-      final result = await _sendThenAcknowledge(
-          push(payload), () => acknowledge(submitted));
-      if (result.valueOrNull == 1) afterAck?.call(payload);
-      return result;
-    }
-
-    final response = await push(payload,
-        insertOnly: true,
-        changes: _changedFields(toRemote(fromLocalJson(base)), payload));
+    final response = base == null
+        ? await push(payload)
+        : await push(
+            payload,
+            insertOnly: true,
+            changes: _changedFields(toRemote(fromLocalJson(base)), payload),
+          );
     if (response case Failure(:final exception)) return Failure(exception);
     final server = response.valueOrNull!;
+    final deleted = server['is_deleted'] == true;
+    final ancestorDeleted =
+        server.containsKey(VocabularyRemoteDataSource.deletedListKey) ||
+        server.containsKey(VocabularyRemoteDataSource.deletedConceptKey);
+    if (deleted &&
+        (base != null || payload['is_deleted'] != true || ancestorDeleted)) {
+      return Success(
+        await _listDao.transaction(() async {
+          if (await load(id) == null) return 0;
+          await save(server, true);
+          if (ancestorDeleted) {
+            await _applyAncestorTombstone(server);
+          } else {
+            await onTombstone();
+          }
+          await _listDao.forgetSharedImportBases([id]);
+          return 1;
+        }),
+      );
+    }
+    if (base == null) {
+      final value = await acknowledge(submitted);
+      if (value == 1 && !deleted) afterAck?.call(server);
+      return Success(value);
+    }
+
     final acknowledgement = await _listDao.transaction(() async {
       final current = await load(id);
       // A pull may have applied a tombstone and cleared this bootstrap while
@@ -248,12 +285,8 @@ class PushSync {
         return 0;
       }
 
-      final deleted = server['is_deleted'] == true;
-      final remaining = deleted
-          ? const <String, dynamic>{}
-          : _changedFields(payload, toRemote(current));
+      final remaining = _changedFields(payload, toRemote(current));
       await save(server, true);
-      if (deleted) await onTombstone();
       if (remaining.isEmpty) {
         await _listDao.forgetSharedImportBases([id]);
         return 1;
@@ -269,8 +302,35 @@ class PushSync {
     return Success(acknowledgement);
   }
 
+  Future<void> _applyAncestorTombstone(Map<String, dynamic> response) async {
+    final listRow =
+        response[VocabularyRemoteDataSource.deletedListKey]
+            as Map<String, dynamic>?;
+    if (listRow != null) {
+      final list = listRow.toVocabularyListDomain();
+      await _listDao.upsert(list.toLocalCompanion());
+      await _listDao.forgetSharedImportBases([list.id]);
+      await _conceptDao.tombstoneListContents(list.id, list.ownerId);
+      return;
+    }
+
+    final conceptRow =
+        response[VocabularyRemoteDataSource.deletedConceptKey]
+            as Map<String, dynamic>;
+    final concept = conceptCompanionFromRemote(conceptRow);
+    final list = await _listDao.getById(concept.listId.value);
+    if (list == null) return;
+    await _conceptDao.upsert(concept);
+    await _listDao.forgetSharedImportBases([concept.id.value]);
+    await _conceptDao.tombstoneConceptContents([
+      concept.id.value,
+    ], list.ownerId);
+  }
+
   static Map<String, dynamic> _changedFields(
-      Map<String, dynamic> base, Map<String, dynamic> edited) {
+    Map<String, dynamic> base,
+    Map<String, dynamic> edited,
+  ) {
     const metadata = {
       'id',
       'owner_id',
@@ -278,7 +338,7 @@ class PushSync {
       'concept_id',
       'created_at',
       'updated_at',
-      'imported_from_share_token'
+      'imported_from_share_token',
     };
     final changes = {
       for (final entry in edited.entries)
@@ -291,7 +351,9 @@ class PushSync {
   }
 
   Future<Result<int>> _sendThenAcknowledge(
-      Future<Result<dynamic>> sent, Future<int> Function() acknowledge) async {
+    Future<Result<dynamic>> sent,
+    Future<int> Function() acknowledge,
+  ) async {
     return switch (await sent) {
       Success() => Success(await acknowledge()),
       Failure(:final exception) => Failure(exception),

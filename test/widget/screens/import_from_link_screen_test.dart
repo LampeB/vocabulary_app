@@ -21,7 +21,8 @@ import '../../helpers/pump_screen.dart';
 class _SharedListRemote extends FakeRemote {
   @override
   Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(
-      String token) async {
+    String token,
+  ) async {
     if (token != 'good-token') return const Success(null);
     return const Success({
       'name': 'Liste partagée',
@@ -37,13 +38,13 @@ class _SharedListRemote extends FakeRemote {
               'word': 'merci',
               'lang_code': 'fr',
               'is_primary': true,
-              'position': 0
+              'position': 0,
             },
             {
               'word': '감사합니다',
               'lang_code': 'ko',
               'is_primary': true,
-              'position': 0
+              'position': 0,
             },
           ],
         },
@@ -65,7 +66,12 @@ void main() {
       addTearDown(db.close);
     });
     final repo = VocabularyRepositoryImpl(
-        db.vocabularyListDao, db.conceptDao, _SharedListRemote(), 'u', db);
+      db.vocabularyListDao,
+      db.conceptDao,
+      _SharedListRemote(),
+      'u',
+      db,
+    );
     await pumpScreen(
       tester,
       screen: ImportFromLinkScreen(token: token),
@@ -80,7 +86,8 @@ void main() {
             pageBuilder: (_, state) {
               navigatedTo = state.uri.toString();
               return const MaterialPage<void>(
-                  child: Scaffold(body: SizedBox()));
+                child: Scaffold(body: SizedBox()),
+              );
             },
           ),
       ],
@@ -103,13 +110,15 @@ void main() {
 
     expect(navigatedTo, startsWith('/lists/'));
     final imported = await tester.runAsync(
-        () => db.vocabularyListDao.getImportedCopy('good-token', 'u'));
+      () => db.vocabularyListDao.getImportedCopy('good-token', 'u'),
+    );
     expect(imported, isNotNull);
     expect(imported!.name, 'Liste partagée');
   });
 
-  testWidgets('an unknown token shows not-found and falls back to /lists',
-      (tester) async {
+  testWidgets('an unknown token shows not-found and falls back to /lists', (
+    tester,
+  ) async {
     await pump(tester, token: 'nope');
 
     expect(find.text('import.error_not_found'.tr()), findsOneWidget);

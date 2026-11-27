@@ -66,8 +66,8 @@ class SttRace {
 
   /// Abandons this race: its timers stop, its own mic window closes, later
   /// results are ignored, and it resolves with [SttRaceOutcome.cancelled].
-  /// Engines are deliberately NOT stopped — they are shared with the race
-  /// that superseded this one, and stopping them would kill its session.
+  /// Cancellable PCM engines invalidate work synchronously before the next
+  /// race may dispatch more audio. The screen manages its exclusive engines.
   void cancel() {
     if (_cancelled) return;
     _cancelled = true;
@@ -85,6 +85,7 @@ class SttRace {
     required List<String> acceptedAnswers,
     List<String> promptHints = const [],
     bool isDrivingMode = true,
+    bool preserveGrammar = false,
     Duration timeout = const Duration(seconds: 8),
     void Function(SttHypothesis partial)? onPartial,
     // Session-end restart tuning (see below); overridable for tests.
@@ -109,7 +110,8 @@ class SttRace {
           : SttRaceOutcome.noEngines;
     }
     sttLog(
-        '[RACE] start langCode=$langCode  racers=${racers.map((e) => e.id).join(",")}  answers=$acceptedAnswers');
+      '[RACE] start langCode=$langCode  racers=${racers.map((e) => e.id).join(",")}  answers=$acceptedAnswers',
+    );
 
     final shared = racers.every((e) => e.capture == SttCapture.sharedPcm);
     if (shared) {
@@ -124,6 +126,7 @@ class SttRace {
         acceptedAnswers: acceptedAnswers,
         promptHints: promptHints,
         isDrivingMode: isDrivingMode,
+        preserveGrammar: preserveGrammar,
         timeout: timeout,
         maxSpeechOverrun: maxSpeechOverrun,
         analysisTimeout: analysisTimeout,
@@ -136,16 +139,18 @@ class SttRace {
     final chips = {
       for (final e in racers)
         e.id: SttEngineStatus(
-            engineId: e.id,
-            state: SttEngineState.waiting,
-            requiresNetwork: e.requiresNetwork),
+          engineId: e.id,
+          state: SttEngineState.waiting,
+          requiresNetwork: e.requiresNetwork,
+        ),
     };
     var phase = SttPhase.starting;
     void emit([SttPhase? next]) {
       if (next != null) phase = next;
       if (!_cancelled) {
-        onStatus
-            ?.call(SttRaceStatus(phase: phase, engines: chips.values.toList()));
+        onStatus?.call(
+          SttRaceStatus(phase: phase, engines: chips.values.toList()),
+        );
       }
     }
 
@@ -192,11 +197,13 @@ class SttRace {
       if (finishing || completer.isCompleted) return;
       finishing = true;
       timer?.cancel();
-      completer.complete(SttRaceOutcome(
-        matched: false,
-        hypotheses: List.of(seen),
-        cancelled: true,
-      ));
+      completer.complete(
+        SttRaceOutcome(
+          matched: false,
+          hypotheses: List.of(seen),
+          cancelled: true,
+        ),
+      );
     };
 
     void onHyp(SttEngine engine, SttHypothesis h) {
@@ -208,6 +215,7 @@ class SttRace {
         candidates: h.candidates.isEmpty ? [h.transcript] : h.candidates,
         acceptedAnswers: acceptedAnswers,
         isDrivingMode: isDrivingMode,
+        preserveGrammar: preserveGrammar,
       );
       chips[engine.id] = chips[engine.id]!.copyWith(
         state: SttEngineState.heard,
@@ -217,15 +225,18 @@ class SttRace {
       emit(h.isFinal ? SttPhase.analyzing : SttPhase.speaking);
       if (match != null) {
         sttLog(
-            '[RACE] 🏁 "${engine.id}" wins with "$match" (${h.isFinal ? "final" : "partial"})');
-        finish(SttRaceOutcome(
-          matched: true,
-          winnerEngineId: engine.id,
-          matchedCandidate: match,
-          bestTranscript: h.transcript,
-          hypotheses: List.of(seen),
-          hadRealSession: true,
-        ));
+          '[RACE] 🏁 "${engine.id}" wins with "$match" (${h.isFinal ? "final" : "partial"})',
+        );
+        finish(
+          SttRaceOutcome(
+            matched: true,
+            winnerEngineId: engine.id,
+            matchedCandidate: match,
+            bestTranscript: h.transcript,
+            hypotheses: List.of(seen),
+            hadRealSession: true,
+          ),
+        );
       }
     }
 
@@ -233,16 +244,19 @@ class SttRace {
     var graceUsed = false;
     void finishTimedOut() {
       sttLog(
-          '[RACE] ⏱ timeout — no engine validated (${seen.length} hypotheses)');
+        '[RACE] ⏱ timeout — no engine validated (${seen.length} hypotheses)',
+      );
       // A continuous engine that started ok and never self-ended was live
       // for the whole window.
       final ranFullWindow = startedOk.difference(selfEnded).isNotEmpty;
-      finish(SttRaceOutcome(
-        matched: false,
-        bestTranscript: _bestTranscript(seen),
-        hypotheses: List.of(seen),
-        hadRealSession: sawRealSession || ranFullWindow,
-      ));
+      finish(
+        SttRaceOutcome(
+          matched: false,
+          bestTranscript: _bestTranscript(seen),
+          hypotheses: List.of(seen),
+          hadRealSession: sawRealSession || ranFullWindow,
+        ),
+      );
     }
 
     timer = Timer(timeout, () {
@@ -256,7 +270,8 @@ class SttRace {
       if (!graceUsed && lateResultGrace > Duration.zero && seen.isNotEmpty) {
         graceUsed = true;
         sttLog(
-            '[RACE] ⏳ unmatched at timeout — ${lateResultGrace.inMilliseconds}ms late-result grace');
+          '[RACE] ⏳ unmatched at timeout — ${lateResultGrace.inMilliseconds}ms late-result grace',
+        );
         timer = Timer(lateResultGrace, finishTimedOut);
         return;
       }
@@ -284,7 +299,8 @@ class SttRace {
     const maxRestarts = 2;
 
     late Future<void> Function(SttEngine) startEngine;
-    startEngine = (SttEngine e) => Future(() async {
+    startEngine = (SttEngine e) =>
+        Future(() async {
           startedAt[e.id] = DateTime.now();
           final ok = await e.start(
             langCode: langCode,
@@ -300,12 +316,16 @@ class SttRace {
               // offline lane use the same answer window instead. This avoids
               // Samsung's `startListening while listening` throttle storm.
               if (!restartOnSessionEnd) {
-                unawaited(finish(SttRaceOutcome(
-                  matched: false,
-                  bestTranscript: _bestTranscript(seen),
-                  hypotheses: List.of(seen),
-                  hadRealSession: sawRealSession,
-                )));
+                unawaited(
+                  finish(
+                    SttRaceOutcome(
+                      matched: false,
+                      bestTranscript: _bestTranscript(seen),
+                      hypotheses: List.of(seen),
+                      hadRealSession: sawRealSession,
+                    ),
+                  ),
+                );
                 return;
               }
               final used = restarts[e.id] ?? 0;
@@ -316,25 +336,29 @@ class SttRace {
                 if (throttled < 1 && remaining > throttleCooldown) {
                   throttleRetries[e.id] = throttled + 1;
                   sttLog(
-                      '[RACE] 🧯 "${e.id}" throttle-killed after ${lived.inMilliseconds}ms — cooldown retry in ${throttleCooldown.inMilliseconds}ms');
+                    '[RACE] 🧯 "${e.id}" throttle-killed after ${lived.inMilliseconds}ms — cooldown retry in ${throttleCooldown.inMilliseconds}ms',
+                  );
                   Timer(throttleCooldown, () {
                     if (!completer.isCompleted) unawaited(startEngine(e));
                   });
                 } else {
                   sttLog(
-                      '[RACE] "${e.id}" throttle-killed (lived=${lived.inMilliseconds}ms, cooldownRetries=$throttled, remaining=${remaining.inMilliseconds}ms) — giving up this window');
+                    '[RACE] "${e.id}" throttle-killed (lived=${lived.inMilliseconds}ms, cooldownRetries=$throttled, remaining=${remaining.inMilliseconds}ms) — giving up this window',
+                  );
                 }
                 return;
               }
               if (used >= maxRestarts ||
                   remaining < const Duration(seconds: 2)) {
                 sttLog(
-                    '[RACE] "${e.id}" session ended (lived=${lived.inMilliseconds}ms, restarts=$used, remaining=${remaining.inMilliseconds}ms) — not restarting');
+                  '[RACE] "${e.id}" session ended (lived=${lived.inMilliseconds}ms, restarts=$used, remaining=${remaining.inMilliseconds}ms) — not restarting',
+                );
                 return;
               }
               restarts[e.id] = used + 1;
               sttLog(
-                  '[RACE] 🔄 "${e.id}" session ended without a win — restart #${used + 1} in ${restartDelay.inMilliseconds}ms');
+                '[RACE] 🔄 "${e.id}" session ended without a win — restart #${used + 1} in ${restartDelay.inMilliseconds}ms',
+              );
               Timer(restartDelay, () {
                 if (!completer.isCompleted) unawaited(startEngine(e));
               });
@@ -375,6 +399,7 @@ class SttRace {
     required List<String> acceptedAnswers,
     required List<String> promptHints,
     required bool isDrivingMode,
+    required bool preserveGrammar,
     required Duration timeout,
     required Duration maxSpeechOverrun,
     required Duration analysisTimeout,
@@ -386,9 +411,10 @@ class SttRace {
     final chips = {
       for (final e in racers)
         e.id: SttEngineStatus(
-            engineId: e.id,
-            state: SttEngineState.waiting,
-            requiresNetwork: e.requiresNetwork),
+          engineId: e.id,
+          state: SttEngineState.waiting,
+          requiresNetwork: e.requiresNetwork,
+        ),
     };
     PcmCaptureSession? session;
     Timer? deadline;
@@ -404,8 +430,10 @@ class SttRace {
     final captured = <PcmSegment>[];
     var fallbackStarted = false;
     var fallbackRunning = false;
+    var cloudTimedOut = false;
     Future<void> cloudChain = Future.value();
     var queuedCloud = 0;
+    final turnDecoders = <CancellablePcmSttEngine>{};
     late Future<void> Function(SttEngine, PcmSegment) analyze;
 
     SttPhase phase() {
@@ -420,12 +448,12 @@ class SttRace {
 
     void emit() {
       if (_cancelled) return;
-      onStatus
-          ?.call(SttRaceStatus(phase: phase(), engines: chips.values.toList()));
+      onStatus?.call(
+        SttRaceStatus(phase: phase(), engines: chips.values.toList()),
+      );
     }
 
-    void finish(SttRaceOutcome outcome) {
-      if (finished) return;
+    void stopTurn() {
       finished = true;
       deadline?.cancel();
       overrun?.cancel();
@@ -433,6 +461,18 @@ class SttRace {
         micClosed = true;
         unawaited(session?.close());
       }
+      for (final decoder in turnDecoders) {
+        unawaited(
+          decoder.stop().catchError((Object error) {
+            sttLog('[RACE] PCM stop "${decoder.id}" failed: $error');
+          }),
+        );
+      }
+    }
+
+    void finish(SttRaceOutcome outcome) {
+      if (finished) return;
+      stopTurn();
       emit();
       completer.complete(outcome);
     }
@@ -456,45 +496,55 @@ class SttRace {
         emit();
         // Keep voice on-device until every local hypothesis and the flushed
         // tail have failed. Cloud is a serial rescue, never a parallel upload.
-        unawaited(Future<void>(() async {
-          try {
-            for (final segment in captured.reversed) {
-              for (final engine in cloudRacers) {
-                if (finished) return;
-                await analyze(engine, segment);
+        unawaited(
+          Future<void>(() async {
+            try {
+              for (final segment in captured.reversed) {
+                for (final engine in cloudRacers) {
+                  if (finished || cloudTimedOut) return;
+                  await analyze(engine, segment);
+                }
               }
+            } finally {
+              fallbackRunning = false;
+              finishIfSettled();
             }
-          } finally {
-            fallbackRunning = false;
-            finishIfSettled();
-          }
-        }));
+          }),
+        );
         return;
       }
-      sttLog('[RACE] ⏱ window over — no engine validated '
-          '(${seen.length} hypotheses)');
-      finish(SttRaceOutcome(
-        matched: false,
-        bestTranscript: _bestTranscript(seen),
-        hypotheses: List.of(seen),
-        hadRealSession: true,
-      ));
+      sttLog(
+        '[RACE] ⏱ window over — no engine validated '
+        '(${seen.length} hypotheses)',
+      );
+      finish(
+        SttRaceOutcome(
+          matched: false,
+          bestTranscript: _bestTranscript(seen),
+          hypotheses: List.of(seen),
+          hadRealSession: true,
+        ),
+      );
     }
 
     analyze = (engine, segment) async {
       if (finished) return;
       inFlight++;
-      chips[engine.id] =
-          chips[engine.id]!.copyWith(state: SttEngineState.working);
+      chips[engine.id] = chips[engine.id]!.copyWith(
+        state: SttEngineState.working,
+      );
       emit();
       try {
+        if (finished) return;
+        if (engine is CancellablePcmSttEngine) turnDecoders.add(engine);
         final h = await engine
             .recognize(segment, langCode: langCode, promptHints: promptHints)
             .timeout(analysisTimeout);
         if (finished) return;
         if (h == null) {
-          chips[engine.id] =
-              chips[engine.id]!.copyWith(state: SttEngineState.empty);
+          chips[engine.id] = chips[engine.id]!.copyWith(
+            state: SttEngineState.empty,
+          );
           return;
         }
         seen.add(h);
@@ -502,6 +552,7 @@ class SttRace {
           candidates: h.candidates.isEmpty ? [h.transcript] : h.candidates,
           acceptedAnswers: acceptedAnswers,
           isDrivingMode: isDrivingMode,
+          preserveGrammar: preserveGrammar,
         );
         chips[engine.id] = chips[engine.id]!.copyWith(
           state: SttEngineState.heard,
@@ -510,20 +561,28 @@ class SttRace {
         );
         if (match != null) {
           sttLog('[RACE] 🏁 "${engine.id}" wins with "$match"');
-          finish(SttRaceOutcome(
-            matched: true,
-            winnerEngineId: engine.id,
-            matchedCandidate: match,
-            bestTranscript: h.transcript,
-            hypotheses: List.of(seen),
-            hadRealSession: true,
-          ));
+          finish(
+            SttRaceOutcome(
+              matched: true,
+              winnerEngineId: engine.id,
+              matchedCandidate: match,
+              bestTranscript: h.transcript,
+              hypotheses: List.of(seen),
+              hadRealSession: true,
+            ),
+          );
         }
       } catch (error) {
         if (finished) return;
+        // A Dart deadline does not end the underlying upload. Skip the rest
+        // of this turn's cloud queue if a request may still be active.
+        if (engine.requiresNetwork && error is TimeoutException) {
+          cloudTimedOut = true;
+        }
         sttLog('[RACE] "${engine.id}" failed: $error');
-        chips[engine.id] =
-            chips[engine.id]!.copyWith(state: SttEngineState.failed);
+        chips[engine.id] = chips[engine.id]!.copyWith(
+          state: SttEngineState.failed,
+        );
       } finally {
         inFlight--;
         if (!finished) {
@@ -536,14 +595,14 @@ class SttRace {
     void dispatch(PcmSegment segment) {
       if (finished) return;
       captured.add(segment);
-      if (localRacers.isEmpty) {
+      if (localRacers.isEmpty && !cloudTimedOut) {
         // If local engines are unavailable, cloud can start immediately but
         // still gets at most one request at a time across segments/engines.
         queuedCloud++;
         cloudChain = cloudChain.then((_) async {
           try {
             for (final engine in cloudRacers) {
-              if (finished) return;
+              if (finished || cloudTimedOut) return;
               await analyze(engine, segment);
             }
           } finally {
@@ -583,15 +642,14 @@ class SttRace {
 
     _cancel = () {
       if (finished) return;
-      finished = true;
-      deadline?.cancel();
-      overrun?.cancel();
-      if (!micClosed) {
-        micClosed = true;
-        unawaited(session?.close());
-      }
-      completer.complete(SttRaceOutcome(
-          matched: false, hypotheses: List.of(seen), cancelled: true));
+      stopTurn();
+      completer.complete(
+        SttRaceOutcome(
+          matched: false,
+          hypotheses: List.of(seen),
+          cancelled: true,
+        ),
+      );
     };
 
     emit();
@@ -627,8 +685,10 @@ class SttRace {
     deadline = Timer(timeout, () {
       if (finished) return;
       if (session!.inSpeech) {
-        sttLog('[RACE] ⏳ deadline while speaking — waiting for the answer '
-            'to end (≤${maxSpeechOverrun.inMilliseconds}ms)');
+        sttLog(
+          '[RACE] ⏳ deadline while speaking — waiting for the answer '
+          'to end (≤${maxSpeechOverrun.inMilliseconds}ms)',
+        );
         overrun = Timer(maxSpeechOverrun, () => unawaited(closeMic()));
         return;
       }

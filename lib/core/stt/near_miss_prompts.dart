@@ -63,20 +63,24 @@ List<NearMissPrompt> nearMissPromptsFor(String langCode, String speaker) {
   final prompts = <NearMissPrompt>[
     for (final entry in sets.entries) ...[
       NearMissPrompt(
-          spoken: entry.key,
-          expected: entry.key,
-          langCode: langCode,
-          isTarget: true),
+        spoken: entry.key,
+        expected: entry.key,
+        langCode: langCode,
+        isTarget: true,
+      ),
       for (final near in entry.value)
         NearMissPrompt(
-            spoken: near,
-            expected: entry.key,
-            langCode: langCode,
-            isTarget: false),
+          spoken: near,
+          expected: entry.key,
+          langCode: langCode,
+          isTarget: false,
+        ),
     ],
   ];
-  final seed =
-      speaker.codeUnits.fold<int>(17, (h, c) => (h * 31 + c) & 0x7fffffff);
+  final seed = speaker.codeUnits.fold<int>(
+    17,
+    (h, c) => (h * 31 + c) & 0x7fffffff,
+  );
   prompts.shuffle(Random(seed));
   return prompts;
 }
@@ -108,13 +112,9 @@ class NearMissProgress {
 /// Takes without a speaker label (ordinary corpus captures) are ignored.
 List<NearMissProgress> nearMissProgress(
   Iterable<
-          ({
-            String word,
-            String langCode,
-            Map<String, String> meta,
-            DateTime at
-          })>
-      takes,
+    ({String word, String langCode, Map<String, String> meta, DateTime at})
+  >
+  takes,
 ) {
   final groups =
       <(String, String, String), ({Set<String> words, DateTime last})>{};

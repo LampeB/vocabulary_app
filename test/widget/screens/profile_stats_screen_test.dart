@@ -31,17 +31,17 @@ AppUser _user({int streak = 4, SubscriptionType sub = SubscriptionType.free}) =>
     );
 
 QuizSession _session({int correct = 3, int total = 3}) => QuizSession(
-      id: 's1',
-      userId: 'u',
-      listName: 'Animaux',
-      mode: QuizMode.typing,
-      direction: QuizDirectionChoice.frToKo,
-      cardCount: total,
-      correctCount: correct,
-      durationSeconds: 61,
-      masteredWordCount: 5,
-      completedAt: _now,
-    );
+  id: 's1',
+  userId: 'u',
+  listName: 'Animaux',
+  mode: QuizMode.typing,
+  direction: QuizDirectionChoice.frToKo,
+  cardCount: total,
+  correctCount: correct,
+  durationSeconds: 61,
+  masteredWordCount: 5,
+  completedAt: _now,
+);
 
 void main() {
   setUpAll(initTestLocalization);
@@ -49,12 +49,12 @@ void main() {
   String? navigatedTo;
 
   GoRoute stub(String path) => GoRoute(
-        path: path,
-        pageBuilder: (_, state) {
-          navigatedTo = state.uri.toString();
-          return const MaterialPage<void>(child: Scaffold(body: SizedBox()));
-        },
-      );
+    path: path,
+    pageBuilder: (_, state) {
+      navigatedTo = state.uri.toString();
+      return const MaterialPage<void>(child: Scaffold(body: SizedBox()));
+    },
+  );
 
   group('profile screen', () {
     Future<void> pump(WidgetTester tester, {bool premium = false}) {
@@ -63,8 +63,11 @@ void main() {
         tester,
         screen: const ProfileScreen(),
         overrides: [
-          currentUserProvider.overrideWithValue(_user(
-              sub: premium ? SubscriptionType.premium : SubscriptionType.free)),
+          currentUserProvider.overrideWithValue(
+            _user(
+              sub: premium ? SubscriptionType.premium : SubscriptionType.free,
+            ),
+          ),
           isPremiumProvider.overrideWithValue(premium),
         ],
         routes: [stub('/stats'), stub('/settings'), stub('/notifications')],
@@ -74,14 +77,17 @@ void main() {
     testWidgets('shows the user identity', (tester) async {
       await pump(tester);
       expect(
-          find.byKey(const ValueKey(WidgetKeys.screenProfile)), findsOneWidget);
+        find.byKey(const ValueKey(WidgetKeys.screenProfile)),
+        findsOneWidget,
+      );
       expect(find.text('Thomas'), findsWidgets);
     });
 
     testWidgets('stats tile navigates to /stats', (tester) async {
       await pump(tester);
       await tester.ensureVisible(
-          find.byKey(const ValueKey(WidgetKeys.profileTileStats)));
+        find.byKey(const ValueKey(WidgetKeys.profileTileStats)),
+      );
       await tester.tap(find.byKey(const ValueKey(WidgetKeys.profileTileStats)));
       await tester.pumpAndSettle();
       expect(navigatedTo, '/stats');
@@ -90,27 +96,33 @@ void main() {
     testWidgets('settings tile navigates to /settings', (tester) async {
       await pump(tester);
       await tester.ensureVisible(
-          find.byKey(const ValueKey(WidgetKeys.profileTileSettings)));
-      await tester
-          .tap(find.byKey(const ValueKey(WidgetKeys.profileTileSettings)));
+        find.byKey(const ValueKey(WidgetKeys.profileTileSettings)),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey(WidgetKeys.profileTileSettings)),
+      );
       await tester.pumpAndSettle();
       expect(navigatedTo, '/settings');
     });
   });
 
   group('stats screen', () {
-    Future<void> pump(WidgetTester tester,
-        {List<QuizSession> sessions = const []}) {
+    Future<void> pump(
+      WidgetTester tester, {
+      List<QuizSession> sessions = const [],
+    }) {
       return pumpScreen(
         tester,
         screen: const StatsScreen(),
         overrides: [
           currentUserProvider.overrideWithValue(_user()),
           quizHistoryProvider.overrideWith((ref) async => sessions),
-          masteredOverTimeProvider.overrideWith((ref) async => [
-                (DateTime(2026, 7, 1), 3),
-                (DateTime(2026, 7, 2), 5),
-              ]),
+          masteredOverTimeProvider.overrideWith(
+            (ref) async => [
+              (DateTime(2026, 7, 1), 3),
+              (DateTime(2026, 7, 2), 5),
+            ],
+          ),
         ],
       );
     }
@@ -118,15 +130,20 @@ void main() {
     testWidgets('renders with streak and mastered data', (tester) async {
       await pump(tester, sessions: [_session()]);
       expect(
-          find.byKey(const ValueKey(WidgetKeys.screenStats)), findsOneWidget);
+        find.byKey(const ValueKey(WidgetKeys.screenStats)),
+        findsOneWidget,
+      );
       expect(find.text('Animaux'), findsWidgets); // session history entry
     });
 
-    testWidgets('renders the empty-history state without errors',
-        (tester) async {
+    testWidgets('renders the empty-history state without errors', (
+      tester,
+    ) async {
       await pump(tester);
       expect(
-          find.byKey(const ValueKey(WidgetKeys.screenStats)), findsOneWidget);
+        find.byKey(const ValueKey(WidgetKeys.screenStats)),
+        findsOneWidget,
+      );
       expect(find.text('Animaux'), findsNothing);
     });
   });

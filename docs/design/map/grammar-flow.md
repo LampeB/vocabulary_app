@@ -83,6 +83,17 @@ diagramme : `../diagrams/grammar-stage-ramp.svg`
   est obsolète dans sa forme d'origine — l'échelonnement vit au
   niveau du cluster
 
+### Génération locale et prérequis
+
+Le pool maîtrisé reste limité aux copies de listes résolues pour la leçon.
+Les minimums par catégorie comptent aussi les mots de préparation qui ne
+reçoivent pas eux-mêmes la transformation : les verbes préparent par exemple
+les particules coréennes appliquées aux noms et lieux. Pour une catégorie
+transformée, seuls les mots morphologiquement éligibles comptent. Au moins
+un mot transformable reste nécessaire pour lancer un exercice. L'attachement
+de la particule sujet utilise les formes contractées 제가, 내가, 네가 et 누가 ;
+les autres particules suivent leur règle ordinaire.
+
 ## Proposé — pas encore vetté (Claude)
 - Répartition de la rampe : étapes 1-3 par règle (leçon courte →
   Reconnaître J+1 → Construire J+2, pastilles ●●●) ; étapes 4-5

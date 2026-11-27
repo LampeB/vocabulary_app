@@ -30,7 +30,7 @@ void main() {
         'min_known_words': <String, dynamic>{},
         'mechanics': <String, dynamic>{
           'type': 'plural',
-          'plural': <String, dynamic>{'irregulars': <String, dynamic>{}}
+          'plural': <String, dynamic>{'irregulars': <String, dynamic>{}},
         },
         'test_vectors': const [],
       },
@@ -40,7 +40,9 @@ void main() {
     expect(rule.lessonPages.first.text('ko'), '어미를 살펴보세요.');
     expect(rule.lessonPages.last.example!.translation('ko'), '저는 프랑스어를 해요.');
     expect(
-        rule.lessonPages.last.example!.detail('fr'), 'parle is the je form.');
+      rule.lessonPages.last.example!.detail('fr'),
+      'parle is the je form.',
+    );
   });
 
   test('keeps legacy rules lesson-free', () {
@@ -56,7 +58,7 @@ void main() {
         'min_known_words': <String, dynamic>{},
         'mechanics': <String, dynamic>{
           'type': 'plural',
-          'plural': <String, dynamic>{'irregulars': <String, dynamic>{}}
+          'plural': <String, dynamic>{'irregulars': <String, dynamic>{}},
         },
         'test_vectors': const [],
       },

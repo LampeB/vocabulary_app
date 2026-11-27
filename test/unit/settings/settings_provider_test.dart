@@ -49,8 +49,9 @@ void main() {
     });
 
     test('falls back to system for an unknown saved value', () async {
-      SharedPreferences.setMockInitialValues(
-          {'settings_theme_mode': 'garbage'});
+      SharedPreferences.setMockInitialValues({
+        'settings_theme_mode': 'garbage',
+      });
       final c = makeContainer();
       c.read(themeModeProvider);
       await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -66,16 +67,18 @@ void main() {
       expect(s.pitch, 1.0);
     });
 
-    test('setSpeechRate updates + persists and leaves pitch untouched',
-        () async {
-      SharedPreferences.setMockInitialValues({});
-      final c = makeContainer();
-      await c.read(audioSettingsProvider.notifier).setSpeechRate(1.1);
-      expect(c.read(audioSettingsProvider).speechRate, 1.1);
-      expect(c.read(audioSettingsProvider).pitch, 1.0);
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getDouble('audio_speech_rate'), 1.1);
-    });
+    test(
+      'setSpeechRate updates + persists and leaves pitch untouched',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final c = makeContainer();
+        await c.read(audioSettingsProvider.notifier).setSpeechRate(1.1);
+        expect(c.read(audioSettingsProvider).speechRate, 1.1);
+        expect(c.read(audioSettingsProvider).pitch, 1.0);
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getDouble('audio_speech_rate'), 1.1);
+      },
+    );
 
     test('setPitch updates + persists and leaves rate untouched', () async {
       SharedPreferences.setMockInitialValues({});
@@ -88,8 +91,10 @@ void main() {
     });
 
     test('loads saved values on build', () async {
-      SharedPreferences.setMockInitialValues(
-          {'audio_speech_rate': 0.6, 'audio_pitch': 1.15});
+      SharedPreferences.setMockInitialValues({
+        'audio_speech_rate': 0.6,
+        'audio_pitch': 1.15,
+      });
       final c = makeContainer();
       c.read(audioSettingsProvider);
       await Future<void>.delayed(const Duration(milliseconds: 50));

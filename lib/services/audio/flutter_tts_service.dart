@@ -111,7 +111,8 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
     if (!_current(generation)) return null;
     _nativeLang = langCode;
     sttLog(
-        '[TTS] 🔥 voice switched to $langCode in ${sw.elapsedMilliseconds}ms');
+      '[TTS] 🔥 voice switched to $langCode in ${sw.elapsedMilliseconds}ms',
+    );
     return tts;
   }
 
@@ -131,13 +132,15 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
     if (tts == null || !_current(generation)) return;
     _activeSpeaks++;
     sttLog(
-        '[TTS] ▶ speak start lang=$langCode "$text" (active=$_activeSpeaks)');
+      '[TTS] ▶ speak start lang=$langCode "$text" (active=$_activeSpeaks)',
+    );
     try {
       await tts.speak(text);
     } finally {
       _activeSpeaks--;
       sttLog(
-          '[TTS] ■ speak done  lang=$langCode "$text" (active=$_activeSpeaks)');
+        '[TTS] ■ speak done  lang=$langCode "$text" (active=$_activeSpeaks)',
+      );
     }
   }
 
@@ -147,7 +150,8 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
     if (_disposed) return;
     if (_activeSpeaks > 0) {
       sttLog(
-          '[TTS] ✋ stop() while $_activeSpeaks utterance(s) in flight — speech is being CUT OFF');
+        '[TTS] ✋ stop() while $_activeSpeaks utterance(s) in flight — speech is being CUT OFF',
+      );
     }
     await _stopVoices();
   }

@@ -14,36 +14,36 @@ class DiveInPage<T> extends CustomTransitionPage<T> {
     Alignment origin = Alignment.center,
     bool disableAnimation = false,
   }) : super(
-          transitionDuration: const Duration(milliseconds: 220),
-          reverseTransitionDuration: const Duration(milliseconds: 180),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final reduceMotion =
-                disableAnimation || MediaQuery.of(context).disableAnimations;
-            final opacity = CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-              reverseCurve: Curves.easeInCubic,
-            );
+         transitionDuration: const Duration(milliseconds: 220),
+         reverseTransitionDuration: const Duration(milliseconds: 180),
+         transitionsBuilder: (context, animation, secondaryAnimation, child) {
+           final reduceMotion =
+               disableAnimation || MediaQuery.of(context).disableAnimations;
+           final opacity = CurvedAnimation(
+             parent: animation,
+             curve: Curves.easeOutCubic,
+             reverseCurve: Curves.easeInCubic,
+           );
 
-            if (reduceMotion) {
-              return FadeTransition(opacity: opacity, child: child);
-            }
+           if (reduceMotion) {
+             return FadeTransition(opacity: opacity, child: child);
+           }
 
-            final scale = Tween<double>(begin: 0.94, end: 1).animate(
-              CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-                reverseCurve: Curves.easeInCubic,
-              ),
-            );
-            return FadeTransition(
-              opacity: opacity,
-              child: ScaleTransition(
-                alignment: origin,
-                scale: scale,
-                child: child,
-              ),
-            );
-          },
-        );
+           final scale = Tween<double>(begin: 0.94, end: 1).animate(
+             CurvedAnimation(
+               parent: animation,
+               curve: Curves.easeOutCubic,
+               reverseCurve: Curves.easeInCubic,
+             ),
+           );
+           return FadeTransition(
+             opacity: opacity,
+             child: ScaleTransition(
+               alignment: origin,
+               scale: scale,
+               child: child,
+             ),
+           );
+         },
+       );
 }

@@ -19,37 +19,43 @@ class _FakeRemote implements VocabularyRemoteDataSource {
       const Success([]);
 
   @override
-  Future<Result<Map<String, dynamic>>> upsertList(Map<String, dynamic> data,
-          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
-      Success(data);
+  Future<Result<Map<String, dynamic>>> upsertList(
+    Map<String, dynamic> data, {
+    bool insertOnly = false,
+    Map<String, dynamic>? changes,
+  }) async => Success(data);
 
   @override
   Future<Result<void>> deleteList(String id) async => const Success(null);
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
-          String listId) async =>
-      const Success([]);
+    String listId,
+  ) async => const Success([]);
 
   @override
-  Future<Result<Map<String, dynamic>>> upsertConcept(Map<String, dynamic> data,
-          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
-      Success(data);
+  Future<Result<Map<String, dynamic>>> upsertConcept(
+    Map<String, dynamic> data, {
+    bool insertOnly = false,
+    Map<String, dynamic>? changes,
+  }) async => Success(data);
 
   @override
-  Future<Result<Map<String, dynamic>>> upsertVariant(Map<String, dynamic> data,
-          {bool insertOnly = false, Map<String, dynamic>? changes}) async =>
-      Success(data);
+  Future<Result<Map<String, dynamic>>> upsertVariant(
+    Map<String, dynamic> data, {
+    bool insertOnly = false,
+    Map<String, dynamic>? changes,
+  }) async => Success(data);
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchProgress(
-          String userId) async =>
-      const Success([]);
+    String userId,
+  ) async => const Success([]);
 
   @override
   Future<Result<Map<String, dynamic>>> upsertProgress(
-          Map<String, dynamic> data) async =>
-      Success(data);
+    Map<String, dynamic> data,
+  ) async => Success(data);
 
   @override
   Future<Result<void>> upsertReviewEvent(Map<String, dynamic> data) async =>
@@ -57,8 +63,8 @@ class _FakeRemote implements VocabularyRemoteDataSource {
 
   @override
   Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(
-          String token) async =>
-      const Success(null);
+    String token,
+  ) async => const Success(null);
 }
 
 // ---------------------------------------------------------------------------
@@ -71,45 +77,44 @@ Map<String, dynamic> _makeJson({
   int frVariantsPerConcept = 1,
   int koVariantsPerConcept = 1,
   String? name,
-}) =>
-    {
-      'version': 1,
-      'list': {
-        'name': name ?? 'Test List',
-        'description': 'A test list',
-        'concepts': List.generate(
-          conceptCount,
-          (i) => {
-            'category': 'test',
-            'notes': i.isEven ? 'note $i' : null,
-            'exampleFr': 'French example $i',
-            'exampleKo': 'Korean example $i',
-            'variants': [
-              ...List.generate(
-                frVariantsPerConcept,
-                (j) => {
-                  'word': 'fr_${i}_$j',
-                  'langCode': 'fr',
-                  'registerTag': j == 0 ? 'neutral' : 'informal',
-                  'isPrimary': j == 0,
-                  'position': j,
-                },
-              ),
-              ...List.generate(
-                koVariantsPerConcept,
-                (j) => {
-                  'word': 'ko_${i}_$j',
-                  'langCode': 'ko',
-                  'registerTag': j == 0 ? 'formal' : 'informal',
-                  'isPrimary': j == 0,
-                  'position': j,
-                },
-              ),
-            ],
-          },
-        ),
+}) => {
+  'version': 1,
+  'list': {
+    'name': name ?? 'Test List',
+    'description': 'A test list',
+    'concepts': List.generate(
+      conceptCount,
+      (i) => {
+        'category': 'test',
+        'notes': i.isEven ? 'note $i' : null,
+        'exampleFr': 'French example $i',
+        'exampleKo': 'Korean example $i',
+        'variants': [
+          ...List.generate(
+            frVariantsPerConcept,
+            (j) => {
+              'word': 'fr_${i}_$j',
+              'langCode': 'fr',
+              'registerTag': j == 0 ? 'neutral' : 'informal',
+              'isPrimary': j == 0,
+              'position': j,
+            },
+          ),
+          ...List.generate(
+            koVariantsPerConcept,
+            (j) => {
+              'word': 'ko_${i}_$j',
+              'langCode': 'ko',
+              'registerTag': j == 0 ? 'formal' : 'informal',
+              'isPrimary': j == 0,
+              'position': j,
+            },
+          ),
+        ],
       },
-    };
+    ),
+  },
+};
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -149,8 +154,11 @@ void main() {
       final listId = (result as Success<VocabularyList>).value.id;
 
       final concepts = await db.conceptDao.getConceptsByList(listId);
-      expect(concepts.length, 10,
-          reason: 'Expected 10 concepts in DB after import');
+      expect(
+        concepts.length,
+        10,
+        reason: 'Expected 10 concepts in DB after import',
+      );
     });
 
     test('inserts variants for every concept', () async {
@@ -158,22 +166,25 @@ void main() {
       const ko = 3;
       final result = await repo.importFromJson(
         _makeJson(
-            conceptCount: 4,
-            frVariantsPerConcept: fr,
-            koVariantsPerConcept: ko),
+          conceptCount: 4,
+          frVariantsPerConcept: fr,
+          koVariantsPerConcept: ko,
+        ),
       );
       final listId = (result as Success<VocabularyList>).value.id;
       final concepts = await db.conceptDao.getConceptsByList(listId);
 
       for (final concept in concepts) {
         final variants = await db.conceptDao.getVariantsByConcept(concept.id);
-        expect(variants.length, fr + ko,
-            reason: 'Concept ${concept.id} should have ${fr + ko} variants');
+        expect(
+          variants.length,
+          fr + ko,
+          reason: 'Concept ${concept.id} should have ${fr + ko} variants',
+        );
       }
     });
 
-    test(
-        'accepts snake_case payloads (seed assets / remote rows), including '
+    test('accepts snake_case payloads (seed assets / remote rows), including '
         'the language pair', () async {
       // Mirrors the exact shape of assets/seed/*.json — the shipped starter
       // content is snake_case while app exports are camelCase.
@@ -194,13 +205,13 @@ void main() {
                   'word': 'hello',
                   'lang_code': 'en',
                   'is_primary': true,
-                  'position': 0
+                  'position': 0,
                 },
                 {
                   'word': 'hallo',
                   'lang_code': 'de',
                   'is_primary': true,
-                  'position': 0
+                  'position': 0,
                 },
               ],
             },
@@ -214,8 +225,9 @@ void main() {
       final concepts = await db.conceptDao.getConceptsByList(list.id);
       expect(concepts.single.exampleFr, 'Bonjour, professeur !');
       expect(concepts.single.exampleKo, '안녕하세요, 선생님!');
-      final variants =
-          await db.conceptDao.getVariantsByConcept(concepts.single.id);
+      final variants = await db.conceptDao.getVariantsByConcept(
+        concepts.single.id,
+      );
       expect(variants.map((v) => v.langCode).toSet(), {'en', 'de'});
       expect(variants.every((v) => v.isPrimary), isTrue);
     });
@@ -244,17 +256,19 @@ void main() {
       expect(visibleConcepts.length, 3);
     });
 
-    test('stores optional metadata fields (category, notes, examples)',
-        () async {
-      final result = await repo.importFromJson(_makeJson(conceptCount: 2));
-      final listId = (result as Success<VocabularyList>).value.id;
-      final concepts = await db.conceptDao.getConceptsByList(listId);
+    test(
+      'stores optional metadata fields (category, notes, examples)',
+      () async {
+        final result = await repo.importFromJson(_makeJson(conceptCount: 2));
+        final listId = (result as Success<VocabularyList>).value.id;
+        final concepts = await db.conceptDao.getConceptsByList(listId);
 
-      // concept 0 has even index so has notes
-      final withNotes = concepts.firstWhere((c) => c.notes != null);
-      expect(withNotes.category, 'test');
-      expect(withNotes.exampleFr, contains('French example'));
-    });
+        // concept 0 has even index so has notes
+        final withNotes = concepts.firstWhere((c) => c.notes != null);
+        expect(withNotes.category, 'test');
+        expect(withNotes.exampleFr, contains('French example'));
+      },
+    );
 
     test('returns Failure on missing "list" key', () async {
       final result = await repo.importFromJson({'not': 'valid'});
@@ -292,45 +306,54 @@ void main() {
       expect(result, isA<Failure>());
     });
 
-    test('exported JSON contains list name and correct concept count',
-        () async {
-      final importResult =
-          await repo.importFromJson(_makeJson(conceptCount: 4));
-      final listId = (importResult as Success<VocabularyList>).value.id;
+    test(
+      'exported JSON contains list name and correct concept count',
+      () async {
+        final importResult = await repo.importFromJson(
+          _makeJson(conceptCount: 4),
+        );
+        final listId = (importResult as Success<VocabularyList>).value.id;
 
-      final exportResult = await repo.exportToJson(listId);
-      expect(exportResult.isSuccess, true);
+        final exportResult = await repo.exportToJson(listId);
+        expect(exportResult.isSuccess, true);
 
-      final json = (exportResult as Success<Map<String, dynamic>>).value;
-      final concepts = (json['list'] as Map)['concepts'] as List;
-      expect(concepts.length, 4);
-    });
+        final json = (exportResult as Success<Map<String, dynamic>>).value;
+        final concepts = (json['list'] as Map)['concepts'] as List;
+        expect(concepts.length, 4);
+      },
+    );
 
-    test('round-trip: export then re-import preserves concepts and variants',
-        () async {
-      final original = _makeJson(
-        conceptCount: 3,
-        frVariantsPerConcept: 2,
-        koVariantsPerConcept: 1,
-        name: 'Round-trip',
-      );
-      final importResult1 = await repo.importFromJson(original);
-      final listId1 = (importResult1 as Success<VocabularyList>).value.id;
+    test(
+      'round-trip: export then re-import preserves concepts and variants',
+      () async {
+        final original = _makeJson(
+          conceptCount: 3,
+          frVariantsPerConcept: 2,
+          koVariantsPerConcept: 1,
+          name: 'Round-trip',
+        );
+        final importResult1 = await repo.importFromJson(original);
+        final listId1 = (importResult1 as Success<VocabularyList>).value.id;
 
-      final exportResult = await repo.exportToJson(listId1);
-      final json = (exportResult as Success<Map<String, dynamic>>).value;
+        final exportResult = await repo.exportToJson(listId1);
+        final json = (exportResult as Success<Map<String, dynamic>>).value;
 
-      final importResult2 = await repo.importFromJson(json);
-      final listId2 = (importResult2 as Success<VocabularyList>).value.id;
+        final importResult2 = await repo.importFromJson(json);
+        final listId2 = (importResult2 as Success<VocabularyList>).value.id;
 
-      final concepts = await db.conceptDao.getConceptsByList(listId2);
-      expect(concepts.length, 3);
+        final concepts = await db.conceptDao.getConceptsByList(listId2);
+        expect(concepts.length, 3);
 
-      for (final c in concepts) {
-        final variants = await db.conceptDao.getVariantsByConcept(c.id);
-        expect(variants.length, 3, reason: '2 fr + 1 ko variants per concept');
-      }
-    });
+        for (final c in concepts) {
+          final variants = await db.conceptDao.getVariantsByConcept(c.id);
+          expect(
+            variants.length,
+            3,
+            reason: '2 fr + 1 ko variants per concept',
+          );
+        }
+      },
+    );
 
     test('round-trip preserves the list language pair', () async {
       final importResult = await repo.importFromJson({
@@ -344,8 +367,9 @@ void main() {
       final listId = (importResult as Success<VocabularyList>).value.id;
 
       final exported = await repo.exportToJson(listId);
-      final reimported = await repo
-          .importFromJson((exported as Success<Map<String, dynamic>>).value);
+      final reimported = await repo.importFromJson(
+        (exported as Success<Map<String, dynamic>>).value,
+      );
 
       final list = (reimported as Success<VocabularyList>).value;
       expect(list.langA, 'en');
@@ -363,18 +387,18 @@ void main() {
                   'word': 'salut',
                   'langCode': 'fr',
                   'contextTags': ['informal', 'greeting'],
-                  'example': 'Salut Camille !'
-                }
-              ]
-            }
+                  'example': 'Salut Camille !',
+                },
+              ],
+            },
           ],
         },
-      }))
-          .valueOrNull!;
+      })).valueOrNull!;
       final json = (await repo.exportToJson(imported.id)).valueOrNull!;
       final restored = (await repo.importFromJson(json)).valueOrNull!;
-      final concept =
-          (await db.conceptDao.getConceptsByList(restored.id)).single;
+      final concept = (await db.conceptDao.getConceptsByList(
+        restored.id,
+      )).single;
       final variant = (await repo.getVariants(concept.id)).valueOrNull!.single;
       expect(variant.contextTags, ['informal', 'greeting']);
       expect(variant.example, 'Salut Camille !');
@@ -412,10 +436,11 @@ void main() {
 
   group('wordCount reflects live concept count', () {
     test('adding 3 words → wordCount is 3', () async {
-      final listId = ((await repo.createList(
-              name: 'Counter', description: null)) as Success<VocabularyList>)
-          .value
-          .id;
+      final listId =
+          ((await repo.createList(name: 'Counter', description: null))
+                  as Success<VocabularyList>)
+              .value
+              .id;
 
       await repo.createConcept(listId: listId);
       await repo.createConcept(listId: listId);
@@ -427,10 +452,11 @@ void main() {
     });
 
     test('deleting 1 of 3 words → wordCount drops to 2', () async {
-      final listId = ((await repo.createList(
-              name: 'Counter', description: null)) as Success<VocabularyList>)
-          .value
-          .id;
+      final listId =
+          ((await repo.createList(name: 'Counter', description: null))
+                  as Success<VocabularyList>)
+              .value
+              .id;
 
       await repo.createConcept(listId: listId);
       await repo.createConcept(listId: listId);
@@ -445,10 +471,11 @@ void main() {
     });
 
     test('deleting all words → wordCount is 0', () async {
-      final listId = ((await repo.createList(
-              name: 'Counter', description: null)) as Success<VocabularyList>)
-          .value
-          .id;
+      final listId =
+          ((await repo.createList(name: 'Counter', description: null))
+                  as Success<VocabularyList>)
+              .value
+              .id;
 
       final id1 =
           ((await repo.createConcept(listId: listId)) as Success).value.id;

@@ -10,8 +10,8 @@ const _key = 'dev_grammar_unlock';
 /// behavior is untouched.
 final devGrammarUnlockProvider =
     NotifierProvider<DevGrammarUnlockNotifier, bool>(
-  DevGrammarUnlockNotifier.new,
-);
+      DevGrammarUnlockNotifier.new,
+    );
 
 class DevGrammarUnlockNotifier extends Notifier<bool> {
   @override

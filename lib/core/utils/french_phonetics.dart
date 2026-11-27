@@ -61,7 +61,9 @@ abstract final class FrenchPhonetics {
     // STT writes numbers as digits ("et 3D" for "étudier") — expand them
     // to their spoken French so the sound comparison sees what was said.
     var w = word.replaceAllMapped(
-        RegExp(r'[0-9]'), (m) => '${_digits[m.group(0)]!} ');
+      RegExp(r'[0-9]'),
+      (m) => '${_digits[m.group(0)]!} ',
+    );
     w = w.trim();
     for (final (re, repl) in _rules) {
       w = w.replaceAll(re, repl);

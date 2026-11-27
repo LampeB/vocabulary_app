@@ -29,13 +29,15 @@ class _SupabaseCloudTranscriber implements CloudTranscriber {
     required String langCode,
     required String expectedWord,
   }) async {
-    final response = await Supabase.instance.client.functions
-        .invoke('elevenlabs-stt-proxy', body: {
-      'audio_base64': base64Encode(pcm16),
-      'audio_format': 'pcm_s16le_16',
-      'language': langCode,
-      'expected_word': expectedWord,
-    }).timeout(const Duration(seconds: 5));
+    final response = await Supabase.instance.client.functions.invoke(
+      'elevenlabs-stt-proxy',
+      body: {
+        'audio_base64': base64Encode(pcm16),
+        'audio_format': 'pcm_s16le_16',
+        'language': langCode,
+        'expected_word': expectedWord,
+      },
+    );
     final data = response.data;
     return data is Map ? data['text'] as String? : null;
   }
@@ -60,8 +62,8 @@ class ElevenLabsSpeechService implements CloudSpeechCapture {
   ElevenLabsSpeechService({
     PcmMicrophone? microphone,
     CloudTranscriber? transcriber,
-  })  : _microphone = microphone ?? RecordPcmMicrophone(),
-        _transcriber = transcriber ?? _SupabaseCloudTranscriber();
+  }) : _microphone = microphone ?? RecordPcmMicrophone(),
+       _transcriber = transcriber ?? _SupabaseCloudTranscriber();
 
   final PcmMicrophone _microphone;
   final CloudTranscriber _transcriber;
@@ -71,6 +73,7 @@ class ElevenLabsSpeechService implements CloudSpeechCapture {
   int _serial = 0;
   int _pendingRequests = 0;
   Future<void> _requestChain = Future.value();
+  bool _transcribing = false;
 
   bool get isListening => _isListening;
 
@@ -134,16 +137,19 @@ class ElevenLabsSpeechService implements CloudSpeechCapture {
       try {
         // Scribe accepts raw PCM16/16kHz. Avoiding a temporary WAV file and
         // its encode/read cycle removes local I/O from every quiz answer.
-        final raw = await _transcriber.transcribe(
+        final raw = await _transcribe(
           pcm16: segment.bytes,
           langCode: langCode,
           expectedWord: promptHints.isEmpty ? '' : promptHints.first,
+        ).timeout(const Duration(seconds: 5));
+        final transcript = raw == null
+            ? null
+            : WhisperSpeechService.cleanTranscript(raw);
+        sttLog(
+          '[ELS] ${segment.durationMs}ms captured, '
+          '${stopwatch.elapsedMilliseconds}ms cloud: '
+          '"${transcript ?? '<empty>'}"',
         );
-        final transcript =
-            raw == null ? null : WhisperSpeechService.cleanTranscript(raw);
-        sttLog('[ELS] ${segment.durationMs}ms captured, '
-            '${stopwatch.elapsedMilliseconds}ms cloud: '
-            '"${transcript ?? '<empty>'}"');
         if (serial != _serial) return;
         if (transcript == null) {
           onServiceFailure?.call();
@@ -165,21 +171,46 @@ class ElevenLabsSpeechService implements CloudSpeechCapture {
   }) async {
     final stopwatch = Stopwatch()..start();
     try {
-      final raw = await _transcriber.transcribe(
+      final raw = await _transcribe(
         pcm16: pcm16,
         langCode: langCode,
         expectedWord: expectedWord,
       );
-      final transcript =
-          raw == null ? null : WhisperSpeechService.cleanTranscript(raw);
-      sttLog('[ELS] shared ${pcm16.length ~/ 32}ms, '
-          '${stopwatch.elapsedMilliseconds}ms cloud: '
-          '"${transcript ?? '<empty>'}"');
+      final transcript = raw == null
+          ? null
+          : WhisperSpeechService.cleanTranscript(raw);
+      sttLog(
+        '[ELS] shared ${pcm16.length ~/ 32}ms, '
+        '${stopwatch.elapsedMilliseconds}ms cloud: '
+        '"${transcript ?? '<empty>'}"',
+      );
       return transcript;
     } catch (error) {
-      sttLog('[ELS] cloud transcription failed after '
-          '${stopwatch.elapsedMilliseconds}ms: $error');
+      sttLog(
+        '[ELS] cloud transcription failed after '
+        '${stopwatch.elapsedMilliseconds}ms: $error',
+      );
       rethrow;
+    }
+  }
+
+  Future<String?> _transcribe({
+    required Uint8List pcm16,
+    required String langCode,
+    required String expectedWord,
+  }) async {
+    // A caller may stop waiting before the HTTP invocation finishes. Keep
+    // this slot occupied until the transport itself settles.
+    if (_transcribing) throw StateError('Scribe request still in flight');
+    _transcribing = true;
+    try {
+      return await _transcriber.transcribe(
+        pcm16: pcm16,
+        langCode: langCode,
+        expectedWord: expectedWord,
+      );
+    } finally {
+      _transcribing = false;
     }
   }
 

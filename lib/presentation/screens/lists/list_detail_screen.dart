@@ -55,18 +55,30 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
           data: (l) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('list_detail.kind'.tr(),
-                  style: AppTextStyles.mono(10, FontWeight.w700)
-                      .copyWith(color: muted, letterSpacing: 1.2)),
-              Text(l?.name ?? 'list_detail.appbar_fallback'.tr(),
-                  style: AppTextStyles.serif(24, FontWeight.w400)
-                      .copyWith(color: foreground)),
+              Text(
+                'list_detail.kind'.tr(),
+                style: AppTextStyles.mono(
+                  10,
+                  FontWeight.w700,
+                ).copyWith(color: muted, letterSpacing: 1.2),
+              ),
+              Text(
+                l?.name ?? 'list_detail.appbar_fallback'.tr(),
+                style: AppTextStyles.serif(
+                  24,
+                  FontWeight.w400,
+                ).copyWith(color: foreground),
+              ),
             ],
           ),
           loading: () => const SizedBox.shrink(),
-          error: (_, __) => Text('list_detail.appbar_fallback'.tr(),
-              style: AppTextStyles.serif(24, FontWeight.w400)
-                  .copyWith(color: foreground)),
+          error: (_, _) => Text(
+            'list_detail.appbar_fallback'.tr(),
+            style: AppTextStyles.serif(
+              24,
+              FontWeight.w400,
+            ).copyWith(color: foreground),
+          ),
         ),
         actions: _editMode
             ? [
@@ -74,8 +86,10 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                   onPressed: () => setState(() => _editMode = false),
                   child: Text(
                     'list_detail.action_done'.tr(),
-                    style: AppTextStyles.fig(14, FontWeight.w600)
-                        .copyWith(color: AppColors.clay),
+                    style: AppTextStyles.fig(
+                      14,
+                      FontWeight.w600,
+                    ).copyWith(color: AppColors.clay),
                   ),
                 ),
               ]
@@ -109,8 +123,10 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                           // Flexible: the popup caps its width (~256 on 360dp
                           // screens) and long FR labels overflow otherwise.
                           Flexible(
-                            child: Text('list_detail.menu_edit'.tr(),
-                                overflow: TextOverflow.ellipsis),
+                            child: Text(
+                              'list_detail.menu_edit'.tr(),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
@@ -122,8 +138,10 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                           const Icon(Icons.auto_awesome_rounded, size: 18),
                           const SizedBox(width: 12),
                           Flexible(
-                            child: Text('list_detail.menu_ai_suggest'.tr(),
-                                overflow: TextOverflow.ellipsis),
+                            child: Text(
+                              'list_detail.menu_ai_suggest'.tr(),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
@@ -135,8 +153,10 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                           const Icon(Icons.ios_share_outlined, size: 18),
                           const SizedBox(width: 12),
                           Flexible(
-                            child: Text('list_detail.menu_export'.tr(),
-                                overflow: TextOverflow.ellipsis),
+                            child: Text(
+                              'list_detail.menu_export'.tr(),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
@@ -151,11 +171,15 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
           conceptsAsync.when(
             loading: () => const Center(
               child: CircularProgressIndicator(
-                  color: V3Colors.terra, strokeWidth: 2),
+                color: V3Colors.terra,
+                strokeWidth: 2,
+              ),
             ),
             error: (e, _) => Center(
-              child: Text('$e',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.rose)),
+              child: Text(
+                '$e',
+                style: AppTextStyles.caption.copyWith(color: AppColors.rose),
+              ),
             ),
             data: (concepts) => concepts.isEmpty
                 ? _EmptyState(onAddTap: () => _showAddWordDialog(context))
@@ -178,15 +202,17 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
         decoration: BoxDecoration(
           color: surface,
           border: Border(
-              top: BorderSide(
-                  color: dark ? V3Colors.ruleDark : V3Colors.edgeWarm2)),
+            top: BorderSide(
+              color: dark ? V3Colors.ruleDark : V3Colors.edgeWarm2,
+            ),
+          ),
         ),
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
             child: listAsync.when(
               loading: () => _addWordBar(context),
-              error: (_, __) => _addWordBar(context),
+              error: (_, _) => _addWordBar(context),
               data: (list) => list == null
                   ? _addWordBar(context)
                   : _studyAndEditBar(context, list),
@@ -209,8 +235,9 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
         decoration: BoxDecoration(
           color: dark ? V3Colors.block2 : V3Colors.paper3,
           borderRadius: BorderRadius.circular(12),
-          border:
-              Border.all(color: dark ? V3Colors.ruleDark : V3Colors.edgeWarm2),
+          border: Border.all(
+            color: dark ? V3Colors.ruleDark : V3Colors.edgeWarm2,
+          ),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Row(
@@ -218,9 +245,13 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
           children: [
             Icon(Icons.add, color: muted, size: 18),
             const SizedBox(width: 8),
-            Text('list_detail.add_word_bar'.tr(),
-                style: AppTextStyles.fig(15, FontWeight.w600)
-                    .copyWith(color: muted)),
+            Text(
+              'list_detail.add_word_bar'.tr(),
+              style: AppTextStyles.fig(
+                15,
+                FontWeight.w600,
+              ).copyWith(color: muted),
+            ),
           ],
         ),
       ),
@@ -242,7 +273,8 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
               backgroundColor: V3Colors.terra,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
               minimumSize: const Size.fromHeight(52),
             ),
             onPressed: () => context.push(
@@ -270,7 +302,8 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
               foregroundColor: icon,
               side: BorderSide(color: outline),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             key: const ValueKey(WidgetKeys.listDetailHandsFree),
             onPressed: () => context.push(
@@ -297,7 +330,8 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
               foregroundColor: icon,
               side: BorderSide(color: outline),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             key: const ValueKey(WidgetKeys.listDetailAddWord),
             onPressed: () => _showAddWordDialog(context),
@@ -345,12 +379,9 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
         langB: langB,
         existingSource: existingSource,
         onSubmit: (wordA, wordB) async {
-          final result =
-              await ref.read(listActionsProvider.notifier).addConcept(
-                    listId: widget.listId,
-                    wordA: wordA,
-                    wordB: wordB,
-                  );
+          final result = await ref
+              .read(listActionsProvider.notifier)
+              .addConcept(listId: widget.listId, wordA: wordA, wordB: wordB);
           if (result.isFailure &&
               result.exceptionOrNull is QuotaExceededException) {
             quotaExceeded = true;
@@ -376,13 +407,16 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
       final variants = await ref
           .read(variantsProvider(c.id).future)
           .catchError((_) => <WordVariant>[]);
-      final fr =
-          variants.where((v) => v.langCode == list.langA && !v.isDeleted);
-      final ko =
-          variants.where((v) => v.langCode == list.langB && !v.isDeleted);
+      final fr = variants.where(
+        (v) => v.langCode == list.langA && !v.isDeleted,
+      );
+      final ko = variants.where(
+        (v) => v.langCode == list.langB && !v.isDeleted,
+      );
       if (fr.isNotEmpty && ko.isNotEmpty) {
         pairs.add(
-            WordPairSuggestion(source: fr.first.word, target: ko.first.word));
+          WordPairSuggestion(source: fr.first.word, target: ko.first.word),
+        );
       }
     }
     if (!context.mounted) return;
@@ -396,7 +430,9 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
         existingPairs: pairs,
         onAdd: (selected) async {
           for (final p in selected) {
-            await ref.read(listActionsProvider.notifier).addConcept(
+            await ref
+                .read(listActionsProvider.notifier)
+                .addConcept(
                   listId: widget.listId,
                   wordA: p.source,
                   wordB: p.target,
@@ -465,7 +501,9 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
       _assist = null;
       _assistError = null;
     });
-    final result = await ref.read(vocabAssistantProvider).translate(
+    final result = await ref
+        .read(vocabAssistantProvider)
+        .translate(
           word: word,
           sourceLang: fromFr ? widget.langA : widget.langB,
           targetLang: fromFr ? widget.langB : widget.langA,
@@ -496,8 +534,9 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
                 controller: _frCtrl,
                 autofocus: true,
                 decoration: InputDecoration(
-                    labelText: Languages.displayName(widget.langA),
-                    prefixText: '${Languages.flagFor(widget.langA)}  '),
+                  labelText: Languages.displayName(widget.langA),
+                  prefixText: '${Languages.flagFor(widget.langA)}  ',
+                ),
                 textInputAction: TextInputAction.next,
                 validator: (v) =>
                     (v?.trim().isEmpty ?? true) ? 'common.required'.tr() : null,
@@ -507,8 +546,9 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
                 key: const ValueKey(WidgetKeys.addWordKo),
                 controller: _koCtrl,
                 decoration: InputDecoration(
-                    labelText: Languages.displayName(widget.langB),
-                    prefixText: '${Languages.flagFor(widget.langB)}  '),
+                  labelText: Languages.displayName(widget.langB),
+                  prefixText: '${Languages.flagFor(widget.langB)}  ',
+                ),
                 validator: (v) =>
                     (v?.trim().isEmpty ?? true) ? 'common.required'.tr() : null,
               ),
@@ -519,9 +559,10 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
                     ? const Padding(
                         padding: EdgeInsets.symmetric(vertical: 6),
                         child: SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2)),
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       )
                     : TextButton.icon(
                         key: const ValueKey(WidgetKeys.addWordAiSuggest),
@@ -531,9 +572,10 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
                       ),
               ),
               if (_assistError != null)
-                Text(_assistError!,
-                    style:
-                        AppTextStyles.caption.copyWith(color: AppColors.rose)),
+                Text(
+                  _assistError!,
+                  style: AppTextStyles.caption.copyWith(color: AppColors.rose),
+                ),
               if (_assist != null) ...[
                 // Translation chips fill BOTH sides as a coherent pair
                 // (source word → translation), shown FR → KO regardless of
@@ -546,9 +588,11 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
                     for (final t in _assist!.translations)
                       ActionChip(
                         avatar: const Icon(Icons.translate_rounded, size: 14),
-                        label: Text(_reqFromFr
-                            ? '$_reqWord → ${t.display}'
-                            : '${t.display} → $_reqWord'),
+                        label: Text(
+                          _reqFromFr
+                              ? '$_reqWord → ${t.display}'
+                              : '${t.display} → $_reqWord',
+                        ),
                         onPressed: () => setState(() {
                           if (_reqFromFr) {
                             _frCtrl.text = _reqWord;
@@ -568,13 +612,18 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
                     children: [
                       const Padding(
                         padding: EdgeInsets.only(top: 1),
-                        child: Icon(Icons.mic_rounded,
-                            size: 14, color: AppColors.clay),
+                        child: Icon(
+                          Icons.mic_rounded,
+                          size: 14,
+                          color: AppColors.clay,
+                        ),
                       ),
                       const SizedBox(width: 6),
                       Expanded(
-                        child: Text('list_detail.ai_voice_friendly'.tr(),
-                            style: AppTextStyles.caption),
+                        child: Text(
+                          'list_detail.ai_voice_friendly'.tr(),
+                          style: AppTextStyles.caption,
+                        ),
                       ),
                     ],
                   ),
@@ -586,9 +635,11 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
                       for (final p in _assist!.voiceFriendly)
                         ActionChip(
                           avatar: const Icon(Icons.mic_rounded, size: 14),
-                          label: Text(_reqFromFr
-                              ? '${p.source} → ${p.target}'
-                              : '${p.target} → ${p.source}'),
+                          label: Text(
+                            _reqFromFr
+                                ? '${p.source} → ${p.target}'
+                                : '${p.target} → ${p.source}',
+                          ),
                           // Voice-friendly pairs replace BOTH sides.
                           onPressed: () => setState(() {
                             if (_reqFromFr) {
@@ -610,14 +661,17 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('common.cancel'.tr())),
+          onPressed: () => Navigator.pop(context),
+          child: Text('common.cancel'.tr()),
+        ),
         FilledButton(
           key: const ValueKey(WidgetKeys.addWordConfirm),
           onPressed: () async {
             if (!(_formKey.currentState?.validate() ?? false)) return;
-            final ok =
-                await widget.onSubmit(_frCtrl.text.trim(), _koCtrl.text.trim());
+            final ok = await widget.onSubmit(
+              _frCtrl.text.trim(),
+              _koCtrl.text.trim(),
+            );
             if (context.mounted && ok) Navigator.pop(context);
             if (context.mounted && !ok) Navigator.pop(context);
           },
@@ -630,11 +684,12 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
 
 /// Bottom sheet: AI-inferred theme + checkable new word pairs.
 class _AiSuggestionsSheet extends ConsumerStatefulWidget {
-  const _AiSuggestionsSheet(
-      {required this.langA,
-      required this.langB,
-      required this.existingPairs,
-      required this.onAdd});
+  const _AiSuggestionsSheet({
+    required this.langA,
+    required this.langB,
+    required this.existingPairs,
+    required this.onAdd,
+  });
   final String langA, langB;
   final List<WordPairSuggestion> existingPairs;
   final Future<void> Function(List<WordPairSuggestion> selected) onAdd;
@@ -657,7 +712,9 @@ class _AiSuggestionsSheetState extends ConsumerState<_AiSuggestionsSheet> {
   }
 
   Future<void> _fetch() async {
-    final result = await ref.read(vocabAssistantProvider).suggest(
+    final result = await ref
+        .read(vocabAssistantProvider)
+        .suggest(
           sourceLang: widget.langA,
           targetLang: widget.langB,
           existingPairs: widget.existingPairs,
@@ -682,72 +739,75 @@ class _AiSuggestionsSheetState extends ConsumerState<_AiSuggestionsSheet> {
         child: _error != null
             ? Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text(_error!,
-                    style:
-                        AppTextStyles.caption.copyWith(color: AppColors.rose)),
+                child: Text(
+                  _error!,
+                  style: AppTextStyles.caption.copyWith(color: AppColors.rose),
+                ),
               )
             : _result == null
-                ? const Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Center(
-                        child: CircularProgressIndicator(strokeWidth: 2)),
-                  )
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'list_detail.ai_suggest_title'
-                            .tr(namedArgs: {'theme': _result!.theme}),
-                        style: AppTextStyles.sectionTitle,
-                      ),
-                      const SizedBox(height: 8),
-                      Flexible(
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: _result!.pairs.length,
-                          itemBuilder: (ctx, i) {
-                            final p = _result!.pairs[i];
-                            return CheckboxListTile(
-                              dense: true,
-                              controlAffinity: ListTileControlAffinity.leading,
-                              value: _selected.contains(i),
-                              onChanged: (v) => setState(() {
-                                if (v == true) {
-                                  _selected.add(i);
-                                } else {
-                                  _selected.remove(i);
-                                }
-                              }),
-                              title: Text('${p.source}  —  ${p.target}'),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: _selected.isEmpty || _adding
-                              ? null
-                              : () async {
-                                  setState(() => _adding = true);
-                                  await widget.onAdd([
-                                    for (final i in _selected)
-                                      _result!.pairs[i],
-                                  ]);
-                                  if (context.mounted) {
-                                    Navigator.pop(context);
-                                  }
-                                },
-                          child: Text(_adding
-                              ? '…'
-                              : 'list_detail.ai_add_selected'
-                                  .tr(namedArgs: {'n': '${_selected.length}'})),
-                        ),
-                      ),
-                    ],
+            ? const Padding(
+                padding: EdgeInsets.all(32),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'list_detail.ai_suggest_title'.tr(
+                      namedArgs: {'theme': _result!.theme},
+                    ),
+                    style: AppTextStyles.sectionTitle,
                   ),
+                  const SizedBox(height: 8),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _result!.pairs.length,
+                      itemBuilder: (ctx, i) {
+                        final p = _result!.pairs[i];
+                        return CheckboxListTile(
+                          dense: true,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          value: _selected.contains(i),
+                          onChanged: (v) => setState(() {
+                            if (v == true) {
+                              _selected.add(i);
+                            } else {
+                              _selected.remove(i);
+                            }
+                          }),
+                          title: Text('${p.source}  —  ${p.target}'),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _selected.isEmpty || _adding
+                          ? null
+                          : () async {
+                              setState(() => _adding = true);
+                              await widget.onAdd([
+                                for (final i in _selected) _result!.pairs[i],
+                              ]);
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                              }
+                            },
+                      child: Text(
+                        _adding
+                            ? '…'
+                            : 'list_detail.ai_add_selected'.tr(
+                                namedArgs: {'n': '${_selected.length}'},
+                              ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -786,12 +846,14 @@ class _ConceptTile extends ConsumerWidget {
           borderRadius: BorderRadius.circular(14),
         ),
       ),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
       data: (variants) {
-        final fr =
-            variants.where((v) => v.langCode == langA && !v.isDeleted).toList();
-        final ko =
-            variants.where((v) => v.langCode == langB && !v.isDeleted).toList();
+        final fr = variants
+            .where((v) => v.langCode == langA && !v.isDeleted)
+            .toList();
+        final ko = variants
+            .where((v) => v.langCode == langB && !v.isDeleted)
+            .toList();
         final frWord = fr.isNotEmpty ? fr.first.word : '—';
         final koWord = ko.isNotEmpty ? ko.first.word : '—';
 
@@ -814,8 +876,9 @@ class _ConceptTile extends ConsumerWidget {
                       controller: frCtrl,
                       autofocus: true,
                       decoration: InputDecoration(
-                          labelText: Languages.displayName(langA),
-                          prefixText: '${Languages.flagFor(langA)}  '),
+                        labelText: Languages.displayName(langA),
+                        prefixText: '${Languages.flagFor(langA)}  ',
+                      ),
                       textInputAction: TextInputAction.next,
                       validator: (v) =>
                           (v?.trim().isEmpty ?? true) ? 'Requis' : null,
@@ -825,8 +888,9 @@ class _ConceptTile extends ConsumerWidget {
                       key: const ValueKey(WidgetKeys.editWordKo),
                       controller: koCtrl,
                       decoration: InputDecoration(
-                          labelText: Languages.displayName(langB),
-                          prefixText: '${Languages.flagFor(langB)}  '),
+                        labelText: Languages.displayName(langB),
+                        prefixText: '${Languages.flagFor(langB)}  ',
+                      ),
                       validator: (v) =>
                           (v?.trim().isEmpty ?? true) ? 'Requis' : null,
                     ),
@@ -842,7 +906,9 @@ class _ConceptTile extends ConsumerWidget {
                   key: const ValueKey(WidgetKeys.editWordConfirm),
                   onPressed: () async {
                     if (!(formKey.currentState?.validate() ?? false)) return;
-                    await ref.read(listActionsProvider.notifier).updateVariants(
+                    await ref
+                        .read(listActionsProvider.notifier)
+                        .updateVariants(
                           frVariant: fr.first,
                           newFrWord: frCtrl.text.trim(),
                           koVariant: ko.first,
@@ -862,8 +928,11 @@ class _ConceptTile extends ConsumerWidget {
             context: context,
             builder: (ctx) => AlertDialog(
               title: Text('list_detail.delete_dialog_title'.tr()),
-              content: Text('list_detail.delete_dialog_body'
-                  .tr(namedArgs: {'wordA': frWord, 'wordB': koWord})),
+              content: Text(
+                'list_detail.delete_dialog_body'.tr(
+                  namedArgs: {'wordA': frWord, 'wordB': koWord},
+                ),
+              ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx, false),
@@ -873,9 +942,13 @@ class _ConceptTile extends ConsumerWidget {
                   key: const ValueKey(WidgetKeys.deleteWordConfirm),
                   style: TextButton.styleFrom(foregroundColor: AppColors.rose),
                   onPressed: () => Navigator.pop(ctx, true),
-                  child: Text('common.delete'.tr(),
-                      style: AppTextStyles.fig(14, FontWeight.w600)
-                          .copyWith(color: AppColors.rose)),
+                  child: Text(
+                    'common.delete'.tr(),
+                    style: AppTextStyles.fig(
+                      14,
+                      FontWeight.w600,
+                    ).copyWith(color: AppColors.rose),
+                  ),
                 ),
               ],
             ),
@@ -899,17 +972,23 @@ class _ConceptTile extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(Languages.displayName(langA),
-                        style: AppTextStyles.eyebrowSm
-                            .copyWith(color: AppColors.teal)),
+                    Text(
+                      Languages.displayName(langA),
+                      style: AppTextStyles.eyebrowSm.copyWith(
+                        color: AppColors.teal,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(frWord,
-                        style: (Languages.usesHangul(langA)
-                                ? AppTextStyles.kr(15, FontWeight.w600)
-                                : AppTextStyles.fig(15, FontWeight.w600))
-                            .copyWith(color: ink),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis),
+                    Text(
+                      frWord,
+                      style:
+                          (Languages.usesHangul(langA)
+                                  ? AppTextStyles.kr(15, FontWeight.w600)
+                                  : AppTextStyles.fig(15, FontWeight.w600))
+                              .copyWith(color: ink),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),
@@ -925,17 +1004,23 @@ class _ConceptTile extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(Languages.displayName(langB),
-                        style: AppTextStyles.eyebrowSm
-                            .copyWith(color: AppColors.clay)),
+                    Text(
+                      Languages.displayName(langB),
+                      style: AppTextStyles.eyebrowSm.copyWith(
+                        color: AppColors.clay,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(koWord,
-                        style: (Languages.usesHangul(langB)
-                                ? AppTextStyles.kr(16, FontWeight.w500)
-                                : AppTextStyles.fig(16, FontWeight.w500))
-                            .copyWith(color: ink),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis),
+                    Text(
+                      koWord,
+                      style:
+                          (Languages.usesHangul(langB)
+                                  ? AppTextStyles.kr(16, FontWeight.w500)
+                                  : AppTextStyles.fig(16, FontWeight.w500))
+                              .copyWith(color: ink),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),
@@ -947,8 +1032,11 @@ class _ConceptTile extends ConsumerWidget {
                   onTap: showEditDialog,
                   child: Padding(
                     padding: const EdgeInsets.all(4),
-                    child: Icon(Icons.edit_outlined,
-                        color: AppColors.teal.withValues(alpha: 0.7), size: 20),
+                    child: Icon(
+                      Icons.edit_outlined,
+                      color: AppColors.teal.withValues(alpha: 0.7),
+                      size: 20,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -957,8 +1045,11 @@ class _ConceptTile extends ConsumerWidget {
                   onTap: confirmDelete,
                   child: Padding(
                     padding: const EdgeInsets.all(4),
-                    child: Icon(Icons.delete_outline,
-                        color: AppColors.rose.withValues(alpha: 0.6), size: 20),
+                    child: Icon(
+                      Icons.delete_outline,
+                      color: AppColors.rose.withValues(alpha: 0.6),
+                      size: 20,
+                    ),
                   ),
                 ),
               ],
@@ -998,9 +1089,13 @@ class _EmptyState extends StatelessWidget {
           children: [
             Icon(Icons.auto_stories_outlined, size: 56, color: faint),
             const SizedBox(height: 16),
-            Text('list_detail.empty_title'.tr(),
-                style: AppTextStyles.grotesk(20, FontWeight.w700)
-                    .copyWith(color: ink)),
+            Text(
+              'list_detail.empty_title'.tr(),
+              style: AppTextStyles.grotesk(
+                20,
+                FontWeight.w700,
+              ).copyWith(color: ink),
+            ),
             const SizedBox(height: 8),
             Text(
               'list_detail.empty_subtitle'.tr(),
@@ -1011,15 +1106,21 @@ class _EmptyState extends StatelessWidget {
             GestureDetector(
               onTap: onAddTap,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: V3Colors.terra,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text('list_detail.empty_button'.tr(),
-                    style: AppTextStyles.fig(15, FontWeight.w700)
-                        .copyWith(color: Colors.white)),
+                child: Text(
+                  'list_detail.empty_button'.tr(),
+                  style: AppTextStyles.fig(
+                    15,
+                    FontWeight.w700,
+                  ).copyWith(color: Colors.white),
+                ),
               ),
             ),
           ],

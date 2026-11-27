@@ -10,7 +10,7 @@ import 'core/utils/stt_diagnostics.dart';
 import 'presentation/screens/onboarding/splash_screen.dart';
 import 'presentation/screens/onboarding/welcome_screen.dart';
 import 'presentation/screens/onboarding/auth_screen.dart';
-import 'presentation/screens/home/parcours_screen.dart';
+import 'presentation/screens/home/v3_home_screen.dart';
 import 'presentation/screens/home/daily_path_screen.dart';
 import 'presentation/screens/lists/lists_screen.dart';
 import 'presentation/screens/lists/list_detail_screen.dart';
@@ -39,25 +39,25 @@ const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
 @visibleForTesting
 List<GoRoute> get sttDiagnosticsRoutes => [
-      if (sttDiagnosticsEnabled) ...[
-        GoRoute(path: '/stt-lab', builder: (_, __) => const SttLabScreen()),
-        GoRoute(
-          path: '/stt-lab/near-miss',
-          builder: (_, __) => const NearMissSessionScreen(),
-        ),
-      ],
-    ];
+  if (sttDiagnosticsEnabled) ...[
+    GoRoute(path: '/stt-lab', builder: (_, _) => const SttLabScreen()),
+    GoRoute(
+      path: '/stt-lab/near-miss',
+      builder: (_, _) => const NearMissSessionScreen(),
+    ),
+  ],
+];
 
 class _NoAnimationPageTransitionsBuilder extends PageTransitionsBuilder {
   const _NoAnimationPageTransitionsBuilder();
   @override
   Widget buildTransitions<T>(
-          PageRoute<T> route,
-          BuildContext context,
-          Animation<double> animation,
-          Animation<double> secondaryAnimation,
-          Widget child) =>
-      child;
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) => child;
 }
 
 class PonderinApp extends ConsumerStatefulWidget {
@@ -114,117 +114,111 @@ class _PonderinAppState extends ConsumerState<PonderinApp> {
   }
 
   GoRouter _buildRouter() => GoRouter(
-        initialLocation: '/splash',
-        refreshListenable: _authNotifier,
-        redirect: (context, state) {
-          final isSignedIn = Supabase.instance.client.auth.currentUser != null;
-          final loc = state.matchedLocation;
-          return authRedirect(isSignedIn: isSignedIn, location: loc);
+    initialLocation: '/splash',
+    refreshListenable: _authNotifier,
+    redirect: (context, state) {
+      final isSignedIn = Supabase.instance.client.auth.currentUser != null;
+      final loc = state.matchedLocation;
+      return authRedirect(isSignedIn: isSignedIn, location: loc);
+    },
+    errorBuilder: (_, state) => Scaffold(
+      appBar: AppBar(),
+      body: Center(child: Text('Page not found: ${state.error}')),
+    ),
+    routes: [
+      GoRoute(path: '/splash', builder: (_, _) => const SplashScreen()),
+      GoRoute(path: '/welcome', builder: (_, _) => const WelcomeScreen()),
+      GoRoute(
+        path: '/auth',
+        builder: (_, state) {
+          final mode = state.uri.queryParameters['mode'] ?? 'signin';
+          return AuthScreen(initialMode: mode);
         },
-        errorBuilder: (_, state) => Scaffold(
-          appBar: AppBar(),
-          body: Center(child: Text('Page not found: ${state.error}')),
-        ),
+      ),
+      ShellRoute(
+        builder: (_, _, child) => AppShell(child: child),
         routes: [
-          GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
-          GoRoute(path: '/welcome', builder: (_, __) => const WelcomeScreen()),
+          // The signed-in landing page is the learning path. Vocabulary
+          // and lessons remain independent tabs, but the first-use flow
+          // always has one visible next step here.
+          GoRoute(path: '/home', builder: (_, _) => const V3HomeScreen()),
           GoRoute(
-            path: '/auth',
-            builder: (_, state) {
-              final mode = state.uri.queryParameters['mode'] ?? 'signin';
-              return AuthScreen(initialMode: mode);
-            },
+            path: '/daily-path',
+            pageBuilder: (_, state) => DiveInPage<void>(
+              key: state.pageKey,
+              origin: Alignment.topCenter,
+              disableAnimation: _kTestMode,
+              child: const DailyPathScreen(),
+            ),
           ),
-          ShellRoute(
-            builder: (_, __, child) => AppShell(child: child),
-            routes: [
-              // The signed-in landing page is the learning path. Vocabulary
-              // and lessons remain independent tabs, but the first-use flow
-              // always has one visible next step here.
-              GoRoute(
-                  path: '/home', builder: (_, __) => const ParcoursScreen()),
-              GoRoute(
-                path: '/daily-path',
-                pageBuilder: (_, state) => DiveInPage<void>(
-                  key: state.pageKey,
-                  origin: Alignment.topCenter,
-                  disableAnimation: _kTestMode,
-                  child: const DailyPathScreen(),
-                ),
-              ),
-              GoRoute(path: '/lists', builder: (_, __) => const ListsScreen()),
-              GoRoute(
-                path: '/lists/:listId',
-                builder: (_, state) =>
-                    ListDetailScreen(listId: state.pathParameters['listId']!),
-              ),
-              GoRoute(
-                path: '/quiz',
-                builder: (_, state) =>
-                    QuizScreen(args: state.extra as QuizArgs),
-              ),
-              GoRoute(
-                path: '/start-session',
-                builder: (_, __) => const StartSessionScreen(),
-              ),
-              // Grammar is a separate flow, never mixed into vocab setup.
-              GoRoute(
-                path: '/start-session-grammar',
-                builder: (_, state) => StartSessionScreen(
-                    grammar: true,
-                    initialRuleId: state.uri.queryParameters['rule'],
-                    initialLangA: state.uri.queryParameters['langA'],
-                    initialLangB: state.uri.queryParameters['langB']),
-              ),
-              // Grammar hub: every lesson with unlock/mastery progress.
-              GoRoute(
-                path: '/grammar',
-                builder: (_, __) => const GrammarScreen(),
-              ),
-              GoRoute(
-                path: '/grammar/:ruleId',
-                pageBuilder: (_, state) => DiveInPage<void>(
-                  key: state.pageKey,
-                  origin: Alignment.center,
-                  disableAnimation: _kTestMode,
-                  child: GrammarLessonScreen(
-                    ruleId: state.pathParameters['ruleId']!,
-                  ),
-                ),
-              ),
-              GoRoute(
-                  path: '/social', builder: (_, __) => const SocialScreen()),
-              GoRoute(
-                  path: '/profile', builder: (_, __) => const ProfileScreen()),
-              GoRoute(
-                  path: '/paywall', builder: (_, __) => const PaywallScreen()),
-              GoRoute(
-                  path: '/notifications',
-                  builder: (_, __) => const NotificationSettingsScreen()),
-              GoRoute(
-                  path: '/settings',
-                  builder: (_, __) => const SettingsScreen()),
-              ...sttDiagnosticsRoutes,
-              GoRoute(path: '/stats', builder: (_, __) => const StatsScreen()),
-            ],
+          GoRoute(path: '/lists', builder: (_, _) => const ListsScreen()),
+          GoRoute(
+            path: '/lists/:listId',
+            builder: (_, state) =>
+                ListDetailScreen(listId: state.pathParameters['listId']!),
           ),
           GoRoute(
-            path: '/import',
-            builder: (_, state) {
-              final token = state.uri.queryParameters['token'] ?? '';
-              return ImportFromLinkScreen(token: token);
-            },
+            path: '/quiz',
+            builder: (_, state) => QuizScreen(args: state.extra as QuizArgs),
           ),
+          GoRoute(
+            path: '/start-session',
+            builder: (_, _) => const StartSessionScreen(),
+          ),
+          // Grammar is a separate flow, never mixed into vocab setup.
+          GoRoute(
+            path: '/start-session-grammar',
+            builder: (_, state) => StartSessionScreen(
+              grammar: true,
+              initialRuleId: state.uri.queryParameters['rule'],
+              initialLangA: state.uri.queryParameters['langA'],
+              initialLangB: state.uri.queryParameters['langB'],
+            ),
+          ),
+          // Grammar hub: every lesson with unlock/mastery progress.
+          GoRoute(path: '/grammar', builder: (_, _) => const GrammarScreen()),
+          GoRoute(
+            path: '/grammar/:ruleId',
+            pageBuilder: (_, state) => DiveInPage<void>(
+              key: state.pageKey,
+              origin: Alignment.center,
+              disableAnimation: _kTestMode,
+              child: GrammarLessonScreen(
+                ruleId: state.pathParameters['ruleId']!,
+              ),
+            ),
+          ),
+          GoRoute(path: '/social', builder: (_, _) => const SocialScreen()),
+          GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
+          GoRoute(path: '/paywall', builder: (_, _) => const PaywallScreen()),
+          GoRoute(
+            path: '/notifications',
+            builder: (_, _) => const NotificationSettingsScreen(),
+          ),
+          GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
+          ...sttDiagnosticsRoutes,
+          GoRoute(path: '/stats', builder: (_, _) => const StatsScreen()),
         ],
-      );
+      ),
+      GoRoute(
+        path: '/import',
+        builder: (_, state) {
+          final token = state.uri.queryParameters['token'] ?? '';
+          return ImportFromLinkScreen(token: token);
+        },
+      ),
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
-    const noTransitions = PageTransitionsTheme(builders: {
-      TargetPlatform.android: _NoAnimationPageTransitionsBuilder(),
-      TargetPlatform.iOS: _NoAnimationPageTransitionsBuilder(),
-    });
+    const noTransitions = PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: _NoAnimationPageTransitionsBuilder(),
+        TargetPlatform.iOS: _NoAnimationPageTransitionsBuilder(),
+      },
+    );
     return MaterialApp.router(
       title: 'Ponderin',
       theme: _kTestMode

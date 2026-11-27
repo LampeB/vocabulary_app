@@ -10,12 +10,11 @@ class SubmitAnswerUseCase {
   Future<Result<VariantProgress>> call({
     required VariantProgress progress,
     required FsrsRating rating,
-  }) =>
-      _repo.mutateProgress(
-        variantId: progress.variantId,
-        direction: progress.direction,
-        mutate: (current) => _rate(current, rating),
-      );
+  }) => _repo.mutateProgress(
+    variantId: progress.variantId,
+    direction: progress.direction,
+    mutate: (current) => _rate(current, rating),
+  );
 
   VariantProgress _rate(VariantProgress progress, FsrsRating rating) {
     final now = DateTime.now();
@@ -48,7 +47,7 @@ class SubmitAnswerUseCase {
       timesCorrect: progress.timesCorrect + (isCorrect ? 1 : 0),
       masteryLevel: progress.reps > 0
           ? (progress.timesCorrect + (isCorrect ? 1 : 0)) /
-              (progress.timesShown + 1)
+                (progress.timesShown + 1)
           : 0,
       isSynced: false,
       updatedAt: now,

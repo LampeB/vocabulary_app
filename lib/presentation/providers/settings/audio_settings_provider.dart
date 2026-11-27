@@ -40,19 +40,18 @@ class AudioSettings {
     double? pitch,
     double? voiceStrictness,
     int? listenSeconds,
-  }) =>
-      AudioSettings(
-        speechRate: speechRate ?? this.speechRate,
-        pitch: pitch ?? this.pitch,
-        voiceStrictness: voiceStrictness ?? this.voiceStrictness,
-        listenSeconds: listenSeconds ?? this.listenSeconds,
-      );
+  }) => AudioSettings(
+    speechRate: speechRate ?? this.speechRate,
+    pitch: pitch ?? this.pitch,
+    voiceStrictness: voiceStrictness ?? this.voiceStrictness,
+    listenSeconds: listenSeconds ?? this.listenSeconds,
+  );
 }
 
 final audioSettingsProvider =
     NotifierProvider<AudioSettingsNotifier, AudioSettings>(
-  AudioSettingsNotifier.new,
-);
+      AudioSettingsNotifier.new,
+    );
 
 class AudioSettingsNotifier extends Notifier<AudioSettings> {
   @override
@@ -66,11 +65,12 @@ class AudioSettingsNotifier extends Notifier<AudioSettings> {
     state = AudioSettings(
       speechRate: prefs.getDouble(_keySpeechRate) ?? 0.85,
       pitch: prefs.getDouble(_keyPitch) ?? 1.0,
-      voiceStrictness: prefs.getDouble(_keyVoiceStrictness) ??
+      voiceStrictness:
+          prefs.getDouble(_keyVoiceStrictness) ??
           AppConstants.fuzzyThresholdDriving,
       listenSeconds: AudioSettings.clampListen(
-          prefs.getInt(_keyListenSeconds) ??
-              AudioSettings.defaultListenSeconds),
+        prefs.getInt(_keyListenSeconds) ?? AudioSettings.defaultListenSeconds,
+      ),
     );
     // The validator is static (used across layers) — push the loaded value.
     AnswerValidator.drivingThreshold = state.voiceStrictness;

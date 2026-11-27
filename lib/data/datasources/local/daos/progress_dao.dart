@@ -16,14 +16,10 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
   /// aggregate vocabulary state (for example lesson prerequisites) need this
   /// invalidation signal even when a list's metadata itself did not change.
   Stream<void> watchChanges(String userId) => customSelect(
-        "SELECT COALESCE(GROUP_CONCAT(id || ':' || variant_id || ':' || state || ':' || reps || ':' || scheduled_days || ':' || times_shown || ':' || times_correct), '') AS signature FROM (SELECT * FROM variant_progress WHERE user_id = ? ORDER BY id)",
-        variables: [Variable<String>(userId)],
-        readsFrom: {variantProgressTable},
-      )
-          .watchSingle()
-          .map((row) => row.read<String>('signature'))
-          .distinct()
-          .map((_) {});
+    "SELECT COALESCE(GROUP_CONCAT(id || ':' || variant_id || ':' || state || ':' || reps || ':' || scheduled_days || ':' || times_shown || ':' || times_correct), '') AS signature FROM (SELECT * FROM variant_progress WHERE user_id = ? ORDER BY id)",
+    variables: [Variable<String>(userId)],
+    readsFrom: {variantProgressTable},
+  ).watchSingle().map((row) => row.read<String>('signature')).distinct().map((_) {});
 
   Stream<int> watchDueCount(String userId) {
     return _watchLiveDueCount(userId);
@@ -53,16 +49,26 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
   /// setup's "to study now" badge reflects the CHOSEN language instead of every
   /// language's due cards (generic-language-pairs epic). A watch so the badge
   /// fills in live when the login sync lands on a fresh device.
-  Stream<int> watchDueCountForPair(String userId, String langA, String langB,
-      {Duration refreshEvery = const Duration(minutes: 1)}) {
-    return _watchLiveDueCount(userId,
-        langA: langA, langB: langB, refreshEvery: refreshEvery);
+  Stream<int> watchDueCountForPair(
+    String userId,
+    String langA,
+    String langB, {
+    Duration refreshEvery = const Duration(minutes: 1),
+  }) {
+    return _watchLiveDueCount(
+      userId,
+      langA: langA,
+      langB: langB,
+      refreshEvery: refreshEvery,
+    );
   }
 
-  Stream<int> _watchLiveDueCount(String userId,
-      {String? langA,
-      String? langB,
-      Duration refreshEvery = const Duration(minutes: 1)}) {
+  Stream<int> _watchLiveDueCount(
+    String userId, {
+    String? langA,
+    String? langB,
+    Duration refreshEvery = const Duration(minutes: 1),
+  }) {
     final query = customSelect(
       'SELECT COUNT(*) AS due FROM variant_progress p '
       'JOIN word_variants w ON w.id=p.variant_id '
@@ -79,14 +85,14 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
           Variable<String>(langA),
           Variable<String>(langB!),
           Variable<String>('$langA>$langB'),
-          Variable<String>('$langB>$langA')
-        ]
+          Variable<String>('$langB>$langA'),
+        ],
       ],
       readsFrom: {
         variantProgressTable,
         wordVariantsTable,
         db.conceptsTable,
-        db.vocabularyListsTable
+        db.vocabularyListsTable,
       },
     );
     late StreamController<int> controller;
@@ -96,20 +102,25 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
       if (!controller.isClosed) controller.add(row.read<int>('due'));
     }
 
-    controller = StreamController<int>(onListen: () {
-      subscription =
-          query.watchSingle().listen(emit, onError: controller.addError);
-      refresh = Timer.periodic(refreshEvery, (_) async {
-        try {
-          emit(await query.getSingle());
-        } catch (error, stack) {
-          if (!controller.isClosed) controller.addError(error, stack);
-        }
-      });
-    }, onCancel: () async {
-      refresh?.cancel();
-      await subscription?.cancel();
-    });
+    controller = StreamController<int>(
+      onListen: () {
+        subscription = query.watchSingle().listen(
+          emit,
+          onError: controller.addError,
+        );
+        refresh = Timer.periodic(refreshEvery, (_) async {
+          try {
+            emit(await query.getSingle());
+          } catch (error, stack) {
+            if (!controller.isClosed) controller.addError(error, stack);
+          }
+        });
+      },
+      onCancel: () async {
+        refresh?.cancel();
+        await subscription?.cancel();
+      },
+    );
     return controller.stream.distinct();
   }
 
@@ -121,11 +132,14 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
   }) {
     final now = DateTime.now();
     return (select(variantProgressTable)
-          ..where((t) =>
-              t.userId.equals(userId) &
-              t.direction.equals(direction) &
-              t.variantId.isIn(variantIds) &
-              (t.nextReview.isNull() | t.nextReview.isSmallerOrEqualValue(now)))
+          ..where(
+            (t) =>
+                t.userId.equals(userId) &
+                t.direction.equals(direction) &
+                t.variantId.isIn(variantIds) &
+                (t.nextReview.isNull() |
+                    t.nextReview.isSmallerOrEqualValue(now)),
+          )
           ..orderBy([
             (t) => OrderingTerm.asc(t.nextReview),
             (t) => OrderingTerm.asc(t.reps),
@@ -146,33 +160,42 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
     int limit = 20,
   }) {
     final now = DateTime.now();
-    final query = select(variantProgressTable).join([
-      innerJoin(wordVariantsTable,
-          wordVariantsTable.id.equalsExp(variantProgressTable.variantId)),
-      innerJoin(db.conceptsTable,
-          db.conceptsTable.id.equalsExp(wordVariantsTable.conceptId)),
-      innerJoin(db.vocabularyListsTable,
-          db.vocabularyListsTable.id.equalsExp(db.conceptsTable.listId)),
-    ])
-      ..where(variantProgressTable.userId.equals(userId) &
-          variantProgressTable.direction.equals(direction) &
-          db.conceptsTable.isDeleted.equals(false) &
-          db.vocabularyListsTable.isDeleted.equals(false) &
-          db.vocabularyListsTable.ownerId.equals(userId) &
-          (langA == null
-              ? const Constant(true)
-              : db.vocabularyListsTable.langA.equals(langA)) &
-          (langB == null
-              ? const Constant(true)
-              : db.vocabularyListsTable.langB.equals(langB)) &
-          wordVariantsTable.isDeleted.equals(false) &
-          (variantProgressTable.nextReview.isNull() |
-              variantProgressTable.nextReview.isSmallerOrEqualValue(now)))
-      ..orderBy([
-        OrderingTerm.asc(variantProgressTable.nextReview),
-        OrderingTerm.asc(variantProgressTable.reps),
-      ])
-      ..limit(limit);
+    final query =
+        select(variantProgressTable).join([
+            innerJoin(
+              wordVariantsTable,
+              wordVariantsTable.id.equalsExp(variantProgressTable.variantId),
+            ),
+            innerJoin(
+              db.conceptsTable,
+              db.conceptsTable.id.equalsExp(wordVariantsTable.conceptId),
+            ),
+            innerJoin(
+              db.vocabularyListsTable,
+              db.vocabularyListsTable.id.equalsExp(db.conceptsTable.listId),
+            ),
+          ])
+          ..where(
+            variantProgressTable.userId.equals(userId) &
+                variantProgressTable.direction.equals(direction) &
+                db.conceptsTable.isDeleted.equals(false) &
+                db.vocabularyListsTable.isDeleted.equals(false) &
+                db.vocabularyListsTable.ownerId.equals(userId) &
+                (langA == null
+                    ? const Constant(true)
+                    : db.vocabularyListsTable.langA.equals(langA)) &
+                (langB == null
+                    ? const Constant(true)
+                    : db.vocabularyListsTable.langB.equals(langB)) &
+                wordVariantsTable.isDeleted.equals(false) &
+                (variantProgressTable.nextReview.isNull() |
+                    variantProgressTable.nextReview.isSmallerOrEqualValue(now)),
+          )
+          ..orderBy([
+            OrderingTerm.asc(variantProgressTable.nextReview),
+            OrderingTerm.asc(variantProgressTable.reps),
+          ])
+          ..limit(limit);
     return query.map((row) => row.readTable(variantProgressTable)).get();
   }
 
@@ -185,63 +208,81 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
     String? langB,
     int limit = 20,
   }) {
-    final query = select(variantProgressTable).join([
-      innerJoin(wordVariantsTable,
-          wordVariantsTable.id.equalsExp(variantProgressTable.variantId)),
-      innerJoin(db.conceptsTable,
-          db.conceptsTable.id.equalsExp(wordVariantsTable.conceptId)),
-      innerJoin(db.vocabularyListsTable,
-          db.vocabularyListsTable.id.equalsExp(db.conceptsTable.listId)),
-    ])
-      ..where(variantProgressTable.userId.equals(userId) &
-          variantProgressTable.direction.equals(direction) &
-          db.conceptsTable.isDeleted.equals(false) &
-          db.vocabularyListsTable.isDeleted.equals(false) &
-          db.vocabularyListsTable.ownerId.equals(userId) &
-          (langA == null
-              ? const Constant(true)
-              : db.vocabularyListsTable.langA.equals(langA)) &
-          (langB == null
-              ? const Constant(true)
-              : db.vocabularyListsTable.langB.equals(langB)) &
-          wordVariantsTable.isDeleted.equals(false) &
-          variantProgressTable.state.equals('newCard').not())
-      ..orderBy([
-        OrderingTerm.asc(variantProgressTable.nextReview),
-        OrderingTerm.asc(variantProgressTable.reps),
-      ])
-      ..limit(limit);
+    final query =
+        select(variantProgressTable).join([
+            innerJoin(
+              wordVariantsTable,
+              wordVariantsTable.id.equalsExp(variantProgressTable.variantId),
+            ),
+            innerJoin(
+              db.conceptsTable,
+              db.conceptsTable.id.equalsExp(wordVariantsTable.conceptId),
+            ),
+            innerJoin(
+              db.vocabularyListsTable,
+              db.vocabularyListsTable.id.equalsExp(db.conceptsTable.listId),
+            ),
+          ])
+          ..where(
+            variantProgressTable.userId.equals(userId) &
+                variantProgressTable.direction.equals(direction) &
+                db.conceptsTable.isDeleted.equals(false) &
+                db.vocabularyListsTable.isDeleted.equals(false) &
+                db.vocabularyListsTable.ownerId.equals(userId) &
+                (langA == null
+                    ? const Constant(true)
+                    : db.vocabularyListsTable.langA.equals(langA)) &
+                (langB == null
+                    ? const Constant(true)
+                    : db.vocabularyListsTable.langB.equals(langB)) &
+                wordVariantsTable.isDeleted.equals(false) &
+                variantProgressTable.state.equals('newCard').not(),
+          )
+          ..orderBy([
+            OrderingTerm.asc(variantProgressTable.nextReview),
+            OrderingTerm.asc(variantProgressTable.reps),
+          ])
+          ..limit(limit);
     return query.map((row) => row.readTable(variantProgressTable)).get();
   }
 
   Future<VariantProgressTableData?> getByVariantAndDirection(
-          String variantId, String direction, {String? userId}) =>
-      (select(variantProgressTable)
-            ..where((t) =>
+    String variantId,
+    String direction, {
+    String? userId,
+  }) =>
+      (select(variantProgressTable)..where(
+            (t) =>
                 t.variantId.equals(variantId) &
                 t.direction.equals(direction) &
                 (userId == null
                     ? const Constant(true)
-                    : t.userId.equals(userId))))
+                    : t.userId.equals(userId)),
+          ))
           .getSingleOrNull();
 
-  Future<int> upsert(VariantProgressTableCompanion companion) =>
-      transaction(() async {
-        // Remote legacy UUIDs and deterministic new UUIDs identify the same card.
-        // Reconcile by the business key before inserting its canonical snapshot.
-        if (companion.userId.present &&
-            companion.variantId.present &&
-            companion.direction.present) {
-          await (delete(variantProgressTable)
-                ..where((t) =>
-                    t.userId.equals(companion.userId.value) &
-                    t.variantId.equals(companion.variantId.value) &
-                    t.direction.equals(companion.direction.value) &
-                    t.id.equals(companion.id.value).not()))
-              .go();
-        }
-        return into(variantProgressTable).insertOnConflictUpdate(companion);
-      });
+  Future<int> upsert(VariantProgressTableCompanion companion) => transaction(
+    () async {
+      // Remote legacy UUIDs and deterministic new UUIDs identify the same card.
+      // Reconcile by the business key before inserting its canonical snapshot.
+      if (companion.userId.present &&
+          companion.variantId.present &&
+          companion.direction.present) {
+        await (delete(variantProgressTable)..where(
+              (t) =>
+                  t.userId.equals(companion.userId.value) &
+                  t.variantId.equals(companion.variantId.value) &
+                  t.direction.equals(companion.direction.value) &
+                  t.id.equals(companion.id.value).not(),
+            ))
+            .go();
+      }
+      return into(variantProgressTable).insertOnConflictUpdate(companion);
+    },
+  );
+
+  Future<int> upsertLocal(VariantProgressTableCompanion companion) =>
+      db.writeOutbound(companion.userId.value, () => upsert(companion));
 
   Future<Set<String>> getLiveVariantIds(String userId) async =>
       (await _liveVariantIds(userId).get()).toSet();
@@ -255,15 +296,24 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
     final concepts = db.conceptsTable;
     final lists = db.vocabularyListsTable;
     final query = selectOnly(variants)..addColumns([variants.id]);
-    final joined = query.join([
-      innerJoin(concepts, concepts.id.equalsExp(variants.conceptId),
-          useColumns: false),
-      innerJoin(lists, lists.id.equalsExp(concepts.listId), useColumns: false),
-    ])
-      ..where(lists.ownerId.equals(userId) &
-          lists.isDeleted.equals(false) &
-          concepts.isDeleted.equals(false) &
-          variants.isDeleted.equals(false));
+    final joined =
+        query.join([
+          innerJoin(
+            concepts,
+            concepts.id.equalsExp(variants.conceptId),
+            useColumns: false,
+          ),
+          innerJoin(
+            lists,
+            lists.id.equalsExp(concepts.listId),
+            useColumns: false,
+          ),
+        ])..where(
+          lists.ownerId.equals(userId) &
+              lists.isDeleted.equals(false) &
+              concepts.isDeleted.equals(false) &
+              variants.isDeleted.equals(false),
+        );
     if (variantId != null) joined.where(variants.id.equals(variantId));
     return joined.map((row) => row.read(variants.id)!);
   }
@@ -273,19 +323,21 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
     final progress = variantProgressTable;
     await batch((batch) {
       for (final row in rows) {
-        batch.insert(progress, row,
-            onConflict: DoUpdate((_) => row, target: [
-              progress.userId,
-              progress.variantId,
-              progress.direction,
-            ]));
+        batch.insert(
+          progress,
+          row,
+          onConflict: DoUpdate(
+            (_) => row,
+            target: [progress.userId, progress.variantId, progress.direction],
+          ),
+        );
       }
     });
   }
 
-  Future<VariantProgressTableData?> getById(String id) =>
-      (select(variantProgressTable)..where((t) => t.id.equals(id)))
-          .getSingleOrNull();
+  Future<VariantProgressTableData?> getById(String id) => (select(
+    variantProgressTable,
+  )..where((t) => t.id.equals(id))).getSingleOrNull();
 
   Future<List<String>> getExistingVariantIds({
     required String userId,
@@ -294,9 +346,11 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
   }) {
     return (selectOnly(variantProgressTable)
           ..addColumns([variantProgressTable.variantId])
-          ..where(variantProgressTable.userId.equals(userId) &
-              variantProgressTable.direction.equals(direction) &
-              variantProgressTable.variantId.isIn(variantIds)))
+          ..where(
+            variantProgressTable.userId.equals(userId) &
+                variantProgressTable.direction.equals(direction) &
+                variantProgressTable.variantId.isIn(variantIds),
+          ))
         .map((row) => row.read(variantProgressTable.variantId)!)
         .get();
   }
@@ -309,10 +363,12 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
     required List<String> variantIds,
   }) {
     return (select(variantProgressTable)
-          ..where((t) =>
-              t.userId.equals(userId) &
-              t.direction.equals(direction) &
-              t.variantId.isIn(variantIds))
+          ..where(
+            (t) =>
+                t.userId.equals(userId) &
+                t.direction.equals(direction) &
+                t.variantId.isIn(variantIds),
+          )
           ..orderBy([(t) => OrderingTerm.asc(t.nextReview)]))
         .get();
   }
@@ -321,22 +377,28 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
   /// the given concepts — the raw material for per-list stats. Aggregation
   /// happens in the repository (lists are small; no SQL group-by needed).
   Future<List<({String conceptId, VariantProgressTableData progress})>>
-      getProgressForConcepts({
+  getProgressForConcepts({
     required String userId,
     required List<String> conceptIds,
   }) {
-    final query = select(variantProgressTable).join([
-      innerJoin(wordVariantsTable,
-          wordVariantsTable.id.equalsExp(variantProgressTable.variantId)),
-    ])
-      ..where(variantProgressTable.userId.equals(userId) &
-          wordVariantsTable.isDeleted.equals(false) &
-          wordVariantsTable.conceptId.isIn(conceptIds));
+    final query =
+        select(variantProgressTable).join([
+          innerJoin(
+            wordVariantsTable,
+            wordVariantsTable.id.equalsExp(variantProgressTable.variantId),
+          ),
+        ])..where(
+          variantProgressTable.userId.equals(userId) &
+              wordVariantsTable.isDeleted.equals(false) &
+              wordVariantsTable.conceptId.isIn(conceptIds),
+        );
     return query
-        .map((row) => (
-              conceptId: row.readTable(wordVariantsTable).conceptId,
-              progress: row.readTable(variantProgressTable),
-            ))
+        .map(
+          (row) => (
+            conceptId: row.readTable(wordVariantsTable).conceptId,
+            progress: row.readTable(variantProgressTable),
+          ),
+        )
         .get();
   }
 
@@ -344,8 +406,10 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
   Future<List<String>> getVariantIdsForConcepts(List<String> conceptIds) =>
       (selectOnly(wordVariantsTable)
             ..addColumns([wordVariantsTable.id])
-            ..where(wordVariantsTable.conceptId.isIn(conceptIds) &
-                wordVariantsTable.isDeleted.equals(false)))
+            ..where(
+              wordVariantsTable.conceptId.isIn(conceptIds) &
+                  wordVariantsTable.isDeleted.equals(false),
+            ))
           .map((row) => row.read(wordVariantsTable.id)!)
           .get();
 
@@ -355,20 +419,20 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
   Future<int> deleteProgressForVariants({
     required String userId,
     required List<String> variantIds,
-  }) =>
-      (delete(variantProgressTable)
-            ..where(
-                (t) => t.userId.equals(userId) & t.variantId.isIn(variantIds)))
-          .go();
+  }) => (delete(
+    variantProgressTable,
+  )..where((t) => t.userId.equals(userId) & t.variantId.isIn(variantIds))).go();
 
-  Future<List<VariantProgressTableData>> getUnsyncedProgress(
-          {String? userId}) =>
-      (select(variantProgressTable)
-            ..where((t) =>
+  Future<List<VariantProgressTableData>> getUnsyncedProgress({
+    String? userId,
+  }) =>
+      (select(variantProgressTable)..where(
+            (t) =>
                 t.isSynced.equals(false) &
                 (userId == null
                     ? const Constant(true)
-                    : t.userId.equals(userId))))
+                    : t.userId.equals(userId)),
+          ))
           .get();
 
   /// Returns all rows the user has mastered: FSRS review state with
@@ -379,30 +443,35 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
     int minScheduledDays = 21,
   }) =>
       (select(variantProgressTable)
-            ..where((t) =>
-                t.userId.equals(userId) &
-                t.state.equals('review') &
-                t.scheduledDays.isBiggerOrEqualValue(minScheduledDays))
+            ..where(
+              (t) =>
+                  t.userId.equals(userId) &
+                  t.state.equals('review') &
+                  t.scheduledDays.isBiggerOrEqualValue(minScheduledDays),
+            )
             ..orderBy([(t) => OrderingTerm.desc(t.scheduledDays)]))
           .get();
 
   /// Rows whose FSRS card graduated from the learning phase (review or
   /// relearning — a lapsed word was still learned once). The "known" bar
   /// that gates grammar; lighter than [getMasteredProgress].
-  Future<List<VariantProgressTableData>> getGraduatedProgress(
-          {required String userId}) =>
+  Future<List<VariantProgressTableData>> getGraduatedProgress({
+    required String userId,
+  }) =>
       (select(variantProgressTable)
-            ..where((t) =>
-                t.userId.equals(userId) &
-                t.state.isIn(['review', 'relearning']))
+            ..where(
+              (t) =>
+                  t.userId.equals(userId) &
+                  t.state.isIn(['review', 'relearning']),
+            )
             ..orderBy([(t) => OrderingTerm.desc(t.scheduledDays)]))
           .get();
 
   Future<int> markProgressSynced(List<String> ids) =>
-      (update(variantProgressTable)..where((t) => t.id.isIn(ids)))
-          .write(const VariantProgressTableCompanion(isSynced: Value(true)));
+      (update(variantProgressTable)..where((t) => t.id.isIn(ids))).write(
+        const VariantProgressTableCompanion(isSynced: Value(true)),
+      );
 
   Future<int> acknowledge(VariantProgressTableData row) =>
-      (update(variantProgressTable)..where((t) => matchesSyncSnapshot(t, row)))
-          .write(const VariantProgressTableCompanion(isSynced: Value(true)));
+      acknowledgeSyncSnapshot(this, variantProgressTable, row);
 }

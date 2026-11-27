@@ -61,8 +61,7 @@ class _FakeEngine implements SttEngine {
     PcmSegment segment, {
     required String langCode,
     required List<String> promptHints,
-  }) async =>
-      null;
+  }) async => null;
 
   @override
   Future<void> stop() async => stopped = true;
@@ -70,17 +69,20 @@ class _FakeEngine implements SttEngine {
   @override
   void dispose() {}
 
-  void emit(String transcript,
-          {List<String>? candidates,
-          bool isFinal = true,
-          double confidence = 0.9}) =>
-      _sink?.call(SttHypothesis(
-        engineId: id,
-        transcript: transcript,
-        candidates: candidates ?? [transcript],
-        confidence: confidence,
-        isFinal: isFinal,
-      ));
+  void emit(
+    String transcript, {
+    List<String>? candidates,
+    bool isFinal = true,
+    double confidence = 0.9,
+  }) => _sink?.call(
+    SttHypothesis(
+      engineId: id,
+      transcript: transcript,
+      candidates: candidates ?? [transcript],
+      confidence: confidence,
+      isFinal: isFinal,
+    ),
+  );
 }
 
 /// A fake whose stop() takes real async time — for asserting the race awaits
@@ -102,27 +104,31 @@ Future<void> _pump() => Future<void>.delayed(Duration.zero);
 
 void main() {
   group('SttRace', () {
-    test('first engine to emit a validating guess wins; losers are stopped',
-        () async {
-      final a = _FakeEngine('a');
-      final b = _FakeEngine('b');
-      final future =
-          SttRace([a, b]).run(langCode: 'fr', acceptedAnswers: ['thé']);
-      await _pump();
+    test(
+      'first engine to emit a validating guess wins; losers are stopped',
+      () async {
+        final a = _FakeEngine('a');
+        final b = _FakeEngine('b');
+        final future = SttRace([
+          a,
+          b,
+        ]).run(langCode: 'fr', acceptedAnswers: ['thé']);
+        await _pump();
 
-      expect(a.started, isTrue);
-      expect(b.started, isTrue);
+        expect(a.started, isTrue);
+        expect(b.started, isTrue);
 
-      a.emit('thé');
-      final outcome = await future;
-      await _pump();
+        a.emit('thé');
+        final outcome = await future;
+        await _pump();
 
-      expect(outcome.matched, isTrue);
-      expect(outcome.winnerEngineId, 'a');
-      expect(outcome.matchedCandidate, 'thé');
-      expect(a.stopped, isTrue);
-      expect(b.stopped, isTrue, reason: 'the loser must be cancelled');
-    });
+        expect(outcome.matched, isTrue);
+        expect(outcome.winnerEngineId, 'a');
+        expect(outcome.matchedCandidate, 'thé');
+        expect(a.stopped, isTrue);
+        expect(b.stopped, isTrue, reason: 'the loser must be cancelled');
+      },
+    );
 
     test('a non-validating guess does not end the race', () async {
       final a = _FakeEngine('a');
@@ -141,7 +147,24 @@ void main() {
     });
 
     test(
-        'late-result grace: a correction arriving after the window still '
+      'only grammar requires the elided article from the system mic',
+      () async {
+        for (final grammar in [true, false]) {
+          final system = _FakeEngine('system');
+          final verdict = SttRace([system]).run(
+            langCode: 'fr',
+            acceptedAnswers: ['l’eau'],
+            preserveGrammar: grammar,
+          );
+          await _pump();
+          system.emit('eau');
+          if (grammar) system.emit("L'eau.");
+          expect((await verdict).matchedCandidate, grammar ? "L'eau." : 'eau');
+        }
+      },
+    );
+
+    test('late-result grace: a correction arriving after the window still '
         'wins (field 2026-07-22: "étudiant" → "étudier")', () async {
       final a = _FakeEngine('a');
       final future = SttRace([a]).run(
@@ -169,18 +192,19 @@ void main() {
         lateResultGrace: const Duration(seconds: 5),
       );
       expect(outcome.matched, isFalse);
-      expect(sw.elapsedMilliseconds, lessThan(1500),
-          reason: 'no hypotheses → no correction pending → no grace');
+      expect(
+        sw.elapsedMilliseconds,
+        lessThan(1500),
+        reason: 'no hypotheses → no correction pending → no grace',
+      );
     });
 
     test('a validating PARTIAL wins immediately', () async {
       final a = _FakeEngine('a');
       final partials = <SttHypothesis>[];
-      final future = SttRace([a]).run(
-        langCode: 'fr',
-        acceptedAnswers: ['thé'],
-        onPartial: partials.add,
-      );
+      final future = SttRace([
+        a,
+      ]).run(langCode: 'fr', acceptedAnswers: ['thé'], onPartial: partials.add);
       await _pump();
       a.emit('thé', isFinal: false);
 
@@ -189,37 +213,44 @@ void main() {
       expect(partials.single.transcript, 'thé');
     });
 
-    test('the fastest correct engine wins even if a slower one also would',
-        () async {
-      final fast = _FakeEngine('fast');
-      final slow = _FakeEngine('slow');
-      final future =
-          SttRace([fast, slow]).run(langCode: 'fr', acceptedAnswers: ['thé']);
-      await _pump();
+    test(
+      'the fastest correct engine wins even if a slower one also would',
+      () async {
+        final fast = _FakeEngine('fast');
+        final slow = _FakeEngine('slow');
+        final future = SttRace([
+          fast,
+          slow,
+        ]).run(langCode: 'fr', acceptedAnswers: ['thé']);
+        await _pump();
 
-      fast.emit('thé');
-      slow.emit('thé'); // arrives after — ignored, race already won
-      final outcome = await future;
+        fast.emit('thé');
+        slow.emit('thé'); // arrives after — ignored, race already won
+        final outcome = await future;
 
-      expect(outcome.winnerEngineId, 'fast');
-    });
-
-    test('an engine that does not support the language is never started',
-        () async {
-      final fr = _FakeEngine('fr', languages: {'fr'});
-      final koOnly = _FakeEngine('ko', languages: {'ko'});
-      final future =
-          SttRace([fr, koOnly]).run(langCode: 'fr', acceptedAnswers: ['thé']);
-      await _pump();
-
-      expect(fr.started, isTrue);
-      expect(koOnly.started, isFalse);
-      fr.emit('thé');
-      await future;
-    });
+        expect(outcome.winnerEngineId, 'fast');
+      },
+    );
 
     test(
-        'session-end restarts the engine so a wrong-then-corrected answer is '
+      'an engine that does not support the language is never started',
+      () async {
+        final fr = _FakeEngine('fr', languages: {'fr'});
+        final koOnly = _FakeEngine('ko', languages: {'ko'});
+        final future = SttRace([
+          fr,
+          koOnly,
+        ]).run(langCode: 'fr', acceptedAnswers: ['thé']);
+        await _pump();
+
+        expect(fr.started, isTrue);
+        expect(koOnly.started, isFalse);
+        fr.emit('thé');
+        await future;
+      },
+    );
+
+    test('session-end restarts the engine so a wrong-then-corrected answer is '
         'heard (field bug 2026-07-19)', () async {
       final a = _FakeEngine('a');
       final future = SttRace([a]).run(
@@ -243,26 +274,31 @@ void main() {
       expect(outcome.matchedCandidate, 'manger');
     });
 
-    test('hybrid handoff ends the system lane instead of restarting its mic',
-        () async {
-      final system = _FakeEngine('system');
-      final future = SttRace([system]).run(
-        langCode: 'fr',
-        acceptedAnswers: ['manger'],
-        restartOnSessionEnd: false,
-      );
-      await _pump();
+    test(
+      'hybrid handoff ends the system lane instead of restarting its mic',
+      () async {
+        final system = _FakeEngine('system');
+        final future = SttRace([system]).run(
+          langCode: 'fr',
+          acceptedAnswers: ['manger'],
+          restartOnSessionEnd: false,
+        );
+        await _pump();
 
-      system.emit('cheval');
-      system.endSession();
-      final outcome = await future;
+        system.emit('cheval');
+        system.endSession();
+        final outcome = await future;
 
-      expect(outcome.matched, isFalse);
-      expect(outcome.bestTranscript, 'cheval');
-      expect(system.startCalls, 1,
-          reason: 'the following offline lane must own the next capture');
-      expect(system.stopped, isTrue);
-    });
+        expect(outcome.matched, isFalse);
+        expect(outcome.bestTranscript, 'cheval');
+        expect(
+          system.startCalls,
+          1,
+          reason: 'the following offline lane must own the next capture',
+        );
+        expect(system.stopped, isTrue);
+      },
+    );
 
     test('restarts are capped (no infinite churn)', () async {
       final a = _FakeEngine('a');
@@ -302,16 +338,16 @@ void main() {
 
     test('no ready engine → noEngines outcome', () async {
       final notReady = _FakeEngine('x', isReady: false);
-      final outcome = await SttRace([notReady])
-          .run(langCode: 'fr', acceptedAnswers: ['thé']);
+      final outcome = await SttRace([
+        notReady,
+      ]).run(langCode: 'fr', acceptedAnswers: ['thé']);
       expect(outcome.matched, isFalse);
       expect(notReady.started, isFalse);
     });
   });
 
   group('throttle-killed restart (dead-mic back half, 2026-07-21)', () {
-    test(
-        'a session that dies before minSessionForRestart gets ONE cooldown '
+    test('a session that dies before minSessionForRestart gets ONE cooldown '
         'retry instead of burning the budget and leaving a dead mic', () async {
       final e = _FakeEngine('sys');
       final future = SttRace([e]).run(
@@ -327,8 +363,11 @@ void main() {
 
       e.endSession(); // dies instantly → throttle-killed, not a real session
       await Future<void>.delayed(const Duration(milliseconds: 80));
-      expect(e.startCalls, 2,
-          reason: 'one cooldown retry must re-open the mic');
+      expect(
+        e.startCalls,
+        2,
+        reason: 'one cooldown retry must re-open the mic',
+      );
 
       e.emit('thé'); // the retried session hears the answer
       final outcome = await future;
@@ -371,80 +410,126 @@ void main() {
       final outcome = await future;
       // No pump: the guarantee is stop() completed BEFORE run() resolved.
       expect(outcome.matched, isFalse);
-      expect(slow.stopCompleted, isTrue,
-          reason: 'run() must not resolve while a stop is still in flight');
+      expect(
+        slow.stopCompleted,
+        isTrue,
+        reason: 'run() must not resolve while a stop is still in flight',
+      );
     });
   });
 
   group('SttRace.cancel — mic-owner path', () {
-    test('cancel resolves without stopping the engine; its timer never fires',
-        () async {
-      final a = _FakeEngine('system');
-      final race = SttRace([a]);
-      final future = race.run(
-        langCode: 'fr',
-        acceptedAnswers: ['thé'],
-        timeout: const Duration(milliseconds: 30),
-      );
-      await _pump();
-      race.cancel();
-      final outcome = await future;
-      expect(outcome.cancelled, isTrue);
-      expect(a.stopped, isFalse,
-          reason: 'the engine now belongs to the superseding race');
-      await Future<void>.delayed(const Duration(milliseconds: 60));
-      expect(a.stopped, isFalse, reason: 'the stale timer must not stop it');
-    });
+    test(
+      'cancel resolves without stopping the engine; its timer never fires',
+      () async {
+        final a = _FakeEngine('system');
+        final race = SttRace([a]);
+        final future = race.run(
+          langCode: 'fr',
+          acceptedAnswers: ['thé'],
+          timeout: const Duration(milliseconds: 30),
+        );
+        await _pump();
+        race.cancel();
+        final outcome = await future;
+        expect(outcome.cancelled, isTrue);
+        expect(
+          a.stopped,
+          isFalse,
+          reason: 'the engine now belongs to the superseding race',
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 60));
+        expect(a.stopped, isFalse, reason: 'the stale timer must not stop it');
+      },
+    );
   });
 
   group('SttEngineRegistry.select — best available engines (2026-10-02)', () {
     // Keep the system registered before Whisper as in production.
     SttEngineRegistry appRegistry({bool whisperReady = true}) =>
         SttEngineRegistry()
-          ..register(_FakeEngine('elevenlabs',
-              capture: SttCapture.sharedPcm, requiresNetwork: true))
+          ..register(
+            _FakeEngine(
+              'elevenlabs',
+              capture: SttCapture.sharedPcm,
+              requiresNetwork: true,
+            ),
+          )
           ..register(_FakeEngine('system'))
-          ..register(_FakeEngine('whisper',
-              capture: SttCapture.sharedPcm, isReady: whisperReady));
+          ..register(
+            _FakeEngine(
+              'whisper',
+              capture: SttCapture.sharedPcm,
+              isReady: whisperReady,
+            ),
+          );
 
     List<String> ids(List<SttEngine> engines) =>
         engines.map((e) => e.id).toList();
 
-    test('online: a ready PCM local engine can use shared network fallback',
-        () {
-      expect(ids(appRegistry().select(langCode: 'fr', online: true)),
-          ['whisper', 'elevenlabs']);
-    });
+    test(
+      'online: a ready PCM local engine can use shared network fallback',
+      () {
+        expect(ids(appRegistry().select(langCode: 'fr', online: true)), [
+          'whisper',
+          'elevenlabs',
+        ]);
+      },
+    );
 
     test('offline: cloud engines are never selected', () {
-      expect(ids(appRegistry().select(langCode: 'fr', online: false)),
-          ['whisper']);
-    });
-
-    test('online but Whisper still downloading: local system remains available',
-        () {
-      expect(
-          ids(appRegistry(whisperReady: false)
-              .select(langCode: 'fr', online: true)),
-          ['system']);
+      expect(ids(appRegistry().select(langCode: 'fr', online: false)), [
+        'whisper',
+      ]);
     });
 
     test(
-        'shared Whisper keeps the local lane on both normal and rescue attempts',
-        () {
-      final reg = SttEngineRegistry()
-        ..register(_FakeEngine('elevenlabs',
-            capture: SttCapture.sharedPcm, requiresNetwork: true))
-        ..register(_FakeEngine('phone',
-            capture: SttCapture.sharedPcm, requiresNetwork: true))
-        ..register(_FakeEngine('system'))
-        ..register(_FakeEngine('whisper', capture: SttCapture.sharedPcm));
-      expect(ids(reg.select(langCode: 'fr', online: true)),
-          ['whisper', 'elevenlabs', 'phone']);
-      expect(ids(reg.select(langCode: 'fr', online: false)), ['whisper']);
-      expect(ids(reg.select(langCode: 'fr', online: true, rescue: true)),
-          ['whisper', 'elevenlabs', 'phone']);
-    });
+      'online but Whisper still downloading: local system remains available',
+      () {
+        expect(
+          ids(
+            appRegistry(
+              whisperReady: false,
+            ).select(langCode: 'fr', online: true),
+          ),
+          ['system'],
+        );
+      },
+    );
+
+    test(
+      'shared Whisper keeps the local lane on both normal and rescue attempts',
+      () {
+        final reg = SttEngineRegistry()
+          ..register(
+            _FakeEngine(
+              'elevenlabs',
+              capture: SttCapture.sharedPcm,
+              requiresNetwork: true,
+            ),
+          )
+          ..register(
+            _FakeEngine(
+              'phone',
+              capture: SttCapture.sharedPcm,
+              requiresNetwork: true,
+            ),
+          )
+          ..register(_FakeEngine('system'))
+          ..register(_FakeEngine('whisper', capture: SttCapture.sharedPcm));
+        expect(ids(reg.select(langCode: 'fr', online: true)), [
+          'whisper',
+          'elevenlabs',
+          'phone',
+        ]);
+        expect(ids(reg.select(langCode: 'fr', online: false)), ['whisper']);
+        expect(ids(reg.select(langCode: 'fr', online: true, rescue: true)), [
+          'whisper',
+          'elevenlabs',
+          'phone',
+        ]);
+      },
+    );
 
     test('at most maxEngines shared engines run, best first', () {
       final reg = SttEngineRegistry()
@@ -453,35 +538,49 @@ void main() {
         ..register(_FakeEngine('c', capture: SttCapture.sharedPcm))
         ..register(_FakeEngine('d', capture: SttCapture.sharedPcm));
       expect(ids(reg.select(langCode: 'fr', online: true)), ['a', 'b', 'c']);
-      expect(ids(reg.select(langCode: 'fr', online: true, maxEngines: 2)),
-          ['a', 'b']);
+      expect(ids(reg.select(langCode: 'fr', online: true, maxEngines: 2)), [
+        'a',
+        'b',
+      ]);
     });
 
     test('a mic owner runs alone when no local shared decoder is ready', () {
       final reg = SttEngineRegistry()
         ..register(_FakeEngine('system'))
         ..register(_FakeEngine('other'))
-        ..register(_FakeEngine('whisper',
-            capture: SttCapture.sharedPcm, isReady: false));
+        ..register(
+          _FakeEngine('whisper', capture: SttCapture.sharedPcm, isReady: false),
+        );
       expect(ids(reg.select(langCode: 'fr', online: true)), ['system']);
     });
 
-    test('rescue can fall back to network PCM after earlier exclusive attempts',
-        () {
-      expect(
-          ids(appRegistry(whisperReady: false)
-              .select(langCode: 'fr', online: true, rescue: true)),
-          ['elevenlabs']);
-      expect(
-          ids(appRegistry(whisperReady: false)
-              .select(langCode: 'fr', online: false, rescue: true)),
-          ['system']);
-    });
+    test(
+      'rescue can fall back to network PCM after earlier exclusive attempts',
+      () {
+        expect(
+          ids(
+            appRegistry(
+              whisperReady: false,
+            ).select(langCode: 'fr', online: true, rescue: true),
+          ),
+          ['elevenlabs'],
+        );
+        expect(
+          ids(
+            appRegistry(
+              whisperReady: false,
+            ).select(langCode: 'fr', online: false, rescue: true),
+          ),
+          ['system'],
+        );
+      },
+    );
 
     test('rescue with a single candidate keeps it', () {
       final reg = SttEngineRegistry()..register(_FakeEngine('system'));
-      expect(ids(reg.select(langCode: 'fr', online: false, rescue: true)),
-          ['system']);
+      expect(ids(reg.select(langCode: 'fr', online: false, rescue: true)), [
+        'system',
+      ]);
     });
 
     test('skips engines that do not support the language', () {

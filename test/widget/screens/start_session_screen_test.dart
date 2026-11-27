@@ -36,10 +36,7 @@ const _frenchPlural = GrammarRule(
   id: 'fr-plural-s',
   titles: {'fr': 'Le pluriel en -s', 'ko': '-s 복수형'},
   descriptions: {},
-  explanations: {
-    'fr': 'On ajoute un s au nom.',
-    'ko': '명사 뒤에 s를 붙여요.',
-  },
+  explanations: {'fr': 'On ajoute un s au nom.', 'ko': '명사 뒤에 s를 붙여요.'},
   workedExamples: [
     WorkedExample(
       target: 'les pommes',
@@ -53,82 +50,96 @@ const _frenchPlural = GrammarRule(
   testVectors: [],
 );
 
-VocabularyList _list(String id, String name,
-        {int wordCount = 5, String langA = 'fr', String langB = 'ko'}) =>
-    VocabularyList(
-      id: id,
-      ownerId: 'u',
-      name: name,
-      wordCount: wordCount,
-      langA: langA,
-      langB: langB,
-      createdAt: _now,
-      updatedAt: _now,
-    );
+VocabularyList _list(
+  String id,
+  String name, {
+  int wordCount = 5,
+  String langA = 'fr',
+  String langB = 'ko',
+}) => VocabularyList(
+  id: id,
+  ownerId: 'u',
+  name: name,
+  wordCount: wordCount,
+  langA: langA,
+  langB: langB,
+  createdAt: _now,
+  updatedAt: _now,
+);
 
 GrammarRule _rule(String id, String title) => GrammarRule(
-      id: id,
-      titles: {'fr': title},
-      descriptions: const {'fr': ''},
-      explanations: const {'fr': 'Une explication.'},
-      workedExamples: const [
-        WorkedExample(
-            target: '저는 학생이에요', translations: {'fr': 'Je suis étudiant'})
-      ],
-      prerequisiteLists: const ['Salutations & politesse'],
-      appliesToCategories: const ['nom'],
-      minKnownWords: const {'nom': 5},
-      mechanics: const ParticleMechanics(variants: [
-        ParticleVariant(key: 'default', afterConsonant: '은', afterVowel: '는'),
-      ]),
-      testVectors: const [],
-    );
+  id: id,
+  titles: {'fr': title},
+  descriptions: const {'fr': ''},
+  explanations: const {'fr': 'Une explication.'},
+  workedExamples: const [
+    WorkedExample(target: '저는 학생이에요', translations: {'fr': 'Je suis étudiant'}),
+  ],
+  prerequisiteLists: const ['Salutations & politesse'],
+  appliesToCategories: const ['nom'],
+  minKnownWords: const {'nom': 5},
+  mechanics: const ParticleMechanics(
+    variants: [
+      ParticleVariant(key: 'default', afterConsonant: '은', afterVowel: '는'),
+    ],
+  ),
+  testVectors: const [],
+);
 
 void main() {
   setUpAll(initTestLocalization);
 
   QuizArgs? capturedArgs;
 
-  Future<void> pump(WidgetTester tester,
-      {List<VocabularyList>? lists,
-      Set<String> studied = const {},
-      bool grammar = false,
-      String? initialRuleId,
-      String? langA,
-      String? langB,
-      GrammarRule? rule}) {
+  Future<void> pump(
+    WidgetTester tester, {
+    List<VocabularyList>? lists,
+    Set<String> studied = const {},
+    bool grammar = false,
+    String? initialRuleId,
+    String? langA,
+    String? langB,
+    GrammarRule? rule,
+  }) {
     capturedArgs = null;
     return pumpScreen(
       tester,
       screen: StartSessionScreen(
-          grammar: grammar,
-          initialRuleId: initialRuleId,
-          initialLangA: langA,
-          initialLangB: langB),
+        grammar: grammar,
+        initialRuleId: initialRuleId,
+        initialLangA: langA,
+        initialLangB: langB,
+      ),
       overrides: [
         myListsProvider.overrideWith(
-            (ref) => Stream.value(lists ?? [_list('l1', 'Animaux')])),
+          (ref) => Stream.value(lists ?? [_list('l1', 'Animaux')]),
+        ),
         dueCountProvider.overrideWith((ref) => Stream.value(4)),
         dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(4)),
         studiedListIdsProvider.overrideWith((ref) => Stream.value(studied)),
-        ruleStatusesProvider.overrideWith((ref, lang) async => [
-              RuleStatus(
-                rule: rule ??
-                    _rule(initialRuleId ?? 'regle-debloquee',
-                        'La particule de thème'),
-                availability: RuleAvailability.unlocked,
-                missingLists: const [],
-                enoughWords: true,
-                correct: 3,
-              ),
-              RuleStatus(
-                rule: _rule('regle-verrouillee', 'Le présent poli'),
-                availability: RuleAvailability.locked,
-                missingLists: const ['La nourriture'],
-                enoughWords: true,
-                correct: 0,
-              ),
-            ]),
+        ruleStatusesProvider.overrideWith(
+          (ref, lang) async => [
+            RuleStatus(
+              rule:
+                  rule ??
+                  _rule(
+                    initialRuleId ?? 'regle-debloquee',
+                    'La particule de thème',
+                  ),
+              availability: RuleAvailability.unlocked,
+              missingLists: const [],
+              enoughWords: true,
+              correct: 3,
+            ),
+            RuleStatus(
+              rule: _rule('regle-verrouillee', 'Le présent poli'),
+              availability: RuleAvailability.locked,
+              missingLists: const ['La nourriture'],
+              enoughWords: true,
+              correct: 0,
+            ),
+          ],
+        ),
       ],
       routes: [
         GoRoute(
@@ -149,31 +160,41 @@ void main() {
       'CONFIGURER',
       'LES CARTES SONT DÉPILÉES',
       'DERNIÈRE CARTE',
-      '3 CARTES À DÉPILER'
+      '3 CARTES À DÉPILER',
     ],
     'en': ['SET UP', 'ALL CARDS DONE', 'LAST CARD', '3 CARDS LEFT'],
     'ko': ['학습 설정', '모든 카드를 마쳤어요', '마지막 카드', '남은 카드 3장'],
   }.entries) {
-    testWidgets('setup and remaining counters use ${entry.key}',
-        (tester) async {
-      final raw = (await tester.runAsync(() =>
-          rootBundle.loadString('assets/translations/${entry.key}.json')))!;
-      final translations =
-          Translations(jsonDecode(raw) as Map<String, dynamic>);
-      Localization.load(Locale(entry.key),
-          translations: translations, fallbackTranslations: translations);
+    testWidgets('setup and remaining counters use ${entry.key}', (
+      tester,
+    ) async {
+      final raw = (await tester.runAsync(
+        () => rootBundle.loadString('assets/translations/${entry.key}.json'),
+      ))!;
+      final translations = Translations(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+      Localization.load(
+        Locale(entry.key),
+        translations: translations,
+        fallbackTranslations: translations,
+      );
       addTearDown(initTestLocalization);
       await pump(tester);
       expect(find.text(entry.value[0]), findsOneWidget);
-      await tester.pumpWidget(const MaterialApp(
+      await tester.pumpWidget(
+        const MaterialApp(
           home: Scaffold(
-              body: Column(
-        children: [
-          V3StackCounter(remaining: 0),
-          V3StackCounter(remaining: 1),
-          V3StackCounter(remaining: 3)
-        ],
-      ))));
+            body: Column(
+              children: [
+                V3StackCounter(remaining: 0),
+                V3StackCounter(remaining: 1),
+                V3StackCounter(remaining: 3),
+              ],
+            ),
+          ),
+        ),
+      );
       for (final label in entry.value.skip(1)) {
         expect(find.text(label), findsOneWidget);
       }
@@ -216,8 +237,11 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Future<void> pickList(WidgetTester tester, String name,
-      {String langB = 'ko'}) async {
+  Future<void> pickList(
+    WidgetTester tester,
+    String name, {
+    String langB = 'ko',
+  }) async {
     await pickLanguage(tester, langB: langB);
     await tester.tap(find.text(name));
     await tester.pumpAndSettle();
@@ -230,33 +254,39 @@ void main() {
       screen: const TickerMode(enabled: false, child: V3HomeScreen()),
       overrides: [
         currentUserProvider.overrideWithValue(null),
-        myListsProvider
-            .overrideWith((ref) => Stream.value([_list('l1', 'Animaux')])),
+        myListsProvider.overrideWith(
+          (ref) => Stream.value([_list('l1', 'Animaux')]),
+        ),
         dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(4)),
         studiedListIdsProvider.overrideWith((ref) => Stream.value(const {})),
         grammarRulesProvider.overrideWith((ref, lang) async => [rule]),
-        ruleStatusesProvider.overrideWith((ref, lang) async => [
-              RuleStatus(
-                rule: rule,
-                availability: RuleAvailability.unlocked,
-                missingLists: const [],
-                enoughWords: true,
-                correct: 0,
-              ),
-            ]),
+        ruleStatusesProvider.overrideWith(
+          (ref, lang) async => [
+            RuleStatus(
+              rule: rule,
+              availability: RuleAvailability.unlocked,
+              missingLists: const [],
+              enoughWords: true,
+              correct: 0,
+            ),
+          ],
+        ),
       ],
       routes: [
         GoRoute(
-            path: '/daily-path', builder: (_, __) => const DailyPathScreen()),
-        GoRoute(path: '/grammar', builder: (_, __) => const GrammarScreen()),
+          path: '/daily-path',
+          builder: (_, _) => const DailyPathScreen(),
+        ),
+        GoRoute(path: '/grammar', builder: (_, _) => const GrammarScreen()),
         GoRoute(
           path: '/grammar/:ruleId',
           builder: (_, state) =>
               GrammarLessonScreen(ruleId: state.pathParameters['ruleId']!),
         ),
         GoRoute(
-            path: '/start-session',
-            builder: (_, __) => const StartSessionScreen()),
+          path: '/start-session',
+          builder: (_, _) => const StartSessionScreen(),
+        ),
         GoRoute(
           path: '/start-session-grammar',
           builder: (_, state) => StartSessionScreen(
@@ -303,60 +333,71 @@ void main() {
     await tapKey(tester, 'quiz-back');
     expect(byKey(WidgetKeys.screenStartSession), findsOneWidget);
     expect(
-        tester
-            .widget<ElevatedButton>(byKey(WidgetKeys.startSessionStart))
-            .onPressed,
-        isNotNull);
+      tester
+          .widget<ElevatedButton>(byKey(WidgetKeys.startSessionStart))
+          .onPressed,
+      isNotNull,
+    );
     await appBarBack(tester);
     expect(byKey(WidgetKeys.screenHome), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('lesson quiz returns through setup and reader to the daily path',
-      (tester) async {
-    await pumpTrail(tester);
-    await tapKey(tester, WidgetKeys.homeDailyPath);
-    await tapKey(tester, WidgetKeys.dailyPathLessons);
-    await tapKey(tester, WidgetKeys.grammarRuleOpenLesson('ko-topic'));
-    await tapKey(tester, WidgetKeys.grammarLessonPractice);
-    await tapKey(tester, WidgetKeys.startQuizType('typing'));
-    await tapKey(tester, WidgetKeys.startCount(10));
-    await tapKey(tester, WidgetKeys.startSessionStart);
+  testWidgets(
+    'lesson quiz returns through setup and reader to the daily path',
+    (tester) async {
+      await pumpTrail(tester);
+      await tapKey(tester, WidgetKeys.homeDailyPath);
+      await tapKey(tester, WidgetKeys.dailyPathLessons);
+      await tapKey(tester, WidgetKeys.grammarRuleOpenLesson('ko-topic'));
+      await tapKey(tester, WidgetKeys.grammarLessonPractice);
+      await tapKey(tester, WidgetKeys.startQuizType('typing'));
+      await tapKey(tester, WidgetKeys.startCount(10));
+      await tapKey(tester, WidgetKeys.startSessionStart);
 
-    await tapKey(tester, 'quiz-back');
-    expect(byKey(WidgetKeys.screenStartSession), findsOneWidget);
-    await appBarBack(tester);
-    expect(byKey(WidgetKeys.screenGrammarLesson), findsOneWidget);
-    await appBarBack(tester);
-    expect(byKey(WidgetKeys.screenGrammar), findsOneWidget);
-    await appBarBack(tester);
-    expect(byKey(WidgetKeys.screenDailyPath), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      await tapKey(tester, 'quiz-back');
+      expect(byKey(WidgetKeys.screenStartSession), findsOneWidget);
+      await appBarBack(tester);
+      expect(byKey(WidgetKeys.screenGrammarLesson), findsOneWidget);
+      await appBarBack(tester);
+      expect(byKey(WidgetKeys.screenGrammar), findsOneWidget);
+      await appBarBack(tester);
+      expect(byKey(WidgetKeys.screenDailyPath), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('vocab flow renders its five sections — and NO grammar anywhere',
-      (tester) async {
-    await pump(tester);
+  testWidgets(
+    'vocab flow renders its five sections — and NO grammar anywhere',
+    (tester) async {
+      await pump(tester);
 
-    expect(byKey(WidgetKeys.screenStartSession), findsOneWidget);
-    // Language, List, Type, Direction, Count.
-    for (var i = 0; i < 5; i++) {
-      expect(byKey(WidgetKeys.startSection(i)), findsOneWidget,
-          reason: 'section $i header missing');
-    }
-    expect(byKey(WidgetKeys.startSessionStart), findsOneWidget);
-    expect(find.byIcon(Icons.arrow_back_ios_new_rounded), findsNothing);
-    expect(find.textContaining('rammaire'), findsNothing);
-    expect(byKey(WidgetKeys.startRule('regle-debloquee')), findsNothing);
-  });
+      expect(byKey(WidgetKeys.screenStartSession), findsOneWidget);
+      // Language, List, Type, Direction, Count.
+      for (var i = 0; i < 5; i++) {
+        expect(
+          byKey(WidgetKeys.startSection(i)),
+          findsOneWidget,
+          reason: 'section $i header missing',
+        );
+      }
+      expect(byKey(WidgetKeys.startSessionStart), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_back_ios_new_rounded), findsNothing);
+      expect(find.textContaining('rammaire'), findsNothing);
+      expect(byKey(WidgetKeys.startRule('regle-debloquee')), findsNothing);
+    },
+  );
 
-  testWidgets('keyboard selects mode and count and starts the quiz',
-      (tester) async {
+  testWidgets('keyboard selects mode and count and starts the quiz', (
+    tester,
+  ) async {
     await pump(tester);
 
     bool? selected(String key) {
       final button = find.descendant(
-          of: byKey(key), matching: find.byType(OutlinedButton));
+        of: byKey(key),
+        matching: find.byType(OutlinedButton),
+      );
       final data = tester.getSemantics(button).getSemanticsData();
       final flags = data.flagsCollection;
       expect(flags.isButton, isTrue, reason: '$key must expose a button');
@@ -392,37 +433,37 @@ void main() {
   });
 
   testWidgets(
-      'no defaults: every section starts collapsed and the CTA stays disabled '
-      'until language + list + mode + direction + count are all chosen',
-      (tester) async {
-    await pump(tester);
+    'no defaults: every section starts collapsed and the CTA stays disabled '
+    'until language + list + mode + direction + count are all chosen',
+    (tester) async {
+      await pump(tester);
 
-    bool ctaEnabled() =>
-        tester
-            .widget<ElevatedButton>(byKey(WidgetKeys.startSessionStart))
-            .onPressed !=
-        null;
+      bool ctaEnabled() =>
+          tester
+              .widget<ElevatedButton>(byKey(WidgetKeys.startSessionStart))
+              .onPressed !=
+          null;
 
-    expect(find.text('Animaux'), findsNothing);
-    expect(byKey(WidgetKeys.startQuizType('typing')), findsNothing);
-    expect(byKey(WidgetKeys.startCount(20)), findsNothing);
-    expect(ctaEnabled(), isFalse);
+      expect(find.text('Animaux'), findsNothing);
+      expect(byKey(WidgetKeys.startQuizType('typing')), findsNothing);
+      expect(byKey(WidgetKeys.startCount(20)), findsNothing);
+      expect(ctaEnabled(), isFalse);
 
-    await pickLanguage(tester);
-    expect(ctaEnabled(), isFalse); // language alone isn't enough
-    await tester.tap(find.text('Animaux'));
-    await tester.pumpAndSettle();
-    expect(ctaEnabled(), isFalse);
-    await tapKey(tester, WidgetKeys.startQuizType('typing'));
-    expect(ctaEnabled(), isFalse);
-    await tapKey(tester, WidgetKeys.startDirection('frToKo'));
-    expect(ctaEnabled(), isFalse);
-    await tapKey(tester, WidgetKeys.startCount(20));
-    expect(ctaEnabled(), isTrue);
-  });
+      await pickLanguage(tester);
+      expect(ctaEnabled(), isFalse); // language alone isn't enough
+      await tester.tap(find.text('Animaux'));
+      await tester.pumpAndSettle();
+      expect(ctaEnabled(), isFalse);
+      await tapKey(tester, WidgetKeys.startQuizType('typing'));
+      expect(ctaEnabled(), isFalse);
+      await tapKey(tester, WidgetKeys.startDirection('frToKo'));
+      expect(ctaEnabled(), isFalse);
+      await tapKey(tester, WidgetKeys.startCount(20));
+      expect(ctaEnabled(), isTrue);
+    },
+  );
 
-  testWidgets(
-      'picking a language reveals its lists; selecting one advances '
+  testWidgets('picking a language reveals its lists; selecting one advances '
       'to the quiz-type section', (tester) async {
     await pump(tester);
     expect(find.text('Animaux'), findsNothing);
@@ -435,8 +476,9 @@ void main() {
     expect(byKey(WidgetKeys.startQuizType('typing')), findsOneWidget);
   });
 
-  testWidgets('lists split into "currently studying" and "not yet studied"',
-      (tester) async {
+  testWidgets('lists split into "currently studying" and "not yet studied"', (
+    tester,
+  ) async {
     await pump(
       tester,
       lists: [_list('l1', 'Voyage'), _list('l2', 'Cuisine')],
@@ -451,61 +493,68 @@ void main() {
     expect(find.text('Cuisine'), findsOneWidget);
   });
 
-  testWidgets('empty lists: no language to pick and the CTA stays disabled',
-      (tester) async {
+  testWidgets('empty lists: no language to pick and the CTA stays disabled', (
+    tester,
+  ) async {
     await pump(tester, lists: []);
 
     await tapKey(tester, WidgetKeys.startSection(0));
     expect(
-        tester
-            .widget<ElevatedButton>(byKey(WidgetKeys.startSessionStart))
-            .onPressed,
-        isNull);
+      tester
+          .widget<ElevatedButton>(byKey(WidgetKeys.startSessionStart))
+          .onPressed,
+      isNull,
+    );
   });
 
   testWidgets(
-      'full journey: language → list → mode → direction → count → start fires '
-      '/quiz with the assembled QuizArgs', (tester) async {
-    await pump(tester);
+    'full journey: language → list → mode → direction → count → start fires '
+    '/quiz with the assembled QuizArgs',
+    (tester) async {
+      await pump(tester);
 
-    await pickList(tester, 'Animaux');
-    await tapKey(tester, WidgetKeys.startQuizType('typing'));
-    await tapKey(tester, WidgetKeys.startDirection('both'));
-    await tapKey(tester, WidgetKeys.startCount(50));
-    await tapKey(tester, WidgetKeys.startSessionStart);
+      await pickList(tester, 'Animaux');
+      await tapKey(tester, WidgetKeys.startQuizType('typing'));
+      await tapKey(tester, WidgetKeys.startDirection('both'));
+      await tapKey(tester, WidgetKeys.startCount(50));
+      await tapKey(tester, WidgetKeys.startSessionStart);
 
-    expect(capturedArgs, isNotNull);
-    expect(capturedArgs!.listId, 'l1');
-    expect(capturedArgs!.mode, QuizMode.typing);
-    expect(capturedArgs!.direction, QuizDirectionChoice.both);
-    expect(capturedArgs!.cardLimit, 50);
-  });
+      expect(capturedArgs, isNotNull);
+      expect(capturedArgs!.listId, 'l1');
+      expect(capturedArgs!.mode, QuizMode.typing);
+      expect(capturedArgs!.direction, QuizDirectionChoice.both);
+      expect(capturedArgs!.cardLimit, 50);
+    },
+  );
 
   testWidgets(
-      'smart list: picking "À réviser maintenant" (after a language) starts an '
-      'all-due session scoped to that pair (no listId)', (tester) async {
-    await pump(tester);
+    'smart list: picking "À réviser maintenant" (after a language) starts an '
+    'all-due session scoped to that pair (no listId)',
+    (tester) async {
+      await pump(tester);
 
-    await pickLanguage(tester);
-    expect(byKey(WidgetKeys.startSmart('due')), findsOneWidget);
-    await tester.tap(byKey(WidgetKeys.startSmart('due')));
-    await tester.pumpAndSettle();
+      await pickLanguage(tester);
+      expect(byKey(WidgetKeys.startSmart('due')), findsOneWidget);
+      await tester.tap(byKey(WidgetKeys.startSmart('due')));
+      await tester.pumpAndSettle();
 
-    await tapKey(tester, WidgetKeys.startQuizType('flashcard'));
-    await tapKey(tester, WidgetKeys.startDirection('frToKo'));
-    await tapKey(tester, WidgetKeys.startCount(20));
-    await tapKey(tester, WidgetKeys.startSessionStart);
+      await tapKey(tester, WidgetKeys.startQuizType('flashcard'));
+      await tapKey(tester, WidgetKeys.startDirection('frToKo'));
+      await tapKey(tester, WidgetKeys.startCount(20));
+      await tapKey(tester, WidgetKeys.startSessionStart);
 
-    expect(capturedArgs, isNotNull);
-    expect(capturedArgs!.source, QuizSource.allDue);
-    expect(capturedArgs!.listId, isNull);
-    // Scoped to the chosen language, not reset to fr/ko defaults here.
-    expect(capturedArgs!.langA, 'fr');
-    expect(capturedArgs!.langB, 'ko');
-  });
+      expect(capturedArgs, isNotNull);
+      expect(capturedArgs!.source, QuizSource.allDue);
+      expect(capturedArgs!.listId, isNull);
+      // Scoped to the chosen language, not reset to fr/ko defaults here.
+      expect(capturedArgs!.langA, 'fr');
+      expect(capturedArgs!.langB, 'ko');
+    },
+  );
 
-  testWidgets('smart list: "En cours" starts an in-progress session',
-      (tester) async {
+  testWidgets('smart list: "En cours" starts an in-progress session', (
+    tester,
+  ) async {
     await pump(tester);
 
     await pickLanguage(tester);
@@ -520,68 +569,83 @@ void main() {
   });
 
   testWidgets(
-      'a non-FR/KO pair: direction labels derive from the list language pair '
-      '(FR↔ES shows français/espagnol, not FR/KR)', (tester) async {
-    await pump(tester,
-        lists: [_list('l9', 'Voyage', langA: 'fr', langB: 'es')]);
+    'a non-FR/KO pair: direction labels derive from the list language pair '
+    '(FR↔ES shows français/espagnol, not FR/KR)',
+    (tester) async {
+      await pump(
+        tester,
+        lists: [_list('l9', 'Voyage', langA: 'fr', langB: 'es')],
+      );
 
-    await pickList(tester, 'Voyage', langB: 'es');
-    await tapKey(tester, WidgetKeys.startQuizType('flashcard'));
+      await pickList(tester, 'Voyage', langB: 'es');
+      await tapKey(tester, WidgetKeys.startQuizType('flashcard'));
 
-    expect(find.text('Français → Espagnol'), findsOneWidget);
-    expect(find.text('Espagnol → Français'), findsOneWidget);
-  });
-
-  testWidgets(
-      'grammar flow: unlocked rule opens the lesson sheet, starting fires '
-      '/quiz with a grammar source; locked rules are disabled', (tester) async {
-    await pump(tester, grammar: true);
-
-    // No language step for grammar — the rule section is first.
-    await tapKey(tester, WidgetKeys.startSection(0));
-
-    expect(find.textContaining('La nourriture'), findsOneWidget);
-
-    await tester.tap(byKey(WidgetKeys.startRule('regle-debloquee')));
-    await tester.pumpAndSettle();
-    expect(find.text('Une explication.'), findsOneWidget);
-    expect(find.text('저는 학생이에요'), findsOneWidget);
-
-    await tester.tap(byKey(WidgetKeys.grammarLessonStart));
-    await tester.pumpAndSettle();
-
-    await tapKey(tester, WidgetKeys.startQuizType('typing'));
-    expect(byKey(WidgetKeys.startDirection('frToKo')), findsNothing);
-    await tapKey(tester, WidgetKeys.startCount(10));
-    await tapKey(tester, WidgetKeys.startSessionStart);
-
-    expect(capturedArgs, isNotNull);
-    expect(capturedArgs!.source, QuizSource.grammar);
-    expect(capturedArgs!.ruleId, 'regle-debloquee');
-    expect(capturedArgs!.mode, QuizMode.typing);
-  });
+      expect(find.text('Français → Espagnol'), findsOneWidget);
+      expect(find.text('Espagnol → Français'), findsOneWidget);
+    },
+  );
 
   testWidgets(
-      'French lesson keeps its exact rule and Korean base through setup',
-      (tester) async {
-    await pump(tester,
+    'grammar flow: unlocked rule opens the lesson sheet, starting fires '
+    '/quiz with a grammar source; locked rules are disabled',
+    (tester) async {
+      await pump(tester, grammar: true);
+
+      // No language step for grammar — the rule section is first.
+      await tapKey(tester, WidgetKeys.startSection(0));
+
+      expect(find.textContaining('La nourriture'), findsOneWidget);
+
+      await tester.tap(byKey(WidgetKeys.startRule('regle-debloquee')));
+      await tester.pumpAndSettle();
+      expect(find.text('Une explication.'), findsOneWidget);
+      expect(find.text('저는 학생이에요'), findsOneWidget);
+
+      await tester.tap(byKey(WidgetKeys.grammarLessonStart));
+      await tester.pumpAndSettle();
+
+      await tapKey(tester, WidgetKeys.startQuizType('typing'));
+      expect(byKey(WidgetKeys.startDirection('frToKo')), findsNothing);
+      await tapKey(tester, WidgetKeys.startCount(10));
+      await tapKey(tester, WidgetKeys.startSessionStart);
+
+      expect(capturedArgs, isNotNull);
+      expect(capturedArgs!.source, QuizSource.grammar);
+      expect(capturedArgs!.ruleId, 'regle-debloquee');
+      expect(capturedArgs!.mode, QuizMode.typing);
+    },
+  );
+
+  testWidgets(
+    'French lesson keeps its exact rule and Korean base through setup',
+    (tester) async {
+      await pump(
+        tester,
         grammar: true,
         initialRuleId: 'fr-articles-le-la',
         langA: 'ko',
-        langB: 'fr');
-    await tapKey(tester, WidgetKeys.startQuizType('typing'));
-    await tapKey(tester, WidgetKeys.startCount(10));
-    await tapKey(tester, WidgetKeys.startSessionStart);
-    expect(capturedArgs!.source, QuizSource.grammar);
-    expect(capturedArgs!.ruleId, 'fr-articles-le-la');
-    expect(capturedArgs!.langA, 'ko');
-    expect(capturedArgs!.langB, 'fr');
-  });
+        langB: 'fr',
+      );
+      await tapKey(tester, WidgetKeys.startQuizType('typing'));
+      await tapKey(tester, WidgetKeys.startCount(10));
+      await tapKey(tester, WidgetKeys.startSessionStart);
+      expect(capturedArgs!.source, QuizSource.grammar);
+      expect(capturedArgs!.ruleId, 'fr-articles-le-la');
+      expect(capturedArgs!.langA, 'ko');
+      expect(capturedArgs!.langB, 'fr');
+    },
+  );
 
-  testWidgets('French plural preview teaches in Korean and starts in writing',
-      (tester) async {
-    await pump(tester,
-        grammar: true, langA: 'ko', langB: 'fr', rule: _frenchPlural);
+  testWidgets('French plural preview teaches in Korean and starts in writing', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      grammar: true,
+      langA: 'ko',
+      langB: 'fr',
+      rule: _frenchPlural,
+    );
     await tapKey(tester, WidgetKeys.startSection(0));
     await tapKey(tester, WidgetKeys.startRule('fr-plural-s'));
 
@@ -621,9 +685,12 @@ void main() {
     await tapKey(tester, WidgetKeys.startCount(100));
 
     final label = tester
-        .widget<Text>(find.descendant(
+        .widget<Text>(
+          find.descendant(
             of: byKey(WidgetKeys.startSessionStart),
-            matching: find.byType(Text)))
+            matching: find.byType(Text),
+          ),
+        )
         .data;
     expect(label, contains('100'));
   });

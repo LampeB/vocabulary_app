@@ -16,8 +16,10 @@ void main() {
     });
 
     test('all-none (multiple) → offline', () {
-      expect(isOffline([ConnectivityResult.none, ConnectivityResult.none]),
-          isTrue);
+      expect(
+        isOffline([ConnectivityResult.none, ConnectivityResult.none]),
+        isTrue,
+      );
     });
 
     test('wifi → online', () {
@@ -29,8 +31,10 @@ void main() {
     });
 
     test('mix of none + wifi → online (any usable transport wins)', () {
-      expect(isOffline([ConnectivityResult.none, ConnectivityResult.wifi]),
-          isFalse);
+      expect(
+        isOffline([ConnectivityResult.none, ConnectivityResult.wifi]),
+        isFalse,
+      );
     });
   });
 }

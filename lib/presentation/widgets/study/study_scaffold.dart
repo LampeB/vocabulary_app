@@ -53,14 +53,18 @@ class StudyScaffold extends StatelessWidget {
     final isDark = cs.brightness == Brightness.dark;
     final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
 
-    final counter = counterOverride ??
+    final counter =
+        counterOverride ??
         '${current.toString().padLeft(2, '0')} / ${total.toString().padLeft(2, '0')}';
     final progress = total > 0 ? (current / total).clamp(0.0, 1.0) : 0.0;
 
     final counterText = Text(
       counter,
-      style: AppTextStyles.mono(13, FontWeight.w700, letterSpacing: 1.5)
-          .copyWith(color: muted),
+      style: AppTextStyles.mono(
+        13,
+        FontWeight.w700,
+        letterSpacing: 1.5,
+      ).copyWith(color: muted),
     );
 
     return Scaffold(
@@ -77,8 +81,11 @@ class StudyScaffold extends StatelessWidget {
                   child: Row(
                     children: [
                       IconButton(
-                        icon: Icon(Icons.close_rounded,
-                            color: cs.onSurface, size: 22),
+                        icon: Icon(
+                          Icons.close_rounded,
+                          color: cs.onSurface,
+                          size: 22,
+                        ),
                         onPressed: onQuit,
                         tooltip: 'v3.quit'.tr(),
                       ),
@@ -89,8 +96,9 @@ class StudyScaffold extends StatelessWidget {
                             child: LinearProgressIndicator(
                               value: progress,
                               backgroundColor: cs.outline,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(cs.primary),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                cs.primary,
+                              ),
                               minHeight: 6,
                             ),
                           ),

@@ -140,8 +140,7 @@ void main() {
     });
 
     group('firstCorrect (recognizer candidates)', () {
-      test(
-          'accepts the answer when it hides in the alternates behind a '
+      test('accepts the answer when it hides in the alternates behind a '
           'wrong primary transcript (field log 2026-07-06)', () {
         // The engine ranked the near-homophone 병환이 first; the user's
         // actual word 병아리 was an alternate. Grading only the primary

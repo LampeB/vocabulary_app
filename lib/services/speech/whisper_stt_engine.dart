@@ -46,13 +46,15 @@ class WhisperSttEngine implements SttEngine {
     return _service.startListening(
       langCode: langCode,
       promptHints: promptHints,
-      onFinal: (text, segmentMs) => onHypothesis(SttHypothesis(
-        engineId: id,
-        transcript: text,
-        candidates: [text],
-        confidence: 0.7,
-        isFinal: true,
-      )),
+      onFinal: (text, segmentMs) => onHypothesis(
+        SttHypothesis(
+          engineId: id,
+          transcript: text,
+          candidates: [text],
+          confidence: 0.7,
+          isFinal: true,
+        ),
+      ),
     );
   }
 

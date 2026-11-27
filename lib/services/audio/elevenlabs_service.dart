@@ -15,10 +15,10 @@ class ElevenLabsService implements AudioService, AudioAssetCache {
     Future<Uint8List> Function(String audioPath)? assetDownloader,
     Future<Directory> Function()? cacheDirectory,
     String? Function()? currentUserId,
-  })  : voiceIds = voiceIds ?? _defaultVoices,
-        _assetDownloader = assetDownloader ?? _downloadFromStorage,
-        _cacheDirectory = cacheDirectory ?? _defaultCacheDirectory,
-        _currentUserId = currentUserId ?? _authenticatedUserId;
+  }) : voiceIds = voiceIds ?? _defaultVoices,
+       _assetDownloader = assetDownloader ?? _downloadFromStorage,
+       _cacheDirectory = cacheDirectory ?? _defaultCacheDirectory,
+       _currentUserId = currentUserId ?? _authenticatedUserId;
 
   /// Default rendering voice per content language. Voice selection is applied
   /// by the server when an asset is published, never while a learner quizzes.
@@ -70,8 +70,9 @@ class ElevenLabsService implements AudioService, AudioAssetCache {
     }
     final segments = audioPath.split('/');
     if (segments.length != 4 ||
-        segments.any((segment) =>
-            segment.isEmpty || segment == '.' || segment == '..')) {
+        segments.any(
+          (segment) => segment.isEmpty || segment == '.' || segment == '..',
+        )) {
       return null;
     }
     final namespace = segments.first;
@@ -91,7 +92,10 @@ class ElevenLabsService implements AudioService, AudioAssetCache {
       ownerId == null || ownerId == _currentUserId();
 
   Future<String?> _getOrDownload(
-      String audioPath, String key, String? ownerId) async {
+    String audioPath,
+    String key,
+    String? ownerId,
+  ) async {
     final memoryPath = _cache[key];
     if (memoryPath != null) {
       _touch(File(memoryPath));
@@ -114,7 +118,10 @@ class ElevenLabsService implements AudioService, AudioAssetCache {
   }
 
   Future<String?> _downloadAndCache(
-      String key, String audioPath, String? ownerId) async {
+    String key,
+    String audioPath,
+    String? ownerId,
+  ) async {
     try {
       final dir = await _cacheDir();
       if (!_mayRead(ownerId)) return null;
@@ -124,8 +131,9 @@ class ElevenLabsService implements AudioService, AudioAssetCache {
         _touch(file);
         return file.path;
       }
-      final bytes =
-          await _assetDownloader(audioPath).timeout(const Duration(seconds: 3));
+      final bytes = await _assetDownloader(
+        audioPath,
+      ).timeout(const Duration(seconds: 3));
       if (!_mayRead(ownerId)) return null;
       await file.writeAsBytes(bytes, flush: true);
       _cache[key] = file.path;
@@ -139,10 +147,12 @@ class ElevenLabsService implements AudioService, AudioAssetCache {
     return _cacheDirectory();
   }
 
-  static Future<Uint8List> _downloadFromStorage(String audioPath) =>
-      Supabase.instance.client.storage
-          .from(AudioAssetPath.bucket)
-          .download(audioPath);
+  static Future<Uint8List> _downloadFromStorage(String audioPath) => Supabase
+      .instance
+      .client
+      .storage
+      .from(AudioAssetPath.bucket)
+      .download(audioPath);
 
   static String? _authenticatedUserId() =>
       Supabase.instance.client.auth.currentUser?.id;
@@ -157,10 +167,10 @@ class ElevenLabsService implements AudioService, AudioAssetCache {
   Future<int> cacheSize() async {
     final dir = await _cacheDir();
     if (!dir.existsSync()) return 0;
-    return dir
-        .listSync()
-        .whereType<File>()
-        .fold<int>(0, (sum, f) => sum + f.lengthSync());
+    return dir.listSync().whereType<File>().fold<int>(
+      0,
+      (sum, f) => sum + f.lengthSync(),
+    );
   }
 
   /// Removes generated clips that have not been played or prefetched for

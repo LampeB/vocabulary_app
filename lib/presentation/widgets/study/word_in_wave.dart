@@ -91,8 +91,9 @@ class WordInWave extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 cue!.toUpperCase(),
-                style:
-                    AppTextStyles.eyebrow.copyWith(color: cueColor ?? mutedCue),
+                style: AppTextStyles.eyebrow.copyWith(
+                  color: cueColor ?? mutedCue,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],

@@ -9,19 +9,17 @@ HfCue _cue({
   SttPhase? phase,
   bool verdictPending = false,
   bool notHeard = false,
-}) =>
-    hfCueFor(
-      paused: paused,
-      countdown: countdown,
-      micRequested: micRequested,
-      phase: phase,
-      verdictPending: verdictPending,
-      notHeard: notHeard,
-    );
+}) => hfCueFor(
+  paused: paused,
+  countdown: countdown,
+  micRequested: micRequested,
+  phase: phase,
+  verdictPending: verdictPending,
+  notHeard: notHeard,
+);
 
 void main() {
-  test(
-      'the nominal sequence: reading → countdown → opening → listening → '
+  test('the nominal sequence: reading → countdown → opening → listening → '
       'hearing → analysing', () {
     expect(_cue(micRequested: false), HfCue.reading);
     expect(_cue(micRequested: false, countdown: 3), HfCue.countdown);
@@ -34,7 +32,9 @@ void main() {
 
   test('pause hides everything', () {
     expect(
-        _cue(paused: true, countdown: 2, phase: SttPhase.speaking), HfCue.none);
+      _cue(paused: true, countdown: 2, phase: SttPhase.speaking),
+      HfCue.none,
+    );
   });
 
   test('a pending verdict (mic closed) reads as analysing', () {
@@ -58,14 +58,13 @@ void main() {
       bool micRequested = true,
       SttPhase? phase,
       bool verdictPending = false,
-    }) =>
-        hfBarVisible(
-          paused: paused,
-          countdown: countdown,
-          micRequested: micRequested,
-          phase: phase,
-          verdictPending: verdictPending,
-        );
+    }) => hfBarVisible(
+      paused: paused,
+      countdown: countdown,
+      micRequested: micRequested,
+      phase: phase,
+      verdictPending: verdictPending,
+    );
     expect(bar(phase: SttPhase.listening), isTrue);
     expect(bar(phase: SttPhase.speaking), isTrue);
     expect(bar(phase: SttPhase.starting), isFalse);

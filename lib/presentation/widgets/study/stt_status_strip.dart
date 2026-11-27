@@ -83,36 +83,43 @@ class SttStatusStrip extends StatelessWidget {
     switch (e.state) {
       case SttEngineState.waiting:
         return _Chip(
-            icon: e.requiresNetwork ? Icons.cloud_outlined : Icons.memory,
-            text: '$name · ${labels.waiting}',
-            color: muted,
-            dark: dark);
+          icon: e.requiresNetwork ? Icons.cloud_outlined : Icons.memory,
+          text: '$name · ${labels.waiting}',
+          color: muted,
+          dark: dark,
+        );
       case SttEngineState.working:
         return _Chip(
-            busy: true,
-            text: '$name · '
-                '${e.requiresNetwork ? labels.sending : labels.analyzing}',
-            color: dark ? V3Colors.amber : V3Colors.terra,
-            dark: dark);
+          busy: true,
+          text:
+              '$name · '
+              '${e.requiresNetwork ? labels.sending : labels.analyzing}',
+          color: dark ? V3Colors.amber : V3Colors.terra,
+          dark: dark,
+        );
       case SttEngineState.heard:
         return _Chip(
-            icon: e.matched ? Icons.check_rounded : Icons.close_rounded,
-            text: '$name · « ${e.transcript ?? ''} »',
-            color:
-                e.matched ? AppColors.feedbackCorrect : AppColors.feedbackWrong,
-            dark: dark);
+          icon: e.matched ? Icons.check_rounded : Icons.close_rounded,
+          text: '$name · « ${e.transcript ?? ''} »',
+          color: e.matched
+              ? AppColors.feedbackCorrect
+              : AppColors.feedbackWrong,
+          dark: dark,
+        );
       case SttEngineState.empty:
         return _Chip(
-            icon: Icons.hearing_disabled_rounded,
-            text: '$name · ${labels.empty}',
-            color: muted,
-            dark: dark);
+          icon: Icons.hearing_disabled_rounded,
+          text: '$name · ${labels.empty}',
+          color: muted,
+          dark: dark,
+        );
       case SttEngineState.failed:
         return _Chip(
-            icon: Icons.error_outline_rounded,
-            text: '$name · ${labels.failed}',
-            color: muted,
-            dark: dark);
+          icon: Icons.error_outline_rounded,
+          text: '$name · ${labels.failed}',
+          color: muted,
+          dark: dark,
+        );
     }
   }
 }
@@ -157,8 +164,10 @@ class _Chip extends StatelessWidget {
             child: Text(
               text,
               overflow: TextOverflow.ellipsis,
-              style:
-                  AppTextStyles.fig(13, FontWeight.w600).copyWith(color: color),
+              style: AppTextStyles.fig(
+                13,
+                FontWeight.w600,
+              ).copyWith(color: color),
             ),
           ),
         ],

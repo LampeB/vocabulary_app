@@ -63,28 +63,33 @@ void main() {
   });
 
   for (final fails in [false, true]) {
-    test('capture survives pending inference and is cleaned (failure=$fails)',
-        () async {
-      final whisper = _PendingWhisper();
-      final service = WhisperSpeechService(
-          microphone: _UnusedMicrophone(), whisper: whisper, modelReady: true);
-      final pending = service.transcribeSegment(
-        pcm16: Uint8List(6400),
-        langCode: 'fr',
-        promptHints: const ['pomme'],
-      );
-      final capture = await whisper.started.future;
-      expect(await capture.exists(), isTrue);
-      if (fails) {
-        final assertion = expectLater(pending, throwsStateError);
-        whisper.result.completeError(StateError('native inference failed'));
-        await assertion;
-      } else {
-        whisper.result.complete('Pomme.');
-        expect(await pending, 'Pomme');
-      }
-      expect(await capture.exists(), isFalse);
-      service.dispose();
-    });
+    test(
+      'capture survives pending inference and is cleaned (failure=$fails)',
+      () async {
+        final whisper = _PendingWhisper();
+        final service = WhisperSpeechService(
+          microphone: _UnusedMicrophone(),
+          whisper: whisper,
+          modelReady: true,
+        );
+        final pending = service.transcribeSegment(
+          pcm16: Uint8List(6400),
+          langCode: 'fr',
+          promptHints: const ['pomme'],
+        );
+        final capture = await whisper.started.future;
+        expect(await capture.exists(), isTrue);
+        if (fails) {
+          final assertion = expectLater(pending, throwsStateError);
+          whisper.result.completeError(StateError('native inference failed'));
+          await assertion;
+        } else {
+          whisper.result.complete('Pomme.');
+          expect(await pending, 'Pomme');
+        }
+        expect(await capture.exists(), isFalse);
+        service.dispose();
+      },
+    );
   }
 }

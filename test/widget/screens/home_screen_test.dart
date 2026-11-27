@@ -40,22 +40,22 @@ class _FakeNotifSettings extends NotificationSettingsNotifier {
 }
 
 AppUser _user({int streak = 0}) => AppUser(
-      id: 'u',
-      email: 't@t.fr',
-      username: 'thomas',
-      currentStreak: streak,
-      subscriptionType: SubscriptionType.free,
-      createdAt: _now,
-    );
+  id: 'u',
+  email: 't@t.fr',
+  username: 'thomas',
+  currentStreak: streak,
+  subscriptionType: SubscriptionType.free,
+  createdAt: _now,
+);
 
 VocabularyList _list(String id, String name) => VocabularyList(
-      id: id,
-      ownerId: 'u',
-      name: name,
-      wordCount: 7,
-      createdAt: _now,
-      updatedAt: _now,
-    );
+  id: id,
+  ownerId: 'u',
+  name: name,
+  wordCount: 7,
+  createdAt: _now,
+  updatedAt: _now,
+);
 
 void main() {
   setUpAll(initTestLocalization);
@@ -72,12 +72,12 @@ void main() {
     navigatedTo = null;
     _lastNotif = null;
     GoRoute stub(String path) => GoRoute(
-          path: path,
-          pageBuilder: (_, state) {
-            navigatedTo = state.uri.toString();
-            return const MaterialPage<void>(child: Scaffold(body: SizedBox()));
-          },
-        );
+      path: path,
+      pageBuilder: (_, state) {
+        navigatedTo = state.uri.toString();
+        return const MaterialPage<void>(child: Scaffold(body: SizedBox()));
+      },
+    );
     return pumpScreen(
       tester,
       screen: const HomeScreen(),
@@ -90,8 +90,9 @@ void main() {
         seedStarterListsProvider.overrideWith((ref) async {}),
         myListsProvider.overrideWith((ref) => Stream.value(lists)),
         dueCountProvider.overrideWith((ref) => Stream.value(dueCount)),
-        dueCountForPairProvider
-            .overrideWith((ref, pair) => Stream.value(dueCount)),
+        dueCountForPairProvider.overrideWith(
+          (ref, pair) => Stream.value(dueCount),
+        ),
         notificationSettingsProvider.overrideWith(_FakeNotifSettings.new),
       ],
       routes: [
@@ -114,11 +115,13 @@ void main() {
   }
 
   testWidgets('renders home with streak and the user lists', (tester) async {
-    await pump(tester,
-        user: _user(streak: 5),
-        lists: [_list('l1', 'Animaux'), _list('l2', 'Cuisine')],
-        dueCount: 3,
-        settle: false);
+    await pump(
+      tester,
+      user: _user(streak: 5),
+      lists: [_list('l1', 'Animaux'), _list('l2', 'Cuisine')],
+      dueCount: 3,
+      settle: false,
+    );
 
     expect(find.byKey(const ValueKey(WidgetKeys.screenHome)), findsOneWidget);
     expect(find.text('Animaux'), findsOneWidget);
@@ -126,8 +129,9 @@ void main() {
     expect(find.text('5'), findsWidgets); // streak value appears
   });
 
-  testWidgets('tapping a list tile navigates to its detail route',
-      (tester) async {
+  testWidgets('tapping a list tile navigates to its detail route', (
+    tester,
+  ) async {
     await pump(tester, lists: [_list('l1', 'Animaux')]);
 
     await tester.scrollUntilVisible(
@@ -158,8 +162,10 @@ void main() {
       250,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(find.byKey(const ValueKey(WidgetKeys.homeGrammar)),
-        warnIfMissed: false);
+    await tester.tap(
+      find.byKey(const ValueKey(WidgetKeys.homeGrammar)),
+      warnIfMissed: false,
+    );
     await tester.pumpAndSettle();
 
     expect(navigatedTo, '/grammar');
@@ -170,8 +176,9 @@ void main() {
     expect(_lastNotif!.scheduledStreak, 8);
   });
 
-  testWidgets('the daily-path card opens its dedicated optional plan screen',
-      (tester) async {
+  testWidgets('the daily-path card opens its dedicated optional plan screen', (
+    tester,
+  ) async {
     await pump(tester, dueCount: 3);
 
     await tester.tap(find.text('home.daily_path_open'.tr()));
@@ -180,8 +187,9 @@ void main() {
     expect(navigatedTo, '/daily-path');
   });
 
-  testWidgets('the active V0 pair can be changed from the home header',
-      (tester) async {
+  testWidgets('the active V0 pair can be changed from the home header', (
+    tester,
+  ) async {
     await pump(tester);
 
     await tester.tap(find.byKey(const ValueKey(WidgetKeys.homePairPicker)));
@@ -192,17 +200,20 @@ void main() {
     await tester.pumpAndSettle();
 
     final container = ProviderScope.containerOf(
-        tester.element(find.byKey(const ValueKey(WidgetKeys.screenHome))));
+      tester.element(find.byKey(const ValueKey(WidgetKeys.screenHome))),
+    );
     expect(container.read(defaultPairProvider), ('en', 'ko'));
   });
 
-  testWidgets('zero streak does not touch the notification scheduler',
-      (tester) async {
+  testWidgets('zero streak does not touch the notification scheduler', (
+    tester,
+  ) async {
     await pump(tester, user: _user(streak: 0));
     // The screen never reads the lazy notifier when streak == 0; instantiate
     // it through the container to inspect it.
     final container = ProviderScope.containerOf(
-        tester.element(find.byKey(const ValueKey(WidgetKeys.screenHome))));
+      tester.element(find.byKey(const ValueKey(WidgetKeys.screenHome))),
+    );
     container.read(notificationSettingsProvider.notifier);
     expect(_lastNotif!.scheduledStreak, isNull);
   });

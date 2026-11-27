@@ -16,8 +16,12 @@ abstract class LatinGrammarModule implements GrammarLanguageModule {
   final Map<String, String> conjugationIrregulars;
 
   @override
-  GrammarAnswer apply(GrammarRule rule, String word,
-      {String? variantKey, List<String> tags = const []}) {
+  GrammarAnswer apply(
+    GrammarRule rule,
+    String word, {
+    String? variantKey,
+    List<String> tags = const [],
+  }) {
     switch (rule.mechanics) {
       case ArticleMechanics(:final forms, :final overrides, :final gendered):
         final override = overrides[word];
@@ -26,9 +30,9 @@ abstract class LatinGrammarModule implements GrammarLanguageModule {
         }
         final article = gendered
             ? forms.entries
-                .where((e) => tags.contains(e.key))
-                .map((e) => e.value)
-                .first
+                  .where((e) => tags.contains(e.key))
+                  .map((e) => e.value)
+                  .first
             : forms['default']!;
         final phrase = articlePhrase(article, word);
         return GrammarAnswer(expected: phrase, accepted: [phrase]);
@@ -37,8 +41,11 @@ abstract class LatinGrammarModule implements GrammarLanguageModule {
         final person =
             variantKey ?? (persons.isNotEmpty ? persons.first : 'p1sg');
         final form = _irregularOr(
-            {...conjugationIrregulars, ...irregulars}, word, person,
-            orElse: () => conjugate(word, person));
+          {...conjugationIrregulars, ...irregulars},
+          word,
+          person,
+          orElse: () => conjugate(word, person),
+        );
         return GrammarAnswer(expected: form, accepted: [form]);
 
       case NegationMechanics(:final irregulars, :final pattern):
@@ -49,10 +56,16 @@ abstract class LatinGrammarModule implements GrammarLanguageModule {
         if (direct != null) {
           return GrammarAnswer(expected: direct, accepted: [direct]);
         }
-        final base = _irregularOr(conjugationIrregulars, word, negationPerson,
-            orElse: () => negationBase(word));
+        final base = _irregularOr(
+          conjugationIrregulars,
+          word,
+          negationPerson,
+          orElse: () => negationBase(word),
+        );
         final negated = negatePhrase(
-            (pattern ?? '{verb}').replaceAll('{verb}', base), base);
+          (pattern ?? '{verb}').replaceAll('{verb}', base),
+          base,
+        );
         return GrammarAnswer(expected: negated, accepted: [negated]);
 
       case PluralMechanics(:final irregulars):
@@ -62,13 +75,17 @@ abstract class LatinGrammarModule implements GrammarLanguageModule {
       case ParticleMechanics():
       case UnsupportedMechanics():
         throw StateError(
-            'rule ${rule.id}: mechanics not supported by the $langCode module');
+          'rule ${rule.id}: mechanics not supported by the $langCode module',
+        );
     }
   }
 
   static String _irregularOr(
-      Map<String, String> irregulars, String word, String person,
-      {required String Function() orElse}) {
+    Map<String, String> irregulars,
+    String word,
+    String person, {
+    required String Function() orElse,
+  }) {
     return irregulars['$word|$person'] ?? irregulars[word] ?? orElse();
   }
 
@@ -183,9 +200,9 @@ class FrenchGrammarModule extends LatinGrammarModule {
   @override
   String articlePhrase(String article, String word) =>
       (article == 'le' || article == 'la') &&
-              LatinGrammarModule.startsWithVowel(word)
-          ? "l'$word"
-          : '$article $word';
+          LatinGrammarModule.startsWithVowel(word)
+      ? "l'$word"
+      : '$article $word';
 
   @override
   String conjugate(String infinitive, String person) {
@@ -200,8 +217,8 @@ class FrenchGrammarModule extends LatinGrammarModule {
   @override
   String negatePhrase(String phrase, String base) =>
       LatinGrammarModule.startsWithVowel(base)
-          ? phrase.replaceFirst('ne $base', "n'$base")
-          : phrase;
+      ? phrase.replaceFirst('ne $base', "n'$base")
+      : phrase;
 
   @override
   String pluralize(String noun) {
@@ -225,8 +242,8 @@ class EnglishGrammarModule extends LatinGrammarModule {
   @override
   String articlePhrase(String article, String word) =>
       article == 'a' && LatinGrammarModule.startsWithVowel(word)
-          ? 'an $word'
-          : '$article $word';
+      ? 'an $word'
+      : '$article $word';
 
   /// 'to eat' → 'eat'; phrasal verbs keep their particle ('to get up' →
   /// 'get up', 3sg 'gets up' — inflection lands on the first token).
@@ -251,8 +268,7 @@ class EnglishGrammarModule extends LatinGrammarModule {
   }
 
   @override
-  String negationBase(String infinitive) =>
-      _bare(infinitive); // don't + bare form
+  String negationBase(String infinitive) => _bare(infinitive); // don't + bare form
 
   @override
   String pluralize(String noun) {

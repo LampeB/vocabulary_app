@@ -18,12 +18,12 @@ import '../../helpers/pump_screen.dart';
 /// success → /home and failure → inline-error paths, and password reset.
 
 AppUser _user() => AppUser(
-      id: 'u',
-      email: 't@t.fr',
-      username: 'thomas',
-      subscriptionType: SubscriptionType.free,
-      createdAt: DateTime(2026),
-    );
+  id: 'u',
+  email: 't@t.fr',
+  username: 'thomas',
+  subscriptionType: SubscriptionType.free,
+  createdAt: DateTime(2026),
+);
 
 _ScriptedAuthNotifier? _lastAuth;
 
@@ -47,7 +47,10 @@ class _ScriptedAuthNotifier extends AuthNotifier {
 
   @override
   Future<Result<AppUser>> signUp(
-      String email, String password, String username) async {
+    String email,
+    String password,
+    String username,
+  ) async {
     if (failNext) return const Failure(AuthException('Email déjà utilisé'));
     signedUpUsername = username;
     return Success(_user());
@@ -59,8 +62,12 @@ void main() {
 
   String? navigatedTo;
 
-  Future<void> pump(WidgetTester tester, Widget screen,
-      {bool settle = true, Future<void>? bootstrap}) {
+  Future<void> pump(
+    WidgetTester tester,
+    Widget screen, {
+    bool settle = true,
+    Future<void>? bootstrap,
+  }) {
     navigatedTo = null;
     _lastAuth = null;
     return pumpScreen(
@@ -69,8 +76,9 @@ void main() {
       settle: settle,
       overrides: [
         authStateProvider.overrideWith(_ScriptedAuthNotifier.new),
-        seedStarterListsProvider
-            .overrideWith((ref) => bootstrap ?? Future.value()),
+        seedStarterListsProvider.overrideWith(
+          (ref) => bootstrap ?? Future.value(),
+        ),
       ],
       routes: [
         for (final r in ['/home', '/auth', '/welcome'])
@@ -79,7 +87,8 @@ void main() {
             pageBuilder: (_, state) {
               navigatedTo = state.uri.toString();
               return const MaterialPage<void>(
-                  child: Scaffold(body: SizedBox()));
+                child: Scaffold(body: SizedBox()),
+              );
             },
           ),
       ],
@@ -87,13 +96,16 @@ void main() {
   }
 
   group('welcome screen', () {
-    testWidgets('sign-up and sign-in buttons route with the right mode',
-        (tester) async {
+    testWidgets('sign-up and sign-in buttons route with the right mode', (
+      tester,
+    ) async {
       // Welcome animates forever -> no pumpAndSettle.
       await pump(tester, const WelcomeScreen(), settle: false);
       await tester.pump(const Duration(milliseconds: 300));
       expect(
-          find.byKey(const ValueKey(WidgetKeys.screenWelcome)), findsOneWidget);
+        find.byKey(const ValueKey(WidgetKeys.screenWelcome)),
+        findsOneWidget,
+      );
 
       await tester.tap(find.text('J\'ai déjà un compte'));
       await tester.pump(const Duration(milliseconds: 300));
@@ -103,13 +115,16 @@ void main() {
   });
 
   group('auth screen — sign in', () {
-    testWidgets('waits for the login bootstrap before opening home',
-        (tester) async {
+    testWidgets('waits for the login bootstrap before opening home', (
+      tester,
+    ) async {
       final bootstrap = Completer<void>();
       await pump(tester, const AuthScreen(), bootstrap: bootstrap.future);
       await tester.enterText(find.byKey(const Key('email_field')), 't@t.fr');
       await tester.enterText(
-          find.byKey(const Key('password_field')), 'secret123');
+        find.byKey(const Key('password_field')),
+        'secret123',
+      );
       await tester.tap(find.byKey(const Key('auth_submit_button')));
       await tester.pump();
       expect(navigatedTo, isNull);
@@ -118,13 +133,16 @@ void main() {
       expect(navigatedTo, '/home');
     });
 
-    testWidgets('valid credentials call signIn and land on /home',
-        (tester) async {
+    testWidgets('valid credentials call signIn and land on /home', (
+      tester,
+    ) async {
       await pump(tester, const AuthScreen(initialMode: 'signin'));
 
       await tester.enterText(find.byKey(const Key('email_field')), 't@t.fr');
       await tester.enterText(
-          find.byKey(const Key('password_field')), 'secret123');
+        find.byKey(const Key('password_field')),
+        'secret123',
+      );
       await tester.tap(find.byKey(const Key('auth_submit_button')));
       await tester.pumpAndSettle();
 
@@ -132,14 +150,17 @@ void main() {
       expect(navigatedTo, '/home');
     });
 
-    testWidgets('a failed sign-in shows the error inline and stays put',
-        (tester) async {
+    testWidgets('a failed sign-in shows the error inline and stays put', (
+      tester,
+    ) async {
       await pump(tester, const AuthScreen(initialMode: 'signin'));
       _lastAuth!.failNext = true;
 
       await tester.enterText(find.byKey(const Key('email_field')), 't@t.fr');
       await tester.enterText(
-          find.byKey(const Key('password_field')), 'wrongpassword');
+        find.byKey(const Key('password_field')),
+        'wrongpassword',
+      );
       await tester.tap(find.byKey(const Key('auth_submit_button')));
       await tester.pumpAndSettle();
 
@@ -147,8 +168,9 @@ void main() {
       expect(navigatedTo, isNull);
     });
 
-    testWidgets('empty form does not submit (validators block)',
-        (tester) async {
+    testWidgets('empty form does not submit (validators block)', (
+      tester,
+    ) async {
       await pump(tester, const AuthScreen(initialMode: 'signin'));
 
       await tester.tap(find.byKey(const Key('auth_submit_button')));
@@ -160,14 +182,17 @@ void main() {
   });
 
   group('auth screen — sign up', () {
-    testWidgets('sign-up mode shows the username field and calls signUp',
-        (tester) async {
+    testWidgets('sign-up mode shows the username field and calls signUp', (
+      tester,
+    ) async {
       await pump(tester, const AuthScreen(initialMode: 'signup'));
 
       await tester.enterText(find.byKey(const Key('username_field')), 'thomas');
       await tester.enterText(find.byKey(const Key('email_field')), 't@t.fr');
       await tester.enterText(
-          find.byKey(const Key('password_field')), 'secret123');
+        find.byKey(const Key('password_field')),
+        'secret123',
+      );
       await tester.tap(find.byKey(const Key('auth_submit_button')));
       await tester.pumpAndSettle();
 
@@ -177,18 +202,24 @@ void main() {
   });
 
   group('auth screen — password reset', () {
-    testWidgets('forgot-password opens the dialog with email + send',
-        (tester) async {
+    testWidgets('forgot-password opens the dialog with email + send', (
+      tester,
+    ) async {
       await pump(tester, const AuthScreen(initialMode: 'signin'));
 
-      await tester
-          .tap(find.byKey(const ValueKey(WidgetKeys.authForgotPassword)));
+      await tester.tap(
+        find.byKey(const ValueKey(WidgetKeys.authForgotPassword)),
+      );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey(WidgetKeys.authResetEmail)),
-          findsOneWidget);
       expect(
-          find.byKey(const ValueKey(WidgetKeys.authResetSend)), findsOneWidget);
+        find.byKey(const ValueKey(WidgetKeys.authResetEmail)),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey(WidgetKeys.authResetSend)),
+        findsOneWidget,
+      );
     });
   });
 }

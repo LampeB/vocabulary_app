@@ -59,8 +59,11 @@ class _NoopAudio implements AudioPlayerService {
   @override
   Future<void> warmUp(String langCode) async {}
   @override
-  Future<void> prefetch(String text, String langCode,
-      {String? audioPath}) async {}
+  Future<void> prefetch(
+    String text,
+    String langCode, {
+    String? audioPath,
+  }) async {}
   @override
   Future<void> speak(String text, String langCode, {String? audioPath}) async {}
   @override
@@ -200,8 +203,9 @@ class _VoiceHarness {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     const speech = MethodChannel('plugin.csdcorp.com/speech_to_text');
     const phone = MethodChannel('vocab_kr/pcm_speech');
-    const connectivity =
-        MethodChannel('dev.fluttercommunity.plus/connectivity');
+    const connectivity = MethodChannel(
+      'dev.fluttercommunity.plus/connectivity',
+    );
     messenger.setMockMethodCallHandler(speech, (call) async {
       if (call.method == 'initialize') return true;
       if (call.method == 'listen') {
@@ -251,13 +255,16 @@ class _FakeProgressRepo implements ProgressRepository {
     required QuizDirection direction,
     required VariantProgress Function(VariantProgress) mutate,
   }) async {
-    final latest = [...saved.reversed, ...due].firstWhere((progress) =>
-        progress.variantId == variantId && progress.direction == direction);
+    final latest = [...saved.reversed, ...due].firstWhere(
+      (progress) =>
+          progress.variantId == variantId && progress.direction == direction,
+    );
     await pendingCommit?.future;
     final updated = mutate(latest);
     final days = committedDays;
-    final committed =
-        days == null ? updated : updated.copyWith(scheduledDays: days);
+    final committed = days == null
+        ? updated
+        : updated.copyWith(scheduledDays: days);
     saved.add(committed);
     return Success(committed);
   }
@@ -312,13 +319,13 @@ void main() {
   tearDown(() => SttSimulator.mode = '');
 
   VariantProgress due(String variantId) => VariantProgress(
-        id: 'p-$variantId',
-        userId: 'u',
-        variantId: variantId,
-        direction: QuizDirection.frToKo,
-        createdAt: _now,
-        updatedAt: _now,
-      );
+    id: 'p-$variantId',
+    userId: 'u',
+    variantId: variantId,
+    direction: QuizDirection.frToKo,
+    createdAt: _now,
+    updatedAt: _now,
+  );
 
   /// Seeds words, wires every provider seam, pumps QuizScreen in [mode].
   Future<void> pump(
@@ -338,12 +345,19 @@ void main() {
       db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
       final repo = VocabularyRepositoryImpl(
-          db.vocabularyListDao, db.conceptDao, FakeRemote(), 'u', db);
+        db.vocabularyListDao,
+        db.conceptDao,
+        FakeRemote(),
+        'u',
+        db,
+      );
       final list = (await repo.createList(name: 'Quiz')).valueOrNull!;
       for (final (fr, ko) in words) {
         final concept = (await repo.addConceptWithVariants(
-                listId: list.id, wordA: fr, wordB: ko))
-            .valueOrNull!;
+          listId: list.id,
+          wordA: fr,
+          wordB: ko,
+        )).valueOrNull!;
         final variants = await db.conceptDao.getVariantsByConcept(concept.id);
         dueCards.add(due(variants.firstWhere((v) => v.langCode == 'fr').id));
       }
@@ -375,15 +389,18 @@ void main() {
       overrides: [
         appDatabaseProvider.overrideWithValue(db),
         vocabularyRemoteProvider.overrideWithValue(FakeRemote()),
-        getDueCardsUseCaseProvider
-            .overrideWithValue(GetDueCardsUseCase(progressRepo)),
+        getDueCardsUseCaseProvider.overrideWithValue(
+          GetDueCardsUseCase(progressRepo),
+        ),
         progressRepositoryProvider.overrideWithValue(progressRepo),
         if (grammar) ...[
-          grammarRulesProvider.overrideWith((_, __) => koreanRules),
-          ruleDrillWordsProvider.overrideWith((_, __) async => const [
-                DrillWord(word: '학생', category: 'nom'),
-                DrillWord(word: '친구', category: 'nom'),
-              ]),
+          grammarRulesProvider.overrideWith((_, _) => koreanRules),
+          ruleDrillWordsProvider.overrideWith(
+            (_, _) async => const [
+              DrillWord(word: '학생', category: 'nom'),
+              DrillWord(word: '친구', category: 'nom'),
+            ],
+          ),
         ],
         audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
         if (voice != null) ...[
@@ -391,8 +408,9 @@ void main() {
           whisperSpeechProvider.overrideWithValue(voice.whisper),
           elevenLabsSpeechProvider.overrideWithValue(_FakeScribe()),
         ],
-        audioDirectorProvider
-            .overrideWithValue(director ?? voice?.director ?? _TestDirector()),
+        audioDirectorProvider.overrideWithValue(
+          director ?? voice?.director ?? _TestDirector(),
+        ),
         currentUserProvider.overrideWithValue(null),
         authRepositoryProvider.overrideWithValue(_FakeAuthRepo()),
         authStateProvider.overrideWith(_FakeAuthNotifier.new),
@@ -410,7 +428,7 @@ void main() {
               ),
             ),
           ),
-          GoRoute(path: '/quiz', builder: (_, __) => quiz),
+          GoRoute(path: '/quiz', builder: (_, _) => quiz),
         ],
         GoRoute(
           path: '/home',
@@ -431,11 +449,13 @@ void main() {
     await tick(tester, times: 4); // loadCards + first frame
   }
 
-  testWidgets(
-      'flashcard: flip reveals the answer, grading advances to the '
+  testWidgets('flashcard: flip reveals the answer, grading advances to the '
       'summary, done goes home', (tester) async {
-    await pump(tester,
-        mode: QuizMode.flashcard, words: [('chat', '고양이'), ('chien', '개')]);
+    await pump(
+      tester,
+      mode: QuizMode.flashcard,
+      words: [('chat', '고양이'), ('chien', '개')],
+    );
 
     // Card 1: question shown, answer hidden until flip.
     expect(find.text('chat'), findsOneWidget);
@@ -445,8 +465,11 @@ void main() {
 
     // Swipe right grades "known" and peels the card away without a verdict
     // screen, revealing card 2 in the same physical stack position.
-    await tester.fling(find.byKey(const ValueKey(WidgetKeys.cartesCard)),
-        const Offset(300, 0), 1000);
+    await tester.fling(
+      find.byKey(const ValueKey(WidgetKeys.cartesCard)),
+      const Offset(300, 0),
+      1000,
+    );
     await tick(tester, times: 4);
     expect(find.text('chien'), findsOneWidget);
     expect(find.text('chat'), findsNothing);
@@ -454,38 +477,51 @@ void main() {
     // Card 2 the same way → summary.
     await tester.tap(find.byKey(const ValueKey(WidgetKeys.cartesCard)));
     await tick(tester, times: 4);
-    await tester.fling(find.byKey(const ValueKey(WidgetKeys.cartesCard)),
-        const Offset(300, 0), 1000);
+    await tester.fling(
+      find.byKey(const ValueKey(WidgetKeys.cartesCard)),
+      const Offset(300, 0),
+      1000,
+    );
     await tick(tester, times: 6);
 
     expect(progressRepo.saved, hasLength(2));
     expect(progressRepo.saved.map((progress) => progress.timesCorrect), [1, 1]);
-    expect(progressRepo.saved.every((progress) => progress.nextReview != null),
-        isTrue);
+    expect(
+      progressRepo.saved.every((progress) => progress.nextReview != null),
+      isTrue,
+    );
 
     await tester.tap(find.byKey(const ValueKey(WidgetKeys.summaryDone)));
     await tick(tester, times: 2);
     expect(navigatedTo, '/home');
   });
 
-  testWidgets('flashcard grades are available as focusable buttons',
-      (tester) async {
-    await pump(tester,
-        mode: QuizMode.flashcard, words: [('chat', '고양이'), ('chien', '개')]);
+  testWidgets('flashcard grades are available as focusable buttons', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      mode: QuizMode.flashcard,
+      words: [('chat', '고양이'), ('chien', '개')],
+    );
     await tester.tap(find.byKey(const ValueKey(WidgetKeys.cartesCard)));
     await tick(tester, times: 4);
     expect(
-        tester
-            .widget<OutlinedButton>(
-                find.byKey(const ValueKey(WidgetKeys.gradeAgain)))
-            .onPressed,
-        isNotNull);
+      tester
+          .widget<OutlinedButton>(
+            find.byKey(const ValueKey(WidgetKeys.gradeAgain)),
+          )
+          .onPressed,
+      isNotNull,
+    );
     expect(
-        tester
-            .widget<FilledButton>(
-                find.byKey(const ValueKey(WidgetKeys.gradeKnew)))
-            .onPressed,
-        isNotNull);
+      tester
+          .widget<FilledButton>(
+            find.byKey(const ValueKey(WidgetKeys.gradeKnew)),
+          )
+          .onPressed,
+      isNotNull,
+    );
     await tester.tap(find.byKey(const ValueKey(WidgetKeys.gradeAgain)));
     await tick(tester, times: 4);
     expect(find.text('chien'), findsOneWidget);
@@ -497,24 +533,65 @@ void main() {
     expect(progressRepo.saved.map((progress) => progress.timesCorrect), [0, 1]);
     expect(progressRepo.saved.map((progress) => progress.timesShown), [1, 1]);
     expect(
-        progressRepo.saved.first.nextReview!
-            .isBefore(progressRepo.saved.last.nextReview!),
-        isTrue);
+      progressRepo.saved.first.nextReview!.isBefore(
+        progressRepo.saved.last.nextReview!,
+      ),
+      isTrue,
+    );
     expect(find.text('chien'), findsNothing);
   });
 
-  testWidgets(
-      'typing: a correct answer shows the correct verdict and '
+  for (final theme in [ThemeMode.light, ThemeMode.dark]) {
+    testWidgets('flashcard review grade has readable ${theme.name} contrast', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        mode: QuizMode.flashcard,
+        words: [('chat', '고양이')],
+        themeMode: theme,
+      );
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.cartesCard)));
+      await tick(tester, times: 4);
+
+      final button = find.byKey(const ValueKey(WidgetKeys.gradeAgain));
+      final label = find.descendant(of: button, matching: find.byType(Text));
+      final foreground = DefaultTextStyle.of(
+        tester.element(label),
+      ).style.color!;
+      final material = find.descendant(
+        of: button,
+        matching: find.byType(Material),
+      );
+      final background = tester.widget<Material>(material).color!;
+      final luminances = [
+        foreground.computeLuminance(),
+        background.computeLuminance(),
+      ]..sort();
+
+      expect(background.a, 1);
+      expect(
+        (luminances.last + .05) / (luminances.first + .05),
+        greaterThanOrEqualTo(4.5),
+      );
+    });
+  }
+
+  testWidgets('typing: a correct answer shows the correct verdict and '
       'completes at 100%', (tester) async {
     await pump(tester, mode: QuizMode.typing, words: [('chat', '고양이')]);
 
     await tester.enterText(
-        find.byKey(const ValueKey(WidgetKeys.ecrireInput)), '고양이');
+      find.byKey(const ValueKey(WidgetKeys.ecrireInput)),
+      '고양이',
+    );
     await tester.tap(find.byKey(const ValueKey(WidgetKeys.ecrireValidate)));
     await tick(tester, times: 4);
 
     expect(
-        find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)), findsOneWidget);
+      find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)),
+      findsOneWidget,
+    );
     await tapIfPresent(tester, WidgetKeys.feedbackContinue);
     await tick(tester, times: 4);
 
@@ -525,44 +602,56 @@ void main() {
     await pump(tester, mode: QuizMode.typing, words: [('chat', '고양이')]);
 
     await tester.enterText(
-        find.byKey(const ValueKey(WidgetKeys.ecrireInput)), 'nope');
+      find.byKey(const ValueKey(WidgetKeys.ecrireInput)),
+      'nope',
+    );
     await tester.tap(find.byKey(const ValueKey(WidgetKeys.ecrireValidate)));
     await tick(tester, times: 4);
 
     expect(
-        find.byKey(const ValueKey(WidgetKeys.feedbackWrong)), findsOneWidget);
+      find.byKey(const ValueKey(WidgetKeys.feedbackWrong)),
+      findsOneWidget,
+    );
     expect(find.text('고양이'), findsWidgets); // the correct answer is revealed
   });
 
   testWidgets(
-      'vocabulary verdict shows the interval returned by the saved rating',
-      (tester) async {
-    await pump(tester, mode: QuizMode.typing, words: [('chat', '고양이')]);
-    final commit = progressRepo.pendingCommit = Completer<void>();
-    progressRepo.committedDays = 37;
+    'vocabulary verdict shows the interval returned by the saved rating',
+    (tester) async {
+      await pump(tester, mode: QuizMode.typing, words: [('chat', '고양이')]);
+      final commit = progressRepo.pendingCommit = Completer<void>();
+      progressRepo.committedDays = 37;
 
-    await tester.enterText(
-        find.byKey(const ValueKey(WidgetKeys.ecrireInput)), '고양이');
-    await tester.tap(find.byKey(const ValueKey(WidgetKeys.ecrireValidate)));
-    await tester.pump();
-    final verdict = find.byType(StudyFeedbackFlood);
-    expect(tester.widget<StudyFeedbackFlood>(verdict).isCorrect, isTrue);
-    expect(tester.widget<StudyFeedbackFlood>(verdict).detail, isNull);
+      await tester.enterText(
+        find.byKey(const ValueKey(WidgetKeys.ecrireInput)),
+        '고양이',
+      );
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.ecrireValidate)));
+      await tester.pump();
+      final verdict = find.byType(StudyFeedbackFlood);
+      expect(tester.widget<StudyFeedbackFlood>(verdict).isCorrect, isTrue);
+      expect(tester.widget<StudyFeedbackFlood>(verdict).detail, isNull);
 
-    commit.complete();
-    await tester.pump();
-    expect(tester.widget<StudyFeedbackFlood>(verdict).detail,
-        'quiz.next_review_in_days'.tr(namedArgs: {'days': '37'}));
-    expect(progressRepo.saved.single.scheduledDays, 37);
-  });
+      commit.complete();
+      await tester.pump();
+      expect(
+        tester.widget<StudyFeedbackFlood>(verdict).detail,
+        'quiz.next_review_in_days'.tr(namedArgs: {'days': '37'}),
+      );
+      expect(progressRepo.saved.single.scheduledDays, 37);
+    },
+  );
 
   for (final mode in [QuizMode.typing, QuizMode.voice]) {
-    testWidgets('grammar ${mode.name} feedback has no next-review interval',
-        (tester) async {
+    testWidgets('grammar ${mode.name} feedback has no next-review interval', (
+      tester,
+    ) async {
       await pump(tester, mode: mode, words: [], grammar: true, cardLimit: 1);
       if (mode == QuizMode.typing) {
         await tester.enterText(
-            find.byKey(const ValueKey(WidgetKeys.ecrireInput)), '틀림');
+          find.byKey(const ValueKey(WidgetKeys.ecrireInput)),
+          '틀림',
+        );
         await tester.tap(find.byKey(const ValueKey(WidgetKeys.ecrireValidate)));
       } else {
         await tester.tap(find.byKey(const ValueKey(WidgetKeys.micButton)));
@@ -570,10 +659,11 @@ void main() {
       }
       await tester.pump();
       expect(
-          tester
-              .widget<StudyFeedbackFlood>(find.byType(StudyFeedbackFlood))
-              .detail,
-          isNull);
+        tester
+            .widget<StudyFeedbackFlood>(find.byType(StudyFeedbackFlood))
+            .detail,
+        isNull,
+      );
       expect(progressRepo.saved, isEmpty);
       await unmountScreen(tester);
       // Voice schedules a feedback delay before the next card.
@@ -582,12 +672,17 @@ void main() {
   }
 
   for (final escape in [WidgetKeys.voiceKeyboard, WidgetKeys.voiceReveal]) {
-    testWidgets('voice $escape closes PCM and drops a delayed result',
-        (tester) async {
+    testWidgets('voice $escape closes PCM and drops a delayed result', (
+      tester,
+    ) async {
       final voice = _VoiceHarness();
       final recognizing = voice.whisper.pendingDecode = Completer<String?>();
-      await pump(tester,
-          mode: QuizMode.voice, words: [('chat', '고양이')], voice: voice);
+      await pump(
+        tester,
+        mode: QuizMode.voice,
+        words: [('chat', '고양이')],
+        voice: voice,
+      );
       await tester.tap(find.byKey(const ValueKey(WidgetKeys.micButton)));
       await tester.pump();
       final capture = voice.capture.session!;
@@ -603,7 +698,9 @@ void main() {
       await tester.pump();
       expect(voice.whisper.decodes, 1);
       expect(
-          find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)), findsNothing);
+        find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)),
+        findsNothing,
+      );
 
       if (escape == WidgetKeys.voiceKeyboard) {
         final input = find.byType(TextField);
@@ -612,12 +709,16 @@ void main() {
         await tester.enterText(input, '고양이');
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await tester.pump();
-        expect(find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)),
-            findsOneWidget);
+        expect(
+          find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)),
+          findsOneWidget,
+        );
         expect(progressRepo.saved.single.timesCorrect, 1);
       } else {
-        expect(find.byKey(const ValueKey(WidgetKeys.feedbackWrong)),
-            findsOneWidget);
+        expect(
+          find.byKey(const ValueKey(WidgetKeys.feedbackWrong)),
+          findsOneWidget,
+        );
         expect(progressRepo.saved.single.timesCorrect, 0);
         expect(progressRepo.saved.single.timesShown, 1);
       }
@@ -627,86 +728,108 @@ void main() {
   }
 
   for (final mode in [QuizMode.typing, QuizMode.handsFree]) {
-    testWidgets('long ${mode.name} prompt scrolls on 320×568 at 2× text scale',
-        (tester) async {
-      final voice = mode == QuizMode.handsFree ? _VoiceHarness() : null;
-      final prompt =
-          List.filled(14, 'Une consigne longue avec plusieurs formes')
-              .join(' ');
-      await pump(tester, mode: mode, words: [(prompt, '답')], voice: voice);
-      tester.view.physicalSize = const Size(960, 1704);
-      tester.platformDispatcher.textScaleFactorTestValue = 2;
-      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-      if (mode == QuizMode.typing) {
-        await tester.tap(find.byKey(const ValueKey(WidgetKeys.ecrireInput)));
-        tester.view.viewInsets = const FakeViewPadding(bottom: 780);
-      }
-      await tester.pump();
+    testWidgets(
+      'long ${mode.name} prompt scrolls on 320×568 at 2× text scale',
+      (tester) async {
+        final voice = mode == QuizMode.handsFree ? _VoiceHarness() : null;
+        final prompt = List.filled(
+          14,
+          'Une consigne longue avec plusieurs formes',
+        ).join(' ');
+        await pump(tester, mode: mode, words: [(prompt, '답')], voice: voice);
+        tester.view.physicalSize = const Size(960, 1704);
+        tester.platformDispatcher.textScaleFactorTestValue = 2;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        if (mode == QuizMode.typing) {
+          await tester.tap(find.byKey(const ValueKey(WidgetKeys.ecrireInput)));
+          tester.view.viewInsets = const FakeViewPadding(bottom: 780);
+        }
+        await tester.pump();
 
-      final scroll = find.byKey(const ValueKey(WidgetKeys.quizPrompt));
-      final scrollable =
-          find.descendant(of: scroll, matching: find.byType(Scrollable));
-      final position = tester.state<ScrollableState>(scrollable).position;
-      expect(position.maxScrollExtent, greaterThan(0));
-      expect(find.ancestor(of: scroll, matching: find.byType(Scrollbar)),
-          findsOneWidget);
-      await tester.drag(scrollable, const Offset(0, -80));
-      await tester.pump();
-      expect(position.pixels, greaterThan(0));
-      final keys = mode == QuizMode.handsFree
-          ? [WidgetKeys.hfRepeat, WidgetKeys.hfSkip]
-          : [WidgetKeys.ecrireInput, WidgetKeys.ecrireValidate];
-      for (final key in keys) {
-        expect(find.byKey(ValueKey(key)).hitTestable(), findsOneWidget);
-      }
-      expect(tester.takeException(), isNull);
-      await unmountScreen(tester);
-      await tester.pump(const Duration(seconds: 3));
-    });
+        final scroll = find.byKey(const ValueKey(WidgetKeys.quizPrompt));
+        final scrollable = find.descendant(
+          of: scroll,
+          matching: find.byType(Scrollable),
+        );
+        final position = tester.state<ScrollableState>(scrollable).position;
+        expect(position.maxScrollExtent, greaterThan(0));
+        expect(
+          find.ancestor(of: scroll, matching: find.byType(Scrollbar)),
+          findsOneWidget,
+        );
+        await tester.drag(scrollable, const Offset(0, -80));
+        await tester.pump();
+        expect(position.pixels, greaterThan(0));
+        final keys = mode == QuizMode.handsFree
+            ? [WidgetKeys.hfRepeat, WidgetKeys.hfSkip]
+            : [WidgetKeys.ecrireInput, WidgetKeys.ecrireValidate];
+        for (final key in keys) {
+          expect(find.byKey(ValueKey(key)).hitTestable(), findsOneWidget);
+        }
+        expect(tester.takeException(), isNull);
+        await unmountScreen(tester);
+        await tester.pump(const Duration(seconds: 3));
+      },
+    );
   }
 
   for (final theme in [ThemeMode.light, ThemeMode.dark]) {
     testWidgets(
-        'hands-free cues and summary score are readable in ${theme.name}',
-        (tester) async {
-      final voice = _VoiceHarness();
-      await pump(tester,
+      'hands-free cues and summary score are readable in ${theme.name}',
+      (tester) async {
+        final voice = _VoiceHarness();
+        await pump(
+          tester,
           mode: QuizMode.handsFree,
           words: [('chat', '고양이')],
           voice: voice,
-          themeMode: theme);
-      final accent =
-          theme == ThemeMode.light ? V3Colors.terraInk : V3Colors.amber;
-      final background =
-          tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor!;
-      final luminances = [
-        accent.computeLuminance(),
-        background.computeLuminance()
-      ]..sort();
-      expect((luminances.last + .05) / (luminances.first + .05),
-          greaterThanOrEqualTo(4.5));
-      final countdown =
-          tester.widget<Text>(find.byKey(const ValueKey('hf_countdown')));
-      expect(countdown.style!.color, accent);
-      expect(
-          tester.widget<WordInWave>(find.byType(WordInWave)).cueColor, accent);
-      await tick(tester, times: 8);
-      expect(
-          tester.widget<WordInWave>(find.byType(WordInWave)).cueColor, accent);
-      voice.capture.session!.answer();
-      await tick(tester, times: 6);
-      expect(tester.widget<Text>(find.text('100 %')).style!.color, accent);
-      await unmountScreen(tester);
-      await tester.pump(const Duration(seconds: 3));
-    });
+          themeMode: theme,
+        );
+        final accent = theme == ThemeMode.light
+            ? V3Colors.terraInk
+            : V3Colors.amber;
+        final background = tester
+            .widget<Scaffold>(find.byType(Scaffold))
+            .backgroundColor!;
+        final luminances = [
+          accent.computeLuminance(),
+          background.computeLuminance(),
+        ]..sort();
+        expect(
+          (luminances.last + .05) / (luminances.first + .05),
+          greaterThanOrEqualTo(4.5),
+        );
+        final countdown = tester.widget<Text>(
+          find.byKey(const ValueKey('hf_countdown')),
+        );
+        expect(countdown.style!.color, accent);
+        expect(
+          tester.widget<WordInWave>(find.byType(WordInWave)).cueColor,
+          accent,
+        );
+        await tick(tester, times: 8);
+        expect(
+          tester.widget<WordInWave>(find.byType(WordInWave)).cueColor,
+          accent,
+        );
+        voice.capture.session!.answer();
+        await tick(tester, times: 6);
+        expect(tester.widget<Text>(find.text('100 %')).style!.color, accent);
+        await unmountScreen(tester);
+        await tester.pump(const Duration(seconds: 3));
+      },
+    );
   }
 
-  testWidgets('summary actions can restart and return to setup by keyboard',
-      (tester) async {
-    await pump(tester,
-        mode: QuizMode.flashcard,
-        words: [('chat', '고양이')],
-        entry: '/start-session');
+  testWidgets('summary actions can restart and return to setup by keyboard', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      mode: QuizMode.flashcard,
+      words: [('chat', '고양이')],
+      entry: '/start-session',
+    );
     Future<void> finish() async {
       await tester.tap(find.byKey(const ValueKey(WidgetKeys.cartesCard)));
       await tick(tester, times: 2);
@@ -732,8 +855,12 @@ void main() {
   });
 
   testWidgets('an empty session returns to the daily path', (tester) async {
-    await pump(tester,
-        mode: QuizMode.flashcard, words: [], entry: '/daily-path');
+    await pump(
+      tester,
+      mode: QuizMode.flashcard,
+      words: [],
+      entry: '/daily-path',
+    );
     expect(find.byKey(const ValueKey(WidgetKeys.summary)), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey(WidgetKeys.summaryDone)));
     await tick(tester, times: 3);
@@ -742,10 +869,13 @@ void main() {
     expect(navigatedTo, isNull);
   });
 
-  testWidgets('a long flashcard scrolls at 320×568 and 2× text scale',
-      (tester) async {
-    final question =
-        List.filled(6, 'Une expression particulièrement longue').join(' ');
+  testWidgets('a long flashcard scrolls at 320×568 and 2× text scale', (
+    tester,
+  ) async {
+    final question = List.filled(
+      6,
+      'Une expression particulièrement longue',
+    ).join(' ');
     final answer = List.filled(8, '아주 긴 표현을 공부합니다').join(' ');
     await pump(tester, mode: QuizMode.flashcard, words: [(question, answer)]);
     tester.view.physicalSize = const Size(960, 1704);
@@ -755,23 +885,33 @@ void main() {
     expect(tester.takeException(), isNull);
 
     final card = find.byKey(const ValueKey(WidgetKeys.cartesCard));
-    final scrollable =
-        find.descendant(of: card, matching: find.byType(Scrollable));
-    expect(tester.state<ScrollableState>(scrollable).position.maxScrollExtent,
-        greaterThan(0));
+    final scrollable = find.descendant(
+      of: card,
+      matching: find.byType(Scrollable),
+    );
+    expect(
+      tester.state<ScrollableState>(scrollable).position.maxScrollExtent,
+      greaterThan(0),
+    );
     expect(tester.takeException(), isNull);
     await tester.tap(card);
     await tick(tester, times: 3);
     expect(find.text(answer), findsOneWidget);
-    expect(tester.state<ScrollableState>(scrollable).position.maxScrollExtent,
-        greaterThan(0));
+    expect(
+      tester.state<ScrollableState>(scrollable).position.maxScrollExtent,
+      greaterThan(0),
+    );
 
     await tester.drag(scrollable, const Offset(0, -110));
     await tick(tester);
-    expect(tester.state<ScrollableState>(scrollable).position.pixels,
-        greaterThan(0));
-    expect(find.byKey(const ValueKey(WidgetKeys.gradeAgain)).hitTestable(),
-        findsOneWidget);
+    expect(
+      tester.state<ScrollableState>(scrollable).position.pixels,
+      greaterThan(0),
+    );
+    expect(
+      find.byKey(const ValueKey(WidgetKeys.gradeAgain)).hitTestable(),
+      findsOneWidget,
+    );
     await tester.tap(find.byKey(const ValueKey(WidgetKeys.gradeKnew)));
     await tick(tester, times: 4);
     expect(find.byKey(const ValueKey(WidgetKeys.summary)), findsOneWidget);
@@ -781,11 +921,13 @@ void main() {
   for (final entry in ['/daily-path', '/lists/l']) {
     testWidgets('close stops audio before returning to $entry', (tester) async {
       final director = _TestDirector()..pendingStop = Completer<void>();
-      await pump(tester,
-          mode: QuizMode.flashcard,
-          entry: entry,
-          words: [('chat', '고양이')],
-          director: director);
+      await pump(
+        tester,
+        mode: QuizMode.flashcard,
+        entry: entry,
+        words: [('chat', '고양이')],
+        director: director,
+      );
       await tester.tap(find.byIcon(Icons.close_rounded));
       await tick(tester);
       expect(director.stops, 1);
@@ -798,11 +940,16 @@ void main() {
     });
   }
 
-  testWidgets('hands-free pause during countdown prevents cue and capture',
-      (tester) async {
+  testWidgets('hands-free pause during countdown prevents cue and capture', (
+    tester,
+  ) async {
     final voice = _VoiceHarness();
-    await pump(tester,
-        mode: QuizMode.handsFree, words: [('chat', '고양이')], voice: voice);
+    await pump(
+      tester,
+      mode: QuizMode.handsFree,
+      words: [('chat', '고양이')],
+      voice: voice,
+    );
     expect(find.byKey(const ValueKey('hf_countdown')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfPause)));
     await tick(tester, times: 8);
@@ -816,8 +963,12 @@ void main() {
   testWidgets('hands-free pause cancels the scheduled retry', (tester) async {
     final voice = _VoiceHarness();
     voice.capture.canOpen = false;
-    await pump(tester,
-        mode: QuizMode.handsFree, words: [('chat', '고양이')], voice: voice);
+    await pump(
+      tester,
+      mode: QuizMode.handsFree,
+      words: [('chat', '고양이')],
+      voice: voice,
+    );
     await tick(tester, times: 8);
     expect(voice.capture.opens, 1);
     expect(voice.director.cues, 1);
@@ -826,7 +977,8 @@ void main() {
     voice.capture.canOpen = true;
     // VoiceTurnMachine paces retries on the real clock.
     await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 3600)));
+      () => Future<void>.delayed(const Duration(milliseconds: 3600)),
+    );
     await tick(tester, times: 12);
 
     expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
@@ -836,43 +988,56 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
   });
 
-  testWidgets('a hands-free verdict advances once after background and resume',
-      (tester) async {
-    final voice = _VoiceHarness();
-    await pump(tester,
+  testWidgets(
+    'a hands-free verdict advances once after background and resume',
+    (tester) async {
+      final voice = _VoiceHarness();
+      await pump(
+        tester,
         mode: QuizMode.handsFree,
         words: [('chat', '고양이'), ('chien', '개')],
-        voice: voice);
-    await tick(tester, times: 8);
-    expect(voice.capture.opens, 1);
-    voice.capture.session!.answer();
-    await tester.pump();
-    expect(voice.whisper.decodes, 1);
-    expect(voice.systemListens, 0);
-    expect(
-        find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)), findsOneWidget);
+        voice: voice,
+      );
+      await tick(tester, times: 8);
+      expect(voice.capture.opens, 1);
+      voice.capture.session!.answer();
+      await tester.pump();
+      expect(voice.whisper.decodes, 1);
+      expect(voice.systemListens, 0);
+      expect(
+        find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)),
+        findsOneWidget,
+      );
 
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-    await tick(tester, times: 6);
-    expect(progressRepo.saved, hasLength(1));
-    expect(voice.capture.opens, 1);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tick(tester, times: 6);
+      expect(progressRepo.saved, hasLength(1));
+      expect(voice.capture.opens, 1);
 
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await tick(tester, times: 4);
-    expect(
-        find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)), findsNothing);
-    expect(find.text('chien'), findsOneWidget);
-    expect(progressRepo.saved, hasLength(1));
-    await unmountScreen(tester);
-    await tester.pump(const Duration(seconds: 3));
-  });
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tick(tester, times: 4);
+      expect(
+        find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)),
+        findsNothing,
+      );
+      expect(find.text('chien'), findsOneWidget);
+      expect(progressRepo.saved, hasLength(1));
+      await unmountScreen(tester);
+      await tester.pump(const Duration(seconds: 3));
+    },
+  );
 
-  testWidgets('leaving during asynchronous STT preparation never opens a mic',
-      (tester) async {
+  testWidgets('leaving during asynchronous STT preparation never opens a mic', (
+    tester,
+  ) async {
     final prepared = Completer<bool>();
     final voice = _VoiceHarness(preparePhone: prepared);
-    await pump(tester,
-        mode: QuizMode.handsFree, words: [('chat', '고양이')], voice: voice);
+    await pump(
+      tester,
+      mode: QuizMode.handsFree,
+      words: [('chat', '고양이')],
+      voice: voice,
+    );
     await tick(tester, times: 8);
     expect(voice.phonePrepares, 1);
     expect(voice.capture.opens, 0);

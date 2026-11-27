@@ -35,17 +35,23 @@ class SttEngineRegistry {
     bool rescue = false,
   }) {
     final available = _engines
-        .where((e) =>
-            e.isReady &&
-            e.supportsLanguage(langCode) &&
-            (online || !e.requiresNetwork))
+        .where(
+          (e) =>
+              e.isReady &&
+              e.supportsLanguage(langCode) &&
+              (online || !e.requiresNetwork),
+        )
         .toList();
     final localShared = available
-        .where((engine) =>
-            !engine.requiresNetwork && engine.capture == SttCapture.sharedPcm)
+        .where(
+          (engine) =>
+              !engine.requiresNetwork && engine.capture == SttCapture.sharedPcm,
+        )
         .toList();
-    final networkShared = available.where((engine) =>
-        engine.requiresNetwork && engine.capture == SttCapture.sharedPcm);
+    final networkShared = available.where(
+      (engine) =>
+          engine.requiresNetwork && engine.capture == SttCapture.sharedPcm,
+    );
     if (localShared.isNotEmpty) {
       return [
         ...(rescue && localShared.length > 1

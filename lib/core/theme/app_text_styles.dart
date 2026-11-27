@@ -16,15 +16,14 @@ abstract final class AppTextStyles {
     double? letterSpacing,
     double? height,
     Color? color,
-  }) =>
-      GoogleFonts.spaceGrotesk(
-        fontSize: size,
-        fontWeight: weight,
-        // Tight tracking is the hallmark of Space Grotesk in this design.
-        letterSpacing: letterSpacing ?? (size * -0.02),
-        height: height,
-        color: color,
-      );
+  }) => GoogleFonts.spaceGrotesk(
+    fontSize: size,
+    fontWeight: weight,
+    // Tight tracking is the hallmark of Space Grotesk in this design.
+    letterSpacing: letterSpacing ?? (size * -0.02),
+    height: height,
+    color: color,
+  );
 
   /// V3 display face: titles, key numbers, and the primary word on a card.
   static TextStyle serif(
@@ -33,14 +32,13 @@ abstract final class AppTextStyles {
     double? letterSpacing,
     double? height,
     Color? color,
-  }) =>
-      GoogleFonts.dmSerifDisplay(
-        fontSize: size,
-        fontWeight: weight,
-        letterSpacing: letterSpacing,
-        height: height,
-        color: color,
-      );
+  }) => GoogleFonts.dmSerifDisplay(
+    fontSize: size,
+    fontWeight: weight,
+    letterSpacing: letterSpacing,
+    height: height,
+    color: color,
+  );
 
   static TextStyle fig(
     double size,
@@ -48,14 +46,13 @@ abstract final class AppTextStyles {
     double? letterSpacing,
     double? height,
     Color? color,
-  }) =>
-      GoogleFonts.figtree(
-        fontSize: size,
-        fontWeight: weight,
-        letterSpacing: letterSpacing,
-        height: height,
-        color: color,
-      );
+  }) => GoogleFonts.figtree(
+    fontSize: size,
+    fontWeight: weight,
+    letterSpacing: letterSpacing,
+    height: height,
+    color: color,
+  );
 
   static TextStyle mono(
     double size,
@@ -63,27 +60,25 @@ abstract final class AppTextStyles {
     double? letterSpacing,
     double? height,
     Color? color,
-  }) =>
-      GoogleFonts.spaceMono(
-        fontSize: size,
-        fontWeight: weight,
-        letterSpacing: letterSpacing,
-        height: height,
-        color: color,
-      );
+  }) => GoogleFonts.spaceMono(
+    fontSize: size,
+    fontWeight: weight,
+    letterSpacing: letterSpacing,
+    height: height,
+    color: color,
+  );
 
   static TextStyle kr(
     double size,
     FontWeight weight, {
     double? height,
     Color? color,
-  }) =>
-      GoogleFonts.notoSansKr(
-        fontSize: size,
-        fontWeight: weight,
-        height: height,
-        color: color,
-      );
+  }) => GoogleFonts.notoSansKr(
+    fontSize: size,
+    fontWeight: weight,
+    height: height,
+    color: color,
+  );
 
   /// V3 Korean display face for a Hangul word on a full study card.
   static TextStyle koreanSerif(
@@ -91,13 +86,12 @@ abstract final class AppTextStyles {
     FontWeight weight, {
     double? height,
     Color? color,
-  }) =>
-      GoogleFonts.notoSerifKr(
-        fontSize: size,
-        fontWeight: weight,
-        height: height,
-        color: color,
-      );
+  }) => GoogleFonts.notoSerifKr(
+    fontSize: size,
+    fontWeight: weight,
+    height: height,
+    color: color,
+  );
 
   // ── Named scale ───────────────────────────────────────────────────────────
 

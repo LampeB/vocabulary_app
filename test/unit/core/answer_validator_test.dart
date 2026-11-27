@@ -5,10 +5,15 @@ import 'package:vocab_kr/core/utils/answer_validator.dart';
 /// STT-oriented passes untested: the multi-word transcript pass and the two
 /// Korean particle-strip passes (prefix match, trailing-strip).
 void main() {
-  ValidationResult validate(String user, List<String> accepted,
-          {bool driving = false}) =>
-      AnswerValidator.validate(
-          userAnswer: user, acceptedAnswers: accepted, isDrivingMode: driving);
+  ValidationResult validate(
+    String user,
+    List<String> accepted, {
+    bool driving = false,
+  }) => AnswerValidator.validate(
+    userAnswer: user,
+    acceptedAnswers: accepted,
+    isDrivingMode: driving,
+  );
 
   group('base verdicts', () {
     test('empty transcript → incorrect', () {
@@ -88,16 +93,17 @@ void main() {
     });
 
     test(
-        'trailing-strip pass: single-char answer + particle → exact '
-        '(prefix pass requires ≥ 2 chars, so this exercises the strip loop)',
-        () {
-      // 물 (water) + 을 → prefix check is skipped (answer < 2 chars), the
-      // 1-char strip re-score finds the exact match.
-      final r = validate('물을', ['물']);
-      expect(r.isCorrect, isTrue);
-      expect(r.score, 1.0);
-      expect(r.matchedWord, '물');
-    });
+      'trailing-strip pass: single-char answer + particle → exact '
+      '(prefix pass requires ≥ 2 chars, so this exercises the strip loop)',
+      () {
+        // 물 (water) + 을 → prefix check is skipped (answer < 2 chars), the
+        // 1-char strip re-score finds the exact match.
+        final r = validate('물을', ['물']);
+        expect(r.isCorrect, isTrue);
+        expect(r.score, 1.0);
+        expect(r.matchedWord, '물');
+      },
+    );
 
     test('unrelated Korean word is still rejected after all passes', () {
       final r = validate('바나나', ['사과']);
@@ -133,7 +139,9 @@ void main() {
 
     test('unrelated French words remain rejected', () {
       expect(
-          validate('bonjour', ['mauvais'], driving: true).isCorrect, isFalse);
+        validate('bonjour', ['mauvais'], driving: true).isCorrect,
+        isFalse,
+      );
     });
   });
 
@@ -192,11 +200,15 @@ void main() {
       final prev = AnswerValidator.drivingThreshold;
       try {
         AnswerValidator.drivingThreshold = 0.75;
-        expect(validate('Restourant', ['restaurant'], driving: true).isCorrect,
-            isTrue);
+        expect(
+          validate('Restourant', ['restaurant'], driving: true).isCorrect,
+          isTrue,
+        );
         AnswerValidator.drivingThreshold = 0.85;
-        expect(validate('Restourant', ['restaurant'], driving: true).isCorrect,
-            isFalse);
+        expect(
+          validate('Restourant', ['restaurant'], driving: true).isCorrect,
+          isFalse,
+        );
       } finally {
         AnswerValidator.drivingThreshold = prev;
       }
@@ -204,8 +216,10 @@ void main() {
 
     test('stripAnnotations collapses whitespace', () {
       expect(AnswerValidator.stripAnnotations('café (boisson)'), 'café');
-      expect(AnswerValidator.stripAnnotations('avoir (posséder) qqch'),
-          'avoir qqch');
+      expect(
+        AnswerValidator.stripAnnotations('avoir (posséder) qqch'),
+        'avoir qqch',
+      );
     });
   });
 

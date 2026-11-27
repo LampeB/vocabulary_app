@@ -1,8 +1,13 @@
 import 'dart:async';
-import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/core/utils/pcm_segmenter.dart';
+import 'package:vocab_kr/services/speech/elevenlabs_speech_service.dart';
+import 'package:vocab_kr/services/speech/elevenlabs_stt_engine.dart';
+import 'package:vocab_kr/services/speech/pcm_microphone.dart';
+import 'package:vocab_kr/services/speech/phone_pcm_recognizer.dart';
+import 'package:vocab_kr/services/speech/phone_stt_engine.dart';
 import 'package:vocab_kr/services/speech/shared_pcm_capture.dart';
 import 'package:vocab_kr/services/speech/stt_engine.dart';
 import 'package:vocab_kr/services/speech/stt_race.dart';
@@ -92,12 +97,14 @@ class _SharedEngine implements SttEngine {
     required List<String> promptHints,
     required void Function(SttHypothesis) onHypothesis,
     void Function()? onSessionEnd,
-  }) async =>
-      started = true;
+  }) async => started = true;
 
   @override
-  Future<SttHypothesis?> recognize(PcmSegment segment,
-      {required String langCode, required List<String> promptHints}) async {
+  Future<SttHypothesis?> recognize(
+    PcmSegment segment, {
+    required String langCode,
+    required List<String> promptHints,
+  }) async {
     segments.add(segment);
     final c = Completer<String?>();
     calls.add(c);
@@ -108,7 +115,8 @@ class _SharedEngine implements SttEngine {
             engineId: id,
             transcript: text,
             candidates: [text],
-            confidence: confidence);
+            confidence: confidence,
+          );
   }
 
   void answer(String? text, {int call = -1}) =>
@@ -125,14 +133,35 @@ class _SharedEngine implements SttEngine {
 Future<void> _pump() => Future<void>.delayed(Duration.zero);
 Future<void> _wait(int ms) => Future<void>.delayed(Duration(milliseconds: ms));
 
+class _UnusedMicrophone extends Fake implements PcmMicrophone {}
+
+class _HeldTranscriber implements CloudTranscriber {
+  final firstRequest = Completer<String?>();
+  int calls = 0;
+
+  @override
+  Future<String?> transcribe({
+    required Uint8List pcm16,
+    required String langCode,
+    required String expectedWord,
+  }) async {
+    calls++;
+    return calls == 1 ? firstRequest.future : expectedWord;
+  }
+}
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('SttRace — shared capture (local before cloud)', () {
     test('a locally valid answer never uploads the capture to cloud', () async {
       final source = _FakeSource();
       final scribe = _SharedEngine('elevenlabs', requiresNetwork: true);
       final whisper = _SharedEngine('whisper');
-      final future = SttRace([scribe, whisper], capture: source)
-          .run(langCode: 'ko', acceptedAnswers: ['가다']);
+      final future = SttRace([
+        scribe,
+        whisper,
+      ], capture: source).run(langCode: 'ko', acceptedAnswers: ['가다']);
       await _pump();
 
       source.session!.startSpeaking();
@@ -154,9 +183,10 @@ void main() {
       final local = _SharedEngine('local');
       final cloud = _SharedEngine('cloud', requiresNetwork: true);
       final future = SttRace([cloud, local], capture: source).run(
-          langCode: 'fr',
-          acceptedAnswers: ['livre'],
-          timeout: const Duration(milliseconds: 30));
+        langCode: 'fr',
+        acceptedAnswers: ['livre'],
+        timeout: const Duration(milliseconds: 30),
+      );
       await _pump();
       source.session!.finishUtterance();
       await _pump();
@@ -172,8 +202,9 @@ void main() {
     test('cloud-only rescue serializes successive utterances', () async {
       final source = _FakeSource();
       final cloud = _SharedEngine('cloud', requiresNetwork: true);
-      final future = SttRace([cloud], capture: source)
-          .run(langCode: 'fr', acceptedAnswers: ['livre']);
+      final future = SttRace([
+        cloud,
+      ], capture: source).run(langCode: 'fr', acceptedAnswers: ['livre']);
       await _pump();
       source.session!.finishUtterance();
       source.session!.finishUtterance();
@@ -186,95 +217,181 @@ void main() {
       expect((await future).matched, isTrue);
     });
 
-    test('a completed prior miss cannot discard the delayed flushed tail',
-        () async {
-      final source = _FakeSource();
-      final local = _SharedEngine('local');
-      var resolved = false;
-      final future = SttRace([local], capture: source).run(
+    for (final hasLocalEngine in [false, true]) {
+      test('a timed-out Scribe request abandons the rest of the cloud queue '
+          '(local fallback: $hasLocalEngine)', () async {
+        final source = _FakeSource();
+        final http = _HeldTranscriber();
+        final cloud = ElevenLabsSttEngine(
+          ElevenLabsSpeechService(
+            microphone: _UnusedMicrophone(),
+            transcriber: http,
+          ),
+        );
+        final otherCloud = _SharedEngine('other', requiresNetwork: true);
+        final local = _SharedEngine('local');
+        final verdict =
+            SttRace([
+              cloud,
+              otherCloud,
+              if (hasLocalEngine) local,
+            ], capture: source).run(
+              langCode: 'fr',
+              acceptedAnswers: ['livre'],
+              timeout: const Duration(milliseconds: 20),
+              analysisTimeout: const Duration(milliseconds: 50),
+            );
+        await _pump();
+        source.session!.finishUtterance();
+        source.session!.finishUtterance();
+        if (hasLocalEngine) {
+          local.answer(null, call: 0);
+          local.answer(null, call: 1);
+        }
+        expect((await verdict).matched, isFalse);
+        expect(http.firstRequest.isCompleted, isFalse);
+        expect(http.calls, 1);
+        expect(otherCloud.calls, isEmpty);
+
+        final next = SttRace(
+          [cloud, otherCloud],
+          capture: source,
+        ).run(langCode: 'fr', acceptedAnswers: ['chat'], promptHints: ['chat']);
+        await _pump();
+        source.session!.finishUtterance();
+        await _pump();
+        expect(http.calls, 1, reason: 'the first HTTP request is still active');
+        otherCloud.answer('chat');
+        expect((await next).winnerEngineId, otherCloud.id);
+
+        http.firstRequest.complete('livre');
+        final recovered = SttRace(
+          [cloud],
+          capture: source,
+        ).run(langCode: 'fr', acceptedAnswers: ['thé'], promptHints: ['thé']);
+        await _pump();
+        source.session!.finishUtterance();
+        expect((await recovered).winnerEngineId, cloud.id);
+        expect(http.calls, 2);
+      });
+    }
+
+    test(
+      'shared speech grading keeps the grammar article in the match',
+      () async {
+        final source = _FakeSource();
+        final local = _SharedEngine('local');
+        final verdict = SttRace([local], capture: source).run(
+          langCode: 'fr',
+          acceptedAnswers: ["l'eau"],
+          preserveGrammar: true,
+        );
+        await _pump();
+        source.session!.finishUtterance();
+        local.answer('eau');
+        await _pump();
+        source.session!.finishUtterance();
+        local.answer('L’eau.');
+        expect((await verdict).matchedCandidate, 'L’eau.');
+      },
+    );
+
+    test(
+      'a completed prior miss cannot discard the delayed flushed tail',
+      () async {
+        final source = _FakeSource();
+        final local = _SharedEngine('local');
+        var resolved = false;
+        final future = SttRace([local], capture: source).run(
           langCode: 'fr',
           acceptedAnswers: ['livre'],
           timeout: const Duration(milliseconds: 30),
-          maxSpeechOverrun: const Duration(milliseconds: 20))
-        ..then((_) => resolved = true);
-      await _pump();
-      source.session!.finishUtterance();
-      final closing = Completer<PcmSegment?>();
-      source.session!.delayedClose = closing;
-      source.session!.startSpeaking();
-      await _wait(80);
-      local.answer('autre', call: 0);
-      await _pump();
-      expect(resolved, isFalse);
-      closing.complete(_seg(1200));
-      await _pump();
-      expect(local.calls, hasLength(2));
-      local.answer('livre', call: 1);
-      expect((await future).matched, isTrue);
-    });
+          maxSpeechOverrun: const Duration(milliseconds: 20),
+        )..then((_) => resolved = true);
+        await _pump();
+        source.session!.finishUtterance();
+        final closing = Completer<PcmSegment?>();
+        source.session!.delayedClose = closing;
+        source.session!.startSpeaking();
+        await _wait(80);
+        local.answer('autre', call: 0);
+        await _pump();
+        expect(resolved, isFalse);
+        closing.complete(_seg(1200));
+        await _pump();
+        expect(local.calls, hasLength(2));
+        local.answer('livre', call: 1);
+        expect((await future).matched, isTrue);
+      },
+    );
 
     test(
-        'a correct result arriving AFTER the window still wins — never '
-        'dropped (field 2026-10-02: "가다" landed 0.7s after the cutoff)',
-        () async {
-      final source = _FakeSource();
-      final scribe = _SharedEngine('elevenlabs');
-      final future = SttRace([scribe], capture: source).run(
-        langCode: 'ko',
-        acceptedAnswers: ['가다'],
-        timeout: const Duration(milliseconds: 40),
-      );
-      await _pump();
-      source.session!.startSpeaking();
-      source.session!.finishUtterance();
-      await _wait(80); // window long over, request still in flight
-      expect(source.session!.closed, isTrue);
-      scribe.answer('가다');
+      'a correct result arriving AFTER the window still wins — never '
+      'dropped (field 2026-10-02: "가다" landed 0.7s after the cutoff)',
+      () async {
+        final source = _FakeSource();
+        final scribe = _SharedEngine('elevenlabs');
+        final future = SttRace([scribe], capture: source).run(
+          langCode: 'ko',
+          acceptedAnswers: ['가다'],
+          timeout: const Duration(milliseconds: 40),
+        );
+        await _pump();
+        source.session!.startSpeaking();
+        source.session!.finishUtterance();
+        await _wait(80); // window long over, request still in flight
+        expect(source.session!.closed, isTrue);
+        scribe.answer('가다');
 
-      final outcome = await future;
-      expect(outcome.matched, isTrue);
-    });
+        final outcome = await future;
+        expect(outcome.matched, isTrue);
+      },
+    );
 
-    test('the window never cuts a learner mid-answer: it waits for the end',
-        () async {
-      final source = _FakeSource();
-      final scribe = _SharedEngine('elevenlabs');
-      final future = SttRace([scribe], capture: source).run(
-        langCode: 'fr',
-        acceptedAnswers: ['livre'],
-        timeout: const Duration(milliseconds: 40),
-        maxSpeechOverrun: const Duration(seconds: 2),
-      );
-      await _pump();
-      source.session!.startSpeaking();
-      await _wait(70); // deadline passes while speaking
-      expect(source.session!.closed, isFalse, reason: 'still speaking');
+    test(
+      'the window never cuts a learner mid-answer: it waits for the end',
+      () async {
+        final source = _FakeSource();
+        final scribe = _SharedEngine('elevenlabs');
+        final future = SttRace([scribe], capture: source).run(
+          langCode: 'fr',
+          acceptedAnswers: ['livre'],
+          timeout: const Duration(milliseconds: 40),
+          maxSpeechOverrun: const Duration(seconds: 2),
+        );
+        await _pump();
+        source.session!.startSpeaking();
+        await _wait(70); // deadline passes while speaking
+        expect(source.session!.closed, isFalse, reason: 'still speaking');
 
-      source.session!.finishUtterance();
-      await _pump();
-      expect(source.session!.closed, isTrue);
-      scribe.answer('livre');
-      expect((await future).matched, isTrue);
-    });
+        source.session!.finishUtterance();
+        await _pump();
+        expect(source.session!.closed, isTrue);
+        scribe.answer('livre');
+        expect((await future).matched, isTrue);
+      },
+    );
 
-    test('speech running past the overrun is flushed and still analysed',
-        () async {
-      final source = _FakeSource();
-      final scribe = _SharedEngine('elevenlabs');
-      final future = SttRace([scribe], capture: source).run(
-        langCode: 'fr',
-        acceptedAnswers: ['lire'],
-        timeout: const Duration(milliseconds: 30),
-        maxSpeechOverrun: const Duration(milliseconds: 30),
-      );
-      await _pump();
-      source.session!.startSpeaking();
-      await _wait(90);
-      expect(source.session!.flushed, isTrue);
-      expect(scribe.segments.single.durationMs, 1200);
-      scribe.answer('lire');
-      expect((await future).matched, isTrue);
-    });
+    test(
+      'speech running past the overrun is flushed and still analysed',
+      () async {
+        final source = _FakeSource();
+        final scribe = _SharedEngine('elevenlabs');
+        final future = SttRace([scribe], capture: source).run(
+          langCode: 'fr',
+          acceptedAnswers: ['lire'],
+          timeout: const Duration(milliseconds: 30),
+          maxSpeechOverrun: const Duration(milliseconds: 30),
+        );
+        await _pump();
+        source.session!.startSpeaking();
+        await _wait(90);
+        expect(source.session!.flushed, isTrue);
+        expect(scribe.segments.single.durationMs, 1200);
+        scribe.answer('lire');
+        expect((await future).matched, isTrue);
+      },
+    );
 
     test('silence resolves at the deadline as a real, empty window', () async {
       final source = _FakeSource();
@@ -291,14 +408,14 @@ void main() {
 
     test('a mic that cannot open is not a real window', () async {
       final source = _FakeSource()..openResult = false;
-      final outcome = await SttRace([_SharedEngine('whisper')], capture: source)
-          .run(langCode: 'fr', acceptedAnswers: ['thé']);
+      final outcome = await SttRace([
+        _SharedEngine('whisper'),
+      ], capture: source).run(langCode: 'fr', acceptedAnswers: ['thé']);
       expect(outcome.matched, isFalse);
       expect(outcome.hadRealSession, isFalse);
     });
 
-    test(
-        'a wrong answer keeps the mic open for a self-correction; at the end '
+    test('a wrong answer keeps the mic open for a self-correction; at the end '
         'the most confident transcript is reported', () async {
       final source = _FakeSource();
       final scribe = _SharedEngine('elevenlabs', confidence: .95);
@@ -324,8 +441,9 @@ void main() {
     test('a self-correction in a second utterance wins', () async {
       final source = _FakeSource();
       final scribe = _SharedEngine('elevenlabs');
-      final future = SttRace([scribe], capture: source)
-          .run(langCode: 'fr', acceptedAnswers: ['étudier']);
+      final future = SttRace([
+        scribe,
+      ], capture: source).run(langCode: 'fr', acceptedAnswers: ['étudier']);
       await _pump();
       source.session!.startSpeaking();
       source.session!.finishUtterance();
@@ -342,18 +460,21 @@ void main() {
       final scribe = _SharedEngine('elevenlabs');
       final whisper = _SharedEngine('whisper');
       final statuses = <SttRaceStatus>[];
-      final future = SttRace([scribe, whisper], capture: source).run(
-          langCode: 'fr', acceptedAnswers: ['thé'], onStatus: statuses.add);
+      final future = SttRace(
+        [scribe, whisper],
+        capture: source,
+      ).run(langCode: 'fr', acceptedAnswers: ['thé'], onStatus: statuses.add);
       await _pump();
       source.session!.startSpeaking();
       source.session!.finishUtterance();
       scribe.fail();
       await _pump();
       expect(
-          statuses.last.engines
-              .firstWhere((e) => e.engineId == 'elevenlabs')
-              .state,
-          SttEngineState.failed);
+        statuses.last.engines
+            .firstWhere((e) => e.engineId == 'elevenlabs')
+            .state,
+        SttEngineState.failed,
+      );
       whisper.answer('thé');
       final outcome = await future;
       expect(outcome.matched, isTrue);
@@ -379,14 +500,15 @@ void main() {
       expect(statuses.last.engines.single.state, SttEngineState.failed);
     });
 
-    test(
-        'status walks starting → listening → speaking → analyzing → done, '
+    test('status walks starting → listening → speaking → analyzing → done, '
         'with per-engine chips', () async {
       final source = _FakeSource();
       final scribe = _SharedEngine('elevenlabs', requiresNetwork: true);
       final statuses = <SttRaceStatus>[];
-      final future = SttRace([scribe], capture: source)
-          .run(langCode: 'ko', acceptedAnswers: ['책'], onStatus: statuses.add);
+      final future = SttRace(
+        [scribe],
+        capture: source,
+      ).run(langCode: 'ko', acceptedAnswers: ['책'], onStatus: statuses.add);
       await _pump();
       source.session!.startSpeaking();
       source.session!.finishUtterance();
@@ -397,14 +519,15 @@ void main() {
       final phases = statuses.map((s) => s.phase).toList();
       expect(phases.first, SttPhase.starting);
       expect(
-          phases.toSet().toList(),
-          containsAllInOrder([
-            SttPhase.starting,
-            SttPhase.listening,
-            SttPhase.speaking,
-            SttPhase.analyzing,
-            SttPhase.done,
-          ]));
+        phases.toSet().toList(),
+        containsAllInOrder([
+          SttPhase.starting,
+          SttPhase.listening,
+          SttPhase.speaking,
+          SttPhase.analyzing,
+          SttPhase.done,
+        ]),
+      );
       final chip = statuses.last.engines.single;
       expect(chip.engineId, 'elevenlabs');
       expect(chip.requiresNetwork, isTrue);
@@ -413,39 +536,100 @@ void main() {
       expect(chip.matched, isTrue);
     });
 
-    test('mic closing with analyses in flight reports a pending verdict',
-        () async {
-      final source = _FakeSource();
-      final scribe = _SharedEngine('elevenlabs');
-      var pending = 0;
-      final future = SttRace([scribe], capture: source).run(
-        langCode: 'fr',
-        acceptedAnswers: ['thé'],
-        timeout: const Duration(milliseconds: 20),
-        onMicClosedPending: () => pending++,
-      );
-      await _pump();
-      source.session!.startSpeaking();
-      source.session!.finishUtterance();
-      await _wait(50);
-      expect(pending, 1);
-      scribe.answer('thé');
-      expect((await future).matched, isTrue);
-    });
+    test(
+      'mic closing with analyses in flight reports a pending verdict',
+      () async {
+        final source = _FakeSource();
+        final scribe = _SharedEngine('elevenlabs');
+        var pending = 0;
+        final future = SttRace([scribe], capture: source).run(
+          langCode: 'fr',
+          acceptedAnswers: ['thé'],
+          timeout: const Duration(milliseconds: 20),
+          onMicClosedPending: () => pending++,
+        );
+        await _pump();
+        source.session!.startSpeaking();
+        source.session!.finishUtterance();
+        await _wait(50);
+        expect(pending, 1);
+        scribe.answer('thé');
+        expect((await future).matched, isTrue);
+      },
+    );
   });
 
   group('SttRace.cancel — a superseded listen must not touch the next one', () {
     test(
-        'cancel resolves the race, closes its own mic window, and never '
+      'pausing cancels phone PCM and a new race ignores blocked old work',
+      () async {
+        const channel = MethodChannel('vocab_kr/pcm_speech');
+        final messenger =
+            TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+        final oldDecode = Completer<Map<String, Object>>();
+        final calls = <String>[];
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          switch (call.method) {
+            case 'isSupported':
+              return true;
+            case 'cancel':
+              calls.add('cancel');
+              return null;
+            case 'recognize':
+              final bytes = call.arguments['pcm'] as Uint8List;
+              calls.add('recognize ${bytes.length ~/ 32}');
+              if (bytes.length == 800 * 32) return oldDecode.future;
+              return {
+                'texts': ['livre'],
+              };
+            default:
+              throw MissingPluginException(call.method);
+          }
+        });
+        addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+        final phone = PhoneSttEngine(const MethodChannelPhonePcmRecognizer());
+        await phone.prepare();
+        final source = _FakeSource();
+        final pausedRace = SttRace([phone], capture: source);
+        final paused = pausedRace.run(
+          langCode: 'fr',
+          acceptedAnswers: ['livre'],
+        );
+        await _pump();
+        source.session!.finishUtterance(800);
+        source.session!.finishUtterance(900);
+        await _pump();
+        expect(calls, ['recognize 800']);
+
+        pausedRace.cancel();
+        expect((await paused).cancelled, isTrue);
+        expect(calls, ['recognize 800', 'cancel']);
+        final resumed = SttRace([
+          phone,
+        ], capture: source).run(langCode: 'fr', acceptedAnswers: ['livre']);
+        await _pump();
+        source.session!.finishUtterance(1000);
+        expect((await resumed).matched, isTrue);
+        expect(oldDecode.isCompleted, isFalse);
+        oldDecode.complete({
+          'texts': ['other'],
+        });
+        await _pump();
+        expect(calls, ['recognize 800', 'cancel', 'recognize 1000', 'cancel']);
+      },
+    );
+
+    test('cancel resolves the race, closes its own mic window, and never '
         'stops the shared engines (field 2026-10-02: the previous turn\'s '
         'timer cut the next turn 38ms after it opened)', () async {
       final source = _FakeSource();
       final scribe = _SharedEngine('elevenlabs');
       final race = SttRace([scribe], capture: source);
       final future = race.run(
-          langCode: 'fr',
-          acceptedAnswers: ['thé'],
-          timeout: const Duration(milliseconds: 30));
+        langCode: 'fr',
+        acceptedAnswers: ['thé'],
+        timeout: const Duration(milliseconds: 30),
+      );
       await _pump();
       race.cancel();
       final outcome = await future;
@@ -460,7 +644,10 @@ void main() {
       final statuses = <SttRaceStatus>[];
       final race = SttRace([scribe], capture: source);
       final future = race.run(
-          langCode: 'fr', acceptedAnswers: ['thé'], onStatus: statuses.add);
+        langCode: 'fr',
+        acceptedAnswers: ['thé'],
+        onStatus: statuses.add,
+      );
       await _pump();
       source.session!.startSpeaking();
       source.session!.finishUtterance();

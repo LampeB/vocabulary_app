@@ -25,24 +25,25 @@ class _FakeProgressRepo implements ProgressRepository {
 
   @override
   Future<Result<VariantProgress>> updateProgress(
-      VariantProgress progress) async {
+    VariantProgress progress,
+  ) async {
     captured = progress;
     return Success(progress);
   }
 
   // ── unused stubs ──────────────────────────────────────────────────────────
   @override
-  Future<Result<List<VariantProgress>>> getDueCards(
-          {required String userId,
-          required String listId,
-          required QuizDirection direction,
-          int limit = 20}) async =>
-      throw UnimplementedError();
+  Future<Result<List<VariantProgress>>> getDueCards({
+    required String userId,
+    required String listId,
+    required QuizDirection direction,
+    int limit = 20,
+  }) async => throw UnimplementedError();
   @override
-  Future<Result<VariantProgress>> getProgress(
-          {required String variantId,
-          required QuizDirection direction}) async =>
-      throw UnimplementedError();
+  Future<Result<VariantProgress>> getProgress({
+    required String variantId,
+    required QuizDirection direction,
+  }) async => throw UnimplementedError();
   @override
   Future<Result<Map<String, int>>> getListStats(String listId) async =>
       throw UnimplementedError();
@@ -53,27 +54,27 @@ class _FakeProgressRepo implements ProgressRepository {
   Stream<int> watchDueCount(String userId) => throw UnimplementedError();
   @override
   Future<Result<List<VariantProgress>>> getMasteredVariants(
-          String userId) async =>
-      throw UnimplementedError();
+    String userId,
+  ) async => throw UnimplementedError();
   @override
   Future<Result<List<VariantProgress>>> getKnownVariants(String userId) async =>
       throw UnimplementedError();
   @override
-  Future<Result<List<VariantProgress>>> getAllDueCards(
-          {required String userId,
-          required QuizDirection direction,
-          String? langA,
-          String? langB,
-          int limit = 20}) async =>
-      throw UnimplementedError();
+  Future<Result<List<VariantProgress>>> getAllDueCards({
+    required String userId,
+    required QuizDirection direction,
+    String? langA,
+    String? langB,
+    int limit = 20,
+  }) async => throw UnimplementedError();
   @override
-  Future<Result<List<VariantProgress>>> getInProgressCards(
-          {required String userId,
-          required QuizDirection direction,
-          String? langA,
-          String? langB,
-          int limit = 20}) async =>
-      throw UnimplementedError();
+  Future<Result<List<VariantProgress>>> getInProgressCards({
+    required String userId,
+    required QuizDirection direction,
+    String? langA,
+    String? langB,
+    int limit = 20,
+  }) async => throw UnimplementedError();
 }
 
 // ---------------------------------------------------------------------------
@@ -139,25 +140,33 @@ void main() {
   group('timesCorrect counter', () {
     test('Again does NOT increment timesCorrect', () async {
       await submit(
-          progress: _makeProgress(timesCorrect: 2), rating: FsrsRating.again);
+        progress: _makeProgress(timesCorrect: 2),
+        rating: FsrsRating.again,
+      );
       expect(fakeRepo.captured!.timesCorrect, 2);
     });
 
     test('Hard increments timesCorrect', () async {
       await submit(
-          progress: _makeProgress(timesCorrect: 2), rating: FsrsRating.hard);
+        progress: _makeProgress(timesCorrect: 2),
+        rating: FsrsRating.hard,
+      );
       expect(fakeRepo.captured!.timesCorrect, 3);
     });
 
     test('Good increments timesCorrect', () async {
       await submit(
-          progress: _makeProgress(timesCorrect: 2), rating: FsrsRating.good);
+        progress: _makeProgress(timesCorrect: 2),
+        rating: FsrsRating.good,
+      );
       expect(fakeRepo.captured!.timesCorrect, 3);
     });
 
     test('Easy increments timesCorrect', () async {
       await submit(
-          progress: _makeProgress(timesCorrect: 2), rating: FsrsRating.easy);
+        progress: _makeProgress(timesCorrect: 2),
+        rating: FsrsRating.easy,
+      );
       expect(fakeRepo.captured!.timesCorrect, 3);
     });
   });

@@ -26,9 +26,7 @@ class DottedGround extends StatelessWidget {
     return Positioned.fill(
       child: RepaintBoundary(
         child: IgnorePointer(
-          child: CustomPaint(
-            painter: _DotPainter(dark: effectiveDark),
-          ),
+          child: CustomPaint(painter: _DotPainter(dark: effectiveDark)),
         ),
       ),
     );
@@ -63,7 +61,8 @@ class DottedScaffold extends StatelessWidget {
     final effectiveDark =
         dark ?? (Theme.of(context).brightness == Brightness.dark);
     return Scaffold(
-      backgroundColor: backgroundColor ??
+      backgroundColor:
+          backgroundColor ??
           (effectiveDark ? AppColors.inkDark : AppColors.paper),
       appBar: appBar,
       bottomNavigationBar: bottomNavigationBar,
@@ -105,11 +104,7 @@ class _DotPainter extends CustomPainter {
 
     for (var r = 0; r < rows; r++) {
       for (var c = 0; c < cols; c++) {
-        canvas.drawCircle(
-          Offset(c * _pitch, r * _pitch),
-          _radius,
-          paint,
-        );
+        canvas.drawCircle(Offset(c * _pitch, r * _pitch), _radius, paint);
       }
     }
   }

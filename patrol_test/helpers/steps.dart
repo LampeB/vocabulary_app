@@ -59,29 +59,29 @@ enum ProfileTile { stats, settings, notifications, signOut }
 
 /// Maps a [Screen] to the widget-key on its root Scaffold.
 String _screenRootKey(Screen s) => switch (s) {
-      Screen.welcome => WidgetKeys.screenWelcome,
-      Screen.home => WidgetKeys.screenHome,
-      Screen.dailyPath => WidgetKeys.screenDailyPath,
-      Screen.lists => WidgetKeys.screenLists,
-      Screen.listDetail => WidgetKeys.screenListDetail,
-      Screen.startSession => WidgetKeys.screenStartSession,
-      Screen.grammar => WidgetKeys.screenGrammar,
-      Screen.grammarLesson => WidgetKeys.screenGrammarLesson,
-      Screen.profile => WidgetKeys.screenProfile,
-      Screen.stats => WidgetKeys.screenStats,
-      Screen.settings => WidgetKeys.screenSettings,
-      Screen.notifications => WidgetKeys.screenNotifications,
-      Screen.paywall => WidgetKeys.screenPaywall,
-      Screen.importLink => WidgetKeys.screenImport,
-    };
+  Screen.welcome => WidgetKeys.screenWelcome,
+  Screen.home => WidgetKeys.screenHome,
+  Screen.dailyPath => WidgetKeys.screenDailyPath,
+  Screen.lists => WidgetKeys.screenLists,
+  Screen.listDetail => WidgetKeys.screenListDetail,
+  Screen.startSession => WidgetKeys.screenStartSession,
+  Screen.grammar => WidgetKeys.screenGrammar,
+  Screen.grammarLesson => WidgetKeys.screenGrammarLesson,
+  Screen.profile => WidgetKeys.screenProfile,
+  Screen.stats => WidgetKeys.screenStats,
+  Screen.settings => WidgetKeys.screenSettings,
+  Screen.notifications => WidgetKeys.screenNotifications,
+  Screen.paywall => WidgetKeys.screenPaywall,
+  Screen.importLink => WidgetKeys.screenImport,
+};
 
 /// Maps a [ProfileTile] to its widget-key.
 String _profileTileKey(ProfileTile t) => switch (t) {
-      ProfileTile.stats => WidgetKeys.profileTileStats,
-      ProfileTile.settings => WidgetKeys.profileTileSettings,
-      ProfileTile.notifications => WidgetKeys.profileTileNotifications,
-      ProfileTile.signOut => WidgetKeys.profileSignOut,
-    };
+  ProfileTile.stats => WidgetKeys.profileTileStats,
+  ProfileTile.settings => WidgetKeys.profileTileSettings,
+  ProfileTile.notifications => WidgetKeys.profileTileNotifications,
+  ProfileTile.signOut => WidgetKeys.profileSignOut,
+};
 
 /// Readable E2E steps grouped Given / When / Then. Each step does ONE thing and
 /// is named for it, so a scenario reads top-to-bottom like a description of the
@@ -95,9 +95,9 @@ String _profileTileKey(ProfileTile t) => switch (t) {
 /// ```
 class Steps {
   Steps(this.$)
-      : given = GivenSteps($),
-        when = WhenSteps($),
-        then = ThenSteps($);
+    : given = GivenSteps($),
+      when = WhenSteps($),
+      then = ThenSteps($);
 
   final PatrolIntegrationTester $;
   final GivenSteps given;
@@ -139,15 +139,20 @@ class GivenSteps {
   }) async {
     await deleteListsByName($, name);
     final actions = _container($).read(listActionsProvider.notifier);
-    final listId =
-        (await actions.createList(name, null, langA: langA, langB: langB))
-            .valueOrNull
-            ?.id;
+    final listId = (await actions.createList(
+      name,
+      null,
+      langA: langA,
+      langB: langB,
+    )).valueOrNull?.id;
     if (listId == null) {
       throw StateError('Could not create list "$name" (free-plan quota?).');
     }
-    final added =
-        await actions.addConcept(listId: listId, wordA: french, wordB: korean);
+    final added = await actions.addConcept(
+      listId: listId,
+      wordA: french,
+      wordB: korean,
+    );
     if (!added.isSuccess) throw StateError('Could not seed word in "$name".');
     final concepts = await _container($)
         .read(vocabularyRepositoryProvider)
@@ -157,15 +162,16 @@ class GivenSteps {
     if (concepts.length != 1) {
       throw StateError('Expected exactly one fixture concept.');
     }
-    final variants = await _container($)
-        .read(vocabularyRepositoryProvider)
-        .getVariants(concepts.single.id);
+    final variants = await _container(
+      $,
+    ).read(vocabularyRepositoryProvider).getVariants(concepts.single.id);
     final words = variants.valueOrNull;
     if (words == null ||
         !words.any((v) => v.word == french && v.langCode == langA) ||
         !words.any((v) => v.word == korean && v.langCode == langB)) {
       throw StateError(
-          'Fixture word variants do not match the requested pair.');
+        'Fixture word variants do not match the requested pair.',
+      );
     }
     await $.pump(const Duration(milliseconds: 800)); // let the streams settle
   }
@@ -205,9 +211,11 @@ class GivenSteps {
     container.invalidate(myListsProvider);
     final lists = await container.read(myListsProvider.future);
     for (final token in _requiredFrenchKoreanStarterTokens) {
-      final found = lists.any((list) =>
-          list.seedId?.startsWith('$token:fr>ko') == true &&
-          list.langB == 'ko');
+      final found = lists.any(
+        (list) =>
+            list.seedId?.startsWith('$token:fr>ko') == true &&
+            list.langB == 'ko',
+      );
       if (!found) {
         throw StateError('Starter fixture did not create $token.');
       }
@@ -222,8 +230,10 @@ class GivenSteps {
     final container = _container($);
     container.invalidate(myListsProvider);
     final lists = await container.read(myListsProvider.future);
-    final list = lists.firstWhere((list) =>
-        list.seedId?.startsWith('$token:fr>ko') == true && list.langB == 'ko');
+    final list = lists.firstWhere(
+      (list) =>
+          list.seedId?.startsWith('$token:fr>ko') == true && list.langB == 'ko',
+    );
     final vocabulary = container.read(vocabularyRepositoryProvider);
     final progress = container.read(progressRepositoryProvider);
     final concepts = await vocabulary.watchConcepts(list.id).first;
@@ -236,23 +246,25 @@ class GivenSteps {
       final variant = variants?.firstOrNull;
       if (variant == null) {
         throw StateError(
-            'Concept ${concept.id} in $token has no word variant.');
+          'Concept ${concept.id} in $token has no word variant.',
+        );
       }
       final current = (await progress.getProgress(
         variantId: variant.id,
         direction: QuizDirection.frToKo,
-      ))
-          .valueOrNull;
+      )).valueOrNull;
       if (current == null) {
         throw StateError('Could not initialise progress for ${variant.word}.');
       }
-      final saved = await progress.updateProgress(current.copyWith(
-        state: CardState.review,
-        scheduledDays: 21,
-        reps: 3,
-        lastReview: DateTime.now(),
-        nextReview: DateTime.now().add(const Duration(days: 21)),
-      ));
+      final saved = await progress.updateProgress(
+        current.copyWith(
+          state: CardState.review,
+          scheduledDays: 21,
+          reps: 3,
+          lastReview: DateTime.now(),
+          nextReview: DateTime.now().add(const Duration(days: 21)),
+        ),
+      );
       if (!saved.isSuccess) {
         throw StateError('Could not persist progress for ${variant.word}.');
       }
@@ -289,15 +301,17 @@ class WhenSteps {
     final context = $.tester.element(routeRoot);
     GoRouter.of(context).go('/start-session');
     await $.pump(const Duration(milliseconds: 300));
-    await $(find.byKey(const ValueKey(WidgetKeys.startSessionStart)))
-        .waitUntilVisible(timeout: const Duration(seconds: 30));
+    await $(
+      find.byKey(const ValueKey(WidgetKeys.startSessionStart)),
+    ).waitUntilVisible(timeout: const Duration(seconds: 30));
   }
 
   /// Opens the optional daily path from the signed-in home screen.
   Future<void> opensDailyPath() async {
     await $(find.byKey(const ValueKey(WidgetKeys.homeDailyPath))).tap();
-    await $(find.byKey(const ValueKey(WidgetKeys.screenDailyPath)))
-        .waitUntilVisible(timeout: const Duration(seconds: 30));
+    await $(
+      find.byKey(const ValueKey(WidgetKeys.screenDailyPath)),
+    ).waitUntilVisible(timeout: const Duration(seconds: 30));
   }
 
   /// Opens the daily vocabulary-discovery task. With a seeded list, this
@@ -338,8 +352,9 @@ class WhenSteps {
     final card = find.byKey(ValueKey(WidgetKeys.grammarRuleCard(ruleId)));
     await $(card).scrollTo();
     await $(card).waitUntilVisible(timeout: const Duration(seconds: 30));
-    final prerequisite =
-        find.byKey(ValueKey(WidgetKeys.grammarPrerequisiteList(token)));
+    final prerequisite = find.byKey(
+      ValueKey(WidgetKeys.grammarPrerequisiteList(token)),
+    );
     await $(prerequisite).scrollTo();
     await $(prerequisite).tap();
   }
@@ -414,8 +429,10 @@ class WhenSteps {
   /// Pumps until [finder] disappears — e.g. a dialog's keyed confirm button
   /// after a submit. A bounded poll (no pumpAndSettle, which hangs on the
   /// Supabase realtime stream emitting after each write).
-  Future<void> _waitUntilGone(Finder finder,
-      {Duration timeout = const Duration(seconds: 15)}) async {
+  Future<void> _waitUntilGone(
+    Finder finder, {
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
     final deadline = DateTime.now().add(timeout);
     while (finder.evaluate().isNotEmpty) {
       if (DateTime.now().isAfter(deadline)) return;
@@ -432,9 +449,11 @@ class WhenSteps {
     await $(field).enterText(name);
     await $(find.byKey(const ValueKey(WidgetKeys.listNameConfirm))).tap();
     await _waitUntilGone(
-        find.byKey(const ValueKey(WidgetKeys.listNameConfirm)));
-    await $(find.text(name))
-        .waitUntilVisible(timeout: const Duration(seconds: 30));
+      find.byKey(const ValueKey(WidgetKeys.listNameConfirm)),
+    );
+    await $(
+      find.text(name),
+    ).waitUntilVisible(timeout: const Duration(seconds: 30));
   }
 
   /// Adds a word ([fr]/[ko]) via the add-word dialog (must be in List Detail).
@@ -469,7 +488,8 @@ class WhenSteps {
     await $(find.byKey(const ValueKey(WidgetKeys.editWordKo))).enterText(toKo);
     await $(find.byKey(const ValueKey(WidgetKeys.editWordConfirm))).tap();
     await _waitUntilGone(
-        find.byKey(const ValueKey(WidgetKeys.editWordConfirm)));
+      find.byKey(const ValueKey(WidgetKeys.editWordConfirm)),
+    );
   }
 
   /// Deletes the word whose French side is [fr] (trash icon + confirm).
@@ -497,11 +517,15 @@ class WhenSteps {
   /// Chooses an exact source → target pair. This is required when a learner has
   /// more than one route to the same target language (FR→KO and EN→KO).
   Future<void> choosesLanguagePair(
-      String sourceLanguage, String targetLanguage) async {
+    String sourceLanguage,
+    String targetLanguage,
+  ) async {
     await $(find.byKey(ValueKey(WidgetKeys.startSection(0)))).tap();
-    await $(find.byKey(ValueKey(
-            WidgetKeys.startLanguagePair(sourceLanguage, targetLanguage))))
-        .tap();
+    await $(
+      find.byKey(
+        ValueKey(WidgetKeys.startLanguagePair(sourceLanguage, targetLanguage)),
+      ),
+    ).tap();
   }
 
   /// Picks the list to study after [choosesLanguage] has opened its section.
@@ -622,17 +646,19 @@ class ThenSteps {
   final PatrolIntegrationTester $;
 
   /// The given [screen] is showing (its root Scaffold is visible).
-  Future<void> onScreen(Screen screen) =>
-      $(find.byKey(ValueKey(_screenRootKey(screen))))
-          .waitUntilVisible(timeout: const Duration(seconds: 30));
+  Future<void> onScreen(Screen screen) => $(
+    find.byKey(ValueKey(_screenRootKey(screen))),
+  ).waitUntilVisible(timeout: const Duration(seconds: 30));
 
   /// The rule remains locked: its lesson-reader CTA is absent from its card.
   Future<void> grammarRuleIsLocked(String ruleId) async {
     final card = find.byKey(ValueKey(WidgetKeys.grammarRuleCard(ruleId)));
     await $(card).scrollTo();
     await $(card).waitUntilVisible(timeout: const Duration(seconds: 30));
-    expect(find.byKey(ValueKey(WidgetKeys.grammarRuleOpenLesson(ruleId))),
-        findsNothing);
+    expect(
+      find.byKey(ValueKey(WidgetKeys.grammarRuleOpenLesson(ruleId))),
+      findsNothing,
+    );
   }
 
   /// The given user-data [text] (a word or list name — not localized UI copy)
@@ -660,20 +686,21 @@ class ThenSteps {
   }
 
   /// The verdict flood shows "correct" (teal).
-  Future<void> verdictIsCorrect() =>
-      $(find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)))
-          .waitUntilVisible(timeout: const Duration(seconds: 30));
+  Future<void> verdictIsCorrect() => $(
+    find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)),
+  ).waitUntilVisible(timeout: const Duration(seconds: 30));
 
   /// The verdict flood shows "wrong" (orange).
-  Future<void> verdictIsWrong() =>
-      $(find.byKey(const ValueKey(WidgetKeys.feedbackWrong)))
-          .waitUntilVisible(timeout: const Duration(seconds: 30));
+  Future<void> verdictIsWrong() => $(
+    find.byKey(const ValueKey(WidgetKeys.feedbackWrong)),
+  ).waitUntilVisible(timeout: const Duration(seconds: 30));
 
   /// The session has finished and the summary shows [percent] accuracy.
   /// Generous timeout: hands-free auto-advances through every padded card.
   Future<void> sessionScoreIs({required int percent}) async {
-    await $(find.byKey(const ValueKey(WidgetKeys.summary)))
-        .waitUntilVisible(timeout: const Duration(minutes: 4));
+    await $(
+      find.byKey(const ValueKey(WidgetKeys.summary)),
+    ).waitUntilVisible(timeout: const Duration(minutes: 4));
     expect(find.text('$percent %'), findsOneWidget);
   }
 }

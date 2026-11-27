@@ -14,20 +14,27 @@ Future<void> resetTestAccount(ScenarioAccount account) async {
       email.isEmpty ||
       password.isEmpty) {
     throw StateError(
-        'E2E reset requires TEST_MODE, dedicated credentials and no shared TEST_SESSION.');
+      'E2E reset requires TEST_MODE, dedicated credentials and no shared TEST_SESSION.',
+    );
   }
-  final client =
-      SupabaseClient(AppConfig.supabaseUrl, AppConfig.supabaseAnonKey);
+  final client = SupabaseClient(
+    AppConfig.supabaseUrl,
+    AppConfig.supabaseAnonKey,
+  );
   try {
-    final auth =
-        await client.auth.signInWithPassword(email: email, password: password);
+    final auth = await client.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
     if (auth.user == null ||
         auth.user!.id.toLowerCase() != account.userId ||
         auth.user!.email?.toLowerCase() != email.toLowerCase()) {
       throw StateError('E2E account identity mismatch.');
     }
-    final result = await client.rpc('reset_e2e_account',
-        params: {'p_scenario_id': account.scenarioId});
+    final result = await client.rpc(
+      'reset_e2e_account',
+      params: {'p_scenario_id': account.scenarioId},
+    );
     if (result is! Map ||
         result['user_id'] != auth.user!.id ||
         result['scenario_id'] != account.scenarioId ||

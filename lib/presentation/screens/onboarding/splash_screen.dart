@@ -39,12 +39,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 800));
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
     _ctrl.forward();
     _pulse = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1100))
-      ..repeat(reverse: true);
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat(reverse: true);
     _navigate();
   }
 
@@ -98,41 +101,67 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               padding: const EdgeInsets.all(20),
               child: FadeTransition(
                 opacity: _fade,
-                child: Column(children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('Ponderin',
-                        style: AppTextStyles.serif(29, FontWeight.w400,
-                            color: V3Colors.light)),
-                  ),
-                  const Spacer(),
-                  FadeTransition(
-                    opacity: Tween(begin: .55, end: 1.0).animate(
+                child: Column(
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Ponderin',
+                        style: AppTextStyles.serif(
+                          29,
+                          FontWeight.w400,
+                          color: V3Colors.light,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    FadeTransition(
+                      opacity: Tween(begin: .55, end: 1.0).animate(
                         CurvedAnimation(
-                            parent: _pulse, curve: Curves.easeInOut)),
-                    child: const _SplashPlateau(),
-                  ),
-                  const Spacer(),
-                  Text('v3.preparing'.tr(),
-                      style: AppTextStyles.serif(24, FontWeight.w400,
-                          color: V3Colors.light)),
-                  const SizedBox(height: 7),
-                  Text('v3.preparing_hint'.tr(),
+                          parent: _pulse,
+                          curve: Curves.easeInOut,
+                        ),
+                      ),
+                      child: const _SplashPlateau(),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'v3.preparing'.tr(),
+                      style: AppTextStyles.serif(
+                        24,
+                        FontWeight.w400,
+                        color: V3Colors.light,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      'v3.preparing_hint'.tr(),
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.fig(14.5, FontWeight.w400,
-                          color: V3Colors.light70)),
-                  const SizedBox(height: 17),
-                  const LinearProgressIndicator(
-                    minHeight: 5,
-                    // Indeterminate: we don't know how far along seeding is.
-                    backgroundColor: V3Colors.chip,
-                    valueColor: AlwaysStoppedAnimation<Color>(V3Colors.amber),
-                  ),
-                  const SizedBox(height: 10),
-                  Text('splash.subtitle'.tr(),
-                      style: AppTextStyles.mono(11, FontWeight.w400,
-                          letterSpacing: 1.4, color: V3Colors.light60)),
-                ]),
+                      style: AppTextStyles.fig(
+                        14.5,
+                        FontWeight.w400,
+                        color: V3Colors.light70,
+                      ),
+                    ),
+                    const SizedBox(height: 17),
+                    const LinearProgressIndicator(
+                      minHeight: 5,
+                      // Indeterminate: we don't know how far along seeding is.
+                      backgroundColor: V3Colors.chip,
+                      valueColor: AlwaysStoppedAnimation<Color>(V3Colors.amber),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'splash.subtitle'.tr(),
+                      style: AppTextStyles.mono(
+                        11,
+                        FontWeight.w400,
+                        letterSpacing: 1.4,
+                        color: V3Colors.light60,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -146,53 +175,66 @@ class _SplashPlateau extends StatelessWidget {
   const _SplashPlateau();
 
   @override
-  Widget build(BuildContext context) => Column(children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Container(
-            width: double.infinity,
-            height: 150,
-            decoration: BoxDecoration(
-                color: V3Colors.chip2, borderRadius: BorderRadius.circular(15)),
-            child: Padding(
-              padding: const EdgeInsets.all(17),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(width: 126, height: 10, color: V3Colors.moss),
-                    const SizedBox(height: 14),
-                    Container(width: 205, height: 24, color: V3Colors.light60),
-                    const SizedBox(height: 11),
-                    Container(width: 170, height: 10, color: V3Colors.moss),
-                    const Spacer(),
-                    Container(
-                        width: double.infinity,
-                        height: 39,
-                        color: V3Colors.moss),
-                  ]),
+  Widget build(BuildContext context) => Column(
+    children: [
+      Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          width: double.infinity,
+          height: 150,
+          decoration: BoxDecoration(
+            color: V3Colors.chip2,
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(17),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(width: 126, height: 10, color: V3Colors.moss),
+                const SizedBox(height: 14),
+                Container(width: 205, height: 24, color: V3Colors.light60),
+                const SizedBox(height: 11),
+                Container(width: 170, height: 10, color: V3Colors.moss),
+                const Spacer(),
+                Container(
+                  width: double.infinity,
+                  height: 39,
+                  color: V3Colors.moss,
+                ),
+              ],
             ),
           ),
         ),
-        const SizedBox(height: 10),
-        const Row(children: [
+      ),
+      const SizedBox(height: 10),
+      const Row(
+        children: [
           Expanded(child: _SkeletonBlock()),
           SizedBox(width: 9),
           Expanded(child: _SkeletonBlock()),
-        ]),
-        const SizedBox(height: 9),
-        const Row(children: [
+        ],
+      ),
+      const SizedBox(height: 9),
+      const Row(
+        children: [
           Expanded(child: _SkeletonBlock()),
           SizedBox(width: 9),
           Expanded(child: _SkeletonBlock()),
-        ]),
-      ]);
+        ],
+      ),
+    ],
+  );
 }
 
 class _SkeletonBlock extends StatelessWidget {
   const _SkeletonBlock();
   @override
   Widget build(BuildContext context) => Container(
-      height: 74,
-      decoration: BoxDecoration(
-          color: V3Colors.block2, borderRadius: BorderRadius.circular(13)));
+    height: 74,
+    decoration: BoxDecoration(
+      color: V3Colors.block2,
+      borderRadius: BorderRadius.circular(13),
+    ),
+  );
 }

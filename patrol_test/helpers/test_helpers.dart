@@ -27,21 +27,29 @@ void isolatedPatrolTest(
   Timeout timeout = const Timeout(Duration(minutes: 3)),
   PatrolTesterConfig config = const PatrolTesterConfig(printLogs: true),
 }) {
-  patrolTest(description, ($) async {
-    if (_scenarioStarted) {
-      throw StateError(
-          'E2E requires a fresh process per scenario. Use Patrol with Android Test Orchestrator.');
-    }
-    _scenarioStarted = true;
-    _account = accountForScenario(
-        scenarioId, const String.fromEnvironment('TEST_ACCOUNTS_JSON'));
-    final ready = await $.tester.runAsync(() async {
-      await resetTestAccount(_account).timeout(const Duration(seconds: 90));
-      return true;
-    });
-    if (ready != true) throw StateError('E2E baseline preparation failed.');
-    await body($);
-  }, timeout: timeout, config: config);
+  patrolTest(
+    description,
+    ($) async {
+      if (_scenarioStarted) {
+        throw StateError(
+          'E2E requires a fresh process per scenario. Use Patrol with Android Test Orchestrator.',
+        );
+      }
+      _scenarioStarted = true;
+      _account = accountForScenario(
+        scenarioId,
+        const String.fromEnvironment('TEST_ACCOUNTS_JSON'),
+      );
+      final ready = await $.tester.runAsync(() async {
+        await resetTestAccount(_account).timeout(const Duration(seconds: 90));
+        return true;
+      });
+      if (ready != true) throw StateError('E2E baseline preparation failed.');
+      await body($);
+    },
+    timeout: timeout,
+    config: config,
+  );
 }
 
 /// Launches the app and signs in with [kTestEmail] / [kTestPassword].
@@ -87,8 +95,9 @@ Future<void> launchAndSignIn(PatrolIntegrationTester $) async {
       // session check can briefly hide the password field.
       await $.pump(const Duration(seconds: 2));
       if ($(find.byKey(const Key('password_field'))).exists) {
-        await $(find.byKey(const Key('password_field')))
-            .enterText(kTestPassword);
+        await $(
+          find.byKey(const Key('password_field')),
+        ).enterText(kTestPassword);
         await $(find.byKey(const Key('auth_submit_button'))).tap();
         // Allow time for Supabase auth + profile load. Fixed pump — NOT
         // pumpAndSettle, which hangs on home-screen providers.
@@ -153,7 +162,9 @@ Future<void> cleanupAfterTest(PatrolIntegrationTester $) async {
 
 /// Shared core: deletes the lists matching [where] through the provider layer.
 Future<void> _deleteLists(
-    PatrolIntegrationTester $, bool Function(dynamic list) where) async {
+  PatrolIntegrationTester $,
+  bool Function(dynamic list) where,
+) async {
   final context = $.tester.element(find.byType(MaterialApp));
   final container = ProviderScope.containerOf(context);
   final lists = await container

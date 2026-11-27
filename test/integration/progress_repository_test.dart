@@ -49,15 +49,18 @@ void main() {
 
   // Helper: create list + one word → sets frVariantId and koVariantId.
   Future<VocabularyList> setup() async {
-    final list = ((await vocabRepo.createList(
-            name: 'Quiz List', description: null)) as Success<VocabularyList>)
-        .value;
-    final concept = ((await vocabRepo.addConceptWithVariants(
-      listId: list.id,
-      wordA: 'Bonjour',
-      wordB: '안녕하세요',
-    )) as Success<Concept>)
-        .value;
+    final list =
+        ((await vocabRepo.createList(name: 'Quiz List', description: null))
+                as Success<VocabularyList>)
+            .value;
+    final concept =
+        ((await vocabRepo.addConceptWithVariants(
+                  listId: list.id,
+                  wordA: 'Bonjour',
+                  wordB: '안녕하세요',
+                ))
+                as Success<Concept>)
+            .value;
     final variants = await db.conceptDao.getVariantsByConcept(concept.id);
     frVariantId = variants.firstWhere((v) => v.langCode == 'fr').id;
     koVariantId = variants.firstWhere((v) => v.langCode == 'ko').id;
@@ -69,15 +72,21 @@ void main() {
   test('independent first reviews use the same business identity', () async {
     final list = await setup();
     final other = ProgressRepositoryImpl(
-        db.progressDao, db.conceptDao, FakeRemote(), _kUserId);
+      db.progressDao,
+      db.conceptDao,
+      FakeRemote(),
+      _kUserId,
+    );
     final a = (await progressRepo.getDueCards(
-            userId: _kUserId, listId: list.id, direction: QuizDirection.frToKo))
-        .valueOrNull!
-        .single;
+      userId: _kUserId,
+      listId: list.id,
+      direction: QuizDirection.frToKo,
+    )).valueOrNull!.single;
     final b = (await other.getDueCards(
-            userId: _kUserId, listId: list.id, direction: QuizDirection.frToKo))
-        .valueOrNull!
-        .single;
+      userId: _kUserId,
+      listId: list.id,
+      direction: QuizDirection.frToKo,
+    )).valueOrNull!.single;
     expect(a.id, b.id);
     await progressRepo.updateProgress(a.copyWith(reps: 1));
     await other.updateProgress(b.copyWith(id: 'legacy-device-id', reps: 2));
@@ -86,96 +95,127 @@ void main() {
     expect(rows.single.reps, 2);
   });
 
-  test('a padded card rated again then good uses the previous saved review',
-      () async {
-    await setup();
-    final original = (await progressRepo.getProgress(
-            variantId: frVariantId, direction: QuizDirection.frToKo))
-        .valueOrNull!;
-    final submit = SubmitAnswerUseCase(progressRepo);
-    final first = (await submit(progress: original, rating: FsrsRating.again))
-        .valueOrNull!;
-    final second = (await submit(progress: original, rating: FsrsRating.good))
-        .valueOrNull!;
+  test(
+    'a padded card rated again then good uses the previous saved review',
+    () async {
+      await setup();
+      final original = (await progressRepo.getProgress(
+        variantId: frVariantId,
+        direction: QuizDirection.frToKo,
+      )).valueOrNull!;
+      final submit = SubmitAnswerUseCase(progressRepo);
+      final first = (await submit(
+        progress: original,
+        rating: FsrsRating.again,
+      )).valueOrNull!;
+      final second = (await submit(
+        progress: original,
+        rating: FsrsRating.good,
+      )).valueOrNull!;
 
-    expect(first.state, CardState.learning);
-    expect(second.id, first.id);
-    expect(second.state, CardState.review);
-    expect(second.reps, 2);
-    expect(second.timesShown, 2);
-    expect(second.timesCorrect, 1);
-    final saved = (await db.progressDao.getById(second.id))!;
-    expect(saved.scheduledDays, second.scheduledDays);
-    expect(saved.timesShown, 2);
-  });
+      expect(first.state, CardState.learning);
+      expect(second.id, first.id);
+      expect(second.state, CardState.review);
+      expect(second.reps, 2);
+      expect(second.timesShown, 2);
+      expect(second.timesCorrect, 1);
+      final saved = (await db.progressDao.getById(second.id))!;
+      expect(saved.scheduledDays, second.scheduledDays);
+      expect(saved.timesShown, 2);
+    },
+  );
 
-  test('simultaneous ratings of the same card both reach the durable row',
-      () async {
-    await setup();
-    final sameCard = (await progressRepo.getProgress(
-            variantId: frVariantId, direction: QuizDirection.frToKo))
-        .valueOrNull!;
-    final other = ProgressRepositoryImpl(
-        db.progressDao, db.conceptDao, FakeRemote(), _kUserId);
-    final revisions = await Future.wait([
-      SubmitAnswerUseCase(progressRepo)(
-          progress: sameCard, rating: FsrsRating.good),
-      SubmitAnswerUseCase(other)(progress: sameCard, rating: FsrsRating.again),
-    ]);
+  test(
+    'simultaneous ratings of the same card both reach the durable row',
+    () async {
+      await setup();
+      final sameCard = (await progressRepo.getProgress(
+        variantId: frVariantId,
+        direction: QuizDirection.frToKo,
+      )).valueOrNull!;
+      final other = ProgressRepositoryImpl(
+        db.progressDao,
+        db.conceptDao,
+        FakeRemote(),
+        _kUserId,
+      );
+      final revisions = await Future.wait([
+        SubmitAnswerUseCase(progressRepo)(
+          progress: sameCard,
+          rating: FsrsRating.good,
+        ),
+        SubmitAnswerUseCase(other)(
+          progress: sameCard,
+          rating: FsrsRating.again,
+        ),
+      ]);
 
-    expect(revisions.map((result) => result.valueOrNull?.timesShown),
-        unorderedEquals([1, 2]));
-    final rows = await db.progressDao.getUnsyncedProgress(userId: _kUserId);
-    expect(rows, hasLength(1));
-    expect(rows.single.reps, 2);
-    expect(rows.single.timesShown, 2);
-    expect(rows.single.timesCorrect, 1);
-  });
+      expect(
+        revisions.map((result) => result.valueOrNull?.timesShown),
+        unorderedEquals([1, 2]),
+      );
+      final rows = await db.progressDao.getUnsyncedProgress(userId: _kUserId);
+      expect(rows, hasLength(1));
+      expect(rows.single.reps, 2);
+      expect(rows.single.timesShown, 2);
+      expect(rows.single.timesCorrect, 1);
+    },
+  );
 
-  test('a loaded card cannot restore progress after its list is deleted',
-      () async {
-    final list = await setup();
-    final card = (await progressRepo.getProgress(
-            variantId: frVariantId, direction: QuizDirection.frToKo))
-        .valueOrNull!;
-    await vocabRepo.deleteList(list.id);
+  test(
+    'a loaded card cannot restore progress after its list is deleted',
+    () async {
+      final list = await setup();
+      final card = (await progressRepo.getProgress(
+        variantId: frVariantId,
+        direction: QuizDirection.frToKo,
+      )).valueOrNull!;
+      await vocabRepo.deleteList(list.id);
 
-    final result = await SubmitAnswerUseCase(progressRepo)(
-        progress: card, rating: FsrsRating.good);
+      final result = await SubmitAnswerUseCase(progressRepo)(
+        progress: card,
+        rating: FsrsRating.good,
+      );
 
-    expect(result.isFailure, isTrue);
-    expect(await db.progressDao.getById(card.id), isNull);
-  });
+      expect(result.isFailure, isTrue);
+      expect(await db.progressDao.getById(card.id), isNull);
+    },
+  );
 
-  test('a sync acknowledgement does not invalidate pedagogical progress',
-      () async {
-    await setup();
-    final card = (await progressRepo.getProgress(
-            variantId: frVariantId, direction: QuizDirection.frToKo))
-        .valueOrNull!;
-    await progressRepo
-        .updateProgress(card.copyWith(state: CardState.review, reps: 1));
-    final initial = Completer<void>();
-    final changed = Completer<void>();
-    var events = 0;
-    final subscription = db.progressDao.watchChanges(_kUserId).listen((_) {
-      events++;
-      if (!initial.isCompleted) {
-        initial.complete();
-      } else if (!changed.isCompleted) {
-        changed.complete();
-      }
-    });
-    addTearDown(subscription.cancel);
-    await initial.future;
-    await db.progressDao.markProgressSynced([card.id]);
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    expect(events, 1);
-    await progressRepo
-        .updateProgress(card.copyWith(state: CardState.review, reps: 2));
-    await changed.future.timeout(const Duration(seconds: 2));
-    expect(events, 2);
-  });
+  test(
+    'a sync acknowledgement does not invalidate pedagogical progress',
+    () async {
+      await setup();
+      final card = (await progressRepo.getProgress(
+        variantId: frVariantId,
+        direction: QuizDirection.frToKo,
+      )).valueOrNull!;
+      await progressRepo.updateProgress(
+        card.copyWith(state: CardState.review, reps: 1),
+      );
+      final initial = Completer<void>();
+      final changed = Completer<void>();
+      var events = 0;
+      final subscription = db.progressDao.watchChanges(_kUserId).listen((_) {
+        events++;
+        if (!initial.isCompleted) {
+          initial.complete();
+        } else if (!changed.isCompleted) {
+          changed.complete();
+        }
+      });
+      addTearDown(subscription.cancel);
+      await initial.future;
+      await db.progressDao.markProgressSynced([card.id]);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(events, 1);
+      await progressRepo.updateProgress(
+        card.copyWith(state: CardState.review, reps: 2),
+      );
+      await changed.future.timeout(const Duration(seconds: 2));
+      expect(events, 2);
+    },
+  );
 
   group('getProgress', () {
     test('returns new-card defaults when no record exists', () async {
@@ -215,11 +255,13 @@ void main() {
     test('all FSRS fields are persisted', () async {
       await setup();
       final now = DateTime.now();
-      final base = ((await progressRepo.getProgress(
-        variantId: frVariantId,
-        direction: QuizDirection.frToKo,
-      )) as Success<VariantProgress>)
-          .value;
+      final base =
+          ((await progressRepo.getProgress(
+                    variantId: frVariantId,
+                    direction: QuizDirection.frToKo,
+                  ))
+                  as Success<VariantProgress>)
+              .value;
 
       final updated = base.copyWith(
         stability: 3.5,
@@ -233,11 +275,13 @@ void main() {
       );
       await progressRepo.updateProgress(updated);
 
-      final fetched = ((await progressRepo.getProgress(
-        variantId: frVariantId,
-        direction: QuizDirection.frToKo,
-      )) as Success<VariantProgress>)
-          .value;
+      final fetched =
+          ((await progressRepo.getProgress(
+                    variantId: frVariantId,
+                    direction: QuizDirection.frToKo,
+                  ))
+                  as Success<VariantProgress>)
+              .value;
 
       expect(fetched.stability, closeTo(3.5, 0.001));
       expect(fetched.difficulty, closeTo(7.2, 0.001));
@@ -249,14 +293,18 @@ void main() {
 
     test('isSynced=false after update', () async {
       await setup();
-      final base = ((await progressRepo.getProgress(
-        variantId: frVariantId,
-        direction: QuizDirection.frToKo,
-      )) as Success<VariantProgress>)
-          .value;
+      final base =
+          ((await progressRepo.getProgress(
+                    variantId: frVariantId,
+                    direction: QuizDirection.frToKo,
+                  ))
+                  as Success<VariantProgress>)
+              .value;
       await progressRepo.updateProgress(base.copyWith(reps: 1, isSynced: true));
-      final row = await db.progressDao
-          .getByVariantAndDirection(frVariantId, QuizDirection.frToKo.name);
+      final row = await db.progressDao.getByVariantAndDirection(
+        frVariantId,
+        QuizDirection.frToKo.name,
+      );
       expect(row!.isSynced, isFalse);
     });
   });
@@ -264,86 +312,110 @@ void main() {
   // ── getDueCards ───────────────────────────────────────────────────────────
 
   group('getDueCards', () {
-    test('returns new cards (no prior progress) for all variants in a list',
-        () async {
-      final list = await setup();
-      final result = await progressRepo.getDueCards(
-        userId: _kUserId,
-        listId: list.id,
-        direction: QuizDirection.frToKo,
-      );
-      final cards = (result as Success<List<VariantProgress>>).value;
-      expect(cards.length, 1,
-          reason: 'One fr variant → one new card for frToKo');
-    });
+    test(
+      'returns new cards (no prior progress) for all variants in a list',
+      () async {
+        final list = await setup();
+        final result = await progressRepo.getDueCards(
+          userId: _kUserId,
+          listId: list.id,
+          direction: QuizDirection.frToKo,
+        );
+        final cards = (result as Success<List<VariantProgress>>).value;
+        expect(
+          cards.length,
+          1,
+          reason: 'One fr variant → one new card for frToKo',
+        );
+      },
+    );
 
-    test('excludes future-scheduled cards when other cards are available',
-        () async {
-      final list = await setup();
-      // Add a second word so the list isn't reduced to only the future card.
-      await vocabRepo.addConceptWithVariants(
-          listId: list.id, wordA: 'Merci', wordB: '감사합니다');
+    test(
+      'excludes future-scheduled cards when other cards are available',
+      () async {
+        final list = await setup();
+        // Add a second word so the list isn't reduced to only the future card.
+        await vocabRepo.addConceptWithVariants(
+          listId: list.id,
+          wordA: 'Merci',
+          wordB: '감사합니다',
+        );
 
-      // Push the first word's card to tomorrow → it should not be due.
-      final base = ((await progressRepo.getProgress(
-        variantId: frVariantId,
-        direction: QuizDirection.frToKo,
-      )) as Success<VariantProgress>)
-          .value;
-      await progressRepo.updateProgress(base.copyWith(
-        nextReview: DateTime.now().add(const Duration(days: 1)),
-        state: CardState.review,
-        reps: 1,
-      ));
+        // Push the first word's card to tomorrow → it should not be due.
+        final base =
+            ((await progressRepo.getProgress(
+                      variantId: frVariantId,
+                      direction: QuizDirection.frToKo,
+                    ))
+                    as Success<VariantProgress>)
+                .value;
+        await progressRepo.updateProgress(
+          base.copyWith(
+            nextReview: DateTime.now().add(const Duration(days: 1)),
+            state: CardState.review,
+            reps: 1,
+          ),
+        );
 
-      final result = await progressRepo.getDueCards(
-        userId: _kUserId,
-        listId: list.id,
-        direction: QuizDirection.frToKo,
-      );
-      final cards = (result as Success<List<VariantProgress>>).value;
-      // The future-scheduled word is excluded; only the new second word is due.
-      expect(cards.map((c) => c.variantId), isNot(contains(frVariantId)));
-      expect(cards.length, 1);
-    });
+        final result = await progressRepo.getDueCards(
+          userId: _kUserId,
+          listId: list.id,
+          direction: QuizDirection.frToKo,
+        );
+        final cards = (result as Success<List<VariantProgress>>).value;
+        // The future-scheduled word is excluded; only the new second word is due.
+        expect(cards.map((c) => c.variantId), isNot(contains(frVariantId)));
+        expect(cards.length, 1);
+      },
+    );
 
-    test('falls back to scheduled cards for early review when nothing is due',
-        () async {
-      final list = await setup();
-      // The list's only word is scheduled for tomorrow (answered well already).
-      final base = ((await progressRepo.getProgress(
-        variantId: frVariantId,
-        direction: QuizDirection.frToKo,
-      )) as Success<VariantProgress>)
-          .value;
-      await progressRepo.updateProgress(base.copyWith(
-        nextReview: DateTime.now().add(const Duration(days: 1)),
-        state: CardState.review,
-        reps: 1,
-      ));
+    test(
+      'falls back to scheduled cards for early review when nothing is due',
+      () async {
+        final list = await setup();
+        // The list's only word is scheduled for tomorrow (answered well already).
+        final base =
+            ((await progressRepo.getProgress(
+                      variantId: frVariantId,
+                      direction: QuizDirection.frToKo,
+                    ))
+                    as Success<VariantProgress>)
+                .value;
+        await progressRepo.updateProgress(
+          base.copyWith(
+            nextReview: DateTime.now().add(const Duration(days: 1)),
+            state: CardState.review,
+            reps: 1,
+          ),
+        );
 
-      final result = await progressRepo.getDueCards(
-        userId: _kUserId,
-        listId: list.id,
-        direction: QuizDirection.frToKo,
-      );
-      // Nothing is strictly due, but the quiz must not be empty: the user can
-      // review the scheduled card ahead of time instead of seeing an empty list.
-      expect((result as Success<List<VariantProgress>>).value.length, 1);
-    });
+        final result = await progressRepo.getDueCards(
+          userId: _kUserId,
+          listId: list.id,
+          direction: QuizDirection.frToKo,
+        );
+        // Nothing is strictly due, but the quiz must not be empty: the user can
+        // review the scheduled card ahead of time instead of seeing an empty list.
+        expect((result as Success<List<VariantProgress>>).value.length, 1);
+      },
+    );
 
     test('includes cards past due (nextReview in the past)', () async {
       final list = await setup();
-      final base = ((await progressRepo.getProgress(
-        variantId: frVariantId,
-        direction: QuizDirection.frToKo,
-      )) as Success<VariantProgress>)
-          .value;
-      await progressRepo.updateProgress(base.copyWith(
-        nextReview: DateTime.now().subtract(const Duration(days: 1)),
-        state: CardState.review,
-        reps: 1,
-      ));
+      final base =
+          ((await progressRepo.getProgress(
+                    variantId: frVariantId,
+                    direction: QuizDirection.frToKo,
+                  ))
+                  as Success<VariantProgress>)
+              .value;
+      await progressRepo.updateProgress(
+        base.copyWith(
+          nextReview: DateTime.now().subtract(const Duration(days: 1)),
+          state: CardState.review,
+          reps: 1,
+        ),
+      );
 
       final result = await progressRepo.getDueCards(
         userId: _kUserId,
@@ -355,15 +427,25 @@ void main() {
 
     test('respects the limit parameter', () async {
       // Create 3 words in the list.
-      final list = ((await vocabRepo.createList(
-              name: 'Big List', description: null)) as Success<VocabularyList>)
-          .value;
+      final list =
+          ((await vocabRepo.createList(name: 'Big List', description: null))
+                  as Success<VocabularyList>)
+              .value;
       await vocabRepo.addConceptWithVariants(
-          listId: list.id, wordA: 'A', wordB: 'ㄱ');
+        listId: list.id,
+        wordA: 'A',
+        wordB: 'ㄱ',
+      );
       await vocabRepo.addConceptWithVariants(
-          listId: list.id, wordA: 'B', wordB: 'ㄴ');
+        listId: list.id,
+        wordA: 'B',
+        wordB: 'ㄴ',
+      );
       await vocabRepo.addConceptWithVariants(
-          listId: list.id, wordA: 'C', wordB: 'ㄷ');
+        listId: list.id,
+        wordA: 'C',
+        wordB: 'ㄷ',
+      );
 
       final result = await progressRepo.getDueCards(
         userId: _kUserId,
@@ -384,8 +466,11 @@ void main() {
       final cards = (result as Success<List<VariantProgress>>).value;
       // All returned variantIds should be fr variants.
       for (final card in cards) {
-        expect(card.variantId, frVariantId,
-            reason: 'frToKo should only use fr variants as questions');
+        expect(
+          card.variantId,
+          frVariantId,
+          reason: 'frToKo should only use fr variants as questions',
+        );
       }
     });
 
@@ -398,8 +483,11 @@ void main() {
       );
       final cards = (result as Success<List<VariantProgress>>).value;
       for (final card in cards) {
-        expect(card.variantId, koVariantId,
-            reason: 'koToFr should only use ko variants as questions');
+        expect(
+          card.variantId,
+          koVariantId,
+          reason: 'koToFr should only use ko variants as questions',
+        );
       }
     });
   });
@@ -412,28 +500,34 @@ void main() {
       expect(count, 0);
     });
 
-    test('emits 1 after a progress record with nextReview=null is inserted',
-        () async {
-      await setup();
-      final base = ((await progressRepo.getProgress(
-        variantId: frVariantId,
-        direction: QuizDirection.frToKo,
-      )) as Success<VariantProgress>)
-          .value;
-      // nextReview=null means due immediately.
-      await progressRepo.updateProgress(base.copyWith(nextReview: null));
+    test(
+      'emits 1 after a progress record with nextReview=null is inserted',
+      () async {
+        await setup();
+        final base =
+            ((await progressRepo.getProgress(
+                      variantId: frVariantId,
+                      direction: QuizDirection.frToKo,
+                    ))
+                    as Success<VariantProgress>)
+                .value;
+        // nextReview=null means due immediately.
+        await progressRepo.updateProgress(base.copyWith(nextReview: null));
 
-      final count = await progressRepo.watchDueCount(_kUserId).first;
-      expect(count, 1);
-    });
+        final count = await progressRepo.watchDueCount(_kUserId).first;
+        expect(count, 1);
+      },
+    );
 
     test('drops to 0 after nextReview is set to a future date', () async {
       await setup();
-      final base = ((await progressRepo.getProgress(
-        variantId: frVariantId,
-        direction: QuizDirection.frToKo,
-      )) as Success<VariantProgress>)
-          .value;
+      final base =
+          ((await progressRepo.getProgress(
+                    variantId: frVariantId,
+                    direction: QuizDirection.frToKo,
+                  ))
+                  as Success<VariantProgress>)
+              .value;
       await progressRepo.updateProgress(base.copyWith(nextReview: null));
       // Now schedule it to the future.
       await progressRepo.updateProgress(
@@ -456,24 +550,26 @@ void main() {
 
     setUp(() async {
       await setup();
-      newCard = ((await progressRepo.getProgress(
-        variantId: frVariantId,
-        direction: QuizDirection.frToKo,
-      )) as Success<VariantProgress>)
-          .value;
+      newCard =
+          ((await progressRepo.getProgress(
+                    variantId: frVariantId,
+                    direction: QuizDirection.frToKo,
+                  ))
+                  as Success<VariantProgress>)
+              .value;
     });
 
     FsrsCard toFsrsCard(VariantProgress p) => FsrsCard(
-          stability: p.stability,
-          difficulty: p.difficulty,
-          elapsedDays: p.elapsedDays,
-          scheduledDays: p.scheduledDays,
-          reps: p.reps,
-          lapses: p.lapses,
-          state: p.state,
-          lastReview: p.lastReview,
-          nextReview: p.nextReview,
-        );
+      stability: p.stability,
+      difficulty: p.difficulty,
+      elapsedDays: p.elapsedDays,
+      scheduledDays: p.scheduledDays,
+      reps: p.reps,
+      lapses: p.lapses,
+      state: p.state,
+      lastReview: p.lastReview,
+      nextReview: p.nextReview,
+    );
 
     Future<VariantProgress> apply(VariantProgress p, FsrsRating rating) async {
       final now = DateTime.now();
@@ -493,20 +589,23 @@ void main() {
       );
       await progressRepo.updateProgress(updated);
       return ((await progressRepo.getProgress(
-        variantId: frVariantId,
-        direction: QuizDirection.frToKo,
-      )) as Success<VariantProgress>)
+                variantId: frVariantId,
+                direction: QuizDirection.frToKo,
+              ))
+              as Success<VariantProgress>)
           .value;
     }
 
-    test('new card + Again → state=learning, reps=1, stability>0, lapses=0',
-        () async {
-      final after = await apply(newCard, FsrsRating.again);
-      expect(after.state, CardState.learning);
-      expect(after.reps, 1);
-      expect(after.stability, greaterThan(0));
-      expect(after.lapses, 0);
-    });
+    test(
+      'new card + Again → state=learning, reps=1, stability>0, lapses=0',
+      () async {
+        final after = await apply(newCard, FsrsRating.again);
+        expect(after.state, CardState.learning);
+        expect(after.reps, 1);
+        expect(after.stability, greaterThan(0));
+        expect(after.lapses, 0);
+      },
+    );
 
     test('new card + Good → state=learning, reps=1', () async {
       final after = await apply(newCard, FsrsRating.good);
@@ -535,37 +634,47 @@ void main() {
   group('bidirectional progress isolation', () {
     setUp(() async => await setup());
 
-    test('same variant, frToKo and koToFr → two separate progress rows',
-        () async {
-      final frProgress = ((await progressRepo.getProgress(
-        variantId: frVariantId,
-        direction: QuizDirection.frToKo,
-      )) as Success<VariantProgress>)
-          .value;
-      await progressRepo.updateProgress(frProgress.copyWith(reps: 5));
+    test(
+      'same variant, frToKo and koToFr → two separate progress rows',
+      () async {
+        final frProgress =
+            ((await progressRepo.getProgress(
+                      variantId: frVariantId,
+                      direction: QuizDirection.frToKo,
+                    ))
+                    as Success<VariantProgress>)
+                .value;
+        await progressRepo.updateProgress(frProgress.copyWith(reps: 5));
 
-      final koProgress = ((await progressRepo.getProgress(
-        variantId: frVariantId,
-        direction: QuizDirection.koToFr,
-      )) as Success<VariantProgress>)
-          .value;
-      // The koToFr record must be independent (reps still 0).
-      expect(koProgress.reps, 0);
-    });
+        final koProgress =
+            ((await progressRepo.getProgress(
+                      variantId: frVariantId,
+                      direction: QuizDirection.koToFr,
+                    ))
+                    as Success<VariantProgress>)
+                .value;
+        // The koToFr record must be independent (reps still 0).
+        expect(koProgress.reps, 0);
+      },
+    );
 
     test('updating frToKo does not change the koToFr record', () async {
-      final frProgress = ((await progressRepo.getProgress(
-        variantId: koVariantId,
-        direction: QuizDirection.koToFr,
-      )) as Success<VariantProgress>)
-          .value;
+      final frProgress =
+          ((await progressRepo.getProgress(
+                    variantId: koVariantId,
+                    direction: QuizDirection.koToFr,
+                  ))
+                  as Success<VariantProgress>)
+              .value;
       await progressRepo.updateProgress(frProgress.copyWith(reps: 10));
 
-      final koCheck = ((await progressRepo.getProgress(
-        variantId: koVariantId,
-        direction: QuizDirection.frToKo,
-      )) as Success<VariantProgress>)
-          .value;
+      final koCheck =
+          ((await progressRepo.getProgress(
+                    variantId: koVariantId,
+                    direction: QuizDirection.frToKo,
+                  ))
+                  as Success<VariantProgress>)
+              .value;
       expect(koCheck.reps, 0);
     });
   });
@@ -581,16 +690,16 @@ void main() {
       required int scheduledDays,
       int reps = 2,
     }) async {
-      final base = ((await progressRepo.getProgress(
-        variantId: variantId,
-        direction: QuizDirection.frToKo,
-      )) as Success<VariantProgress>)
-          .value;
-      await progressRepo.updateProgress(base.copyWith(
-        state: state,
-        scheduledDays: scheduledDays,
-        reps: reps,
-      ));
+      final base =
+          ((await progressRepo.getProgress(
+                    variantId: variantId,
+                    direction: QuizDirection.frToKo,
+                  ))
+                  as Success<VariantProgress>)
+              .value;
+      await progressRepo.updateProgress(
+        base.copyWith(state: state, scheduledDays: scheduledDays, reps: reps),
+      );
     }
 
     test('returns empty list when no progress exists', () async {
@@ -599,8 +708,11 @@ void main() {
     });
 
     test('review card with scheduledDays==21 is included', () async {
-      await setProgress(frVariantId,
-          state: CardState.review, scheduledDays: 21);
+      await setProgress(
+        frVariantId,
+        state: CardState.review,
+        scheduledDays: 21,
+      );
       final result = await progressRepo.getMasteredVariants(_kUserId);
       final mastered = (result as Success<List<VariantProgress>>).value;
       expect(mastered.length, 1);
@@ -608,53 +720,75 @@ void main() {
     });
 
     test('review card with scheduledDays>21 is included', () async {
-      await setProgress(frVariantId,
-          state: CardState.review, scheduledDays: 60);
+      await setProgress(
+        frVariantId,
+        state: CardState.review,
+        scheduledDays: 60,
+      );
       final result = await progressRepo.getMasteredVariants(_kUserId);
       expect((result as Success<List<VariantProgress>>).value.length, 1);
     });
 
     test('review card with scheduledDays==20 is excluded', () async {
-      await setProgress(frVariantId,
-          state: CardState.review, scheduledDays: 20);
+      await setProgress(
+        frVariantId,
+        state: CardState.review,
+        scheduledDays: 20,
+      );
       final result = await progressRepo.getMasteredVariants(_kUserId);
       expect((result as Success<List<VariantProgress>>).value, isEmpty);
     });
 
     test('learning-state card with high scheduledDays is excluded', () async {
-      await setProgress(frVariantId,
-          state: CardState.learning, scheduledDays: 30);
+      await setProgress(
+        frVariantId,
+        state: CardState.learning,
+        scheduledDays: 30,
+      );
       final result = await progressRepo.getMasteredVariants(_kUserId);
       expect((result as Success<List<VariantProgress>>).value, isEmpty);
     });
 
     test('relearning-state card with high scheduledDays is excluded', () async {
-      await setProgress(frVariantId,
-          state: CardState.relearning, scheduledDays: 30);
+      await setProgress(
+        frVariantId,
+        state: CardState.relearning,
+        scheduledDays: 30,
+      );
       final result = await progressRepo.getMasteredVariants(_kUserId);
       expect((result as Success<List<VariantProgress>>).value, isEmpty);
     });
 
     test('results are ordered by scheduledDays descending', () async {
       // Add a second word in its own list.
-      final list2 = ((await vocabRepo.createList(
-              name: 'List 2', description: null)) as Success<VocabularyList>)
-          .value;
-      final c2 = ((await vocabRepo.addConceptWithVariants(
-        listId: list2.id,
-        wordA: 'Merci',
-        wordB: '감사합니다',
-      )) as Success<Concept>)
-          .value;
+      final list2 =
+          ((await vocabRepo.createList(name: 'List 2', description: null))
+                  as Success<VocabularyList>)
+              .value;
+      final c2 =
+          ((await vocabRepo.addConceptWithVariants(
+                    listId: list2.id,
+                    wordA: 'Merci',
+                    wordB: '감사합니다',
+                  ))
+                  as Success<Concept>)
+              .value;
       final variants2 = await db.conceptDao.getVariantsByConcept(c2.id);
       final frVariantId2 = variants2.firstWhere((v) => v.langCode == 'fr').id;
 
       // First word: scheduledDays=21 (less mastered).
-      await setProgress(frVariantId,
-          state: CardState.review, scheduledDays: 21);
+      await setProgress(
+        frVariantId,
+        state: CardState.review,
+        scheduledDays: 21,
+      );
       // Second word: scheduledDays=60 (more mastered).
-      await setProgress(frVariantId2,
-          state: CardState.review, scheduledDays: 60, reps: 5);
+      await setProgress(
+        frVariantId2,
+        state: CardState.review,
+        scheduledDays: 60,
+        reps: 5,
+      );
 
       final result = await progressRepo.getMasteredVariants(_kUserId);
       final mastered = (result as Success<List<VariantProgress>>).value;
@@ -665,8 +799,11 @@ void main() {
     });
 
     test('only returns rows for the queried userId', () async {
-      await setProgress(frVariantId,
-          state: CardState.review, scheduledDays: 30);
+      await setProgress(
+        frVariantId,
+        state: CardState.review,
+        scheduledDays: 30,
+      );
 
       // Another user's mastered card should not appear.
       final result = await progressRepo.getMasteredVariants('other-user-id');
@@ -677,18 +814,19 @@ void main() {
   // ── isMastered getter ─────────────────────────────────────────────────────
 
   group('isMastered getter', () {
-    VariantProgress make(
-            {required CardState state, required int scheduledDays}) =>
-        VariantProgress(
-          id: 'x',
-          userId: 'u',
-          variantId: 'v',
-          direction: QuizDirection.frToKo,
-          state: state,
-          scheduledDays: scheduledDays,
-          createdAt: DateTime(2024),
-          updatedAt: DateTime(2024),
-        );
+    VariantProgress make({
+      required CardState state,
+      required int scheduledDays,
+    }) => VariantProgress(
+      id: 'x',
+      userId: 'u',
+      variantId: 'v',
+      direction: QuizDirection.frToKo,
+      state: state,
+      scheduledDays: scheduledDays,
+      createdAt: DateTime(2024),
+      updatedAt: DateTime(2024),
+    );
 
     test('true for review state with scheduledDays==21 (boundary)', () {
       expect(

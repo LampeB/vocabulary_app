@@ -37,8 +37,11 @@ class _NoopAudio implements AudioPlayerService {
   @override
   Future<void> warmUp(String langCode) async {}
   @override
-  Future<void> prefetch(String text, String langCode,
-      {String? audioPath}) async {}
+  Future<void> prefetch(
+    String text,
+    String langCode, {
+    String? audioPath,
+  }) async {}
   @override
   Future<void> speak(String text, String langCode, {String? audioPath}) async {}
   @override
@@ -63,22 +66,25 @@ class _FakeProgressRepo implements ProgressRepository {
     required String listId,
     required QuizDirection direction,
     int limit = 20,
-  }) async =>
-      Success(due.take(limit).toList());
+  }) async => Success(due.take(limit).toList());
 
   @override
   Future<Result<VariantProgress>> updateProgress(
-          VariantProgress progress) async =>
-      Success(progress);
+    VariantProgress progress,
+  ) async => Success(progress);
 
   @override
   Future<Result<VariantProgress>> mutateProgress({
     required String variantId,
     required QuizDirection direction,
     required VariantProgress Function(VariantProgress) mutate,
-  }) async =>
-      Success(mutate(due.firstWhere(
-          (row) => row.variantId == variantId && row.direction == direction)));
+  }) async => Success(
+    mutate(
+      due.firstWhere(
+        (row) => row.variantId == variantId && row.direction == direction,
+      ),
+    ),
+  );
 
   @override
   Future<Result<List<VariantProgress>>> getMasteredVariants(String userId) {
@@ -112,89 +118,101 @@ class _FakeNotifService implements NotificationService {
 }
 
 void main() {
-  test('a skipped then correct card records 100% even if a new session loads',
-      () async {
-    SharedPreferences.setMockInitialValues({});
-    final db = AppDatabase.forTesting(NativeDatabase.memory());
-    addTearDown(db.close);
+  test(
+    'a skipped then correct card records 100% even if a new session loads',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
 
-    // Seed a list with one word; the due card points at its FR variant.
-    final vocabRepo = VocabularyRepositoryImpl(
-        db.vocabularyListDao, db.conceptDao, FakeRemote(), 'u', db);
-    final list = (await vocabRepo.createList(name: 'Animaux')).valueOrNull!;
-    final concept = (await vocabRepo.addConceptWithVariants(
-            listId: list.id, wordA: 'chat', wordB: '고양이'))
-        .valueOrNull!;
-    final variants = await db.conceptDao.getVariantsByConcept(concept.id);
-    final due = VariantProgress(
-      id: 'p1',
-      userId: 'u',
-      variantId: variants.firstWhere((v) => v.langCode == 'fr').id,
-      direction: QuizDirection.frToKo,
-      createdAt: _now,
-      updatedAt: _now,
-    );
+      // Seed a list with one word; the due card points at its FR variant.
+      final vocabRepo = VocabularyRepositoryImpl(
+        db.vocabularyListDao,
+        db.conceptDao,
+        FakeRemote(),
+        'u',
+        db,
+      );
+      final list = (await vocabRepo.createList(name: 'Animaux')).valueOrNull!;
+      final concept = (await vocabRepo.addConceptWithVariants(
+        listId: list.id,
+        wordA: 'chat',
+        wordB: '고양이',
+      )).valueOrNull!;
+      final variants = await db.conceptDao.getVariantsByConcept(concept.id);
+      final due = VariantProgress(
+        id: 'p1',
+        userId: 'u',
+        variantId: variants.firstWhere((v) => v.langCode == 'fr').id,
+        direction: QuizDirection.frToKo,
+        createdAt: _now,
+        updatedAt: _now,
+      );
 
-    final user = AppUser(
-      id: 'u',
-      email: 't@t.fr',
-      username: 'thomas',
-      subscriptionType: SubscriptionType.free,
-      createdAt: _now,
-    );
+      final user = AppUser(
+        id: 'u',
+        email: 't@t.fr',
+        username: 'thomas',
+        subscriptionType: SubscriptionType.free,
+        createdAt: _now,
+      );
 
-    final progressRepo = _FakeProgressRepo([due]);
-    final container = ProviderContainer(overrides: [
-      appDatabaseProvider.overrideWithValue(db),
-      vocabularyRemoteProvider.overrideWithValue(FakeRemote()),
-      getDueCardsUseCaseProvider
-          .overrideWithValue(GetDueCardsUseCase(progressRepo)),
-      progressRepositoryProvider.overrideWithValue(progressRepo),
-      audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
-      currentUserProvider.overrideWithValue(user),
-      authRepositoryProvider.overrideWithValue(_FakeAuthRepo()),
-      authStateProvider.overrideWith(_FakeAuthNotifier.new),
-      notificationServiceProvider.overrideWithValue(_FakeNotifService()),
-    ]);
-    addTearDown(container.dispose);
-    final sub = container.listen(quizProvider, (_, __) {});
+      final progressRepo = _FakeProgressRepo([due]);
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          vocabularyRemoteProvider.overrideWithValue(FakeRemote()),
+          getDueCardsUseCaseProvider.overrideWithValue(
+            GetDueCardsUseCase(progressRepo),
+          ),
+          progressRepositoryProvider.overrideWithValue(progressRepo),
+          audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
+          currentUserProvider.overrideWithValue(user),
+          authRepositoryProvider.overrideWithValue(_FakeAuthRepo()),
+          authStateProvider.overrideWith(_FakeAuthNotifier.new),
+          notificationServiceProvider.overrideWithValue(_FakeNotifService()),
+        ],
+      );
+      addTearDown(container.dispose);
+      final sub = container.listen(quizProvider, (_, _) {});
 
-    // Play the whole (1-card) session.
-    final notifier = container.read(quizProvider.notifier);
-    final args = QuizArgs(
-      listId: list.id,
-      mode: QuizMode.flashcard,
-      direction: QuizDirectionChoice.frToKo,
-      cardLimit: 1,
-    );
-    await notifier.loadCards(args);
-    expect(sub.read().cards.length, 1);
-    notifier.skipCurrentCard();
-    notifier.flipCard();
-    notifier.gradeFlashcard(FsrsRating.good);
-    notifier.advance();
-    expect(sub.read().isComplete, isTrue);
-    expect(sub.read().accuracy, 1.0);
+      // Play the whole (1-card) session.
+      final notifier = container.read(quizProvider.notifier);
+      final args = QuizArgs(
+        listId: list.id,
+        mode: QuizMode.flashcard,
+        direction: QuizDirectionChoice.frToKo,
+        cardLimit: 1,
+      );
+      await notifier.loadCards(args);
+      expect(sub.read().cards.length, 1);
+      notifier.skipCurrentCard();
+      notifier.flipCard();
+      notifier.gradeFlashcard(FsrsRating.good);
+      notifier.advance();
+      expect(sub.read().isComplete, isTrue);
+      expect(sub.read().accuracy, 1.0);
 
-    // Start again while the completed session's history query is in flight.
-    await progressRepo.masteryRequested.future;
-    await notifier.loadCards(args);
-    expect(sub.read().correctCount, 0);
-    progressRepo.mastered.complete(Success([due]));
-    await Future<void>.delayed(const Duration(milliseconds: 100));
+      // Start again while the completed session's history query is in flight.
+      await progressRepo.masteryRequested.future;
+      await notifier.loadCards(args);
+      expect(sub.read().correctCount, 0);
+      progressRepo.mastered.complete(Success([due]));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
 
-    // The row exists with the right facts…
-    final rows = await db.quizSessionDao.getSessionsByUser('u');
-    expect(rows.length, 1);
-    expect(rows.single.listName, 'Animaux');
-    expect(rows.single.mode, 'flashcard');
-    expect(rows.single.cardCount, 1);
-    expect(rows.single.correctCount, 1);
-    expect(rows.single.masteredWordCount, 1);
+      // The row exists with the right facts…
+      final rows = await db.quizSessionDao.getSessionsByUser('u');
+      expect(rows.length, 1);
+      expect(rows.single.listName, 'Animaux');
+      expect(rows.single.mode, 'flashcard');
+      expect(rows.single.cardCount, 1);
+      expect(rows.single.correctCount, 1);
+      expect(rows.single.masteredWordCount, 1);
 
-    // …and quizHistoryProvider maps it back for the stats screen.
-    final history = await container.read(quizHistoryProvider.future);
-    expect(history.single.listName, 'Animaux');
-    expect(history.single.accuracy, 1.0);
-  });
+      // …and quizHistoryProvider maps it back for the stats screen.
+      final history = await container.read(quizHistoryProvider.future);
+      expect(history.single.listName, 'Animaux');
+      expect(history.single.accuracy, 1.0);
+    },
+  );
 }

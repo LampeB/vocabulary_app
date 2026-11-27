@@ -36,7 +36,8 @@ account, with server-side enrollment binding it to its stable scenario ID.
 The catalog includes 36 scenarios, including legacy targets. See the
 [activation and isolation runbook](docs/runbooks/e2e-account.md).
 The E2E workflow has a shared concurrency lock. A separate nightly dispatcher
-on `main` runs `feat/multi-language-learning` at 22:17 Asia/Seoul.
+on `main` runs the integrated `main` at 22:17 Asia/Seoul after this PR merges
+and the hosted migrations are applied.
 `auth_test.dart`, `vocab_list_test.dart`, and `sign_up_test.dart` remain legacy
 standalone targets; the maintained coverage lives in the suites above.
 
@@ -59,6 +60,17 @@ Run with:
 ```
 flutter test
 ```
+
+The integration regressions also cover delayed authentication profiles after
+an account switch (`test/unit/auth/auth_notifier_test.dart`), real seeded Korean
+prerequisites (`test/unit/grammar/grammar_provider_test.dart`), canonical sync
+acknowledgements and tombstones (`test/integration/push_sync_test.dart`), and
+offline/reconnect scheduling (`test/unit/sync/push_on_reconnect_test.dart`).
+Widget tests verify paper-sheet/flashcard contrast in both themes and stop
+pond tickers when reduced motion or an inactive subtree requires it.
+`supabase/tests/vocabulary_tombstones.sql` exercises server-side tombstone
+dominance under the real authenticated role; these host/SQL checks do not
+replace validation on two physical devices.
 
 ### `test/unit/fsrs_algorithm_test.dart` (21 tests)
 Spaced-repetition scheduling (FSRS algorithm).

@@ -91,10 +91,7 @@ void main() {
       final service = WhisperSpeechService(microphone: mic);
 
       expect(
-        await service.startListening(
-          langCode: 'fr',
-          onFinal: (_, __) {},
-        ),
+        await service.startListening(langCode: 'fr', onFinal: (_, _) {}),
         isFalse,
       );
       expect(mic.starts, 0);
@@ -112,10 +109,7 @@ void main() {
           segmentTranscriber: _FakeTranscriber(response: 'pomme').call,
         );
         expect(
-          await service.startListening(
-            langCode: 'fr',
-            onFinal: (_, __) {},
-          ),
+          await service.startListening(langCode: 'fr', onFinal: (_, _) {}),
           isFalse,
         );
         expect(service.isListening, isFalse);
@@ -123,46 +117,49 @@ void main() {
       }
     });
 
-    test('segments speech, exposes onset, and returns a cleaned transcript',
-        () async {
-      final mic = _FakeMicrophone();
-      final transcriber = _FakeTranscriber(response: '  pomme! ');
-      final service = WhisperSpeechService(
-        microphone: mic,
-        modelReady: true,
-        segmentTranscriber: transcriber.call,
-      );
-      final transcript = Completer<(String, int)>();
-      var speechOnsets = 0;
-      var segments = 0;
+    test(
+      'segments speech, exposes onset, and returns a cleaned transcript',
+      () async {
+        final mic = _FakeMicrophone();
+        final transcriber = _FakeTranscriber(response: '  pomme! ');
+        final service = WhisperSpeechService(
+          microphone: mic,
+          modelReady: true,
+          segmentTranscriber: transcriber.call,
+        );
+        final transcript = Completer<(String, int)>();
+        var speechOnsets = 0;
+        var segments = 0;
 
-      expect(
-        await service.startListening(
-          langCode: 'fr',
-          promptHints: const ['pomme / une pomme'],
-          onSpeechStart: () => speechOnsets++,
-          onSegment: () => segments++,
-          onFinal: (text, durationMs) =>
-              transcript.complete((text, durationMs)),
-        ),
-        isTrue,
-      );
-      _emitUtterance(mic);
+        expect(
+          await service.startListening(
+            langCode: 'fr',
+            promptHints: const ['pomme / une pomme'],
+            onSpeechStart: () => speechOnsets++,
+            onSegment: () => segments++,
+            onFinal: (text, durationMs) =>
+                transcript.complete((text, durationMs)),
+          ),
+          isTrue,
+        );
+        _emitUtterance(mic);
 
-      final result =
-          await transcript.future.timeout(const Duration(seconds: 1));
-      expect(result.$1, 'pomme');
-      expect(result.$2, greaterThanOrEqualTo(900));
-      expect(speechOnsets, 1);
-      expect(segments, 1);
-      expect(transcriber.calls, hasLength(1));
-      expect(transcriber.calls.single.langCode, 'fr');
-      expect(transcriber.calls.single.prompt, 'pomme, une pomme');
-      expect(transcriber.calls.single.pcm16, isNotEmpty);
+        final result = await transcript.future.timeout(
+          const Duration(seconds: 1),
+        );
+        expect(result.$1, 'pomme');
+        expect(result.$2, greaterThanOrEqualTo(900));
+        expect(speechOnsets, 1);
+        expect(segments, 1);
+        expect(transcriber.calls, hasLength(1));
+        expect(transcriber.calls.single.langCode, 'fr');
+        expect(transcriber.calls.single.prompt, 'pomme, une pomme');
+        expect(transcriber.calls.single.pcm16, isNotEmpty);
 
-      await service.stopListening();
-      mic.stream.close();
-    });
+        await service.stopListening();
+        mic.stream.close();
+      },
+    );
 
     test('drops stale, blank and failed native results', () async {
       final delayed = Completer<String>();
@@ -170,14 +167,12 @@ void main() {
       final service = WhisperSpeechService(
         microphone: mic,
         modelReady: true,
-        segmentTranscriber:
-            _FakeTranscriber(pendingResponse: delayed.future).call,
+        segmentTranscriber: _FakeTranscriber(
+          pendingResponse: delayed.future,
+        ).call,
       );
       var finals = 0;
-      await service.startListening(
-        langCode: 'ko',
-        onFinal: (_, __) => finals++,
-      );
+      await service.startListening(langCode: 'ko', onFinal: (_, _) => finals++);
       _emitUtterance(mic);
       await Future<void>.delayed(Duration.zero);
       await service.stopListening();
@@ -199,7 +194,7 @@ void main() {
         );
         await nextService.startListening(
           langCode: 'fr',
-          onFinal: (_, __) => fail('invalid output must not be graded'),
+          onFinal: (_, _) => fail('invalid output must not be graded'),
         );
         _emitUtterance(nextMic);
         await Future<void>.delayed(Duration.zero);
@@ -218,7 +213,7 @@ void main() {
         modelReady: true,
         segmentTranscriber: transcriber.call,
       );
-      await service.startListening(langCode: 'fr', onFinal: (_, __) {});
+      await service.startListening(langCode: 'fr', onFinal: (_, _) {});
 
       for (var i = 0; i < 4; i++) {
         _emitUtterance(mic);
@@ -240,82 +235,99 @@ void main() {
   });
 
   group('WhisperSpeechService.transcribeSegment (shared capture)', () {
-    test('cleans the transcript and builds the prompt from the hints',
-        () async {
-      final transcriber = _FakeTranscriber(response: ' Pomme. ');
-      final service = WhisperSpeechService(
-        microphone: _FakeMicrophone(),
-        modelReady: true,
-        segmentTranscriber: transcriber.call,
-      );
-      final text = await service.transcribeSegment(
+    test(
+      'cleans the transcript and builds the prompt from the hints',
+      () async {
+        final transcriber = _FakeTranscriber(response: ' Pomme. ');
+        final service = WhisperSpeechService(
+          microphone: _FakeMicrophone(),
+          modelReady: true,
+          segmentTranscriber: transcriber.call,
+        );
+        final text = await service.transcribeSegment(
           pcm16: Uint8List(64),
           langCode: 'fr',
-          promptHints: const ['pomme / fruit']);
-      expect(text, 'Pomme');
-      expect(transcriber.calls.single.langCode, 'fr');
-      expect(transcriber.calls.single.prompt, 'pomme, fruit');
-    });
+          promptHints: const ['pomme / fruit'],
+        );
+        expect(text, 'Pomme');
+        expect(transcriber.calls.single.langCode, 'fr');
+        expect(transcriber.calls.single.prompt, 'pomme, fruit');
+      },
+    );
 
     test('hallucinations come back as null, not as an answer', () async {
       final service = WhisperSpeechService(
         microphone: _FakeMicrophone(),
         modelReady: true,
-        segmentTranscriber:
-            _FakeTranscriber(response: 'Sous-titres réalisés par Amara.org')
-                .call,
+        segmentTranscriber: _FakeTranscriber(
+          response: 'Sous-titres réalisés par Amara.org',
+        ).call,
       );
       expect(
-          await service.transcribeSegment(
-              pcm16: Uint8List(64), langCode: 'fr', promptHints: const []),
-          isNull);
+        await service.transcribeSegment(
+          pcm16: Uint8List(64),
+          langCode: 'fr',
+          promptHints: const [],
+        ),
+        isNull,
+      );
     });
 
     test('refuses to run before the model is ready', () async {
       final service = WhisperSpeechService(microphone: _FakeMicrophone());
       expect(
-          service.transcribeSegment(
-              pcm16: Uint8List(64), langCode: 'fr', promptHints: const []),
-          throwsStateError);
+        service.transcribeSegment(
+          pcm16: Uint8List(64),
+          langCode: 'fr',
+          promptHints: const [],
+        ),
+        throwsStateError,
+      );
     });
 
-    test('inferences run one at a time; a failure does not jam the queue',
-        () async {
-      final gate = Completer<String>();
-      var active = 0;
-      var maxActive = 0;
-      var calls = 0;
-      Future<String> transcriber({
-        required Uint8List pcm16,
-        required String langCode,
-        required String prompt,
-      }) async {
-        calls++;
-        active++;
-        maxActive = active > maxActive ? active : maxActive;
-        try {
-          if (calls == 1) return await gate.future;
-          if (calls == 2) throw StateError('native crash');
-          return 'thé';
-        } finally {
-          active--;
+    test(
+      'inferences run one at a time; a failure does not jam the queue',
+      () async {
+        final gate = Completer<String>();
+        var active = 0;
+        var maxActive = 0;
+        var calls = 0;
+        Future<String> transcriber({
+          required Uint8List pcm16,
+          required String langCode,
+          required String prompt,
+        }) async {
+          calls++;
+          active++;
+          maxActive = active > maxActive ? active : maxActive;
+          try {
+            if (calls == 1) return await gate.future;
+            if (calls == 2) throw StateError('native crash');
+            return 'thé';
+          } finally {
+            active--;
+          }
         }
-      }
 
-      final service = WhisperSpeechService(
+        final service = WhisperSpeechService(
           microphone: _FakeMicrophone(),
           modelReady: true,
-          segmentTranscriber: transcriber);
-      Future<String?> run() => service.transcribeSegment(
-          pcm16: Uint8List(64), langCode: 'fr', promptHints: const []);
-      final first = run();
-      final second = run();
-      final third = run();
-      gate.complete('café');
-      expect(await first, 'café');
-      await expectLater(second, throwsStateError);
-      expect(await third, 'thé');
-      expect(maxActive, 1);
-    });
+          segmentTranscriber: transcriber,
+        );
+        Future<String?> run() => service.transcribeSegment(
+          pcm16: Uint8List(64),
+          langCode: 'fr',
+          promptHints: const [],
+        );
+        final first = run();
+        final second = run();
+        final third = run();
+        gate.complete('café');
+        expect(await first, 'café');
+        await expectLater(second, throwsStateError);
+        expect(await third, 'thé');
+        expect(maxActive, 1);
+      },
+    );
   });
 }

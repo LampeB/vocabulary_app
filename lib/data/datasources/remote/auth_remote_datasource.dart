@@ -7,7 +7,10 @@ abstract interface class AuthRemote {
   User? get currentUser;
   Future<Result<User>> signInWithEmail(String email, String password);
   Future<Result<User>> signUpWithEmail(
-      String email, String password, String username);
+    String email,
+    String password,
+    String username,
+  );
   Future<Result<void>> signOut();
   Future<Result<void>> sendPasswordReset(String email);
   Future<bool> checkUsernameExists(String username);
@@ -45,7 +48,10 @@ class AuthRemoteDataSource implements AuthRemote {
 
   @override
   Future<Result<User>> signUpWithEmail(
-      String email, String password, String username) async {
+    String email,
+    String password,
+    String username,
+  ) async {
     try {
       final res = await _client.auth.signUp(
         email: email,
@@ -100,8 +106,11 @@ class AuthRemoteDataSource implements AuthRemote {
   @override
   Future<Result<Map<String, dynamic>>> getProfile(String userId) async {
     try {
-      final data =
-          await _client.from('profiles').select().eq('id', userId).single();
+      final data = await _client
+          .from('profiles')
+          .select()
+          .eq('id', userId)
+          .single();
       return Success(data);
     } catch (e) {
       return Failure(app_ex.UnknownException(e.toString()));
@@ -110,10 +119,14 @@ class AuthRemoteDataSource implements AuthRemote {
 
   @override
   Future<Result<Map<String, dynamic>>> upsertProfile(
-      Map<String, dynamic> data) async {
+    Map<String, dynamic> data,
+  ) async {
     try {
-      final result =
-          await _client.from('profiles').upsert(data).select().single();
+      final result = await _client
+          .from('profiles')
+          .upsert(data)
+          .select()
+          .single();
       return Success(result);
     } catch (e) {
       return Failure(app_ex.UnknownException(e.toString()));
@@ -123,11 +136,14 @@ class AuthRemoteDataSource implements AuthRemote {
   @override
   Future<Result<void>> updateStreak(String userId) async {
     try {
-      final rows = List<Map<String, dynamic>>.from((await _client
-          .from('profiles')
-          .select('current_streak, longest_streak, last_study_date')
-          .eq('id', userId)
-          .limit(1)) as List);
+      final rows = List<Map<String, dynamic>>.from(
+        (await _client
+                .from('profiles')
+                .select('current_streak, longest_streak, last_study_date')
+                .eq('id', userId)
+                .limit(1))
+            as List,
+      );
       if (rows.isEmpty) return const Success(null);
       final profile = rows.first;
 
@@ -156,13 +172,16 @@ class AuthRemoteDataSource implements AuthRemote {
       }
 
       String p2(int n) => n.toString().padLeft(2, '0');
-      await _client.from('profiles').update({
-        'current_streak': newStreak,
-        'longest_streak': newStreak > longest ? newStreak : longest,
-        'last_study_date':
-            '${todayDate.year}-${p2(todayDate.month)}-${p2(todayDate.day)}',
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', userId);
+      await _client
+          .from('profiles')
+          .update({
+            'current_streak': newStreak,
+            'longest_streak': newStreak > longest ? newStreak : longest,
+            'last_study_date':
+                '${todayDate.year}-${p2(todayDate.month)}-${p2(todayDate.day)}',
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', userId);
 
       return const Success(null);
     } catch (e) {

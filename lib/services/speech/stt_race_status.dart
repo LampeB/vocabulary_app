@@ -59,14 +59,13 @@ class SttEngineStatus {
     SttEngineState? state,
     String? transcript,
     bool? matched,
-  }) =>
-      SttEngineStatus(
-        engineId: engineId,
-        state: state ?? this.state,
-        requiresNetwork: requiresNetwork,
-        transcript: transcript ?? this.transcript,
-        matched: matched ?? this.matched,
-      );
+  }) => SttEngineStatus(
+    engineId: engineId,
+    state: state ?? this.state,
+    requiresNetwork: requiresNetwork,
+    transcript: transcript ?? this.transcript,
+    matched: matched ?? this.matched,
+  );
 }
 
 class SttRaceStatus {

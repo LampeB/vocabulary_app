@@ -30,11 +30,14 @@ const kGrammarCurricula = {'ko', 'es', 'it', 'fr', 'en', 'de'};
 /// The bundled grammar rules for one target language; empty when the
 /// language has no curriculum yet. Rules whose mechanics this app version
 /// cannot parse are skipped (forward compatibility with newer content).
-final grammarRulesProvider =
-    FutureProvider.family<List<GrammarRule>, String>((ref, lang) async {
+final grammarRulesProvider = FutureProvider.family<List<GrammarRule>, String>((
+  ref,
+  lang,
+) async {
   if (!kGrammarCurricula.contains(lang)) return const [];
-  final raw =
-      await rootBundle.loadString('assets/seed/grammar/$lang/rules.json');
+  final raw = await rootBundle.loadString(
+    'assets/seed/grammar/$lang/rules.json',
+  );
   final data = jsonDecode(raw) as Map<String, dynamic>;
   return [
     for (final j in data['rules'] as List)
@@ -47,31 +50,33 @@ final grammarRulesProvider =
 /// must treat that as "no grammar drills for this language".
 final grammarModuleProvider =
     FutureProvider.family<GrammarLanguageModule?, String>((ref, lang) async {
-  final rules = await ref.watch(grammarRulesProvider(lang).future);
-  if (rules.isEmpty) return null;
-  // Merge every conjugation rule's lexical irregulars — negation composes on
-  // top of conjugation, so the module needs the full map.
-  final irregulars = {
-    for (final m
-        in rules.map((r) => r.mechanics).whereType<ConjugationMechanics>())
-      ...m.irregulars,
-  };
-  return switch (lang) {
-    'ko' => KoreanGrammarModule(conjugationIrregulars: irregulars),
-    'es' => SpanishGrammarModule(conjugationIrregulars: irregulars),
-    'it' => ItalianGrammarModule(conjugationIrregulars: irregulars),
-    'fr' => FrenchGrammarModule(conjugationIrregulars: irregulars),
-    'en' => EnglishGrammarModule(conjugationIrregulars: irregulars),
-    'de' => GermanGrammarModule(conjugationIrregulars: irregulars),
-    _ => null,
-  };
-});
+      final rules = await ref.watch(grammarRulesProvider(lang).future);
+      if (rules.isEmpty) return null;
+      // Merge every conjugation rule's lexical irregulars — negation composes on
+      // top of conjugation, so the module needs the full map.
+      final irregulars = {
+        for (final m
+            in rules.map((r) => r.mechanics).whereType<ConjugationMechanics>())
+          ...m.irregulars,
+      };
+      return switch (lang) {
+        'ko' => KoreanGrammarModule(conjugationIrregulars: irregulars),
+        'es' => SpanishGrammarModule(conjugationIrregulars: irregulars),
+        'it' => ItalianGrammarModule(conjugationIrregulars: irregulars),
+        'fr' => FrenchGrammarModule(conjugationIrregulars: irregulars),
+        'en' => EnglishGrammarModule(conjugationIrregulars: irregulars),
+        'de' => GermanGrammarModule(conjugationIrregulars: irregulars),
+        _ => null,
+      };
+    });
 
 /// Known vocabulary resolved for drills: the target-language word of every
 /// concept the user knows (graduated from FSRS learning — the same bar that
 /// unlocks the rules), with its category.
-final drillWordsProvider =
-    FutureProvider.family<List<DrillWord>, String>((ref, targetLang) async {
+final drillWordsProvider = FutureProvider.family<List<DrillWord>, String>((
+  ref,
+  targetLang,
+) async {
   final userId = ref.watch(currentUserProvider)?.id ?? '';
   if (userId.isEmpty) return const [];
   await ref.watch(vocabularyProgressChangesProvider.future);
@@ -84,14 +89,17 @@ final drillWordsProvider =
   if (mastered.isEmpty) return const [];
   // Batch the three dependent lookups instead of doing three SQLite round
   // trips per mastered word. Keep the confidence order of the progress rows.
-  final variants = await conceptDao
-      .getVariantsByIds(mastered.map((p) => p.variantId).toList());
+  final variants = await conceptDao.getVariantsByIds(
+    mastered.map((p) => p.variantId).toList(),
+  );
   final variantsById = {for (final variant in variants) variant.id: variant};
   final conceptIds = variants.map((v) => v.conceptId).toSet().toList();
   final concepts = await conceptDao.getConceptsByIds(conceptIds);
   final conceptsById = {for (final concept in concepts) concept.id: concept};
-  final targets =
-      await conceptDao.getVariantsByConceptIds(conceptIds, targetLang);
+  final targets = await conceptDao.getVariantsByConceptIds(
+    conceptIds,
+    targetLang,
+  );
   final targetsByConcept = <String, WordVariantsTableData>{};
   for (final target in targets) {
     targetsByConcept.putIfAbsent(target.conceptId, () => target);
@@ -117,8 +125,10 @@ final drillWordsProvider =
 
 /// Only content useful to drill generation invalidates its pool. Sync
 /// acknowledgements change neither this projection nor the FSRS projection.
-final drillVocabularyChangesProvider =
-    StreamProvider.family<String, String>((ref, lang) {
+final drillVocabularyChangesProvider = StreamProvider.family<String, String>((
+  ref,
+  lang,
+) {
   final db = ref.watch(appDatabaseProvider);
   return db
       .customSelect(
@@ -134,25 +144,26 @@ final drillVocabularyChangesProvider =
 /// Per-rule grammar progress, keyed by rule id. (Rule ids are globally unique
 /// across languages, so this needs no language dimension.)
 final grammarProgressProvider =
-    StreamProvider<Map<String, ({int shown, int correct, bool mastered})>>(
-        (ref) {
-  final userId = ref.watch(currentUserProvider)?.id ?? '';
-  if (userId.isEmpty) return Stream.value(const {});
-  return ref
-      .watch(appDatabaseProvider)
-      .grammarProgressDao
-      .watchByUser(userId)
-      .map(
-        (rows) => {
-          for (final r in rows)
-            r.ruleId: (
-              shown: r.shown,
-              correct: r.correct,
-              mastered: r.masteredAt != null,
-            ),
-        },
-      );
-});
+    StreamProvider<Map<String, ({int shown, int correct, bool mastered})>>((
+      ref,
+    ) {
+      final userId = ref.watch(currentUserProvider)?.id ?? '';
+      if (userId.isEmpty) return Stream.value(const {});
+      return ref
+          .watch(appDatabaseProvider)
+          .grammarProgressDao
+          .watchByUser(userId)
+          .map(
+            (rows) => {
+              for (final r in rows)
+                r.ruleId: (
+                  shown: r.shown,
+                  correct: r.correct,
+                  mastered: r.masteredAt != null,
+                ),
+            },
+          );
+    });
 
 enum RuleAvailability { locked, unlocked, mastered }
 
@@ -220,85 +231,101 @@ class RuleStatus {
 /// gates "mastered". Prerequisites are matched by seed list id
 /// (`<id>:<any-source>><targetLang>`), falling back to display name for
 /// not-yet-adopted legacy lists.
-final grammarPrerequisitesProvider = FutureProvider.family<
-    ({
-      Map<String, PrerequisiteProgress> progress,
-      Map<String, String> names,
-      Map<String, String> listIds
-    }),
-    String>((ref, targetLang) async {
-  // Same dependency as drill words: prerequisite fractions are derived from
-  // FSRS rows, so the lock state must refresh as vocabulary is learned. Await
-  // the stream provider's current revision just like grammar progress below;
-  // later revisions invalidate and recalculate this provider.
-  await ref.watch(vocabularyProgressChangesProvider.future);
-  final rules = await ref.watch(grammarRulesProvider(targetLang).future);
-  final lists = await ref.watch(myListsProvider.future);
-  final progressRepo = ref.watch(progressRepositoryProvider);
+final grammarPrerequisitesProvider =
+    FutureProvider.family<
+      ({
+        Map<String, PrerequisiteProgress> progress,
+        Map<String, String> names,
+        Map<String, String> listIds,
+      }),
+      String
+    >((ref, targetLang) async {
+      // Same dependency as drill words: prerequisite fractions are derived from
+      // FSRS rows, so the lock state must refresh as vocabulary is learned. Await
+      // the stream provider's current revision just like grammar progress below;
+      // later revisions invalidate and recalculate this provider.
+      await ref.watch(vocabularyProgressChangesProvider.future);
+      final rules = await ref.watch(grammarRulesProvider(targetLang).future);
+      final lists = await ref.watch(myListsProvider.future);
+      final progressRepo = ref.watch(progressRepositoryProvider);
 
-  // Resolve each prerequisite token to the user's matching list: by seed id
-  // for catalog lists (any source language, this target), by name for legacy.
-  final tokens = {for (final r in rules) ...r.prerequisiteLists};
-  final prerequisiteProgress = <String, PrerequisiteProgress>{};
-  final displayName = <String, String>{};
-  final listIds = <String, String>{};
-  for (final token in tokens) {
-    final matches = [
-      for (final l in lists)
-        if ((l.seedId != null &&
-                l.seedId!.startsWith('$token:') &&
-                l.langB == targetLang) ||
-            l.name == token)
-          l,
-    ];
-    var best = const PrerequisiteProgress(known: 0, total: 0);
-    String? bestListId;
-    for (final list in matches) {
-      final stats = (await progressRepo.getListStats(list.id)).valueOrNull;
-      if (stats == null) continue;
-      final candidate = PrerequisiteProgress(
-        known: stats['known'] ?? 0,
-        total: stats['total'] ?? 0,
-      );
-      // A user may study the same curriculum list from several source
-      // languages; the furthest one counts.
-      if (candidate.fraction >= best.fraction) {
-        best = candidate;
-        displayName[token] = list.name;
-        bestListId = list.id;
+      // Resolve each prerequisite token to the user's matching list: by seed id
+      // for catalog lists (any source language, this target), by name for legacy.
+      final tokens = {for (final r in rules) ...r.prerequisiteLists};
+      final prerequisiteProgress = <String, PrerequisiteProgress>{};
+      final displayName = <String, String>{};
+      final listIds = <String, String>{};
+      for (final token in tokens) {
+        final matches = [
+          for (final l in lists)
+            if ((l.seedId != null &&
+                    l.seedId!.startsWith('$token:') &&
+                    l.langB == targetLang) ||
+                l.name == token)
+              l,
+        ];
+        var best = const PrerequisiteProgress(known: 0, total: 0);
+        String? bestListId;
+        for (final list in matches) {
+          final stats = (await progressRepo.getListStats(list.id)).valueOrNull;
+          if (stats == null) continue;
+          final candidate = PrerequisiteProgress(
+            known: stats['known'] ?? 0,
+            total: stats['total'] ?? 0,
+          );
+          // A user may study the same curriculum list from several source
+          // languages; the furthest one counts.
+          if (candidate.fraction >= best.fraction) {
+            best = candidate;
+            displayName[token] = list.name;
+            bestListId = list.id;
+          }
+        }
+        prerequisiteProgress[token] = best;
+        if (bestListId != null) listIds[token] = bestListId;
       }
-    }
-    prerequisiteProgress[token] = best;
-    if (bestListId != null) listIds[token] = bestListId;
-  }
 
-  return (progress: prerequisiteProgress, names: displayName, listIds: listIds);
-});
+      return (
+        progress: prerequisiteProgress,
+        names: displayName,
+        listIds: listIds,
+      );
+    });
 
 /// Availability and exercise generation consume exactly the same vocabulary.
 /// Resolve the same prerequisite copies used by the lesson's unlock bars.
-final ruleDrillWordsProvider = FutureProvider.family<List<DrillWord>,
-    ({String ruleId, String targetLang})>((ref, key) async {
-  final rules = await ref.watch(grammarRulesProvider(key.targetLang).future);
-  final rule = rules.where((rule) => rule.id == key.ruleId).firstOrNull;
-  if (rule == null) return const [];
-  final words = await ref.watch(drillWordsProvider(key.targetLang).future);
-  if (rule.prerequisiteLists.isEmpty) return words;
-  final prerequisites =
-      await ref.watch(grammarPrerequisitesProvider(key.targetLang).future);
-  final listIds = {
-    for (final token in rule.prerequisiteLists)
-      if (prerequisites.listIds[token] != null) prerequisites.listIds[token]!,
-  };
-  return words.where((word) => listIds.contains(word.listId)).toList();
-});
+final ruleDrillWordsProvider =
+    FutureProvider.family<
+      List<DrillWord>,
+      ({String ruleId, String targetLang})
+    >((ref, key) async {
+      final rules = await ref.watch(
+        grammarRulesProvider(key.targetLang).future,
+      );
+      final rule = rules.where((rule) => rule.id == key.ruleId).firstOrNull;
+      if (rule == null) return const [];
+      final words = await ref.watch(drillWordsProvider(key.targetLang).future);
+      if (rule.prerequisiteLists.isEmpty) return words;
+      final prerequisites = await ref.watch(
+        grammarPrerequisitesProvider(key.targetLang).future,
+      );
+      final listIds = {
+        for (final token in rule.prerequisiteLists)
+          if (prerequisites.listIds[token] != null)
+            prerequisites.listIds[token]!,
+      };
+      return words.where((word) => listIds.contains(word.listId)).toList();
+    });
 
-final ruleStatusesProvider =
-    FutureProvider.family<List<RuleStatus>, String>((ref, targetLang) async {
+final ruleStatusesProvider = FutureProvider.family<List<RuleStatus>, String>((
+  ref,
+  targetLang,
+) async {
   final rules = await ref.watch(grammarRulesProvider(targetLang).future);
   if (rules.isEmpty) return const [];
-  final prerequisites =
-      await ref.watch(grammarPrerequisitesProvider(targetLang).future);
+  final prerequisites = await ref.watch(
+    grammarPrerequisitesProvider(targetLang).future,
+  );
   final prerequisiteProgress = prerequisites.progress;
   final displayName = prerequisites.names;
   final listIds = prerequisites.listIds;
@@ -308,8 +335,8 @@ final ruleStatusesProvider =
   final wordsByRule = <String, List<DrillWord>>{};
   for (final rule in rules) {
     wordsByRule[rule.id] = await ref.watch(
-        ruleDrillWordsProvider((ruleId: rule.id, targetLang: targetLang))
-            .future);
+      ruleDrillWordsProvider((ruleId: rule.id, targetLang: targetLang)).future,
+    );
   }
 
   return [
@@ -321,7 +348,8 @@ final ruleStatusesProvider =
         };
         final prereqCounts = {
           for (final token in rule.prerequisiteLists)
-            token: prerequisiteProgress[token] ??
+            token:
+                prerequisiteProgress[token] ??
                 const PrerequisiteProgress(known: 0, total: 0),
         };
         final vocabUnlocked = arePrerequisitesKnown(prereqCounts.values);
@@ -343,10 +371,11 @@ final ruleStatusesProvider =
           availability: mastered
               ? RuleAvailability.mastered
               : (devUnlock || vocabUnlocked)
-                  ? RuleAvailability.unlocked
-                  : RuleAvailability.locked,
+              ? RuleAvailability.unlocked
+              : RuleAvailability.locked,
           missingLists: devUnlock ? const [] : missing,
-          enoughWords: devUnlock ||
+          enoughWords:
+              devUnlock ||
               (generator?.canGenerate(rule, wordsByRule[rule.id]!) ?? false),
           correct: p?.correct ?? 0,
           prereqProgress: prereqProgress,

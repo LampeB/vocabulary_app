@@ -33,16 +33,16 @@ class QuizDirection {
   String toJson() => name;
 
   static QuizDirection parse(String raw) => switch (raw) {
-        'frToKo' => frToKo,
-        'koToFr' => koToFr,
-        _ when raw.contains('>') => QuizDirection(
-            questionLang: raw.split('>')[0],
-            answerLang: raw.split('>')[1],
-          ),
-        // Defensive default for malformed data — matches the app's historic
-        // primary direction rather than crashing a sync.
-        _ => frToKo,
-      };
+    'frToKo' => frToKo,
+    'koToFr' => koToFr,
+    _ when raw.contains('>') => QuizDirection(
+      questionLang: raw.split('>')[0],
+      answerLang: raw.split('>')[1],
+    ),
+    // Defensive default for malformed data — matches the app's historic
+    // primary direction rather than crashing a sync.
+    _ => frToKo,
+  };
 
   @override
   bool operator ==(Object other) =>

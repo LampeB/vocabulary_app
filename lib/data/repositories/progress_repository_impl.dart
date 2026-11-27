@@ -36,8 +36,10 @@ class ProgressRepositoryImpl implements ProgressRepository {
       if (concepts.isEmpty) return const Success([]);
 
       final conceptIds = concepts.map((c) => c.id).toList();
-      final questionVariants =
-          await _conceptDao.getVariantsByConceptIds(conceptIds, questionLang);
+      final questionVariants = await _conceptDao.getVariantsByConceptIds(
+        conceptIds,
+        questionLang,
+      );
       if (questionVariants.isEmpty) return const Success([]);
 
       final allVariantIds = questionVariants.map((v) => v.id).toList();
@@ -55,8 +57,7 @@ class ProgressRepositoryImpl implements ProgressRepository {
         userId: userId,
         direction: direction.name,
         variantIds: allVariantIds,
-      ))
-          .toSet();
+      )).toSet();
 
       // New cards (no progress row at all): fill up to limit
       final newVariantIds = allVariantIds
@@ -67,15 +68,19 @@ class ProgressRepositoryImpl implements ProgressRepository {
       final now = DateTime.now();
       final dueCards = dueRows.map((r) => r.toDomain()).toList();
       final newCards = newVariantIds
-          .map((variantId) => VariantProgress(
-                id: _uuid.v5(Namespace.url.value,
-                    'ponderin:progress:$userId:$variantId:${direction.name}'),
-                userId: userId,
-                variantId: variantId,
-                direction: direction,
-                createdAt: now,
-                updatedAt: now,
-              ))
+          .map(
+            (variantId) => VariantProgress(
+              id: _uuid.v5(
+                Namespace.url.value,
+                'ponderin:progress:$userId:$variantId:${direction.name}',
+              ),
+              userId: userId,
+              variantId: variantId,
+              direction: direction,
+              createdAt: now,
+              updatedAt: now,
+            ),
+          )
           .toList();
 
       final combined = [...dueCards, ...newCards];
@@ -106,11 +111,12 @@ class ProgressRepositoryImpl implements ProgressRepository {
   }) async {
     try {
       final rows = await _progressDao.getDueAcrossLists(
-          userId: userId,
-          direction: direction.name,
-          limit: limit,
-          langA: langA,
-          langB: langB);
+        userId: userId,
+        direction: direction.name,
+        limit: limit,
+        langA: langA,
+        langB: langB,
+      );
       return Success(rows.map((r) => r.toDomain()).toList());
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -127,11 +133,12 @@ class ProgressRepositoryImpl implements ProgressRepository {
   }) async {
     try {
       final rows = await _progressDao.getInProgressAcrossLists(
-          userId: userId,
-          direction: direction.name,
-          limit: limit,
-          langA: langA,
-          langB: langB);
+        userId: userId,
+        direction: direction.name,
+        limit: limit,
+        langA: langA,
+        langB: langB,
+      );
       return Success(rows.map((r) => r.toDomain()).toList());
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -151,14 +158,21 @@ class ProgressRepositoryImpl implements ProgressRepository {
   }
 
   Future<VariantProgress> _currentProgress(
-      String variantId, QuizDirection direction) async {
-    final row = await _progressDao
-        .getByVariantAndDirection(variantId, direction.name, userId: _userId);
+    String variantId,
+    QuizDirection direction,
+  ) async {
+    final row = await _progressDao.getByVariantAndDirection(
+      variantId,
+      direction.name,
+      userId: _userId,
+    );
     if (row != null) return row.toDomain();
     final now = DateTime.now();
     return VariantProgress(
-      id: _uuid.v5(Namespace.url.value,
-          'ponderin:progress:$_userId:$variantId:${direction.name}'),
+      id: _uuid.v5(
+        Namespace.url.value,
+        'ponderin:progress:$_userId:$variantId:${direction.name}',
+      ),
       userId: _userId,
       variantId: variantId,
       direction: direction,
@@ -186,7 +200,7 @@ class ProgressRepositoryImpl implements ProgressRepository {
           direction: direction,
           isSynced: false,
         );
-        await _progressDao.upsert(local.toLocalCompanion());
+        await _progressDao.upsertLocal(local.toLocalCompanion());
         return Success(local);
       });
     } catch (e) {
@@ -196,10 +210,11 @@ class ProgressRepositoryImpl implements ProgressRepository {
 
   @override
   Future<Result<VariantProgress>> updateProgress(
-      VariantProgress progress) async {
+    VariantProgress progress,
+  ) async {
     final local = progress.copyWith(isSynced: false, updatedAt: DateTime.now());
     try {
-      await _progressDao.upsert(local.toLocalCompanion());
+      await _progressDao.upsertLocal(local.toLocalCompanion());
       return Success(local);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -215,7 +230,9 @@ class ProgressRepositoryImpl implements ProgressRepository {
       }
       final conceptIds = concepts.map((c) => c.id).toList();
       final rows = await _progressDao.getProgressForConcepts(
-          userId: _userId, conceptIds: conceptIds);
+        userId: _userId,
+        conceptIds: conceptIds,
+      );
 
       // A WORD (concept) is mastered/known/due when any of its
       // variant-direction progress rows is — the list is small, aggregate in
@@ -251,7 +268,8 @@ class ProgressRepositoryImpl implements ProgressRepository {
 
   @override
   Future<Result<List<VariantProgress>>> getMasteredVariants(
-      String userId) async {
+    String userId,
+  ) async {
     try {
       final rows = await _progressDao.getMasteredProgress(userId: userId);
       return Success(rows.map((r) => r.toDomain()).toList());
@@ -275,12 +293,15 @@ class ProgressRepositoryImpl implements ProgressRepository {
     try {
       final concepts = await _conceptDao.getConceptsByList(listId);
       if (concepts.isEmpty) return const Success(null);
-      final variantIds = await _progressDao
-          .getVariantIdsForConcepts(concepts.map((c) => c.id).toList());
+      final variantIds = await _progressDao.getVariantIdsForConcepts(
+        concepts.map((c) => c.id).toList(),
+      );
       // Rows are deleted (not zeroed) so the words become genuinely NEW cards
       // again for the due/new quiz logic.
       await _progressDao.deleteProgressForVariants(
-          userId: _userId, variantIds: variantIds);
+        userId: _userId,
+        variantIds: variantIds,
+      );
       return const Success(null);
     } catch (e) {
       return Failure(StorageException(e.toString()));

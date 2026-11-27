@@ -58,7 +58,7 @@ Future<void> pumpScreen(
   final router = GoRouter(
     initialLocation: '/',
     routes: [
-      GoRoute(path: '/', builder: (_, __) => screen),
+      GoRoute(path: '/', builder: (_, _) => screen),
       ...routes,
     ],
   );

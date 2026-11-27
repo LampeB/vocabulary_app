@@ -33,6 +33,12 @@ class PcmSpeechRecognizer(private val context: Context) {
     )
 
     private val main = Handler(Looper.getMainLooper())
+    private var cancelActive: (() -> Unit)? = null
+
+    /** Must be called on the main thread, like [recognize]. */
+    fun cancel() {
+        cancelActive?.invoke()
+    }
 
     companion object {
         private const val TAG = "PcmSpeechRecognizer"
@@ -100,6 +106,7 @@ class PcmSpeechRecognizer(private val context: Context) {
         chunkSleepMs: Long = 5,
         onDone: (Outcome) -> Unit,
     ) {
+        cancel()
         val started = System.currentTimeMillis()
         if (!isSupported(context)) {
             onDone(Outcome(emptyList(), emptyList(), SpeechRecognizer.ERROR_CLIENT, 0))
@@ -121,12 +128,17 @@ class PcmSpeechRecognizer(private val context: Context) {
         var lastPartial: List<String> = emptyList()
         lateinit var watchdog: Runnable
 
-        fun finish(outcome: Outcome) {
+        fun finish(outcome: Outcome, cancelRecognition: Boolean = false) {
             if (finished) return
             finished = true
+            cancelActive = null
             main.removeCallbacks(watchdog)
+            if (cancelRecognition) {
+                try { recognizer.cancel() } catch (e: Exception) { Log.w(TAG, "cancel", e) }
+            }
             try { recognizer.destroy() } catch (e: Exception) { Log.w(TAG, "destroy", e) }
             try { readEnd.close() } catch (_: Exception) {}
+            try { writeEnd.close() } catch (_: Exception) {}
             onDone(outcome)
         }
 
@@ -134,7 +146,10 @@ class PcmSpeechRecognizer(private val context: Context) {
 
         watchdog = Runnable {
             Log.w(TAG, "watchdog after ${elapsed()}ms")
-            finish(Outcome(emptyList(), emptyList(), ERROR_WATCHDOG, elapsed()))
+            finish(Outcome(emptyList(), emptyList(), ERROR_WATCHDOG, elapsed()), true)
+        }
+        cancelActive = {
+            finish(Outcome(emptyList(), emptyList(), null, elapsed()), true)
         }
 
         recognizer.setRecognitionListener(object : RecognitionListener {
@@ -207,7 +222,6 @@ class PcmSpeechRecognizer(private val context: Context) {
             recognizer.startListening(intent)
         } catch (e: Exception) {
             Log.w(TAG, "startListening failed", e)
-            try { writeEnd.close() } catch (_: Exception) {}
             finish(Outcome(emptyList(), emptyList(), SpeechRecognizer.ERROR_CLIENT, elapsed()))
             return
         }

@@ -90,29 +90,30 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **941 tests hôte passent**, avec **69,1 %**
+- L'analyse Flutter est propre ; les **967 tests hôte passent**, avec **69,0 %**
   de couverture sur le dernier lot du 27 novembre. Huit tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 21 tests ciblés. La sonde compilée en mode produit confirme le
   refus des diagnostics, même avec l'option fournie.
-- Sur `08e730f`, la CI confirme les tests hôte et la compilation Android ;
-  elle relève un lint de test et une fixture SQL invalide, corrigés dans le
-  lot suivant. Le pont utilise le NDK 28.2 de l'application. Les quatre
-  relecteurs ont rendu des constats bloquants/importants traités dans
-  [les lots du 27 novembre](docs/reviews/2026-11-27-integration.md). La nouvelle
-  CI reste à confirmer et aucun compteur propre n'est acquis : il faut deux
-  revues propres sur le commit final.
+- Sur `602835c`, les sept checks CI, dont les tests hôte, le wrapper SQL et la
+  compilation native Android, sont verts. Le pont utilise le NDK 28.2 de
+  l'application. Les cinq premières itérations des quatre relecteurs restent
+  bloquées ; le lot courant traite les 14 Important de la cinquième passe dans
+  [le registre du 27 novembre](docs/reviews/2026-11-27-integration.md). Aucun
+  compteur propre n'est acquis : il faut deux revues propres sur le commit final.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **941** tests hôte réussis lors de la dernière validation locale
+- La suite compte **967** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
-- Les cinq suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
-  réelles. Deux connexions ont vérifié le verrou du reset et le refus de
-  l'écriture concurrente ; la CI doit encore exécuter son wrapper Bash complet.
-  Les cinq tests Python E2E et les dix tests Deno passent également. Les 17
-  tests du bot d'approbation vérifient ses refus et son approbation liée au SHA.
+- Les six suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
+  réelles, dont la nouvelle protection des tombstones. Deux connexions ont
+  vérifié le verrou du reset et le refus de l'écriture concurrente ; la CI de
+  `602835c` confirme le wrapper Bash des cinq suites précédentes.
+  Les cinq tests Python E2E, seize tests Deno et vingt-et-un tests du bot
+  passent dans le lot courant. Le bot refuse aussi une CI verte issue d'un
+  autre workflow ou évaluée contre une autre base.
 - La CI Patrol contient neuf suites Android, lançables manuellement avec des
   secrets Supabase : navigation, auth, flux utilisateur, chemin quotidien,
   prérequis de leçon, paires de langues, quiz voix/cartes, écriture et login.

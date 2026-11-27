@@ -44,13 +44,13 @@ void main() {
 
   group('review card', () {
     FsrsCard reviewCard() => FsrsCard(
-          stability: 20,
-          difficulty: 5,
-          state: CardState.review,
-          reps: 5,
-          lapses: 1,
-          lastReview: now.subtract(const Duration(days: 10)),
-        );
+      stability: 20,
+      difficulty: 5,
+      state: CardState.review,
+      reps: 5,
+      lapses: 1,
+      lastReview: now.subtract(const Duration(days: 10)),
+    );
 
     test('again → relearning, lapse recorded, interval resets to 1 day', () {
       final c = AppFsrs.schedule(reviewCard(), FsrsRating.again, now);
@@ -81,33 +81,41 @@ void main() {
     // "Unsupported operation: Infinity or NaN toInt", silently killing
     // scheduling AND persistence for every review of those cards.
     FsrsCard zeroedCard(CardState state) => FsrsCard(
-          stability: 0,
-          difficulty: 0,
-          state: state,
-          reps: 3,
-          lastReview: now.subtract(const Duration(days: 5)),
-        );
+      stability: 0,
+      difficulty: 0,
+      state: state,
+      reps: 3,
+      lastReview: now.subtract(const Duration(days: 5)),
+    );
 
-    test('zeroed review card schedules without throwing, all fields finite',
-        () {
-      for (final state in CardState.values) {
-        for (final r in FsrsRating.values) {
-          final c = AppFsrs.schedule(zeroedCard(state), r, now);
-          expect(c.stability.isFinite, isTrue, reason: 'state=$state r=$r');
-          expect(c.stability, greaterThan(0), reason: 'state=$state r=$r');
-          expect(c.difficulty.isFinite, isTrue, reason: 'state=$state r=$r');
-          expect(c.scheduledDays, greaterThanOrEqualTo(1),
-              reason: 'state=$state r=$r');
+    test(
+      'zeroed review card schedules without throwing, all fields finite',
+      () {
+        for (final state in CardState.values) {
+          for (final r in FsrsRating.values) {
+            final c = AppFsrs.schedule(zeroedCard(state), r, now);
+            expect(c.stability.isFinite, isTrue, reason: 'state=$state r=$r');
+            expect(c.stability, greaterThan(0), reason: 'state=$state r=$r');
+            expect(c.difficulty.isFinite, isTrue, reason: 'state=$state r=$r');
+            expect(
+              c.scheduledDays,
+              greaterThanOrEqualTo(1),
+              reason: 'state=$state r=$r',
+            );
+          }
         }
-      }
-    });
+      },
+    );
 
     test('zeroed row self-heals: scheduled output is a valid input', () {
       var c = zeroedCard(CardState.review);
       // Two consecutive reviews — the second consumes the first's output.
       c = AppFsrs.schedule(c, FsrsRating.good, now);
       c = AppFsrs.schedule(
-          c, FsrsRating.good, now.add(Duration(days: c.scheduledDays)));
+        c,
+        FsrsRating.good,
+        now.add(Duration(days: c.scheduledDays)),
+      );
       expect(c.stability.isFinite, isTrue);
       expect(c.stability, greaterThan(0));
       expect(c.difficulty, inInclusiveRange(1.0, 10.0));
@@ -148,29 +156,33 @@ void main() {
       for (final r in FsrsRating.values) {
         final c = AppFsrs.schedule(
           FsrsCard(
-              state: state,
-              stability: 5,
-              lastReview: now.subtract(const Duration(days: 3))),
+            state: state,
+            stability: 5,
+            lastReview: now.subtract(const Duration(days: 3)),
+          ),
           r,
           now,
         );
-        expect(c.scheduledDays, greaterThanOrEqualTo(1),
-            reason: 'state=$state rating=$r');
+        expect(
+          c.scheduledDays,
+          greaterThanOrEqualTo(1),
+          reason: 'state=$state rating=$r',
+        );
       }
     }
   });
 
   group('isMastered', () {
     VariantProgress p(CardState state, int scheduledDays) => VariantProgress(
-          id: 'x',
-          userId: 'u',
-          variantId: 'v',
-          direction: QuizDirection.frToKo,
-          state: state,
-          scheduledDays: scheduledDays,
-          createdAt: now,
-          updatedAt: now,
-        );
+      id: 'x',
+      userId: 'u',
+      variantId: 'v',
+      direction: QuizDirection.frToKo,
+      state: state,
+      scheduledDays: scheduledDays,
+      createdAt: now,
+      updatedAt: now,
+    );
 
     test('review + >= 21 scheduled days → mastered', () {
       expect(p(CardState.review, 21).isMastered, isTrue);

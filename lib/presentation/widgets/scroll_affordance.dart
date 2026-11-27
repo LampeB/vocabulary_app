@@ -46,56 +46,62 @@ class _ScrollAffordanceState extends State<ScrollAffordance> {
   void _syncCue() {
     if (!_controller.hasClients || !mounted) return;
     final position = _controller.position;
-    final show = position.maxScrollExtent > 0 &&
+    final show =
+        position.maxScrollExtent > 0 &&
         position.pixels < position.maxScrollExtent - 2;
     if (show != _showCue) setState(() => _showCue = show);
   }
 
   @override
   Widget build(BuildContext context) => Stack(
-        children: [
-          Scrollbar(
-            controller: _controller,
-            thumbVisibility: true,
-            child: SingleChildScrollView(
-              controller: _controller,
-              padding: widget.padding,
-              child: widget.child,
-            ),
-          ),
-          Positioned(
-            right: 16,
-            bottom: 12,
-            child: IgnorePointer(
-              child: AnimatedOpacity(
-                opacity: _showCue ? 1 : 0,
-                duration: const Duration(milliseconds: 120),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(999),
-                    boxShadow: const [
-                      BoxShadow(color: Color(0x1F000000), blurRadius: 10),
-                    ],
-                  ),
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(widget.hint,
-                            style: AppTextStyles.caption
-                                .copyWith(color: AppColors.muted)),
-                        const SizedBox(width: 3),
-                        const Icon(Icons.keyboard_arrow_down_rounded, size: 17),
-                      ],
+    children: [
+      Scrollbar(
+        controller: _controller,
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          controller: _controller,
+          padding: widget.padding,
+          child: widget.child,
+        ),
+      ),
+      Positioned(
+        right: 16,
+        bottom: 12,
+        child: IgnorePointer(
+          child: AnimatedOpacity(
+            opacity: _showCue ? 1 : 0,
+            duration: const Duration(milliseconds: 120),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(999),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x1F000000), blurRadius: 10),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      widget.hint,
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.muted,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 3),
+                    const Icon(Icons.keyboard_arrow_down_rounded, size: 17),
+                  ],
                 ),
               ),
             ),
           ),
-        ],
-      );
+        ),
+      ),
+    ],
+  );
 }

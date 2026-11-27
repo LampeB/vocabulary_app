@@ -25,42 +25,85 @@ final authRepositoryProvider = Provider<AuthRepository>(
   (ref) => AuthRepositoryImpl(ref.watch(authRemoteDataSourceProvider)),
 );
 
-final authStateProvider =
-    AsyncNotifierProvider<AuthNotifier, AppUser?>(AuthNotifier.new);
+final authStateProvider = AsyncNotifierProvider<AuthNotifier, AppUser?>(
+  AuthNotifier.new,
+);
 
 class AuthNotifier extends AsyncNotifier<AppUser?> {
   late AuthRepository _repo;
+  int _revision = 0;
+  bool _active = false;
+
+  bool _isCurrent(int revision, AuthRepository repo, String? userId) =>
+      _active &&
+      revision == _revision &&
+      identical(repo, _repo) &&
+      repo.currentUser?.id == userId;
 
   Stream<AppUser?> get stream => _repo.authStateChanges;
 
   @override
   Future<AppUser?> build() async {
-    _repo = ref.watch(authRepositoryProvider);
-    listenSelf((_, __) {});
+    final repo = _repo = ref.watch(authRepositoryProvider);
+    _active = true;
+    final revision = ++_revision;
     // Always reload the full profile on every auth state change so that
     // the basic _mapUser (auth-only) never overwrites _mapUserWithProfile.
-    _repo.authStateChanges.listen((user) async {
-      if (user == null) {
-        state = const AsyncData(null);
+    final subscription = repo.authStateChanges.listen((user) async {
+      if (!_active ||
+          !identical(repo, _repo) ||
+          repo.currentUser?.id != user?.id) {
         return;
       }
+      final eventRevision = ++_revision;
+      if (user == null) {
+        state = const AsyncData(null);
+        if (!_kTestMode) unawaited(PurchaseService.instance.logOut());
+        return;
+      }
+      // Isolate local reads as soon as the session changes, even if fetching
+      // the new account's profile is slow. Keep an enriched same-user profile.
+      if (state.valueOrNull?.id != user.id) state = AsyncData(user);
+      final result = await repo.reloadProfile();
+      if (!_isCurrent(eventRevision, repo, user.id)) return;
+      final profile = result.valueOrNull;
+      state = AsyncData(profile?.id == user.id ? profile : user);
       if (!_kTestMode) unawaited(PurchaseService.instance.logIn(user.id));
-      final result = await _repo.reloadProfile();
-      state = AsyncData(result.valueOrNull ?? user);
     });
-    final user = _repo.currentUser;
+    ref.onDispose(() {
+      unawaited(subscription.cancel());
+      if (identical(repo, _repo)) {
+        _active = false;
+        ++_revision;
+      }
+    });
+    final user = repo.currentUser;
     if (user == null) return null;
+    final result = await repo.reloadProfile();
+    if (!_isCurrent(revision, repo, user.id)) {
+      // Riverpod also consumes build's returned future. Never return the old
+      // identity after an intervening event/method already changed the state.
+      if (!_active || !identical(repo, _repo)) return null;
+      final current = repo.currentUser;
+      final shown = state.valueOrNull;
+      return shown?.id == current?.id ? shown : null;
+    }
     if (!_kTestMode) unawaited(PurchaseService.instance.logIn(user.id));
-    final result = await _repo.reloadProfile();
-    return result.valueOrNull ?? user;
+    final profile = result.valueOrNull;
+    return profile?.id == user.id ? profile : user;
   }
 
   Future<Result<AppUser>> signIn(String email, String password) async {
+    final repo = _repo;
+    final revision = ++_revision;
     state = const AsyncLoading();
-    final result =
-        await _repo.signInWithEmail(email: email, password: password);
+    final result = await repo.signInWithEmail(email: email, password: password);
+    if (!_active || revision != _revision || !identical(repo, _repo)) {
+      return result;
+    }
     result.fold(
       onSuccess: (user) {
+        if (!_isCurrent(revision, repo, user.id)) return;
         state = AsyncData(user);
         if (!_kTestMode) unawaited(PurchaseService.instance.logIn(user.id));
       },
@@ -70,12 +113,24 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
   }
 
   Future<Result<AppUser>> signUp(
-      String email, String password, String username) async {
+    String email,
+    String password,
+    String username,
+  ) async {
+    final repo = _repo;
+    final revision = ++_revision;
     state = const AsyncLoading();
-    final result = await _repo.signUpWithEmail(
-        email: email, password: password, username: username);
+    final result = await repo.signUpWithEmail(
+      email: email,
+      password: password,
+      username: username,
+    );
+    if (!_active || revision != _revision || !identical(repo, _repo)) {
+      return result;
+    }
     result.fold(
       onSuccess: (user) {
+        if (!_isCurrent(revision, repo, user.id)) return;
         state = AsyncData(user);
         if (!_kTestMode) unawaited(PurchaseService.instance.logIn(user.id));
       },
@@ -85,15 +140,26 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
   }
 
   Future<void> signOut() async {
-    await _repo.signOut();
-    if (!_kTestMode) unawaited(PurchaseService.instance.logOut());
+    final repo = _repo;
+    final revision = ++_revision;
     state = const AsyncData(null);
+    await repo.signOut();
+    if (_isCurrent(revision, repo, null) && !_kTestMode) {
+      unawaited(PurchaseService.instance.logOut());
+    }
   }
 
   Future<void> reloadProfile() async {
-    final result = await _repo.reloadProfile();
+    final repo = _repo;
+    final userId = repo.currentUser?.id;
+    final revision = ++_revision;
+    if (userId == null) return;
+    final result = await repo.reloadProfile();
+    if (!_isCurrent(revision, repo, userId)) return;
     result.fold(
-      onSuccess: (user) => state = AsyncData(user),
+      onSuccess: (user) {
+        if (user.id == userId) state = AsyncData(user);
+      },
       onFailure: (_) {},
     );
   }
@@ -102,7 +168,7 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
   /// The pending request may still enrich this identity when it completes.
   AppUser? useLocalSession() {
     final user = ref.read(authRepositoryProvider).currentUser;
-    if (user != null) state = AsyncData(user);
+    state = AsyncData(user);
     return user;
   }
 

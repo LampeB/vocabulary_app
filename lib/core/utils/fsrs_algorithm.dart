@@ -37,18 +37,17 @@ class FsrsCard {
     CardState? state,
     DateTime? lastReview,
     DateTime? nextReview,
-  }) =>
-      FsrsCard(
-        stability: stability ?? this.stability,
-        difficulty: difficulty ?? this.difficulty,
-        elapsedDays: elapsedDays ?? this.elapsedDays,
-        scheduledDays: scheduledDays ?? this.scheduledDays,
-        reps: reps ?? this.reps,
-        lapses: lapses ?? this.lapses,
-        state: state ?? this.state,
-        lastReview: lastReview ?? this.lastReview,
-        nextReview: nextReview ?? this.nextReview,
-      );
+  }) => FsrsCard(
+    stability: stability ?? this.stability,
+    difficulty: difficulty ?? this.difficulty,
+    elapsedDays: elapsedDays ?? this.elapsedDays,
+    scheduledDays: scheduledDays ?? this.scheduledDays,
+    reps: reps ?? this.reps,
+    lapses: lapses ?? this.lapses,
+    state: state ?? this.state,
+    lastReview: lastReview ?? this.lastReview,
+    nextReview: nextReview ?? this.nextReview,
+  );
 
   double get retrievability {
     if (state == CardState.newCard || stability == 0) return 0;
@@ -89,8 +88,9 @@ abstract final class AppFsrs {
 
   static FsrsCard schedule(FsrsCard rawCard, FsrsRating rating, DateTime now) {
     final card = _sanitize(rawCard);
-    final elapsed =
-        card.lastReview != null ? now.difference(card.lastReview!).inDays : 0;
+    final elapsed = card.lastReview != null
+        ? now.difference(card.lastReview!).inDays
+        : 0;
 
     return switch (card.state) {
       CardState.newCard => _scheduleNew(card, rating, now, elapsed),
@@ -110,7 +110,8 @@ abstract final class AppFsrs {
   static FsrsCard _sanitize(FsrsCard card) {
     if (card.state == CardState.newCard) return card;
     final sOk = card.stability.isFinite && card.stability > 0;
-    final dOk = card.difficulty.isFinite &&
+    final dOk =
+        card.difficulty.isFinite &&
         card.difficulty >= 1 &&
         card.difficulty <= 10;
     if (sOk && dOk) return card;
@@ -123,7 +124,11 @@ abstract final class AppFsrs {
   }
 
   static FsrsCard _scheduleNew(
-      FsrsCard card, FsrsRating rating, DateTime now, int elapsed) {
+    FsrsCard card,
+    FsrsRating rating,
+    DateTime now,
+    int elapsed,
+  ) {
     final s = _initStability(rating);
     final d = _initDifficulty(rating);
     final (days, state) = switch (rating) {
@@ -145,7 +150,11 @@ abstract final class AppFsrs {
   }
 
   static FsrsCard _scheduleLearning(
-      FsrsCard card, FsrsRating rating, DateTime now, int elapsed) {
+    FsrsCard card,
+    FsrsRating rating,
+    DateTime now,
+    int elapsed,
+  ) {
     final s = _shortTermStability(card.stability, rating);
     final d = _nextDifficulty(card.difficulty, rating);
     final (days, state) = switch (rating) {
@@ -167,17 +176,21 @@ abstract final class AppFsrs {
   }
 
   static FsrsCard _scheduleReview(
-      FsrsCard card, FsrsRating rating, DateTime now, int elapsed) {
+    FsrsCard card,
+    FsrsRating rating,
+    DateTime now,
+    int elapsed,
+  ) {
     final r = card.retrievability;
     final (s, lapses) = switch (rating) {
       FsrsRating.again => (
-          _forgetStability(card.difficulty, card.stability, r),
-          card.lapses + 1,
-        ),
+        _forgetStability(card.difficulty, card.stability, r),
+        card.lapses + 1,
+      ),
       _ => (
-          _recallStability(card.difficulty, card.stability, r, rating),
-          card.lapses,
-        ),
+        _recallStability(card.difficulty, card.stability, r, rating),
+        card.lapses,
+      ),
     };
     final d = _nextDifficulty(card.difficulty, rating);
     final (days, state) = switch (rating) {
@@ -200,7 +213,11 @@ abstract final class AppFsrs {
   }
 
   static FsrsCard _scheduleRelearning(
-      FsrsCard card, FsrsRating rating, DateTime now, int elapsed) {
+    FsrsCard card,
+    FsrsRating rating,
+    DateTime now,
+    int elapsed,
+  ) {
     final s = _shortTermStability(card.stability, rating);
     final d = _nextDifficulty(card.difficulty, rating);
     final (days, state) = switch (rating) {
@@ -236,7 +253,11 @@ abstract final class AppFsrs {
   }
 
   static double _recallStability(
-      double d, double s, double r, FsrsRating rating) {
+    double d,
+    double s,
+    double r,
+    FsrsRating rating,
+  ) {
     final hardPenalty = rating == FsrsRating.hard ? w[15] : 1;
     final easyBonus = rating == FsrsRating.easy ? w[16] : 1;
     return s *
@@ -263,8 +284,8 @@ abstract final class AppFsrs {
 
   static int _nextInterval(double stability) {
     if (!stability.isFinite) return 1;
-    final i =
-        (stability / factor * (pow(requestRetention, 1 / decay) - 1)).round();
+    final i = (stability / factor * (pow(requestRetention, 1 / decay) - 1))
+        .round();
     return max(i, 1);
   }
 }

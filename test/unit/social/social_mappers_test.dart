@@ -13,8 +13,10 @@ void main() {
         {'id': 'c', 'username': 'cy', 'total_words_mastered': 10},
       ];
 
-      final entries =
-          leaderboardEntriesFromRows(rows, LeaderboardPeriod.weekly);
+      final entries = leaderboardEntriesFromRows(
+        rows,
+        LeaderboardPeriod.weekly,
+      );
 
       expect(entries.map((e) => e.rank), [1, 2, 3]);
       expect(entries.map((e) => e.userId), ['a', 'b', 'c']);
@@ -23,24 +25,18 @@ void main() {
     });
 
     test('score mirrors wordsMastered', () {
-      final entries = leaderboardEntriesFromRows(
-        [
-          {'id': 'a', 'username': 'ann', 'total_words_mastered': 42}
-        ],
-        LeaderboardPeriod.allTime,
-      );
+      final entries = leaderboardEntriesFromRows([
+        {'id': 'a', 'username': 'ann', 'total_words_mastered': 42},
+      ], LeaderboardPeriod.allTime);
       expect(entries.single.score, 42);
       expect(entries.single.wordsMastered, 42);
       expect(entries.single.period, 'allTime');
     });
 
     test('missing username / score default to empty / zero', () {
-      final entries = leaderboardEntriesFromRows(
-        [
-          {'id': 'a'}
-        ],
-        LeaderboardPeriod.monthly,
-      );
+      final entries = leaderboardEntriesFromRows([
+        {'id': 'a'},
+      ], LeaderboardPeriod.monthly);
       expect(entries.single.username, '');
       expect(entries.single.score, 0);
       expect(entries.single.wordsMastered, 0);

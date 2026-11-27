@@ -11,8 +11,9 @@ abstract final class AppColors {
   static const ink = Color(0xFF2B2622); // primary text; also dark hero cards
   static const muted = Color(0xFF756C62); // secondary text
   static const muted2 = Color(0xFF6F695F); // eyebrow labels, meta (AA on paper)
-  static const faint =
-      Color(0xFF8A8073); // captions, inactive nav (AA on paper)
+  static const faint = Color(
+    0xFF8A8073,
+  ); // captions, inactive nav (AA on paper)
   static const line = Color(0xFFECE3D7); // borders, progress track, dividers
 
   // ── Accents ───────────────────────────────────────────────────────────────

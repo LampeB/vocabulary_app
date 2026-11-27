@@ -29,11 +29,11 @@ void main() {
   });
 
   ElevenLabsService serviceWith(
-          Future<Uint8List> Function(String) downloader) =>
-      ElevenLabsService(
-        assetDownloader: downloader,
-        cacheDirectory: () async => cacheDir,
-      );
+    Future<Uint8List> Function(String) downloader,
+  ) => ElevenLabsService(
+    assetDownloader: downloader,
+    cacheDirectory: () async => cacheDir,
+  );
 
   test('an absent asset path is a no-op and never reaches Storage', () async {
     var downloads = 0;
@@ -47,55 +47,64 @@ void main() {
     expect(downloads, 0);
   });
 
-  test('concurrent requests for one asset share one Storage download',
-      () async {
-    var downloads = 0;
-    const asset = 'seed/v1/ko/a.mp3';
-    final service = serviceWith((path) async {
-      expect(path, asset);
-      downloads++;
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      return Uint8List.fromList([1, 2, 3]);
-    });
+  test(
+    'concurrent requests for one asset share one Storage download',
+    () async {
+      var downloads = 0;
+      const asset = 'seed/v1/ko/a.mp3';
+      final service = serviceWith((path) async {
+        expect(path, asset);
+        downloads++;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        return Uint8List.fromList([1, 2, 3]);
+      });
 
-    final results = await Future.wait([
-      service.downloadAndCache(asset),
-      service.downloadAndCache(asset),
-    ]);
+      final results = await Future.wait([
+        service.downloadAndCache(asset),
+        service.downloadAndCache(asset),
+      ]);
 
-    expect(downloads, 1);
-    expect(results[0], results[1]);
-    expect(await File(results.first!).readAsBytes(),
-        Uint8List.fromList([1, 2, 3]));
-  });
+      expect(downloads, 1);
+      expect(results[0], results[1]);
+      expect(
+        await File(results.first!).readAsBytes(),
+        Uint8List.fromList([1, 2, 3]),
+      );
+    },
+  );
 
-  test('an in-memory cache hit does not download the asset a second time',
-      () async {
-    var downloads = 0;
-    final service = serviceWith((_) async {
-      downloads++;
-      return Uint8List.fromList([4, 5, 6]);
-    });
+  test(
+    'an in-memory cache hit does not download the asset a second time',
+    () async {
+      var downloads = 0;
+      final service = serviceWith((_) async {
+        downloads++;
+        return Uint8List.fromList([4, 5, 6]);
+      });
 
-    final first = await service.downloadAndCache('seed/v1/ko/memory.mp3');
-    final second = await service.downloadAndCache('seed/v1/ko/memory.mp3');
+      final first = await service.downloadAndCache('seed/v1/ko/memory.mp3');
+      final second = await service.downloadAndCache('seed/v1/ko/memory.mp3');
 
-    expect(second, first);
-    expect(downloads, 1);
-  });
+      expect(second, first);
+      expect(downloads, 1);
+    },
+  );
 
   test('a durable cache hit survives a new service instance', () async {
     const asset = 'seed/v1/fr/bonjour.mp3';
     final first = serviceWith((_) async => Uint8List.fromList([9, 8, 7]));
     final originalPath = await first.downloadAndCache(asset);
 
-    final second =
-        serviceWith((_) async => throw StateError('must not download'));
+    final second = serviceWith(
+      (_) async => throw StateError('must not download'),
+    );
     final cachedPath = await second.downloadAndCache(asset);
 
     expect(cachedPath, originalPath);
     expect(
-        await File(cachedPath!).readAsBytes(), Uint8List.fromList([9, 8, 7]));
+      await File(cachedPath!).readAsBytes(),
+      Uint8List.fromList([9, 8, 7]),
+    );
   });
 
   test('account switches cannot read another owner’s cached clip', () async {
@@ -104,16 +113,16 @@ void main() {
     var cacheReads = 0;
     var downloads = 0;
     ElevenLabsService serviceForSession() => ElevenLabsService(
-          currentUserId: () => account,
-          cacheDirectory: () async {
-            cacheReads++;
-            return cacheDir;
-          },
-          assetDownloader: (_) async {
-            downloads++;
-            return Uint8List.fromList([1, 2, 3]);
-          },
-        );
+      currentUserId: () => account,
+      cacheDirectory: () async {
+        cacheReads++;
+        return cacheDir;
+      },
+      assetDownloader: (_) async {
+        downloads++;
+        return Uint8List.fromList([1, 2, 3]);
+      },
+    );
     final original = serviceForSession();
     final cached = (await original.downloadAndCache(asset))!;
     expect(await File(cached).exists(), isTrue);
@@ -124,7 +133,9 @@ void main() {
     expect(await newService.downloadAndCache(asset), isNull);
     expect(await newService.downloadAndCache('seed/../users/user-a'), isNull);
     expect(
-        await newService.downloadAndCache('seed/%2e%2e/users/user-a'), isNull);
+      await newService.downloadAndCache('seed/%2e%2e/users/user-a'),
+      isNull,
+    );
     account = null;
     expect(await newService.downloadAndCache(asset), isNull);
     expect(cacheReads, 1);
@@ -135,62 +146,69 @@ void main() {
     expect(downloads, 1);
   });
 
-  test('a private download started by the previous account is discarded',
-      () async {
-    const first = 'users/user-a/variant/private.mp3';
-    const second = 'users/user-b/variant/private.mp3';
-    String? account = 'user-a';
-    final started = Completer<void>();
-    final oldDownload = Completer<Uint8List>();
-    final service = ElevenLabsService(
-      currentUserId: () => account,
-      cacheDirectory: () async => cacheDir,
-      assetDownloader: (path) async {
-        if (path == first) {
-          started.complete();
-          return oldDownload.future;
-        }
-        expect(path, second);
-        return Uint8List.fromList([4]);
-      },
-    );
-    final pending = service.downloadAndCache(first);
-    await started.future;
+  test(
+    'a private download started by the previous account is discarded',
+    () async {
+      const first = 'users/user-a/variant/private.mp3';
+      const second = 'users/user-b/variant/private.mp3';
+      String? account = 'user-a';
+      final started = Completer<void>();
+      final oldDownload = Completer<Uint8List>();
+      final service = ElevenLabsService(
+        currentUserId: () => account,
+        cacheDirectory: () async => cacheDir,
+        assetDownloader: (path) async {
+          if (path == first) {
+            started.complete();
+            return oldDownload.future;
+          }
+          expect(path, second);
+          return Uint8List.fromList([4]);
+        },
+      );
+      final pending = service.downloadAndCache(first);
+      await started.future;
 
-    account = 'user-b';
-    expect(await service.downloadAndCache(first), isNull);
-    final ownPath = (await service.downloadAndCache(second))!;
-    oldDownload.complete(Uint8List.fromList([1, 2, 3]));
-    expect(await pending, isNull);
-    expect(await File(ownPath).readAsBytes(), [4]);
-    expect(await service.cacheSize(), 1);
-  });
+      account = 'user-b';
+      expect(await service.downloadAndCache(first), isNull);
+      final ownPath = (await service.downloadAndCache(second))!;
+      oldDownload.complete(Uint8List.fromList([1, 2, 3]));
+      expect(await pending, isNull);
+      expect(await File(ownPath).readAsBytes(), [4]);
+      expect(await service.cacheSize(), 1);
+    },
+  );
 
-  test('a seed file cached before the publishing manifest is ignored',
-      () async {
-    const asset = 'seed/v1/fr/unpublished.mp3';
-    final oldKey = md5.convert(asset.codeUnits);
-    await File('${cacheDir.path}/$oldKey.mp3').writeAsBytes([1]);
-    var downloads = 0;
-    final service = serviceWith((_) async {
-      downloads++;
-      throw const SocketException('not published');
-    });
+  test(
+    'a seed file cached before the publishing manifest is ignored',
+    () async {
+      const asset = 'seed/v1/fr/unpublished.mp3';
+      final oldKey = md5.convert(asset.codeUnits);
+      await File('${cacheDir.path}/$oldKey.mp3').writeAsBytes([1]);
+      var downloads = 0;
+      final service = serviceWith((_) async {
+        downloads++;
+        throw const SocketException('not published');
+      });
 
-    expect(await service.downloadAndCache(asset), isNull);
-    expect(downloads, 1);
-  });
+      expect(await service.downloadAndCache(asset), isNull);
+      expect(downloads, 1);
+    },
+  );
 
-  test('a Storage failure leaves no corrupt cache file and returns null',
-      () async {
-    final service =
-        serviceWith((_) async => throw const SocketException('offline'));
+  test(
+    'a Storage failure leaves no corrupt cache file and returns null',
+    () async {
+      final service = serviceWith(
+        (_) async => throw const SocketException('offline'),
+      );
 
-    final path = await service.downloadAndCache('seed/v1/fr/missing.mp3');
+      final path = await service.downloadAndCache('seed/v1/fr/missing.mp3');
 
-    expect(path, isNull);
-    expect(await service.cacheSize(), 0);
-  });
+      expect(path, isNull);
+      expect(await service.cacheSize(), 0);
+    },
+  );
 
   test('idle cleanup removes expired files but retains recent files', () async {
     const oldAsset = 'seed/v1/en/old.mp3';
@@ -198,8 +216,11 @@ void main() {
     final service = serviceWith((_) async => Uint8List.fromList([1]));
     final oldPath = await service.downloadAndCache(oldAsset);
     final newPath = await service.downloadAndCache(newAsset);
-    await File(oldPath!).setLastModified(DateTime.now()
-        .subtract(ElevenLabsService.cacheMaxIdle + const Duration(days: 1)));
+    await File(oldPath!).setLastModified(
+      DateTime.now().subtract(
+        ElevenLabsService.cacheMaxIdle + const Duration(days: 1),
+      ),
+    );
 
     await service.cleanIdleCache();
 
@@ -207,49 +228,55 @@ void main() {
     expect(await File(newPath!).exists(), isTrue);
   });
 
-  test('cache maintenance is safe when the cache directory is absent',
-      () async {
-    final service = serviceWith((_) async => Uint8List.fromList([1]));
-    await cacheDir.delete(recursive: true);
+  test(
+    'cache maintenance is safe when the cache directory is absent',
+    () async {
+      final service = serviceWith((_) async => Uint8List.fromList([1]));
+      await cacheDir.delete(recursive: true);
 
-    await service.cleanIdleCache();
+      await service.cleanIdleCache();
 
-    expect(await service.cacheSize(), 0);
-  });
+      expect(await service.cacheSize(), 0);
+    },
+  );
 
-  test('a cache-directory failure is a playback miss and a later retry works',
-      () async {
-    var calls = 0;
-    final service = ElevenLabsService(
-      assetDownloader: (_) async => Uint8List.fromList([1]),
-      cacheDirectory: () async {
-        calls++;
-        if (calls == 1) throw const FileSystemException('unavailable');
-        return cacheDir;
-      },
-    );
+  test(
+    'a cache-directory failure is a playback miss and a later retry works',
+    () async {
+      var calls = 0;
+      final service = ElevenLabsService(
+        assetDownloader: (_) async => Uint8List.fromList([1]),
+        cacheDirectory: () async {
+          calls++;
+          if (calls == 1) throw const FileSystemException('unavailable');
+          return cacheDir;
+        },
+      );
 
-    expect(await service.downloadAndCache('seed/v1/fr/retry.mp3'), isNull);
-    expect(await service.downloadAndCache('seed/v1/fr/retry.mp3'), isNotNull);
-  });
+      expect(await service.downloadAndCache('seed/v1/fr/retry.mp3'), isNull);
+      expect(await service.downloadAndCache('seed/v1/fr/retry.mp3'), isNotNull);
+    },
+  );
 
-  test('the default cache directory is created below application documents',
-      () async {
-    final originalPlatform = PathProviderPlatform.instance;
-    PathProviderPlatform.instance = _TestPathProvider(cacheDir.path);
-    addTearDown(() => PathProviderPlatform.instance = originalPlatform);
-    final service = ElevenLabsService(
-      assetDownloader: (_) async => Uint8List.fromList([2]),
-    );
+  test(
+    'the default cache directory is created below application documents',
+    () async {
+      final originalPlatform = PathProviderPlatform.instance;
+      PathProviderPlatform.instance = _TestPathProvider(cacheDir.path);
+      addTearDown(() => PathProviderPlatform.instance = originalPlatform);
+      final service = ElevenLabsService(
+        assetDownloader: (_) async => Uint8List.fromList([2]),
+      );
 
-    final path = await service.downloadAndCache('seed/v1/fr/default-dir.mp3');
+      final path = await service.downloadAndCache('seed/v1/fr/default-dir.mp3');
 
-    expect(
-      File(path!).parent.path.replaceAll('\\', '/'),
-      '${cacheDir.path.replaceAll('\\', '/')}/audio_cache',
-    );
-    expect(await File(path).exists(), isTrue);
-  });
+      expect(
+        File(path!).parent.path.replaceAll('\\', '/'),
+        '${cacheDir.path.replaceAll('\\', '/')}/audio_cache',
+      );
+      expect(await File(path).exists(), isTrue);
+    },
+  );
 
   test('cache can be cleared, including its in-memory index', () async {
     var downloads = 0;
@@ -287,21 +314,25 @@ void main() {
     );
   });
 
-  test('custom paths are owner-scoped and change when the spoken text changes',
-      () {
-    final first = AudioAssetPath.user(
+  test(
+    'custom paths are owner-scoped and change when the spoken text changes',
+    () {
+      final first = AudioAssetPath.user(
         userId: 'user-a',
         variantId: 'variant-a',
         text: 'bonjour',
-        langCode: 'fr');
-    final edited = AudioAssetPath.user(
+        langCode: 'fr',
+      );
+      final edited = AudioAssetPath.user(
         userId: 'user-a',
         variantId: 'variant-a',
         text: 'salut',
-        langCode: 'fr');
+        langCode: 'fr',
+      );
 
-    expect(first, startsWith('users/user-a/variant-a/'));
-    expect(first, endsWith('.mp3'));
-    expect(edited, isNot(first));
-  });
+      expect(first, startsWith('users/user-a/variant-a/'));
+      expect(first, endsWith('.mp3'));
+      expect(edited, isNot(first));
+    },
+  );
 }

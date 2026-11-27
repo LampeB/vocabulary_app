@@ -95,3 +95,7 @@ abstract interface class SttEngine {
   /// Frees all resources for good.
   void dispose();
 }
+
+/// A shared decoder whose [SttEngine.stop] invalidates active and queued work
+/// synchronously. New PCM can be dispatched once decoder teardown finishes.
+abstract interface class CancellablePcmSttEngine implements SttEngine {}

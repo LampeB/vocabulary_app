@@ -16,107 +16,124 @@ const _navList = 'E2E Nav Test List';
 void main() {
   // Each bottom-nav tab opens its corresponding screen.
   isolatedPatrolTest(
-      'Navigation — bottom-nav tabs open Home, Lists, Lessons, Progress, Profile',
-      scenarioId:
-          'navigation.navigation_bottom_nav_tabs_open_home_lists_lessons_progress_profile',
-      timeout: const Timeout(Duration(minutes: 3)),
-      config: kFastSettle, ($) async {
-    final app = Steps($);
-    addTearDown(
-        () => cleanupAfterTest($)); // leave a clean slate (even on failure)
+    'Navigation — bottom-nav tabs open Home, Lists, Lessons, Progress, Profile',
+    scenarioId:
+        'navigation.navigation_bottom_nav_tabs_open_home_lists_lessons_progress_profile',
+    timeout: const Timeout(Duration(minutes: 3)),
+    config: kFastSettle,
+    ($) async {
+      final app = Steps($);
+      addTearDown(
+        () => cleanupAfterTest($),
+      ); // leave a clean slate (even on failure)
 
-    await app.given.signedIn();
-    await app.given.aCleanSlate();
-    await app.then.onScreen(Screen.home);
+      await app.given.signedIn();
+      await app.given.aCleanSlate();
+      await app.then.onScreen(Screen.home);
 
-    await app.when.tapsNavTab(NavTab.lists);
-    await app.then.onScreen(Screen.lists);
+      await app.when.tapsNavTab(NavTab.lists);
+      await app.then.onScreen(Screen.lists);
 
-    await app.when.tapsNavTab(NavTab.grammar);
-    await app.then.onScreen(Screen.grammar);
+      await app.when.tapsNavTab(NavTab.grammar);
+      await app.then.onScreen(Screen.grammar);
 
-    await app.when.tapsNavTab(NavTab.stats);
-    await app.then.onScreen(Screen.stats);
+      await app.when.tapsNavTab(NavTab.stats);
+      await app.then.onScreen(Screen.stats);
 
-    await app.when.tapsNavTab(NavTab.profile);
-    await app.then.onScreen(Screen.profile);
+      await app.when.tapsNavTab(NavTab.profile);
+      await app.then.onScreen(Screen.profile);
 
-    await app.when.tapsNavTab(NavTab.home);
-    await app.then.onScreen(Screen.home);
-  });
+      await app.when.tapsNavTab(NavTab.home);
+      await app.then.onScreen(Screen.home);
+    },
+  );
 
   // The retained setup route opens the Start-a-session screen.
-  isolatedPatrolTest('Navigation — setup route opens Start-a-session',
-      scenarioId: 'navigation.navigation_setup_route_opens_start_a_session',
-      timeout: const Timeout(Duration(minutes: 3)),
-      config: kFastSettle, ($) async {
-    final app = Steps($);
-    addTearDown(
-        () => cleanupAfterTest($)); // leave a clean slate (even on failure)
+  isolatedPatrolTest(
+    'Navigation — setup route opens Start-a-session',
+    scenarioId: 'navigation.navigation_setup_route_opens_start_a_session',
+    timeout: const Timeout(Duration(minutes: 3)),
+    config: kFastSettle,
+    ($) async {
+      final app = Steps($);
+      addTearDown(
+        () => cleanupAfterTest($),
+      ); // leave a clean slate (even on failure)
 
-    await app.given.signedIn();
-    await app.given.aCleanSlate();
-    await app.when.opensStartASession();
-    await app.then.onScreen(Screen.startSession);
+      await app.given.signedIn();
+      await app.given.aCleanSlate();
+      await app.when.opensStartASession();
+      await app.then.onScreen(Screen.startSession);
 
-    await app.when.tapsNavTab(NavTab.home);
-    await app.then.onScreen(Screen.home);
-  });
+      await app.when.tapsNavTab(NavTab.home);
+      await app.then.onScreen(Screen.home);
+    },
+  );
 
   // The Profile nav tiles open Stats, Settings, and Notifications in turn.
   isolatedPatrolTest(
-      'Navigation — Profile tiles open Stats, Settings, Notifications',
-      scenarioId:
-          'navigation.navigation_profile_tiles_open_stats_settings_notifications',
-      timeout: const Timeout(Duration(minutes: 3)),
-      config: kFastSettle, ($) async {
-    final app = Steps($);
-    addTearDown(
-        () => cleanupAfterTest($)); // leave a clean slate (even on failure)
+    'Navigation — Profile tiles open Stats, Settings, Notifications',
+    scenarioId:
+        'navigation.navigation_profile_tiles_open_stats_settings_notifications',
+    timeout: const Timeout(Duration(minutes: 3)),
+    config: kFastSettle,
+    ($) async {
+      final app = Steps($);
+      addTearDown(
+        () => cleanupAfterTest($),
+      ); // leave a clean slate (even on failure)
 
-    await app.given.signedIn();
-    await app.given.aCleanSlate();
-    await app.when.tapsNavTab(NavTab.profile);
-    await app.then.onScreen(Screen.profile);
+      await app.given.signedIn();
+      await app.given.aCleanSlate();
+      await app.when.tapsNavTab(NavTab.profile);
+      await app.then.onScreen(Screen.profile);
 
-    await app.when.opensProfileTile(ProfileTile.stats);
-    await app.then.onScreen(Screen.stats);
-    await app.when.tapsNavTab(NavTab.profile);
-    await app.then.onScreen(Screen.profile);
+      await app.when.opensProfileTile(ProfileTile.stats);
+      await app.then.onScreen(Screen.stats);
+      await app.when.tapsNavTab(NavTab.profile);
+      await app.then.onScreen(Screen.profile);
 
-    await app.when.opensProfileTile(ProfileTile.settings);
-    await app.then.onScreen(Screen.settings);
-    await app.when.tapsNavTab(NavTab.profile);
-    await app.then.onScreen(Screen.profile);
+      await app.when.opensProfileTile(ProfileTile.settings);
+      await app.then.onScreen(Screen.settings);
+      await app.when.tapsNavTab(NavTab.profile);
+      await app.then.onScreen(Screen.profile);
 
-    await app.when.opensProfileTile(ProfileTile.notifications);
-    await app.then.onScreen(Screen.notifications);
+      await app.when.opensProfileTile(ProfileTile.notifications);
+      await app.then.onScreen(Screen.notifications);
 
-    await app.when.tapsNavTab(NavTab.home);
-    await app.then.onScreen(Screen.home);
-  });
+      await app.when.tapsNavTab(NavTab.home);
+      await app.then.onScreen(Screen.home);
+    },
+  );
 
   // Tapping a list on the Lists screen opens its detail screen.
-  isolatedPatrolTest('Navigation — tapping a list opens its detail',
-      scenarioId: 'navigation.navigation_tapping_a_list_opens_its_detail',
-      timeout: const Timeout(Duration(minutes: 3)),
-      config: kFastSettle, ($) async {
-    final app = Steps($);
-    addTearDown(
-        () => cleanupAfterTest($)); // leave a clean slate (even on failure)
+  isolatedPatrolTest(
+    'Navigation — tapping a list opens its detail',
+    scenarioId: 'navigation.navigation_tapping_a_list_opens_its_detail',
+    timeout: const Timeout(Duration(minutes: 3)),
+    config: kFastSettle,
+    ($) async {
+      final app = Steps($);
+      addTearDown(
+        () => cleanupAfterTest($),
+      ); // leave a clean slate (even on failure)
 
-    await app.given.signedIn();
-    await app.given.aCleanSlate();
-    await app.given
-        .aListWithOneWord(name: _navList, french: 'bonjour', korean: '안녕');
+      await app.given.signedIn();
+      await app.given.aCleanSlate();
+      await app.given.aListWithOneWord(
+        name: _navList,
+        french: 'bonjour',
+        korean: '안녕',
+      );
 
-    await app.when.tapsNavTab(NavTab.lists);
-    await app.then.onScreen(Screen.lists);
+      await app.when.tapsNavTab(NavTab.lists);
+      await app.then.onScreen(Screen.lists);
 
-    await app.when.opensList(_navList);
-    await app.then.onScreen(Screen.listDetail);
+      await app.when.opensList(_navList);
+      await app.then.onScreen(Screen.listDetail);
 
-    await app.when.tapsNavTab(NavTab.home);
-    await app.then.onScreen(Screen.home);
-  });
+      await app.when.tapsNavTab(NavTab.home);
+      await app.then.onScreen(Screen.home);
+    },
+  );
 }

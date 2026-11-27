@@ -29,9 +29,14 @@ class WelcomeScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('Ponderin',
-                      style: AppTextStyles.serif(29, FontWeight.w400,
-                          color: foreground)),
+                  Text(
+                    'Ponderin',
+                    style: AppTextStyles.serif(
+                      29,
+                      FontWeight.w400,
+                      color: foreground,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   Expanded(
                     child: Center(
@@ -39,30 +44,50 @@ class WelcomeScreen extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.fromLTRB(22, 25, 22, 23),
                           decoration: BoxDecoration(
-                              color: card,
-                              borderRadius: BorderRadius.circular(18),
-                              boxShadow: const [
-                                BoxShadow(
-                                    color: Color(0x9914170D),
-                                    blurRadius: 40,
-                                    offset: Offset(0, 18))
-                              ]),
-                          child: Column(children: [
-                            Text('v3.learn_at_pace'.tr(),
-                                style: AppTextStyles.mono(11, FontWeight.w700,
-                                    letterSpacing: 1.1,
-                                    color: V3Colors.terraInk)),
-                            const SizedBox(height: 17),
-                            Text('welcome.headline'.tr(),
-                                style: AppTextStyles.serif(34, FontWeight.w400,
-                                    color: V3Colors.ink),
-                                textAlign: TextAlign.center),
-                            const SizedBox(height: 14),
-                            Text('welcome.subheadline'.tr(),
-                                style: AppTextStyles.fig(15, FontWeight.w400,
-                                    height: 1.5, color: V3Colors.ink60),
-                                textAlign: TextAlign.center),
-                          ]),
+                            color: card,
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x9914170D),
+                                blurRadius: 40,
+                                offset: Offset(0, 18),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                'v3.learn_at_pace'.tr(),
+                                style: AppTextStyles.mono(
+                                  11,
+                                  FontWeight.w700,
+                                  letterSpacing: 1.1,
+                                  color: V3Colors.terraInk,
+                                ),
+                              ),
+                              const SizedBox(height: 17),
+                              Text(
+                                'welcome.headline'.tr(),
+                                style: AppTextStyles.serif(
+                                  34,
+                                  FontWeight.w400,
+                                  color: V3Colors.ink,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 14),
+                              Text(
+                                'welcome.subheadline'.tr(),
+                                style: AppTextStyles.fig(
+                                  15,
+                                  FontWeight.w400,
+                                  height: 1.5,
+                                  color: V3Colors.ink60,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -79,8 +104,10 @@ class WelcomeScreen extends StatelessWidget {
                       child: Center(
                         child: Text(
                           'welcome.cta_signup'.tr(),
-                          style: AppTextStyles.fig(15, FontWeight.w700)
-                              .copyWith(color: V3Colors.paper),
+                          style: AppTextStyles.fig(
+                            15,
+                            FontWeight.w700,
+                          ).copyWith(color: V3Colors.paper),
                         ),
                       ),
                     ),
@@ -97,8 +124,10 @@ class WelcomeScreen extends StatelessWidget {
                       child: Center(
                         child: Text(
                           'welcome.cta_signin'.tr(),
-                          style: AppTextStyles.fig(14, FontWeight.w500)
-                              .copyWith(color: muted),
+                          style: AppTextStyles.fig(
+                            14,
+                            FontWeight.w500,
+                          ).copyWith(color: muted),
                         ),
                       ),
                     ),

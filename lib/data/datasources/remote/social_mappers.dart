@@ -9,17 +9,18 @@ import '../../../domain/entities/leaderboard_entry.dart';
 List<LeaderboardEntry> leaderboardEntriesFromRows(
   List<Map<String, dynamic>> rows,
   LeaderboardPeriod period,
-) =>
-    rows
-        .asMap()
-        .entries
-        .map((e) => LeaderboardEntry(
-              userId: e.value['id'] as String,
-              username: e.value['username'] as String? ?? '',
-              avatarUrl: e.value['avatar_url'] as String?,
-              period: period.name,
-              score: e.value['total_words_mastered'] as int? ?? 0,
-              wordsMastered: e.value['total_words_mastered'] as int? ?? 0,
-              rank: e.key + 1,
-            ))
-        .toList();
+) => rows
+    .asMap()
+    .entries
+    .map(
+      (e) => LeaderboardEntry(
+        userId: e.value['id'] as String,
+        username: e.value['username'] as String? ?? '',
+        avatarUrl: e.value['avatar_url'] as String?,
+        period: period.name,
+        score: e.value['total_words_mastered'] as int? ?? 0,
+        wordsMastered: e.value['total_words_mastered'] as int? ?? 0,
+        rank: e.key + 1,
+      ),
+    )
+    .toList();

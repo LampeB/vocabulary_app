@@ -25,18 +25,18 @@ class RecordPcmMicrophone implements PcmMicrophone {
 
   @override
   Future<Stream<Uint8List>> startVoiceStream() => _recorder.startStream(
-        const RecordConfig(
-          encoder: AudioEncoder.pcm16bits,
-          sampleRate: 16000,
-          numChannels: 1,
-          autoGain: true,
-          echoCancel: true,
-          noiseSuppress: true,
-          androidConfig: AndroidRecordConfig(
-            audioSource: AndroidAudioSource.voiceRecognition,
-          ),
-        ),
-      );
+    const RecordConfig(
+      encoder: AudioEncoder.pcm16bits,
+      sampleRate: 16000,
+      numChannels: 1,
+      autoGain: true,
+      echoCancel: true,
+      noiseSuppress: true,
+      androidConfig: AndroidRecordConfig(
+        audioSource: AndroidAudioSource.voiceRecognition,
+      ),
+    ),
+  );
 
   @override
   Future<void> stop() => _recorder.stop();
@@ -44,4 +44,5 @@ class RecordPcmMicrophone implements PcmMicrophone {
   @override
   void dispose() => _recorder.dispose();
 }
+
 // coverage:ignore-end

@@ -18,15 +18,30 @@ class _V3PondState extends State<V3Pond> with TickerProviderStateMixin {
   late final AnimationController _drift = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 46),
-  )..repeat(reverse: true);
+  );
   late final AnimationController _rippleA = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 19),
-  )..repeat();
+  );
   late final AnimationController _rippleB = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 23),
-  )..repeat();
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context) ||
+        !TickerMode.valuesOf(context).enabled) {
+      _drift.stop();
+      _rippleA.stop();
+      _rippleB.stop();
+    } else {
+      if (!_drift.isAnimating) _drift.repeat(reverse: true);
+      if (!_rippleA.isAnimating) _rippleA.repeat();
+      if (!_rippleB.isAnimating) _rippleB.repeat();
+    }
+  }
 
   @override
   void dispose() {
@@ -43,16 +58,13 @@ class _V3PondState extends State<V3Pond> with TickerProviderStateMixin {
     final ripple = dark ? V3Colors.inkLight : V3Colors.ink;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     if (reduceMotion) {
-      return ColoredBox(
-        color: background,
-        child: widget.child,
-      );
+      return ColoredBox(color: background, child: widget.child);
     }
     return ColoredBox(
       color: background,
       child: AnimatedBuilder(
         animation: Listenable.merge([_drift, _rippleA, _rippleB]),
-        builder: (_, __) => Stack(
+        builder: (_, _) => Stack(
           fit: StackFit.expand,
           children: [
             Transform.translate(

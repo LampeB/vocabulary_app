@@ -69,25 +69,28 @@ Future<void> main() async {
 
   await EasyLocalization.ensureInitialized();
 
-  runApp(EasyLocalization(
-    supportedLocales: const [
-      Locale('fr'),
-      Locale('en'),
-      Locale('es'),
-      Locale('de'),
-      Locale('it'),
-      Locale('ja'),
-      Locale('ko'),
-    ],
-    path: 'assets/translations',
-    fallbackLocale: const Locale('fr'),
-    startLocale: _kTestLocale.isEmpty ? null : Locale(_kTestLocale),
-    child: ProviderScope(
-      overrides: [
-        notificationServiceProvider
-            .overrideWithValue(NotificationService.instance),
+  runApp(
+    EasyLocalization(
+      supportedLocales: const [
+        Locale('fr'),
+        Locale('en'),
+        Locale('es'),
+        Locale('de'),
+        Locale('it'),
+        Locale('ja'),
+        Locale('ko'),
       ],
-      child: const PonderinApp(),
+      path: 'assets/translations',
+      fallbackLocale: const Locale('fr'),
+      startLocale: _kTestLocale.isEmpty ? null : Locale(_kTestLocale),
+      child: ProviderScope(
+        overrides: [
+          notificationServiceProvider.overrideWithValue(
+            NotificationService.instance,
+          ),
+        ],
+        child: const PonderinApp(),
+      ),
     ),
-  ));
+  );
 }

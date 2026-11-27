@@ -44,49 +44,42 @@ abstract final class V3Colors {
 
 abstract final class V3Text {
   static TextStyle title(double size, {Color color = V3Colors.ink}) =>
-      GoogleFonts.dmSerifDisplay(
-        fontSize: size,
-        height: 1.06,
-        color: color,
-      );
+      GoogleFonts.dmSerifDisplay(fontSize: size, height: 1.06, color: color);
 
   static TextStyle body(
     double size, {
     FontWeight weight = FontWeight.w400,
     Color color = V3Colors.ink,
     double? height,
-  }) =>
-      GoogleFonts.spaceGrotesk(
-        fontSize: size,
-        fontWeight: weight,
-        height: height ?? 1.4,
-        color: color,
-      );
+  }) => GoogleFonts.spaceGrotesk(
+    fontSize: size,
+    fontWeight: weight,
+    height: height ?? 1.4,
+    color: color,
+  );
 
   static TextStyle mono(
     double size, {
     FontWeight weight = FontWeight.w700,
     Color color = V3Colors.inkMeta,
-  }) =>
-      GoogleFonts.spaceMono(
-        fontSize: size,
-        fontWeight: weight,
-        letterSpacing: 1.4,
-        height: 1.2,
-        color: color,
-      );
+  }) => GoogleFonts.spaceMono(
+    fontSize: size,
+    fontWeight: weight,
+    letterSpacing: 1.4,
+    height: 1.2,
+    color: color,
+  );
 
   static TextStyle korean(
     double size, {
     FontWeight weight = FontWeight.w600,
     Color color = V3Colors.ink,
-  }) =>
-      GoogleFonts.notoSerifKr(
-        fontSize: size,
-        fontWeight: weight,
-        height: 1.25,
-        color: color,
-      );
+  }) => GoogleFonts.notoSerifKr(
+    fontSize: size,
+    fontWeight: weight,
+    height: 1.25,
+    color: color,
+  );
 }
 
 abstract final class V3Radii {

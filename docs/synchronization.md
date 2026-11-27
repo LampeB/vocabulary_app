@@ -12,6 +12,11 @@ L'application utilise SQLite comme source de lecture et les colonnes
   réseau. Une panne de transport interrompt la passe courante et laisse les
   écritures en attente. Un refus attaché à une ligne laisse les autres
   écritures avancer. Les dates envoyées au serveur sont explicites en UTC.
+- Le déclencheur écoute les mutations locales validées par SQLite pour le
+  compte actif. Une nouvelle édition d'une ligne déjà en attente réveille
+  la file. Les accusés, les restaurations et les mutations des autres comptes
+  ne déclenchent aucun envoi. Les colonnes `isSynced` conservent l'arriéré
+  après redémarrage et jusqu'au retour du réseau.
 - Les envois de production sont filtrés par utilisateur connecté, y compris
   les concepts et variantes reliés à leurs listes. Les recherches de token de
   partage et de progression sont également isolées par compte.
@@ -22,7 +27,15 @@ L'application utilise SQLite comme source de lecture et les colonnes
   audio pleine laisse la synthèse de l'appareil disponible.
 - L'accusé de réception ne marque une ligne synchronisée que si tous ses
   champs correspondent toujours à la version envoyée. Une modification
-  pendant un envoi reste donc en attente.
+  pendant un envoi reste donc en attente. Les détails de liste et les mots
+  ouverts suivent les changements canoniques dans SQLite. Les accusés qui
+  changent uniquement le statut sortant ne relancent pas leurs lectures.
+- La migration PostgreSQL 014 protège les suppressions sur les écritures
+  ordinaires et sur les imports. Une liste, un concept ou une variante
+  supprimés conservent leur suppression. Le serveur verrouille les parents
+  pendant l'écriture d'un enfant et renvoie la suppression canonique si un
+  appareil tente d'éditer une branche supprimée. L'app applique l'accusé à
+  la branche locale et retire la progression masquée dans la même transaction.
 - Un partage envoie la liste ciblée et vérifie l'accusé de son token et de
   tous ses mots avant d'ouvrir le partage système. Un envoi global en cours
   partage le même travail pour cette liste. Les autres listes, la progression,
@@ -76,7 +89,9 @@ L'application utilise SQLite comme source de lecture et les colonnes
   déclenche la récupération puis le seeding idempotent avant le plateau.
   En cas d'indisponibilité du profil distant, une session déjà signée fournit
   l'identité locale pour le seeding et l'ouverture du plateau. Un profil reçu
-  plus tard enrichit cette session.
+  plus tard enrichit la session si elle est toujours active. Après un
+  changement de compte ou une déconnexion, une ancienne réponse de profil
+  ne peut plus restaurer l'identité précédente.
 - Les créations de listes starter partagent une exécution en cours par
   compte/paire. Un import échoué ne positionne jamais le marqueur de complétion.
 

@@ -62,7 +62,7 @@ void main() {
         for (final r in ['/notifications', '/paywall', '/welcome'])
           GoRoute(
             path: r,
-            pageBuilder: (_, __) {
+            pageBuilder: (_, _) {
               pushedRoute = r;
               return stub(r);
             },
@@ -72,41 +72,52 @@ void main() {
   }
 
   Future<void> scrollToText(WidgetTester tester, String text) async {
-    await tester.scrollUntilVisible(find.text(text), 80,
-        scrollable: find.byType(Scrollable).first);
+    await tester.scrollUntilVisible(
+      find.text(text),
+      80,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
   }
 
   testWidgets('renders with the screen key', (tester) async {
     await pump(tester);
     expect(
-        find.byKey(const ValueKey(WidgetKeys.screenSettings)), findsOneWidget);
+      find.byKey(const ValueKey(WidgetKeys.screenSettings)),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('shows the STT laboratory link only with diagnostics opt-in',
-      (tester) async {
+  testWidgets('shows the STT laboratory link only with diagnostics opt-in', (
+    tester,
+  ) async {
     const optedIn = bool.fromEnvironment('STT_DIAGNOSTICS');
     await tester.binding.setSurfaceSize(const Size(800, 2200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await pump(tester);
     expect(
-        find.text('Laboratoire STT'), optedIn ? findsOneWidget : findsNothing);
+      find.text('Laboratoire STT'),
+      optedIn ? findsOneWidget : findsNothing,
+    );
   });
 
-  testWidgets('tapping the dark theme pill sets ThemeMode.dark',
-      (tester) async {
+  testWidgets('tapping the dark theme pill sets ThemeMode.dark', (
+    tester,
+  ) async {
     await pump(tester);
 
     await tester.tap(find.byIcon(Icons.dark_mode_outlined));
     await tester.pumpAndSettle();
 
     final container = ProviderScope.containerOf(
-        tester.element(find.byKey(const ValueKey(WidgetKeys.screenSettings))));
+      tester.element(find.byKey(const ValueKey(WidgetKeys.screenSettings))),
+    );
     expect(container.read(themeModeProvider), ThemeMode.dark);
   });
 
-  testWidgets('selecting the fast speech option persists rate 1.1',
-      (tester) async {
+  testWidgets('selecting the fast speech option persists rate 1.1', (
+    tester,
+  ) async {
     await pump(tester);
     final fastLabel = 'settings.audio_speed_fast'.tr();
     await scrollToText(tester, fastLabel);
@@ -115,12 +126,14 @@ void main() {
     await tester.pumpAndSettle();
 
     final container = ProviderScope.containerOf(
-        tester.element(find.byKey(const ValueKey(WidgetKeys.screenSettings))));
+      tester.element(find.byKey(const ValueKey(WidgetKeys.screenSettings))),
+    );
     expect(container.read(audioSettingsProvider).speechRate, 1.1);
   });
 
-  testWidgets('free plan shows the upgrade button and it routes to /paywall',
-      (tester) async {
+  testWidgets('free plan shows the upgrade button and it routes to /paywall', (
+    tester,
+  ) async {
     await pump(tester, premium: false);
     final upgrade = 'settings.upgrade_button'.tr();
     await scrollToText(tester, upgrade);
@@ -145,8 +158,9 @@ void main() {
     expect(find.text('settings.upgrade_button'.tr()), findsNothing);
   });
 
-  testWidgets('sign-out: cancel closes the dialog without signing out',
-      (tester) async {
+  testWidgets('sign-out: cancel closes the dialog without signing out', (
+    tester,
+  ) async {
     await pump(tester);
     await scrollToText(tester, 'settings.signout'.tr());
     await tester.tap(find.text('settings.signout'.tr()));
@@ -160,8 +174,9 @@ void main() {
     expect(pushedRoute, isNull);
   });
 
-  testWidgets('sign-out: confirm calls signOut and lands on /welcome',
-      (tester) async {
+  testWidgets('sign-out: confirm calls signOut and lands on /welcome', (
+    tester,
+  ) async {
     await pump(tester);
     await scrollToText(tester, 'settings.signout'.tr());
     await tester.tap(find.text('settings.signout'.tr()));

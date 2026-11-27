@@ -42,8 +42,10 @@ void main() {
     });
 
     test('active streak before 8 PM → today at 20:00', () {
-      expect(streakWarningSlot(DateTime(2026, 7, 2, 18, 0), 5),
-          DateTime(2026, 7, 2, 20, 0));
+      expect(
+        streakWarningSlot(DateTime(2026, 7, 2, 18, 0), 5),
+        DateTime(2026, 7, 2, 20, 0),
+      );
     });
 
     test('active streak already past 8 PM → skip (null)', () {
@@ -51,8 +53,10 @@ void main() {
     });
 
     test('exactly at 8 PM still schedules (not before → kept)', () {
-      expect(streakWarningSlot(DateTime(2026, 7, 2, 20, 0), 5),
-          DateTime(2026, 7, 2, 20, 0));
+      expect(
+        streakWarningSlot(DateTime(2026, 7, 2, 20, 0), 5),
+        DateTime(2026, 7, 2, 20, 0),
+      );
     });
   });
 

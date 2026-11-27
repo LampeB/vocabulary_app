@@ -48,9 +48,11 @@ class GrammarLessonScreen extends ConsumerWidget {
             child: rulesAsync.when(
               loading: () => const Center(
                 child: CircularProgressIndicator(
-                    color: AppColors.clay, strokeWidth: 2),
+                  color: AppColors.clay,
+                  strokeWidth: 2,
+                ),
               ),
-              error: (_, __) => _UnavailableLesson(),
+              error: (_, _) => _UnavailableLesson(),
               data: (rules) {
                 final matches = rules.where((rule) => rule.id == ruleId);
                 return matches.isEmpty
@@ -68,15 +70,15 @@ class GrammarLessonScreen extends ConsumerWidget {
 class _UnavailableLesson extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Text(
-            'lesson.not_found'.tr(),
-            textAlign: TextAlign.center,
-            style: AppTextStyles.body.copyWith(color: AppColors.muted),
-          ),
-        ),
-      );
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Text(
+        'lesson.not_found'.tr(),
+        textAlign: TextAlign.center,
+        style: AppTextStyles.body.copyWith(color: AppColors.muted),
+      ),
+    ),
+  );
 }
 
 class _LessonReader extends StatefulWidget {
@@ -127,8 +129,10 @@ class _LessonReaderState extends State<_LessonReader> {
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Text(widget.rule.title(locale),
-                      style: AppTextStyles.grotesk(25, FontWeight.w700)),
+                  child: Text(
+                    widget.rule.title(locale),
+                    style: AppTextStyles.grotesk(25, FontWeight.w700),
+                  ),
                 ),
               ),
               Expanded(
@@ -149,9 +153,9 @@ class _LessonReaderState extends State<_LessonReader> {
                         onPressed: _index == 0
                             ? null
                             : () => _controller.previousPage(
-                                  duration: const Duration(milliseconds: 180),
-                                  curve: Curves.easeOutCubic,
-                                ),
+                                duration: const Duration(milliseconds: 180),
+                                curve: Curves.easeOutCubic,
+                              ),
                         child: Text('lesson.previous'.tr()),
                       ),
                     ),
@@ -162,20 +166,25 @@ class _LessonReaderState extends State<_LessonReader> {
                             ? const ValueKey(WidgetKeys.grammarLessonPractice)
                             : null,
                         onPressed: atLastPage
-                            ? () => context.push(Uri(
-                                    path: '/start-session-grammar',
-                                    queryParameters: {
-                                      'rule': widget.rule.id,
-                                      'langA': widget.pair.$1,
-                                      'langB': widget.pair.$2
-                                    }).toString())
+                            ? () => context.push(
+                                Uri(
+                                  path: '/start-session-grammar',
+                                  queryParameters: {
+                                    'rule': widget.rule.id,
+                                    'langA': widget.pair.$1,
+                                    'langB': widget.pair.$2,
+                                  },
+                                ).toString(),
+                              )
                             : () => _controller.nextPage(
-                                  duration: const Duration(milliseconds: 180),
-                                  curve: Curves.easeOutCubic,
-                                ),
-                        icon: Icon(atLastPage
-                            ? Icons.play_arrow_rounded
-                            : Icons.arrow_forward_rounded),
+                                duration: const Duration(milliseconds: 180),
+                                curve: Curves.easeOutCubic,
+                              ),
+                        icon: Icon(
+                          atLastPage
+                              ? Icons.play_arrow_rounded
+                              : Icons.arrow_forward_rounded,
+                        ),
                         label: Text(
                           atLastPage
                               ? 'lesson.practice'.tr()
@@ -201,19 +210,19 @@ class _LessonPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ScrollAffordance(
-        hint: 'lesson.scroll_hint'.tr(),
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(page.text, style: AppTextStyles.body.copyWith(height: 1.55)),
-            for (final example in page.examples) ...[
-              const SizedBox(height: 20),
-              _TappableExample(example: example),
-            ],
-          ],
-        ),
-      );
+    hint: 'lesson.scroll_hint'.tr(),
+    padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(page.text, style: AppTextStyles.body.copyWith(height: 1.55)),
+        for (final example in page.examples) ...[
+          const SizedBox(height: 20),
+          _TappableExample(example: example),
+        ],
+      ],
+    ),
+  );
 }
 
 class _TappableExample extends StatelessWidget {
@@ -242,22 +251,31 @@ class _TappableExample extends StatelessWidget {
             children: [
               Text('lesson.example_label'.tr(), style: AppTextStyles.eyebrow),
               const SizedBox(height: 6),
-              Text(example.target,
-                  style: AppTextStyles.grotesk(21, FontWeight.w700)),
+              Text(
+                example.target,
+                style: AppTextStyles.grotesk(21, FontWeight.w700),
+              ),
               const SizedBox(height: 5),
-              Text(example.translation,
-                  style:
-                      AppTextStyles.body.copyWith(color: cs.onSurfaceVariant)),
+              Text(
+                example.translation,
+                style: AppTextStyles.body.copyWith(color: cs.onSurfaceVariant),
+              ),
               const SizedBox(height: 10),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.open_in_new_rounded,
-                      size: 15, color: AppColors.clay),
+                  Icon(
+                    Icons.open_in_new_rounded,
+                    size: 15,
+                    color: AppColors.clay,
+                  ),
                   const SizedBox(width: 5),
-                  Text('lesson.example_open'.tr(),
-                      style: AppTextStyles.caption
-                          .copyWith(color: AppColors.clay)),
+                  Text(
+                    'lesson.example_open'.tr(),
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.clay,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -268,31 +286,30 @@ class _TappableExample extends StatelessWidget {
   }
 
   Future<void> _showContext(BuildContext context) => showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(example.target),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('lesson.translation_label'.tr(),
-                  style: AppTextStyles.eyebrow),
-              const SizedBox(height: 5),
-              Text(example.translation, style: AppTextStyles.body),
-              if (example.detail.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(example.detail, style: AppTextStyles.body),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text('common.close'.tr()),
-            ),
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text(example.target),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('lesson.translation_label'.tr(), style: AppTextStyles.eyebrow),
+          const SizedBox(height: 5),
+          Text(example.translation, style: AppTextStyles.body),
+          if (example.detail.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(example.detail, style: AppTextStyles.body),
           ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: Text('common.close'.tr()),
         ),
-      );
+      ],
+    ),
+  );
 }
 
 class _ReaderPage {

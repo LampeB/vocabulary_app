@@ -10,59 +10,65 @@ const _englishKorean = 'E2E English Korean';
 const _koreanFrench = 'E2E Korean French';
 
 void main() {
-  isolatedPatrolTest('Language pairs — English to Korean list studies forward',
-      scenarioId:
-          'language_pairs.language_pairs_english_to_korean_list_studies_forward',
-      timeout: const Timeout(Duration(minutes: 3)),
-      config: kFastSettle, ($) async {
-    final app = Steps($);
-    addTearDown(() => cleanupAfterTest($));
+  isolatedPatrolTest(
+    'Language pairs — English to Korean list studies forward',
+    scenarioId:
+        'language_pairs.language_pairs_english_to_korean_list_studies_forward',
+    timeout: const Timeout(Duration(minutes: 3)),
+    config: kFastSettle,
+    ($) async {
+      final app = Steps($);
+      addTearDown(() => cleanupAfterTest($));
 
-    await app.given.signedIn();
-    await app.given.aCleanSlate();
-    await app.given.aListWithOneWord(
-      name: _englishKorean,
-      french: 'hello',
-      korean: '안녕하세요',
-      langA: 'en',
-      langB: 'ko',
-    );
+      await app.given.signedIn();
+      await app.given.aCleanSlate();
+      await app.given.aListWithOneWord(
+        name: _englishKorean,
+        french: 'hello',
+        korean: '안녕하세요',
+        langA: 'en',
+        langB: 'ko',
+      );
 
-    await app.when.opensStartASession();
-    await app.when.choosesLanguagePair('en', 'ko');
-    await app.when.choosesList(_englishKorean);
-    await app.when.choosesQuizType(Quiz.typing);
-    await app.when.startsTheSession();
-    await app.when.typesCorrectAnswerForEachCard('안녕하세요');
+      await app.when.opensStartASession();
+      await app.when.choosesLanguagePair('en', 'ko');
+      await app.when.choosesList(_englishKorean);
+      await app.when.choosesQuizType(Quiz.typing);
+      await app.when.startsTheSession();
+      await app.when.typesCorrectAnswerForEachCard('안녕하세요');
 
-    await app.then.sessionScoreIs(percent: 100);
-  });
+      await app.then.sessionScoreIs(percent: 100);
+    },
+  );
 
-  isolatedPatrolTest('Language pairs — Korean to French list studies forward',
-      scenarioId:
-          'language_pairs.language_pairs_korean_to_french_list_studies_forward',
-      timeout: const Timeout(Duration(minutes: 3)),
-      config: kFastSettle, ($) async {
-    final app = Steps($);
-    addTearDown(() => cleanupAfterTest($));
+  isolatedPatrolTest(
+    'Language pairs — Korean to French list studies forward',
+    scenarioId:
+        'language_pairs.language_pairs_korean_to_french_list_studies_forward',
+    timeout: const Timeout(Duration(minutes: 3)),
+    config: kFastSettle,
+    ($) async {
+      final app = Steps($);
+      addTearDown(() => cleanupAfterTest($));
 
-    await app.given.signedIn();
-    await app.given.aCleanSlate();
-    await app.given.aListWithOneWord(
-      name: _koreanFrench,
-      french: '안녕하세요',
-      korean: 'bonjour',
-      langA: 'ko',
-      langB: 'fr',
-    );
+      await app.given.signedIn();
+      await app.given.aCleanSlate();
+      await app.given.aListWithOneWord(
+        name: _koreanFrench,
+        french: '안녕하세요',
+        korean: 'bonjour',
+        langA: 'ko',
+        langB: 'fr',
+      );
 
-    await app.when.opensStartASession();
-    await app.when.choosesLanguagePair('ko', 'fr');
-    await app.when.choosesList(_koreanFrench);
-    await app.when.choosesQuizType(Quiz.typing);
-    await app.when.startsTheSession();
-    await app.when.typesCorrectAnswerForEachCard('bonjour');
+      await app.when.opensStartASession();
+      await app.when.choosesLanguagePair('ko', 'fr');
+      await app.when.choosesList(_koreanFrench);
+      await app.when.choosesQuizType(Quiz.typing);
+      await app.when.startsTheSession();
+      await app.when.typesCorrectAnswerForEachCard('bonjour');
 
-    await app.then.sessionScoreIs(percent: 100);
-  });
+      await app.then.sessionScoreIs(percent: 100);
+    },
+  );
 }

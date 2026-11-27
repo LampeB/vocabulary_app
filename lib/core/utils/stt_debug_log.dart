@@ -72,7 +72,8 @@ class SttDebugLog {
     // it to logcat; debug recording requires an explicit launch-time opt-in.
     if (!sttDiagnosticsEnabled) return;
     final t = DateTime.now();
-    final ts = '${t.hour.toString().padLeft(2, '0')}:'
+    final ts =
+        '${t.hour.toString().padLeft(2, '0')}:'
         '${t.minute.toString().padLeft(2, '0')}:'
         '${t.second.toString().padLeft(2, '0')}.'
         '${t.millisecond.toString().padLeft(3, '0')}';

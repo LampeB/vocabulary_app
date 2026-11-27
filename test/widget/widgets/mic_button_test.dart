@@ -10,27 +10,33 @@ void main() {
     required bool listening,
     required QuizAnswerState answerState,
     required VoidCallback onTap,
-  }) =>
-      tester.pumpWidget(MaterialApp(
-        home: Center(
-          child: MicButton(
-            key: const Key('mic'),
-            isListening: listening,
-            answerState: answerState,
-            onTap: onTap,
-          ),
+  }) => tester.pumpWidget(
+    MaterialApp(
+      home: Center(
+        child: MicButton(
+          key: const Key('mic'),
+          isListening: listening,
+          answerState: answerState,
+          onTap: onTap,
         ),
-      ));
+      ),
+    ),
+  );
 
-  BoxDecoration decoration(WidgetTester tester) => tester
-      .widget<Container>(find.descendant(
-        of: find.byKey(const Key('mic')),
-        matching: find.byType(Container),
-      ))
-      .decoration! as BoxDecoration;
+  BoxDecoration decoration(WidgetTester tester) =>
+      tester
+              .widget<Container>(
+                find.descendant(
+                  of: find.byKey(const Key('mic')),
+                  matching: find.byType(Container),
+                ),
+              )
+              .decoration!
+          as BoxDecoration;
 
-  testWidgets('idle microphone is tappable and starts in its resting style',
-      (tester) async {
+  testWidgets('idle microphone is tappable and starts in its resting style', (
+    tester,
+  ) async {
     var taps = 0;
     await pumpMic(
       tester,
@@ -46,8 +52,9 @@ void main() {
     expect(taps, 1);
   });
 
-  testWidgets('listening microphone pulses, glows, then resets when stopped',
-      (tester) async {
+  testWidgets('listening microphone pulses, glows, then resets when stopped', (
+    tester,
+  ) async {
     await pumpMic(
       tester,
       listening: false,
@@ -85,8 +92,9 @@ void main() {
     expect(restingScale, 1);
   });
 
-  testWidgets('answer verdict changes color and prevents a second tap',
-      (tester) async {
+  testWidgets('answer verdict changes color and prevents a second tap', (
+    tester,
+  ) async {
     var taps = 0;
     await pumpMic(
       tester,

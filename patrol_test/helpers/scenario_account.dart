@@ -1,12 +1,13 @@
 import 'dart:convert';
 
 class ScenarioAccount {
-  const ScenarioAccount(
-      {required this.scenarioId,
-      required this.userId,
-      required this.email,
-      required this.password,
-      required this.username});
+  const ScenarioAccount({
+    required this.scenarioId,
+    required this.userId,
+    required this.email,
+    required this.password,
+    required this.username,
+  });
   final String scenarioId;
   final String userId;
   final String email;
@@ -21,7 +22,8 @@ Map<String, ScenarioAccount> parseScenarioAccounts(String source) {
     decoded = jsonDecode(source);
   } catch (_) {
     throw StateError(
-        'TEST_ACCOUNTS_JSON must contain the scenario account map.');
+      'TEST_ACCOUNTS_JSON must contain the scenario account map.',
+    );
   }
   if (decoded is! Map<String, dynamic> || decoded.isEmpty) {
     throw StateError('Scenario account map is empty or invalid.');
@@ -33,7 +35,8 @@ Map<String, ScenarioAccount> parseScenarioAccounts(String source) {
     final value = entry.value;
     if (value is! Map<String, dynamic> ||
         ['user_id', 'email', 'password', 'username'].any(
-            (key) => value[key] is! String || (value[key] as String).isEmpty)) {
+          (key) => value[key] is! String || (value[key] as String).isEmpty,
+        )) {
       throw StateError('Incomplete account for scenario ${entry.key}.');
     }
     final user = (value['user_id'] as String).toLowerCase();
@@ -42,11 +45,12 @@ Map<String, ScenarioAccount> parseScenarioAccounts(String source) {
       throw StateError('Each E2E scenario must have a distinct account.');
     }
     result[entry.key] = ScenarioAccount(
-        scenarioId: entry.key,
-        userId: user,
-        email: email,
-        password: value['password'],
-        username: value['username']);
+      scenarioId: entry.key,
+      userId: user,
+      email: email,
+      password: value['password'],
+      username: value['username'],
+    );
   }
   return result;
 }

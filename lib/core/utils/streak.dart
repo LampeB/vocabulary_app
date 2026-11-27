@@ -30,8 +30,11 @@ StreakUpdate computeStreak({
     return const StreakUpdate(streak: 1, alreadyCountedToday: false);
   }
 
-  final lastDay =
-      DateTime(lastStudyDate.year, lastStudyDate.month, lastStudyDate.day);
+  final lastDay = DateTime(
+    lastStudyDate.year,
+    lastStudyDate.month,
+    lastStudyDate.day,
+  );
   if (lastDay == todayDate) {
     return StreakUpdate(streak: currentStreak, alreadyCountedToday: true);
   }

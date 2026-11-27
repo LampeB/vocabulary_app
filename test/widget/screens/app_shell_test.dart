@@ -18,38 +18,37 @@ void main() {
 
   String? navigatedTo;
 
-  Future<void> pump(WidgetTester tester,
-      {required List<ConnectivityResult> connectivity}) {
+  Future<void> pump(
+    WidgetTester tester, {
+    required List<ConnectivityResult> connectivity,
+  }) {
     navigatedTo = null;
     return pumpScreen(
       tester,
       screen: const AppShell(child: Text('page-content')),
       overrides: [
-        connectivityStreamProvider
-            .overrideWith((ref) => Stream.value(connectivity)),
+        connectivityStreamProvider.overrideWith(
+          (ref) => Stream.value(connectivity),
+        ),
       ],
       routes: [
-        for (final r in [
-          '/home',
-          '/lists',
-          '/grammar',
-          '/stats',
-          '/profile',
-        ])
+        for (final r in ['/home', '/lists', '/grammar', '/stats', '/profile'])
           GoRoute(
             path: r,
             pageBuilder: (_, state) {
               navigatedTo = state.uri.toString();
               return const MaterialPage<void>(
-                  child: Scaffold(body: SizedBox()));
+                child: Scaffold(body: SizedBox()),
+              );
             },
           ),
       ],
     );
   }
 
-  testWidgets('online: renders the child without the offline banner',
-      (tester) async {
+  testWidgets('online: renders the child without the offline banner', (
+    tester,
+  ) async {
     await pump(tester, connectivity: [ConnectivityResult.wifi]);
 
     expect(find.text('page-content'), findsOneWidget);
@@ -65,8 +64,9 @@ void main() {
     expect(find.text('page-content'), findsOneWidget); // content still usable
   });
 
-  testWidgets('V0 navigation has five equal slots and no raised study button',
-      (tester) async {
+  testWidgets('V0 navigation has five equal slots and no raised study button', (
+    tester,
+  ) async {
     await pump(tester, connectivity: [ConnectivityResult.wifi]);
 
     for (final tab in ['home', 'lists', 'grammar', 'stats', 'profile']) {
@@ -83,39 +83,49 @@ void main() {
     expect(navigatedTo, '/grammar');
   });
 
-  testWidgets('quiz and its summary omit the general tabs and footer space',
-      (tester) async {
+  testWidgets('quiz and its summary omit the general tabs and footer space', (
+    tester,
+  ) async {
     const home = ValueKey('home-content');
     const quiz = ValueKey('quiz-content');
     const summary = ValueKey(WidgetKeys.summary);
     final finished = ValueNotifier(false);
-    final router = GoRouter(initialLocation: '/home', routes: [
-      ShellRoute(
-        builder: (_, __, child) => AppShell(child: child),
-        routes: [
-          GoRoute(
-            path: '/home',
-            builder: (_, __) => const SizedBox.expand(key: home),
-          ),
-          GoRoute(
-            path: '/quiz',
-            builder: (_, __) => ValueListenableBuilder(
-              valueListenable: finished,
-              builder: (_, done, __) =>
-                  SizedBox.expand(key: done ? summary : quiz),
+    final router = GoRouter(
+      initialLocation: '/home',
+      routes: [
+        ShellRoute(
+          builder: (_, _, child) => AppShell(child: child),
+          routes: [
+            GoRoute(
+              path: '/home',
+              builder: (_, _) => const SizedBox.expand(key: home),
             ),
-          ),
-        ],
-      ),
-    ]);
+            GoRoute(
+              path: '/quiz',
+              builder: (_, _) => ValueListenableBuilder(
+                valueListenable: finished,
+                builder: (_, done, _) =>
+                    SizedBox.expand(key: done ? summary : quiz),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
     addTearDown(router.dispose);
     addTearDown(finished.dispose);
     tester.view.padding = const FakeViewPadding(bottom: 24);
     addTearDown(tester.view.resetPadding);
-    await tester.pumpWidget(ProviderScope(overrides: [
-      connectivityStreamProvider
-          .overrideWith((ref) => Stream.value([ConnectivityResult.none])),
-    ], child: MaterialApp.router(routerConfig: router)));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          connectivityStreamProvider.overrideWith(
+            (ref) => Stream.value([ConnectivityResult.none]),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
     await tester.pumpAndSettle();
     final homeTab = find.byKey(ValueKey(WidgetKeys.navTab('home')));
     expect(homeTab, findsOneWidget);

@@ -9,7 +9,7 @@
 
 ## Implémentation V3 — 2026-09-29
 
-L'accueil actif est désormais `V3HomeScreen` (adapté par `ParcoursScreen`) :
+L'accueil actif est désormais `V3HomeScreen`, directement routé depuis `/home` :
 paire active, activité du jour, entrée parcours, métriques et entrées vers les
 listes/activités libres. Il ne matérialise pas encore la route complète de
 nœuds/clusters ni les compteurs pédagogiques par niveau définis ci-dessous.

@@ -114,7 +114,8 @@ void main() {
     test('known hallucinations are discarded', () {
       expect(
         WhisperSpeechService.cleanTranscript(
-            'Sous-titrage Société Radio-Canada'),
+          'Sous-titrage Société Radio-Canada',
+        ),
         isNull,
       );
       expect(
