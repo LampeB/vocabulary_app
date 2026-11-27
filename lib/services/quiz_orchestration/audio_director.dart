@@ -56,7 +56,8 @@ class AudioDirector {
 
   /// Waits for the old player to release its native resources after its
   /// provider has been replaced. An unconfirmed release stays replayable.
-  Future<void> waitForPlayerRelease() => _audio.stop().timeout(_releaseTimeout);
+  Future<void> waitForPlayerRelease({bool retry = false}) =>
+      (retry ? _audio.retryDisposal() : _audio.stop()).timeout(_releaseTimeout);
 
   /// Stops both speech and the separate earcon player. Unlike [stop], this is
   /// for a lifecycle interruption, where no sound may survive in background.

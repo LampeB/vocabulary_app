@@ -63,6 +63,8 @@ class _NoopAudio implements AudioPlayerService {
   }
 
   @override
+  Future<void> retryDisposal() => stop();
+  @override
   Future<void> stop() async {}
   @override
   Future<PlayerState> get state async => PlayerState.stopped;

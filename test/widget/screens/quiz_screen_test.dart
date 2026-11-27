@@ -83,6 +83,8 @@ class _NoopAudio implements AudioPlayerService {
     bool requirePlayback = false,
   }) async {}
   @override
+  Future<void> retryDisposal() => stop();
+  @override
   Future<void> stop() async {}
   @override
   Future<PlayerState> get state async => PlayerState.stopped;
@@ -625,7 +627,7 @@ void main() {
     int? cardLimit,
     String? entry,
     _VoiceHarness? voice,
-    _TestDirector? director,
+    AudioDirector? director,
     bool grammar = false,
     bool fromDailyReview = false,
     StateProvider<AppUser?>? account,
@@ -1981,6 +1983,182 @@ void main() {
       await tester.pump(const Duration(seconds: 8));
     },
   );
+
+  testWidgets(
+    'native opening cue retries refused preparation and playback',
+    (tester) async {
+      const codec = StandardMethodCodec();
+      const global = MethodChannel('xyz.luan/audioplayers.global');
+      const globalEvents = MethodChannel('xyz.luan/audioplayers.global/events');
+      const player = MethodChannel('xyz.luan/audioplayers');
+      final messenger = tester.binding.defaultBinaryMessenger;
+      final events = <String, MethodChannel>{};
+      var preparationCalls = 0;
+      var playbackCalls = 0;
+      var successfulCues = 0;
+      messenger.setMockMethodCallHandler(global, (_) async => null);
+      messenger.setMockMethodCallHandler(globalEvents, (_) async => null);
+      messenger.setMockMethodCallHandler(player, (call) async {
+        final id = call.arguments['playerId'] as String;
+        switch (call.method) {
+          case 'setAudioContext':
+            if (++preparationCalls == 1) {
+              throw PlatformException(code: 'NativeCuePreparationRefused');
+            }
+          case 'create':
+            final channel = events[id] = MethodChannel(
+              'xyz.luan/audioplayers/events/$id',
+            );
+            messenger.setMockMethodCallHandler(channel, (_) async => null);
+          case 'setSourceBytes':
+            await messenger.handlePlatformMessage(
+              events[id]!.name,
+              codec.encodeSuccessEnvelope({
+                'event': 'audio.onPrepared',
+                'value': true,
+              }),
+              null,
+            );
+          case 'getCurrentPosition':
+            return 0;
+          case 'resume':
+            if (++playbackCalls == 1) {
+              throw PlatformException(code: 'NativeCuePlaybackRefused');
+            }
+            successfulCues++;
+        }
+        return null;
+      });
+      addTearDown(() {
+        messenger.setMockMethodCallHandler(global, null);
+        messenger.setMockMethodCallHandler(globalEvents, null);
+        messenger.setMockMethodCallHandler(player, null);
+        for (final channel in events.values) {
+          messenger.setMockMethodCallHandler(channel, null);
+        }
+      });
+
+      final voice = _VoiceHarness();
+      final director = AudioDirector(_NoopAudio());
+      await pump(
+        tester,
+        mode: QuizMode.handsFree,
+        words: [('chat', '고양이')],
+        voice: voice,
+        director: director,
+      );
+      await tick(tester, times: 12);
+      expect(preparationCalls, 1);
+      expect(playbackCalls, 0);
+      expect(successfulCues, 0);
+      expect(voice.capture.opens, 0);
+      expect(find.text('quiz.listen_cue_failed'.tr()), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfRepeat)));
+      await tick(tester, times: 12);
+      expect(preparationCalls, 2);
+      expect(playbackCalls, 1);
+      expect(successfulCues, 0);
+      expect(voice.capture.opens, 0);
+      expect(find.text('quiz.listen_cue_failed'.tr()), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfRepeat)));
+      await tick(tester, times: 12);
+      expect(preparationCalls, 2);
+      expect(playbackCalls, 2);
+      expect(successfulCues, 1);
+      expect(voice.capture.opens, 1);
+      await unmountScreen(tester);
+      director.dispose();
+      await tester.pump(const Duration(seconds: 8));
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
+
+  testWidgets('Repeat reissues a refused native TTS release before replay', (
+    tester,
+  ) async {
+    const channel = MethodChannel('flutter_tts');
+    final messenger = tester.binding.defaultBinaryMessenger;
+    final playback = <Completer<int>>[];
+    final confirmed = Completer<int>();
+    var stops = 0;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      switch (call.method) {
+        case 'getEngines':
+          return <Object>[];
+        case 'speak':
+          final done = Completer<int>();
+          playback.add(done);
+          return done.future;
+        case 'stop':
+          switch (++stops) {
+            case 1:
+              return 0;
+            case 2:
+              return confirmed.future;
+          }
+      }
+      return 1;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    final voice = _VoiceHarness();
+    final settings = _RestoringAudioSettings();
+    final directors = <_TestDirector>[];
+    await pump(
+      tester,
+      mode: QuizMode.handsFree,
+      words: [('chat', '고양이')],
+      voice: voice,
+      audioSettings: settings,
+      audioFactory: (ref) {
+        final rate = ref.watch(
+          audioSettingsProvider.select((settings) => settings.speechRate),
+        );
+        final audio = AudioPlayerService(
+          usePremium: false,
+          tts: FlutterTtsService(speechRate: rate),
+          filePlayer: _SilentFilePlayer(),
+        );
+        ref.onDispose(audio.dispose);
+        return audio;
+      },
+      directorFactory: (audio) {
+        final director = _TestDirector(audio);
+        directors.add(director);
+        return director;
+      },
+    );
+    expect(playback, hasLength(1));
+    settings.restored.complete(.7);
+    await tick(tester, times: 3);
+    expect(stops, 1);
+    expect(find.text('quiz.audio_release_failed_hf'.tr()), findsOneWidget);
+    expect(voice.capture.opens, 0);
+
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfRepeat)));
+    await tester.pump();
+    expect(stops, 2);
+    expect(playback, hasLength(1));
+    playback.first.complete(1);
+    await tester.pump();
+    expect(voice.capture.opens, 0);
+    expect(directors.every((director) => director.cues == 0), isTrue);
+
+    confirmed.complete(1);
+    await tick(tester, times: 10);
+    expect(playback, hasLength(2));
+    expect(voice.capture.opens, 0);
+    expect(directors.every((director) => director.cues == 0), isTrue);
+    playback.last.complete(1);
+    await tick(tester, times: 10);
+    expect(voice.capture.opens, 1);
+    expect(directors.map((director) => director.cues), [0, 1]);
+    await unmountScreen(tester);
+    await tester.pump(const Duration(seconds: 8));
+  });
 
   testWidgets('daily review shortcut rates its one due card once', (
     tester,

@@ -53,6 +53,8 @@ class _NoopAudio implements AudioPlayerService {
     bool requirePlayback = false,
   }) async {}
   @override
+  Future<void> retryDisposal() => stop();
+  @override
   Future<void> stop() async {}
   @override
   Future<PlayerState> get state async => PlayerState.stopped;
@@ -134,6 +136,13 @@ void main() {
             ],
             (ruleId: 'en-negation-dont', targetLang: 'en') => const [
               DrillWord(word: 'to work', category: 'verbe'),
+            ],
+            (ruleId: 'en-plural-s-es', targetLang: 'en') => const [
+              DrillWord(word: 'water', category: 'nom'),
+              DrillWord(word: 'coffee', category: 'nom'),
+              DrillWord(word: 'milk', category: 'nom'),
+              DrillWord(word: 'bread', category: 'nom'),
+              DrillWord(word: 'apple', category: 'nom'),
             ],
             (ruleId: _, targetLang: 'fr') => const [
               DrillWord(word: 'pomme', category: 'nom'),
@@ -248,6 +257,60 @@ void main() {
     expect(sub.read().answerState, QuizAnswerState.correct);
     expect((await afterAnswers(2)).correct, 1);
   });
+
+  for (final voice in [false, true]) {
+    test(
+      'English plural distinguishes uncountable water and servings of coffee, voice=$voice',
+      () async {
+        final sub = container.listen(_quiz, (_, _) {});
+        final notifier = container.read(_quiz.notifier);
+        await notifier.loadCards(
+          QuizArgs(
+            source: QuizSource.grammar,
+            ruleId: 'en-plural-s-es',
+            mode: voice ? QuizMode.voice : QuizMode.typing,
+            direction: QuizDirectionChoice.frToKo,
+            cardLimit: 10,
+            langA: 'fr',
+            langB: 'en',
+          ),
+          promptLocale: 'fr',
+        );
+        var rejectedWaterPlural = false;
+        var acceptedWater = false;
+        var acceptedCoffees = false;
+        while (!sub.read().isComplete) {
+          final card = sub.read().currentCard!;
+          expect(card.questionWord, contains('indénombrable inchangé'));
+          final expected = card.answerWords.single;
+          final reject = expected == 'water' && !rejectedWaterPlural;
+          final answer = reject ? 'waters' : expected;
+          if (voice) {
+            notifier.submitVoiceAnswer(answer);
+          } else {
+            notifier.submitTextAnswer(answer);
+          }
+          expect(
+            sub.read().answerState,
+            reject ? QuizAnswerState.incorrect : QuizAnswerState.correct,
+          );
+          if (reject) rejectedWaterPlural = true;
+          if (!reject && expected == 'water') acceptedWater = true;
+          if (expected == 'coffees') acceptedCoffees = true;
+          notifier.advance();
+        }
+        expect(rejectedWaterPlural && acceptedWater && acceptedCoffees, isTrue);
+        final progress = await db.grammarProgressDao
+            .watchByUser('u')
+            .expand((rows) => rows)
+            .firstWhere(
+              (row) => row.ruleId == 'en-plural-s-es' && row.shown == 10,
+            )
+            .timeout(const Duration(seconds: 2));
+        expect(progress.correct, 9);
+      },
+    );
+  }
 
   test(
     'direct account replacement leaves a stale grammar drill ungraded',

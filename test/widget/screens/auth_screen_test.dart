@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:easy_localization/easy_localization.dart';
+
 // ignore: implementation_imports
 import 'package:easy_localization/src/localization.dart';
 // ignore: implementation_imports
@@ -128,6 +130,36 @@ void main() {
   }
 
   group('welcome screen', () {
+    for (final theme in [ThemeMode.light, ThemeMode.dark]) {
+      testWidgets('sign-in contrast is readable in $theme', (tester) async {
+        await pumpScreen(
+          tester,
+          screen: const WelcomeScreen(),
+          themeMode: theme,
+        );
+        final finder = find.widgetWithText(
+          OutlinedButton,
+          'welcome.cta_signin'.tr(),
+        );
+        final button = tester.widget<OutlinedButton>(finder);
+        final fill = button.style!.backgroundColor!.resolve({})!;
+        final text = tester
+            .widget<Text>(
+              find.descendant(of: finder, matching: find.byType(Text)),
+            )
+            .style!
+            .color!;
+        final values = [
+          fill.computeLuminance(),
+          Color.alphaBlend(text, fill).computeLuminance(),
+        ]..sort();
+        expect(
+          (values.last + .05) / (values.first + .05),
+          greaterThanOrEqualTo(4.5),
+        );
+        await unmountScreen(tester);
+      });
+    }
     for (final mode in ['signup', 'signin']) {
       testWidgets('keyboard opens $mode and submits the actual form', (
         tester,

@@ -52,15 +52,36 @@ class VocabularySyncIds {
       _wireByLocal[kind]?[localId] ?? localId;
 
   /// Allocate in the transaction that inserts a row using this ID.
-  Future<String> reserve(SyncedVocabularyRow kind, String wireId) async {
+  Future<String> reserve(SyncedVocabularyRow kind, String wireId) =>
+      _reserve(kind, wireId, () async {
+        final foreign = await _foreignIds.putIfAbsent(
+          kind,
+          () => _ownedElsewhere(kind),
+        );
+        return foreign.contains(wireId);
+      });
+
+  /// One new review only needs the owner of its candidate primary key.
+  Future<String> reserveProgress(String wireId) =>
+      _reserve(SyncedVocabularyRow.progress, wireId, () async {
+        final progress = _db.variantProgressTable;
+        final row =
+            await (_db.selectOnly(progress)
+                  ..addColumns([progress.userId])
+                  ..where(progress.id.equals(wireId)))
+                .getSingleOrNull();
+        return row != null && row.read(progress.userId) != _owner;
+      });
+
+  Future<String> _reserve(
+    SyncedVocabularyRow kind,
+    String wireId,
+    Future<bool> Function() ownedElsewhere,
+  ) async {
     final known = _localByWire[kind]?[wireId];
     if (known != null) return known;
-    final foreign = await _foreignIds.putIfAbsent(
-      kind,
-      () => _ownedElsewhere(kind),
-    );
-    if (!foreign.contains(wireId) &&
-        _wireByLocal[kind]?.containsKey(wireId) != true) {
+    if (_wireByLocal[kind]?.containsKey(wireId) != true &&
+        !await ownedElsewhere()) {
       return wireId;
     }
     final local = _uuid.v4();

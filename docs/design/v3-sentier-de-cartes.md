@@ -104,6 +104,10 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   d'arrêt audio attend de retrouver sa propre route avant de la dépiler.
 - Les actions d'inscription et de connexion de l'accueil, puis la validation
   du formulaire, sont des boutons accessibles par Tab et Entrée.
+- Les deux commandes par icône du pied de liste ont des noms localisés
+  distincts pour les lecteurs d'écran. Leurs fonds, comme celui du bouton
+  de connexion de l'accueil, sont explicites dans les deux thèmes : l'encre
+  claire ne repose plus sur un fond blanc translucide en thème sombre.
 - Les erreurs d'authentification sont traduites dans l'interface à partir de
   motifs indépendants de la langue (identifiants, pseudo/e-mail déjà utilisé,
   confirmation, fréquence, réseau). Un message brut du fournisseur n'est pas
@@ -116,9 +120,10 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   relance un quiz pendant la lecture du nom de la liste ou de la maîtrise.
   Si le compte est encore connecté, la série utilise le jour de fin du quiz,
   même lorsque la lecture du profil traverse minuit. Une date de profil
-  déjà plus récente est préservée. Une écriture concurrente invalide la
-  comparaison du profil : le client relit et recalcule la série, avec trois
-  tentatives maximum, sans écraser la série ou son record calculés entre-temps.
+  déjà plus récente est préservée. Le client envoie le compte et le jour à
+  `record_study_day` ; le serveur conserve ces journées de façon idempotente
+  et recalcule la série dans la même transaction, même lorsqu'une journée
+  plus ancienne arrive après la suivante. Le record acquis est conservé.
 - Le bilan signale son défilement avant le premier geste lorsque son contenu
   dépasse l'écran ; Recommencer et Retour restent atteignables à texte doublé.
 - Le squelette du splash s'adapte au paysage. Le splash et le verdict peuvent
@@ -127,6 +132,11 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
 - L'aperçu de leçon du configurateur défile aussi avec un signal explicite :
   le contenu réel et son bouton de pratique restent accessibles à 320 × 568,
   texte doublé. Les libellés des sections peuvent revenir à la ligne.
+- Dans le lecteur de leçon, une hauteur disponible inférieure à 400 pixels
+  ou un titre agrandi d'au moins 50 % place le titre, la page et la pagination
+  dans le même défilement signalé.
+  Le contenu garde un espace de lecture dans le shell en paysage à texte
+  doublé ; le swipe horizontal, Précédent/Suivant et la pratique restent actifs.
 - Les titres du configurateur et du détail de liste font partie du contenu
   défilant : leur hauteur suit les grandes polices et les noms longs, sans
   rognage par la barre d'application. Les commandes Retour des parcours

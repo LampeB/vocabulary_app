@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 
 import '../../core/utils/stt_debug_log.dart';
+import 'audio_ports.dart';
 
 /// The tiny boundary around the platform audio player used for earcons.
 ///
@@ -52,7 +53,13 @@ class _AudioPlayersSoundEffectPlayer implements SoundEffectPlayer {
   Future<void> stop() => _player.stop();
 
   @override
-  void dispose() => _player.dispose();
+  void dispose() {
+    unawaited(
+      _player.dispose().catchError((Object error) {
+        sttLog('[SFX] player disposal failed: $error');
+      }),
+    );
+  }
 }
 // coverage:ignore-end
 
@@ -70,18 +77,24 @@ class SoundEffectsService {
   int _playbackGeneration = 0;
   bool _disposed = false;
 
-  SoundEffectPlayer get _player {
-    if (_playerInstance == null) {
-      final p = _injectedPlayer ?? _AudioPlayersSoundEffectPlayer();
-      _playerInstance = p;
-      _readyFuture = p.prepare();
-    }
-    return _playerInstance!;
-  }
+  SoundEffectPlayer get _player =>
+      _playerInstance ??= _injectedPlayer ?? _AudioPlayersSoundEffectPlayer();
 
   Future<void> get _ready {
-    _player; // ensure created + configured
-    return _readyFuture!;
+    final player = _player;
+    return _readyFuture ??= Future<void>.sync(player.prepare).onError((
+      Object error,
+      StackTrace stack,
+    ) {
+      _readyFuture = null;
+      // Native creation can leave an AudioPlayer permanently unusable.
+      // A fresh adapter also retries native preparation from scratch.
+      if (_injectedPlayer == null && identical(_playerInstance, player)) {
+        _playerInstance = null;
+        if (!_disposed) player.dispose();
+      }
+      Error.throwWithStackTrace(error, stack);
+    });
   }
 
   Uint8List? _correctBytes;
@@ -171,15 +184,27 @@ class SoundEffectsService {
     return out;
   }
 
-  Future<void> _play(String label, Uint8List Function() bytes) async {
-    if (_disposed) return;
+  Future<void> _play(
+    String label,
+    Uint8List Function() bytes, {
+    bool requirePlayback = false,
+  }) async {
     final generation = _playbackGeneration;
     try {
+      if (_disposed) throw const AudioPlaybackCancelled();
       await _ready;
-      if (generation != _playbackGeneration) return;
+      if (generation != _playbackGeneration) {
+        throw const AudioPlaybackCancelled();
+      }
       sttLog('[SFX] 🎵 $label');
       await _player.play(bytes());
-    } catch (_) {}
+      if (generation != _playbackGeneration) {
+        throw const AudioPlaybackCancelled();
+      }
+    } catch (error) {
+      if (requirePlayback) rethrow;
+      sttLog('[SFX] optional playback failed: $error');
+    }
   }
 
   Future<void> playCorrect() => _play(
@@ -197,6 +222,7 @@ class SoundEffectsService {
   Future<void> playListenCue() => _play(
     'playListenCue (soft tick)',
     () => _cueBytes ??= _makeBeep(620, 0.07, volume: 0.4),
+    requirePlayback: true,
   );
 
   /// Mirror of [playListenCue]: lower soft tick marking that the mic has

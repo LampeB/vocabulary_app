@@ -54,7 +54,8 @@ RESET ROLE;
 DO $$ BEGIN
   IF (SELECT count(*) FROM public.vocabulary_lists) <> 1
     OR NOT EXISTS (SELECT 1 FROM public.vocabulary_lists WHERE name = 'keep me')
-    OR (SELECT count(*) FROM auth.users) <> 2
+    OR (SELECT count(*) FROM auth.users WHERE id IN (
+      '00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002')) <> 2
     OR EXISTS (SELECT 1 FROM public.concepts)
     OR EXISTS (SELECT 1 FROM public.word_variants)
     OR EXISTS (SELECT 1 FROM public.variant_progress)

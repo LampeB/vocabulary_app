@@ -810,3 +810,68 @@ outils et dix tests E2E passent ; actionlint et zizmor ne signalent aucun
 défaut. La gate élargie de contenu réussit 113 tests et les quatre JSON sont
 valides ; les textes anglais révisés et la consigne coréenne restent à relire
 nativement. La règle a/an et ses prérequis ne sont pas modifiés.
+
+## Seizième itération — `284f468`
+
+Les quatre instances ont rendu `BLOQUÉ` sur
+`284f4687c99923ae334d4663fce6081203b0610c` avant toute correction.
+Les **10 Important bruts donnent 9 constats distincts** : l'arrivée inversée
+de deux journées de série est commune aux rapports qualité et correction.
+Aucun Bloquant et une Suggestion. Compteurs propres **0/2**, prochaine passe
+**17**, plafond vingt conservé.
+
+| Profil / instance | Important | Suggestion |
+| --- | --- | --- |
+| Produit — `/root/r16_product` | 4 | 0 |
+| Qualité — `/root/r16_quality` | 2 | 1 |
+| Correction — `/root/r16_correctness` | 3 | 0 |
+| Sécurité — `/root/r16_security` | 1 | 0 |
+
+| Type | Constat distinct | Correction et preuve ciblée |
+| --- | --- | --- |
+| Important | Pluriel demandé à un indénombrable sans consigne adaptée | Consigne FR/EN/KO : pluriel si possible, sinon forme indénombrable inchangée ; `water`, refus de `waters` et `coffees` vérifiés en saisie et en voix |
+| Important | Deux boutons de liste sans nom accessible | Noms localisés distincts et activation exposés dans l'arbre sémantique du vrai détail |
+| Important | Contraste sombre des commandes secondaires | Fonds opaques par thème pour connexion et deux icônes de liste ; contrastes texte et icônes mesurés dans les deux thèmes |
+| Important | Lecteur de leçon sans hauteur de contenu en paysage | Titre, contenu et pagination défilent ensemble en format compact ; vrai shell, règle coréenne au titre anglais long, texte doublé, swipe/Précédent/Suivant/pratique vérifiés |
+| Important | Refus du signal d'ouverture absorbé et préparation non réessayable | Signal d'écoute strict et préparation réessayable ; reprise après refus natif sans ouverture prématurée du microphone |
+| Important | Journée étudiée perdue lorsqu'elle arrive après la suivante | RPC transactionnelle `record_study_day` ; journées idempotentes, série et record identiques dans les deux ordres depuis une série historique |
+| Important | Starters historiques recréés sous un nouvel UUID après purge | Migration additive 023 conservant les clés catalogue minimales ; fixture PostgreSQL réelle puis SQLite neuf et seeding sans résurrection des anciens UUID aléatoires |
+| Important | Refus transitoire de fermeture audio mémorisé indéfiniment | Distinction fermeture en cours/confirmée/refusée ; seule une fermeture refusée est réessayée avant relecture du prompt |
+| Important | Capture ajoutée puis retirée invisible au garde de PR | Vérification des chemins interdits de chaque commit introduit ; dépôt temporaire avec ajout puis retrait et historique de fusion testés, garde d'index conservé |
+
+La Suggestion de performance est traitée : une réservation unitaire de
+progression lit sa seule clé primaire. Le test de collision parmi 20 000
+lignes étrangères retourne une ligne et conserve l'alias. Les lectures
+groupées restent utilisées pour les imports et restaurations.
+
+Un constat préliminaire de sécurité sur les purges Patrol a été retiré par
+son auteur avant le verdict : le mode TEST_MODE coupe le push et le pull,
+donc le scénario supposait un envoi inexistant dans ce parcours. Il ne compte
+pas parmi les constats finaux et n'entraîne aucun changement du reset starter.
+
+Les huit checks CI sont verts sur `284f468`. Les 98 tests ciblés root passent,
+dont les vrais parcours de leçon compacts et les frontières HTTP de la RPC.
+Les 176 tests data passent ; la fixture des clés catalogue a été produite par
+PostgreSQL 16.11 puis restaurée sur SQLite. Les nouvelles purges conservent
+leur identité catalogue, sans reconstituer les clés effacées par une ancienne
+version de 020.
+
+La suite finale passe : **1 212 tests hôte**, douze diagnostics positifs
+exclus sans opt-in, couverture **75,8 %** (14 400 / 18 996 lignes). L'analyse
+complète est propre. Les 25 diagnostics ciblés passent avec opt-in. Les six
+régressions audio ciblées utilisent notamment les vrais canaux natifs simulés
+pour les refus de préparation, de lecture et d'arrêt, suivis d'une reprise.
+
+PostgreSQL 16.11 valide dix-sept suites et douze vrais refus de reset
+intermédiaires avec données conservées. Trois courses à deux connexions
+couvrent reset, purge et ordre inversé des journées sous verrou de profil.
+Le reset efface les plages de jours par cascade. Le contrat exact devient
+`study-catalog-v1`, acquis après 022 et 023. Le bundle atomique, son rejeu
+refusé et les trois contrôles de mise à niveau depuis 017 passent. Aucun
+changement hébergé n'est effectué.
+
+Les 33 tests Python des outils, dont sept pour le garde Git, et les dix tests
+E2E passent, soit **43 tests Python**. Actionlint, zizmor et la syntaxe Bash
+des tests de concurrence sont propres. Les fonctions Edge restent inchangées
+depuis leurs 31 tests Deno et sept bundles validés. Le garde documentaire et
+le formatage restent obligatoires avant le commit commun et la revue 17.

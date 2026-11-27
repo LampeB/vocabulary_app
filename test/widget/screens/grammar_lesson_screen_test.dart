@@ -1,17 +1,34 @@
+import 'dart:convert';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
+// ignore: implementation_imports
+import 'package:easy_localization/src/localization.dart';
+// ignore: implementation_imports
+import 'package:easy_localization/src/translations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
+import 'package:vocab_kr/core/theme/app_theme.dart';
 import 'package:vocab_kr/domain/entities/grammar_rule.dart';
 import 'package:vocab_kr/presentation/providers/grammar/grammar_provider.dart';
 import 'package:vocab_kr/presentation/providers/settings/default_pair_provider.dart';
 import 'package:vocab_kr/presentation/screens/grammar/grammar_lesson_screen.dart';
+import 'package:vocab_kr/presentation/widgets/app_shell.dart';
+import 'package:vocab_kr/presentation/widgets/scroll_affordance.dart';
 import '../../helpers/pump_screen.dart';
 
 class _KoreanToFrenchPair extends DefaultPairNotifier {
   @override
   (String, String) build() => ('ko', 'fr');
+}
+
+class _EnglishToKoreanPair extends DefaultPairNotifier {
+  @override
+  (String, String) build() => ('en', 'ko');
 }
 
 final _rule = GrammarRule(
@@ -37,7 +54,167 @@ final _rule = GrammarRule(
 );
 
 void main() {
-  setUpAll(initTestLocalization);
+  late GrammarRule actualRule;
+  late Map<String, dynamic> english;
+  setUpAll(() async {
+    await initTestLocalization();
+    english =
+        jsonDecode(await rootBundle.loadString('assets/translations/en.json'))
+            as Map<String, dynamic>;
+    final catalog =
+        jsonDecode(
+              await rootBundle.loadString('assets/seed/grammar/ko/rules.json'),
+            )
+            as Map<String, dynamic>;
+    actualRule = (catalog['rules'] as List)
+        .map((entry) => GrammarRule.fromJson(entry as Map<String, dynamic>))
+        .firstWhere(
+          (rule) => rule.id == 'particules-sujet-objet-i-ga-eul-reul',
+        );
+  });
+
+  for (final paged in [false, true]) {
+    testWidgets(
+      'compact lesson in the real shell keeps reading and pagination, paged=$paged',
+      (tester) async {
+        final translations = Translations(english);
+        Localization.load(
+          const Locale('en'),
+          translations: translations,
+          fallbackTranslations: translations,
+        );
+        final previousLocale = Intl.defaultLocale;
+        Intl.defaultLocale = 'en';
+        addTearDown(() {
+          Intl.defaultLocale = previousLocale;
+        });
+        addTearDown(initTestLocalization);
+        final rule = !paged
+            ? actualRule
+            : GrammarRule(
+                id: actualRule.id,
+                titles: actualRule.titles,
+                descriptions: actualRule.descriptions,
+                explanations: actualRule.explanations,
+                workedExamples: actualRule.workedExamples,
+                prerequisiteLists: actualRule.prerequisiteLists,
+                appliesToCategories: actualRule.appliesToCategories,
+                minKnownWords: actualRule.minKnownWords,
+                mechanics: actualRule.mechanics,
+                testVectors: actualRule.testVectors,
+                lessonPages: [
+                  LessonPage(
+                    type: 'explain',
+                    texts: {'en': actualRule.explanation('en')},
+                  ),
+                  LessonPage(
+                    type: 'explain',
+                    texts: {'en': actualRule.workedExamples.first.target},
+                  ),
+                ],
+              );
+        var practiced = false;
+        final router = GoRouter(
+          initialLocation: '/grammar/lesson',
+          routes: [
+            ShellRoute(
+              builder: (_, _, child) => AppShell(child: child),
+              routes: [
+                GoRoute(
+                  path: '/grammar/lesson',
+                  builder: (_, _) => GrammarLessonScreen(ruleId: rule.id),
+                ),
+              ],
+            ),
+            GoRoute(
+              path: '/start-session-grammar',
+              builder: (_, _) {
+                practiced = true;
+                return const Scaffold();
+              },
+            ),
+          ],
+        );
+        addTearDown(router.dispose);
+        tester.view.physicalSize = const Size(568, 320);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              grammarRulesProvider.overrideWith((ref, lang) async => [rule]),
+              defaultPairProvider.overrideWith(_EnglishToKoreanPair.new),
+              pushOnReconnectProvider.overrideWith((ref) {}),
+              connectivityStreamProvider.overrideWith(
+                (ref) => Stream.value([ConnectivityResult.wifi]),
+              ),
+            ],
+            child: MaterialApp.router(
+              theme: AppTheme.light,
+              routerConfig: router,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: const TextScaler.linear(2),
+                  disableAnimations: true,
+                ),
+                child: child!,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text(rule.title('en')), findsOneWidget);
+        final surface = find.byType(ScrollAffordance);
+        final scroll = find.descendant(
+          of: surface,
+          matching: find.byType(Scrollable),
+        );
+        final position = tester.state<ScrollableState>(scroll).position;
+        expect(position.viewportDimension, greaterThan(80));
+        expect(position.maxScrollExtent, greaterThan(0));
+        final cue = find.descendant(
+          of: surface,
+          matching: find.text('lesson.scroll_hint'.tr()),
+        );
+        expect(
+          tester
+              .widget<AnimatedOpacity>(
+                find
+                    .ancestor(of: cue, matching: find.byType(AnimatedOpacity))
+                    .first,
+              )
+              .opacity,
+          1,
+        );
+        if (paged) {
+          // A horizontal gesture still turns the page inside the compact scroller.
+          await tester.drag(find.byType(PageView), const Offset(-450, 0));
+          await tester.pumpAndSettle();
+          final previous = find.text('lesson.previous'.tr());
+          await tester.ensureVisible(previous);
+          await tester.pumpAndSettle();
+          await tester.tap(previous);
+          await tester.pumpAndSettle();
+          final next = find.text('lesson.next'.tr());
+          await tester.ensureVisible(next);
+          await tester.pumpAndSettle();
+          await tester.tap(next);
+          await tester.pumpAndSettle();
+        }
+        final practice = find.byKey(
+          const ValueKey(WidgetKeys.grammarLessonPractice),
+        );
+        await tester.ensureVisible(practice);
+        await tester.pumpAndSettle();
+        expect(practice.hitTestable(), findsOneWidget);
+        await tester.tap(practice);
+        await tester.pumpAndSettle();
+        expect(practiced, isTrue);
+        expect(tester.takeException(), isNull);
+        await unmountScreen(tester);
+      },
+    );
+  }
 
   testWidgets('opens contextual example details without leaving the lesson', (
     tester,

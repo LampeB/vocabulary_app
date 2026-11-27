@@ -11,24 +11,29 @@ if (-not $Staged -and -not $BaseRef) {
 
 . "$PSScriptRoot/git-changed-paths.ps1"
 $files = @(Get-GitChangedPaths -Staged:$Staged -BaseRef $BaseRef)
-if ($files.Count -eq 0) {
-  Write-Host 'PR policy guard passed (no relevant files).'
-  exit 0
+$privacyFiles = $files
+if (-not $Staged) {
+  $privacyFiles += @(Get-GitHistoryPaths -BaseRef $BaseRef)
 }
 
 $forbidden = @(
-  $files | Where-Object {
+  $privacyFiles | Where-Object {
     $_ -match '(^|/)(ci-apk|build|coverage)/' -or
     $_ -match '\.(apk|aab|ipa)$' -or
     $_ -match '(^|/)(\.env\.json|test.*\.env\.json)$' -or
     $_ -match '^supabase/\.env\.deploy$' -or
     $_ -match '(^|/)\.e2e/' -or
     $_ -match '^tool/stt_corpus/'
-  }
+  } | Sort-Object -Unique
 )
 if ($forbidden.Count -gt 0) {
   $displayPaths = ConvertTo-Json -InputObject $forbidden -Compress
   throw "Generated artifacts or private configuration cannot be committed: $displayPaths"
+}
+
+if ($files.Count -eq 0) {
+  Write-Host 'PR policy guard passed (no relevant files).'
+  exit 0
 }
 
 if ($Staged) {

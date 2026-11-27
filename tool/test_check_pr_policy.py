@@ -98,6 +98,38 @@ class PolicyTest(unittest.TestCase):
         self.pwsh(POLICY, '-Staged')
         self.pwsh(POLICY, '-BaseRef', self.make_fixture_revision())
 
+    def test_pr_rejects_a_forbidden_path_removed_before_head(self):
+        path = 'tool/stt_corpus/capture-fixture.wav'
+        self.stage_fixture(path)
+        base = self.make_fixture_revision()
+        self.git('update-index', '--force-remove', '--', path)
+        self.make_fixture_revision()
+        self.assertEqual(self.git('diff', '--name-only', base, 'HEAD'), '')
+        self.assert_blocked(self.pwsh(POLICY, '-BaseRef', base, check=False), path)
+        self.pwsh(POLICY, '-BaseRef', 'HEAD')
+
+    def test_pr_rejects_a_forbidden_path_introduced_by_a_merge(self):
+        base = self.git('rev-parse', 'HEAD')
+        tree = self.git('write-tree')
+        left = self.git('commit-tree', tree, '-p', base, '-m', 'Left fixture parent')
+        right = self.git('commit-tree', tree, '-p', base, '-m', 'Right fixture parent')
+        path = 'tool/stt_corpus/merge-fixture.wav'
+        self.stage_fixture(path)
+        merge = self.git('commit-tree', self.git('write-tree'), '-p', left, '-p', right,
+                         '-m', 'Introduce synthetic path in merge')
+        self.git('update-ref', 'HEAD', merge)
+        self.git('update-index', '--force-remove', '--', path)
+        self.make_fixture_revision()
+        self.assertEqual(self.git('diff', '--name-only', base, 'HEAD'), '')
+        self.assert_blocked(self.pwsh(POLICY, '-BaseRef', base, check=False), path)
+
+    def test_pr_does_not_recheck_unchanged_paths_from_the_base_branch(self):
+        self.stage_fixture('tool/stt_corpus/base-history-fixture.wav')
+        self.make_fixture_revision()
+        self.stage_fixture('README.md')
+        base = self.make_fixture_revision()
+        self.pwsh(POLICY, '-BaseRef', base)
+
     def test_installed_hook_rejects_a_real_commit(self):
         mode = self.invoke('git', 'ls-files', '--stage', HOOK, root=ROOT).stdout.split()[0]
         self.assertEqual(mode, b'100755')

@@ -311,7 +311,7 @@ class StarterSeeder {
         ids.wireId(SyncedVocabularyRow.list, list.id),
         conceptId,
       );
-      // A physical purge preserves the UUID but has no catalog metadata.
+      // Older physical tombstones can carry only their UUID.
       final existing =
           bySeedId[conceptId] ??
           byId[ids.localId(SyncedVocabularyRow.concept, wireId)];

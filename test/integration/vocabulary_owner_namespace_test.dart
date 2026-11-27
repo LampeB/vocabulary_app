@@ -1,4 +1,5 @@
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart'
+    show ApplyInterceptor, QueryExecutor, QueryInterceptor, Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
@@ -155,7 +156,95 @@ const _starter = {
   },
 };
 
+class _ProgressReads extends QueryInterceptor {
+  final reads = <({String sql, List<Object?> args, int rows})>[];
+
+  @override
+  Future<List<Map<String, Object?>>> runSelect(
+    QueryExecutor executor,
+    String statement,
+    List<Object?> args,
+  ) async {
+    final rows = await executor.runSelect(statement, args);
+    if (statement.contains('variant_progress')) {
+      reads.add((sql: statement, args: args, rows: rows.length));
+    }
+    return rows;
+  }
+}
+
 void main() {
+  test('a first review reserves only its colliding primary key alongside '
+      '20,000 other account rows', () async {
+    final reads = _ProgressReads();
+    final db = AppDatabase.forTesting(
+      NativeDatabase.memory().interceptWith(reads),
+    );
+    addTearDown(db.close);
+    final remote = FakeRemote();
+    final vocab = VocabularyRepositoryImpl(
+      db.vocabularyListDao,
+      db.conceptDao,
+      remote,
+      'current',
+      db,
+    );
+    final progress = ProgressRepositoryImpl(
+      db.progressDao,
+      db.conceptDao,
+      remote,
+      'current',
+    );
+    final list = (await vocab.createList(name: 'My vocabulary')).valueOrNull!;
+    final concept = (await vocab.addConceptWithVariants(
+      listId: list.id,
+      wordA: 'chat',
+      wordB: '고양이',
+    )).valueOrNull!;
+    final variant = (await db.conceptDao.getVariantsByConcept(
+      concept.id,
+    )).first;
+    final expected = (await progress.getProgress(
+      variantId: variant.id,
+      direction: QuizDirection.frToKo,
+    )).valueOrNull!;
+
+    await db.customStatement(
+      '''
+      WITH RECURSIVE counter(n) AS (
+        SELECT 1 UNION ALL SELECT n + 1 FROM counter WHERE n < 20000
+      )
+      INSERT INTO variant_progress(id,user_id,variant_id,direction,created_at,updated_at)
+      SELECT CASE WHEN n=1 THEN ? ELSE 'foreign-progress-'||n END,
+        'foreign-account-'||n, ?, 'fr>ko', 0, 0 FROM counter
+    ''',
+      [expected.id, variant.id],
+    );
+    reads.reads.clear();
+
+    final saved = (await progress.mutateProgress(
+      variantId: variant.id,
+      direction: QuizDirection.frToKo,
+      mutate: (current) => current.copyWith(timesShown: 1),
+    )).valueOrNull!;
+    final queries = List.of(reads.reads);
+    final collisionLookup = queries.singleWhere(
+      (query) => query.args.length == 1 && query.args.single == expected.id,
+    );
+    expect(collisionLookup.sql, contains('WHERE "variant_progress"."id" = ?'));
+    expect(collisionLookup.rows, 1);
+    expect(
+      queries.map((query) => query.rows),
+      everyElement(lessThanOrEqualTo(1)),
+    );
+    expect(saved.id, isNot(expected.id));
+    expect(
+      (await db.progressDao.getById(expected.id))?.userId,
+      'foreign-account-1',
+    );
+    expect((await db.progressDao.getById(saved.id))?.userId, 'current');
+  });
+
   test('two accounts with the same server IDs keep their starters, '
       'imports and histories in one SQLite cache', () async {
     final remote = _ScopedRemote();

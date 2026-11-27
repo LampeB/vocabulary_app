@@ -97,14 +97,14 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **1 197 tests hôte passent**, avec **75,6 %**
+- L'analyse Flutter est propre ; les **1 212 tests hôte passent**, avec **75,8 %**
   de couverture sur le dernier lot du 27 novembre. Douze tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 25 tests ciblés. La sonde compilée en mode produit confirme le
   refus des diagnostics, même avec l'option fournie.
-- Sur `2626f20`, les huit checks CI, dont les tests hôte, le wrapper SQL,
+- Sur `284f468`, les huit checks CI, dont les tests hôte, le wrapper SQL,
   Android et le simulateur iOS, sont verts. Le pont utilise le NDK 28.2 de
-  l'application. Les quinze premières itérations des quatre relecteurs ont été
+  l'application. Les seize premières itérations des quatre relecteurs ont été
   bloquées ; leurs corrections sont consignées dans
   [le registre du 27 novembre](docs/reviews/2026-11-27-integration.md).
   Le sas exige deux revues propres sur le commit final ; les verdicts et les
@@ -112,17 +112,17 @@ de contenu avant bêta pédagogique.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **1 197** tests hôte réussis lors de la dernière validation locale
+- La suite compte **1 212** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
-- Les quinze suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
+- Les dix-sept suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
   réelles, dont la protection des tombstones et le test intermédiaire de fermeture
   Storage avant activation de la politique finale. Deux connexions ont
   vérifié le verrou du reset et le refus de l'écriture concurrente. Le contrat
-  Patrol exige 021 et se ferme si une garde de référence ou d'écriture est
+  Patrol exige 022 et 023 et se ferme si une garde de référence ou d'écriture est
   désactivée, ou si un droit client de suppression physique est réintroduit.
   Les dix tests Python E2E, le test Node de redirection TLS, trente-et-un tests Deno, vingt-et-un tests du bot,
-  cinq tests du déploiement et quatre tests du garde Git passent dans le lot courant. Le bot refuse
+  cinq tests du déploiement et sept tests du garde Git passent dans le lot courant. Le bot refuse
   aussi une CI verte issue d'un
   autre workflow ou évaluée contre une autre base.
 - La règle anglaise `a/an` exclut les indénombrables. Décision utilisateur du
@@ -185,10 +185,11 @@ de contenu avant bêta pédagogique.
   l'apprenant quitte le bilan ou recommence pendant une lecture SQLite.
   La série distante ne bascule pas au lendemain après une attente réseau et
   ne réécrit pas une date de profil plus récente.
-- Les journées concurrentes comparent le profil réellement lu avant de
-  l'écrire, puis relisent et recalculent en cas de conflit, dans une limite
-  de trois tentatives. Les compteurs et le record ne viennent plus d'une
-  lecture devenue périmée.
+- La RPC `record_study_day` conserve les journées d'étude et recalcule la
+  série dans une transaction par compte. Les deux ordres d'arrivée donnent
+  les mêmes compteurs et le même record, sans reculer la dernière date.
+  Les plages historiques sont reprises sans matérialiser chaque date et
+  le reset du profil efface ces plages par cascade.
 - La migration additive 020 conserve le journal d'une installation ayant
   déjà appliqué l'ancien 017. Les purges physiques de concepts et variantes
   se propagent aux caches ; leurs identifiants durables empêchent le rejeu
@@ -197,7 +198,12 @@ de contenu avant bêta pédagogique.
 - La migration 021 exige un consentement d'amitié authentifié pour ouvrir
   les listes réservées aux amis. Les anciens liens restent visibles et
   exigent une nouvelle demande acceptée pour cet accès. Le contrat Patrol
-  `friend-consent-v1` refuse le reset aux dix étapes intermédiaires testées.
+  `study-catalog-v1` exige les migrations 022 et 023 et refuse le reset aux
+  douze étapes intermédiaires testées.
+- Les nouvelles purges gardent les seules clés catalogue nécessaires aux
+  starters historiques à UUID aléatoires. Une base SQLite neuve ne les recrée
+  plus sous un nouvel UUID. Les clés effacées par une ancienne version de 020
+  restent irrécupérables depuis son journal seul.
 - Chaque route de quiz conserve sa séance ; un import ou un deuxième quiz
   n'altère pas la carte, le score ou la pause du premier. Quitter reste
   attaché à sa propre route malgré un arrêt audio suspendu. Le bilan et le
@@ -210,6 +216,15 @@ de contenu avant bêta pédagogique.
   enseignées, avec ou sans I, contractées ou longues, en saisie et en voix.
   Le pluriel des portions de café suit le sens commandable du catalogue.
   La règle a/an et sa décision de prérequis restent identiques.
+- Le pluriel demande explicitement de conserver la forme d'un indénombrable,
+  contrairement aux portions de café qui prennent `coffees`. Le lecteur de
+  leçon garde titre, contenu et pagination dans un même défilement lorsqu'il
+  manque de hauteur ou que le texte est fortement agrandi. Les commandes de
+  liste ont des noms accessibles et des contrastes vérifiés dans les deux thèmes.
+- Un refus natif du signal d'ouverture garde le microphone fermé et offre
+  Répéter. Une fermeture de lecteur refusée peut être réessayée sans répéter
+  une fermeture déjà confirmée. Le garde de PR vérifie aussi les commits
+  intermédiaires : ajouter puis retirer une capture ne contourne plus le sas.
 - Les imports superposés ne consomment leur résultat que sur leur propre
   route visible. Une route masquant le quiz interrompt son micro. Les tours
   mains-libres attendent le résultat du prompt, les transcriptions longues

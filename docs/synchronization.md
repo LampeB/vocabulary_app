@@ -5,6 +5,15 @@ L'application utilise SQLite comme source de lecture et les colonnes
 
 ## Écritures
 
+- Le bilan transmet le compte et le jour civil de fin de session à
+  `record_study_day`. PostgreSQL verrouille le profil du compte, enregistre
+  chaque jour une seule fois et fusionne les jours adjacents en intervalles.
+  Une journée arrivée plus tard peut compléter une série sans faire reculer
+  la date la plus récente. Le record ne diminue pas. La migration 022 reprend
+  la série existante à partir de sa dernière date et de sa longueur.
+  La suppression du profil, y compris lors d'un reset Patrol, efface ces
+  intervalles.
+
 - Les repositories écrivent localement. `PushSync` est le seul responsable
   des envois de listes, concepts, variantes, progression et événements.
 - Le shell déclenche un envoi après modification locale (regroupement de
@@ -113,7 +122,8 @@ L'application utilise SQLite comme source de lecture et les colonnes
   transaction qui enregistre la réponse. Deux passages de la même carte
   incrémentent les compteurs et appliquent les transitions successives, même
   si le quiz a chargé les deux cartes en même temps. Le retour du quiz
-  utilise l'intervalle réellement enregistré.
+  utilise l'intervalle réellement enregistré. Pour une première note, la
+  réservation d'un alias vérifie uniquement la clé primaire candidate.
 
 ## Récupération distante
 
@@ -188,8 +198,14 @@ L'application utilise SQLite comme source de lecture et les colonnes
   et du catalogue. Le complément utilise les mêmes identifiants de concepts
   et de variantes que l'import. Il tient compte des suppressions déjà
   enregistrées, y compris pour une langue dont tous les mots ont été supprimés.
-  Un UUID déterministe déjà supprimé reste protégé lorsque son tombstone de
-  purge ne contient plus les métadonnées du catalogue.
+  La migration 023 garde l'identité catalogue minimale des nouvelles purges
+  starter dans l'inventaire, les fenêtres de rattrapage et les accusés. Elle
+  garde l'origine, la paire et le seed ID d'une liste, le seed ID d'un
+  concept et la langue d'une variante. Un nouveau cache reconnaît ainsi
+  ces suppressions même lorsque leurs UUID historiques sont aléatoires.
+  Les anciennes traces restent protégées par UUID. Pour une trace déjà
+  réduite à l'UUID et au parent, les clés catalogue effacées sont
+  irrécupérables depuis le journal.
   Une liste distante reçue sans son contenu complet attend la récupération
   de ses concepts avant le complément du catalogue.
   Les brouillons créés avant la première restauration restent étudiables sur

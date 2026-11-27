@@ -32,6 +32,9 @@ La CI Ubuntu installe le hook dans un dépôt jetable et vérifie qu'un vrai
    configuration privée et exige le formatage des fichiers Dart préparés.
    Les chemins Git sont lus avec leur séparateur NUL. Les accents et les sauts
    de ligne restent attachés à leur nom de fichier pendant le contrôle.
+   En PR, le garde inspecte les chemins de chaque commit absent de la branche
+   de base. Supprimer un fichier interdit dans un commit suivant laisse
+   le premier commit refusé.
    Garder le jeton de déploiement dans `supabase/.env.deploy` sur son poste.
    Le garde refuse ce fichier dans l'index et dans une PR. Le modèle
    [`supabase/.env.deploy.example`](../../supabase/.env.deploy.example) peut

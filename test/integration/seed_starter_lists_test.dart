@@ -1,5 +1,7 @@
 // ignore_for_file: invalid_use_of_internal_member
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
@@ -426,6 +428,81 @@ void main() {
         ),
       );
     }
+  });
+
+  test('a fresh SQLite cache preserves legacy catalogue purges from PostgreSQL '
+      'when it seeds the active pair', () async {
+    final fixture =
+        jsonDecode(
+              await File(
+                'test/fixtures/starter_catalog_purge.json',
+              ).readAsString(),
+            )
+            as Map<String, dynamic>;
+    final owner = fixture['ownerId'] as String;
+    final remote = _HistoricalStarterRemote()
+      ..offline = false
+      ..lists.addAll((fixture['lists'] as List).cast<Map<String, dynamic>>())
+      ..concepts.addAll(
+        (fixture['concepts'] as List).cast<Map<String, dynamic>>(),
+      );
+    final repo = VocabularyRepositoryImpl(
+      db.vocabularyListDao,
+      db.conceptDao,
+      remote,
+      owner,
+      db,
+    );
+    await repo.syncFromRemote();
+    final seeder = makeContainer(
+      userId: owner,
+      repository: repo,
+    ).read(starterSeederProvider);
+    await seeder.ensureSeededForPair('fr', 'ko');
+
+    const numbers = '82600000-0000-4000-8000-000000000020';
+    const greetings = '82600000-0000-4000-8000-000000000010';
+    const bonjour = '82600000-0000-4000-8000-000000000011';
+    const merci = '82600000-0000-4000-8000-000000000012';
+    const korean = '82600000-0000-4000-8000-000000000013';
+    final starters = await db.vocabularyListDao.getStarterLists(owner);
+    final retained = starters.singleWhere(
+      (list) => list.seedId == 'starter-numbers-time:fr>ko',
+    );
+    expect(retained.id, numbers);
+    expect(retained.isDeleted, isTrue);
+    expect(retained.isSynced, isTrue);
+    expect(
+      (await repo.watchMyLists().first).map((list) => list.id),
+      isNot(contains(numbers)),
+    );
+
+    final allConcepts = await db.conceptDao.getConceptsByList(
+      greetings,
+      includeDeleted: true,
+    );
+    final retainedConcept = allConcepts.singleWhere(
+      (c) => c.seedId == 'bonjour',
+    );
+    expect(retainedConcept.id, bonjour);
+    expect(retainedConcept.isDeleted, isTrue);
+    expect(retainedConcept.isSynced, isTrue);
+    final variants = await db.conceptDao.getVariantsByConcept(
+      merci,
+      includeDeleted: true,
+    );
+    final retainedWord = variants.singleWhere((v) => v.langCode == 'ko');
+    expect(retainedWord.id, korean);
+    expect(retainedWord.isDeleted, isTrue);
+    expect(retainedWord.isSynced, isTrue);
+    expect(
+      variants.where((v) => !v.isDeleted).map((v) => v.langCode),
+      isNotEmpty,
+    );
+    expect(
+      variants.where((v) => !v.isDeleted).every((v) => v.langCode == 'fr'),
+      isTrue,
+    );
   });
 
   test('starter completion preserves physically purged deterministic IDs '

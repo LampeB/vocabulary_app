@@ -116,6 +116,7 @@ class WelcomeScreen extends StatelessWidget {
                     onPressed: () => context.go('/auth?mode=signin'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: muted,
+                      backgroundColor: dark ? V3Colors.block : V3Colors.paper2,
                       minimumSize: const Size.fromHeight(52),
                       side: BorderSide(color: border),
                       shape: RoundedRectangleBorder(

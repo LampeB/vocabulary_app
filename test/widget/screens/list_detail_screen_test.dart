@@ -122,6 +122,7 @@ void main() {
     String wordB = '고양이',
     _PairAssistant? assistant,
     _CanonicalDetailRemote? canonicalRemote,
+    ThemeMode themeMode = ThemeMode.light,
   }) async {
     pushedRoute = null;
     launchedQuiz = null;
@@ -167,6 +168,7 @@ void main() {
     await pumpScreen(
       tester,
       screen: ListDetailScreen(listId: listId),
+      themeMode: themeMode,
       overrides: [
         vocabularyRepositoryProvider.overrideWithValue(repo),
         isPremiumProvider.overrideWithValue(premium),
@@ -189,6 +191,48 @@ void main() {
           },
         ),
       ],
+    );
+  }
+
+  for (final theme in [ThemeMode.light, ThemeMode.dark]) {
+    testWidgets(
+      'list actions have distinct accessible names and contrast in $theme',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        await pump(tester, themeMode: theme);
+        for (final (key, label) in [
+          (WidgetKeys.listDetailHandsFree, 'quiz_setup.mode_hands_free_label'),
+          (WidgetKeys.listDetailAddWord, 'list_detail.add_word_bar'),
+        ]) {
+          final finder = find.byKey(ValueKey(key));
+          expect(
+            tester.getSemantics(finder),
+            matchesSemantics(
+              label: label.tr(),
+              isButton: true,
+              isEnabled: true,
+              hasEnabledState: true,
+              isFocusable: true,
+              hasTapAction: true,
+              hasFocusAction: true,
+            ),
+          );
+          final button = tester.widget<OutlinedButton>(finder);
+          final style = button.style!;
+          final fill = style.backgroundColor!.resolve({})!;
+          final ink = style.foregroundColor!.resolve({})!;
+          final values = [
+            fill.computeLuminance(),
+            Color.alphaBlend(ink, fill).computeLuminance(),
+          ]..sort();
+          expect(
+            (values.last + .05) / (values.first + .05),
+            greaterThanOrEqualTo(3),
+          );
+        }
+        semantics.dispose();
+        await unmountScreen(tester);
+      },
     );
   }
 

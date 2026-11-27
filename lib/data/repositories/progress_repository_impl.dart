@@ -192,7 +192,7 @@ class ProgressRepositoryImpl implements ProgressRepository {
       'ponderin:progress:$_userId:$wireVariantId:${direction.name}',
     );
     final id = forUpdate
-        ? await ids.reserve(SyncedVocabularyRow.progress, wireProgressId)
+        ? await ids.reserveProgress(wireProgressId)
         : ids.localId(SyncedVocabularyRow.progress, wireProgressId);
     if (forUpdate) await ids.save();
     return VariantProgress(

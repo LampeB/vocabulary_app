@@ -218,44 +218,14 @@ class SocialRemoteDataSource {
 
   Future<Result<void>> updateStreak() async {
     try {
-      final rows = List<Map<String, dynamic>>.from(
-        (await _client
-                .from('profiles')
-                .select('current_streak, longest_streak, last_study_date')
-                .eq('id', _userId)
-                .limit(1))
-            as List,
+      final studyDay = civilDate(DateTime.now());
+      await _client.rpc<void>(
+        'record_study_day',
+        params: {
+          'p_user_id': _userId,
+          'p_study_date': studyDay.toIso8601String().split('T').first,
+        },
       );
-      if (rows.isEmpty) return const Success(null);
-      final profile = rows.first;
-
-      final todayDate = DateTime.now().toLocal();
-      final lastRaw = profile['last_study_date'] as String?;
-      final current = profile['current_streak'] as int? ?? 0;
-      final longest = profile['longest_streak'] as int? ?? 0;
-
-      final update = computeStreak(
-        today: todayDate,
-        lastStudyDate: lastRaw != null ? DateTime.parse(lastRaw) : null,
-        currentStreak: current,
-      );
-      if (update.alreadyCountedToday) return const Success(null);
-      final newStreak = update.streak;
-
-      String pad2(int n) => n.toString().padLeft(2, '0');
-      final dateStr =
-          '${todayDate.year}-${pad2(todayDate.month)}-${pad2(todayDate.day)}';
-
-      await _client
-          .from('profiles')
-          .update({
-            'current_streak': newStreak,
-            'longest_streak': newStreak > longest ? newStreak : longest,
-            'last_study_date': dateStr,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', _userId);
-
       return const Success(null);
     } catch (e) {
       return Failure(NetworkException(e.toString()));

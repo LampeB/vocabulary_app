@@ -31,6 +31,8 @@ class _FakeTts implements DeviceSpeech {
   var stopped = 0;
   var disposed = 0;
   bool speaking = false;
+  bool refuseDisposal = false;
+  Completer<void>? disposalGate;
 
   @override
   Future<void> speak(String text, String langCode) async {
@@ -47,7 +49,11 @@ class _FakeTts implements DeviceSpeech {
   bool get isSpeaking => speaking;
 
   @override
-  Future<void> dispose() async => disposed++;
+  Future<void> dispose() async {
+    disposed++;
+    if (refuseDisposal) throw StateError('TTS still playing');
+    await disposalGate?.future;
+  }
 }
 
 class _FakeFilePlayer implements FileAudioPlayer {
@@ -363,4 +369,31 @@ void main() {
       expect(player.disposed, 1);
     },
   );
+
+  test('retry retains confirmed and pending releases', () async {
+    final tts = _FakeTts()..refuseDisposal = true;
+    final file = _FakeFilePlayer();
+    final audio = service(premium: false, tts: tts, player: file);
+    audio.dispose();
+    await expectLater(audio.stop(), throwsStateError);
+    expect(file.disposed, 1);
+    expect(tts.disposed, 1);
+
+    final stopping = Completer<void>();
+    tts
+      ..refuseDisposal = false
+      ..disposalGate = stopping;
+    final retries = [
+      audio.retryDisposal(),
+      audio.retryDisposal(),
+      audio.stop(),
+    ];
+    expect(file.disposed, 1);
+    expect(tts.disposed, 2);
+    stopping.complete();
+    await Future.wait(retries);
+    await audio.retryDisposal();
+    expect(file.disposed, 1);
+    expect(tts.disposed, 2);
+  });
 }

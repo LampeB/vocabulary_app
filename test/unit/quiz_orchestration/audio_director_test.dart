@@ -56,6 +56,8 @@ class _FakeAudio implements AudioPlayerService {
   Future<void> warmUp(String langCode) async {}
 
   @override
+  Future<void> retryDisposal() => stop();
+  @override
   Future<void> stop() async {
     speaking = false;
   }

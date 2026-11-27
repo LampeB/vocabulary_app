@@ -124,13 +124,12 @@ GRANT EXECUTE ON FUNCTION public.e2e_patrol_contract() TO anon, authenticated;
 CREATE OR REPLACE FUNCTION public.reset_e2e_account(p_scenario_id text)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
-  IF public.e2e_patrol_contract() IS DISTINCT FROM 'friend-consent-v1' THEN
+  IF public.e2e_patrol_contract() IS DISTINCT FROM 'study-catalog-v1' THEN
     RAISE EXCEPTION 'Patrol schema is unavailable; reset refused' USING ERRCODE = '55000';
   END IF;
   RETURN e2e_private.reset_e2e_account(p_scenario_id);
 END $$;
 REVOKE ALL ON FUNCTION public.reset_e2e_account(text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.reset_e2e_account(text) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
 COMMIT;

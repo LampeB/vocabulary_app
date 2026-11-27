@@ -41,6 +41,7 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
   List<dynamic>? _availableEngines;
   int _playbackGeneration = 0;
   bool _disposed = false;
+  Future<void>? _nativeDisposal;
 
   bool _current(int generation) =>
       !_disposed && generation == _playbackGeneration;
@@ -212,10 +213,19 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
   Future<bool> isAvailable() async => true;
 
   @override
-  Future<void> dispose() async {
-    if (_disposed) return;
+  Future<void> dispose() {
     _disposed = true;
     _playbackGeneration++;
+    return _nativeDisposal ??= _disposeEngine().onError((
+      Object error,
+      StackTrace stack,
+    ) {
+      _nativeDisposal = null;
+      Error.throwWithStackTrace(error, stack);
+    });
+  }
+
+  Future<void> _disposeEngine() async {
     final switching = _engineSwitch;
     try {
       await switching;

@@ -75,6 +75,10 @@ complément : `../../grammar-lessons-redesign.md`
 - Le lecteur utilise les explications/exemples existants tant qu'une unité U7
   n'a pas ajouté ses `lesson_pages` relues. Son chevron de scroll apparaît si
   le texte se prolonge réellement sous la zone visible.
+- En format compact, le titre et la pagination partagent le défilement de la
+  page : ils ne peuvent plus réduire sa zone de lecture à zéro. Le geste
+  horizontal et les commandes manuelles restent utilisables dans le shell,
+  à 568 × 320 et texte doublé, avec signal de défilement avant tout geste.
 
 ### Recherche de terrain (2026-08-21)
 Deux repères utilisés pour recalibrer le pacing :

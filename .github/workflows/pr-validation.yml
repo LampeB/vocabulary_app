@@ -97,6 +97,7 @@ jobs:
           PGHOST: localhost
           PGDATABASE: ponderin_security_test
         run: |
+          set -o pipefail
           psql -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE ponderin_security_test'
           psql -v ON_ERROR_STOP=1 -f supabase/tests/security_bootstrap.sql
           for migration in 000_complete_setup 004_generic_language_pairs 005_list_origin 006_variant_examples_and_seed_ids 007_audio_storage; do
@@ -104,27 +105,34 @@ jobs:
           done
           psql -v ON_ERROR_STOP=1 -f supabase/tests/audio_storage_before_activation.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/audio_storage_write_boundaries.sql
-          for migration in 008_e2e_reset 009_e2e_scenario_accounts 010_provider_quota_buckets 011_sync_identity 012_security_boundaries 013_e2e_isolation 014_vocabulary_tombstones 015_vocabulary_owner_namespace 016_vocabulary_write_order 017_vocabulary_pull_catchup 018_vocabulary_progress_boundaries 019_challenge_list_boundaries 020_vocabulary_physical_purges 021_friendship_consent add_subscription_type; do
+          for migration in 008_e2e_reset 009_e2e_scenario_accounts 010_provider_quota_buckets 011_sync_identity 012_security_boundaries 013_e2e_isolation 014_vocabulary_tombstones 015_vocabulary_owner_namespace 016_vocabulary_write_order 017_vocabulary_pull_catchup 018_vocabulary_progress_boundaries 019_challenge_list_boundaries 020_vocabulary_physical_purges 021_friendship_consent 022_study_days 023_purge_catalog_identity add_subscription_type; do
             psql -v ON_ERROR_STOP=1 -f "supabase/migrations/${migration}.sql"
             case "$migration" in
-              009_*|01[2-9]_*|020_*) psql -v ON_ERROR_STOP=1 -f supabase/tests/e2e_reset_before_activation.sql ;;
+              009_*|01[2-9]_*|02[0-2]_*) psql -v ON_ERROR_STOP=1 -f supabase/tests/e2e_reset_before_activation.sql ;;
             esac
             case "$migration" in
               012_*) psql -v ON_ERROR_STOP=1 -f supabase/tests/review_event_privileges.sql ;;
               016_*) psql -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE ponderin_upgrade_017_test TEMPLATE ponderin_security_test' ;;
+              021_*) psql -v ON_ERROR_STOP=1 -f supabase/tests/study_days_before_upgrade.sql ;;
             esac
           done
-          for test in provider_quota security_boundaries review_event_privileges audio_storage_write_boundaries reset_e2e_account e2e_scenario_accounts e2e_isolation vocabulary_tombstones vocabulary_owner_namespace vocabulary_write_order vocabulary_pull_catchup vocabulary_progress_boundaries challenge_list_boundaries vocabulary_physical_purges friendship_consent; do
-            psql -v ON_ERROR_STOP=1 -f "supabase/tests/${test}.sql"
+          for test in provider_quota security_boundaries review_event_privileges audio_storage_write_boundaries reset_e2e_account e2e_scenario_accounts e2e_isolation vocabulary_tombstones vocabulary_owner_namespace vocabulary_write_order vocabulary_pull_catchup vocabulary_progress_boundaries challenge_list_boundaries vocabulary_physical_purges friendship_consent study_days vocabulary_purge_catalog_identity; do
+            if [[ "$test" == vocabulary_purge_catalog_identity ]]; then
+              psql -XqAt -v ON_ERROR_STOP=1 -f "supabase/tests/${test}.sql" |
+                python3 -c 'import json, pathlib, sys; expected = json.loads(pathlib.Path("test/fixtures/starter_catalog_purge.json").read_text(encoding="utf-8")); sys.exit(0 if json.load(sys.stdin) == expected else "PostgreSQL catalogue purge payload differs from the Flutter fixture")'
+            else
+              psql -v ON_ERROR_STOP=1 -f "supabase/tests/${test}.sql"
+            fi
           done
           bash supabase/tests/reset_concurrency.sh
           bash supabase/tests/vocabulary_purge_concurrency.sh
+          bash supabase/tests/study_day_concurrency.sh
 
           export PGDATABASE=ponderin_upgrade_017_test
           psql -v ON_ERROR_STOP=1 -c 'GRANT ALL ON public.review_events TO authenticated'
           psql -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/017_vocabulary_pull_catchup_round13.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/vocabulary_upgrade_017_setup.sql
-          for upgrade in 018_vocabulary_progress_boundaries 019_challenge_list_boundaries 020_vocabulary_physical_purges 021_friendship_consent add_subscription_type; do
+          for upgrade in 018_vocabulary_progress_boundaries 019_challenge_list_boundaries 020_vocabulary_physical_purges 021_friendship_consent 022_study_days 023_purge_catalog_identity add_subscription_type; do
             psql -v ON_ERROR_STOP=1 -f "supabase/migrations/${upgrade}.sql"
           done
           psql -v ON_ERROR_STOP=1 -f supabase/tests/vocabulary_upgrade_017_assert.sql

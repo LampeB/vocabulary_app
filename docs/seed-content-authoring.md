@@ -88,6 +88,14 @@ drill. Keep the `coffee` → `coffees` override and the ordering example
 The revised English negation and plural teaching text and the Korean
 negation prompt are pending native review.
 
+The plural exercise instruction explicitly asks for the plural **when one
+exists**, and otherwise asks the learner to repeat the uncountable form.
+Thus `water` remains `water`, while the catalog serving sense of `coffee`
+requires `coffees`. Both distinctions are checked through typed and voice
+quiz validation. The clarified FR/EN/KO UI prompt does not change the rule's
+prerequisites, minimum known words, or authored vocabulary senses; the Korean
+copy remains pending native review.
+
 ## Grammar lesson pages (P3)
 
 Grammar rules may carry an optional `lesson_pages` array. It is authored

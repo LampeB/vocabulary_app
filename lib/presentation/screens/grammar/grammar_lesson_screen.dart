@@ -117,6 +117,69 @@ class _LessonReaderState extends State<_LessonReader> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final screenSize = MediaQuery.sizeOf(context);
+        final compact =
+            constraints.maxHeight < 400 ||
+            MediaQuery.textScalerOf(context).scale(25) >= 37.5;
+        final title = Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              widget.rule.title(locale),
+              style: AppTextStyles.grotesk(25, FontWeight.w700),
+            ),
+          ),
+        );
+        final controls = Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 120,
+                child: OutlinedButton(
+                  onPressed: _index == 0
+                      ? null
+                      : () => _controller.previousPage(
+                          duration: const Duration(milliseconds: 180),
+                          curve: Curves.easeOutCubic,
+                        ),
+                  child: Text('lesson.previous'.tr()),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton.icon(
+                  key: atLastPage
+                      ? const ValueKey(WidgetKeys.grammarLessonPractice)
+                      : null,
+                  onPressed: atLastPage
+                      ? () => context.push(
+                          Uri(
+                            path: '/start-session-grammar',
+                            queryParameters: {
+                              'rule': widget.rule.id,
+                              'langA': widget.pair.$1,
+                              'langB': widget.pair.$2,
+                            },
+                          ).toString(),
+                        )
+                      : () => _controller.nextPage(
+                          duration: const Duration(milliseconds: 180),
+                          curve: Curves.easeOutCubic,
+                        ),
+                  icon: Icon(
+                    atLastPage
+                        ? Icons.play_arrow_rounded
+                        : Icons.arrow_forward_rounded,
+                  ),
+                  label: Text(
+                    atLastPage ? 'lesson.practice'.tr() : 'lesson.next'.tr(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
         return SizedBox(
           width: constraints.maxWidth.isFinite
               ? constraints.maxWidth
@@ -126,76 +189,31 @@ class _LessonReaderState extends State<_LessonReader> {
               : screenSize.height,
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    widget.rule.title(locale),
-                    style: AppTextStyles.grotesk(25, FontWeight.w700),
-                  ),
-                ),
-              ),
+              if (!compact) title,
               Expanded(
                 child: PageView.builder(
                   controller: _controller,
                   itemCount: pages.length,
                   onPageChanged: (value) => setState(() => _index = value),
-                  itemBuilder: (_, index) => _LessonPage(page: pages[index]),
+                  itemBuilder: (_, index) => compact
+                      ? ScrollAffordance(
+                          hint: 'lesson.scroll_hint'.tr(),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              title,
+                              _LessonPage(
+                                page: pages[index],
+                                scrollable: false,
+                              ),
+                              controls,
+                            ],
+                          ),
+                        )
+                      : _LessonPage(page: pages[index]),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 120,
-                      child: OutlinedButton(
-                        onPressed: _index == 0
-                            ? null
-                            : () => _controller.previousPage(
-                                duration: const Duration(milliseconds: 180),
-                                curve: Curves.easeOutCubic,
-                              ),
-                        child: Text('lesson.previous'.tr()),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.icon(
-                        key: atLastPage
-                            ? const ValueKey(WidgetKeys.grammarLessonPractice)
-                            : null,
-                        onPressed: atLastPage
-                            ? () => context.push(
-                                Uri(
-                                  path: '/start-session-grammar',
-                                  queryParameters: {
-                                    'rule': widget.rule.id,
-                                    'langA': widget.pair.$1,
-                                    'langB': widget.pair.$2,
-                                  },
-                                ).toString(),
-                              )
-                            : () => _controller.nextPage(
-                                duration: const Duration(milliseconds: 180),
-                                curve: Curves.easeOutCubic,
-                              ),
-                        icon: Icon(
-                          atLastPage
-                              ? Icons.play_arrow_rounded
-                              : Icons.arrow_forward_rounded,
-                        ),
-                        label: Text(
-                          atLastPage
-                              ? 'lesson.practice'.tr()
-                              : 'lesson.next'.tr(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              if (!compact) controls,
             ],
           ),
         );
@@ -205,15 +223,14 @@ class _LessonReaderState extends State<_LessonReader> {
 }
 
 class _LessonPage extends StatelessWidget {
-  const _LessonPage({required this.page});
+  const _LessonPage({required this.page, this.scrollable = true});
 
   final _ReaderPage page;
+  final bool scrollable;
 
   @override
-  Widget build(BuildContext context) => ScrollAffordance(
-    hint: 'lesson.scroll_hint'.tr(),
-    padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
-    child: Column(
+  Widget build(BuildContext context) {
+    final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(page.text, style: AppTextStyles.body.copyWith(height: 1.55)),
@@ -222,8 +239,16 @@ class _LessonPage extends StatelessWidget {
           _TappableExample(example: example),
         ],
       ],
-    ),
-  );
+    );
+    const padding = EdgeInsets.fromLTRB(20, 4, 20, 28);
+    return scrollable
+        ? ScrollAffordance(
+            hint: 'lesson.scroll_hint'.tr(),
+            padding: padding,
+            child: content,
+          )
+        : Padding(padding: padding, child: content);
+  }
 }
 
 class _TappableExample extends StatelessWidget {

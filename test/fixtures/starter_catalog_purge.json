@@ -1,0 +1,97 @@
+{
+  "lists": [
+    {
+      "id": "82600000-0000-4000-8000-000000000010",
+      "name": "Legacy greetings",
+      "lang_a": "fr",
+      "lang_b": "ko",
+      "origin": "starter",
+      "seed_id": "starter-greetings:fr>ko",
+      "owner_id": "82600000-0000-4000-8000-000000000001",
+      "created_at": "2026-11-27T00:00:00+00:00",
+      "is_deleted": false,
+      "updated_at": "2026-11-27T00:00:00+00:00",
+      "visibility": "private",
+      "word_count": 0,
+      "description": null,
+      "share_token": null,
+      "sync_write_protocol": 16,
+      "imported_from_share_token": null
+    },
+    {
+      "id": "82600000-0000-4000-8000-000000000020",
+      "name": "",
+      "lang_a": "fr",
+      "lang_b": "ko",
+      "origin": "starter",
+      "seed_id": "starter-numbers-time:fr>ko",
+      "owner_id": "82600000-0000-4000-8000-000000000001",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "is_deleted": true,
+      "updated_at": "1970-01-01T00:00:00+00:00",
+      "visibility": null,
+      "word_count": null,
+      "description": null,
+      "share_token": null,
+      "sync_write_protocol": null,
+      "imported_from_share_token": null
+    },
+    {
+      "id": "82600000-0000-4000-8000-000000000030",
+      "name": "",
+      "lang_a": null,
+      "lang_b": null,
+      "origin": null,
+      "seed_id": null,
+      "owner_id": "82600000-0000-4000-8000-000000000001",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "is_deleted": true,
+      "updated_at": "1970-01-01T00:00:00+00:00",
+      "visibility": null,
+      "word_count": null,
+      "description": null,
+      "share_token": null,
+      "sync_write_protocol": null,
+      "imported_from_share_token": null
+    }
+  ],
+  "ownerId": "82600000-0000-4000-8000-000000000001",
+  "concepts": [
+    {
+      "id": "82600000-0000-4000-8000-000000000011",
+      "list_id": "82600000-0000-4000-8000-000000000010",
+      "seed_id": "bonjour",
+      "owner_id": "82600000-0000-4000-8000-000000000001",
+      "created_at": "1970-01-01T00:00:00Z",
+      "is_deleted": true,
+      "updated_at": "1970-01-01T00:00:00Z",
+      "word_variants": []
+    },
+    {
+      "id": "82600000-0000-4000-8000-000000000012",
+      "notes": null,
+      "list_id": "82600000-0000-4000-8000-000000000010",
+      "seed_id": "merci",
+      "category": null,
+      "owner_id": "82600000-0000-4000-8000-000000000001",
+      "image_url": null,
+      "created_at": "2026-11-27T00:00:00+00:00",
+      "example_fr": null,
+      "example_ko": null,
+      "is_deleted": false,
+      "updated_at": "2026-11-27T00:00:00+00:00",
+      "word_variants": [
+        {
+          "id": "82600000-0000-4000-8000-000000000013",
+          "owner_id": "82600000-0000-4000-8000-000000000001",
+          "lang_code": "ko",
+          "concept_id": "82600000-0000-4000-8000-000000000012",
+          "created_at": "1970-01-01T00:00:00Z",
+          "is_deleted": true,
+          "updated_at": "1970-01-01T00:00:00Z"
+        }
+      ],
+      "sync_write_protocol": 16
+    }
+  ]
+}

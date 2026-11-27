@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vocab_kr/services/audio/audio_ports.dart';
 import 'package:vocab_kr/services/audio/sound_effects_service.dart';
 
 class _FakePlayer implements SoundEffectPlayer {
@@ -80,6 +81,28 @@ void main() {
     expect(identical(player.played[1], player.played[2]), isFalse);
   });
 
+  test(
+    'opening cue retries native preparation and propagates play errors',
+    () async {
+      final player = _FakePlayer()..failPrepare = true;
+      final service = SoundEffectsService(player: player);
+      await expectLater(service.playListenCue(), throwsStateError);
+      expect(player.prepared, 1);
+      expect(player.played, isEmpty);
+
+      player.failPrepare = false;
+      player.failPlay = true;
+      await expectLater(service.playListenCue(), throwsStateError);
+      expect(player.prepared, 2);
+      expect(player.played, isEmpty);
+
+      player.failPlay = false;
+      await service.playListenCue();
+      expect(player.prepared, 2);
+      expect(player.played, hasLength(1));
+    },
+  );
+
   test('fails silently when the device audio session is unavailable', () async {
     final prepareFailure = _FakePlayer()..failPrepare = true;
     await SoundEffectsService(player: prepareFailure).playCorrect();
@@ -88,7 +111,6 @@ void main() {
     final outputFailure = _FakePlayer()..failPlay = true;
     final service = SoundEffectsService(player: outputFailure);
     await service.playIncorrect();
-    await service.playListenCue();
     await service.playListenDone();
     expect(outputFailure.prepared, 1);
     expect(outputFailure.played, isEmpty);
@@ -120,9 +142,12 @@ void main() {
         final pending = Future.wait([
           service.playCorrect(),
           service.playIncorrect(),
-          service.playListenCue(),
           service.playListenDone(),
         ]);
+        final cue = expectLater(
+          service.playListenCue(),
+          throwsA(isA<AudioPlaybackCancelled>()),
+        );
         expect(player.prepared, 1);
 
         if (dispose) {
@@ -132,10 +157,18 @@ void main() {
         }
         gate.complete();
         await pending;
+        await cue;
         expect(player.played, isEmpty);
         expect(player.stopped, 1);
 
-        await service.playListenCue();
+        if (dispose) {
+          await expectLater(
+            service.playListenCue(),
+            throwsA(isA<AudioPlaybackCancelled>()),
+          );
+        } else {
+          await service.playListenCue();
+        }
         expect(player.played, hasLength(dispose ? 0 : 1));
       },
     );

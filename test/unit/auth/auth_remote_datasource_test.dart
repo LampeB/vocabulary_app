@@ -9,7 +9,6 @@ import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
-import 'package:vocab_kr/core/utils/streak.dart';
 import 'package:vocab_kr/data/datasources/remote/auth_remote_datasource.dart';
 
 class _AuthStorage extends sb.GotrueAsyncStorage {
@@ -40,154 +39,213 @@ Future<void> _setIdentity(sb.SupabaseClient client, String id) =>
       }),
     );
 
-http.Response _jsonReply(http.Request request, Object body) => http.Response(
-  jsonEncode(body),
-  200,
-  request: request,
-  headers: {'content-type': 'application/json'},
-);
-
 void main() {
   setUpAll(tzdata.initializeTimeZones);
 
-  test(
-    'interleaved consecutive study days recompute after a profile conflict',
-    () async {
-      final profile = <String, dynamic>{
-        'current_streak': 5,
-        'longest_streak': 5,
-        'last_study_date': '2026-11-24',
-      };
-      final bothRead = Completer<void>();
-      final earlierWritten = Completer<void>();
-      var gets = 0;
-      var patches = 0;
-      final client = sb.SupabaseClient(
-        'https://fixture.supabase.co',
-        'fixture-anon-key',
-        httpClient: MockClient((request) async {
-          if (request.method == 'GET') {
-            final snapshot = Map<String, dynamic>.of(profile);
-            gets++;
-            if (gets <= 2) {
-              if (gets == 2) bothRead.complete();
-              await bothRead.future;
-            }
-            return _jsonReply(request, [snapshot]);
-          }
-          patches++;
-          final change = jsonDecode(request.body) as Map<String, dynamic>;
-          if (change['last_study_date'] == '2026-11-26') {
-            await earlierWritten.future;
-          }
-          final matches =
-              ['current_streak', 'longest_streak', 'last_study_date'].every(
-                (field) =>
-                    request.url.queryParameters[field] ==
-                    'eq.${profile[field]}',
-              );
-          if (!matches) return _jsonReply(request, <Object>[]);
-          profile.addAll(change);
-          if (!earlierWritten.isCompleted) earlierWritten.complete();
-          return _jsonReply(request, [
-            {'id': 'u'},
-          ]);
-        }),
-      );
-      addTearDown(client.dispose);
-      await _setIdentity(client, 'u');
-      final remote = AuthRemoteDataSource(client);
-      final results = await Future.wait([
-        remote.updateStreak(userId: 'u', studyDate: DateTime.utc(2026, 11, 25)),
-        remote.updateStreak(userId: 'u', studyDate: DateTime.utc(2026, 11, 26)),
-      ]);
-      expect(results.every((result) => result.isSuccess), isTrue);
-      expect(gets, 3);
-      expect(patches, 3);
-      expect(profile['current_streak'], 7);
-      expect(profile['longest_streak'], 7);
-      expect(profile['last_study_date'], '2026-11-26');
-    },
-  );
+  for (final reverse in [false, true]) {
+    test(
+      'study RPC keeps both dates when replies arrive ${reverse ? "newest" : "oldest"} first',
+      () async {
+        final requests = <String, Map<String, dynamic>>{};
+        final arrived = Completer<void>();
+        final releases = {
+          '2026-11-25': Completer<void>(),
+          '2026-11-26': Completer<void>(),
+        };
+        final completed = <String>[];
+        final client = sb.SupabaseClient(
+          'https://fixture.supabase.co',
+          'fixture-anon-key',
+          httpClient: MockClient((request) async {
+            expect(request.url.path, '/rest/v1/rpc/record_study_day');
+            expect(request.method, 'POST');
+            expect(
+              request.headers['authorization'],
+              'Bearer fixture-token-for-u',
+            );
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            final day = body['p_study_date'] as String;
+            expect(body['p_user_id'], 'u');
+            requests[day] = body;
+            if (requests.length == 2) arrived.complete();
+            await releases[day]!.future;
+            completed.add(day);
+            return http.Response('', 204, request: request);
+          }),
+        );
+        addTearDown(client.dispose);
+        await _setIdentity(client, 'u');
+        final remote = AuthRemoteDataSource(client);
+        final earlier = remote.updateStreak(
+          userId: 'u',
+          studyDate: DateTime.utc(2026, 11, 25),
+        );
+        final later = remote.updateStreak(
+          userId: 'u',
+          studyDate: DateTime.utc(2026, 11, 26),
+        );
+        await arrived.future.timeout(const Duration(seconds: 2));
+        final first = reverse ? '2026-11-26' : '2026-11-25';
+        final second = reverse ? '2026-11-25' : '2026-11-26';
+        releases[first]!.complete();
+        expect((await (reverse ? later : earlier)).isSuccess, isTrue);
+        releases[second]!.complete();
+        expect((await (reverse ? earlier : later)).isSuccess, isTrue);
+        expect(completed, [first, second]);
+        // SQL tests exercise the actual transactional aggregation in both orders.
+        expect(requests.keys, unorderedEquals(releases.keys));
+      },
+    );
+  }
 
-  test(
-    'a legacy null profile uses null comparisons for its first study',
-    () async {
-      Map<String, dynamic>? saved;
-      final client = sb.SupabaseClient(
-        'https://fixture.supabase.co',
-        'fixture-anon-key',
-        httpClient: MockClient((request) async {
-          if (request.method == 'GET') {
-            return _jsonReply(request, [
-              {
-                'current_streak': null,
-                'longest_streak': null,
-                'last_study_date': null,
-              },
-            ]);
-          }
-          for (final field in [
-            'current_streak',
-            'longest_streak',
-            'last_study_date',
-          ]) {
-            expect(request.url.queryParameters[field], 'is.null');
-          }
-          saved = jsonDecode(request.body) as Map<String, dynamic>;
-          return _jsonReply(request, [
-            {'id': 'u'},
-          ]);
-        }),
-      );
-      addTearDown(client.dispose);
-      await _setIdentity(client, 'u');
+  test('repeating a study day sends the same idempotency identity', () async {
+    final bodies = <Map<String, dynamic>>[];
+    final client = sb.SupabaseClient(
+      'https://fixture.supabase.co',
+      'fixture-anon-key',
+      httpClient: MockClient((request) async {
+        bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+        return http.Response('', 204, request: request);
+      }),
+    );
+    addTearDown(client.dispose);
+    await _setIdentity(client, 'u');
+    final remote = AuthRemoteDataSource(client);
+    for (var i = 0; i < 2; i++) {
       expect(
-        (await AuthRemoteDataSource(client).updateStreak(
+        (await remote.updateStreak(
           userId: 'u',
           studyDate: DateTime.utc(2026, 11, 25),
         )).isSuccess,
         isTrue,
       );
-      expect(saved!['current_streak'], 1);
-      expect(saved!['longest_streak'], 1);
-    },
-  );
+    }
+    expect(bodies, [
+      {'p_user_id': 'u', 'p_study_date': '2026-11-25'},
+      {'p_user_id': 'u', 'p_study_date': '2026-11-25'},
+    ]);
+  });
 
-  test(
-    'repeated profile conflicts stay bounded and report a failure',
-    () async {
-      var patches = 0;
+  test('an inactive account does not send a study request', () async {
+    var calls = 0;
+    final client = sb.SupabaseClient(
+      'https://fixture.supabase.co',
+      'fixture-anon-key',
+      httpClient: MockClient((request) async {
+        calls++;
+        return http.Response('', 204, request: request);
+      }),
+    );
+    addTearDown(client.dispose);
+    await _setIdentity(client, 'other');
+    expect(
+      (await AuthRemoteDataSource(client).updateStreak(
+        userId: 'u',
+        studyDate: DateTime.utc(2026, 11, 25),
+      )).isFailure,
+      isTrue,
+    );
+    expect(calls, 0);
+  });
+
+  test('a refused server study request remains a failure', () async {
+    final client = sb.SupabaseClient(
+      'https://fixture.supabase.co',
+      'fixture-anon-key',
+      httpClient: MockClient(
+        (request) async => http.Response(
+          jsonEncode({'code': '42501', 'message': 'Study account mismatch'}),
+          403,
+          request: request,
+          headers: {'content-type': 'application/json'},
+        ),
+      ),
+    );
+    addTearDown(client.dispose);
+    await _setIdentity(client, 'u');
+    expect(
+      (await AuthRemoteDataSource(client).updateStreak(
+        userId: 'u',
+        studyDate: DateTime.utc(2026, 11, 25),
+      )).isFailure,
+      isTrue,
+    );
+  });
+
+  for (final date in [(2026, 3, 30), (2026, 10, 26)]) {
+    test('study RPC preserves the Paris civil date across DST $date', () async {
+      final day = tz.TZDateTime(
+        tz.getLocation('Europe/Paris'),
+        date.$1,
+        date.$2,
+        date.$3,
+      );
+      Map<String, dynamic>? body;
       final client = sb.SupabaseClient(
         'https://fixture.supabase.co',
         'fixture-anon-key',
         httpClient: MockClient((request) async {
-          if (request.method == 'GET') {
-            return _jsonReply(request, [
-              {
-                'current_streak': 5,
-                'longest_streak': 5,
-                'last_study_date': '2026-11-24',
-              },
-            ]);
-          }
-          patches++;
-          return _jsonReply(request, <Object>[]);
+          body = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response('', 204, request: request);
         }),
       );
       addTearDown(client.dispose);
       await _setIdentity(client, 'u');
       expect(
-        (await AuthRemoteDataSource(client).updateStreak(
-          userId: 'u',
-          studyDate: DateTime.utc(2026, 11, 25),
-        )).isFailure,
+        (await AuthRemoteDataSource(
+          client,
+        ).updateStreak(userId: 'u', studyDate: day)).isSuccess,
         isTrue,
       );
-      expect(patches, 3);
-    },
-  );
+      expect(body, {
+        'p_user_id': 'u',
+        'p_study_date': day.toIso8601String().substring(0, 10),
+      });
+    });
+  }
 
+  for (final switchAccount in [false, true]) {
+    test(
+      'pending study keeps completion identity across midnight, switch=$switchAccount',
+      () async {
+        final sent = Completer<void>();
+        final release = Completer<void>();
+        Map<String, dynamic>? body;
+        final client = sb.SupabaseClient(
+          'https://fixture.supabase.co',
+          'fixture-anon-key',
+          httpClient: MockClient((request) async {
+            expect(
+              request.headers['authorization'],
+              'Bearer fixture-token-for-u',
+            );
+            body = jsonDecode(request.body) as Map<String, dynamic>;
+            sent.complete();
+            await release.future;
+            return http.Response('', 204, request: request);
+          }),
+        );
+        addTearDown(client.dispose);
+        await _setIdentity(client, 'u');
+        final completed = tz.TZDateTime(
+          tz.getLocation('Europe/Paris'),
+          2026,
+          11,
+          27,
+          23,
+          59,
+        );
+        final result = AuthRemoteDataSource(
+          client,
+        ).updateStreak(userId: 'u', studyDate: completed);
+        await sent.future.timeout(const Duration(seconds: 2));
+        if (switchAccount) await _setIdentity(client, 'other');
+        release.complete();
+        expect((await result).isFailure, switchAccount);
+        expect(body, {'p_user_id': 'u', 'p_study_date': '2026-11-27'});
+      },
+    );
+  }
   for (final offline in [false, true]) {
     test(
       'reset preserves ${offline ? 'network' : 'HTTP 429'} reason',
@@ -266,134 +324,5 @@ void main() {
         expect(result.exceptionOrNull!.message, isNot(contains('Raw server')));
       },
     );
-  }
-
-  for (final date in [(2026, 3, 30), (2026, 10, 26)]) {
-    test(
-      'quiz streak API saves consecutive civil days across Paris DST $date',
-      () async {
-        final paris = tz.getLocation('Europe/Paris');
-        final today = tz.TZDateTime(paris, date.$1, date.$2, date.$3);
-        final last = tz.TZDateTime(paris, date.$1, date.$2, date.$3 - 1);
-        Map<String, dynamic>? saved;
-        final client = sb.SupabaseClient(
-          'https://fixture.supabase.co',
-          'fixture-anon-key',
-          httpClient: MockClient((request) async {
-            expect(request.url.path, '/rest/v1/profiles');
-            if (request.method == 'GET') {
-              return http.Response(
-                jsonEncode([
-                  {
-                    'current_streak': 5,
-                    'longest_streak': 5,
-                    'last_study_date': last.toIso8601String().substring(0, 10),
-                  },
-                ]),
-                200,
-                headers: {'content-type': 'application/json'},
-                request: request,
-              );
-            }
-            expect(request.method, 'PATCH');
-            saved = jsonDecode(request.body) as Map<String, dynamic>;
-            return _jsonReply(request, [
-              {'id': 'u'},
-            ]);
-          }),
-        );
-        addTearDown(client.dispose);
-        await _setIdentity(client, 'u');
-        final result = await AuthRemoteDataSource(
-          client,
-          now: () => today,
-        ).updateStreak(userId: 'u', studyDate: civilDate(today));
-        expect(
-          result.isSuccess,
-          isTrue,
-          reason: result.exceptionOrNull?.message,
-        );
-        expect(saved!['current_streak'], 6);
-        expect(saved!['longest_streak'], 6);
-        expect(saved!['updated_at'], today.toUtc().toIso8601String());
-        expect(
-          saved!['last_study_date'],
-          today.toIso8601String().substring(0, 10),
-        );
-      },
-    );
-  }
-
-  for (final (label, lastStudyDate, switchAccount) in [
-    ('keeps the completion day across midnight', '2026-11-26', false),
-    ('preserves a newer study day', '2026-11-28', false),
-    ('stops after an account switch', '2026-11-26', true),
-  ]) {
-    test('delayed streak profile GET $label', () async {
-      final paris = tz.getLocation('Europe/Paris');
-      var now = tz.TZDateTime(paris, 2026, 11, 27, 23, 59);
-      final requested = Completer<void>();
-      final release = Completer<void>();
-      Map<String, dynamic>? saved;
-      final client = sb.SupabaseClient(
-        'https://fixture.supabase.co',
-        'fixture-anon-key',
-        httpClient: MockClient((request) async {
-          expect(request.url.path, '/rest/v1/profiles');
-          expect(request.url.queryParameters['id'], 'eq.u');
-          expect(
-            request.headers['authorization'],
-            'Bearer fixture-token-for-u',
-          );
-          if (request.method == 'GET') {
-            requested.complete();
-            await release.future;
-            return http.Response(
-              jsonEncode([
-                {
-                  'current_streak': 5,
-                  'longest_streak': 8,
-                  'last_study_date': lastStudyDate,
-                },
-              ]),
-              200,
-              headers: {'content-type': 'application/json'},
-              request: request,
-            );
-          }
-          expect(request.method, 'PATCH');
-          expect(
-            request.url.queryParameters['last_study_date'],
-            'eq.$lastStudyDate',
-          );
-          saved = jsonDecode(request.body) as Map<String, dynamic>;
-          return _jsonReply(request, [
-            {'id': 'u'},
-          ]);
-        }),
-      );
-      addTearDown(client.dispose);
-      await _setIdentity(client, 'u');
-      final result = AuthRemoteDataSource(
-        client,
-        now: () => now,
-      ).updateStreak(userId: 'u', studyDate: civilDate(now));
-
-      await requested.future.timeout(const Duration(seconds: 2));
-      now = tz.TZDateTime(paris, 2026, 11, 28, 0, 1);
-      if (switchAccount) await _setIdentity(client, 'other');
-      release.complete();
-      expect((await result).isFailure, switchAccount);
-      if (switchAccount || lastStudyDate == '2026-11-28') {
-        expect(saved, isNull);
-      } else {
-        expect(saved, {
-          'current_streak': 6,
-          'longest_streak': 8,
-          'last_study_date': '2026-11-27',
-          'updated_at': now.toUtc().toIso8601String(),
-        });
-      }
-    });
   }
 }

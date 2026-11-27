@@ -97,6 +97,9 @@ class AudioPlayerService {
   int _playbackEpoch = 0;
   Completer<void> _interrupted = Completer<void>();
   Future<void>? _disposal;
+  Future<void>? _fileDisposal;
+  Future<void>? _speechDisposal;
+  bool _disposalRefused = false;
 
   // A visible silent gap is worse than a temporary device-TTS voice. Storage
   // downloads keep filling the cache after this budget expires, so following
@@ -186,6 +189,37 @@ class AudioPlayerService {
     await Future.wait([_player.stop(), _tts.stop()]);
   }
 
+  /// A learner retry reissues only native release calls that were refused.
+  /// Pending and confirmed releases keep their original futures.
+  Future<void> retryDisposal() => _disposalRefused ? _releasePlayers() : stop();
+
+  Future<void> _releasePlayers() {
+    _disposalRefused = false;
+    return _disposal =
+        Future.wait<void>([
+          _fileDisposal ??= Future<void>.sync(_player.dispose).onError((
+            Object error,
+            StackTrace stack,
+          ) {
+            _fileDisposal = null;
+            Error.throwWithStackTrace(error, stack);
+          }),
+          _speechDisposal ??= Future<void>.sync(_tts.dispose).onError((
+            Object error,
+            StackTrace stack,
+          ) {
+            _speechDisposal = null;
+            Error.throwWithStackTrace(error, stack);
+          }),
+        ], eagerError: true).then<void>(
+          (_) {},
+          onError: (Object error, StackTrace stack) {
+            _disposalRefused = true;
+            Error.throwWithStackTrace(error, stack);
+          },
+        );
+  }
+
   void _invalidatePlayback() {
     _playbackEpoch++;
     _interrupted.complete();
@@ -208,12 +242,8 @@ class AudioPlayerService {
   void dispose() {
     if (_disposal != null) return;
     _invalidatePlayback();
-    final disposal = _disposal = Future.wait<void>([
-      Future.sync(_player.dispose),
-      Future.sync(_tts.dispose),
-    ]).then((_) {});
     unawaited(
-      disposal.catchError((Object error) {
+      _releasePlayers().catchError((Object error) {
         sttLog('[TTS] disposal could not release playback: $error');
       }),
     );

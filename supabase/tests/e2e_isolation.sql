@@ -1,4 +1,4 @@
--- Disposable database only, after migration 021. All fixtures roll back.
+-- Disposable database only, after migration 023. All fixtures roll back.
 BEGIN;
 INSERT INTO auth.users(id,email,raw_user_meta_data,raw_app_meta_data) VALUES
  ('51000000-0000-0000-0000-000000000001','isolated@example.invalid','{"username":"isolated"}',
@@ -26,7 +26,7 @@ END $$;
 
 SET LOCAL ROLE anon;
 DO $$ BEGIN
-  IF public.e2e_patrol_contract() IS DISTINCT FROM 'friend-consent-v1' THEN
+  IF public.e2e_patrol_contract() IS DISTINCT FROM 'study-catalog-v1' THEN
     RAISE EXCEPTION 'CI cannot verify the installed Patrol schema';
   END IF;
 END $$;
@@ -106,6 +106,17 @@ DO $$ BEGIN
 END $$;
 RESET ROLE;
 REVOKE UPDATE ON public.friend_requests FROM authenticated;
+ALTER TABLE public.profiles DISABLE TRIGGER guard_profile_streak;
+SET LOCAL ROLE authenticated;
+DO $$ BEGIN
+  IF public.e2e_patrol_contract() IS NOT NULL THEN RAISE EXCEPTION 'Disabled streak guard reported ready'; END IF;
+  BEGIN
+    PERFORM public.reset_e2e_account('isolation.a');
+    RAISE EXCEPTION 'Reset accepted with disabled streak guard';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+END $$;
+RESET ROLE;
+ALTER TABLE public.profiles ENABLE TRIGGER guard_profile_streak;
 
 SELECT set_config('request.jwt.claim.sub','51000000-0000-0000-0000-000000000002',true);
 SET LOCAL ROLE authenticated;

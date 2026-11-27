@@ -319,6 +319,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
           child: OutlinedButton(
             style: OutlinedButton.styleFrom(
               foregroundColor: icon,
+              backgroundColor: dark ? V3Colors.block : V3Colors.paper2,
               side: BorderSide(color: outline),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -337,7 +338,10 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                 langB: list.langB as String,
               ),
             ),
-            child: const Icon(Icons.headset_mic_rounded),
+            child: Icon(
+              Icons.headset_mic_rounded,
+              semanticLabel: 'quiz_setup.mode_hands_free_label'.tr(),
+            ),
           ),
         ),
         const SizedBox(width: 10),
@@ -347,6 +351,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
           child: OutlinedButton(
             style: OutlinedButton.styleFrom(
               foregroundColor: icon,
+              backgroundColor: dark ? V3Colors.block : V3Colors.paper2,
               side: BorderSide(color: outline),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -354,7 +359,10 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
             ),
             key: const ValueKey(WidgetKeys.listDetailAddWord),
             onPressed: () => _showAddWordDialog(context),
-            child: const Icon(Icons.add),
+            child: Icon(
+              Icons.add,
+              semanticLabel: 'list_detail.add_word_bar'.tr(),
+            ),
           ),
         ),
       ],

@@ -356,24 +356,29 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
   }
 
-  Future<void> _resumeHandsFree() async {
+  Future<void> _resumeHandsFree({bool retryRelease = false}) async {
     final card = ref.read(_quiz).currentCard;
     if (card == null) return;
     final token = _listenToken;
     final pending = _interruption;
     if (pending != null) await pending;
     if (_turnStale(token, card)) return;
-    await _readPromptAndListen(card);
+    await _readPromptAndListen(card, retryRelease: retryRelease);
   }
 
   /// Owns playback of the current hands-free prompt and waits for it before
   /// recognizer preflight, countdown and microphone hand-off can begin.
-  Future<void> _readPromptAndListen(QuizCard card) async {
+  Future<void> _readPromptAndListen(
+    QuizCard card, {
+    bool retryRelease = false,
+  }) async {
     final token = _listenToken;
     bool stale() => _turnStale(token, card);
     if (stale()) return;
     if (!_kTestMode) {
-      if (!await _playCurrentPrompt(card, stale)) return;
+      if (!await _playCurrentPrompt(card, stale, retryRelease: retryRelease)) {
+        return;
+      }
     }
     if (stale()) return;
     // Echo tail: let the room go quiet before the mic opens.
@@ -383,14 +388,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     unawaited(_startListening(card));
   }
 
-  Future<bool> _playCurrentPrompt(QuizCard card, bool Function() stale) async {
+  Future<bool> _playCurrentPrompt(
+    QuizCard card,
+    bool Function() stale, {
+    required bool retryRelease,
+  }) async {
     var previousSpeech = _hfCorrection;
     _hfCorrection = null;
     while (!stale()) {
       final replaced = _replacedPromptDirector;
       if (replaced != null) {
         try {
-          await replaced.waitForPlayerRelease();
+          await replaced.waitForPlayerRelease(retry: retryRelease);
         } catch (error) {
           sttLog('[QUIZ] replaced prompt player release failed: $error');
           if (!stale()) _showReleaseFailure(audio: true);
@@ -399,6 +408,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         if (stale()) return false;
         _replacedPromptDirector = null;
       }
+      retryRelease = false;
 
       final director = ref.read(audioDirectorProvider);
       final grammarPrompt = card.grammarAudioPrompt;
@@ -733,7 +743,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       if (!await _runCountdown(() => _turnStale(turn, card))) return;
       if (_turnStale(turn, card)) return;
       HapticFeedback.selectionClick();
-      await ref.read(audioDirectorProvider).listenCue();
+      try {
+        await ref.read(audioDirectorProvider).listenCue();
+      } catch (error) {
+        sttLog('[QUIZ] opening cue failed: $error');
+        if (!_turnStale(turn, card)) {
+          setState(() => _hfFailureKey = 'quiz.listen_cue_failed');
+        }
+        return;
+      }
       if (_turnStale(turn, card)) return;
     }
 
@@ -1156,7 +1174,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   void _hfRepeat() {
     unawaited(_interruptTurn());
-    unawaited(_resumeHandsFree());
+    unawaited(_resumeHandsFree(retryRelease: true));
   }
 
   Future<void> _hfSkip() async {
