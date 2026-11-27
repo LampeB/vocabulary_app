@@ -62,6 +62,39 @@ final voiceTurnMachineFactoryProvider = Provider<VoiceTurnMachine Function()>(
   (ref) => VoiceTurnMachine.new,
 );
 
+/// Exposes the route containing the shell's nested navigator. The quiz's own
+/// route can stay current inside that navigator when a root route covers it.
+class QuizRouteVisibility extends StatelessWidget {
+  const QuizRouteVisibility({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final route = ModalRoute.of(context);
+    return _QuizRouteScope(
+      route: route,
+      current: route?.isCurrent ?? true,
+      child: child,
+    );
+  }
+}
+
+class _QuizRouteScope extends InheritedWidget {
+  const _QuizRouteScope({
+    required this.route,
+    required this.current,
+    required super.child,
+  });
+
+  final ModalRoute<Object?>? route;
+  final bool current;
+
+  @override
+  bool updateShouldNotify(_QuizRouteScope oldWidget) =>
+      route != oldWidget.route || current != oldWidget.current;
+}
+
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({super.key, required this.args});
   final QuizArgs args;
@@ -117,13 +150,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   int? _voiceKbIndex;
   // Hands-free pause state.
   bool _hfPaused = false;
-  // Guards delayed audio/STT work while Android has put us behind another
-  // app. Lifecycle pause invalidates existing work; this blocks work that had
-  // not started yet (for example a queued listen cue).
-  bool _appForeground = true;
+  late bool _appForeground;
+  ModalRoute<Object?>? _quizRoute;
+  ModalRoute<Object?>? _shellRoute;
+  bool _foregroundApplied = true;
+  bool get _canInteract =>
+      _appForeground &&
+      (_quizRoute?.isCurrent ?? true) &&
+      (_shellRoute?.isCurrent ?? true);
   bool _quitting = false;
   bool _sessionStarted = false;
   Future<void>? _interruption;
+  Future<void>? _hfCorrection;
   // Display-only: attempts consumed on the current card, fed by the
   // machine's ShowNotHeard command (the "essai x/3" banner).
   int _notHeardRetries = 0;
@@ -152,7 +190,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    final binding = WidgetsBinding.instance;
+    final lifecycle = binding.lifecycleState;
+    _appForeground =
+        lifecycle == null || lifecycle == AppLifecycleState.resumed;
+    binding.addObserver(this);
     _usesRealStt =
         !SttSimulator.isOn &&
         (widget.args.mode == QuizMode.handsFree ||
@@ -170,10 +212,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       if (!mounted) return;
       await _loadSession();
       if (!mounted || _quitting) return;
-      if (_usesRealStt && ref.read(quizProvider).currentCard != null) {
+      if (_usesRealStt &&
+          _canInteract &&
+          ref.read(quizProvider).currentCard != null) {
         final ok = await _stt.initialize();
         if (!mounted || _quitting) return;
-        if (!ok && _appForeground) {
+        if (!ok && _canInteract) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('quiz.stt_unavailable'.tr()),
@@ -200,12 +244,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _voiceKbIndex = null;
     _flashcardExiting = false;
     _flashcardDragProgress = 0;
+    _foregroundApplied = _canInteract;
     final quiz = ref.read(quizProvider.notifier);
     final loading = quiz.loadCards(
       widget.args,
       promptLocale: uiLocaleCode(context),
     );
-    quiz.setForeground(_appForeground);
+    quiz.setForeground(_foregroundApplied);
     return loading;
   }
 
@@ -222,35 +267,42 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     super.dispose();
   }
 
-  /// A hands-free session must never keep listening, speaking, or advance a
-  /// card while the app is behind another application or the screen is off.
-  /// Invalidate the active turn before stopping the engines so their trailing
-  /// callbacks cannot grade a card after the learner returns.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _quizRoute = ModalRoute.of(context);
+    _shellRoute = context
+        .dependOnInheritedWidgetOfExactType<_QuizRouteScope>()
+        ?.route;
+    // Apply provider changes outside build. Callbacks independently check the
+    // actual route objects so a result cannot win during the transition frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _syncForeground();
+    });
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (_quitting) return;
-    if (state == AppLifecycleState.resumed) {
-      if (_appForeground) return;
-      _appForeground = true;
-      ref.read(quizProvider.notifier).setForeground(true);
-      if (widget.args.mode == QuizMode.handsFree && !_hfPaused) {
-        unawaited(_resumeHandsFree());
-      }
+    _appForeground = state == AppLifecycleState.resumed;
+    _syncForeground();
+  }
+
+  void _syncForeground() {
+    if (_quitting || !_sessionStarted || _canInteract == _foregroundApplied) {
       return;
     }
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden ||
-        state == AppLifecycleState.detached) {
-      if (!_appForeground) return;
-      _appForeground = false;
-      ref.read(quizProvider.notifier).setForeground(false);
+    _foregroundApplied = _canInteract;
+    ref.read(quizProvider.notifier).setForeground(_foregroundApplied);
+    if (!_foregroundApplied) {
       unawaited(_interruptTurn());
+    } else if (widget.args.mode == QuizMode.handsFree && !_hfPaused) {
+      unawaited(_resumeHandsFree());
     }
   }
 
   Future<void> _interruptTurn() {
     _listenToken++; // every in-flight STT completion is now stale
+    _hfCorrection = null;
     _cancelActiveRace();
     _listenBarCtrl.stop();
     setState(() {
@@ -306,54 +358,42 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final pending = _interruption;
     if (pending != null) await pending;
     if (_turnStale(token, card)) return;
-    if (!_kTestMode && card.grammarAudioPrompt == null) {
-      unawaited(
-        ref
-            .read(audioDirectorProvider)
-            .speak(
-              card.questionWord,
-              card.progress.direction.questionLang,
-              audioPath: card.questionAudioPath,
-            ),
-      );
-    }
-    await _waitForSpeechThenListen(card);
+    await _readPromptAndListen(card);
   }
 
-  /// Opens the mic only AFTER the app has finished talking (question TTS,
-  /// and on a new card after a mistake, the KO correction still in flight).
-  /// The old fixed 300ms delay cut speech mid-word via the mic's audio-stop
-  /// AND let the recognizer transcribe the app's own voice as the user's
-  /// answer (user feedback 2026-07-05).
-  Future<void> _waitForSpeechThenListen(QuizCard card) async {
+  /// Owns playback of the current hands-free prompt and waits for it before
+  /// recognizer preflight, countdown and microphone hand-off can begin.
+  Future<void> _readPromptAndListen(QuizCard card) async {
     final token = _listenToken;
     bool stale() => _turnStale(token, card);
     if (stale()) return;
-    // Speech at a card boundary is a CHAIN, not one utterance — the wait
-    // semantics (and their field-log history) live in AudioDirector.
-    final director = ref.read(audioDirectorProvider);
-    final waitStart = DateTime.now();
-    final grammarPrompt = card.grammarAudioPrompt;
-    if (grammarPrompt == null) {
-      await director.chainQuiet(keepGoing: () => !stale());
-    } else if (!_kTestMode) {
-      final played = await director.speakGrammarPrompt(
-        instruction: grammarPrompt.instruction,
-        instructionLang: grammarPrompt.locale,
-        word: grammarPrompt.word,
-        wordLang: card.direction.answerLang,
-        keepGoing: () => !stale(),
-      );
+    if (!_kTestMode) {
+      final director = ref.read(audioDirectorProvider);
+      final previousSpeech = _hfCorrection;
+      _hfCorrection = null;
+      final grammarPrompt = card.grammarAudioPrompt;
+      final played = await (grammarPrompt == null
+          ? director.speakVocabularyPrompt(
+              word: card.questionWord,
+              wordLang: card.direction.questionLang,
+              audioPath: card.questionAudioPath,
+              previousSpeech: previousSpeech,
+              keepGoing: () => !stale(),
+            )
+          : director.speakGrammarPrompt(
+              instruction: grammarPrompt.instruction,
+              instructionLang: grammarPrompt.locale,
+              word: grammarPrompt.word,
+              wordLang: card.direction.answerLang,
+              previousSpeech: previousSpeech,
+              keepGoing: () => !stale(),
+            ));
       if (!played && !stale()) {
         setState(() => _hfFailureKey = 'quiz.grammar_prompt_failed');
         return;
       }
     }
     if (stale()) return;
-    final speechWaitMs = DateTime.now().difference(waitStart).inMilliseconds;
-    sttLog(
-      '[HF] waited ${speechWaitMs}ms for TTS chain (isSpeaking=${director.isSpeaking}) — starting 250ms echo tail',
-    );
     // Echo tail: let the room go quiet before the mic opens.
     await Future.delayed(const Duration(milliseconds: 250));
     if (stale()) return;
@@ -514,7 +554,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// machine's own turn/terminal guards back this up.
   bool _turnStale(int turn, QuizCard card) {
     if (!mounted ||
-        !_appForeground ||
+        !_canInteract ||
         _hfPaused ||
         _quitting ||
         turn != _listenToken) {
@@ -669,32 +709,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     m.on(MicOpened(turn));
     ref.read(quizProvider.notifier).setListening(true);
 
-    // While the user answers, prepare the NEXT card: pre-warm its TTS voice
-    // (fr↔ko engine switch costs 1-3.7s) and prefetch its ElevenLabs audio
-    // (first render is a 1-4s network fetch). Lived in the legacy block and
-    // was silently skipped by race mode since 4a — restored here (4c).
-    final upcoming = ref.read(quizProvider).nextCard;
-    if (upcoming != null &&
-        upcoming.grammarAudioPrompt == null &&
-        m.attempt == 0) {
-      final audio = ref.read(audioPlayerServiceProvider);
-      unawaited(audio.warmUp(upcoming.progress.direction.questionLang));
-      unawaited(
-        audio.prefetch(
-          upcoming.questionWord,
-          upcoming.progress.direction.questionLang,
-          audioPath: upcoming.questionAudioPath,
-        ),
-      );
-      if (upcoming.answerWords.isNotEmpty) {
-        unawaited(
-          audio.prefetch(
-            upcoming.answerWords.first,
-            upcoming.progress.direction.answerLang,
-            audioPath: upcoming.answerAudioPath,
-          ),
-        );
-      }
+    if (m.attempt == 0) {
+      _prefetchFollowingCard(ref.read(quizProvider).nextCard);
     }
     void runBar() {
       if (!_kTestMode) {
@@ -837,9 +853,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     await _startRaceListening(card, card.direction.answerLang, token, mode);
   }
 
-  /// Start the following card's network renders as soon as this card becomes
-  /// visible — not only once its microphone opens. This gives ElevenLabs the
-  /// whole prompt + answer interval to fill the local cache.
+  /// Warm the following voice and cache its clips while the learner answers.
   void _prefetchFollowingCard(QuizCard? card) {
     if (card == null || card.grammarAudioPrompt != null || _kTestMode) return;
     final audio = ref.read(audioPlayerServiceProvider);
@@ -871,7 +885,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       if (!_quitting) unawaited(_interruptTurn());
     });
     ref.listen<QuizState>(quizProvider, (prev, next) {
-      if (prev?.answerState == QuizAnswerState.idle &&
+      if (_canInteract &&
+          prev?.answerState == QuizAnswerState.idle &&
           next.answerState != QuizAnswerState.idle) {
         final correct = next.answerState == QuizAnswerState.correct;
         // Sound effect for every mode. Muted in TEST_MODE: audio HAL calls
@@ -902,15 +917,20 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           final card = next.currentCard;
           if (card != null && card.answerWords.isNotEmpty) {
             final answerLang = card.progress.direction.answerLang;
-            unawaited(
-              ref
-                  .read(audioPlayerServiceProvider)
-                  .speak(
-                    card.answerWords.first,
-                    answerLang,
-                    audioPath: card.answerAudioPath,
-                  ),
-            );
+            final handsFree = widget.args.mode == QuizMode.handsFree;
+            final speech = ref
+                .read(audioDirectorProvider)
+                .speak(
+                  card.answerWords.first,
+                  answerLang,
+                  audioPath: card.answerAudioPath,
+                  requirePlayback: handsFree,
+                )
+                .catchError((Object error) {
+                  sttLog('[QUIZ] correction playback failed: $error');
+                });
+            if (handsFree) _hfCorrection = speech;
+            unawaited(speech);
           }
         }
         // Hands-free renders the full-screen StudyFeedbackFlood in build()
@@ -965,8 +985,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               _hfCountdown = null;
             });
           }
-          _prefetchFollowingCard(next.nextCard);
-          unawaited(_waitForSpeechThenListen(card));
+          unawaited(_readPromptAndListen(card));
         }
       }
     });
@@ -1199,7 +1218,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           ? _buildPausedHandsFree(foreground)
           : Stack(
               children: [
-                if (hfCue == HfCue.reading && failure == null && _appForeground)
+                if (hfCue == HfCue.reading && failure == null && _canInteract)
                   Positioned.fill(
                     child: IgnorePointer(
                       child: reduceMotion || _kTestMode
@@ -1814,11 +1833,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 child: Text('quiz.validate'.tr()),
               ),
             )
-          : Padding(
+          : ScrollAffordance(
+              key: const ValueKey(WidgetKeys.quizPrompt),
+              hint: 'v3.scroll_hint'.tr(),
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+              fillViewport: true,
               child: Column(
                 children: [
-                  Expanded(child: _ScrollablePrompt(child: prompt)),
+                  Expanded(child: prompt),
                   if (s.isListening || !_sttOnline)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -1839,7 +1861,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                     const SizedBox(height: 14),
                   ],
                   MicButton(
-                    key: const Key('mic_button'),
+                    key: const ValueKey(WidgetKeys.micButton),
+                    label: 'quiz.voice_start_microphone'.tr(),
                     isListening: s.isListening,
                     answerState: s.answerState,
                     onTap: () => _startListening(card),

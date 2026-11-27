@@ -207,8 +207,9 @@ Il vérifie que `vocab-audio` reste fermé aux clients entre 007 et 012, puis
 exerce les lectures publiques, la confidentialité et l'immuabilité des clips
 malgré une règle Storage permissive préexistante. Les tests des outils admin
 vérifient le refus de HTTP et des redirections avec des clés factices. Le
-prévol Patrol et le reset exigent le contrat `progress-boundaries-v1` de 018.
-Les suites SQL vérifient les refus jusqu'à 017, puis l'acceptation après 018
+prévol Patrol et le reset exigent le contrat `challenge-boundaries-v1` de 019.
+Les suites SQL vérifient les vrais refus de reset avec données conservées
+jusqu'à 018, puis l'acceptation après 019
 et le refus quand un garde d'isolation, de suppression, de référence privée ou
 d'écriture est désactivé. Les tests d'isolation E2E couvrent les écritures de
 relations et de progression par le rôle authentifié. Deux connexions PostgreSQL vérifient qu'une

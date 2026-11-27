@@ -50,9 +50,10 @@ audio du prompt → vérification des moteurs → compte à rebours → signal d
 Un échec ou une attente trop longue de l'arrêt affiche une reprise du tour.
 Le signal d'ouverture et la capture attendent l'arrêt confirmé du lecteur,
 y compris si l'apprenant réessaie pendant une demande d'arrêt déjà en cours.
-En grammaire mains-libres, chaque carte fait entendre la consigne dans la
-langue de l'interface puis le mot à transformer dans la langue étudiée.
-Le compte à rebours, le signal et le micro suivent la fin de ces deux lectures.
+En mains-libres, le compte à rebours, le signal et le micro suivent la fin
+confirmée du prompt de la carte courante. Le tour attend aussi la configuration
+de la voix ou la lecture complète de l'enregistrement local. En grammaire,
+la consigne dans la langue de l'interface précède le mot à transformer.
 Si la lecture échoue ou dépasse son délai, le tour reste disponible via le
 bouton Répéter. Le microphone reste fermé. Un refus explicite du moteur
 vocal de l'appareil, lors du réglage de la langue ou du lancement de la
@@ -80,12 +81,12 @@ Chaque tour attend la restauration du mode STT et garde ce mode pour les
 nouvelles tentatives. Le premier essai et chaque relance attendent la
 sélection des moteurs disponibles et la vérification du microphone avant
 le compte à rebours et le signal d'ouverture.
-La mise en arrière-plan et la pause volontaire invalident immédiatement le
-tour en cours, y compris un compte à rebours ou une relance programmée.
-Le retour au premier plan reprend le tour interrompu si la session est
-active. Pendant un feedback, il reprend l'avance différée et conserve la
-notation déjà écrite. Une pause volontaire reste active jusqu'à la reprise
-par l'apprenant.
+La mise en arrière-plan, le recouvrement de la route du quiz et la pause
+volontaire invalident le tour, y compris le compte à rebours et les relances.
+Le mode mains-libres reprend quand l'application est à nouveau active et le
+quiz visible, y compris après fermeture d'un import ouvert par lien. Pendant
+un feedback, il reprend l'avance différée et conserve la notation déjà écrite.
+Une pause volontaire reste active jusqu'à la reprise par l'apprenant.
 Le bouton Pause et le bouton Reprendre sont accessibles au clavier. En
 pause, Reprendre reçoit le focus et les actions d'écoute sont retirées.
 Lorsque la hauteur ou le grossissement du texte réduit l'espace disponible,
@@ -104,9 +105,10 @@ En Voix, passer au clavier ou révéler la réponse invalide également le tour
 et ferme sa capture. Une transcription reçue ensuite ne peut plus décider du
 résultat. L'arrêt de la synthèse et des signaux invalide les demandes audio
 en attente de configuration native avant qu'elles puissent jouer.
-Les boutons Clavier et Révéler s'utilisent avec Tab et Entrée. Quand le
-clavier logiciel réduit la hauteur, la consigne, le champ et le bouton
-Valider défilent ensemble.
+Les boutons Microphone, Clavier et Révéler s'utilisent avec Tab et Entrée.
+En Voix, le prompt, les états STT, la transcription et les boutons défilent
+ensemble quand l'espace manque. Avec le clavier logiciel, la consigne, le
+champ et le bouton Valider défilent ensemble.
 Les cartes suivantes et reportées conservent leurs chemins de clips en cache.
 
 La notation **écrite et orale de grammaire** préserve les formes attendues

@@ -17,7 +17,10 @@ abstract interface class AuthRemote {
   Future<bool> checkUsernameExists(String username);
   Future<Result<Map<String, dynamic>>> getProfile(String userId);
   Future<Result<Map<String, dynamic>>> upsertProfile(Map<String, dynamic> data);
-  Future<Result<void>> updateStreak(String userId);
+  Future<Result<void>> updateStreak({
+    required String userId,
+    required DateTime studyDate,
+  });
 }
 
 class AuthRemoteDataSource implements AuthRemote {
@@ -87,6 +90,8 @@ class AuthRemoteDataSource implements AuthRemote {
     try {
       await _client.auth.resetPasswordForEmail(email);
       return const Success(null);
+    } on AuthException catch (e) {
+      return Failure(_authFailure(e));
     } catch (e) {
       return Failure(app_ex.UnknownException(e.toString()));
     }
@@ -137,7 +142,15 @@ class AuthRemoteDataSource implements AuthRemote {
   }
 
   @override
-  Future<Result<void>> updateStreak(String userId) async {
+  Future<Result<void>> updateStreak({
+    required String userId,
+    required DateTime studyDate,
+  }) async {
+    const inactiveAccount = Failure<void>(
+      app_ex.AuthException('Study account is no longer active'),
+    );
+    if (currentUser?.id != userId) return inactiveAccount;
+    final studyDay = civilDate(studyDate);
     try {
       final rows = List<Map<String, dynamic>>.from(
         (await _client
@@ -147,34 +160,37 @@ class AuthRemoteDataSource implements AuthRemote {
                 .limit(1))
             as List,
       );
+      if (currentUser?.id != userId) return inactiveAccount;
       if (rows.isEmpty) return const Success(null);
       final profile = rows.first;
-
-      final today = _now();
-      final todayDate = DateTime(today.year, today.month, today.day);
       final lastRaw = profile['last_study_date'] as String?;
+      final lastStudyDate = lastRaw == null ? null : DateTime.parse(lastRaw);
+      if (lastStudyDate != null && civilDate(lastStudyDate).isAfter(studyDay)) {
+        return const Success(null);
+      }
 
       final current = profile['current_streak'] as int? ?? 0;
       final longest = profile['longest_streak'] as int? ?? 0;
       final update = computeStreak(
-        today: today,
-        lastStudyDate: lastRaw == null ? null : DateTime.parse(lastRaw),
+        today: studyDay,
+        lastStudyDate: lastStudyDate,
         currentStreak: current,
       );
       if (update.alreadyCountedToday) return const Success(null);
       final newStreak = update.streak;
 
-      String p2(int n) => n.toString().padLeft(2, '0');
+      final date = studyDay.toIso8601String().split('T').first;
+      // Keep any same-day or later date written while the request was pending.
       await _client
           .from('profiles')
           .update({
             'current_streak': newStreak,
             'longest_streak': newStreak > longest ? newStreak : longest,
-            'last_study_date':
-                '${todayDate.year}-${p2(todayDate.month)}-${p2(todayDate.day)}',
-            'updated_at': today.toUtc().toIso8601String(),
+            'last_study_date': date,
+            'updated_at': _now().toUtc().toIso8601String(),
           })
-          .eq('id', userId);
+          .eq('id', userId)
+          .or('last_study_date.is.null,last_study_date.lt.$date');
 
       return const Success(null);
     } catch (e) {
@@ -195,6 +211,7 @@ app_ex.AppException _authFailure(AuthException error) {
     'over_request_rate_limit' ||
     'over_email_send_rate_limit' ||
     'over_sms_send_rate_limit' => app_ex.AuthFailureReason.rateLimited,
+    _ when error.statusCode == '429' => app_ex.AuthFailureReason.rateLimited,
     _ when error.message.toLowerCase().contains('already registered') =>
       app_ex.AuthFailureReason.emailTaken,
     _ => app_ex.AuthFailureReason.unknown,

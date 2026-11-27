@@ -120,7 +120,12 @@ class _FakeNotifService implements NotificationService {
 
 class _FakeAuthRepo implements AuthRepository {
   @override
-  Future<Result<void>> updateStreak() async => const Success(null);
+  AppUser? get currentUser => null;
+  @override
+  Future<Result<void>> updateStreak({
+    required String userId,
+    required DateTime studyDate,
+  }) async => const Success(null);
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

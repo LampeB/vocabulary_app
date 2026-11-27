@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart';
 import '../../core/utils/stt_debug_log.dart';
 import 'elevenlabs_service.dart';
@@ -9,15 +11,36 @@ import 'audio_ports.dart';
 // fakes in AudioPlayerService tests. Native plugin calls need device coverage.
 class _AudioplayersFilePlayer implements FileAudioPlayer {
   final _player = AudioPlayer();
+  Completer<void>? _completion;
 
   @override
   Future<void> setPlaybackRate(double rate) => _player.setPlaybackRate(rate);
 
   @override
-  Future<void> playFile(String path) => _player.play(DeviceFileSource(path));
+  Future<void> playFile(String path, {bool waitForCompletion = false}) async {
+    if (!waitForCompletion) {
+      await _player.play(DeviceFileSource(path));
+      return;
+    }
+    final completion = _completion = Completer<void>();
+    final subscription = _player.onPlayerComplete.listen((_) {
+      if (!completion.isCompleted) completion.complete();
+    });
+    try {
+      await _player.play(DeviceFileSource(path));
+      await completion.future;
+    } finally {
+      if (identical(_completion, completion)) _completion = null;
+      await subscription.cancel();
+    }
+  }
 
   @override
-  Future<void> stop() => _player.stop();
+  Future<void> stop() async {
+    final completion = _completion;
+    await _player.stop();
+    if (completion != null && !completion.isCompleted) completion.complete();
+  }
 
   @override
   Future<PlayerState> get state async => _player.state;
@@ -26,7 +49,11 @@ class _AudioplayersFilePlayer implements FileAudioPlayer {
   bool get isPlaying => _player.state == PlayerState.playing;
 
   @override
-  void dispose() => _player.dispose();
+  void dispose() {
+    final completion = _completion;
+    if (completion != null && !completion.isCompleted) completion.complete();
+    unawaited(_player.dispose());
+  }
 }
 // coverage:ignore-end
 
@@ -84,7 +111,7 @@ class AudioPlayerService {
       // at 1.0× even when the learner chose a slower pedagogical pace.
       await _player.setPlaybackRate(_premiumRateFor(langCode));
       if (epoch != _playbackEpoch) return;
-      await _player.playFile(path);
+      await _player.playFile(path, waitForCompletion: requirePlayback);
     } else {
       await _speakOnDevice(text, langCode, requirePlayback);
     }

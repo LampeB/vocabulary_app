@@ -353,7 +353,7 @@ void main() {
         var result = request.url.path.endsWith('/vocabulary_pull_revision')
             ? '0'
             : '[]';
-        if (request.url.path.endsWith('/vocabulary_lists')) {
+        if (request.url.path.endsWith('/vocabulary_pull_inventory')) {
           if (++listCalls == 1) {
             started.complete();
             return neverReplied.future;

@@ -40,11 +40,16 @@ class _ScriptedAuthNotifier extends AuthNotifier {
   }
   bool failNext = false;
   AuthFailureReason? failureReason;
+  AppException? resetFailure;
   String? signedInEmail;
   String? signedUpUsername;
 
   @override
   Future<AppUser?> build() async => null;
+
+  @override
+  Future<Result<void>> sendPasswordReset(String email) async =>
+      resetFailure == null ? const Success(null) : Failure(resetFailure!);
 
   @override
   Future<Result<AppUser>> signIn(String email, String password) async {
@@ -341,6 +346,53 @@ void main() {
   }
 
   group('auth screen — password reset', () {
+    for (final locale in ['fr', 'en', 'ko']) {
+      for (final scenario in [
+        (const NetworkException(), 'auth.error_network'),
+        (
+          const AuthException.forReason(AuthFailureReason.rateLimited),
+          'auth.error_rate_limited',
+        ),
+        (
+          const UnknownException('raw provider error'),
+          'auth.reset_snackbar_error',
+        ),
+      ]) {
+        testWidgets('reset shows ${scenario.$2} in $locale', (tester) async {
+          final raw = (await tester.runAsync(
+            () => rootBundle.loadString('assets/translations/$locale.json'),
+          ))!;
+          final copy = jsonDecode(raw) as Map<String, dynamic>;
+          final translations = Translations(copy);
+          Localization.load(
+            Locale(locale),
+            translations: translations,
+            fallbackTranslations: translations,
+          );
+          addTearDown(initTestLocalization);
+          await pump(tester, const AuthScreen());
+          _lastAuth!.resetFailure = scenario.$1;
+          await tester.tap(
+            find.byKey(const ValueKey(WidgetKeys.authForgotPassword)),
+          );
+          await tester.pumpAndSettle();
+          await tester.enterText(
+            find.byKey(const ValueKey(WidgetKeys.authResetEmail)),
+            'a@example.test',
+          );
+          await tester.tap(
+            find.byKey(const ValueKey(WidgetKeys.authResetSend)),
+          );
+          await tester.pumpAndSettle();
+          expect(
+            find.byKey(const ValueKey(WidgetKeys.authResetError)),
+            findsOneWidget,
+          );
+          expect(find.text(copy[scenario.$2] as String), findsOneWidget);
+          expect(find.text('raw provider error'), findsNothing);
+        });
+      }
+    }
     testWidgets('forgot-password opens the dialog with email + send', (
       tester,
     ) async {

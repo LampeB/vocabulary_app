@@ -48,7 +48,10 @@ class _FailingAuthRepo implements AuthRepository {
   @override
   Future<Result<AppUser>> reloadProfile() async => throw UnimplementedError();
   @override
-  Future<Result<void>> updateStreak() async => throw UnimplementedError();
+  Future<Result<void>> updateStreak({
+    required String userId,
+    required DateTime studyDate,
+  }) async => throw UnimplementedError();
   @override
   Future<Result<void>> deleteAccount() async => throw UnimplementedError();
 }

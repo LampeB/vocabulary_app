@@ -21,7 +21,7 @@ abstract interface class DeviceSpeech {
 /// Local file player surface for pre-rendered audio assets.
 abstract interface class FileAudioPlayer {
   Future<void> setPlaybackRate(double rate);
-  Future<void> playFile(String path);
+  Future<void> playFile(String path, {bool waitForCompletion = false});
   Future<void> stop();
   Future<PlayerState> get state;
   bool get isPlaying;

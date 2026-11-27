@@ -46,7 +46,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   Future<void> _showForgotPassword() async {
-    final emailCtrl = TextEditingController(text: _emailCtrl.text.trim());
+    var email = _emailCtrl.text.trim();
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -58,9 +58,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           children: [
             Text('auth.reset_dialog_body'.tr()),
             const SizedBox(height: 16),
-            TextField(
+            TextFormField(
               key: const ValueKey(WidgetKeys.authResetEmail),
-              controller: emailCtrl,
+              initialValue: email,
+              onChanged: (value) => email = value,
               keyboardType: TextInputType.emailAddress,
               decoration: InputDecoration(
                 labelText: 'auth.field_email'.tr(),
@@ -78,18 +79,24 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           TextButton(
             key: const ValueKey(WidgetKeys.authResetSend),
             onPressed: () async {
-              final email = emailCtrl.text.trim();
+              final address = email.trim();
               Navigator.pop(ctx);
               final result = await ref
                   .read(authStateProvider.notifier)
-                  .sendPasswordReset(email);
+                  .sendPasswordReset(address);
               if (!mounted) return;
+              final failureKey = switch (result.exceptionOrNull) {
+                NetworkException() => 'auth.error_network',
+                AuthException(reason: AuthFailureReason.rateLimited) =>
+                  'auth.error_rate_limited',
+                _ => 'auth.reset_snackbar_error',
+              };
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
                     result.isSuccess
                         ? 'auth.reset_snackbar_success'.tr()
-                        : 'auth.reset_snackbar_error'.tr(),
+                        : failureKey.tr(),
                     key: ValueKey(
                       result.isSuccess
                           ? WidgetKeys.authResetSuccess
@@ -111,7 +118,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         ],
       ),
     );
-    emailCtrl.dispose();
   }
 
   Future<void> _submit() async {

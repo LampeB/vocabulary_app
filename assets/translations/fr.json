@@ -56,7 +56,7 @@
   "auth.reset_dialog_body": "Entre ton adresse e-mail pour recevoir un lien de réinitialisation.",
   "auth.reset_send": "Envoyer",
   "auth.reset_snackbar_success": "E-mail envoyé — vérifie ta boîte mail.",
-  "auth.reset_snackbar_error": "Erreur : adresse introuvable.",
+  "auth.reset_snackbar_error": "Impossible d’envoyer l’e-mail. Réessaie dans quelques instants.",
   "home.header_notification_tooltip": "Notifications",
   "home.greeting": "Bonjour",
   "home.section_lists": "TES LISTES",
@@ -565,5 +565,6 @@
   "notifications.streak_title": "Garde ta série !",
   "notifications.streak_body": "Ta série de {days} j est en jeu. Révise avant minuit.",
   "quiz.audio_release_failed": "L’audio est encore en cours. Réessaie.",
-  "quiz.audio_release_failed_hf": "L’audio est encore en cours. Appuie sur Répéter pour réessayer."
+  "quiz.audio_release_failed_hf": "L’audio est encore en cours. Appuie sur Répéter pour réessayer.",
+  "quiz.voice_start_microphone": "Activer le microphone"
 }

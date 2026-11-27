@@ -6,14 +6,17 @@ import 'package:in_app_review/in_app_review.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../../../data/datasources/local/app_database.dart';
+import '../../../data/datasources/local/daos/quiz_session_dao.dart';
 import '../../../data/repositories/progress_repository_impl.dart';
 import '../../../domain/entities/variant_progress.dart';
 import '../../../domain/repositories/progress_repository.dart';
+import '../../../domain/repositories/vocabulary_repository.dart';
 import '../../../domain/usecases/quiz/get_due_cards_usecase.dart';
 import '../../../domain/usecases/quiz/submit_answer_usecase.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/utils/answer_validator.dart';
 import '../../../core/utils/fsrs_algorithm.dart';
+import '../../../core/utils/streak.dart';
 import '../../../core/utils/stt_debug_log.dart';
 import '../audio/audio_provider.dart';
 import '../../../services/quiz_orchestration/audio_director.dart';
@@ -274,8 +277,6 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   var _paused = false;
   var _sessionEpoch = 0;
   var _lifecycleEpoch = 0;
-  var _accountEpoch = 0;
-  String? _observedAccountId;
   String? _sessionUserId;
   bool get _ownsSession =>
       _alive &&
@@ -300,7 +301,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
 
   @override
   QuizState build() {
-    _alive = true; // rebuild ≠ disposal; reset so _onSessionComplete can run
+    _alive = true; // rebuild ≠ disposal
     _audio = ref.watch(audioPlayerServiceProvider);
     _director = ref.watch(audioDirectorProvider);
     final accountId = currentUserProvider.select((user) => user?.id);
@@ -315,10 +316,6 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   }
 
   QuizState? _accountChange(String? userId) {
-    if (_observedAccountId != userId) {
-      _observedAccountId = userId;
-      _accountEpoch++;
-    }
     if (_lastArgs == null || _sessionUserId == userId) return null;
     return _newSessionState(errorMessage: 'quiz.account_changed'.tr());
   }
@@ -547,6 +544,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     if (_isCurrentSession(epoch) &&
         quizCards.isNotEmpty &&
         _canPlay &&
+        args.mode != QuizMode.handsFree &&
         !_kTestMode) {
       final first = quizCards.first;
       final firstLang = first.progress.direction.questionLang;
@@ -903,75 +901,79 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
 
   Future<void> _onSessionComplete(QuizState completed) async {
     if (_kTestMode || !_ownsSession) return;
+    // A completed quiz belongs to the captured account after the screen closes.
+    final args = _lastArgs!;
     final epoch = _sessionEpoch;
-    final accountId = _sessionUserId;
+    final userId = _sessionUserId;
+    if (userId == null) return;
+
     final completedAt = DateTime.now();
-    if (accountId != null) {
-      ref.read(localStudyDayProvider(accountId).notifier).state = completedAt;
-    }
+    final studyDate = civilDate(completedAt);
+    final startedAt = _sessionStartTime;
+    final snapshot = QuizSessionsTableCompanion.insert(
+      id: _uuid.v4(),
+      userId: userId,
+      listId: Value(args.listId),
+      listName: switch (args.source) {
+        QuizSource.grammar => args.ruleTitle ?? args.ruleId ?? '',
+        QuizSource.list => '',
+        QuizSource.allDue => 'start_session.smart_due'.tr(),
+        QuizSource.inProgress => 'start_session.smart_in_progress'.tr(),
+      },
+      mode: args.mode.name,
+      direction: args.direction.name,
+      cardCount: completed.displayTotal,
+      correctCount: completed.correctCount,
+      durationSeconds: startedAt == null
+          ? 0
+          : completedAt.difference(startedAt).inSeconds,
+      masteredWordCount: 0,
+      completedAt: completedAt,
+    );
+    final dao = ref.read(appDatabaseProvider).quizSessionDao;
+    final progress = ref.read(progressRepositoryProvider);
+    final vocabulary = args.source == QuizSource.list
+        ? ref.read(vocabularyRepositoryProvider)
+        : null;
+    final auth = ref.read(authRepositoryProvider);
+    final profile = ref.read(authStateProvider.notifier);
     final reminders = ref.read(notificationServiceProvider);
+
+    ref.read(localStudyDayProvider(userId).notifier).state = completedAt;
     unawaited(
       reminders.cancelStreakWarning().catchError((Object error) {
         sttLog('[QUIZ] streak warning cancellation failed: $error');
       }),
     );
-    await _recordSession(completed, completedAt);
-    if (!_isCurrentSession(epoch)) return;
-    await ref.read(authRepositoryProvider).updateStreak();
-    if (!_isCurrentSession(epoch)) return;
-    await ref.read(authStateProvider.notifier).reloadProfile();
-    if (!_isCurrentSession(epoch)) return;
+    await _recordSession(snapshot, dao, progress, vocabulary);
+    final updated = await auth.updateStreak(
+      userId: userId,
+      studyDate: studyDate,
+    );
+    if (updated.isSuccess && auth.currentUser?.id == userId) {
+      await profile.reloadProfile();
+    }
     if (_isCurrentSession(epoch)) unawaited(_maybeRequestReview(epoch));
   }
 
-  Future<void> _recordSession(QuizState completed, DateTime completedAt) async {
-    final args = _lastArgs;
-    if (args == null) return;
-    final userId = _sessionUserId;
-    if (!_ownsSession || userId == null) return;
-    // Completed history belongs to this account across successive quizzes.
-    final accountEpoch = _accountEpoch;
-    bool sameAccount() =>
-        _alive &&
-        _accountEpoch == accountEpoch &&
-        ref.read(currentUserProvider)?.id == userId;
-
-    final duration = _sessionStartTime == null
-        ? 0
-        : completedAt.difference(_sessionStartTime!).inSeconds;
-
+  static Future<void> _recordSession(
+    QuizSessionsTableCompanion snapshot,
+    QuizSessionDao dao,
+    ProgressRepository progress,
+    VocabularyRepository? vocabulary,
+  ) async {
     try {
-      final dao = ref.read(appDatabaseProvider).quizSessionDao;
-      final progress = ref.read(progressRepositoryProvider);
-      final list = args.source == QuizSource.list
-          ? (await ref
-                    .read(vocabularyRepositoryProvider)
-                    .getListById(args.listId!))
-                .valueOrNull
-          : null;
-      final listName = switch (args.source) {
-        QuizSource.grammar => args.ruleTitle ?? args.ruleId ?? '',
-        QuizSource.list => list?.name ?? '',
-        QuizSource.allDue => 'start_session.smart_due'.tr(),
-        QuizSource.inProgress => 'start_session.smart_in_progress'.tr(),
-      };
-      if (!sameAccount()) return;
-      final masteredResult = await progress.getMasteredVariants(userId);
-      if (!sameAccount()) return;
-      final masteredCount = (masteredResult.valueOrNull ?? []).length;
+      final list = (await vocabulary?.getListById(
+        snapshot.listId.value!,
+      ))?.valueOrNull;
+      final mastered = await progress.getMasteredVariants(
+        snapshot.userId.value,
+      );
       await dao.insertSession(
-        QuizSessionsTableCompanion.insert(
-          id: _uuid.v4(),
-          userId: userId,
-          listId: Value(list?.id ?? args.listId),
-          listName: listName,
-          mode: args.mode.name,
-          direction: args.direction.name,
-          cardCount: completed.displayTotal,
-          correctCount: completed.correctCount,
-          durationSeconds: duration,
-          masteredWordCount: masteredCount,
-          completedAt: completedAt,
+        snapshot.copyWith(
+          listId: list == null ? null : Value(list.id),
+          listName: list == null ? null : Value(list.name),
+          masteredWordCount: Value(mastered.valueOrNull?.length ?? 0),
         ),
       );
     } catch (_) {
@@ -1094,8 +1096,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         isListening: false,
         clearSchedule: true,
       );
-      state = completed;
       unawaited(_onSessionComplete(completed));
+      state = completed;
     } else {
       state = state.copyWith(
         currentIndex: next,
@@ -1111,6 +1113,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       final nextCard = state.currentCard;
       if (nextCard != null &&
           !_kTestMode &&
+          _lastArgs?.mode != QuizMode.handsFree &&
           _lastArgs?.source != QuizSource.grammar) {
         final nextLang = nextCard.progress.direction.questionLang;
         unawaited(

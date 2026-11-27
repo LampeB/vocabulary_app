@@ -29,6 +29,7 @@ import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/grammar/grammar_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/notifications/notification_provider.dart';
+import 'package:vocab_kr/presentation/providers/purchases/purchase_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
 import 'package:vocab_kr/presentation/providers/settings/stt_engine_mode_provider.dart';
 import 'package:vocab_kr/presentation/providers/speech/elevenlabs_speech_provider.dart';
@@ -36,6 +37,7 @@ import 'package:vocab_kr/presentation/providers/speech/shared_pcm_capture_provid
 import 'package:vocab_kr/presentation/providers/speech/whisper_speech_provider.dart';
 import 'package:vocab_kr/presentation/screens/quiz/quiz_screen.dart';
 import 'package:vocab_kr/presentation/screens/home/daily_path_screen.dart';
+import 'package:vocab_kr/presentation/screens/import/import_from_link_screen.dart';
 import 'package:vocab_kr/presentation/widgets/study/study_feedback_flood.dart';
 import 'package:vocab_kr/presentation/widgets/study/stt_status_strip.dart';
 import 'package:vocab_kr/presentation/widgets/study/word_in_wave.dart';
@@ -361,7 +363,7 @@ class _SilentFilePlayer implements FileAudioPlayer {
   @override
   Future<void> setPlaybackRate(double rate) async {}
   @override
-  Future<void> playFile(String path) async {}
+  Future<void> playFile(String path, {bool waitForCompletion = false}) async {}
   @override
   Future<void> stop() async {}
   @override
@@ -443,7 +445,13 @@ class _FakeAuthRepo implements AuthRepository {
   Future<void>? pendingStreak;
   int streakUpdates = 0;
   @override
-  Future<Result<void>> updateStreak() async {
+  AppUser? get currentUser => null;
+
+  @override
+  Future<Result<void>> updateStreak({
+    required String userId,
+    required DateTime studyDate,
+  }) async {
     streakUpdates++;
     await pendingStreak;
     return const Success(null);
@@ -458,6 +466,17 @@ class _FakeAuthNotifier extends AuthNotifier {
   Future<AppUser?> build() async => null;
   @override
   Future<void> reloadProfile() async {}
+
+  @override
+  AppUser? useLocalSession() => ref.read(currentUserProvider);
+}
+
+class _PendingImportRemote extends FakeRemote {
+  final pending = Completer<Result<Map<String, dynamic>?>>();
+
+  @override
+  Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(String token) =>
+      pending.future;
 }
 
 class _FakeNotifService implements NotificationService {
@@ -525,6 +544,7 @@ void main() {
     StateProvider<AppUser?>? account,
     _FakeAuthRepo? authRepo,
     _FakeNotifService? reminders,
+    _PendingImportRemote? importRemote,
     SttEngineModeNotifier? sttMode,
     VoiceTurnMachine Function()? machineFactory,
     ThemeMode themeMode = ThemeMode.light,
@@ -567,6 +587,16 @@ void main() {
       tester,
       screen: fromDailyReview
           ? const DailyPathScreen()
+          : importRemote != null
+          ? Builder(
+              builder: (context) => Scaffold(
+                body: TextButton(
+                  key: const ValueKey('open-quiz'),
+                  onPressed: () => context.push('/quiz'),
+                  child: const Text('Open'),
+                ),
+              ),
+            )
           : entry == null
           ? reminders == null
                 ? quiz
@@ -589,7 +619,10 @@ void main() {
             ),
       overrides: [
         appDatabaseProvider.overrideWithValue(db),
-        vocabularyRemoteProvider.overrideWithValue(FakeRemote()),
+        vocabularyRemoteProvider.overrideWithValue(
+          importRemote ?? FakeRemote(),
+        ),
+        if (importRemote != null) isPremiumProvider.overrideWithValue(true),
         getDueCardsUseCaseProvider.overrideWithValue(
           GetDueCardsUseCase(progressRepo),
         ),
@@ -630,6 +663,24 @@ void main() {
         ),
       ],
       routes: [
+        if (importRemote != null) ...[
+          ShellRoute(
+            builder: (_, _, child) => QuizRouteVisibility(child: child),
+            routes: [
+              GoRoute(path: '/quiz', builder: (_, _) => quiz),
+              GoRoute(
+                path: '/lists/:id',
+                builder: (_, _) => const Scaffold(body: Text('Imported list')),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: '/import',
+            builder: (_, state) => ImportFromLinkScreen(
+              token: state.uri.queryParameters['token']!,
+            ),
+          ),
+        ],
         if (fromDailyReview)
           GoRoute(
             path: '/quiz',
@@ -662,6 +713,9 @@ void main() {
     if (entry != null) {
       await tester.tap(find.byKey(ValueKey(entry)));
       await tick(tester, times: 2);
+      await tester.tap(find.byKey(const ValueKey('open-quiz')));
+    }
+    if (importRemote != null) {
       await tester.tap(find.byKey(const ValueKey('open-quiz')));
     }
     if (fromDailyReview) {
@@ -1100,6 +1154,98 @@ void main() {
     });
   }
 
+  testWidgets('voice microphone has a localized name and opens with Enter', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final voice = _VoiceHarness();
+    await pump(
+      tester,
+      mode: QuizMode.voice,
+      words: [('chat', '고양이')],
+      voice: voice,
+    );
+    final mic = find.byKey(const ValueKey(WidgetKeys.micButton));
+    final icon = find.descendant(
+      of: mic,
+      matching: find.byIcon(Icons.mic_none),
+    );
+    expect(
+      tester.getSemantics(icon),
+      matchesSemantics(
+        tooltip: 'quiz.voice_start_microphone'.tr(),
+        isButton: true,
+        isFocusable: true,
+        hasEnabledState: true,
+        isEnabled: true,
+        hasFocusAction: true,
+        hasTapAction: true,
+      ),
+    );
+    semantics.dispose();
+    bool focused() =>
+        Focus.maybeOf(tester.element(icon))?.hasPrimaryFocus ?? false;
+    for (var attempt = 0; attempt < 8 && !focused(); attempt++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+    }
+    expect(focused(), isTrue);
+    expect(voice.capture.opens, 0);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(voice.capture.opens, 1);
+    await unmountScreen(tester);
+    await tester.pump(const Duration(seconds: 8));
+  });
+
+  testWidgets(
+    'compact voice scrolls status, transcript and both alternatives',
+    (tester) async {
+      final voice = _VoiceHarness();
+      await pump(
+        tester,
+        mode: QuizMode.voice,
+        words: [('chat', '고양이')],
+        voice: voice,
+      );
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.micButton)));
+      await tester.pump();
+      expect(voice.capture.opens, 1);
+      tester.view.physicalSize = const Size(1704, 960);
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final providers = ProviderScope.containerOf(
+        tester.element(find.byType(QuizScreen)),
+      );
+      final transcript = List.filled(
+        18,
+        'Un exemple de transcription',
+      ).join(' ');
+      providers.read(quizProvider.notifier).setPartialTranscript(transcript);
+      await tester.pump();
+      await tester.pump();
+      final surface = find.byKey(const ValueKey(WidgetKeys.quizPrompt));
+      final scrollable = find.descendant(
+        of: surface,
+        matching: find.byType(Scrollable),
+      );
+      final scrollPosition = tester.state<ScrollableState>(scrollable).position;
+      expect(scrollPosition.maxScrollExtent, greaterThan(0));
+      expect(find.byType(SttStatusStrip), findsOneWidget);
+      expect(find.text(transcript), findsOneWidget);
+      expect(find.text('v3.scroll_hint'.tr()), findsOneWidget);
+      for (final key in [WidgetKeys.voiceReveal, WidgetKeys.voiceKeyboard]) {
+        final alternative = find.byKey(ValueKey(key));
+        await tester.ensureVisible(alternative);
+        await tester.pump();
+        expect(alternative.hitTestable(), findsOneWidget);
+      }
+      expect(tester.takeException(), isNull);
+      await unmountScreen(tester);
+      await tester.pump(const Duration(seconds: 8));
+    },
+  );
+
   for (final mode in [QuizMode.typing, QuizMode.handsFree]) {
     testWidgets(
       'long ${mode.name} prompt scrolls on 320×568 at 2× text scale',
@@ -1468,6 +1614,104 @@ void main() {
       await tester.pump(const Duration(seconds: 3));
     },
   );
+
+  testWidgets(
+    'hands-free vocabulary awaits native configuration and both prompts',
+    (tester) async {
+      const channel = MethodChannel('flutter_tts');
+      final messenger = tester.binding.defaultBinaryMessenger;
+      final configuration = Completer<int>();
+      final utterances = <(String, Completer<int>)>[];
+      int configurationCalls = 0;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        switch (call.method) {
+          case 'getEngines':
+            return <Object>[];
+          case 'setLanguage':
+            if (++configurationCalls == 1) return configuration.future;
+          case 'speak':
+            final done = Completer<int>();
+            utterances.add((call.arguments as String, done));
+            return done.future;
+        }
+        return 1;
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+      final tts = FlutterTtsService();
+      final voice = _VoiceHarness(
+        promptAudio: AudioPlayerService(
+          usePremium: false,
+          filePlayer: _SilentFilePlayer(),
+          tts: tts,
+        ),
+      );
+      await pump(
+        tester,
+        mode: QuizMode.handsFree,
+        words: [('chat', '고양이'), ('félin', '고양이')],
+        voice: voice,
+      );
+      expect(configurationCalls, 1);
+      await tick(tester, times: 16);
+      expect(tts.isSpeaking, isFalse);
+      expect(utterances, isEmpty);
+      expect(voice.director.cues, 0);
+      expect(voice.capture.opens, 0);
+      configuration.complete(1);
+      for (var index = 0; index < 2; index++) {
+        await tick(tester, times: 12);
+        expect(utterances, hasLength(index + 1));
+        expect(voice.director.cues, index);
+        expect(voice.capture.opens, index);
+        utterances.last.$2.complete(1);
+        await tick(tester, times: 8);
+        expect(voice.director.cues, index + 1);
+        expect(voice.capture.opens, index + 1);
+        voice.capture.session!.answer();
+        await tick(tester, times: 6);
+      }
+      expect(utterances.map((utterance) => utterance.$1), ['chat', 'félin']);
+      await unmountScreen(tester);
+      await tester.pump(const Duration(seconds: 8));
+    },
+  );
+
+  for (final timesOut in [false, true]) {
+    testWidgets(
+      'vocabulary prompt can be repeated after failure (timeout: $timesOut)',
+      (tester) async {
+        final audio = _BlockingPromptAudio();
+        final voice = _VoiceHarness(promptAudio: audio);
+        await pump(
+          tester,
+          mode: QuizMode.handsFree,
+          words: [('chat', '고양이')],
+          voice: voice,
+        );
+        if (timesOut) {
+          await tester.pump(const Duration(seconds: 16));
+        } else {
+          audio.utterances.single.$3.completeError(
+            StateError('Prompt rejected'),
+          );
+          await tester.pump();
+        }
+        await tester.pump();
+        expect(find.text('quiz.grammar_prompt_failed'.tr()), findsOneWidget);
+        expect(voice.director.cues, 0);
+        expect(voice.capture.opens, 0);
+        await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfRepeat)));
+        await tester.pump();
+        expect(audio.utterances, hasLength(2));
+        audio.utterances.last.$3.complete();
+        await tick(tester, times: 8);
+        expect(voice.director.cues, 1);
+        expect(voice.capture.opens, 1);
+        await unmountScreen(tester);
+        await tester.pump(const Duration(seconds: 8));
+      },
+    );
+  }
 
   testWidgets('daily review shortcut rates its one due card once', (
     tester,
@@ -2113,6 +2357,88 @@ void main() {
     expect(languageCalls, 3);
     expect(spokenLocales, [instructionLocale, 'ko-KR']);
     expect(configuredLocale, 'ko-KR');
+    await unmountScreen(tester);
+    await tester.pump(const Duration(seconds: 8));
+  });
+
+  testWidgets('warm import hides the hands-free quiz until its detail closes', (
+    tester,
+  ) async {
+    final voice = _VoiceHarness();
+    final decoding = voice.whisper.pendingDecode = Completer<String?>();
+    final sharedList = _PendingImportRemote();
+    final account = StateProvider<AppUser?>(
+      (_) => AppUser(
+        id: 'u',
+        email: 'u@example.test',
+        username: 'u',
+        createdAt: _now,
+      ),
+    );
+    await pump(
+      tester,
+      mode: QuizMode.handsFree,
+      words: [('chat', '고양이')],
+      voice: voice,
+      account: account,
+      importRemote: sharedList,
+    );
+    await tick(tester, times: 8);
+    expect(voice.capture.opens, 1);
+    final oldCapture = voice.capture.session!;
+    oldCapture.answer();
+    await tester.pump();
+    expect(voice.whisper.decodes, 1);
+    final router = GoRouter.of(tester.element(find.byType(QuizScreen)));
+    unawaited(router.push('/import?token=warm-link'));
+    await tick(tester, times: 3);
+    expect(find.byType(ImportFromLinkScreen), findsOneWidget);
+    expect(find.byType(QuizScreen, skipOffstage: false), findsOneWidget);
+    expect(oldCapture.closed, isTrue);
+    decoding.complete('고양이');
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tick(tester, times: 8);
+    expect(progressRepo.saved, isEmpty);
+    expect(voice.capture.opens, 1);
+
+    sharedList.pending.complete(
+      const Success({
+        'name': 'Liste partagée',
+        'description': null,
+        'concepts': [
+          {
+            'word_variants': [
+              {
+                'word': 'merci',
+                'lang_code': 'fr',
+                'is_primary': true,
+                'position': 0,
+              },
+              {
+                'word': '감사합니다',
+                'lang_code': 'ko',
+                'is_primary': true,
+                'position': 0,
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    await tick(tester, times: 8);
+    expect(find.text('Imported list'), findsOneWidget);
+    expect(voice.capture.opens, 1);
+    expect(voice.director.cues, 1);
+    expect(progressRepo.saved, isEmpty);
+    router.pop();
+    await tick(tester, times: 11);
+    expect(find.byType(QuizScreen), findsOneWidget);
+    expect(voice.capture.opens, 2);
+    expect(voice.director.cues, 2);
+    voice.capture.session!.answer();
+    await tick(tester, times: 6);
+    expect(progressRepo.saved.single.timesCorrect, 1);
     await unmountScreen(tester);
     await tester.pump(const Duration(seconds: 8));
   });

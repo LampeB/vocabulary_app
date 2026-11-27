@@ -8,6 +8,7 @@ from pathlib import Path
 import shutil
 import subprocess
 from tempfile import TemporaryDirectory
+import tomllib
 import unittest
 from unittest.mock import patch
 
@@ -40,15 +41,11 @@ class HostedDeployTest(unittest.TestCase):
         self.write(self.manifest, json.dumps(['audio-provision']))
         self.write(deploy.FUNCTIONS / 'tracked-experiment' / 'index.ts', '// excluded by manifest')
         self.git('init', '-q')
-        self.git('add', '--all')
-        self.git('-c', 'user.name=Tests', '-c', 'user.email=tests@example.invalid',
-                 '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=.git/fixture-hooks',
-                 'commit', '-qm', 'versioned deployment fixture')
-        self.commit = self.git('rev-parse', 'HEAD').strip()
-        self.git('update-ref', 'refs/remotes/origin/main', self.commit)
+        self.commit_fixture()
 
         self.check_inputs = []
         self.deployments = []
+        self.deploy_configs = []
         check_output = subprocess.check_output
 
         def fake_deno_version(command, *args, **kwargs):
@@ -67,6 +64,14 @@ class HostedDeployTest(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding='utf-8')
 
+    def commit_fixture(self):
+        self.git('add', '--all')
+        self.git('-c', 'user.name=Tests', '-c', 'user.email=tests@example.invalid',
+                 '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=.git/fixture-hooks',
+                 'commit', '-qm', 'versioned deployment fixture')
+        self.commit = self.git('rev-parse', 'HEAD').strip()
+        self.git('update-ref', 'refs/remotes/origin/main', self.commit)
+
     def record(self, *command):
         if command[:2] == ('deno', 'check'):
             functions = command[3].parent
@@ -81,10 +86,14 @@ class HostedDeployTest(unittest.TestCase):
         elif command[:2] == ('deno', 'bundle'):
             shutil.copyfile(command[-1], command[-2])
         elif command[:3] == ('supabase', 'functions', 'deploy'):
-            staged = command[-1] / deploy.FUNCTIONS
+            workdir = command[command.index('--workdir') + 1]
+            staged = workdir / deploy.FUNCTIONS
             self.deployments.append({
                 path.parent.name: path.read_text() for path in staged.glob('*/index.ts')
             })
+            self.assertNotIn('--no-verify-jwt', command)
+            self.deploy_configs.append(tomllib.loads(
+                (workdir / 'supabase/config.toml').read_text(encoding='utf-8')))
 
     def deploy(self, commit=None):
         deploy.main(['--project-ref', 'a' * 20, '--commit', commit or self.commit])
@@ -95,6 +104,17 @@ class HostedDeployTest(unittest.TestCase):
         self.deploy()
         self.assertEqual(self.check_inputs[0]['entries'], ['audio-provision'])
         self.assertEqual(self.deployments, [{'audio-provision': '// committed entrypoint'}])
+        self.assertNotIn('functions', self.deploy_configs[0])
+
+    def test_cli_config_disables_gateway_jwt_only_for_the_publisher(self):
+        self.write(deploy.FUNCTIONS / 'seed-audio-publish' / 'index.ts', '// publisher')
+        self.write(self.manifest, json.dumps(['audio-provision', 'seed-audio-publish']))
+        self.commit_fixture()
+        self.deploy()
+        self.assertEqual(set(self.deployments[0]), {'audio-provision', 'seed-audio-publish'})
+        self.assertEqual(self.deploy_configs[0]['functions'], {
+            'seed-audio-publish': {'verify_jwt': False},
+        })
 
     def test_dirty_tracked_sources_lock_and_probe_cannot_change_deploy_snapshot(self):
         for path in [self.function, self.helper, self.lock, deploy.PROBE]:

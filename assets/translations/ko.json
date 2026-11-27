@@ -56,7 +56,7 @@
   "auth.reset_dialog_body": "재설정 링크를 받으려면 이메일 주소를 입력하세요.",
   "auth.reset_send": "보내기",
   "auth.reset_snackbar_success": "이메일을 보냈습니다 — 받은 편지함을 확인하세요.",
-  "auth.reset_snackbar_error": "오류: 주소를 찾을 수 없습니다.",
+  "auth.reset_snackbar_error": "이메일을 보낼 수 없어요. 잠시 후 다시 시도해 주세요.",
   "home.header_notification_tooltip": "알림",
   "home.greeting": "안녕하세요",
   "home.section_lists": "나의 목록",
@@ -565,5 +565,6 @@
   "notifications.streak_title": "연속 학습을 이어 가세요!",
   "notifications.streak_body": "{days}일 연속 학습이 끊길 수 있어요. 자정 전에 복습하세요.",
   "quiz.audio_release_failed": "오디오가 아직 재생 중이에요. 다시 시도하세요.",
-  "quiz.audio_release_failed_hf": "오디오가 아직 재생 중이에요. 다시 듣기를 눌러 재시도하세요."
+  "quiz.audio_release_failed_hf": "오디오가 아직 재생 중이에요. 다시 듣기를 눌러 재시도하세요.",
+  "quiz.voice_start_microphone": "마이크 켜기"
 }

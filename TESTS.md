@@ -84,6 +84,11 @@ Authentication tests map real Supabase HTTP failures to language-independent
 reasons and exercise their FR/EN/KO form messages. The auth streak HTTP path
 and shared arithmetic cover both Paris DST transitions. A real SQLite concept
 due in both directions is presented as two cards on the home and daily path.
+Completion tests suspend the mastery read, leave or restart the quiz, then
+reopen SQLite; the finished session remains owned by its captured account.
+The streak HTTP tests carry its civil date through midnight and preserve a
+newer remote profile. Successive imports retain each result in its own route.
+Compact pair/mode sheets expose the scroll cue before a gesture in FR/EN/KO.
 
 ### `test/unit/fsrs_algorithm_test.dart` (21 tests)
 Spaced-repetition scheduling (FSRS algorithm).

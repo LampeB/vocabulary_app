@@ -56,7 +56,7 @@
   "auth.reset_dialog_body": "Enter your email to receive a reset link.",
   "auth.reset_send": "Send",
   "auth.reset_snackbar_success": "Email sent — check your inbox.",
-  "auth.reset_snackbar_error": "Error: address not found.",
+  "auth.reset_snackbar_error": "Unable to send the email. Try again shortly.",
   "home.header_notification_tooltip": "Notifications",
   "home.greeting": "Hello",
   "home.section_lists": "YOUR LISTS",
@@ -565,5 +565,6 @@
   "notifications.streak_title": "Keep your streak going!",
   "notifications.streak_body": "Your {days}-day streak is at risk. Study before midnight.",
   "quiz.audio_release_failed": "Audio is still playing. Try again.",
-  "quiz.audio_release_failed_hf": "Audio is still playing. Select Repeat to try again."
+  "quiz.audio_release_failed_hf": "Audio is still playing. Select Repeat to try again.",
+  "quiz.voice_start_microphone": "Start microphone"
 }

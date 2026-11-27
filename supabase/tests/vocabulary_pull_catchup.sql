@@ -86,6 +86,13 @@ DO $$ BEGIN
     WHERE value->>'id'='81700000-0000-0000-0000-000000000010'
       AND value->>'is_deleted'='true' AND value->>'name'='' AND NOT (value ? 'share_token'))
     THEN RAISE EXCEPTION 'Physical deletion did not leave a minimal tombstone'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.vocabulary_pull_inventory(auth.uid(),NULL)
+    WHERE id='81700000-0000-0000-0000-000000000010'
+      AND is_deleted AND name='' AND share_token IS NULL)
+    OR (SELECT array_agg(id) FROM public.vocabulary_pull_inventory(
+      auth.uid(),'81700000-0000-0000-0000-000000000010')) IS DISTINCT FROM
+      ARRAY['81700000-0000-0000-0000-000000000020'::uuid]
+    THEN RAISE EXCEPTION 'Inventory missed or repeated a purge across its UUID cursor'; END IF;
 END $$;
 
 RESET ROLE;
@@ -95,6 +102,8 @@ DO $$ BEGIN
   IF public.vocabulary_pull_revision(auth.uid()) <> 0
     OR EXISTS (SELECT 1 FROM public.vocabulary_pull_changed_lists(
       '81700000-0000-0000-0000-000000000001',0,999))
+    OR EXISTS (SELECT 1 FROM public.vocabulary_pull_inventory(
+      '81700000-0000-0000-0000-000000000001',NULL))
     THEN RAISE EXCEPTION 'Another account can read changed lists'; END IF;
 END $$;
 ROLLBACK;

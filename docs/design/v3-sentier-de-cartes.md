@@ -87,6 +87,14 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   Après un lien ouvert dans l'application, il retrouve l'écran d'entrée.
 - Les deux entrées de préparation d'une liste depuis le chemin quotidien
   poussent la bibliothèque sur la pile : son bouton Retour retrouve le chemin.
+- Deux imports successifs conservent chacun leur résultat dans leur route.
+  Un import recouvert attend de redevenir visible avant d'ouvrir son détail
+  ou d'afficher son erreur ; il ne remplace ni ne dépile l'import suivant.
+- Les feuilles de paire et de mode utilisent le signal de défilement commun
+  lorsqu'un choix dépasse de leur surface, visible dès l'ouverture à texte
+  doublé en paysage. Les erreurs de reset distinguent réseau et fréquence ;
+  les autres échecs utilisent un texte neutre, sans conclure que l'adresse
+  n'existe pas.
 - Les actions d'inscription et de connexion de l'accueil, puis la validation
   du formulaire, sont des boutons accessibles par Tab et Entrée.
 - Les erreurs d'authentification sont traduites dans l'interface à partir de
@@ -96,6 +104,12 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   dû dans les deux sens représente deux cartes, pas deux mots.
 - La série compare des dates civiles, y compris lors des journées de 23 ou
   25 heures. La fin de quiz et le suivi social utilisent le même calcul.
+- Au bilan, le quiz capture le compte, les résultats et le jour civil. Son
+  historique SQLite reste enregistré quand l'utilisateur quitte le bilan ou
+  relance un quiz pendant la lecture du nom de la liste ou de la maîtrise.
+  Si le compte est encore connecté, la série utilise le jour de fin du quiz,
+  même lorsque la lecture du profil traverse minuit. Une date de profil
+  déjà plus récente est préservée.
 - Le squelette du splash s'adapte au paysage. Le splash et le verdict peuvent
   défiler lorsque la hauteur ou le texte agrandi l'exigent, avec un signal de
   défilement ; Continuer reste atteignable à 320 × 568, texte doublé.

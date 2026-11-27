@@ -136,10 +136,11 @@ void main() {
       'https://bootstrap.example.test',
       'anon',
       httpClient: MockClient((request) async {
-        final parameters = request.url.queryParameters;
-        filters.add(parameters['id']);
-        expect(parameters['owner_id'], 'eq.u');
-        final rows = parameters['id'] == null
+        expect(request.url.pathSegments.last, 'vocabulary_pull_inventory');
+        final parameters = jsonDecode(request.body) as Map<String, dynamic>;
+        filters.add(parameters['p_after_id'] as String?);
+        expect(parameters['p_owner_id'], 'u');
+        final rows = parameters['p_after_id'] == null
             ? List.generate(500, (i) => {'id': i.toString().padLeft(3, '0')})
             : [
                 {
@@ -153,7 +154,7 @@ void main() {
     addTearDown(client.dispose);
     final restored = await VocabularyRemoteDataSource(client).fetchLists('u');
     expect(restored.valueOrNull?.last['id'], 'historical-starter');
-    expect(filters, [null, 'gt.499']);
+    expect(filters, [null, '499']);
   });
 
   test(

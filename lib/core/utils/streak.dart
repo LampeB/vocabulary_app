@@ -1,6 +1,10 @@
 // Daily-streak arithmetic shared by auth and social updates, testable without
 // hitting Supabase.
 
+/// Represents a calendar day without DST or time zone conversions.
+DateTime civilDate(DateTime date) =>
+    DateTime.utc(date.year, date.month, date.day);
+
 /// Outcome of a streak recomputation.
 class StreakUpdate {
   const StreakUpdate({required this.streak, required this.alreadyCountedToday});
@@ -26,17 +30,13 @@ StreakUpdate computeStreak({
 }) {
   // Civil dates use UTC only as a zone-free calendar representation. A local
   // day can span 23 or 25 hours at a daylight-saving transition.
-  final todayDate = DateTime.utc(today.year, today.month, today.day);
+  final todayDate = civilDate(today);
 
   if (lastStudyDate == null) {
     return const StreakUpdate(streak: 1, alreadyCountedToday: false);
   }
 
-  final lastDay = DateTime.utc(
-    lastStudyDate.year,
-    lastStudyDate.month,
-    lastStudyDate.day,
-  );
+  final lastDay = civilDate(lastStudyDate);
   if (lastDay == todayDate) {
     return StreakUpdate(streak: currentStreak, alreadyCountedToday: true);
   }

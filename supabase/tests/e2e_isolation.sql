@@ -1,4 +1,4 @@
--- Disposable database only, after migration 018. All fixtures roll back.
+-- Disposable database only, after migration 019. All fixtures roll back.
 BEGIN;
 INSERT INTO auth.users(id,email,raw_user_meta_data,raw_app_meta_data) VALUES
  ('51000000-0000-0000-0000-000000000001','isolated@example.invalid','{"username":"isolated"}',
@@ -26,7 +26,7 @@ END $$;
 
 SET LOCAL ROLE anon;
 DO $$ BEGIN
-  IF public.e2e_patrol_contract() IS DISTINCT FROM 'progress-boundaries-v1' THEN
+  IF public.e2e_patrol_contract() IS DISTINCT FROM 'challenge-boundaries-v1' THEN
     RAISE EXCEPTION 'CI cannot verify the installed Patrol schema';
   END IF;
 END $$;
@@ -81,6 +81,20 @@ DO $$ BEGIN
 END $$;
 RESET ROLE;
 REVOKE TRUNCATE ON public.concepts FROM authenticated;
+ALTER TABLE public.challenges DISABLE TRIGGER check_challenge_list_access;
+SET LOCAL ROLE authenticated;
+DO $$ BEGIN
+  IF public.e2e_patrol_contract() IS NOT NULL THEN RAISE EXCEPTION 'Disabled challenge guard reported ready'; END IF;
+  BEGIN
+    PERFORM public.reset_e2e_account('isolation.a');
+    RAISE EXCEPTION 'Reset accepted with disabled challenge guard';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  IF NOT EXISTS (SELECT 1 FROM public.vocabulary_lists WHERE id='52000000-0000-0000-0000-000000000001') THEN
+    RAISE EXCEPTION 'Reset with disabled challenge guard changed a list';
+  END IF;
+END $$;
+RESET ROLE;
+ALTER TABLE public.challenges ENABLE TRIGGER check_challenge_list_access;
 
 SELECT set_config('request.jwt.claim.sub','51000000-0000-0000-0000-000000000002',true);
 SET LOCAL ROLE authenticated;

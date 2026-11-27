@@ -96,13 +96,7 @@ $$;
 REVOKE ALL ON FUNCTION public.e2e_patrol_contract() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.e2e_patrol_contract() TO anon, authenticated;
 
-CREATE OR REPLACE FUNCTION public.reset_e2e_account(p_scenario_id text)
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
-BEGIN
-  IF public.e2e_patrol_contract() IS DISTINCT FROM 'progress-boundaries-v1' THEN
-    RAISE EXCEPTION 'Patrol schema is unavailable; reset refused' USING ERRCODE = '55000';
-  END IF;
-  RETURN e2e_private.reset_e2e_account(p_scenario_id);
-END $$;
+-- Keep client reset closed on upgrades from the original 015 as well.
+REVOKE ALL ON FUNCTION public.reset_e2e_account(text) FROM PUBLIC, anon, authenticated;
 NOTIFY pgrst, 'reload schema';
 COMMIT;

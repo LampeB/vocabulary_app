@@ -56,6 +56,7 @@ class _FakeFilePlayer implements FileAudioPlayer {
   var disposed = 0;
   bool playing = false;
   Completer<void>? pendingRate;
+  Completer<void>? playbackEnded;
 
   @override
   Future<void> setPlaybackRate(double rate) async {
@@ -64,9 +65,10 @@ class _FakeFilePlayer implements FileAudioPlayer {
   }
 
   @override
-  Future<void> playFile(String path) async {
+  Future<void> playFile(String path, {bool waitForCompletion = false}) async {
     played.add(path);
     playing = true;
+    if (waitForCompletion) await playbackEnded?.future;
   }
 
   @override
@@ -190,6 +192,26 @@ void main() {
     await freeAudio.prefetch('mot', 'fr', audioPath: 'seed/v1/fr/mot.mp3');
 
     expect(cache.requested, ['seed/v1/fr/mot.mp3']);
+  });
+
+  test('required cached playback waits through the end of the clip', () async {
+    final finished = Completer<void>();
+    final player = _FakeFilePlayer()..playbackEnded = finished;
+    final audio = service(
+      premium: true,
+      cachedPath: '/cache/mot.mp3',
+      player: player,
+    );
+    var returned = false;
+    final speaking = audio
+        .speak('mot', 'fr', audioPath: 'mot.mp3', requirePlayback: true)
+        .then((_) => returned = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(player.played, ['/cache/mot.mp3']);
+    expect(returned, isFalse);
+    finished.complete();
+    await speaking;
+    expect(returned, isTrue);
   });
 
   for (final dispose in [false, true]) {

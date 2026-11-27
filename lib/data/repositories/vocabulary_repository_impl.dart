@@ -828,17 +828,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
 
   Future<void> _restore() async {
     final budget = VocabularyNetworkBudget(_restoreTimeout);
-    while (!await _restoreSlice(budget)) {}
-    _starterIdentityReady = true;
-  }
-
-  /// A full walk and each catch-up window use the same budget in this attempt.
-  /// SQLite records completed pages before requesting the next server fence.
-  Future<bool> _restoreSlice(VocabularyNetworkBudget budget) async {
-    // Capture the whole account before any remote I/O. A push can acknowledge
-    // an edit between the request and response, leaving isSynced=true again.
-    final (before, traversal) = await _database.transaction(() async {
-      if (!_starterIdentityReady) {
+    if (!_starterIdentityReady) {
+      await _database.transaction(() async {
         // A previous build may have created a random-ID starter before it
         // could pull. Keep its queued snapshot on the device until we know
         // whether the server already has a copy under another ID.
@@ -856,12 +847,16 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
             await _listDao.holdStarterDraft(list.id);
           }
         }
-      }
-      return (
-        await _snapshotForPull(),
-        await _RestoreTraversal.load(_database, _userId),
-      );
-    });
+      });
+    }
+    while (!await _restoreSlice(budget)) {}
+    _starterIdentityReady = true;
+  }
+
+  /// A full walk and each catch-up window use the same budget in this attempt.
+  /// SQLite records completed pages before requesting the next server fence.
+  Future<bool> _restoreSlice(VocabularyNetworkBudget budget) async {
+    final traversal = await _RestoreTraversal.load(_database, _userId);
     if (traversal.throughRevision == null || traversal.progressComplete) {
       final result = await _remote.fetchPullRevision(_userId, budget: budget);
       if (result.exceptionOrNull case final error?) throw error;
@@ -894,6 +889,9 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         traversal.startCatchup(revision);
       }
     }
+    // A push can acknowledge an edit during a page read, leaving isSynced
+    // true again. Compare full snapshots around payload reads only.
+    final before = await _database.transaction(_snapshotForPull);
     final receivedLists = <String>{};
     final touchedLists = <String>{};
     final contents = <String, List<Map<String, dynamic>>>{};
@@ -1058,47 +1056,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         }
       }
 
-      // Apply progress after content so parent liveness reflects this pull.
-      if (progress.isNotEmpty) {
-        final progressDao = _database.progressDao;
-        final liveVariantIds = await progressDao.getLiveVariantIds(_userId);
-        final changedRows = <(String, String), VariantProgressTableData>{};
-        for (final map in progress) {
-          try {
-            if (map['user_id'] != _userId ||
-                !liveVariantIds.contains(
-                  ids.localId(
-                    SyncedVocabularyRow.variant,
-                    map['variant_id'] as String,
-                  ),
-                )) {
-              continue;
-            }
-            await ids.reserve(
-              SyncedVocabularyRow.progress,
-              map['id'] as String,
-            );
-            final row = variantProgressFromRemote(
-              ids.decode(SyncedVocabularyRow.progress, map),
-            );
-            final key = (row.variantId, row.direction);
-            final local = current.progress[key];
-            if (local != null &&
-                !local.isSynced &&
-                local.copyWith(id: row.id, isSynced: true) != row) {
-              traversal.conflictingProgressVariantIds.add(row.variantId);
-            }
-            if (local != before.progress[key] ||
-                (local != null && !local.isSynced)) {
-              continue;
-            }
-            if (row != local) changedRows[key] = row;
-          } catch (_) {
-            // Skip malformed rows and continue restoring the other cards.
-          }
-        }
-        await progressDao.applyPulledProgress(changedRows.values.toList());
-      }
+      await _restoreProgress(progress, traversal, ids, before, current);
       if (traversal.deletionDeferred) incomplete ??= _deferredDeletion;
       await ids.save();
       if (traversal.deletionDeferred && traversal.progressComplete) {
@@ -1110,6 +1068,69 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     });
     if (incomplete case final error?) throw error;
     return false;
+  }
+
+  Future<void> _restoreProgress(
+    List<Map<String, dynamic>> progress,
+    _RestoreTraversal traversal,
+    VocabularySyncIds ids,
+    _PullSnapshot before,
+    _PullSnapshot current,
+  ) async {
+    for (final map in progress) {
+      if (map['user_id'] != _userId) continue;
+      try {
+        final row = variantProgressFromRemote(map);
+        final localId = ids.localId(SyncedVocabularyRow.variant, row.variantId);
+        traversal.waitingProgress[(
+          row.variantId,
+          row.direction,
+        )] = _WaitingPullProgress(
+          row,
+          before.progress[(localId, row.direction)],
+        );
+      } catch (_) {
+        // Skip malformed rows and continue restoring the other cards.
+      }
+    }
+    if (traversal.waitingProgress.isEmpty) return;
+    final dao = _database.progressDao;
+    final liveVariantIds = await dao.getLiveVariantIds(_userId);
+    final changes = <VariantProgressTableData>[];
+    final handled = <(String, String)>[];
+    for (final entry in traversal.waitingProgress.entries) {
+      final waiting = entry.value;
+      final variantId = ids.localId(
+        SyncedVocabularyRow.variant,
+        waiting.remote.variantId,
+      );
+      // A later window may bring this variant even after we have passed the
+      // progress revision. Check again after each slice has applied content.
+      if (!liveVariantIds.contains(variantId)) continue;
+      handled.add(entry.key);
+      final id = await ids.reserve(
+        SyncedVocabularyRow.progress,
+        waiting.remote.id,
+      );
+      final row = waiting.remote.copyWith(id: id, variantId: variantId);
+      final key = (variantId, row.direction);
+      final local = current.progress[key];
+      if (local != null &&
+          !local.isSynced &&
+          local.copyWith(id: row.id, isSynced: true) != row) {
+        traversal.conflictingProgressVariantIds.add(variantId);
+      }
+      if (local != waiting.localAtRead ||
+          local != before.progress[key] ||
+          (local != null && !local.isSynced)) {
+        continue;
+      }
+      if (row != local) changes.add(row);
+    }
+    for (final key in handled) {
+      traversal.waitingProgress.remove(key);
+    }
+    await dao.applyPulledProgress(changes);
   }
 
   Future<_PullSnapshot> _snapshotForPull() async {
@@ -1237,6 +1258,13 @@ class _RestoreTraversal {
             raw as Map<String, dynamic>,
           ),
       },
+      waitingProgress = {
+        for (final waiting
+            in (stored['waitingProgress'] as List? ?? const [])
+                .cast<Map<String, dynamic>>()
+                .map(_WaitingPullProgress.fromStored))
+          (waiting.remote.variantId, waiting.remote.direction): waiting,
+      },
       fromRevision = stored['fromRevision'] as int?,
       throughRevision = stored['throughRevision'] as int?,
       listsComplete = stored['listsComplete'] as bool? ?? false,
@@ -1248,6 +1276,7 @@ class _RestoreTraversal {
   final Map<String, VocabularyList> lists;
   final Set<String> conflictingProgressVariantIds;
   final Map<String, VocabularyList> catalog;
+  final Map<(String, String), _WaitingPullProgress> waitingProgress;
   int? fromRevision;
   int? throughRevision;
   bool listsComplete;
@@ -1280,6 +1309,7 @@ class _RestoreTraversal {
   }
 
   static String _key(String ownerId) => 'vocabulary-pull:$ownerId';
+  static const _checkpointVersion = 2;
 
   static Future<_RestoreTraversal> load(AppDatabase db, String ownerId) async {
     final row = await db
@@ -1292,7 +1322,9 @@ class _RestoreTraversal {
     try {
       final stored =
           jsonDecode(row.read<String>('snapshot')) as Map<String, dynamic>;
-      return _RestoreTraversal(stored['throughRevision'] == null ? {} : stored);
+      return _RestoreTraversal(
+        stored['version'] == _checkpointVersion ? stored : {},
+      );
     } on FormatException {
       return _RestoreTraversal({});
     } on TypeError {
@@ -1309,8 +1341,12 @@ class _RestoreTraversal {
         key,
         Variable(
           jsonEncode({
+            'version': _checkpointVersion,
             'lists': lists.values.map((list) => list.toJson()).toList(),
             'catalog': catalog.values.map((list) => list.toJson()).toList(),
+            'waitingProgress': waitingProgress.values
+                .map((progress) => progress.toStored())
+                .toList(),
             'fromRevision': fromRevision,
             'throughRevision': throughRevision,
             'progressConflicts': conflictingProgressVariantIds.toList(),
@@ -1342,6 +1378,28 @@ class _RestoreTraversal {
               as String;
     }
   }
+}
+
+class _WaitingPullProgress {
+  const _WaitingPullProgress(this.remote, this.localAtRead);
+
+  factory _WaitingPullProgress.fromStored(Map<String, dynamic> stored) {
+    final local = stored['localAtRead'] as Map<String, dynamic>?;
+    return _WaitingPullProgress(
+      VariantProgressTableData.fromJson(
+        stored['remote'] as Map<String, dynamic>,
+      ),
+      local == null ? null : VariantProgressTableData.fromJson(local),
+    );
+  }
+
+  final VariantProgressTableData remote;
+  final VariantProgressTableData? localAtRead;
+
+  Map<String, dynamic> toStored() => {
+    'remote': remote.toJson(),
+    'localAtRead': localAtRead?.toJson(),
+  };
 }
 
 class _PullSnapshot {

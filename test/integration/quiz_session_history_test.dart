@@ -1,14 +1,19 @@
 // ignore_for_file: invalid_use_of_internal_member
 import 'dart:async';
+import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
 import 'package:drift/native.dart';
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/core/utils/fsrs_algorithm.dart';
+import 'package:vocab_kr/core/utils/streak.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
+import 'package:vocab_kr/data/datasources/local/daos/progress_dao.dart';
 import 'package:vocab_kr/data/datasources/remote/vocabulary_remote_datasource.dart'
     show VocabularyNetworkBudget;
 import 'package:vocab_kr/data/models/concept_dto.dart';
@@ -20,8 +25,6 @@ import 'package:vocab_kr/domain/entities/app_user.dart';
 import 'package:vocab_kr/domain/entities/subscription_type.dart';
 import 'package:vocab_kr/domain/entities/variant_progress.dart';
 import 'package:vocab_kr/domain/repositories/auth_repository.dart';
-import 'package:vocab_kr/domain/repositories/progress_repository.dart';
-import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart';
 import 'package:vocab_kr/presentation/providers/audio/audio_provider.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
@@ -65,52 +68,36 @@ class _NoopAudio implements AudioPlayerService {
   void dispose() {}
 }
 
-class _FakeProgressRepo implements ProgressRepository {
-  _FakeProgressRepo(this.due);
-  final List<VariantProgress> due;
+class _PausedMasteryDao extends ProgressDao {
+  _PausedMasteryDao(super.db);
   final masteryRequested = Completer<void>();
-  final mastered = Completer<Result<List<VariantProgress>>>();
+  final release = Completer<void>();
 
   @override
-  Future<Result<List<VariantProgress>>> getDueCards({
+  Future<List<VariantProgressTableData>> getMasteredProgress({
     required String userId,
-    required String listId,
-    required QuizDirection direction,
-    int limit = 20,
-    bool includeScheduled = false,
-  }) async => Success(due.take(limit).toList());
-
-  @override
-  Future<Result<VariantProgress>> updateProgress(
-    VariantProgress progress,
-  ) async => Success(progress);
-
-  @override
-  Future<Result<VariantProgress>> mutateProgress({
-    required String variantId,
-    required QuizDirection direction,
-    required VariantProgress Function(VariantProgress) mutate,
-  }) async => Success(
-    mutate(
-      due.firstWhere(
-        (row) => row.variantId == variantId && row.direction == direction,
-      ),
-    ),
-  );
-
-  @override
-  Future<Result<List<VariantProgress>>> getMasteredVariants(String userId) {
+    int minScheduledDays = 21,
+  }) async {
     masteryRequested.complete();
-    return mastered.future;
+    await release.future;
+    return super.getMasteredProgress(
+      userId: userId,
+      minScheduledDays: minScheduledDays,
+    );
   }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeAuthRepo implements AuthRepository {
+  final streakRequested = Completer<(String, DateTime)>();
   @override
-  Future<Result<void>> updateStreak() async => const Success(null);
+  Future<Result<void>> updateStreak({
+    required String userId,
+    required DateTime studyDate,
+  }) async {
+    streakRequested.complete((userId, studyDate));
+    return const Failure(NetworkException('offline'));
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -123,8 +110,26 @@ class _FakeAuthNotifier extends AuthNotifier {
 }
 
 class _FakeNotifService implements NotificationService {
+  final scheduledStreaks = <int>[];
+  int cancelledStreaks = 0;
+
   @override
-  Future<void> cancelStreakWarning() async {}
+  Future<void> cancelStreakWarning() async {
+    cancelledStreaks++;
+  }
+
+  @override
+  Future<void> scheduleStreakWarning(int streakDays, {Locale? locale}) async {
+    scheduledStreaks.add(streakDays);
+  }
+
+  @override
+  Future<void> scheduleDailyReminder({
+    int hour = 9,
+    int minute = 0,
+    Locale? locale,
+  }) async {}
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -287,101 +292,148 @@ void main() {
     expect(history.correctCount, 1);
   });
 
-  test(
-    'a skipped then correct card records 100% even if a new session loads',
-    () async {
-      SharedPreferences.setMockInitialValues({});
-      final db = AppDatabase.forTesting(NativeDatabase.memory());
-      addTearDown(db.close);
+  for (final leaveQuiz in [false, true]) {
+    test(
+      'completed quiz persists after ${leaveQuiz ? 'leaving' : 'restart'}',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final dir = await Directory.systemTemp.createTemp('ponderin-history-');
+        addTearDown(() => dir.delete(recursive: true));
+        final file = File('${dir.path}/quiz.sqlite');
+        var db = AppDatabase.forTesting(NativeDatabase(file));
+        addTearDown(() => db.close());
 
-      // Seed a list with one word; the due card points at its FR variant.
-      final vocabRepo = VocabularyRepositoryImpl(
-        db.vocabularyListDao,
-        db.conceptDao,
-        FakeRemote(),
-        'u',
-        db,
-      );
-      final list = (await vocabRepo.createList(name: 'Animaux')).valueOrNull!;
-      final concept = (await vocabRepo.addConceptWithVariants(
-        listId: list.id,
-        wordA: 'chat',
-        wordB: '고양이',
-      )).valueOrNull!;
-      final variants = await db.conceptDao.getVariantsByConcept(concept.id);
-      final due = VariantProgress(
-        id: 'p1',
-        userId: 'u',
-        variantId: variants.firstWhere((v) => v.langCode == 'fr').id,
-        direction: QuizDirection.frToKo,
-        createdAt: _now,
-        updatedAt: _now,
-      );
+        // A fresh FR→KO card and a mastered KO→FR card share the same concept.
+        final remote = FakeRemote();
+        final vocabRepo = VocabularyRepositoryImpl(
+          db.vocabularyListDao,
+          db.conceptDao,
+          remote,
+          'u',
+          db,
+        );
+        final list = (await vocabRepo.createList(name: 'Animaux')).valueOrNull!;
+        final concept = (await vocabRepo.addConceptWithVariants(
+          listId: list.id,
+          wordA: 'chat',
+          wordB: '고양이',
+        )).valueOrNull!;
+        final variants = await db.conceptDao.getVariantsByConcept(concept.id);
+        await db
+            .into(db.variantProgressTable)
+            .insert(
+              VariantProgress(
+                id: 'mastered-ko',
+                userId: 'u',
+                variantId: variants.singleWhere((v) => v.langCode == 'ko').id,
+                direction: QuizDirection.koToFr,
+                state: CardState.review,
+                scheduledDays: 30,
+                createdAt: _now,
+                updatedAt: _now,
+              ).toLocalCompanion(),
+            );
 
-      final user = AppUser(
-        id: 'u',
-        email: 't@t.fr',
-        username: 'thomas',
-        subscriptionType: SubscriptionType.free,
-        createdAt: _now,
-      );
+        final user = AppUser(
+          id: 'u',
+          email: 't@t.fr',
+          username: 'thomas',
+          subscriptionType: SubscriptionType.free,
+          currentStreak: 6,
+          lastStudyDate: civilDate(
+            DateTime.now(),
+          ).subtract(const Duration(days: 1)),
+          createdAt: _now,
+        );
 
-      final progressRepo = _FakeProgressRepo([due]);
-      final container = ProviderContainer(
-        overrides: [
-          appDatabaseProvider.overrideWithValue(db),
-          vocabularyRemoteProvider.overrideWithValue(FakeRemote()),
-          getDueCardsUseCaseProvider.overrideWithValue(
-            GetDueCardsUseCase(progressRepo),
-          ),
-          progressRepositoryProvider.overrideWithValue(progressRepo),
-          audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
-          currentUserProvider.overrideWithValue(user),
-          authRepositoryProvider.overrideWithValue(_FakeAuthRepo()),
-          authStateProvider.overrideWith(_FakeAuthNotifier.new),
-          notificationServiceProvider.overrideWithValue(_FakeNotifService()),
-        ],
-      );
-      addTearDown(container.dispose);
-      final sub = container.listen(quizProvider, (_, _) {});
+        final progressDao = _PausedMasteryDao(db);
+        final auth = _FakeAuthRepo();
+        final container = ProviderContainer(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(db),
+            vocabularyRemoteProvider.overrideWithValue(remote),
+            progressDaoProvider.overrideWithValue(progressDao),
+            audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
+            currentUserProvider.overrideWithValue(user),
+            authRepositoryProvider.overrideWithValue(auth),
+            authStateProvider.overrideWith(_FakeAuthNotifier.new),
+            notificationServiceProvider.overrideWithValue(_FakeNotifService()),
+          ],
+        );
+        addTearDown(container.dispose);
+        final sub = container.listen(quizProvider, (_, _) {});
 
-      // Play the whole (1-card) session.
-      final notifier = container.read(quizProvider.notifier);
-      final args = QuizArgs(
-        listId: list.id,
-        mode: QuizMode.flashcard,
-        direction: QuizDirectionChoice.frToKo,
-        cardLimit: 1,
-      );
-      await notifier.loadCards(args);
-      expect(sub.read().cards.length, 1);
-      notifier.skipCurrentCard();
-      notifier.flipCard();
-      notifier.gradeFlashcard(FsrsRating.good);
-      notifier.advance();
-      expect(sub.read().isComplete, isTrue);
-      expect(sub.read().accuracy, 1.0);
+        // Play the whole (1-card) session.
+        final notifier = container.read(quizProvider.notifier);
+        final args = QuizArgs(
+          listId: list.id,
+          mode: QuizMode.flashcard,
+          direction: QuizDirectionChoice.frToKo,
+          cardLimit: 1,
+        );
+        await notifier.loadCards(args);
+        expect(sub.read().cards.length, 1);
+        notifier.skipCurrentCard();
+        notifier.flipCard();
+        notifier.gradeFlashcard(FsrsRating.good);
+        notifier.advance();
+        expect(sub.read().isComplete, isTrue);
+        expect(sub.read().accuracy, 1.0);
 
-      // Start again while the completed session's history query is in flight.
-      await progressRepo.masteryRequested.future;
-      await notifier.loadCards(args);
-      expect(sub.read().correctCount, 0);
-      progressRepo.mastered.complete(Success([due]));
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+        // Keep the real SQLite history lookup suspended during navigation.
+        await progressDao.masteryRequested.future.timeout(
+          const Duration(seconds: 2),
+        );
+        if (leaveQuiz) {
+          sub.close();
+          await container.pump();
+          expect(container.exists(quizProvider), isFalse);
+        } else {
+          await notifier.loadCards(
+            QuizArgs(
+              listId: list.id,
+              mode: QuizMode.typing,
+              direction: QuizDirectionChoice.frToKo,
+              cardLimit: 1,
+            ),
+          );
+          expect(sub.read().correctCount, 0);
+        }
+        progressDao.release.complete();
+        final (account, studyDay) = await auth.streakRequested.future.timeout(
+          const Duration(seconds: 2),
+        );
+        expect(account, user.id);
+        await db.close();
 
-      // The row exists with the right facts…
-      final rows = await db.quizSessionDao.getSessionsByUser('u');
-      expect(rows.length, 1);
-      expect(rows.single.listName, 'Animaux');
-      expect(rows.single.mode, 'flashcard');
-      expect(rows.single.cardCount, 1);
-      expect(rows.single.correctCount, 1);
-      expect(rows.single.masteredWordCount, 1);
+        db = AppDatabase.forTesting(NativeDatabase(file));
+        final reminders = _FakeNotifService();
+        final reopened = ProviderContainer(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(db),
+            currentUserProvider.overrideWithValue(user),
+            notificationServiceProvider.overrideWithValue(reminders),
+          ],
+        );
+        addTearDown(reopened.dispose);
+        expect(reopened.read(localStudyDayProvider(user.id)), isNull);
+        expect(await db.quizSessionDao.getSessionsByUser('other'), isEmpty);
+        final history = await reopened.read(quizHistoryProvider.future);
+        expect(history.single.listName, 'Animaux');
+        expect(history.single.listId, list.id);
+        expect(history.single.mode, QuizMode.flashcard);
+        expect(history.single.cardCount, 1);
+        expect(history.single.masteredWordCount, 1);
+        expect(history.single.accuracy, 1.0);
+        expect(civilDate(history.single.completedAt.toLocal()), studyDay);
 
-      // …and quizHistoryProvider maps it back for the stats screen.
-      final history = await container.read(quizHistoryProvider.future);
-      expect(history.single.listName, 'Animaux');
-      expect(history.single.accuracy, 1.0);
-    },
-  );
+        // With a stale profile and no in-memory study date, use SQLite.
+        await reopened.read(
+          authenticatedRemindersProvider(const Locale('fr')).future,
+        );
+        expect(reminders.cancelledStreaks, 1);
+        expect(reminders.scheduledStreaks, isEmpty);
+      },
+    );
+  }
 }

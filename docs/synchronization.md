@@ -97,6 +97,9 @@ L'application utilise SQLite comme source de lecture et les colonnes
   Une nouvelle référence doit viser une variante active dans une branche
   possédée ou visible. Les références historiques inchangées restent
   modifiables.
+- Dans le schéma des défis, une nouvelle référence doit viser une liste
+  active visible par la personne qui écrit. Les mises à jour de résultat
+  restent permises lorsque les participants et la référence sont inchangés.
 - Chaque note calcule FSRS à partir de la progression courante, dans la
   transaction qui enregistre la réponse. Deux passages de la même carte
   incrémentent les compteurs et appliquent les transitions successives, même
@@ -107,7 +110,8 @@ L'application utilise SQLite comme source de lecture et les colonnes
 
 - Une métadonnée locale non synchronisée n'est pas remplacée par une copie
   distante vivante. Les autres enfants continuent cependant à être restaurés.
-- Le pull capture l'état local complet du compte avant sa première requête.
+- Le pull capture l'état local complet du compte avant de lire les données
+  d'une phase de restauration.
   Dans la transaction d'application, il préserve toute liste, tout concept,
   toute variante et toute progression dont la ligne a changé, y compris son
   statut d'accusé, pendant la récupération. Une suppression distante attend
@@ -124,7 +128,11 @@ L'application utilise SQLite comme source de lecture et les colonnes
   récupération des concepts échoue, une liste déjà locale garde son compteur.
 - Après la restauration du contenu, une requête jointe identifie les variantes
   encore actives. Les progressions identiques sont ignorées et les autres
-  mises à jour sont regroupées dans la transaction du pull.
+  mises à jour sont regroupées dans la transaction du pull. Si une
+  progression arrive avant sa variante, SQLite la conserve avec le curseur
+  et la réévalue après le contenu des phases suivantes, y compris après
+  redémarrage. La comparaison avec l'état local au moment de sa lecture
+  préserve une progression modifiée entre-temps.
 - L'authentification, y compris une connexion depuis l'écran d'accueil,
   déclenche la récupération puis le seeding idempotent avant le plateau.
   Les appelants d'une même session partagent la récupération en cours. Un
@@ -140,7 +148,10 @@ L'application utilise SQLite comme source de lecture et les colonnes
   poursuit avec des fenêtres paginées de listes modifiées, de leurs contenus
   et de progressions modifiées. Le curseur et les bornes de rattrapage
   persistent entre les tentatives. Une suppression ou une insertion derrière
-  le curseur d'identifiants rejoint ainsi la restauration. Le rapprochement
+  le curseur d'identifiants rejoint ainsi la restauration. L'inventaire
+  initial inclut aussi les tombstones minimaux des purges physiques déjà
+  validées, même pour un cache qui n'a pas encore de curseur compatible.
+  Le rapprochement
   des starters attend la fin de la couverture et la confirmation de son
   dernier numéro. Au retour du réseau, le shell relance la récupération en
   attente avant d'envoyer les modifications locales.

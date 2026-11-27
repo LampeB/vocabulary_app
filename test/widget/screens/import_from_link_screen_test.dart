@@ -64,6 +64,16 @@ class _SharedListRemote extends FakeRemote {
   }
 }
 
+class _PendingSharedLists extends FakeRemote {
+  final replies = {
+    'A': Completer<Result<Map<String, dynamic>?>>(),
+    'B': Completer<Result<Map<String, dynamic>?>>(),
+  };
+  @override
+  Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(String token) =>
+      replies[token]!.future;
+}
+
 AppUser _user({int streak = 0}) => AppUser(
   id: 'u',
   email: 'u@example.test',
@@ -88,6 +98,105 @@ class _RestoredSessionRepository implements AuthRepository {
 
 void main() {
   setUpAll(initTestLocalization);
+
+  for (final firstFails in [false, true]) {
+    testWidgets(
+      'import A ${firstFails ? 'failure' : 'success'} cannot replace or pop B',
+      (tester) async {
+        final remote = _PendingSharedLists();
+        final database = AppDatabase.forTesting(NativeDatabase.memory());
+        addTearDown(database.close);
+        final repository = VocabularyRepositoryImpl(
+          database.vocabularyListDao,
+          database.conceptDao,
+          remote,
+          'u',
+          database,
+        );
+        late GoRouter router;
+        await pumpScreen(
+          tester,
+          screen: Builder(
+            builder: (context) {
+              router = GoRouter.of(context);
+              return const Scaffold(body: Text('Entry'));
+            },
+          ),
+          overrides: [
+            authRepositoryProvider.overrideWithValue(
+              _RestoredSessionRepository(),
+            ),
+            vocabularyRepositoryProvider.overrideWithValue(repository),
+            isPremiumProvider.overrideWithValue(true),
+          ],
+          routes: [
+            GoRoute(
+              path: '/import',
+              builder: (_, state) => ImportFromLinkScreen(
+                token: state.uri.queryParameters['token']!,
+              ),
+            ),
+            GoRoute(
+              path: '/lists/:id',
+              builder: (_, state) => Scaffold(
+                appBar: AppBar(),
+                body: Text('Detail ${state.pathParameters['id']}'),
+              ),
+            ),
+          ],
+        );
+        unawaited(router.push<void>('/import?token=A'));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump(const Duration(milliseconds: 300));
+        unawaited(router.push<void>('/import?token=B'));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump(const Duration(milliseconds: 300));
+        remote.replies['A']!.complete(
+          Success(
+            firstFails ? null : {'name': 'List A', 'concepts': <Object>[]},
+          ),
+        );
+        for (var i = 0; i < 8; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(
+          tester
+              .widget<ImportFromLinkScreen>(find.byType(ImportFromLinkScreen))
+              .token,
+          'B',
+        );
+        remote.replies['B']!.complete(
+          const Success({'name': 'List B', 'concepts': <Object>[]}),
+        );
+        for (var i = 0; i < 8; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        final second = await database.vocabularyListDao.getImportedCopy(
+          'B',
+          'u',
+        );
+        expect(find.text('Detail ${second!.id}'), findsOneWidget);
+        router.pop();
+        for (var i = 0; i < 8; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        if (firstFails) {
+          expect(find.text('Entry'), findsOneWidget);
+        } else {
+          final first = await database.vocabularyListDao.getImportedCopy(
+            'A',
+            'u',
+          );
+          expect(find.text('Detail ${first!.id}'), findsOneWidget);
+          router.pop();
+          await tester.pump(const Duration(milliseconds: 400));
+          expect(find.text('Entry'), findsOneWidget);
+        }
+        expect(tester.takeException(), isNull);
+        await unmountScreen(tester);
+      },
+    );
+  }
 
   late AppDatabase db;
   String? navigatedTo;

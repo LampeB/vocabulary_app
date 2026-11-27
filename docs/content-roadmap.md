@@ -134,8 +134,11 @@ Each unit = one agent run, one reviewable diff, gate green
   unit now; teacher/native review and the V0 scope above still apply.
 
 ### U8 — Grammar texts in more UI locales
-- Rule titles/descriptions/explanations exist in fr+en only; de/es/it/ja/ko
-  UI locales read the en fallback. One run per added locale.
+- Rule titles/descriptions/explanations exist in fr+en. The four French A1
+  rules also include Korean titles, descriptions, explanations and examples,
+  awaiting native review; do not regenerate those translations as missing.
+  U8 adds only missing locale maps in other rules/curricula. Missing de/es/it/ja/ko
+  teaching text uses the en fallback. One run per added locale.
 
 ### U10 — Cours d'écriture Niveau 0 (nouveau, 2026-08-13)
 - Les niveaux s'affichent « Niveau 1-6 » (les tags internes restent

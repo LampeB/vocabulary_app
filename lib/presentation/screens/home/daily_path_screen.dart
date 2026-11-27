@@ -393,7 +393,8 @@ class _ModeSheet extends StatelessWidget {
     top: false,
     child: Align(
       alignment: Alignment.bottomCenter,
-      child: SingleChildScrollView(
+      child: ScrollAffordance(
+        hint: 'v3.scroll_hint'.tr(),
         child: Container(
           margin: const EdgeInsets.all(12),
           padding: const EdgeInsets.fromLTRB(20, 13, 20, 22),

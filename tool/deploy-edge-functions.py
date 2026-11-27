@@ -49,7 +49,11 @@ def prepare_bundles(source, stage):
     run('deno', 'test', *locked, '--allow-env', functions / '_shared')
 
     (stage / 'functions').mkdir(parents=True)
-    (stage / 'config.toml').write_text('project_id = "ponderin-edge"\n', encoding='utf-8')
+    config = 'project_id = "ponderin-edge"\n'
+    if 'seed-audio-publish' in manifest:
+        # This endpoint authenticates server keys with Supabase Auth itself.
+        config += '\n[functions.seed-audio-publish]\nverify_jwt = false\n'
+    (stage / 'config.toml').write_text(config, encoding='utf-8')
     bundles = []
     for entry in entries:
         bundle = stage / 'functions' / entry.parent.name / 'index.ts'

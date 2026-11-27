@@ -1,10 +1,10 @@
--- Disposable database only, after 009, 012, 013, 014 or 015 and before 016.
+-- Disposable database only, after 009 and 012–018.
 BEGIN;
 SET LOCAL ROLE anon;
 DO $$ BEGIN
   IF to_regprocedure('public.e2e_patrol_contract()') IS NOT NULL THEN
-    IF public.e2e_patrol_contract() IS NOT NULL THEN
-      RAISE EXCEPTION 'A partial schema advertises the Patrol contract before migration 016';
+    IF public.e2e_patrol_contract() IS NOT DISTINCT FROM 'challenge-boundaries-v1' THEN
+      RAISE EXCEPTION 'A partial schema advertises the current Patrol contract';
     END IF;
   END IF;
 END $$;
@@ -15,6 +15,8 @@ INSERT INTO auth.users(id,email,raw_user_meta_data,raw_app_meta_data) VALUES
 SELECT public.enroll_e2e_account('51000000-0000-0000-0000-000000000001','activation.a','pending');
 INSERT INTO public.vocabulary_lists(id,owner_id,name) VALUES
  ('52000000-0000-0000-0000-000000000001','51000000-0000-0000-0000-000000000001','Pending isolation');
+UPDATE public.profiles SET display_name='Pending reset'
+  WHERE id='51000000-0000-0000-0000-000000000001';
 SELECT set_config('request.jwt.claim.sub','51000000-0000-0000-0000-000000000001',true);
 SET LOCAL ROLE authenticated;
 DO $$ BEGIN
@@ -25,8 +27,13 @@ DO $$ BEGIN
 END $$;
 RESET ROLE;
 DO $$ BEGIN
-  IF NOT EXISTS(SELECT 1 FROM public.vocabulary_lists WHERE id='52000000-0000-0000-0000-000000000001') THEN
-    RAISE EXCEPTION 'Reset modified a list before the Patrol schema was ready';
+  IF has_function_privilege('authenticated', 'public.reset_e2e_account(text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'Client reset privilege granted before schema completion';
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.vocabulary_lists WHERE id='52000000-0000-0000-0000-000000000001')
+    OR NOT EXISTS (SELECT 1 FROM public.profiles WHERE id='51000000-0000-0000-0000-000000000001'
+      AND display_name='Pending reset') THEN
+    RAISE EXCEPTION 'Reset modified scenario data before the Patrol schema was ready';
   END IF;
 END $$;
 ROLLBACK;

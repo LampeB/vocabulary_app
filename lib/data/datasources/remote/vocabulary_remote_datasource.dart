@@ -59,6 +59,7 @@ class VocabularyRemoteDataSource {
   static const deletedListKey = '_sync_deleted_list';
   static const deletedConceptKey = '_sync_deleted_concept';
   static const pullRevisionKey = '_sync_pull_revision';
+  static const _pullPageSize = 500;
 
   Future<Result<int>> fetchPullRevision(
     String ownerId, {
@@ -85,13 +86,16 @@ class VocabularyRemoteDataSource {
       if (budget?._changes case final window?) {
         return Success(await _fetchChanged('lists', ownerId, budget!, window));
       }
-      // Deleted rows are fetched ON PURPOSE: pull-sync must propagate
-      // server-side deletions (tombstones), or a list deleted remotely
-      // stays visible on-device forever.
+      // The initial inventory includes earlier physical purges even when
+      // this device has never recorded a server revision.
       return Success(
         await _fetchPages(
-          () =>
-              _client.from('vocabulary_lists').select().eq('owner_id', ownerId),
+          (cursor) => _client
+              .rpc<List<Map<String, dynamic>>>(
+                'vocabulary_pull_inventory',
+                params: {'p_owner_id': ownerId, 'p_after_id': cursor},
+              )
+              .order('id'),
           budget: budget,
         ),
       );
@@ -116,7 +120,7 @@ class VocabularyRemoteDataSource {
       // Includes deleted concepts — same tombstone-propagation rationale
       // as fetchLists (the local upsert carries the is_deleted flag).
       return Success(
-        await _fetchPages(
+        await _fetchTablePages(
           () => _client
               .from('concepts')
               .select('*, word_variants(*)')
@@ -318,7 +322,7 @@ class VocabularyRemoteDataSource {
         );
       }
       return Success(
-        await _fetchPages(
+        await _fetchTablePages(
           () => _client
               .from('variant_progress')
               .select()
@@ -338,14 +342,16 @@ class VocabularyRemoteDataSource {
     VocabularyNetworkBudget budget,
     VocabularyChangeWindow window,
   ) => _fetchPages(
-    () => _client.rpc<List<Map<String, dynamic>>>(
-      'vocabulary_pull_changed_$kind',
-      params: {
-        'p_owner_id': ownerId,
-        'p_after': window.after,
-        'p_through': window.through,
-      },
-    ),
+    (cursor) => _client
+        .rpc<List<Map<String, dynamic>>>(
+          'vocabulary_pull_changed_$kind',
+          params: {
+            'p_owner_id': ownerId,
+            'p_after': cursor == null ? window.after : int.parse(cursor),
+            'p_through': window.through,
+          },
+        )
+        .order('revision'),
     budget: budget,
     cursorColumn: 'revision',
     project: (row) => {
@@ -354,30 +360,36 @@ class VocabularyRemoteDataSource {
     },
   );
 
+  Future<List<Map<String, dynamic>>> _fetchTablePages(
+    PostgrestFilterBuilder<List<Map<String, dynamic>>> Function() query, {
+    VocabularyNetworkBudget? budget,
+  }) => _fetchPages((cursor) {
+    final filter = query();
+    return (cursor == null ? filter : filter.gt('id', cursor))
+        .order('id')
+        .limit(_pullPageSize);
+  }, budget: budget);
+
   // A capped response cannot prove that a starter or an existing progress
   // identity is absent. Read all pages before reconciling local drafts.
   Future<List<Map<String, dynamic>>> _fetchPages(
-    PostgrestFilterBuilder<List<Map<String, dynamic>>> Function() query, {
+    Future<List<Map<String, dynamic>>> Function(String? cursor) fetch, {
     VocabularyNetworkBudget? budget,
     String cursorColumn = 'id',
     Map<String, dynamic> Function(Map<String, dynamic>)? project,
   }) async {
-    const pageSize = 500;
     final rows = <Map<String, dynamic>>[];
-    var lastId = budget?._pageAfter;
+    var cursor = budget?._pageAfter;
     final deadline = budget ?? VocabularyNetworkBudget(_pageTimeout);
     try {
       while (true) {
-        final page = await deadline._request(() {
-          var filter = query();
-          if (lastId case final previous?) {
-            filter = filter.gt(cursorColumn, previous);
-          }
-          return filter.order(cursorColumn).limit(pageSize);
-        }, perRequest: _pageTimeout);
+        final page = await deadline._request(
+          () => fetch(cursor),
+          perRequest: _pageTimeout,
+        );
         rows.addAll(project == null ? page : page.map(project));
-        if (page.length < pageSize) return rows;
-        lastId = page.last[cursorColumn].toString();
+        if (page.length < _pullPageSize) return rows;
+        cursor = page.last[cursorColumn].toString();
       }
     } catch (_) {
       budget?._partialRows = rows;

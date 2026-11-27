@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   dispatch:
-    if: github.ref == 'refs/heads/main' && vars.PATROL_E2E_ACTIVATION == 'progress-boundaries-v1'
+    if: github.ref == 'refs/heads/main' && vars.PATROL_E2E_ACTIVATION == 'challenge-boundaries-v1'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

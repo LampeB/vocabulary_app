@@ -20,6 +20,7 @@ for name in (
     '016_vocabulary_write_order.sql',
     '017_vocabulary_pull_catchup.sql',
     '018_vocabulary_progress_boundaries.sql',
+    '019_challenge_list_boundaries.sql',
 ):
     print(f'\n-- {name}')
     for line in (root / 'supabase/migrations' / name).read_text(encoding='utf-8').splitlines():

@@ -150,10 +150,14 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Result<void>> updateStreak() async {
-    final user = _remote.currentUser;
-    if (user == null) return const Failure(AuthException('Not signed in'));
-    return _remote.updateStreak(user.id);
+  Future<Result<void>> updateStreak({
+    required String userId,
+    required DateTime studyDate,
+  }) async {
+    if (_remote.currentUser?.id != userId) {
+      return const Failure(AuthException('Study account is no longer active'));
+    }
+    return _remote.updateStreak(userId: userId, studyDate: studyDate);
   }
 
   @override

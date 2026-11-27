@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +9,7 @@ import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
+import 'package:vocab_kr/core/utils/streak.dart';
 import 'package:vocab_kr/data/datasources/remote/auth_remote_datasource.dart';
 
 class _AuthStorage extends sb.GotrueAsyncStorage {
@@ -25,8 +27,55 @@ class _AuthStorage extends sb.GotrueAsyncStorage {
   }
 }
 
+Future<void> _setIdentity(sb.SupabaseClient client, String id) =>
+    client.auth.setInitialSession(
+      jsonEncode({
+        'access_token': 'fixture-token-for-$id',
+        'token_type': 'bearer',
+        'user': {
+          'id': id,
+          'aud': 'authenticated',
+          'created_at': '2026-01-01T00:00:00.000Z',
+        },
+      }),
+    );
+
 void main() {
   setUpAll(tzdata.initializeTimeZones);
+
+  for (final offline in [false, true]) {
+    test(
+      'reset preserves ${offline ? 'network' : 'HTTP 429'} reason',
+      () async {
+        final client = sb.SupabaseClient(
+          'https://fixture.supabase.co',
+          'fixture-anon-key',
+          authOptions: sb.AuthClientOptions(pkceAsyncStorage: _AuthStorage()),
+          httpClient: MockClient((request) async {
+            if (offline) throw http.ClientException('offline');
+            return http.Response(
+              jsonEncode({'msg': 'Too many requests'}),
+              429,
+              request: request,
+              headers: {'content-type': 'application/json'},
+            );
+          }),
+        );
+        addTearDown(client.dispose);
+        final result = await AuthRemoteDataSource(
+          client,
+        ).sendPasswordReset('a@example.test');
+        if (offline) {
+          expect(result.exceptionOrNull, isA<NetworkException>());
+        } else {
+          expect(
+            (result.exceptionOrNull as AuthException).reason,
+            AuthFailureReason.rateLimited,
+          );
+        }
+      },
+    );
+  }
 
   for (final scenario in [
     ('invalid_credentials', AuthFailureReason.invalidCredentials),
@@ -107,10 +156,11 @@ void main() {
           }),
         );
         addTearDown(client.dispose);
+        await _setIdentity(client, 'u');
         final result = await AuthRemoteDataSource(
           client,
           now: () => today,
-        ).updateStreak('u');
+        ).updateStreak(userId: 'u', studyDate: civilDate(today));
         expect(
           result.isSuccess,
           isTrue,
@@ -125,5 +175,76 @@ void main() {
         );
       },
     );
+  }
+
+  for (final (label, lastStudyDate, switchAccount) in [
+    ('keeps the completion day across midnight', '2026-11-26', false),
+    ('preserves a newer study day', '2026-11-28', false),
+    ('stops after an account switch', '2026-11-26', true),
+  ]) {
+    test('delayed streak profile GET $label', () async {
+      final paris = tz.getLocation('Europe/Paris');
+      var now = tz.TZDateTime(paris, 2026, 11, 27, 23, 59);
+      final requested = Completer<void>();
+      final release = Completer<void>();
+      Map<String, dynamic>? saved;
+      final client = sb.SupabaseClient(
+        'https://fixture.supabase.co',
+        'fixture-anon-key',
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/rest/v1/profiles');
+          expect(request.url.queryParameters['id'], 'eq.u');
+          expect(
+            request.headers['authorization'],
+            'Bearer fixture-token-for-u',
+          );
+          if (request.method == 'GET') {
+            requested.complete();
+            await release.future;
+            return http.Response(
+              jsonEncode([
+                {
+                  'current_streak': 5,
+                  'longest_streak': 8,
+                  'last_study_date': lastStudyDate,
+                },
+              ]),
+              200,
+              headers: {'content-type': 'application/json'},
+              request: request,
+            );
+          }
+          expect(request.method, 'PATCH');
+          expect(
+            request.url.queryParameters['or'],
+            '(last_study_date.is.null,last_study_date.lt.2026-11-27)',
+          );
+          saved = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response('', 204, request: request);
+        }),
+      );
+      addTearDown(client.dispose);
+      await _setIdentity(client, 'u');
+      final result = AuthRemoteDataSource(
+        client,
+        now: () => now,
+      ).updateStreak(userId: 'u', studyDate: civilDate(now));
+
+      await requested.future.timeout(const Duration(seconds: 2));
+      now = tz.TZDateTime(paris, 2026, 11, 28, 0, 1);
+      if (switchAccount) await _setIdentity(client, 'other');
+      release.complete();
+      expect((await result).isFailure, switchAccount);
+      if (switchAccount || lastStudyDate == '2026-11-28') {
+        expect(saved, isNull);
+      } else {
+        expect(saved, {
+          'current_streak': 6,
+          'longest_streak': 8,
+          'last_study_date': '2026-11-27',
+          'updated_at': now.toUtc().toIso8601String(),
+        });
+      }
+    });
   }
 }

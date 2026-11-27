@@ -149,7 +149,8 @@ class _PonderinAppState extends ConsumerState<PonderinApp> {
         },
       ),
       ShellRoute(
-        builder: (_, _, child) => AppShell(child: child),
+        builder: (_, _, child) =>
+            QuizRouteVisibility(child: AppShell(child: child)),
         routes: [
           // The signed-in landing page is the learning path. Vocabulary
           // and lessons remain independent tabs, but the first-use flow

@@ -29,6 +29,39 @@ const _timestamp = {
   'updated_at': '2026-11-27T00:00:00Z',
 };
 
+Map<String, dynamic> _remoteList(String id, {bool isDeleted = false}) => {
+  ..._timestamp,
+  'id': id,
+  'owner_id': 'u',
+  'name': isDeleted ? '' : id,
+  'is_deleted': isDeleted,
+};
+
+Map<String, dynamic> _remoteConcept(String list) => {
+  ..._timestamp,
+  'id': 'concept-$list',
+  'list_id': list,
+  'word_variants': [
+    {
+      ..._timestamp,
+      'id': 'variant-$list',
+      'concept_id': 'concept-$list',
+      'word': 'bonjour',
+      'lang_code': 'fr',
+    },
+  ],
+};
+
+VariantProgress _remoteProgress(String list) => VariantProgress(
+  id: 'progress-$list',
+  userId: 'u',
+  variantId: 'variant-$list',
+  direction: QuizDirection.frToKo,
+  reps: 4,
+  createdAt: DateTime.utc(2026, 11, 27),
+  updatedAt: DateTime.utc(2026, 11, 27),
+);
+
 Future<void> _useSession(SupabaseClient client, String id) async {
   String encode(Object value) =>
       base64Url.encode(utf8.encode(jsonEncode(value))).replaceAll('=', '');
@@ -355,7 +388,7 @@ void main() {
         if (table == 'vocabulary_pull_revision') return _reply(request, 0);
         final list = request.url.queryParameters['list_id'];
         requests.add(list ?? table);
-        if (table == 'vocabulary_lists') {
+        if (table == 'vocabulary_pull_inventory') {
           return _reply(request, [
             for (final id in ['a', 'b', 'c'])
               {..._timestamp, 'id': id, 'owner_id': 'u', 'name': 'Remote $id'},
@@ -382,7 +415,7 @@ void main() {
         repo.syncFromRemote().timeout(const Duration(seconds: 2)),
         throwsA(isA<NetworkException>()),
       );
-      expect(requests, ['vocabulary_lists', 'eq.a', 'eq.b']);
+      expect(requests, ['vocabulary_pull_inventory', 'eq.a', 'eq.b']);
       expect(
         (await repo.watchMyLists().first).map((list) => list.id),
         unorderedEquals(['a', 'b', 'c']),
@@ -409,7 +442,7 @@ void main() {
         if (table == 'vocabulary_pull_revision') return _reply(request, 0);
         final list = request.url.queryParameters['list_id'];
         requests.add(list ?? table);
-        if (table == 'vocabulary_lists') {
+        if (table == 'vocabulary_pull_inventory') {
           return _reply(request, [
             for (var index = 0; index < 25; index++)
               {
@@ -466,7 +499,7 @@ void main() {
       expect(complete, isTrue);
       expect(failures, greaterThan(0));
       expect(
-        requests.where((request) => request == 'vocabulary_lists'),
+        requests.where((request) => request == 'vocabulary_pull_inventory'),
         hasLength(1),
       );
       expect(requests.where((request) => request == 'eq.list-0'), hasLength(1));
@@ -487,10 +520,12 @@ void main() {
       final datasource = remote((request) async {
         final table = request.url.pathSegments.last;
         if (table == 'vocabulary_pull_revision') return _reply(request, 0);
-        final cursor = request.url.queryParameters['id'];
+        final cursor = table == 'vocabulary_pull_inventory'
+            ? jsonDecode(request.body)['p_after_id'] as String?
+            : request.url.queryParameters['id'];
         requests.add((table, cursor));
         await Future<void>.delayed(const Duration(milliseconds: 150));
-        if (table == 'vocabulary_lists') {
+        if (table == 'vocabulary_pull_inventory') {
           if (cursor == null) {
             return _reply(request, [
               for (var index = 0; index < 500; index++)
@@ -575,10 +610,12 @@ void main() {
       }
       expect(complete, isTrue);
       expect(
-        requests.where((request) => request == ('vocabulary_lists', null)),
+        requests.where(
+          (request) => request == ('vocabulary_pull_inventory', null),
+        ),
         hasLength(1),
       );
-      expect(requests, contains(('vocabulary_lists', 'gt.archived-499')));
+      expect(requests, contains(('vocabulary_pull_inventory', 'archived-499')));
       expect(
         requests.where((request) => request == ('concepts', null)).length,
         lessThanOrEqualTo(2),
@@ -631,7 +668,7 @@ void main() {
       switch (table) {
         case 'vocabulary_pull_revision':
           return _reply(request, revision);
-        case 'vocabulary_lists':
+        case 'vocabulary_pull_inventory':
           return _reply(request, [listRow(deleted), listRow(tail)]);
         case 'vocabulary_pull_changed_lists':
           expect(jsonDecode(request.body), {
@@ -750,6 +787,167 @@ void main() {
     expect(
       (await device.conceptDao.getById('concept-$inserted'))?.listId,
       inserted,
+    );
+  });
+
+  test('progress before its variant persists across a closed SQLite database '
+      'and catch-up windows', () async {
+    const earlierList = 'list-a';
+    const laterList = 'list-z';
+    final progress = _remoteProgress(earlierList);
+    final silent = Completer<http.Response>();
+    final windows = <(String, int, int)>[];
+    var fenceReads = 0;
+    var inventoryReads = 0;
+    var reopened = false;
+    final datasource = remote((request) async {
+      final table = request.url.pathSegments.last;
+      switch (table) {
+        case 'vocabulary_pull_revision':
+          if (reopened) return _reply(request, 4);
+          return switch (++fenceReads) {
+            1 => _reply(request, 1),
+            2 => _reply(request, 3),
+            _ => silent.future,
+          };
+        case 'vocabulary_pull_inventory':
+          inventoryReads++;
+          return _reply(request, [_remoteList(laterList)]);
+        case 'concepts':
+          final list = request.url.queryParameters['list_id'];
+          return _reply(
+            request,
+            list == 'eq.$earlierList' ? [_remoteConcept(earlierList)] : [],
+          );
+        case 'variant_progress':
+          return _reply(request, []);
+        case 'vocabulary_pull_changed_lists':
+        case 'vocabulary_pull_changed_progress':
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final after = body['p_after'] as int;
+          final through = body['p_through'] as int;
+          windows.add((table, after, through));
+          if (table == 'vocabulary_pull_changed_lists') {
+            return _reply(request, [
+              // The list changed again after the first bound was captured.
+              // Its single journal target now belongs to the second window.
+              if (through == 4)
+                {'revision': 4, 'value': _remoteList(earlierList)},
+            ]);
+          }
+          return _reply(request, [
+            if (through == 3) {'revision': 3, 'value': progress.toRemoteMap()},
+          ]);
+        default:
+          fail('Unexpected request ${request.url}');
+      }
+    });
+    final directory = await Directory.systemTemp.createTemp(
+      'ponderin-progress-window',
+    );
+    final file = File('${directory.path}/cache.sqlite');
+    var device = AppDatabase.forTesting(NativeDatabase(file));
+    addTearDown(() async {
+      await device.close();
+      await file.delete();
+      await directory.delete();
+    });
+    await expectLater(
+      repository(
+        datasource,
+        device: device,
+        restoreTimeout: const Duration(milliseconds: 350),
+      ).syncFromRemote(),
+      throwsA(isA<NetworkException>()),
+    );
+    expect(fenceReads, 3);
+    expect(await device.progressDao.getById(progress.id), isNull);
+    expect(await device.vocabularyListDao.getById(earlierList), isNull);
+    await device.close();
+    device = AppDatabase.forTesting(NativeDatabase(file));
+    reopened = true;
+
+    await repository(datasource, device: device).syncFromRemote();
+    expect(inventoryReads, 1);
+    expect(windows, [
+      ('vocabulary_pull_changed_lists', 1, 3),
+      ('vocabulary_pull_changed_progress', 1, 3),
+      ('vocabulary_pull_changed_lists', 3, 4),
+      ('vocabulary_pull_changed_progress', 3, 4),
+    ]);
+    expect((await device.vocabularyListDao.getById(earlierList))?.wordCount, 1);
+    final restored = await device.progressDao.getById(progress.id);
+    expect(restored?.variantId, progress.variantId);
+    expect(restored?.reps, 4);
+    expect(restored?.isSynced, isTrue);
+  });
+
+  test('an inventory started after an administrative purge removes the cached '
+      'branch and its FSRS, even from an older checkpoint', () async {
+    const list = 'list-admin-purged';
+    final progress = _remoteProgress(list);
+    final requests = <String>[];
+    var purged = false;
+    final datasource = remote((request) async {
+      final table = request.url.pathSegments.last;
+      requests.add(table);
+      return switch (table) {
+        'vocabulary_pull_revision' => _reply(request, purged ? 5 : 4),
+        'vocabulary_pull_inventory' => _reply(request, [
+          _remoteList(list, isDeleted: purged),
+        ]),
+        'concepts' => _reply(request, [_remoteConcept(list)]),
+        'variant_progress' => _reply(
+          request,
+          purged ? [] : [progress.toRemoteMap()],
+        ),
+        _ => fail('Unexpected request ${request.url}'),
+      };
+    });
+    final directory = await Directory.systemTemp.createTemp(
+      'ponderin-purged-list',
+    );
+    final file = File('${directory.path}/cache.sqlite');
+    var device = AppDatabase.forTesting(NativeDatabase(file));
+    addTearDown(() async {
+      await device.close();
+      await file.delete();
+      await directory.delete();
+    });
+    await repository(datasource, device: device).syncFromRemote();
+    expect((await device.progressDao.getById(progress.id))?.reps, 4);
+    await device.customStatement(
+      'INSERT INTO shared_import_bootstrap (id, snapshot) VALUES (?, ?)',
+      [
+        'vocabulary-pull:u',
+        jsonEncode({
+          'throughRevision': 5,
+          'listsComplete': true,
+          'progressComplete': true,
+        }),
+      ],
+    );
+    await device.close();
+    purged = true;
+    device = AppDatabase.forTesting(NativeDatabase(file));
+    requests.clear();
+
+    await repository(datasource, device: device).syncFromRemote();
+    expect(requests, [
+      'vocabulary_pull_revision',
+      'vocabulary_pull_inventory',
+      'variant_progress',
+      'vocabulary_pull_revision',
+    ]);
+    expect((await device.vocabularyListDao.getById(list))?.isDeleted, isTrue);
+    expect(
+      (await device.conceptDao.getById('concept-$list'))?.isDeleted,
+      isTrue,
+    );
+    expect(await device.progressDao.getById(progress.id), isNull);
+    expect(
+      await repository(datasource, device: device).watchMyLists().first,
+      isEmpty,
     );
   });
 

@@ -17,6 +17,8 @@ CREATE TABLE vocabulary_private.pull_changes (
   PRIMARY KEY (owner_id, kind, item_id, direction)
 );
 CREATE INDEX pull_changes_window ON vocabulary_private.pull_changes(owner_id, kind, revision);
+CREATE INDEX pull_physically_removed_lists ON vocabulary_private.pull_changes(owner_id, item_id)
+  WHERE kind = 'list' AND deleted_list;
 REVOKE ALL ON vocabulary_private.pull_watermarks, vocabulary_private.pull_changes
   FROM PUBLIC, anon, authenticated;
 
@@ -96,20 +98,52 @@ RETURNS bigint LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   ) END;
 $$;
 
+-- A physical removal needs only a synthetic tombstone. The journal does
+-- not retain a deleted row's title, sharing token or other content.
+CREATE FUNCTION vocabulary_private.purged_list_tombstone(p_owner_id uuid, p_list_id uuid)
+RETURNS jsonb LANGUAGE sql IMMUTABLE SET search_path = '' AS $$
+  SELECT jsonb_build_object(
+    'id', p_list_id, 'owner_id', p_owner_id, 'is_deleted', true, 'name', '',
+    'created_at', '1970-01-01T00:00:00Z', 'updated_at', '1970-01-01T00:00:00Z');
+$$;
+REVOKE ALL ON FUNCTION vocabulary_private.purged_list_tombstone(uuid,uuid)
+  FROM PUBLIC, anon, authenticated;
+
+-- Include earlier purges on the initial walk, including for upgraded caches
+-- with no previous watermark. Both arms seek by UUID under the same snapshot.
+CREATE FUNCTION public.vocabulary_pull_inventory(p_owner_id uuid, p_after_id uuid)
+RETURNS SETOF public.vocabulary_lists
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  SELECT (inventory.row_data).*
+  FROM (
+    (SELECT l.id, l AS row_data FROM public.vocabulary_lists l
+     WHERE l.owner_id = p_owner_id AND p_owner_id = auth.uid()
+       AND (p_after_id IS NULL OR l.id > p_after_id)
+     ORDER BY l.id LIMIT 500)
+    UNION ALL
+    (SELECT c.item_id, jsonb_populate_record(NULL::public.vocabulary_lists,
+       vocabulary_private.purged_list_tombstone(c.owner_id, c.item_id))
+     FROM vocabulary_private.pull_changes c
+     WHERE c.owner_id = p_owner_id AND p_owner_id = auth.uid()
+       AND c.kind = 'list' AND c.deleted_list
+       AND (p_after_id IS NULL OR c.item_id > p_after_id)
+     ORDER BY c.item_id LIMIT 500)
+  ) AS inventory
+  ORDER BY inventory.id LIMIT 500;
+$$;
+
 CREATE FUNCTION public.vocabulary_pull_changed_lists(
   p_owner_id uuid, p_after bigint, p_through bigint
 ) RETURNS TABLE (revision bigint, value jsonb)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
-  -- A physical removal needs only a synthetic tombstone. The journal does
-  -- not retain a deleted row's title, sharing token or other content.
-  SELECT c.revision, COALESCE(to_jsonb(l), jsonb_build_object(
-      'id', c.item_id, 'owner_id', c.owner_id, 'is_deleted', true, 'name', '',
-      'created_at', '1970-01-01T00:00:00Z', 'updated_at', '1970-01-01T00:00:00Z'))
+  SELECT c.revision, COALESCE(to_jsonb(l),
+      vocabulary_private.purged_list_tombstone(c.owner_id, c.item_id))
     FROM vocabulary_private.pull_changes c
     LEFT JOIN public.vocabulary_lists l ON l.owner_id = c.owner_id AND l.id = c.item_id
     WHERE c.owner_id = p_owner_id AND p_owner_id = auth.uid() AND c.kind = 'list'
       AND c.revision > p_after AND c.revision <= p_through
-      AND (l.id IS NOT NULL OR c.deleted_list);
+      AND (l.id IS NOT NULL OR c.deleted_list)
+    ORDER BY c.revision LIMIT 500;
 $$;
 
 CREATE FUNCTION public.vocabulary_pull_changed_progress(
@@ -121,7 +155,8 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
     JOIN public.variant_progress p ON p.user_id = c.owner_id AND p.variant_owner_id = c.owner_id
       AND p.variant_id = c.item_id AND p.direction = c.direction
     WHERE c.owner_id = p_owner_id AND p_owner_id = auth.uid() AND c.kind = 'progress'
-      AND c.revision > p_after AND c.revision <= p_through;
+      AND c.revision > p_after AND c.revision <= p_through
+    ORDER BY c.revision LIMIT 500;
 $$;
 
 CREATE FUNCTION public.vocabulary_pull_catchup_ready()
@@ -129,6 +164,7 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   SELECT to_regclass('vocabulary_private.pull_watermarks') IS NOT NULL
     AND to_regclass('vocabulary_private.pull_changes') IS NOT NULL
     AND to_regprocedure('public.vocabulary_pull_revision(uuid)') IS NOT NULL
+    AND to_regprocedure('public.vocabulary_pull_inventory(uuid,uuid)') IS NOT NULL
     AND to_regprocedure('public.vocabulary_pull_changed_lists(uuid,bigint,bigint)') IS NOT NULL
     AND to_regprocedure('public.vocabulary_pull_changed_progress(uuid,bigint,bigint)') IS NOT NULL
     AND (
@@ -143,10 +179,12 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.vocabulary_pull_revision(uuid),
+  public.vocabulary_pull_inventory(uuid,uuid),
   public.vocabulary_pull_changed_lists(uuid,bigint,bigint),
   public.vocabulary_pull_changed_progress(uuid,bigint,bigint),
   public.vocabulary_pull_catchup_ready() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.vocabulary_pull_revision(uuid),
+  public.vocabulary_pull_inventory(uuid,uuid),
   public.vocabulary_pull_changed_lists(uuid,bigint,bigint),
   public.vocabulary_pull_changed_progress(uuid,bigint,bigint) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.vocabulary_pull_catchup_ready() TO anon, authenticated;

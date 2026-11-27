@@ -14,6 +14,7 @@ void main() {
     MaterialApp(
       home: Center(
         child: MicButton(
+          label: 'Activer le microphone',
           key: const Key('mic'),
           isListening: listening,
           answerState: answerState,
@@ -25,14 +26,23 @@ void main() {
 
   BoxDecoration decoration(WidgetTester tester) =>
       tester
-              .widget<Container>(
-                find.descendant(
-                  of: find.byKey(const Key('mic')),
-                  matching: find.byType(Container),
-                ),
+              .widget<DecoratedBox>(
+                find
+                    .descendant(
+                      of: find.byKey(const Key('mic')),
+                      matching: find.byType(DecoratedBox),
+                    )
+                    .first,
               )
-              .decoration!
+              .decoration
           as BoxDecoration;
+
+  Color? background(WidgetTester tester) {
+    final button = tester.widget<IconButton>(find.byType(IconButton));
+    return button.style!.backgroundColor!.resolve(
+      button.onPressed == null ? {WidgetState.disabled} : {},
+    );
+  }
 
   testWidgets('idle microphone is tappable and starts in its resting style', (
     tester,
@@ -46,7 +56,7 @@ void main() {
     );
 
     expect(find.byIcon(Icons.mic_none), findsOneWidget);
-    expect(decoration(tester).color, AppColors.primary);
+    expect(background(tester), AppColors.primary);
     expect(decoration(tester).boxShadow, isEmpty);
     await tester.tap(find.byKey(const Key('mic')));
     expect(taps, 1);
@@ -70,7 +80,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 225));
 
     expect(find.byIcon(Icons.mic), findsOneWidget);
-    expect(decoration(tester).color, AppColors.secondary);
+    expect(background(tester), AppColors.secondary);
     expect(decoration(tester).boxShadow, hasLength(1));
     final pulsingScale = tester
         .widget<Transform>(find.byType(Transform))
@@ -102,7 +112,7 @@ void main() {
       answerState: QuizAnswerState.correct,
       onTap: () => taps++,
     );
-    expect(decoration(tester).color, AppColors.success);
+    expect(background(tester), AppColors.success);
     await tester.tap(find.byKey(const Key('mic')));
     expect(taps, 0);
 
@@ -112,7 +122,7 @@ void main() {
       answerState: QuizAnswerState.incorrect,
       onTap: () => taps++,
     );
-    expect(decoration(tester).color, AppColors.secondary);
+    expect(background(tester), AppColors.secondary);
     await tester.tap(find.byKey(const Key('mic')));
     expect(taps, 0);
   });

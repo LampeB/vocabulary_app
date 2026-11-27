@@ -65,6 +65,12 @@ CLI, qui demande confirmation pour le projet désigné. La vérification du
 résultat de la revue et de la CI sur GitHub appartient à l'opérateur.
 [Déploiement Supabase](https://supabase.com/docs/reference/cli/supabase-functions-deploy).
 
+La configuration transmise à la CLI désactive `verify_jwt` uniquement pour
+`seed-audio-publish`. Un service peut ainsi s'authentifier avec sa clé
+`sb_secret_…` dans `apikey`. Le handler vérifie toujours les droits
+administrateur auprès de Supabase Auth avant toute publication.
+[En-têtes d'autorisation des Edge Functions](https://supabase.com/docs/guides/functions/auth-headers).
+
 Pour une mise à jour de dépendance, modifier les imports exacts, puis lancer
 `deno check --config supabase/functions/deno.json --frozen=false supabase/functions/*/index.ts`.
 Relire le diff du verrou et repasser le script sans projet avant de commiter.

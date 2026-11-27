@@ -690,3 +690,65 @@ passe complète était déjà verte ; elle a été répétée après le complém
 durable du rappel, qui réutilise l'historique SQLite existant au lieu d'un
 second stockage de journées. Les fonctions Edge restent inchangées depuis
 leurs 29 tests Deno et sept bundles figés validés.
+
+## Quatorzième itération — `6a1ec29`
+
+Les quatre instances ont rendu `BLOQUÉ` sur
+`6a1ec2918f84ec4126ffe9c6378f86bfd0697930` avant le lot de corrections.
+Les **15 Important bruts donnent 14 constats distincts** : le départ du bilan
+avant écriture est commun aux rapports produit et correction. La date de
+série franchissant minuit reste un constat distinct. Aucun Bloquant et deux
+Suggestions. Compteurs propres **0/2**, prochaine passe **15**, plafond vingt.
+
+| Profil / instance | Important | Suggestion |
+| --- | --- | --- |
+| Produit — `/root/r14_product` | 6 | 1 |
+| Qualité — `/root/r14_quality` | 3 | 1 |
+| Correction — `/root/r14_correctness` | 3 | 0 |
+| Sécurité — `/root/r14_security` | 3 | 0 |
+
+| Type | Constat distinct | Correction et preuve ciblée |
+| --- | --- | --- |
+| Important | FSRS orphelin ignoré lorsque son contenu change de fenêtre | Lignes et baseline CAS conservées dans SQLite puis rejouées ; deux fenêtres et réouverture du fichier testées |
+| Important | Purge antérieure au parcours complet absente de l'inventaire | Inventaire paginé mêlant listes et purges synthétiques ; anciens checkpoints et cache préexistant testés |
+| Important | Résultat A remplaçant/dépilant l'import B | Résultat retenu dans sa propre route jusqu'à visibilité ; succès et échec de A avec B ouvert testés |
+| Important | Micro actif sous un import | Visibilité réelle des routes interne et racine, interruption et reprise conditionnelle ; vrai import/détail/retour avec cycle de vie testés |
+| Important | Sortie ou relance annulant une séance terminée | Compte et métadonnées capturés avant attente, persistance indépendante de l'écran ; maîtrise suspendue, sortie/relance et réouverture SQLite testées |
+| Important | Série attribuée au lendemain après GET tardif | Jour civil capturé transmis avec le compte, garde de compte et filtre de date ; GET franchissant minuit et date distante plus récente testés |
+| Important | Bip/micro avant configuration du prompt | Résultat du prompt courant attendu, échec récupérable ; configuration native retenue au-delà de 2,5 s testée |
+| Important | Transcription repoussant les commandes Voix | Corps complet défilant avec signal, transcription longue et commandes atteignables en paysage/texte doublé |
+| Important | Micro non focalisable et non nommé | Vrai bouton et libellés FR/EN/KO, activation Tab/Entrée et sémantique vérifiées |
+| Important | Reset affichant une adresse introuvable pour tout refus | Motifs réseau/429 conservés, autres échecs neutres ; vrai HTTP et trois locales UI vérifiés, durée de vie du champ de dialogue corrigée |
+| Important | Choix sous le bord des feuilles sans signal | Affordance partagée ; six tests paire/mode FR/EN/KO à 568 × 320/texte doublé avant geste |
+| Important | JWT rejetant la clé moderne du publieur | `verify_jwt=false` limité au publieur admin, TOML réellement transmis à la CLI vérifié |
+| Important | Défi révélant le propriétaire d'une liste privée | Garde 019 avant résolution, même refus privé/supprimé/inexistant ; références qualifiées/non qualifiées et historiques testés |
+| Important | Reset ouvert sur les migrations intermédiaires | Droit client retiré jusqu'à 019 ; huit appels inscrits réellement refusés avec données conservées, puis reset autorisé et garde désactivée refusée |
+
+Les Suggestions sont traitées dans le lot : l'ultime sonde stable n'effectue
+plus l'instantané local complet, et U8 précise les quatre règles françaises
+A1 déjà rédigées en coréen, encore à relire nativement. Aucun seed n'est régénéré.
+
+Les huit checks CI sont verts sur `6a1ec29`, dont Android en 10 min 01 s et
+le simulateur iOS en 7 min 42 s. La convergence reste requise indépendamment
+de ces résultats ; un nouveau commit devra obtenir sa propre CI et ses revues.
+
+Les cibles passent : 129 tests data, 150 tests de complétion/auth, 89 tests
+audio/quiz/import, 34 tests UI auth/reset/import et six tests des feuilles.
+Ces ensembles se recouvrent et ne sont pas additionnés. PostgreSQL 16.11
+valide douze suites, les huit refus de reset intermédiaires avec données
+préservées, le sas 019 et sa garde désactivée, la concurrence à deux connexions
+et l'activation atomique avec refus de réapplication. Le contrat exact devient
+`challenge-boundaries-v1` ; aucun changement hébergé n'est effectué.
+
+Les cinq tests de déploiement, dix tests Python E2E, 29 tests Deno et sept
+bundles passent, ainsi qu'actionlint et zizmor. Le publieur conserve son
+contrôle administrateur Supabase Auth avant tout appel fournisseur.
+
+La suite finale du lot passe : **1 171 tests hôte**, douze diagnostics positifs
+exclus sans opt-in, couverture **75,4 %** (14 277 / 18 929 lignes).
+L'analyse complète est propre ; les trois anciens tests du micro ont été
+adaptés au vrai bouton accessible et repassent avec les 25 diagnostics
+positifs, soit 28 tests ciblés avec opt-in. La sonde AOT refuse les diagnostics
+en mode produit. Les 30 tests Python des outils et les dix tests E2E passent,
+soit **40 tests Python**. Le garde documentaire et le formatage restent
+obligatoires avant le commit commun et la relecture 15.

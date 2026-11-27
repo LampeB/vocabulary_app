@@ -23,6 +23,8 @@ class ImportFromLinkScreen extends ConsumerStatefulWidget {
 }
 
 class _ImportFromLinkScreenState extends ConsumerState<ImportFromLinkScreen> {
+  Result<VocabularyList>? _pendingResult;
+  bool _finishQueued = false;
   @override
   void initState() {
     super.initState();
@@ -47,6 +49,15 @@ class _ImportFromLinkScreenState extends ConsumerState<ImportFromLinkScreen> {
 
   void _finish(Result<VocabularyList> result) {
     if (!mounted) return;
+    setState(() => _pendingResult = result);
+  }
+
+  void _consumeResult() {
+    _finishQueued = false;
+    if (!mounted || ModalRoute.isCurrentOf(context) != true) return;
+    final result = _pendingResult;
+    if (result == null) return;
+    _pendingResult = null;
     result.fold(
       onSuccess: (list) {
         context.replace('/lists/${list.id}');
@@ -74,6 +85,14 @@ class _ImportFromLinkScreenState extends ConsumerState<ImportFromLinkScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // A later warm link can cover this import. Consume its result only when
+    // its own route is current, without replacing or popping the newer route.
+    if (ModalRoute.isCurrentOf(context) == true &&
+        _pendingResult != null &&
+        !_finishQueued) {
+      _finishQueued = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _consumeResult());
+    }
     final cs = Theme.of(context).colorScheme;
     final isDark = cs.brightness == Brightness.dark;
     final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;

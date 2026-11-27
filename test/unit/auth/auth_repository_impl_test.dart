@@ -44,7 +44,7 @@ class _FakeAuthRemote implements AuthRemote {
   int signUpCalls = 0;
   int signOutCalls = 0;
   int resetCalls = 0;
-  int streakCalls = 0;
+  final streakUpdates = <(String, DateTime)>[];
 
   @override
   Stream<sb.AuthState> get authStateChanges => const Stream.empty();
@@ -93,8 +93,11 @@ class _FakeAuthRemote implements AuthRemote {
   }
 
   @override
-  Future<Result<void>> updateStreak(String userId) async {
-    streakCalls++;
+  Future<Result<void>> updateStreak({
+    required String userId,
+    required DateTime studyDate,
+  }) async {
+    streakUpdates.add((userId, studyDate));
     return const Success(null);
   }
 }
@@ -229,7 +232,24 @@ void main() {
           isTrue,
         );
         expect((await repository.reloadProfile()).isFailure, isTrue);
-        expect((await repository.updateStreak()).isFailure, isTrue);
+        final studyDate = DateTime.utc(2026, 11, 26);
+        expect(
+          (await repository.updateStreak(
+            userId: 'u1',
+            studyDate: studyDate,
+          )).isFailure,
+          isTrue,
+        );
+
+        remote.currentUser = _user(id: 'u2');
+        expect(
+          (await repository.updateStreak(
+            userId: 'u1',
+            studyDate: studyDate,
+          )).isFailure,
+          isTrue,
+        );
+        expect(remote.streakUpdates, isEmpty);
       },
     );
 
@@ -290,10 +310,17 @@ void main() {
           (await repository.sendPasswordResetEmail('a@b.com')).isSuccess,
           isTrue,
         );
-        expect((await repository.updateStreak()).isSuccess, isTrue);
+        final studyDate = DateTime.utc(2026, 11, 26);
+        expect(
+          (await repository.updateStreak(
+            userId: 'u1',
+            studyDate: studyDate,
+          )).isSuccess,
+          isTrue,
+        );
         expect(remote.signOutCalls, 1);
         expect(remote.resetCalls, 1);
-        expect(remote.streakCalls, 1);
+        expect(remote.streakUpdates, [('u1', studyDate)]);
       },
     );
   });

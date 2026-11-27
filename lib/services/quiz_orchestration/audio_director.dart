@@ -30,8 +30,17 @@ class AudioDirector {
 
   bool get isSpeaking => _audio.isSpeaking;
 
-  Future<void> speak(String text, String langCode, {String? audioPath}) =>
-      _audio.speak(text, langCode, audioPath: audioPath);
+  Future<void> speak(
+    String text,
+    String langCode, {
+    String? audioPath,
+    bool requirePlayback = false,
+  }) => _audio.speak(
+    text,
+    langCode,
+    audioPath: audioPath,
+    requirePlayback: requirePlayback,
+  );
 
   Future<void> prefetch(String text, String langCode, {String? audioPath}) =>
       _audio.prefetch(text, langCode, audioPath: audioPath);
@@ -87,27 +96,48 @@ class AudioDirector {
     required String word,
     required String wordLang,
     required bool Function() keepGoing,
+    Future<void>? previousSpeech,
+  }) => _speakStudyPrompt(
+    previousSpeech: previousSpeech,
+    keepGoing: keepGoing,
+    lines: [(instruction, instructionLang, null), (word, wordLang, null)],
+  );
+
+  /// Resolves after the word is heard, including voice setup or file playback.
+  Future<bool> speakVocabularyPrompt({
+    required String word,
+    required String wordLang,
+    required bool Function() keepGoing,
+    String? audioPath,
+    Future<void>? previousSpeech,
+  }) => _speakStudyPrompt(
+    previousSpeech: previousSpeech,
+    keepGoing: keepGoing,
+    lines: [(word, wordLang, audioPath)],
+  );
+
+  Future<bool> _speakStudyPrompt({
+    required Future<void>? previousSpeech,
+    required bool Function() keepGoing,
+    required List<(String, String, String?)> lines,
   }) async {
     const deadline = Duration(seconds: 15);
     try {
-      await speakWhenQuiet(
-        instruction,
-        instructionLang,
-        keepGoing: keepGoing,
-        requirePlayback: true,
-      ).timeout(deadline);
-      if (!keepGoing()) return false;
-      await _audio
-          .speak(word, wordLang, requirePlayback: true)
-          .timeout(deadline);
+      await previousSpeech?.timeout(deadline);
+      for (final (text, language, audioPath) in lines) {
+        if (!keepGoing()) return false;
+        await _audio
+            .speak(text, language, audioPath: audioPath, requirePlayback: true)
+            .timeout(deadline);
+      }
       return keepGoing();
     } catch (error) {
-      sttLog('[TTS] grammar prompt failed: $error');
+      sttLog('[TTS] study prompt failed: $error');
       if (keepGoing()) {
         try {
-          await stop().timeout(const Duration(milliseconds: 900));
+          await stop().timeout(_releaseTimeout);
         } catch (error) {
-          sttLog('[TTS] grammar prompt stop failed: $error');
+          sttLog('[TTS] study prompt stop failed: $error');
         }
       }
       return false;
