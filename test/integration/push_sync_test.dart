@@ -1,11 +1,17 @@
 // ignore_for_file: invalid_use_of_internal_member
+import 'dart:async';
+
 import 'package:drift/native.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/data/sync/push_sync.dart';
+import 'package:vocab_kr/domain/entities/app_user.dart';
+import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
+import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import '../helpers/fake_remote.dart';
 
 /// Outbound sync: the isSynced flags are the queue. Rows written while the
@@ -22,6 +28,12 @@ class _RecordingRemote extends FakeRemote {
   final pushedVariants = <Map<String, dynamic>>[];
   final pushedProgress = <Map<String, dynamic>>[];
   Future<void> Function(Map<String, dynamic>)? onList;
+  Future<void> Function(String)? onAudio;
+
+  @override
+  Future<void> provisionAudio(String variantId) async {
+    await onAudio?.call(variantId);
+  }
 
   @override
   Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(
@@ -37,19 +49,19 @@ class _RecordingRemote extends FakeRemote {
   }
 
   @override
-  Future<Result<Map<String, dynamic>>> upsertList(
-      Map<String, dynamic> data) async {
+  Future<Result<Map<String, dynamic>>> upsertList(Map<String, dynamic> data,
+      {bool insertOnly = false}) async {
     await onList?.call(data);
     return _record(pushedLists, data);
   }
 
   @override
-  Future<Result<Map<String, dynamic>>> upsertConcept(
-          Map<String, dynamic> data) async =>
+  Future<Result<Map<String, dynamic>>> upsertConcept(Map<String, dynamic> data,
+          {bool insertOnly = false}) async =>
       _record(pushedConcepts, data, fail: failConcepts);
   @override
-  Future<Result<Map<String, dynamic>>> upsertVariant(
-          Map<String, dynamic> data) async =>
+  Future<Result<Map<String, dynamic>>> upsertVariant(Map<String, dynamic> data,
+          {bool insertOnly = false}) async =>
       _record(pushedVariants, data);
   @override
   Future<Result<Map<String, dynamic>>> upsertProgress(
@@ -72,6 +84,35 @@ void main() {
         db.reviewEventDao, remote);
   });
   tearDown(() => db.close());
+
+  test('profile data keeps the writer but an account change replaces it', () {
+    final user = AppUser(
+      id: 'u',
+      email: 'test@example.com',
+      username: 'test',
+      createdAt: DateTime.utc(2026),
+    );
+    final current = StateProvider<AppUser?>((_) => user);
+    final container = ProviderContainer(overrides: [
+      appDatabaseProvider.overrideWithValue(db),
+      vocabularyRemoteProvider.overrideWithValue(remote),
+      currentUserProvider.overrideWith((ref) => ref.watch(current)),
+    ]);
+    addTearDown(container.dispose);
+    final writer = container.read(pushSyncProvider);
+    final repository = container.read(vocabularyRepositoryProvider);
+
+    container.read(current.notifier).state =
+        user.copyWith(displayName: 'Late profile');
+    expect(container.read(pushSyncProvider), same(writer));
+    expect(container.read(vocabularyRepositoryProvider), same(repository));
+
+    container.read(current.notifier).state =
+        user.copyWith(id: 'different-account');
+    expect(container.read(pushSyncProvider), isNot(same(writer)));
+    expect(
+        container.read(vocabularyRepositoryProvider), isNot(same(repository)));
+  });
 
   test('sharing publishes explicitly; importing a token preserves privacy',
       () async {
@@ -134,6 +175,69 @@ void main() {
     await sync.pushAll();
     await repo.createList(name: 'Unrelated pending list');
     expect(await db.vocabularyListDao.hasPendingContents(own.id), isFalse);
+  });
+
+  test('a share flush does not wait for a blocked unrelated drain', () async {
+    final unrelated = (await repo.createList(name: 'Unrelated')).valueOrNull!;
+    final requested = Completer<void>();
+    final reply = Completer<void>();
+    remote.onList = (row) async {
+      if (row['id'] == unrelated.id) {
+        requested.complete();
+        await reply.future;
+      }
+    };
+    final globalDrain = sync.pushAll();
+    try {
+      await requested.future;
+      final shared = (await repo.createList(name: 'Share me')).valueOrNull!;
+      await repo.addConceptWithVariants(
+          listId: shared.id, wordA: 'chat', wordB: '고양이');
+      await repo.generateShareLink(shared.id);
+
+      expect(await sync.pushList(shared.id).timeout(const Duration(seconds: 2)),
+          4);
+      expect((await db.vocabularyListDao.getById(shared.id))!.isSynced, isTrue);
+      expect(await db.vocabularyListDao.hasPendingContents(shared.id), isFalse);
+      expect((await db.vocabularyListDao.getById(unrelated.id))!.isSynced,
+          isFalse);
+    } finally {
+      reply.complete();
+      await globalDrain;
+    }
+  });
+
+  test('blocked audio does not delay share metadata or later global drains',
+      () async {
+    final shared = (await repo.createList(name: 'Share me')).valueOrNull!;
+    await repo.addConceptWithVariants(
+        listId: shared.id, wordA: 'chat', wordB: '고양이');
+    await repo.generateShareLink(shared.id);
+    final requested = Completer<void>();
+    final reply = Completer<void>();
+    final requests = <String>[];
+    remote.onAudio = (id) async {
+      requests.add(id);
+      if (!requested.isCompleted) requested.complete();
+      await reply.future;
+    };
+
+    final shareDrain = sync.pushList(shared.id);
+    try {
+      await requested.future;
+      expect(await shareDrain.timeout(const Duration(seconds: 2)), 4);
+      expect(await db.vocabularyListDao.hasPendingContents(shared.id), isFalse);
+      final another =
+          (await repo.createList(name: 'Work continues')).valueOrNull!;
+      await repo.addConceptWithVariants(
+          listId: another.id, wordA: 'sol', wordB: '땅');
+      expect(await sync.pushAll().timeout(const Duration(seconds: 2)), 4);
+      expect(remote.pushedVariants, hasLength(4));
+      expect(requests, hasLength(1));
+    } finally {
+      reply.complete();
+      await shareDrain;
+    }
   });
 
   test(

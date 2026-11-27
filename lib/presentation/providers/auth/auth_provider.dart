@@ -98,6 +98,14 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
     );
   }
 
+  /// A slow profile request must not hide an already restored local session.
+  /// The pending request may still enrich this identity when it completes.
+  AppUser? useLocalSession() {
+    final user = ref.read(authRepositoryProvider).currentUser;
+    if (user != null) state = AsyncData(user);
+    return user;
+  }
+
   Future<Result<void>> sendPasswordReset(String email) =>
       _repo.sendPasswordResetEmail(email);
 }

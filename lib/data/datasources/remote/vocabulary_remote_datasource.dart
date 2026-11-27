@@ -22,16 +22,9 @@ class VocabularyRemoteDataSource {
     }
   }
 
-  Future<Result<Map<String, dynamic>>> upsertList(
-      Map<String, dynamic> data) async {
-    try {
-      final result =
-          await _client.from('vocabulary_lists').upsert(data).select().single();
-      return Success(result);
-    } catch (e) {
-      return Failure(NetworkException(e.toString()));
-    }
-  }
+  Future<Result<Map<String, dynamic>>> upsertList(Map<String, dynamic> data,
+          {bool insertOnly = false}) =>
+      _upsertContent('vocabulary_lists', 'owner_id', data, insertOnly);
 
   Future<Result<void>> deleteList(String id) async {
     try {
@@ -61,23 +54,34 @@ class VocabularyRemoteDataSource {
     }
   }
 
-  Future<Result<Map<String, dynamic>>> upsertConcept(
-      Map<String, dynamic> data) async {
-    try {
-      final result =
-          await _client.from('concepts').upsert(data).select().single();
-      return Success(result);
-    } catch (e) {
-      return Failure(NetworkException(e.toString()));
-    }
-  }
+  Future<Result<Map<String, dynamic>>> upsertConcept(Map<String, dynamic> data,
+          {bool insertOnly = false}) =>
+      _upsertContent('concepts', 'list_id', data, insertOnly);
 
-  Future<Result<Map<String, dynamic>>> upsertVariant(
-      Map<String, dynamic> data) async {
+  Future<Result<Map<String, dynamic>>> upsertVariant(Map<String, dynamic> data,
+          {bool insertOnly = false}) =>
+      _upsertContent('word_variants', 'concept_id', data, insertOnly);
+
+  Future<Result<Map<String, dynamic>>> _upsertContent(String table,
+      String parentColumn, Map<String, dynamic> data, bool insertOnly) async {
     try {
-      final result =
-          await _client.from('word_variants').upsert(data).select().single();
-      return Success(result);
+      final write = _client
+          .from(table)
+          .upsert(data, ignoreDuplicates: insertOnly)
+          .select();
+      if (!insertOnly) return Success(await write.single());
+      final inserted = await write;
+      // An unchanged shared import cannot replace a copy created on another
+      // device. Verify the existing row belongs to the same parent before ack.
+      final row = inserted.isNotEmpty
+          ? inserted.single
+          : await _client
+              .from(table)
+              .select()
+              .eq('id', data['id'] as String)
+              .eq(parentColumn, data[parentColumn] as String)
+              .single();
+      return Success(row);
     } catch (e) {
       return Failure(NetworkException(e.toString()));
     }

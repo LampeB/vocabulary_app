@@ -1,4 +1,6 @@
 // ignore_for_file: invalid_use_of_internal_member
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,6 +54,8 @@ class _NoopAudio implements AudioPlayerService {
 class _FakeProgressRepo implements ProgressRepository {
   _FakeProgressRepo(this.due);
   final List<VariantProgress> due;
+  final masteryRequested = Completer<void>();
+  final mastered = Completer<Result<List<VariantProgress>>>();
 
   @override
   Future<Result<List<VariantProgress>>> getDueCards({
@@ -68,9 +72,10 @@ class _FakeProgressRepo implements ProgressRepository {
       Success(progress);
 
   @override
-  Future<Result<List<VariantProgress>>> getMasteredVariants(
-          String userId) async =>
-      Success(due); // pretend everything due is mastered → count = due.length
+  Future<Result<List<VariantProgress>>> getMasteredVariants(String userId) {
+    masteryRequested.complete();
+    return mastered.future;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -98,8 +103,7 @@ class _FakeNotifService implements NotificationService {
 }
 
 void main() {
-  test(
-      'completing a flashcard session records history and the provider maps it',
+  test('a skipped then correct card records 100% even if a new session loads',
       () async {
     SharedPreferences.setMockInitialValues({});
     final db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -130,12 +134,13 @@ void main() {
       createdAt: _now,
     );
 
+    final progressRepo = _FakeProgressRepo([due]);
     final container = ProviderContainer(overrides: [
       appDatabaseProvider.overrideWithValue(db),
       vocabularyRemoteProvider.overrideWithValue(FakeRemote()),
       getDueCardsUseCaseProvider
-          .overrideWithValue(GetDueCardsUseCase(_FakeProgressRepo([due]))),
-      progressRepositoryProvider.overrideWithValue(_FakeProgressRepo([due])),
+          .overrideWithValue(GetDueCardsUseCase(progressRepo)),
+      progressRepositoryProvider.overrideWithValue(progressRepo),
       audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
       currentUserProvider.overrideWithValue(user),
       authRepositoryProvider.overrideWithValue(_FakeAuthRepo()),
@@ -147,18 +152,26 @@ void main() {
 
     // Play the whole (1-card) session.
     final notifier = container.read(quizProvider.notifier);
-    await notifier.loadCards(QuizArgs(
+    final args = QuizArgs(
       listId: list.id,
       mode: QuizMode.flashcard,
       direction: QuizDirectionChoice.frToKo,
       cardLimit: 1,
-    ));
+    );
+    await notifier.loadCards(args);
     expect(sub.read().cards.length, 1);
+    notifier.skipCurrentCard();
+    notifier.flipCard();
     notifier.gradeFlashcard(FsrsRating.good);
     notifier.advance();
     expect(sub.read().isComplete, isTrue);
+    expect(sub.read().accuracy, 1.0);
 
-    // _onSessionComplete → _recordSession is fire-and-forget; let it land.
+    // Start again while the completed session's history query is in flight.
+    await progressRepo.masteryRequested.future;
+    await notifier.loadCards(args);
+    expect(sub.read().correctCount, 0);
+    progressRepo.mastered.complete(Success([due]));
     await Future<void>.delayed(const Duration(milliseconds: 100));
 
     // The row exists with the right facts…

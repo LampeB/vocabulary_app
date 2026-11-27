@@ -118,6 +118,8 @@ exige :
 - la politique documentaire et l'interdiction des artefacts générés ou de la
   configuration privée ;
 - `flutter analyze`, les tests hôte et le seuil de couverture ;
+- les diagnostics STT testés en debug avec et sans opt-in et une sonde Dart
+  compilée en mode produit avec l'opt-in actif pour vérifier le refus ;
 - une revue des dépendances, un scan de secrets et `actionlint` ;
 - un audit `zizmor` de tous les workflows, avec actions épinglées par SHA ;
 - une compilation Android intégrant le moteur natif Whisper épinglé ;
@@ -125,9 +127,9 @@ exige :
   cloud/quota sur une base PostgreSQL jetable.
 Ce dernier contrôle applique aussi les migrations de production de sécurité
 et vérifie les lectures publiques, la confidentialité des clips et l'historique
-des réponses. Le reset E2E est exercé avec deux connexions PostgreSQL pour
-vérifier qu'une écriture intercompte ne peut pas se glisser entre contrôle et
-suppression.
+des réponses. Les tests d'isolation E2E couvrent les écritures de relations et de
+progression par le rôle authentifié. Deux connexions PostgreSQL vérifient qu'une
+demande d'amitié concurrente attend la fin du reset, puis est refusée.
 
 La version Flutter de ce check est figée à **3.44.9**, celle qui correspond à
 la version validée du projet. Toute montée de SDK est une modification séparée

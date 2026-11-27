@@ -43,6 +43,17 @@ jobs:
       - name: Test with coverage
         run: flutter test --coverage
 
+      - name: Test opted-in debug diagnostics and product-mode denial
+        run: |
+          flutter test --dart-define=STT_DIAGNOSTICS=true \
+            test/unit/speech/stt_corpus_recorder_test.dart \
+            test/widget/screens/near_miss_session_screen_test.dart \
+            test/widget/screens/settings_screen_test.dart \
+            test/widget/screens/stt_diagnostics_navigation_test.dart
+          dart compile exe -DSTT_DIAGNOSTICS=true \
+            test/helpers/check_release_stt_diagnostics.dart -o "$RUNNER_TEMP/stt-release-gate"
+          "$RUNNER_TEMP/stt-release-gate"
+
       - name: Enforce coverage floor
         run: pwsh -NoProfile -File tool/check-coverage.ps1
 
@@ -79,10 +90,10 @@ jobs:
         run: |
           psql -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE ponderin_security_test'
           psql -v ON_ERROR_STOP=1 -f supabase/tests/security_bootstrap.sql
-          for migration in 000_complete_setup 004_generic_language_pairs 005_list_origin 006_variant_examples_and_seed_ids 007_audio_storage 008_e2e_reset 009_e2e_scenario_accounts 010_provider_quota_buckets 011_sync_identity 012_security_boundaries add_subscription_type; do
+          for migration in 000_complete_setup 004_generic_language_pairs 005_list_origin 006_variant_examples_and_seed_ids 007_audio_storage 008_e2e_reset 009_e2e_scenario_accounts 010_provider_quota_buckets 011_sync_identity 012_security_boundaries 013_e2e_isolation add_subscription_type; do
             psql -v ON_ERROR_STOP=1 -f "supabase/migrations/${migration}.sql"
           done
-          for test in provider_quota security_boundaries reset_e2e_account e2e_scenario_accounts; do
+          for test in provider_quota security_boundaries reset_e2e_account e2e_scenario_accounts e2e_isolation; do
             psql -v ON_ERROR_STOP=1 -f "supabase/tests/${test}.sql"
           done
           bash supabase/tests/reset_concurrency.sh

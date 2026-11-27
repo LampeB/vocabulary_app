@@ -39,6 +39,7 @@ class _FakeRecorder implements CorpusAudioRecorder {
 }
 
 void main() {
+  const optedIn = bool.fromEnvironment('STT_DIAGNOSTICS');
   const recordedAt = '2026-09-13T12:00:00.000Z';
 
   SttCorpusSample sample() => SttCorpusSample(
@@ -73,6 +74,29 @@ void main() {
 
   Future<Directory> tempDirectory() =>
       Directory.systemTemp.createTemp('stt-corpus-test-');
+
+  test('without opt-in the recorder touches neither microphone nor files',
+      () async {
+    final native = _FakeRecorder();
+    final recorder = SttCorpusRecorder(
+      recorder: native,
+      documentsDirectory: () => throw StateError('Corpus accessed disk'),
+    );
+    expect(await recorder.start(word: 'bonjour', langCode: 'fr'), isFalse);
+    expect(await recorder.stop(), isNull);
+    expect(await recorder.samples(), isEmpty);
+    await recorder.saveWhisperResult(
+        sampleId: 'sample', transcript: 'bonjour', durationMs: 900);
+    await recorder.saveOpenAiResult(
+        sampleId: 'sample', transcript: 'bonjour', durationMs: 800);
+    await recorder.saveElevenLabsResult(
+        sampleId: 'sample', transcript: 'bonjour', durationMs: 700);
+    recorder.dispose();
+    expect(native.permissionCalls, 0);
+    expect(native.startedPath, isNull);
+    expect(native.stopCalls, 0);
+    expect(native.disposeCalls, 0);
+  }, skip: optedIn);
 
   test('captures a labelled WAV then persists all benchmark results', () async {
     final directory = await tempDirectory();
@@ -116,7 +140,7 @@ void main() {
     expect(loaded.single.openAiDurationMs, 700);
     expect(loaded.single.elevenLabsDurationMs, 280);
     expect(loaded.single.elevenLabsTranscript, '안녕하세요');
-  });
+  }, skip: !optedIn);
 
   test('session labels survive saving and every benchmark update', () async {
     final directory = await tempDirectory();
@@ -143,7 +167,7 @@ void main() {
     await recorder.saveElevenLabsResult(
         sampleId: saved.id, transcript: '달기', durationMs: 300);
     expect((await recorder.samples()).single.meta, meta);
-  });
+  }, skip: !optedIn);
 
   test('older manifests without labels load with empty meta', () {
     final sample = SttCorpusSample.fromJson({
@@ -176,7 +200,7 @@ void main() {
     expect(await recorder.start(word: 'bonjour', langCode: 'fr'), isTrue);
     expect(await recorder.start(word: 'encore', langCode: 'fr'), isFalse);
     expect(native.permissionCalls, 2);
-  });
+  }, skip: !optedIn);
 
   test('does not add a sample when native stop returns no usable file',
       () async {
@@ -192,7 +216,7 @@ void main() {
     await recorder.start(word: 'bonjour', langCode: 'fr');
     expect(await recorder.stop(), isNull);
     expect(await recorder.samples(), isEmpty);
-  });
+  }, skip: !optedIn);
 
   test(
       'returns an empty corpus for a malformed manifest and disposes native audio',
@@ -213,7 +237,7 @@ void main() {
     expect(await recorder.samples(), isEmpty);
     recorder.dispose();
     expect(native.disposeCalls, 1);
-  });
+  }, skip: !optedIn);
 
   test('serializes sample metadata with null benchmark fields', () {
     final decoded =

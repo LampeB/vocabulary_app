@@ -1,4 +1,11 @@
+import 'dart:convert';
+
+// ignore: implementation_imports
+import 'package:easy_localization/src/localization.dart';
+// ignore: implementation_imports
+import 'package:easy_localization/src/translations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
@@ -10,6 +17,7 @@ import 'package:vocab_kr/presentation/providers/grammar/grammar_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
 import 'package:vocab_kr/presentation/screens/quiz/start_session_screen.dart';
+import 'package:vocab_kr/presentation/design/v3/v3_card_stack.dart';
 import '../../helpers/pump_screen.dart';
 
 /// Start-session screen: a language-first accordion. Pick the language, then a
@@ -106,6 +114,43 @@ void main() {
   }
 
   Finder byKey(String key) => find.byKey(ValueKey(key));
+
+  for (final entry in {
+    'fr': [
+      'CONFIGURER',
+      'LES CARTES SONT DÉPILÉES',
+      'DERNIÈRE CARTE',
+      '3 CARTES À DÉPILER'
+    ],
+    'en': ['SET UP', 'ALL CARDS DONE', 'LAST CARD', '3 CARDS LEFT'],
+    'ko': ['학습 설정', '모든 카드를 마쳤어요', '마지막 카드', '남은 카드 3장'],
+  }.entries) {
+    testWidgets('setup and remaining counters use ${entry.key}',
+        (tester) async {
+      final raw = (await tester.runAsync(() =>
+          rootBundle.loadString('assets/translations/${entry.key}.json')))!;
+      final translations =
+          Translations(jsonDecode(raw) as Map<String, dynamic>);
+      Localization.load(Locale(entry.key),
+          translations: translations, fallbackTranslations: translations);
+      addTearDown(initTestLocalization);
+      await pump(tester);
+      expect(find.text(entry.value[0]), findsOneWidget);
+      await tester.pumpWidget(const MaterialApp(
+          home: Scaffold(
+              body: Column(
+        children: [
+          V3StackCounter(remaining: 0),
+          V3StackCounter(remaining: 1),
+          V3StackCounter(remaining: 3)
+        ],
+      ))));
+      for (final label in entry.value.skip(1)) {
+        expect(find.text(label), findsOneWidget);
+      }
+      await unmountScreen(tester);
+    });
+  }
 
   Future<void> tapKey(WidgetTester tester, String key) async {
     await tester.ensureVisible(byKey(key));

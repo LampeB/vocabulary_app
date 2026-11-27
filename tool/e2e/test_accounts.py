@@ -1,6 +1,8 @@
 import json
+import os
 from pathlib import Path
 import re
+import subprocess
 import tempfile
 import unittest
 from uuid import UUID
@@ -13,9 +15,9 @@ class AccountsTest(unittest.TestCase):
     def test_catalog_covers_every_declaration_once(self):
         found = {}
         for path in Path('patrol_test').glob('*_test.dart'):
-            for scenario in re.findall(r"scenarioId:\s*'([^']+)'", path.read_text()):
+            for scenario in re.findall(r"scenarioId:\s*'([^']+)'", path.read_text(encoding='utf-8')):
                 self.assertNotIn(scenario, found)
-                found[scenario] = str(path)
+                found[scenario] = path.as_posix()
         self.assertEqual(found, {key: row['file'] for key, row in scenarios().items()})
         self.assertGreater(len(found), 0)
 
@@ -58,7 +60,21 @@ class AccountsTest(unittest.TestCase):
             self.assertEqual(len(users), 2)
             self.assertEqual(result, provision(request, ['quiz.a', 'quiz.b'], path))
             self.assertEqual(len(users), 2)
-            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            if os.name == 'nt':
+                # Verify the persisted ACL through Windows, including after
+                # replacing an earlier copy during resume.
+                subprocess.run(['powershell.exe', '-NoProfile', '-Command', '''
+                    $ErrorActionPreference = 'Stop'
+                    $acl = [System.IO.File]::GetAccessControl($env:E2E_FIXTURE_ACCOUNT_FILE)
+                    $rules = $acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier])
+                    $user = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+                    if (!$acl.AreAccessRulesProtected -or $rules.Count -ne 1 -or
+                        $rules[0].IdentityReference -ne $user -or $rules[0].IsInherited -or
+                        $rules[0].AccessControlType -ne 'Allow' -or
+                        $rules[0].FileSystemRights -ne 'FullControl') { exit 1 }
+                '''], env={**os.environ, 'E2E_FIXTURE_ACCOUNT_FILE': str(path)}, check=True)
+            else:
+                self.assertEqual(path.stat().st_mode & 0o777, 0o600)
             # Credentials are required to resume existing accounts; don't take over.
             path.unlink()
             with self.assertRaises(ValueError):

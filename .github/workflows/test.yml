@@ -32,6 +32,14 @@ jobs:
 
       - run: flutter test --coverage
 
+      - name: Test opted-in debug diagnostics
+        run: |
+          flutter test --dart-define=STT_DIAGNOSTICS=true \
+            test/unit/speech/stt_corpus_recorder_test.dart \
+            test/widget/screens/near_miss_session_screen_test.dart \
+            test/widget/screens/settings_screen_test.dart \
+            test/widget/screens/stt_diagnostics_navigation_test.dart
+
       # Coverage floor (Phases 5+8 of docs/test-coverage-roadmap.md). Measured
       # 49.7% on 2026-07-03 after the Phase 8 push; the floor leaves ~2 points
       # of slack so unrelated work isn't blocked, while a test-deleting PR

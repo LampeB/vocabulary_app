@@ -7,9 +7,15 @@ import 'grammar_language_module.dart';
 /// to the target-language word + its concept category and grammar tags).
 class DrillWord {
   const DrillWord(
-      {required this.word, required this.category, this.tags = const []});
+      {required this.word,
+      required this.category,
+      this.tags = const [],
+      this.listId});
   final String word;
   final String category;
+
+  /// Local source list, used to keep a lesson inside its prerequisites.
+  final String? listId;
 
   /// Grammatical metadata from word_variants.context_tags ('m'/'f'/'n'…).
   final List<String> tags;

@@ -1,14 +1,18 @@
 """Non-secret scenario catalog and strict per-scenario credential validation."""
+from functools import cache
 import json
+import os
 import re
 from pathlib import Path
+import subprocess
+import tempfile
 from uuid import UUID
 
 CATALOG = Path(__file__).with_name('scenarios.json')
 
 
 def scenarios():
-    return json.loads(CATALOG.read_text())
+    return json.loads(CATALOG.read_text(encoding='utf-8'))
 
 
 def validate_accounts(accounts, required):
@@ -35,14 +39,41 @@ def validate_accounts(accounts, required):
     return accounts
 
 
+@cache
+def _windows_user_sid():
+    system = Path(os.environ['SystemRoot']) / 'System32'
+    result = subprocess.run(
+        [system / 'whoami.exe', '/user', '/fo', 'csv', '/nh'],
+        capture_output=True, check=True,
+    )
+    sid = result.stdout.strip().rsplit(b',', 1)[-1].strip(b'"').decode('ascii')
+    if not re.fullmatch(r'S-\d+(?:-\d+)+', sid):
+        raise ValueError('Could not determine the Windows user SID')
+    return sid
+
+
 def write_private(path, value):
-    import os
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + '.tmp')
-    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    os.fchmod(fd, 0o600)
-    with os.fdopen(fd, 'w') as output:
-        json.dump(value, output, indent=2)
-        output.write('\n')
-    temporary.replace(path)
+    output = tempfile.NamedTemporaryFile(
+        mode='w', encoding='utf-8', dir=path.parent, delete=False,
+    )
+    temporary = Path(output.name)
+    try:
+        with output:
+            if os.name == 'nt':
+                # Restrict the new file before any credentials are written.
+                system = Path(os.environ['SystemRoot']) / 'System32'
+                subprocess.run(
+                    [system / 'icacls.exe', temporary, '/grant:r',
+                     f'*{_windows_user_sid()}:(F)', '/inheritance:r'],
+                    capture_output=True, check=True,
+                )
+            else:
+                os.fchmod(output.fileno(), 0o600)
+            json.dump(value, output, indent=2)
+            output.write('\n')
+        temporary.replace(path)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise

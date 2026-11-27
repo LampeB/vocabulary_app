@@ -1,3 +1,5 @@
+import 'dart:convert' show jsonEncode;
+
 import 'package:drift/drift.dart';
 import '../app_database.dart';
 import '../sync_snapshot.dart';
@@ -43,8 +45,48 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
             ..where((t) =>
                 t.ownerId.equals(ownerId) &
                 t.importedFromShareToken.equals(token) &
-                t.isDeleted.equals(false)))
+                t.isDeleted.equals(false))
+            ..orderBy([
+              (t) => OrderingTerm.asc(t.createdAt),
+              (t) => OrderingTerm.asc(t.id)
+            ])
+            ..limit(1))
           .getSingleOrNull();
+
+  Future<List<String>> getPendingListIds({String? ownerId}) => customSelect(
+        'SELECT l.id FROM vocabulary_lists l '
+        'WHERE (? IS NULL OR l.owner_id = ?) AND (l.is_synced = 0 '
+        'OR EXISTS(SELECT 1 FROM concepts c WHERE c.list_id = l.id AND c.is_synced = 0) '
+        'OR EXISTS(SELECT 1 FROM concepts c JOIN word_variants w ON w.concept_id = c.id '
+        'WHERE c.list_id = l.id AND w.is_synced = 0))',
+        variables: [Variable<String>(ownerId), Variable<String>(ownerId)],
+      ).map((row) => row.read<String>('id')).get();
+
+  /// Keep the original local row until its first successful upload. An
+  /// unedited bootstrap may insert but cannot overwrite an existing copy.
+  Future<void> rememberSharedImport(String id, DataClass row) =>
+      into(db.sharedImportBootstrapTable).insert(
+          SharedImportBootstrapTableCompanion.insert(
+              id: id, snapshot: jsonEncode(row.toJson())));
+
+  Future<bool> isInitialSharedImport(String id, DataClass row) async {
+    final initial = await (select(db.sharedImportBootstrapTable)
+          ..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+    return initial != null && initial.snapshot == jsonEncode(row.toJson());
+  }
+
+  Future<int> acknowledgeMetadata(
+          String id, Future<int> Function() acknowledge) =>
+      transaction(() async {
+        final acknowledged = await acknowledge();
+        if (acknowledged != 0) {
+          await (delete(db.sharedImportBootstrapTable)
+                ..where((t) => t.id.equals(id)))
+              .go();
+        }
+        return acknowledged;
+      });
 
   Future<int> softDelete(String id) =>
       (update(vocabularyListsTable)..where((t) => t.id.equals(id)))

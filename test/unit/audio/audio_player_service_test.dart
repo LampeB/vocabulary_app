@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/services/audio/audio_player_service.dart';
@@ -7,12 +9,14 @@ class _FakeCache implements AudioAssetCache {
   _FakeCache({this.path});
 
   String? path;
+  Completer<String?>? pendingDownload;
   final requested = <String>[];
   var cleanupScheduled = 0;
 
   @override
   Future<String?> downloadAndCache(String audioPath) async {
     requested.add(audioPath);
+    if (pendingDownload != null) return pendingDownload!.future;
     return path;
   }
 
@@ -51,9 +55,13 @@ class _FakeFilePlayer implements FileAudioPlayer {
   var stopped = 0;
   var disposed = 0;
   bool playing = false;
+  Completer<void>? pendingRate;
 
   @override
-  Future<void> setPlaybackRate(double rate) async => rates.add(rate);
+  Future<void> setPlaybackRate(double rate) async {
+    rates.add(rate);
+    await pendingRate?.future;
+  }
 
   @override
   Future<void> playFile(String path) async {
@@ -171,6 +179,54 @@ void main() {
 
     expect(cache.requested, ['seed/v1/fr/mot.mp3']);
   });
+
+  for (final dispose in [false, true]) {
+    for (final cacheHit in [false, true]) {
+      test(
+          '${dispose ? 'dispose' : 'stop'} cancels a pending cache lookup '
+          '(${cacheHit ? 'hit' : 'miss'})', () async {
+        final download = Completer<String?>();
+        final cache = _FakeCache()..pendingDownload = download;
+        final tts = _FakeTts();
+        final player = _FakeFilePlayer();
+        final audio =
+            service(premium: true, cache: cache, tts: tts, player: player);
+
+        final speaking = audio.speak('house', 'en', audioPath: 'house.mp3');
+        if (dispose) {
+          audio.dispose();
+        } else {
+          await audio.stop();
+        }
+        download.complete(cacheHit ? '/cache/house.mp3' : null);
+        await speaking;
+
+        expect(tts.spoken, isEmpty);
+        expect(player.rates, isEmpty);
+        expect(player.played, isEmpty);
+      });
+    }
+
+    test('${dispose ? 'dispose' : 'stop'} cancels playback pending its rate',
+        () async {
+      final rate = Completer<void>();
+      final player = _FakeFilePlayer()..pendingRate = rate;
+      final audio =
+          service(premium: true, cachedPath: '/cache/mot.mp3', player: player);
+      final speaking = audio.speak('mot', 'fr', audioPath: 'mot.mp3');
+      await Future<void>.delayed(Duration.zero);
+      expect(player.rates, hasLength(1));
+
+      if (dispose) {
+        audio.dispose();
+      } else {
+        await audio.stop();
+      }
+      rate.complete();
+      await speaking;
+      expect(player.played, isEmpty);
+    });
+  }
 
   test('warm-up, state, stop, and disposal delegate to their engines',
       () async {

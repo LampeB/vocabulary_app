@@ -7,6 +7,9 @@ INSERT INTO auth.users (id,email,raw_user_meta_data,raw_app_meta_data) VALUES
   '{"e2e_managed_by":"vocabkr","e2e_scenario_id":"quiz.b"}'),
  ('00000000-0000-0000-0000-000000000003','c@example.invalid','{"username":"scenario_c"}',
   '{"e2e_managed_by":"vocabkr","e2e_scenario_id":"quiz.a"}');
+-- Historical relationship from before the accounts were isolated.
+INSERT INTO public.friendships (user_a_id,user_b_id) VALUES
+ ('00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000003');
 SET LOCAL ROLE service_role;
 SELECT public.enroll_e2e_account('00000000-0000-0000-0000-000000000001','quiz.a','scenario_a');
 SELECT public.enroll_e2e_account('00000000-0000-0000-0000-000000000001','quiz.a','scenario_a');
@@ -58,12 +61,11 @@ DO $$ BEGIN
   END IF;
 END $$;
 -- Shared relationships must fail closed instead of altering the other scenario.
-INSERT INTO public.friendships (user_a_id,user_b_id) VALUES
- ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002');
+SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',true);
 SET LOCAL ROLE authenticated;
 DO $$ BEGIN
   BEGIN
-    PERFORM public.reset_e2e_account('quiz.a');
+    PERFORM public.reset_e2e_account('quiz.b');
     RAISE EXCEPTION 'Reset of shared data accepted';
   EXCEPTION WHEN foreign_key_violation THEN NULL; END;
 END $$;

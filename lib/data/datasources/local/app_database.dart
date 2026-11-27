@@ -6,6 +6,7 @@ import 'tables/word_variants_table.dart';
 import 'tables/variant_progress_table.dart';
 import 'tables/grammar_progress_table.dart';
 import 'tables/quiz_sessions_table.dart';
+import 'tables/shared_import_bootstrap_table.dart';
 import 'daos/vocabulary_list_dao.dart';
 import 'daos/concept_dao.dart';
 import 'daos/progress_dao.dart';
@@ -25,6 +26,7 @@ part 'app_database.g.dart';
     QuizSessionsTable,
     GrammarProgressTable,
     ReviewEventsTable,
+    SharedImportBootstrapTable,
   ],
   daos: [
     VocabularyListDao,
@@ -41,7 +43,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -142,6 +144,7 @@ class AppDatabase extends _$AppDatabase {
             await customStatement(
                 'CREATE UNIQUE INDEX IF NOT EXISTS idx_progress_identity ON variant_progress(user_id, variant_id, direction)');
           }
+          if (from < 12) await m.createTable(sharedImportBootstrapTable);
         },
       );
 

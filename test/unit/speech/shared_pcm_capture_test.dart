@@ -9,6 +9,8 @@ import 'package:vocab_kr/services/speech/shared_pcm_capture.dart';
 
 class _FakeMicrophone implements PcmMicrophone {
   bool permissionGranted = true;
+  Completer<bool>? pendingPermission;
+  Completer<void>? pendingStart;
   Object? startError;
   var stream = StreamController<Uint8List>.broadcast(sync: true);
   int starts = 0;
@@ -16,11 +18,14 @@ class _FakeMicrophone implements PcmMicrophone {
   int disposals = 0;
 
   @override
-  Future<bool> hasPermission() async => permissionGranted;
+  Future<bool> hasPermission() async => pendingPermission != null
+      ? await pendingPermission!.future
+      : permissionGranted;
 
   @override
   Future<Stream<Uint8List>> startVoiceStream() async {
     starts++;
+    await pendingStart?.future;
     if (startError != null) throw startError!;
     return stream.stream;
   }
@@ -132,6 +137,41 @@ void main() {
       capture.dispose();
       await Future<void>.delayed(Duration.zero);
       expect(mic.disposals, 1);
+      expect(mic.stops, 1);
+    });
+
+    test('stopping invalidates an open awaiting microphone permission',
+        () async {
+      final permission = Completer<bool>();
+      final mic = _FakeMicrophone()..pendingPermission = permission;
+      final capture = SharedPcmCapture(microphone: mic);
+      final opening = capture.open(onSpeechChange: (_) {}, onSegment: (_) {});
+      await Future<void>.delayed(Duration.zero);
+
+      await capture.stop();
+      permission.complete(true);
+
+      expect(await opening, isNull);
+      expect(mic.starts, 0);
+    });
+
+    test('stopping during native startup waits for the recorder to release',
+        () async {
+      final startup = Completer<void>();
+      final mic = _FakeMicrophone()..pendingStart = startup;
+      final capture = SharedPcmCapture(microphone: mic);
+      final opening = capture.open(onSpeechChange: (_) {}, onSegment: (_) {});
+      await Future<void>.delayed(Duration.zero);
+      expect(mic.starts, 1);
+
+      var released = false;
+      final stopping = capture.stop().then((_) => released = true);
+      await Future<void>.delayed(Duration.zero);
+      expect(released, isFalse);
+      startup.complete();
+
+      expect(await opening, isNull);
+      await stopping;
       expect(mic.stops, 1);
     });
   });

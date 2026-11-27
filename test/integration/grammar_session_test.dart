@@ -85,7 +85,7 @@ void main() {
     final c = ProviderContainer(overrides: [
       appDatabaseProvider.overrideWithValue(db),
       vocabularyRemoteProvider.overrideWithValue(FakeRemote()),
-      drillWordsProvider.overrideWith((ref, lang) async => words),
+      ruleDrillWordsProvider.overrideWith((ref, key) async => words),
       currentUserProvider.overrideWithValue(AppUser(
         id: 'u',
         email: 't@t.fr',
@@ -235,6 +235,7 @@ void main() {
     await notifier.loadCards(args(mode: QuizMode.flashcard));
     expect(sub.read().cards, isNotEmpty);
 
+    notifier.flipCard();
     notifier.gradeFlashcard(FsrsRating.good);
     await Future<void>.delayed(const Duration(milliseconds: 50));
 

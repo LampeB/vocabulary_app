@@ -62,7 +62,8 @@ final vocabularyRemoteProvider = Provider<VocabularyRemoteDataSource>(
 );
 
 final vocabularyRepositoryProvider = Provider<VocabularyRepository>((ref) {
-  final userId = ref.watch(currentUserProvider)?.id ?? '';
+  final userId =
+      ref.watch(currentUserProvider.select((user) => user?.id)) ?? '';
   return VocabularyRepositoryImpl(
     ref.watch(vocabularyListDaoProvider),
     ref.watch(conceptDaoProvider),
@@ -193,7 +194,7 @@ final pushSyncProvider = Provider<PushSync>((ref) => PushSync(
       ref.watch(progressDaoProvider),
       ref.watch(appDatabaseProvider).reviewEventDao,
       ref.watch(vocabularyRemoteProvider),
-      userId: ref.watch(currentUserProvider)?.id ?? '',
+      userId: ref.watch(currentUserProvider.select((user) => user?.id)) ?? '',
     ));
 
 /// A lightweight invalidation signal for the durable outbound queue.
@@ -367,11 +368,8 @@ class ListActionsNotifier extends Notifier<void> {
       String listId, String listName) async {
     final result = await _repo.generateShareLink(listId);
     if (result.isFailure) return result;
-    // Sharing is the one mutation that needs an immediate drain: the token is
-    // useless until the list, concepts and variants are all remotely visible.
-    // The durable queue remains the sole remote writer, avoiding duplicate
-    // fire-and-forget writes from the repository.
-    await ref.read(pushSyncProvider).pushAll();
+    // Wait for this list and its content to become remotely visible.
+    await ref.read(pushSyncProvider).pushList(listId);
     final dao = ref.read(vocabularyListDaoProvider);
     final list = await dao.getById(listId);
     final token = Uri.parse(result.valueOrNull!).queryParameters['token'];

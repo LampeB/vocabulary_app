@@ -98,9 +98,11 @@ void main() {
     var events = 0;
     final subscription = db.progressDao.watchChanges(_kUserId).listen((_) {
       events++;
-      if (!initial.isCompleted)
+      if (!initial.isCompleted) {
         initial.complete();
-      else if (!changed.isCompleted) changed.complete();
+      } else if (!changed.isCompleted) {
+        changed.complete();
+      }
     });
     addTearDown(subscription.cancel);
     await initial.future;

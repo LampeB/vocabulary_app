@@ -25,6 +25,8 @@ void main() {
         "INSERT INTO quiz_sessions (id,user_id,list_name,mode,direction,card_count,correct_count,duration_seconds,mastered_word_count,completed_at) VALUES ('session','test','fixture','typing','frToKo',1,1,1,1,0)");
     await db.customStatement(
         "INSERT INTO review_events (id,user_id,variant_id,direction,mode,correct,rating,created_at) VALUES ('event','test','variant','fr>ko','typing',1,'good',0)");
+    await db.into(db.sharedImportBootstrapTable).insert(
+        SharedImportBootstrapTableCompanion.insert(id: 'list', snapshot: '{}'));
   });
   tearDown(() => db.close());
 

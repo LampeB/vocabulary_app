@@ -83,6 +83,16 @@ void main() {
         find.byKey(const ValueKey(WidgetKeys.screenSettings)), findsOneWidget);
   });
 
+  testWidgets('shows the STT laboratory link only with diagnostics opt-in',
+      (tester) async {
+    const optedIn = bool.fromEnvironment('STT_DIAGNOSTICS');
+    await tester.binding.setSurfaceSize(const Size(800, 2200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await pump(tester);
+    expect(
+        find.text('Laboratoire STT'), optedIn ? findsOneWidget : findsNothing);
+  });
+
   testWidgets('tapping the dark theme pill sets ThemeMode.dark',
       (tester) async {
     await pump(tester);

@@ -71,9 +71,11 @@ abstract final class WidgetKeys {
   // ── Hands-free controls ────────────────────────────────────────────────────
   static const hfRepeat = 'study.hf.repeat';
   static const hfSkip = 'study.hf.skip';
+  static const hfPause = 'study.hf.pause';
 
   // ── Summary ────────────────────────────────────────────────────────────────
   static const summary = 'summary';
+  static const summaryDone = 'summary.done';
 
   // ── Lists screen + create/rename dialog ────────────────────────────────────
   static const listsFab = 'lists.fab'; // "Nouvelle liste"

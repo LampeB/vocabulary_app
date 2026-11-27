@@ -1,6 +1,8 @@
 -- Disposable PostgreSQL only, after migration 010. No paid-provider calls.
 BEGIN;
-INSERT INTO auth.users (id) VALUES ('00000000-0000-0000-0000-000000000010');
+INSERT INTO auth.users (id,email,raw_user_meta_data) VALUES
+ ('00000000-0000-0000-0000-000000000010','provider_quota@example.invalid',
+  '{"username":"provider_quota"}');
 DO $$
 DECLARE
   uid uuid := '00000000-0000-0000-0000-000000000010';

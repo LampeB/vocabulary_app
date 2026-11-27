@@ -99,22 +99,27 @@ class ConceptDao extends DatabaseAccessor<AppDatabase> with _$ConceptDaoMixin {
 
   // ── Push-sync support (the isSynced flags are the outbound queue) ──────────
 
-  Future<List<ConceptsTableData>> getUnsyncedConcepts({String? ownerId}) {
+  Future<List<ConceptsTableData>> getUnsyncedConcepts(
+      {String? ownerId, String? listId}) {
+    final pending = conceptsTable.isSynced.equals(false) &
+        (listId == null
+            ? const Constant(true)
+            : conceptsTable.listId.equals(listId));
     if (ownerId == null) {
-      return (select(conceptsTable)..where((t) => t.isSynced.equals(false)))
-          .get();
+      return (select(conceptsTable)..where((_) => pending)).get();
     }
     final query = select(conceptsTable).join([
       innerJoin(db.vocabularyListsTable,
           db.vocabularyListsTable.id.equalsExp(conceptsTable.listId)),
     ])
-      ..where(conceptsTable.isSynced.equals(false));
+      ..where(pending);
     query.where(db.vocabularyListsTable.ownerId.equals(ownerId));
     return query.map((row) => row.readTable(conceptsTable)).get();
   }
 
-  Future<List<WordVariantsTableData>> getUnsyncedVariants({String? ownerId}) {
-    if (ownerId == null) {
+  Future<List<WordVariantsTableData>> getUnsyncedVariants(
+      {String? ownerId, String? listId}) {
+    if (ownerId == null && listId == null) {
       return (select(wordVariantsTable)..where((t) => t.isSynced.equals(false)))
           .get();
     }
@@ -125,7 +130,10 @@ class ConceptDao extends DatabaseAccessor<AppDatabase> with _$ConceptDaoMixin {
           db.vocabularyListsTable.id.equalsExp(conceptsTable.listId)),
     ])
       ..where(wordVariantsTable.isSynced.equals(false));
-    query.where(db.vocabularyListsTable.ownerId.equals(ownerId));
+    if (ownerId != null) {
+      query.where(db.vocabularyListsTable.ownerId.equals(ownerId));
+    }
+    if (listId != null) query.where(conceptsTable.listId.equals(listId));
     return query.map((row) => row.readTable(wordVariantsTable)).get();
   }
 

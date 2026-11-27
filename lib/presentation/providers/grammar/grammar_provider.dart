@@ -108,6 +108,7 @@ final drillWordsProvider =
     words[variant.conceptId] = DrillWord(
       word: target.word,
       category: concept.category!,
+      listId: concept.listId,
       tags: List<String>.from(jsonDecode(target.contextTags) as List),
     );
   }
@@ -121,7 +122,7 @@ final drillVocabularyChangesProvider =
   final db = ref.watch(appDatabaseProvider);
   return db
       .customSelect(
-        "SELECT COALESCE(GROUP_CONCAT(id || ':' || concept_id || ':' || word || ':' || context_tags || ':' || COALESCE(category,'')), '') AS signature FROM (SELECT w.id, w.concept_id, w.word, w.context_tags, c.category FROM word_variants w JOIN concepts c ON c.id=w.concept_id WHERE w.lang_code=? AND w.is_deleted=0 AND c.is_deleted=0 ORDER BY w.id)",
+        "SELECT COALESCE(GROUP_CONCAT(id || ':' || concept_id || ':' || list_id || ':' || word || ':' || context_tags || ':' || COALESCE(category,'')), '') AS signature FROM (SELECT w.id, w.concept_id, c.list_id, w.word, w.context_tags, c.category FROM word_variants w JOIN concepts c ON c.id=w.concept_id WHERE w.lang_code=? AND w.is_deleted=0 AND c.is_deleted=0 ORDER BY w.id)",
         variables: [Variable<String>(lang)],
         readsFrom: {db.wordVariantsTable, db.conceptsTable},
       )
@@ -219,27 +220,25 @@ class RuleStatus {
 /// gates "mastered". Prerequisites are matched by seed list id
 /// (`<id>:<any-source>><targetLang>`), falling back to display name for
 /// not-yet-adopted legacy lists.
-final ruleStatusesProvider =
-    FutureProvider.family<List<RuleStatus>, String>((ref, targetLang) async {
+final grammarPrerequisitesProvider = FutureProvider.family<
+    ({
+      Map<String, PrerequisiteProgress> progress,
+      Map<String, String> names,
+      Map<String, String> listIds
+    }),
+    String>((ref, targetLang) async {
   // Same dependency as drill words: prerequisite fractions are derived from
   // FSRS rows, so the lock state must refresh as vocabulary is learned. Await
   // the stream provider's current revision just like grammar progress below;
   // later revisions invalidate and recalculate this provider.
   await ref.watch(vocabularyProgressChangesProvider.future);
   final rules = await ref.watch(grammarRulesProvider(targetLang).future);
-  if (rules.isEmpty) return const [];
   final lists = await ref.watch(myListsProvider.future);
   final progressRepo = ref.watch(progressRepositoryProvider);
-  final progress = await ref.watch(grammarProgressProvider.future);
-  final drillWords = await ref.watch(drillWordsProvider(targetLang).future);
-  final module = await ref.watch(grammarModuleProvider(targetLang).future);
-  final generator = module == null ? null : GrammarDrillGenerator(module);
 
   // Resolve each prerequisite token to the user's matching list: by seed id
   // for catalog lists (any source language, this target), by name for legacy.
   final tokens = {for (final r in rules) ...r.prerequisiteLists};
-  final fraction = <String, double>{};
-  final totals = <String, int>{};
   final prerequisiteProgress = <String, PrerequisiteProgress>{};
   final displayName = <String, String>{};
   final listIds = <String, String>{};
@@ -269,10 +268,48 @@ final ruleStatusesProvider =
         bestListId = list.id;
       }
     }
-    fraction[token] = best.fraction;
-    totals[token] = best.total;
     prerequisiteProgress[token] = best;
     if (bestListId != null) listIds[token] = bestListId;
+  }
+
+  return (progress: prerequisiteProgress, names: displayName, listIds: listIds);
+});
+
+/// Availability and exercise generation consume exactly the same vocabulary.
+/// Resolve the same prerequisite copies used by the lesson's unlock bars.
+final ruleDrillWordsProvider = FutureProvider.family<List<DrillWord>,
+    ({String ruleId, String targetLang})>((ref, key) async {
+  final rules = await ref.watch(grammarRulesProvider(key.targetLang).future);
+  final rule = rules.where((rule) => rule.id == key.ruleId).firstOrNull;
+  if (rule == null) return const [];
+  final words = await ref.watch(drillWordsProvider(key.targetLang).future);
+  if (rule.prerequisiteLists.isEmpty) return words;
+  final prerequisites =
+      await ref.watch(grammarPrerequisitesProvider(key.targetLang).future);
+  final listIds = {
+    for (final token in rule.prerequisiteLists)
+      if (prerequisites.listIds[token] != null) prerequisites.listIds[token]!,
+  };
+  return words.where((word) => listIds.contains(word.listId)).toList();
+});
+
+final ruleStatusesProvider =
+    FutureProvider.family<List<RuleStatus>, String>((ref, targetLang) async {
+  final rules = await ref.watch(grammarRulesProvider(targetLang).future);
+  if (rules.isEmpty) return const [];
+  final prerequisites =
+      await ref.watch(grammarPrerequisitesProvider(targetLang).future);
+  final prerequisiteProgress = prerequisites.progress;
+  final displayName = prerequisites.names;
+  final listIds = prerequisites.listIds;
+  final progress = await ref.watch(grammarProgressProvider.future);
+  final module = await ref.watch(grammarModuleProvider(targetLang).future);
+  final generator = module == null ? null : GrammarDrillGenerator(module);
+  final wordsByRule = <String, List<DrillWord>>{};
+  for (final rule in rules) {
+    wordsByRule[rule.id] = await ref.watch(
+        ruleDrillWordsProvider((ruleId: rule.id, targetLang: targetLang))
+            .future);
   }
 
   return [
@@ -280,7 +317,7 @@ final ruleStatusesProvider =
       () {
         final prereqProgress = {
           for (final token in rule.prerequisiteLists)
-            token: fraction[token] ?? 0,
+            token: prerequisiteProgress[token]?.fraction ?? 0,
         };
         final prereqCounts = {
           for (final token in rule.prerequisiteLists)
@@ -309,13 +346,13 @@ final ruleStatusesProvider =
                   ? RuleAvailability.unlocked
                   : RuleAvailability.locked,
           missingLists: devUnlock ? const [] : missing,
-          enoughWords:
-              devUnlock || (generator?.canGenerate(rule, drillWords) ?? false),
+          enoughWords: devUnlock ||
+              (generator?.canGenerate(rule, wordsByRule[rule.id]!) ?? false),
           correct: p?.correct ?? 0,
           prereqProgress: prereqProgress,
           prereqTotals: {
             for (final token in rule.prerequisiteLists)
-              token: totals[token] ?? 0,
+              token: prerequisiteProgress[token]?.total ?? 0,
           },
           prereqNames: displayName,
           prereqListIds: {

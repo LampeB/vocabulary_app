@@ -7,12 +7,15 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
 
 ## Activation Supabase
 
-1. Réactiver le projet si nécessaire. Appliquer dans le SQL Editor les migrations
-   [008](../../supabase/migrations/008_e2e_reset.sql) puis
-   [009](../../supabase/migrations/009_e2e_scenario_accounts.sql).
-   Les migrations antérieures, dont `add_subscription_type.sql`, sont requises.
-   Pour obtenir un seul script atomique prêt à coller :
-   `python3 tool/e2e/build_activation.py > /tmp/activer-vocab-e2e.sql`.
+1. Réactiver le projet si nécessaire. Appliquer les migrations manquantes dans
+   l'ordre de [la CI PostgreSQL](../../.github/workflows/pr-validation.yml),
+   dont [012](../../supabase/migrations/012_security_boundaries.sql) et
+   [013](../../supabase/migrations/013_e2e_isolation.sql). Si aucune migration
+   E2E ou de sécurité n'a été appliquée et que les migrations 000, 004 à 007,
+   010, 011 et `add_subscription_type.sql` sont déjà présentes, le générateur
+   `python3 tool/e2e/build_activation.py > /tmp/activer-vocab-e2e.sql` regroupe
+   008, 009, 012 et 013 dans une transaction. Si le projet est déjà partiellement
+   activé, appliquer uniquement les migrations manquantes.
 2. Depuis la racine du dépôt, avec `.env.json` configuré pour ce projet :
 
    ```bash
@@ -24,7 +27,8 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
    transmise ni à GitHub ni à l'APK. L'option GitHub nécessite `gh auth login`.
 3. Sauvegarder **privément** `.e2e/accounts.json`. Ce fichier ignoré par Git
    conserve les mots de passe et UUID ; `test.accounts.env.json` est généré
-   pour Patrol. Les fichiers sont écrits avec des permissions 0600.
+   pour Patrol. Les fichiers sont écrits avec des permissions 0600 sur POSIX
+   et une ACL réservée à l'utilisateur courant sur Windows.
 4. Lancer une suite locale ou le workflow E2E et vérifier son résultat réel.
 
 L'outil crée les comptes via l'API administrateur, avec email confirmé et
@@ -61,6 +65,10 @@ Les autres suites continuent même après un échec. Les processus Android sont 
 La migration 012 étend le verrou transactionnel aux tables de relations et de
 contenu avant le précontrôle : une écriture intercompte arrivant pendant le
 reset attend sa fin au lieu d'être supprimée après un contrôle déjà passé.
+La migration 013 refuse dès l'écriture les amitiés, demandes, défis et
+progressions intercomptes impliquant un compte attribué à un scénario. Elle
+contrôle aussi le propriétaire de la liste du défi ou de la variante étudiée.
+La progression d'un compte E2E sur ses propres listes reste autorisée.
 
 Le reset efface listes, concepts, variantes, progression, abonnements Supabase,
 notifications et classement du compte. Il recrée son profil gratuit avec le
@@ -107,7 +115,7 @@ Les anciens secrets `TEST_EMAIL` et `TEST_PASSWORD` ne sont plus utilisés.
 Le précontrôle valide le catalogue complet sans modifier les comptes ; seul
 le scénario sur le point de démarrer réinitialise son propre compte.
 
-Le dispatcher sur `main` cible `feat/multi-language-learning` chaque soir à
+Le dispatcher cible `main` après intégration de cette branche, chaque soir à
 22 h 17 Asia/Seoul (13 h 17 UTC). Le verrou `supabase-e2e-account` sérialise les
 runs ; ne pas exécuter le même scénario localement pendant la CI. Un dispatcher
 réussi ne prouve pas le succès du run « E2E (emulator) ».
@@ -119,21 +127,22 @@ Le trafic ne garantit pas contractuellement l'absence de pause Supabase.
   unicité et reprise du provisioning sans rotation d'identité.
 - `flutter test test/unit/e2e_scenario_accounts_test.dart test/integration/e2e_reset_test.dart` :
   sélection, absence de compte partagé, reset local et rollback.
-- Sur une base **jetable**, appliquer 008 et exécuter
-  [les tests du reset](../../supabase/tests/reset_e2e_account.sql), puis 009 et
-  [les tests d'isolation](../../supabase/tests/e2e_scenario_accounts.sql).
-  Ils vérifient les permissions, le refus de réaffectation, le rollback et
-  l'absence de modification du compte B lorsque A est réinitialisé.
+- Sur une base **jetable**, appliquer le bootstrap et les migrations dans
+  l'ordre de [la CI PostgreSQL](../../.github/workflows/pr-validation.yml).
+  Les tests de [reset](../../supabase/tests/reset_e2e_account.sql), de
+  [liaison de compte](../../supabase/tests/e2e_scenario_accounts.sql) et
+  d'[isolation en écriture](../../supabase/tests/e2e_isolation.sql) vérifient
+  les permissions, le rollback, les refus et la préservation des autres comptes.
 - Un passage Patrol réel reste nécessaire après activation de la base hébergée.
 - `supabase/tests/reset_concurrency.sh`, sur un PostgreSQL jetable dont le nom
-  se termine par `_test`, vérifie avec deux connexions qu'une relation créée
-  pendant le reset est bloquée puis conservée après celui-ci.
+  se termine par `_test`, vérifie avec deux connexions qu'une demande d'amitié
+  concurrente attend le verrou du reset puis est refusée par l'isolation E2E.
 
 ## Diagnostic vocal local
 
-Les transcriptions brutes ne sont écrites ni sur disque ni dans les journaux
-système par un build de livraison. Un build debug doit être lancé explicitement
-avec `--dart-define=STT_DIAGNOSTICS=true` pour activer les diagnostics persistants.
+Les routes, liens et enregistreurs des laboratoires STT exigent un build debug
+lancé avec `--dart-define=STT_DIAGNOSTICS=true`. Cette option active les WAV,
+les transcriptions du corpus et le journal brut dans ce build.
 Le récepteur de corpus debug exige la permission système `DUMP` détenue par
 `adb shell`, refuse les applications ordinaires, et limite ses fichiers WAV
 PCM16 mono 16 kHz de 30 secondes au répertoire externe `files/corpus/` du build.

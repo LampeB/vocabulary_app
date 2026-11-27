@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
+import '../../core/utils/stt_diagnostics.dart';
+
 /// Minimal port around the native microphone recorder used by the corpus lab.
 /// The corpus manifest and file lifecycle can then be tested on a desktop
 /// without opening a real microphone session.
@@ -218,13 +220,15 @@ class SttCorpusRecorder {
     CorpusAudioRecorder? recorder,
     Future<Directory> Function()? documentsDirectory,
     DateTime Function()? clock,
-  })  : _recorder = recorder ?? _RecordCorpusAudioRecorder(),
+  })  : _recorder = sttDiagnosticsEnabled
+            ? recorder ?? _RecordCorpusAudioRecorder()
+            : null,
         _documentsDirectory =
             documentsDirectory ?? getApplicationDocumentsDirectory,
         _clock = clock ?? DateTime.now;
   // coverage:ignore-end
 
-  final CorpusAudioRecorder _recorder;
+  final CorpusAudioRecorder? _recorder;
   final Future<Directory> Function() _documentsDirectory;
   final DateTime Function() _clock;
   SttCorpusSample? _pending;
@@ -232,6 +236,7 @@ class SttCorpusRecorder {
   bool get isRecording => _pending != null;
 
   Future<List<SttCorpusSample>> samples() async {
+    if (!sttDiagnosticsEnabled) return const [];
     final manifest = await _manifest();
     if (!await manifest.exists()) return const [];
     try {
@@ -253,8 +258,9 @@ class SttCorpusRecorder {
     String? conceptId,
     Map<String, String> meta = const {},
   }) async {
-    if (word.trim().isEmpty || isRecording) return false;
-    if (!await _recorder.hasPermission()) return false;
+    final recorder = _recorder;
+    if (recorder == null || word.trim().isEmpty || isRecording) return false;
+    if (!await recorder.hasPermission()) return false;
     final directory = await _directory();
     final now = _clock();
     final id = '${now.millisecondsSinceEpoch}_$langCode';
@@ -268,7 +274,7 @@ class SttCorpusRecorder {
       conceptId: conceptId,
       meta: meta,
     );
-    await _recorder.start(
+    await recorder.start(
       const RecordConfig(
         encoder: AudioEncoder.wav,
         sampleRate: 16000,
@@ -287,10 +293,11 @@ class SttCorpusRecorder {
   }
 
   Future<SttCorpusSample?> stop() async {
+    final recorder = _recorder;
     final pending = _pending;
-    if (pending == null) return null;
+    if (recorder == null || pending == null) return null;
     _pending = null;
-    final path = await _recorder.stop();
+    final path = await recorder.stop();
     if (path == null || !await File(path).exists()) return null;
     final all = await samples();
     final manifest = await _manifest();
@@ -307,6 +314,7 @@ class SttCorpusRecorder {
     required String? transcript,
     required int? durationMs,
   }) async {
+    if (!sttDiagnosticsEnabled) return;
     final all = await samples();
     final updated = all
         .map((sample) => sample.id == sampleId
@@ -328,6 +336,7 @@ class SttCorpusRecorder {
     required String? transcript,
     required int? durationMs,
   }) async {
+    if (!sttDiagnosticsEnabled) return;
     final all = await samples();
     final updated = all
         .map((sample) => sample.id == sampleId
@@ -349,6 +358,7 @@ class SttCorpusRecorder {
     required String? transcript,
     required int? durationMs,
   }) async {
+    if (!sttDiagnosticsEnabled) return;
     final all = await samples();
     final updated = all
         .map((sample) => sample.id == sampleId
@@ -377,5 +387,5 @@ class SttCorpusRecorder {
     return File('${directory.path}${Platform.pathSeparator}manifest.json');
   }
 
-  void dispose() => _recorder.dispose();
+  void dispose() => _recorder?.dispose();
 }

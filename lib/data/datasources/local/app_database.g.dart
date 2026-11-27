@@ -4652,6 +4652,205 @@ class ReviewEventsTableCompanion
   }
 }
 
+class $SharedImportBootstrapTableTable extends SharedImportBootstrapTable
+    with
+        TableInfo<$SharedImportBootstrapTableTable,
+            SharedImportBootstrapTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SharedImportBootstrapTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _snapshotMeta =
+      const VerificationMeta('snapshot');
+  @override
+  late final GeneratedColumn<String> snapshot = GeneratedColumn<String>(
+      'snapshot', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [id, snapshot];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'shared_import_bootstrap';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<SharedImportBootstrapTableData> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('snapshot')) {
+      context.handle(_snapshotMeta,
+          snapshot.isAcceptableOrUnknown(data['snapshot']!, _snapshotMeta));
+    } else if (isInserting) {
+      context.missing(_snapshotMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SharedImportBootstrapTableData map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SharedImportBootstrapTableData(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      snapshot: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}snapshot'])!,
+    );
+  }
+
+  @override
+  $SharedImportBootstrapTableTable createAlias(String alias) {
+    return $SharedImportBootstrapTableTable(attachedDatabase, alias);
+  }
+}
+
+class SharedImportBootstrapTableData extends DataClass
+    implements Insertable<SharedImportBootstrapTableData> {
+  final String id;
+  final String snapshot;
+  const SharedImportBootstrapTableData(
+      {required this.id, required this.snapshot});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['snapshot'] = Variable<String>(snapshot);
+    return map;
+  }
+
+  SharedImportBootstrapTableCompanion toCompanion(bool nullToAbsent) {
+    return SharedImportBootstrapTableCompanion(
+      id: Value(id),
+      snapshot: Value(snapshot),
+    );
+  }
+
+  factory SharedImportBootstrapTableData.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SharedImportBootstrapTableData(
+      id: serializer.fromJson<String>(json['id']),
+      snapshot: serializer.fromJson<String>(json['snapshot']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'snapshot': serializer.toJson<String>(snapshot),
+    };
+  }
+
+  SharedImportBootstrapTableData copyWith({String? id, String? snapshot}) =>
+      SharedImportBootstrapTableData(
+        id: id ?? this.id,
+        snapshot: snapshot ?? this.snapshot,
+      );
+  SharedImportBootstrapTableData copyWithCompanion(
+      SharedImportBootstrapTableCompanion data) {
+    return SharedImportBootstrapTableData(
+      id: data.id.present ? data.id.value : this.id,
+      snapshot: data.snapshot.present ? data.snapshot.value : this.snapshot,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedImportBootstrapTableData(')
+          ..write('id: $id, ')
+          ..write('snapshot: $snapshot')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, snapshot);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SharedImportBootstrapTableData &&
+          other.id == this.id &&
+          other.snapshot == this.snapshot);
+}
+
+class SharedImportBootstrapTableCompanion
+    extends UpdateCompanion<SharedImportBootstrapTableData> {
+  final Value<String> id;
+  final Value<String> snapshot;
+  final Value<int> rowid;
+  const SharedImportBootstrapTableCompanion({
+    this.id = const Value.absent(),
+    this.snapshot = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SharedImportBootstrapTableCompanion.insert({
+    required String id,
+    required String snapshot,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        snapshot = Value(snapshot);
+  static Insertable<SharedImportBootstrapTableData> custom({
+    Expression<String>? id,
+    Expression<String>? snapshot,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (snapshot != null) 'snapshot': snapshot,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SharedImportBootstrapTableCompanion copyWith(
+      {Value<String>? id, Value<String>? snapshot, Value<int>? rowid}) {
+    return SharedImportBootstrapTableCompanion(
+      id: id ?? this.id,
+      snapshot: snapshot ?? this.snapshot,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (snapshot.present) {
+      map['snapshot'] = Variable<String>(snapshot.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedImportBootstrapTableCompanion(')
+          ..write('id: $id, ')
+          ..write('snapshot: $snapshot, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4668,6 +4867,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $GrammarProgressTableTable(this);
   late final $ReviewEventsTableTable reviewEventsTable =
       $ReviewEventsTableTable(this);
+  late final $SharedImportBootstrapTableTable sharedImportBootstrapTable =
+      $SharedImportBootstrapTableTable(this);
   late final VocabularyListDao vocabularyListDao =
       VocabularyListDao(this as AppDatabase);
   late final ConceptDao conceptDao = ConceptDao(this as AppDatabase);
@@ -4689,7 +4890,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         variantProgressTable,
         quizSessionsTable,
         grammarProgressTable,
-        reviewEventsTable
+        reviewEventsTable,
+        sharedImportBootstrapTable
       ];
 }
 
@@ -7401,6 +7603,141 @@ typedef $$ReviewEventsTableTableProcessedTableManager = ProcessedTableManager<
     ),
     ReviewEventsTableData,
     PrefetchHooks Function()>;
+typedef $$SharedImportBootstrapTableTableCreateCompanionBuilder
+    = SharedImportBootstrapTableCompanion Function({
+  required String id,
+  required String snapshot,
+  Value<int> rowid,
+});
+typedef $$SharedImportBootstrapTableTableUpdateCompanionBuilder
+    = SharedImportBootstrapTableCompanion Function({
+  Value<String> id,
+  Value<String> snapshot,
+  Value<int> rowid,
+});
+
+class $$SharedImportBootstrapTableTableFilterComposer
+    extends Composer<_$AppDatabase, $SharedImportBootstrapTableTable> {
+  $$SharedImportBootstrapTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get snapshot => $composableBuilder(
+      column: $table.snapshot, builder: (column) => ColumnFilters(column));
+}
+
+class $$SharedImportBootstrapTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $SharedImportBootstrapTableTable> {
+  $$SharedImportBootstrapTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get snapshot => $composableBuilder(
+      column: $table.snapshot, builder: (column) => ColumnOrderings(column));
+}
+
+class $$SharedImportBootstrapTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SharedImportBootstrapTableTable> {
+  $$SharedImportBootstrapTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get snapshot =>
+      $composableBuilder(column: $table.snapshot, builder: (column) => column);
+}
+
+class $$SharedImportBootstrapTableTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SharedImportBootstrapTableTable,
+    SharedImportBootstrapTableData,
+    $$SharedImportBootstrapTableTableFilterComposer,
+    $$SharedImportBootstrapTableTableOrderingComposer,
+    $$SharedImportBootstrapTableTableAnnotationComposer,
+    $$SharedImportBootstrapTableTableCreateCompanionBuilder,
+    $$SharedImportBootstrapTableTableUpdateCompanionBuilder,
+    (
+      SharedImportBootstrapTableData,
+      BaseReferences<_$AppDatabase, $SharedImportBootstrapTableTable,
+          SharedImportBootstrapTableData>
+    ),
+    SharedImportBootstrapTableData,
+    PrefetchHooks Function()> {
+  $$SharedImportBootstrapTableTableTableManager(
+      _$AppDatabase db, $SharedImportBootstrapTableTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SharedImportBootstrapTableTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SharedImportBootstrapTableTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SharedImportBootstrapTableTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> snapshot = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SharedImportBootstrapTableCompanion(
+            id: id,
+            snapshot: snapshot,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String snapshot,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SharedImportBootstrapTableCompanion.insert(
+            id: id,
+            snapshot: snapshot,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$SharedImportBootstrapTableTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $SharedImportBootstrapTableTable,
+        SharedImportBootstrapTableData,
+        $$SharedImportBootstrapTableTableFilterComposer,
+        $$SharedImportBootstrapTableTableOrderingComposer,
+        $$SharedImportBootstrapTableTableAnnotationComposer,
+        $$SharedImportBootstrapTableTableCreateCompanionBuilder,
+        $$SharedImportBootstrapTableTableUpdateCompanionBuilder,
+        (
+          SharedImportBootstrapTableData,
+          BaseReferences<_$AppDatabase, $SharedImportBootstrapTableTable,
+              SharedImportBootstrapTableData>
+        ),
+        SharedImportBootstrapTableData,
+        PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7419,4 +7756,8 @@ class $AppDatabaseManager {
       $$GrammarProgressTableTableTableManager(_db, _db.grammarProgressTable);
   $$ReviewEventsTableTableTableManager get reviewEventsTable =>
       $$ReviewEventsTableTableTableManager(_db, _db.reviewEventsTable);
+  $$SharedImportBootstrapTableTableTableManager
+      get sharedImportBootstrapTable =>
+          $$SharedImportBootstrapTableTableTableManager(
+              _db, _db.sharedImportBootstrapTable);
 }

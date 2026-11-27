@@ -4,8 +4,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'stt_diagnostics.dart';
+
 const _kTestMode = bool.fromEnvironment('TEST_MODE');
-const _diagnosticsOptIn = bool.fromEnvironment('STT_DIAGNOSTICS');
 
 /// Persistent on-device log of the whole voice pipeline — what TTS spoke,
 /// when the mic opened, every partial/final the recognizer produced (with
@@ -69,7 +70,7 @@ class SttDebugLog {
   void log(String message) {
     // Raw speech is diagnostic data. Release builds never persist it or emit
     // it to logcat; debug recording requires an explicit launch-time opt-in.
-    if (!kDebugMode || !_diagnosticsOptIn) return;
+    if (!sttDiagnosticsEnabled) return;
     final t = DateTime.now();
     final ts = '${t.hour.toString().padLeft(2, '0')}:'
         '${t.minute.toString().padLeft(2, '0')}:'

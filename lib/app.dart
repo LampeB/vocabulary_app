@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_theme.dart';
+import 'core/utils/stt_diagnostics.dart';
 import 'presentation/screens/onboarding/splash_screen.dart';
 import 'presentation/screens/onboarding/welcome_screen.dart';
 import 'presentation/screens/onboarding/auth_screen.dart';
@@ -35,6 +36,17 @@ import 'presentation/widgets/app_shell.dart';
 // Set via --dart-define-from-file in integration tests to skip page-transition
 // animations, which cause mid-layout semantics errors in the test framework.
 const _kTestMode = bool.fromEnvironment('TEST_MODE');
+
+@visibleForTesting
+List<GoRoute> get sttDiagnosticsRoutes => [
+      if (sttDiagnosticsEnabled) ...[
+        GoRoute(path: '/stt-lab', builder: (_, __) => const SttLabScreen()),
+        GoRoute(
+          path: '/stt-lab/near-miss',
+          builder: (_, __) => const NearMissSessionScreen(),
+        ),
+      ],
+    ];
 
 class _NoAnimationPageTransitionsBuilder extends PageTransitionsBuilder {
   const _NoAnimationPageTransitionsBuilder();
@@ -192,11 +204,7 @@ class _PonderinAppState extends ConsumerState<PonderinApp> {
               GoRoute(
                   path: '/settings',
                   builder: (_, __) => const SettingsScreen()),
-              GoRoute(
-                  path: '/stt-lab', builder: (_, __) => const SttLabScreen()),
-              GoRoute(
-                  path: '/stt-lab/near-miss',
-                  builder: (_, __) => const NearMissSessionScreen()),
+              ...sttDiagnosticsRoutes,
               GoRoute(path: '/stats', builder: (_, __) => const StatsScreen()),
             ],
           ),

@@ -1,4 +1,6 @@
 // ignore_for_file: invalid_use_of_internal_member
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -53,8 +55,9 @@ class _NoopAudio implements AudioPlayerService {
 /// Serves canned due-card lists (or failures) per direction, honoring `limit`
 /// the way the real repository would.
 class _FakeProgressRepo implements ProgressRepository {
-  _FakeProgressRepo(this.responses);
+  _FakeProgressRepo(this.responses, {this.delayed});
   final Map<QuizDirection, Result<List<VariantProgress>>> responses;
+  final Completer<void>? delayed;
 
   @override
   Future<Result<List<VariantProgress>>> getDueCards({
@@ -63,6 +66,7 @@ class _FakeProgressRepo implements ProgressRepository {
     required QuizDirection direction,
     int limit = 20,
   }) async {
+    if (listId == 'slow') await delayed?.future;
     final r = responses[direction] ?? const Success([]);
     if (r.isFailure) return r;
     return Success(r.valueOrNull!.take(limit).toList());
@@ -111,10 +115,11 @@ void main() {
 
   /// Container wired for loadCards; keeps the autoDispose notifier alive.
   (ProviderContainer, ProviderSubscription<QuizState>) harness(
-      Map<QuizDirection, Result<List<VariantProgress>>> responses) {
+      Map<QuizDirection, Result<List<VariantProgress>>> responses,
+      {Completer<void>? delayed}) {
     final container = ProviderContainer(overrides: [
-      getDueCardsUseCaseProvider
-          .overrideWithValue(GetDueCardsUseCase(_FakeProgressRepo(responses))),
+      getDueCardsUseCaseProvider.overrideWithValue(
+          GetDueCardsUseCase(_FakeProgressRepo(responses, delayed: delayed))),
       conceptDaoProvider.overrideWithValue(db.conceptDao),
       currentUserProvider.overrideWithValue(null),
       audioPlayerServiceProvider.overrideWithValue(audio = _NoopAudio()),
@@ -127,13 +132,51 @@ void main() {
   QuizArgs args({
     QuizDirectionChoice direction = QuizDirectionChoice.frToKo,
     int cardLimit = 3,
+    String listId = 'ignored-by-fake',
   }) =>
       QuizArgs(
-        listId: 'ignored-by-fake',
+        listId: listId,
         mode: QuizMode.flashcard,
         direction: direction,
         cardLimit: cardLimit,
       );
+
+  test('a direct reload clears previous state and discards a stale load',
+      () async {
+    final delayed = Completer<void>();
+    final (container, sub) = harness({
+      QuizDirection.frToKo:
+          Success([_due(frVariantId['chat']!, QuizDirection.frToKo)]),
+      QuizDirection.koToFr:
+          Success([_due(koVariantId['개']!, QuizDirection.koToFr)]),
+    }, delayed: delayed);
+    final quiz = container.read(quizProvider.notifier);
+    await quiz.loadCards(args(cardLimit: 1));
+    quiz.flipCard();
+    quiz.setListening(true);
+    quiz.setPartialTranscript('old transcript');
+    quiz.setForeground(false);
+    quiz.setPaused(true);
+    expect(sub.read().isFlipped, isTrue);
+
+    final oldLoad = quiz.loadCards(args(listId: 'slow', cardLimit: 1));
+    expect(sub.read().cards, isEmpty);
+    expect(sub.read().isLoading, isTrue);
+    expect(sub.read().isFlipped, isFalse);
+    expect(sub.read().isListening, isFalse);
+    expect(sub.read().partialTranscript, isEmpty);
+    audio.spokenPaths.clear();
+
+    await quiz
+        .loadCards(args(direction: QuizDirectionChoice.koToFr, cardLimit: 1));
+    expect(sub.read().currentCard!.questionWord, '개');
+    expect(audio.spokenPaths, [sub.read().currentCard!.questionAudioPath]);
+    delayed.complete();
+    await oldLoad;
+
+    expect(sub.read().currentCard!.questionWord, '개');
+    expect(audio.spokenPaths, hasLength(1));
+  });
 
   test('single direction: cards are enriched with question + answer words',
       () async {

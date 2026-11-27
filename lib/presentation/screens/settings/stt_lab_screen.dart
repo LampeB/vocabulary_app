@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/answer_validator.dart';
+import '../../../core/utils/stt_diagnostics.dart';
 import '../../../domain/entities/concept.dart';
 import '../../../domain/entities/vocabulary_list.dart';
 import '../../../domain/entities/word_variant.dart';
@@ -298,7 +299,7 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
       appBar: AppBar(
         title: Text(_activePair == null ? 'Corpus STT' : 'Enregistrer un mot'),
         actions: [
-          if (_activePair == null)
+          if (sttDiagnosticsEnabled && _activePair == null)
             TextButton.icon(
               key: const ValueKey('open_near_miss_session'),
               onPressed: () => context.push('/stt-lab/near-miss'),

@@ -528,5 +528,10 @@
   "v3.signup_label": "CRÉER UN COMPTE",
   "v3.show_password": "Afficher le mot de passe",
   "v3.hide_password": "Masquer le mot de passe",
-  "v3.quit": "Quitter"
+  "v3.quit": "Quitter",
+  "v3.configure": "CONFIGURER",
+  "v3.stack_empty": "PILE VIDE",
+  "v3.stack_done": "LES CARTES SONT DÉPILÉES",
+  "v3.stack_last": "DERNIÈRE CARTE",
+  "v3.stack_remaining": "{count} CARTES À DÉPILER"
 }

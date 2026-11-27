@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 import 'v3_tokens.dart';
 
@@ -14,7 +15,7 @@ class V3CardStack extends StatelessWidget {
     required this.total,
     super.key,
     this.maxVisibleEdges = 3,
-    this.emptyLabel = 'PILE VIDE',
+    this.emptyLabel,
     this.isExiting = false,
     this.exitDirection = 1,
     this.dragProgress = 0,
@@ -25,7 +26,7 @@ class V3CardStack extends StatelessWidget {
   final int remaining;
   final int total;
   final int maxVisibleEdges;
-  final String emptyLabel;
+  final String? emptyLabel;
 
   /// Identity of the visible card. A new id removes the previous top card
   /// instead of reversing its exit animation with new content inside it.
@@ -86,7 +87,8 @@ class V3CardStack extends StatelessWidget {
                 ),
               ),
               child: Center(
-                child: Text(emptyLabel, style: V3Text.mono(12)),
+                child: Text(emptyLabel ?? 'v3.stack_empty'.tr(),
+                    style: V3Text.mono(12)),
               ),
             ),
           )
@@ -133,9 +135,9 @@ class V3StackCounter extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final label = switch (remaining) {
-      0 => 'LES CARTES SONT DÉPILÉES',
-      1 => 'DERNIÈRE CARTE',
-      _ => '$remaining CARTES À DÉPILER',
+      0 => 'v3.stack_done'.tr(),
+      1 => 'v3.stack_last'.tr(),
+      _ => 'v3.stack_remaining'.tr(namedArgs: {'count': '$remaining'}),
     };
     return Text(label,
         style: V3Text.mono(12,

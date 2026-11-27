@@ -18,6 +18,8 @@ langues.
 
 - Listes personnelles/importées étudiables immédiatement, sans cursus.
 - Quiz flashcards, saisie, voix et mains-libres ; FSRS et historique local.
+- Les flashcards de vocabulaire enregistrent good/again en FSRS, conformément
+  à la décision du 8 août ; les cartes de grammaire restent une pratique libre.
 - Pré-requis de leçon isolés de la pratique libre : 80 % pondéré de mots
   gradués, avec au moins 70 % dans chaque liste requise.
 - Règles de grammaire, lecteur de leçon et drills issus des données seedées.
@@ -88,34 +90,45 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **871 tests hôte passent**, avec **66,5 %**
-  de couverture sur le lot du 27 novembre. La compilation Kotlin de debug
-  passe ; la CI distante doit encore confirmer le nouveau commit.
-- Les sept checks distants, compilation Android comprise, passent sur
-  `ec6fc5c`. Le pont utilise désormais le NDK 28.2 de l'application. Les quatre
-  relecteurs ont ensuite rendu des constats bloquants/importants, traités dans
-  [le lot du 27 novembre](docs/reviews/2026-11-27-integration.md). Aucun compteur
-  propre n'est acquis : le nouveau commit nécessite deux revues propres.
+- L'analyse Flutter est propre ; les **897 tests hôte passent**, avec **67,1 %**
+  de couverture sur le dernier lot du 27 novembre. Huit tests positifs du
+  laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
+  réussit ses 21 tests ciblés. La sonde compilée en mode produit confirme le
+  refus des diagnostics, même avec l'option fournie.
+- Sur `08e730f`, la CI confirme les tests hôte et la compilation Android ;
+  elle relève un lint de test et une fixture SQL invalide, corrigés dans le
+  lot suivant. Le pont utilise le NDK 28.2 de l'application. Les quatre
+  relecteurs ont rendu des constats bloquants/importants traités dans
+  [les lots du 27 novembre](docs/reviews/2026-11-27-integration.md). La nouvelle
+  CI reste à confirmer et aucun compteur propre n'est acquis : il faut deux
+  revues propres sur le commit final.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **871** tests hôte lors de la dernière validation locale
+- La suite compte **897** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
+- Les cinq suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
+  réelles. Deux connexions ont vérifié le verrou du reset et le refus de
+  l'écriture concurrente ; la CI doit encore exécuter son wrapper Bash complet.
+  Les trois tests Python E2E et les huit tests Deno passent également.
 - La CI Patrol contient neuf suites Android, lançables manuellement avec des
   secrets Supabase : navigation, auth, flux utilisateur, chemin quotidien,
   prérequis de leçon, paires de langues, quiz voix/cartes, écriture et login.
 - Le reset E2E par scénario, le verrou commun et le planning quotidien à
-  22 h 17 (Séoul) sont implémentés. Le dispatcher est activé sur `main`
-  ([PR #1](https://github.com/LampeB/vocabulary_app/pull/1)) et cible
-  `feat/multi-language-learning`. **Les 36 comptes distincts sont provisionnés** et le secret CI est installé.
+  22 h 17 (Séoul) sont implémentés. Le dispatcher livré par
+  [la PR #1](https://github.com/LampeB/vocabulary_app/pull/1) ciblait la branche
+  de développement ; cette intégration le fait exécuter uniquement depuis et
+  vers `main` après fusion. **Les 36 comptes distincts sont provisionnés** et
+  le secret CI est installé. Les nouvelles migrations restent à appliquer
+  sur le projet hébergé avant une validation de ce runner.
   Le passage Patrol réel reste à valider : le premier run a validé la
   configuration, puis échoué avant les tests sur une incompatibilité du CLI.
   La CI fixe désormais Patrol CLI 4.4.0 pour Patrol 4.6.1. Le reset refuse
   une identité attribuée à un autre scénario et les relations intercomptes.
-  Les 822 tests hôte, les contrôles Python et les tests SQL sur base jetable
-  passent ; `flutter analyze` ne rapporte aucun problème. Procédure dans le
-  [runbook E2E](docs/runbooks/e2e-account.md).
+  La migration 013 interdit de nouvelles relations intercomptes impliquant
+  un scénario E2E. Le provisioning protège aussi ses fichiers par ACL sur
+  Windows. Procédure et validation dans le [runbook E2E](docs/runbooks/e2e-account.md).
 - Le run parallèle a validé sept suites sur neuf. Le chemin quotidien a
   révélé un seeding automatique encore actif lors de la création de listes
   en mode test ; ce déclenchement est désormais désactivé. Le quiz a terminé
@@ -135,8 +148,12 @@ de contenu avant bêta pédagogique.
   historique a été retiré. L'intégration iOS n'est pas livrée : le dossier iOS
   n'a pas de `Podfile` et doit faire l'objet d'un chantier Xcode/test appareil
   avant toute promesse de disponibilité locale sur cette plateforme.
-- Les APK de livraison sont publiés comme artefacts GitHub Actions ; aucun APK
-  généré ne doit être versionné dans Git.
+- Le workflow TestFlight incomplet a été retiré : aucune livraison iOS n'est
+  revendiquée. Le workflow Android peut produire un artefact GitHub Actions ;
+  aucun APK généré ne doit être versionné dans Git.
+- Les routes du laboratoire STT, leurs liens et la persistance du corpus
+  exigent un build debug avec `STT_DIAGNOSTICS=true`. La CI exerce aussi le
+  refus en mode produit, même si cette option est fournie.
 
 ## Documentation et gouvernance
 

@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:convert' show jsonDecode;
 import '../../core/errors/failure.dart';
 import '../datasources/local/daos/concept_dao.dart';
@@ -32,9 +33,14 @@ class PushSync {
   final VocabularyRemoteDataSource _remote;
   final String? _userId;
 
-  bool _running = false;
   Future<int>? _activeDrain;
   bool _drainAgain = false;
+  final _listDrains = <String, Future<int>>{};
+  final _listsToRetry = <String>{};
+
+  static const _maxPendingAudio = 256;
+  final _pendingAudio = <String>{};
+  bool _provisioningAudio = false;
 
   /// Pushes all unsynced rows in FK order (lists → concepts → variants →
   /// progress). Per-row failures are skipped (the row stays unsynced for the
@@ -61,20 +67,75 @@ class PushSync {
   }
 
   Future<int> _pushOnce() async {
-    if (_running) return 0;
-    _running = true;
-    try {
-      var pushed = 0;
+    var pushed = 0;
+    for (final id in await _listDao.getPendingListIds(ownerId: _userId)) {
+      pushed += await pushList(id);
+    }
+    pushed += await _drain(
+      rows: await _progressDao.getUnsyncedProgress(userId: _userId),
+      push: (r) => _remote.upsertProgress(r.toDomain().toRemoteMap()),
+      markSynced: _progressDao.acknowledge,
+      onChanged: () => _drainAgain = true,
+    );
+    pushed += await _drain(
+      rows: await _reviewEventDao.getUnsynced(userId: _userId),
+      push: (r) => _remote.upsertReviewEvent({
+        'id': r.id,
+        'user_id': r.userId,
+        'variant_id': r.variantId,
+        'direction': r.direction,
+        'list_id': r.listId,
+        'mode': r.mode,
+        'correct': r.correct,
+        'rating': r.rating,
+        'response_time_ms': r.responseTimeMs,
+        'retry_count': r.retryCount,
+        'created_at': r.createdAt.toIso8601String(),
+      }),
+      markSynced: (r) => _reviewEventDao.markSynced([r.id]),
+    );
+    return pushed;
+  }
+
+  /// Flushes the list and its content for publication. A simultaneous global
+  /// drain shares work on this list while other lists can progress independently.
+  Future<int> pushList(String listId) {
+    if (_userId == '') return Future.value(0);
+    final active = _listDrains[listId];
+    if (active != null) {
+      _listsToRetry.add(listId);
+      return active;
+    }
+    final drain = _pushListUntilIdle(listId).whenComplete(() {
+      _listDrains.remove(listId);
+      _listsToRetry.remove(listId);
+    });
+    _listDrains[listId] = drain;
+    return drain;
+  }
+
+  Future<int> _pushListUntilIdle(String listId) async {
+    var pushed = 0;
+    void retry() => _listsToRetry.add(listId);
+
+    do {
+      _listsToRetry.remove(listId);
+      final list = await _listDao.getById(listId);
+      if (list == null || (_userId != null && list.ownerId != _userId)) break;
+
+      if (!list.isSynced) {
+        pushed += await _drain(
+          rows: [list],
+          push: (r) async => _remote.upsertList(r.toDomain().toRemoteMap(),
+              insertOnly: await _listDao.isInitialSharedImport(r.id, r)),
+          markSynced: (r) =>
+              _listDao.acknowledgeMetadata(r.id, () => _listDao.acknowledge(r)),
+          onChanged: retry,
+        );
+      }
       pushed += await _drain(
-        rows: await _listDao.getUnsyncedLists(ownerId: _userId),
-        idOf: (r) => r.id,
-        push: (r) => _remote.upsertList(r.toDomain().toRemoteMap()),
-        markSynced: _listDao.acknowledge,
-      );
-      pushed += await _drain(
-        rows: await _conceptDao.getUnsyncedConcepts(ownerId: _userId),
-        idOf: (r) => r.id,
-        push: (r) => _remote.upsertConcept({
+        rows: await _conceptDao.getUnsyncedConcepts(listId: listId),
+        push: (r) async => _remote.upsertConcept({
           'id': r.id,
           'list_id': r.listId,
           'category': r.category,
@@ -86,13 +147,14 @@ class PushSync {
           'is_deleted': r.isDeleted,
           'created_at': r.createdAt.toIso8601String(),
           'updated_at': r.updatedAt.toIso8601String(),
-        }),
-        markSynced: _conceptDao.acknowledgeConcept,
+        }, insertOnly: await _listDao.isInitialSharedImport(r.id, r)),
+        markSynced: (r) => _listDao.acknowledgeMetadata(
+            r.id, () => _conceptDao.acknowledgeConcept(r)),
+        onChanged: retry,
       );
       pushed += await _drain(
-        rows: await _conceptDao.getUnsyncedVariants(ownerId: _userId),
-        idOf: (r) => r.id,
-        push: (r) => _remote.upsertVariant({
+        rows: await _conceptDao.getUnsyncedVariants(listId: listId),
+        push: (r) async => _remote.upsertVariant({
           'id': r.id,
           'concept_id': r.conceptId,
           'word': r.word,
@@ -108,69 +170,64 @@ class PushSync {
           'is_deleted': r.isDeleted,
           'created_at': r.createdAt.toIso8601String(),
           'updated_at': r.updatedAt.toIso8601String(),
-        }),
-        markSynced: _conceptDao.acknowledgeVariant,
-        afterSuccess: (row) async {
-          // Audio is provisioned only after the durable variant upsert. A
-          // best-effort failure must not re-send the variant payload itself.
+        }, insertOnly: await _listDao.isInitialSharedImport(r.id, r)),
+        markSynced: (r) => _listDao.acknowledgeMetadata(
+            r.id, () => _conceptDao.acknowledgeVariant(r)),
+        onChanged: retry,
+        afterAck: (row) {
           if (!row.isDeleted && row.audioPath != null) {
-            try {
-              await _remote.provisionAudio(row.id);
-            } catch (_) {}
+            _queueAudio(row.id);
           }
         },
       );
-      pushed += await _drain(
-        rows: await _progressDao.getUnsyncedProgress(userId: _userId),
-        idOf: (r) => r.id,
-        push: (r) => _remote.upsertProgress(r.toDomain().toRemoteMap()),
-        markSynced: _progressDao.acknowledge,
-      );
-      pushed += await _drain(
-        rows: await _reviewEventDao.getUnsynced(userId: _userId),
-        idOf: (r) => r.id,
-        push: (r) => _remote.upsertReviewEvent({
-          'id': r.id,
-          'user_id': r.userId,
-          'variant_id': r.variantId,
-          'direction': r.direction,
-          'list_id': r.listId,
-          'mode': r.mode,
-          'correct': r.correct,
-          'rating': r.rating,
-          'response_time_ms': r.responseTimeMs,
-          'retry_count': r.retryCount,
-          'created_at': r.createdAt.toIso8601String(),
-        }),
-        markSynced: (r) => _reviewEventDao.markSynced([r.id]),
-      );
-      return pushed;
-    } finally {
-      _running = false;
+    } while (_listsToRetry.contains(listId));
+    return pushed;
+  }
+
+  void _queueAudio(String variantId) {
+    if (_pendingAudio.length >= _maxPendingAudio) return;
+    _pendingAudio.add(variantId);
+    if (!_provisioningAudio) unawaited(_provisionAudio());
+  }
+
+  Future<void> _provisionAudio() async {
+    _provisioningAudio = true;
+    while (_pendingAudio.isNotEmpty) {
+      final id = _pendingAudio.first;
+      _pendingAudio.remove(id);
+      try {
+        await _remote.provisionAudio(id);
+      } catch (_) {
+        // The durable metadata has already landed. Device TTS is available.
+      }
     }
+    _provisioningAudio = false;
   }
 
   Future<int> _drain<R>({
     required List<R> rows,
-    required String Function(R) idOf,
     required Future<Result<dynamic>> Function(R) push,
     required Future<int> Function(R) markSynced,
-    Future<void> Function(R row)? afterSuccess,
+    void Function()? onChanged,
+    void Function(R row)? afterAck,
   }) async {
-    final succeeded = <String>[];
+    var succeeded = 0;
     for (final row in rows) {
       try {
         final result = await push(row);
         if (result.isSuccess) {
-          succeeded.add(idOf(row));
+          succeeded++;
           final acknowledged = await markSynced(row);
-          if (acknowledged == 0) _drainAgain = true;
-          if (afterSuccess != null) await afterSuccess(row);
+          if (acknowledged == 0) {
+            onChanged?.call();
+          } else {
+            afterAck?.call(row);
+          }
         }
       } catch (_) {
         // Row stays unsynced; the next drain retries it.
       }
     }
-    return succeeded.length;
+    return succeeded;
   }
 }

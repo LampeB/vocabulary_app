@@ -19,8 +19,8 @@ class _FakeRemote implements VocabularyRemoteDataSource {
       const Success([]);
 
   @override
-  Future<Result<Map<String, dynamic>>> upsertList(
-          Map<String, dynamic> data) async =>
+  Future<Result<Map<String, dynamic>>> upsertList(Map<String, dynamic> data,
+          {bool insertOnly = false}) async =>
       Success(data);
 
   @override
@@ -32,13 +32,13 @@ class _FakeRemote implements VocabularyRemoteDataSource {
       const Success([]);
 
   @override
-  Future<Result<Map<String, dynamic>>> upsertConcept(
-          Map<String, dynamic> data) async =>
+  Future<Result<Map<String, dynamic>>> upsertConcept(Map<String, dynamic> data,
+          {bool insertOnly = false}) async =>
       Success(data);
 
   @override
-  Future<Result<Map<String, dynamic>>> upsertVariant(
-          Map<String, dynamic> data) async =>
+  Future<Result<Map<String, dynamic>>> upsertVariant(Map<String, dynamic> data,
+          {bool insertOnly = false}) async =>
       Success(data);
 
   @override

@@ -528,5 +528,10 @@
   "v3.signup_label": "CREATE AN ACCOUNT",
   "v3.show_password": "Show password",
   "v3.hide_password": "Hide password",
-  "v3.quit": "Quit"
+  "v3.quit": "Quit",
+  "v3.configure": "SET UP",
+  "v3.stack_empty": "EMPTY STACK",
+  "v3.stack_done": "ALL CARDS DONE",
+  "v3.stack_last": "LAST CARD",
+  "v3.stack_remaining": "{count} CARDS LEFT"
 }

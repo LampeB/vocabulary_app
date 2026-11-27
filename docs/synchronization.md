@@ -13,18 +13,34 @@ L'application utilise SQLite comme source de lecture et les colonnes
 - Les envois de production sont filtrés par utilisateur connecté, y compris
   les concepts et variantes reliés à leurs listes. Les recherches de token de
   partage et de progression sont également isolées par compte.
-- Les envois respectent l'ordre listes → concepts → variantes → progression
-  → événements. L'audio est provisionné après l'envoi d'une variante.
+- La file envoie chaque liste avant ses concepts et variantes, puis envoie
+  la progression et les événements. Après l'accusé d'une variante, le
+  provisionnement audio s'exécute en arrière-plan, à raison d'une requête à
+  la fois et de 256 variantes distinctes en attente. Un échec ou une file
+  audio pleine laisse la synthèse de l'appareil disponible.
 - L'accusé de réception ne marque une ligne synchronisée que si tous ses
   champs correspondent toujours à la version envoyée. Une modification
   pendant un envoi reste donc en attente.
-- Un partage attend le passage de la file et vérifie l'accusé du token et de
-  tous ses mots avant d'ouvrir le partage système. Son token et sa visibilité
-  publique sont conservés localement ; importer un lien conserve la copie
-  privée tant que l'utilisateur ne la partage pas lui-même.
+- Un partage envoie la liste ciblée et vérifie l'accusé de son token et de
+  tous ses mots avant d'ouvrir le partage système. Un envoi global en cours
+  partage le même travail pour cette liste. Les autres listes, la progression,
+  les événements et l'audio n'interviennent pas dans cette attente. Les copies
+  importées restent privées jusqu'à leur propre publication.
 - La provenance d'import (`imported_from_share_token`) est distincte du jeton
   public unique. Elle est écrite atomiquement avec la copie et sert à la
-  déduplication par compte. La migration locale 11 répare les anciennes copies.
+  déduplication par compte. Les nouveaux imports utilisent un UUIDv5 dérivé
+  du compte et du token. Les UUIDv5 des enfants dérivent de leurs identifiants
+  source et de leur parent importé. Si l'utilisateur réimporte après une
+  suppression locale, il obtient une nouvelle génération. La migration 11
+  répare la provenance des anciennes copies. Si plusieurs copies existent
+  déjà, la recherche retrouve la plus ancienne encore active et départage
+  les dates identiques par identifiant. Chaque copie et ses éditions restent
+  disponibles.
+- La migration locale 12 conserve le snapshot initial des créations issues
+  d'un lien jusqu'à l'accusé de réception. Une création dont le contenu est
+  intact s'insère uniquement si elle est absente du serveur, même après une
+  panne ou un redémarrage. Un import tardif ne peut donc pas réécrire les
+  éditions déjà envoyées par un autre appareil.
 - Une progression est identifiée par `(user_id, variant_id, direction)` : les
   nouvelles cartes utilisent un UUID déterministe et l'envoi distant fait un
   upsert sur cette clé métier. La récupération préserve une édition locale en
@@ -34,6 +50,11 @@ L'application utilise SQLite comme source de lecture et les colonnes
 
 - Une métadonnée locale non synchronisée n'est pas remplacée par une copie
   distante vivante. Les autres enfants continuent cependant à être restaurés.
+- Le pull capture l'état local complet du compte avant sa première requête.
+  Dans la transaction d'application, il préserve toute liste, tout concept,
+  toute variante et toute progression dont la ligne a changé, y compris son
+  statut d'accusé, pendant la récupération. Une suppression distante attend
+  un autre pull si une ligne de la branche affectée a changé entre-temps.
 - Une suppression distante de liste invalide ses concepts et variantes et
   retire la progression locale associée. Une progression distante ancienne
   ne doit pas faire réapparaître des cartes supprimées.
@@ -41,7 +62,9 @@ L'application utilise SQLite comme source de lecture et les colonnes
   il ne fabrique pas une nouvelle modification à envoyer.
 - L'authentification, y compris une connexion depuis l'écran d'accueil,
   déclenche la récupération puis le seeding idempotent avant le plateau.
-  Une panne réseau autorise toujours le travail local.
+  En cas d'indisponibilité du profil distant, une session déjà signée fournit
+  l'identité locale pour le seeding et l'ouverture du plateau. Un profil reçu
+  plus tard enrichit cette session.
 - Les créations de listes starter partagent une exécution en cours par
   compte/paire. Un import échoué ne positionne jamais le marqueur de complétion.
 

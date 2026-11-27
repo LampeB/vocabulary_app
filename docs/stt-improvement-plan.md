@@ -51,8 +51,12 @@ audio du prompt → signal de fin → remise micro → hypothèses STT
 tour pour empêcher une réponse de contaminer la carte suivante.
 La fermeture de la capture attend sa dernière portion audio et l'inscrit dans
 les analyses en cours avant de permettre un verdict d'absence de réponse.
-La mise en arrière-plan ou en pause invalide également l'avance différée et
-le prompt suivant ; à la reprise, une réponse déjà notée n'est pas renotée.
+La mise en arrière-plan et la pause volontaire invalident immédiatement le
+tour en cours, y compris un compte à rebours ou une relance programmée.
+Le retour au premier plan reprend le tour interrompu si la session est
+active. Pendant un feedback, il reprend l'avance différée et conserve la
+notation déjà écrite. Une pause volontaire reste active jusqu'à la reprise
+par l'apprenant.
 Les cartes suivantes et reportées conservent leurs chemins de clips en cache.
 
 La notation **écrite de grammaire** préserve les formes attendues par le module :
@@ -75,14 +79,22 @@ ou un pluriel manquant. La tolérance du vocabulaire ne s'y applique pas.
 Whisper local est conservé. Les services cloud ne sont que des secours : une
 limite atteinte ne doit jamais empêcher une session locale avec le moteur du
 téléphone ou Whisper.
+En mode Course, un décodeur PCM local prêt pour la langue fait utiliser la
+capture partagée, y compris lors de la dernière tentative. Sans décodeur PCM
+local compatible, le reconnaisseur système peut ouvrir le micro seul. Les
+moteurs réseau seuls servent de secours si aucun moteur local n'est disponible
+ou après les tentatives infructueuses du système. Le mode Système utilise
+directement le reconnaisseur exclusif.
 Le cloud n'analyse la capture qu'après la fin de la tentative locale et de
 ses segments en attente, sans réponse locale validée. Les demandes cloud
 d'un même tour sont sérialisées. Une validation locale n'envoie ni audio ni
 réponse attendue au fournisseur.
 
-Les transcriptions brutes ne sont journalisées que dans un build de debug
-avec l'option explicite `STT_DIAGNOSTICS=true`. Elles ne sont ni écrites dans
-un fichier ni imprimées dans les journaux du build de livraison. Le récepteur
+Les routes `/stt-lab` et `/stt-lab/near-miss`, leurs liens, l'enregistrement
+de WAV, la persistance des transcriptions du corpus et le journal brut exigent
+tous un build de debug lancé avec `--dart-define=STT_DIAGNOSTICS=true`. Hors de
+cette configuration, les routes sont absentes et l'enregistreur de corpus
+n'accède ni au micro ni à ses fichiers. Le récepteur
 Android de corpus est limité au shell de test, au dossier de corpus et aux
 captures WAV bornées ; il n'est pas présent dans la livraison.
 

@@ -21,12 +21,15 @@ import '../../../services/speech/whisper_speech_service.dart';
 import '../../../services/speech/elevenlabs_speech_service.dart';
 import '../../../services/speech/phone_pcm_recognizer.dart';
 import '../../../services/speech/phone_stt_engine.dart';
+import '../../../services/speech/shared_pcm_capture.dart';
+import '../../../services/speech/stt_engine.dart';
 import '../../../services/speech/stt_engine_registry.dart';
 import '../../../services/speech/stt_race.dart';
 import '../../../services/speech/stt_race_status.dart';
 import '../../../services/speech/system_stt_engine.dart';
 import '../../../services/speech/whisper_stt_engine.dart';
 import '../../../services/speech/elevenlabs_stt_engine.dart';
+import '../../../services/quiz_orchestration/audio_director.dart';
 import '../../../services/quiz_orchestration/voice_turn_machine.dart';
 import '../../providers/settings/audio_settings_provider.dart';
 import '../../providers/settings/stt_engine_mode_provider.dart';
@@ -61,15 +64,15 @@ class QuizScreen extends ConsumerStatefulWidget {
 class _QuizScreenState extends ConsumerState<QuizScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   final _stt = SpeechRecognitionService();
+  late final bool _usesRealStt;
   // Whisper engine (own capture + own endpointing) — app-lifetime via
   // provider; the model is heavy. Initialized in initState: a lazy `late`
   // here would first resolve in dispose(), where ref is no longer usable.
   late final WhisperSpeechService _whisper;
   late final ElevenLabsSpeechService _elevenLabs;
   final _answerCtrl = TextEditingController();
-  // Guards against stale STT callbacks firing on a new card.
-  // True while the current listen session is managed by the SttRace pipeline
-  // (Settings → Moteur vocal → Course). The legacy _stt callbacks
+  AudioDirector? _sessionDirector;
+  SharedPcmCapture? _sharedCapture;
   // Race adapters, created lazily on first race use. They WRAP this screen's
   // existing service instances — never disposed here (the services' own
   // lifecycles are unchanged; see dispose()).
@@ -107,6 +110,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // app. Lifecycle pause invalidates existing work; this blocks work that had
   // not started yet (for example a queued listen cue).
   bool _appForeground = true;
+  bool _quitting = false;
+  bool _sessionStarted = false;
+  Future<void>? _interruption;
   // Display-only: attempts consumed on the current card, fed by the
   // machine's ShowNotHeard command (the "essai x/3" banner).
   int _notHeardRetries = 0;
@@ -137,8 +143,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _whisper = ref.read(whisperSpeechProvider);
-    _elevenLabs = ref.read(elevenLabsSpeechProvider);
+    _usesRealStt = !SttSimulator.isOn &&
+        (widget.args.mode == QuizMode.handsFree ||
+            widget.args.mode == QuizMode.voice);
+    if (_usesRealStt) {
+      _whisper = ref.read(whisperSpeechProvider);
+      _elevenLabs = ref.read(elevenLabsSpeechProvider);
+    }
     _pulseCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1900));
     // Don't run the perpetual breathing pulse under test — it never settles.
@@ -147,9 +158,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _listenBarCtrl =
         AnimationController(vsync: this, duration: const Duration(seconds: 10));
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!SttSimulator.isOn) {
+      if (!mounted) return;
+      _loadSession();
+      if (_usesRealStt) {
         final ok = await _stt.initialize();
-        if (!ok && mounted) {
+        if (!mounted || _quitting) return;
+        if (!ok && _appForeground) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('quiz.stt_unavailable'.tr()),
             behavior: SnackBarBehavior.floating,
@@ -169,8 +183,26 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         sttLog(
             '[STT] stale onListeningDone outside a race-managed session — ignored');
       };
-      if (mounted) ref.read(quizProvider.notifier).loadCards(widget.args);
     });
+  }
+
+  void _loadSession() {
+    _sessionStarted = true;
+    _listenToken++;
+    _cancelActiveRace();
+    _turnMachine = null;
+    _answerCtrl.clear();
+    _hfPaused = false;
+    _hfAutoPausedSilence = false;
+    _hfNotHeard = false;
+    _hfAnalyzing = false;
+    _hfCountdown = null;
+    _voiceKbIndex = null;
+    _flashcardExiting = false;
+    _flashcardDragProgress = 0;
+    final quiz = ref.read(quizProvider.notifier);
+    unawaited(quiz.loadCards(widget.args));
+    quiz.setForeground(_appForeground);
   }
 
   @override
@@ -179,9 +211,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _pulseCtrl.dispose();
     _listenBarCtrl.dispose();
     _activeRace?.cancel();
-    _stt.dispose();
-    unawaited(_whisper.stopListening());
-    unawaited(_elevenLabs.stopListening());
+    if (!_quitting) {
+      unawaited(_sessionDirector?.stopAll());
+      unawaited(_sharedCapture?.stop());
+    }
+    if (_usesRealStt) {
+      _stt.dispose();
+      unawaited(_whisper.stopListening());
+      unawaited(_elevenLabs.stopListening());
+    }
     _answerCtrl.dispose();
     super.dispose();
   }
@@ -192,43 +230,66 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// callbacks cannot grade a card after the learner returns.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_quitting) return;
     if (state == AppLifecycleState.resumed) {
+      if (_appForeground) return;
       _appForeground = true;
-      ref.read(quizProvider.notifier).setForeground(!_hfPaused);
+      ref.read(quizProvider.notifier).setForeground(true);
+      if (widget.args.mode == QuizMode.handsFree && !_hfPaused) {
+        unawaited(_resumeHandsFree());
+      }
       return;
     }
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
+      if (!_appForeground) return;
       _appForeground = false;
       ref.read(quizProvider.notifier).setForeground(false);
-      unawaited(_pauseForBackground());
+      unawaited(_interruptTurn());
     }
   }
 
-  Future<void> _pauseForBackground() async {
-    final wasHandsFree = widget.args.mode == QuizMode.handsFree;
-    if (wasHandsFree && _hfPaused) return;
-
+  Future<void> _interruptTurn() {
     _listenToken++; // every in-flight STT completion is now stale
     _cancelActiveRace();
     _listenBarCtrl.stop();
-    sttLog('[HF] app backgrounded — pausing audio and recognition');
-    await Future.wait([
-      _stt.stopListening(),
-      _whisper.stopListening(),
-      _elevenLabs.stopListening(),
-      ref.read(audioDirectorProvider).stopAll(),
-    ]);
-    if (!mounted) return;
+    setState(() {
+      _hfAnalyzing = false;
+      _hfNotHeard = false;
+      _hfCountdown = null;
+    });
     ref.read(quizProvider.notifier).setListening(false);
-    if (wasHandsFree) {
-      setState(() {
-        _hfPaused = true;
-        _hfAutoPausedSilence = false;
-        _hfAnalyzing = false;
-      });
+    final pending = _interruption;
+    final capture = _sharedCapture;
+    return _interruption = Future.wait<void>([
+      if (pending != null) pending,
+      if (capture != null) capture.stop(),
+      if (_usesRealStt) ...[
+        _stt.stopListening(),
+        _whisper.stopListening(),
+        _elevenLabs.stopListening(),
+      ],
+      ref.read(audioDirectorProvider).stopAll(),
+    ]).then<void>((_) {}, onError: (Object error) {
+      sttLog('[QUIZ] audio or microphone stop failed: $error');
+    });
+  }
+
+  Future<void> _resumeHandsFree() async {
+    final card = ref.read(quizProvider).currentCard;
+    if (card == null) return;
+    final token = _listenToken;
+    final pending = _interruption;
+    if (pending != null) await pending;
+    if (_turnStale(token, card)) return;
+    if (!_kTestMode) {
+      unawaited(ref.read(audioDirectorProvider).speak(
+          card.questionWord, card.progress.direction.questionLang,
+          audioPath: card.questionAudioPath));
     }
+    await _waitForSpeechThenListen(card);
   }
 
   /// Opens the mic only AFTER the app has finished talking (question TTS,
@@ -237,19 +298,23 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// AND let the recognizer transcribe the app's own voice as the user's
   /// answer (user feedback 2026-07-05).
   Future<void> _waitForSpeechThenListen(QuizCard card) async {
+    final token = _listenToken;
+    bool stale() => _turnStale(token, card);
+    if (stale()) return;
     // Speech at a card boundary is a CHAIN, not one utterance — the wait
     // semantics (and their field-log history) live in AudioDirector.
     final director = ref.read(audioDirectorProvider);
     final waitStart = DateTime.now();
-    await director.chainQuiet(
-        keepGoing: () => mounted && _appForeground && !_hfPaused);
+    await director.chainQuiet(keepGoing: () => !stale());
+    if (stale()) return;
     final speechWaitMs = DateTime.now().difference(waitStart).inMilliseconds;
     sttLog(
         '[HF] waited ${speechWaitMs}ms for TTS chain (isSpeaking=${director.isSpeaking}) — starting 250ms echo tail');
     // Echo tail: let the room go quiet before the mic opens.
     await Future.delayed(const Duration(milliseconds: 250));
-    if (!mounted || !_appForeground || _hfPaused) return;
-    if (_stt.isListening || _whisper.isListening || _elevenLabs.isListening) {
+    if (stale()) return;
+    if (_usesRealStt &&
+        (_stt.isListening || _whisper.isListening || _elevenLabs.isListening)) {
       // A stale session must not swallow this card's window (it would hear
       // our TTS and validate against the wrong card) — stop it, then start
       // fresh. Never skip: skipping left cards without their own session.
@@ -260,7 +325,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       await _whisper.stopListening();
       await _elevenLabs.stopListening();
       await Future.delayed(const Duration(milliseconds: 200));
-      if (!mounted || !_appForeground) return;
+      if (stale()) return;
     }
     sttLog('[HF] speech finished — calling _startListening');
     unawaited(_startListening(card));
@@ -271,7 +336,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// together used to start OVERLAPPING sessions — the second killed the
   /// first, spawning death events, another retry, and another of Samsung's
   /// own recognizer chimes ("1 to 3 bips" per card, field log 2026-07-07).
-  bool _listenStartInFlight = false;
+  int? _listenStartInFlight;
 
   /// Enters the hands-free "analyse" phase: the mic captured speech (or
   /// closed after a real listen) and the verdict is pending. Plays the low
@@ -297,34 +362,30 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// A quick "3 · 2 · 1" so the learner knows exactly when to speak (user
   /// request 2026-10-02). Returns false when the turn went stale meanwhile.
   Future<bool> _runCountdown(bool Function() stale) async {
-    if (widget.args.mode != QuizMode.handsFree || _kTestMode) return true;
+    if (widget.args.mode != QuizMode.handsFree || _kTestMode) return !stale();
     for (final n in const [3, 2, 1]) {
-      if (stale()) {
-        if (mounted) setState(() => _hfCountdown = null);
-        return false;
-      }
+      if (stale()) return false;
       if (mounted) setState(() => _hfCountdown = n);
       HapticFeedback.selectionClick();
       await Future<void>.delayed(const Duration(milliseconds: 400));
     }
-    if (mounted) setState(() => _hfCountdown = null);
-    return !stale();
+    if (stale()) return false;
+    setState(() => _hfCountdown = null);
+    return true;
   }
 
-  Future<void> _startListening(QuizCard card, {bool isRetry = false}) async {
-    if (_listenStartInFlight) {
+  Future<void> _startListening(QuizCard card) async {
+    if (_turnStale(_listenToken, card)) return;
+    if (_listenStartInFlight == _listenToken) {
       sttLog('[HF] _startListening skipped — another start is in flight');
       return;
     }
-    if (isRetry && _stt.isListening) {
-      sttLog('[HF] retry skipped — a live session is already listening');
-      return;
-    }
-    _listenStartInFlight = true;
+    final token = ++_listenToken;
+    _listenStartInFlight = token;
     try {
-      await _startListeningInner(card, isRetry: isRetry);
+      await _startListeningInner(card, token);
     } finally {
-      _listenStartInFlight = false;
+      if (_listenStartInFlight == token) _listenStartInFlight = null;
     }
   }
 
@@ -354,22 +415,24 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _raceElevenLabsEngine ??= ElevenLabsSttEngine(_elevenLabs);
     _racePhoneEngine ??=
         PhoneSttEngine(const MethodChannelPhonePcmRecognizer());
-    // Preserve ranking within the local and network groups. The registry
-    // selects local capture first; a mic owner runs alone. Compatible shared
-    // decoders use one recording, with the cloud lane deferred by SttRace
-    // until local decoding and the final captured tail have failed.
+    // Compatible shared decoders use one recording. The registry prefers that
+    // lane when a local decoder is ready and otherwise can use the system mic.
     _sttRegistry ??= SttEngineRegistry()
       ..register(_raceElevenLabsEngine!)
       ..register(_racePhoneEngine!)
       ..register(_raceSystemEngine!)
       ..register(_raceWhisperEngine!);
-    await _raceSystemEngine!.prepare(); // idempotent — already initialised
-    await _racePhoneEngine!.prepare();
+    final courseMode = ref.read(sttEngineModeProvider) == SttEngineMode.race;
+    await _raceSystemEngine!.prepare();
+    if (_turnStale(sessionToken, card)) return;
+    if (courseMode) {
+      await _racePhoneEngine!.prepare();
+      if (_turnStale(sessionToken, card)) return;
+    }
     // Whisper becomes available for local decoding once its model is ready;
     // kick the download in the background on first use. This is enabled
     // for debug APKs too: field tests must exercise the same hybrid pipeline
     // as the version we plan to ship.
-    final courseMode = ref.read(sttEngineModeProvider) == SttEngineMode.race;
     if (courseMode && !_whisper.isReady && !_kTestMode) {
       unawaited(_whisper.ensureModel());
     }
@@ -389,13 +452,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// True when the machine's turn no longer matches reality — unmounted, a
   /// newer listen session, another card, or a verdict already landed. The
   /// machine's own turn/terminal guards back this up.
-  bool _turnStale(int turn, QuizCard card) =>
-      !mounted ||
-      !_appForeground ||
-      turn != _listenToken ||
-      ref.read(quizProvider).currentCard?.progress.variantId !=
-          card.progress.variantId ||
-      ref.read(quizProvider).answerState != QuizAnswerState.idle;
+  bool _turnStale(int turn, QuizCard card) {
+    if (!mounted ||
+        !_appForeground ||
+        _hfPaused ||
+        _quitting ||
+        turn != _listenToken) {
+      return true;
+    }
+    final quiz = ref.read(quizProvider);
+    return !identical(quiz.currentCard, card) ||
+        quiz.isComplete ||
+        quiz.answerState != QuizAnswerState.idle;
+  }
 
   /// Executes the machine's commands for race mode (step 4 of the
   /// voice-orchestration refactor): policy lives in [VoiceTurnMachine], this
@@ -463,25 +532,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           ref.read(quizProvider.notifier).skipCurrentCard();
         case PauseSession():
           sttLog('[RACE][HF] 🔇🔇 consecutive silent cards — auto-pausing');
-          _cancelActiveRace();
-          _stt.stopListening();
-          unawaited(_whisper.stopListening());
-          unawaited(_elevenLabs.stopListening());
-          ref.read(quizProvider.notifier).setListening(false);
-          if (mounted) {
-            setState(() {
-              _hfAutoPausedSilence = true;
-              _hfPaused = true;
-            });
-          }
+          setState(() {
+            _hfAutoPausedSilence = true;
+            _hfPaused = true;
+          });
+          ref.read(quizProvider.notifier).setPaused(true);
+          unawaited(_interruptTurn());
       }
     }
   }
 
-  /// One listen attempt: online Scribe is the primary lane; on a miss or
-  /// offline transport, on-device Whisper gets a fresh mic window. Outcomes
-  /// are REPORTED to the machine —
-  /// every decision (grade/retry/skip/pause) comes back as commands.
+  /// One listen attempt. Outcomes go back to the machine for grading,
+  /// retries, skipping or pausing.
   Future<void> _runRaceLanes(QuizCard card, String langCode,
       {required bool rescue}) async {
     final m = _turnMachine!;
@@ -495,6 +557,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         widget.args.mode == QuizMode.handsFree &&
         !_kTestMode) {
       if (!await _runCountdown(() => _turnStale(turn, card))) return;
+      if (_turnStale(turn, card)) return;
       await ref.read(audioDirectorProvider).listenCue();
       if (_turnStale(turn, card)) return;
     }
@@ -538,7 +601,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         'online=$online turn=$turn attempt=${m.attempt} rescue=$rescue '
         'lang=$langCode');
     _activeRace?.cancel(); // never two attempts alive at once
-    final race = SttRace(engines, capture: ref.read(sharedPcmCaptureProvider));
+    final capture =
+        engines.any((engine) => engine.capture == SttCapture.sharedPcm)
+            ? _sharedCapture ??= ref.read(sharedPcmCaptureProvider)
+            : null;
+    final race = SttRace(engines, capture: capture);
     _activeRace = race;
     _analysisBipPlayed = false;
     // User-tunable (Réglages → Temps d'écoute). The bar drains over exactly
@@ -567,7 +634,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       timeout: listenWindow,
       restartOnSessionEnd: false,
       onStatus: (status) {
-        if (!identical(_activeRace, race) || !mounted) return;
+        if (!identical(_activeRace, race) || _turnStale(turn, card)) return;
         final micOpen = status.phase == SttPhase.listening ||
             status.phase == SttPhase.speaking;
         if (micOpen && !barStarted) {
@@ -602,26 +669,23 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     await _runTurnCommands(m.on(verdictEvent), card, langCode);
   }
 
-  Future<void> _startListeningInner(QuizCard card,
-      {required bool isRetry}) async {
-    if (!_appForeground || _hfPaused) return;
-    // Fresh listens reset the banner to "speak now"; retry listens KEEP the
-    // "try x/3" / "répète" prompts visible — they already say what to do.
-    if ((_hfNotHeard && !isRetry) || _hfAnalyzing) {
+  Future<void> _startListeningInner(QuizCard card, int token) async {
+    bool stale() => _turnStale(token, card);
+    if (stale()) return;
+    if (_hfNotHeard || _hfAnalyzing) {
       setState(() {
-        _hfNotHeard = _hfNotHeard && isRetry;
+        _hfNotHeard = false;
         _hfAnalyzing = false;
       });
     }
-    _listenToken++;
     _cancelActiveRace(); // the previous attempt's timers must not touch this one
     sttLog(
-        '[HF] _startListening  token=$_listenToken  isRetry=$isRetry  question="${card.questionWord}"  answerWords=${card.answerWords}');
+        '[HF] _startListening  token=$token  question="${card.questionWord}"  answerWords=${card.answerWords}');
     ref.read(quizProvider.notifier).setListening(true);
 
     if (SttSimulator.isOn) {
       await Future.delayed(const Duration(milliseconds: 800));
-      if (!mounted || !_appForeground) return;
+      if (stale()) return;
       final answer = switch (SttSimulator.mode) {
         'correct' => card.answerWords.isNotEmpty ? card.answerWords.first : '',
         'wrong' => '__wrong__',
@@ -635,13 +699,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       return;
     }
 
-    final token = _listenToken;
     // Wait for the question player to stop, then let Android settle the audio
     // route before STT grabs the mic. A fire-and-forget stop let late TTS
     // buffers overlap the first recognition frames on Samsung.
     sttLog('[HF] Triggering audio stop + verified focus-handover wait');
     await ref.read(audioDirectorProvider).handOffToMic();
-    if (!mounted || !_appForeground) return;
+    if (stale()) return;
 
     // Hands-free is eyes-off: "your turn" earcon + haptic BEFORE the mic
     // opens — played while listening, the recognizer hears the earcon itself
@@ -651,30 +714,21 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // session starts are serialized — the old silent-retry rule guarded
     // against focus-contest kills that no longer happen.
     // "3 · 2 · 1" first, so the learner knows exactly when to speak.
-    if (!await _runCountdown(
-        () => !mounted || !_appForeground || token != _listenToken)) {
-      return;
-    }
+    if (!await _runCountdown(stale) || stale()) return;
 
     if (widget.args.mode == QuizMode.handsFree && !_kTestMode) {
       sttLog(
           '[HF] 🔔 playing listen earcon (mic opens after verified clearance)');
       HapticFeedback.selectionClick();
       await ref.read(audioDirectorProvider).listenCue();
-      if (!mounted || !_appForeground) return;
+      if (stale()) return;
     }
-
-    final currentDir = ref.read(quizProvider).currentCard?.progress.direction;
-    final langCode = currentDir?.answerLang ?? widget.args.langB;
-    // Capture token so late-arriving onResult from this session is ignored
-    // once a new session (next card) has started.
-    final sessionToken = _listenToken;
 
     // Refactor 4c: EVERY voice turn — vocab AND grammar — runs on the
     // VoiceTurnMachine. Système is a system-only lane, Course adds the
     // offline Whisper lane. The legacy streaming path is gone; grammar's
     // short generated answers grade exactly like vocab through the race.
-    await _startRaceListening(card, langCode, sessionToken);
+    await _startRaceListening(card, card.direction.answerLang, token);
   }
 
   /// Start the following card's network renders as soon as this card becomes
@@ -697,6 +751,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   @override
   Widget build(BuildContext context) {
     final quizState = ref.watch(quizProvider);
+    _sessionDirector = ref.watch(audioDirectorProvider);
 
     ref.listen<QuizState>(quizProvider, (prev, next) {
       if (prev?.answerState == QuizAnswerState.idle &&
@@ -757,9 +812,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           // spoken by the app's own voice failed the 양 card).
           _listenToken++;
           _cancelActiveRace();
-          if (_stt.isListening ||
-              _whisper.isListening ||
-              _elevenLabs.isListening) {
+          if (_usesRealStt &&
+              (_stt.isListening ||
+                  _whisper.isListening ||
+                  _elevenLabs.isListening)) {
             sttLog('[HF] stopping stale listen session from previous card');
             unawaited(_stt.stopListening());
             unawaited(_whisper.stopListening());
@@ -774,10 +830,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             ..reset();
           // New card = back to the reading phase; don't let the previous
           // card's "analyse" banner linger over the new word.
-          if (_hfAnalyzing || _hfNotHeard) {
+          if (_hfAnalyzing || _hfNotHeard || _hfCountdown != null) {
             setState(() {
               _hfAnalyzing = false;
               _hfNotHeard = false;
+              _hfCountdown = null;
             });
           }
           _prefetchFollowingCard(next.nextCard);
@@ -786,7 +843,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       }
     });
 
-    if (quizState.isLoading) {
+    if (!_sessionStarted || quizState.isLoading) {
       return const Scaffold(
         body: Center(
           child:
@@ -811,7 +868,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                     style: AppTextStyles.body.copyWith(color: AppColors.muted)),
                 const SizedBox(height: 24),
                 GestureDetector(
-                  onTap: () => context.go('/home'),
+                  onTap: () => _quit(returnToEntry: false),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 14),
@@ -835,10 +892,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       return _SummaryScreen(
         correct: quizState.correctCount,
         total: quizState.displayTotal,
-        onDone: () => context.go('/home'),
-        onRestart: () {
-          ref.read(quizProvider.notifier).loadCards(widget.args);
-        },
+        onDone: () => _quit(returnToEntry: false),
+        onRestart: _loadSession,
       );
     }
 
@@ -867,42 +922,30 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _hfPaused = !_hfPaused;
       _hfAutoPausedSilence = false;
     });
-    ref.read(quizProvider.notifier).setForeground(_appForeground && !_hfPaused);
+    ref.read(quizProvider.notifier).setPaused(_hfPaused);
     if (_hfPaused) {
-      _cancelActiveRace();
-      _stt.stopListening();
-      unawaited(_whisper.stopListening());
-      unawaited(_elevenLabs.stopListening());
-      ref.read(quizProvider.notifier).setListening(false);
-      unawaited(ref.read(audioPlayerServiceProvider).stop());
+      unawaited(_interruptTurn());
     } else {
       // Manual resume = the user says the environment is OK again.
       _turnMachine?.resetSilenceStreak();
-      final card = ref.read(quizProvider).currentCard;
-      if (card != null &&
-          ref.read(quizProvider).answerState == QuizAnswerState.idle) {
-        unawaited(_startListening(card));
-      }
+      unawaited(_resumeHandsFree());
     }
   }
 
   void _hfRepeat() {
-    final card = ref.read(quizProvider).currentCard;
-    if (card == null) return;
-    final questionLang = card.progress.direction.questionLang;
-    unawaited(ref.read(audioPlayerServiceProvider).speak(
-        card.questionWord, questionLang,
-        audioPath: card.questionAudioPath));
-    unawaited(_startListening(card));
+    unawaited(_interruptTurn());
+    unawaited(_resumeHandsFree());
   }
 
-  void _hfSkip() {
+  Future<void> _hfSkip() async {
     // A deliberate skip is not a wrong answer: nothing is graded, the card
     // returns later in the session.
-    _cancelActiveRace();
-    _stt.stopListening();
-    unawaited(_whisper.stopListening());
-    unawaited(_elevenLabs.stopListening());
+    final card = ref.read(quizProvider).currentCard;
+    if (card == null) return;
+    final stopped = _interruptTurn();
+    final token = _listenToken;
+    await stopped;
+    if (_turnStale(token, card)) return;
     ref.read(quizProvider.notifier).skipCurrentCard();
   }
 
@@ -1002,6 +1045,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             ),
           // Main content — tap centre to pause.
           GestureDetector(
+            key: const ValueKey(WidgetKeys.hfPause),
             onTap: _toggleHfPause,
             behavior: HitTestBehavior.opaque,
             child: Padding(
@@ -1142,13 +1186,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     );
   }
 
-  void _quit() {
-    _cancelActiveRace();
-    _stt.stopListening();
-    unawaited(_whisper.stopListening());
-    unawaited(_elevenLabs.stopListening());
-    ref.read(quizProvider.notifier).setListening(false);
-    context.go('/home');
+  Future<void> _quit({bool returnToEntry = true}) async {
+    if (_quitting) return;
+    _quitting = true;
+    ref.read(quizProvider.notifier).setForeground(false);
+    await _interruptTurn();
+    if (!mounted) return;
+    if (returnToEntry && context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/home');
+    }
   }
 
   // Answer language code for the current card. Derived from the legacy
@@ -1181,7 +1229,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   Future<void> _dismissFlashcard({required bool knew}) async {
-    if (_flashcardExiting) return;
+    final quiz = ref.read(quizProvider);
+    if (_flashcardExiting ||
+        _quitting ||
+        !quiz.isFlipped ||
+        quiz.answerState != QuizAnswerState.idle) {
+      return;
+    }
     setState(() {
       _flashcardExiting = true;
       _flashcardExitDirection = knew ? 1 : -1;
@@ -1191,8 +1245,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         .read(quizProvider.notifier)
         .gradeFlashcard(knew ? FsrsRating.good : FsrsRating.again);
     await Future<void>.delayed(const Duration(milliseconds: 460));
-    if (!mounted) return;
-    ref.read(quizProvider.notifier).advance();
+    if (!mounted || _quitting) return;
+    final current = ref.read(quizProvider);
+    if (identical(current.currentCard, quiz.currentCard) &&
+        current.currentIndex == quiz.currentIndex) {
+      ref.read(quizProvider.notifier).advance();
+    }
     setState(() {
       _flashcardExiting = false;
       _flashcardDragProgress = 0;
@@ -1218,37 +1276,48 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       return Material(
         color: paperColor,
         borderRadius: const BorderRadius.all(V3Radii.card),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: back || _flashcardExiting
               ? null
               : () => ref.read(quizProvider.notifier).flipCard(),
           borderRadius: const BorderRadius.all(V3Radii.card),
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(back ? 'v3.card_answer'.tr() : 'v3.card_take'.tr(),
-                    style: V3Text.mono(12)),
-                const SizedBox(height: 26),
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      word,
-                      textAlign: TextAlign.center,
-                      style:
-                          wordIsKorean ? V3Text.korean(40) : V3Text.title(38),
+          child: LayoutBuilder(
+            builder: (context, constraints) => Scrollbar(
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                primary: true,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(back ? 'v3.card_answer'.tr() : 'v3.card_take'.tr(),
+                            textAlign: TextAlign.center,
+                            style: V3Text.mono(12)),
+                        const SizedBox(height: 26),
+                        Text(
+                          word,
+                          textAlign: TextAlign.center,
+                          style: wordIsKorean
+                              ? V3Text.korean(40)
+                              : V3Text.title(38),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          back
+                              ? 'v3.card_grade_hint'.tr()
+                              : 'quiz.card_flip_hint'.tr(),
+                          textAlign: TextAlign.center,
+                          style: V3Text.body(14, color: V3Colors.ink60),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
-                Text(
-                  back ? 'v3.card_grade_hint'.tr() : 'quiz.card_flip_hint'.tr(),
-                  textAlign: TextAlign.center,
-                  style: V3Text.body(14, color: V3Colors.ink60),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -1271,7 +1340,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                         : constraints.maxWidth;
                     return SizedBox(
                       width: cardWidth,
-                      height: 380,
+                      height: math.min(380, constraints.maxHeight),
                       child: GestureDetector(
                         onHorizontalDragUpdate: !showBack || _flashcardExiting
                             ? null
@@ -1331,7 +1400,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   onPressed: _flashcardExiting
                       ? null
                       : () => unawaited(_dismissFlashcard(knew: false)),
-                  child: Text('v3.card_again'.tr()),
+                  child:
+                      Text('v3.card_again'.tr(), textAlign: TextAlign.center),
                 )),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1340,7 +1410,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   onPressed: _flashcardExiting
                       ? null
                       : () => unawaited(_dismissFlashcard(knew: true)),
-                  child: Text('v3.card_knew'.tr()),
+                  child: Text('v3.card_knew'.tr(), textAlign: TextAlign.center),
                 )),
               ]),
             ],
@@ -1766,7 +1836,7 @@ class _SummaryScreen extends StatelessWidget {
       body: V3Pond(
         child: SafeArea(
           child: Center(
-            child: Padding(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(32),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1823,6 +1893,7 @@ class _SummaryScreen extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: GestureDetector(
+                          key: const ValueKey(WidgetKeys.summaryDone),
                           onTap: onDone,
                           child: Container(
                             height: 52,

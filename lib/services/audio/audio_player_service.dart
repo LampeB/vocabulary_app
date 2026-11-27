@@ -53,6 +53,8 @@ class AudioPlayerService {
   final double _speechRate;
   final bool _usePremium;
   final FileAudioPlayer _player;
+  int _playbackEpoch = 0;
+  bool _disposed = false;
 
   // A visible silent gap is worse than a temporary device-TTS voice. Storage
   // downloads keep filling the cache after this budget expires, so following
@@ -60,6 +62,8 @@ class AudioPlayerService {
   static const _premiumStartBudget = Duration(milliseconds: 500);
 
   Future<void> speak(String text, String langCode, {String? audioPath}) async {
+    if (_disposed) return;
+    final epoch = _playbackEpoch;
     if (!_usePremium || audioPath == null) {
       await _tts.speak(text, langCode);
       return;
@@ -67,11 +71,13 @@ class AudioPlayerService {
     final path = await _assetCache
         .downloadAndCache(audioPath)
         .timeout(_premiumStartBudget, onTimeout: () => null);
+    if (epoch != _playbackEpoch) return;
     if (path != null) {
       // The speech-speed setting used to apply only to device TTS. Most
       // production playback comes from ElevenLabs, so it was always played
       // at 1.0× even when the learner chose a slower pedagogical pace.
       await _player.setPlaybackRate(_premiumRateFor(langCode));
+      if (epoch != _playbackEpoch) return;
       await _player.playFile(path);
     } else {
       await _tts.speak(text, langCode);
@@ -92,8 +98,9 @@ class AudioPlayerService {
   }
 
   Future<void> stop() async {
-    await _player.stop();
-    await _tts.stop();
+    _playbackEpoch++;
+    if (_disposed) return;
+    await Future.wait([_player.stop(), _tts.stop()]);
   }
 
   /// Korean synthesized voices keep a much denser natural cadence than French
@@ -110,6 +117,9 @@ class AudioPlayerService {
   bool get isSpeaking => _tts.isSpeaking || _player.isPlaying;
 
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _playbackEpoch++;
     _player.dispose();
     _tts.dispose();
   }

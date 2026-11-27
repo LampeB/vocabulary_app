@@ -9,6 +9,9 @@ explicitement signalée non décidée (2026-08-07).
 ## Décidé (utilisateur)
 - v1 existait : drills écrits/parlés jugés trop durs sans leçon (2026-07-22)
 - Les exercices ne doivent utiliser que du vocab prérequis maîtrisé
+- La disponibilité et la génération utilisent le même pool, restreint aux
+  copies de listes résolues pour les prérequis de la règle. Un mot maîtrisé
+  dans une autre liste ne remplit pas leur minimum de vocabulaire utilisable.
 - (2026-08-09) D'où viennent les phrases : banque de GABARITS auteurés
   par règle, slots remplis par le moteur avec le vocab que
   l'utilisateur connaît — pas de génération LLM au runtime (voir

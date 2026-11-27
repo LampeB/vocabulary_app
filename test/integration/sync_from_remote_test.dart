@@ -1,4 +1,6 @@
 // ignore_for_file: invalid_use_of_internal_member
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +8,7 @@ import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/models/variant_progress_dto.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
+import 'package:vocab_kr/data/sync/push_sync.dart';
 import '../helpers/fake_remote.dart';
 
 const _kUserId = 'test-user-sync';
@@ -98,10 +101,12 @@ class _SyncRemote extends FakeRemote {
   final Map<String, List<Map<String, dynamic>>> conceptsByList;
   final List<Map<String, dynamic>> progress;
   int fetchListsCalls = 0;
+  Future<void> Function()? onLists;
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async {
     fetchListsCalls++;
+    await onLists?.call();
     return Success(lists);
   }
 
@@ -250,6 +255,114 @@ void main() {
       expect((await db.vocabularyListDao.getById('rl1'))!.name, 'Local');
       expect((await db.conceptDao.getVariantById('rc1-fr'))!.word, 'salut');
       expect(await db.conceptDao.getById('rc2'), isNotNull);
+    });
+
+    for (final acknowledge in [false, true]) {
+      test(
+          'a delayed pull preserves edits ${acknowledge ? 'already pushed' : 'still pending'}',
+          () async {
+        final remoteProgress = _remoteProgress('rc1-fr');
+        final remote = _SyncRemote(
+          lists: [_remoteList('rl1', 'Old')],
+          conceptsByList: {
+            'rl1': [_remoteConcept('rc1', 'rl1')]
+          },
+          progress: [remoteProgress],
+        );
+        final repo = repoWith(remote);
+        await repo.syncFromRemote();
+        final requested = Completer<void>();
+        final reply = Completer<void>();
+        remote.onLists = () {
+          requested.complete();
+          return reply.future;
+        };
+        remote.conceptsByList['rl1']!.add(_remoteConcept('fresh', 'rl1'));
+        final pull = repo.syncFromRemote();
+        try {
+          await requested.future;
+          // Keep existing timestamps to exercise edits made within the same
+          // SQLite second across metadata, content and progress.
+          await (db.update(db.vocabularyListsTable)
+                ..where((t) => t.id.equals('rl1')))
+              .write(const VocabularyListsTableCompanion(
+                  name: Value('Edited'), isSynced: Value(false)));
+          await (db.update(db.conceptsTable)..where((t) => t.id.equals('rc1')))
+              .write(const ConceptsTableCompanion(
+                  notes: Value('New note'), isSynced: Value(false)));
+          await (db.update(db.wordVariantsTable)
+                ..where((t) => t.id.equals('rc1-fr')))
+              .write(const WordVariantsTableCompanion(
+                  word: Value('salut'), isSynced: Value(false)));
+          await db.progressDao.upsert(
+              variantProgressCompanionFromRemote(remoteProgress).copyWith(
+                  reps: const Value(12), isSynced: const Value(false)));
+          if (acknowledge) {
+            final push = PushSync(db.vocabularyListDao, db.conceptDao,
+                db.progressDao, db.reviewEventDao, remote,
+                userId: _kUserId);
+            expect(await push.pushAll(), 4);
+          }
+        } finally {
+          reply.complete();
+          await pull;
+        }
+
+        final list = (await db.vocabularyListDao.getById('rl1'))!;
+        final concept = (await db.conceptDao.getById('rc1'))!;
+        final variant = (await db.conceptDao.getVariantById('rc1-fr'))!;
+        final progress =
+            (await db.progressDao.getById(remoteProgress['id'] as String))!;
+        expect(list.name, 'Edited');
+        expect(concept.notes, 'New note');
+        expect(variant.word, 'salut');
+        expect(progress.reps, 12);
+        expect([
+          list.isSynced,
+          concept.isSynced,
+          variant.isSynced,
+          progress.isSynced
+        ], everyElement(acknowledge));
+        expect(await db.conceptDao.getById('fresh'), isNotNull);
+      });
+    }
+
+    test(
+        'a delayed list tombstone does not discard a review made during the pull',
+        () async {
+      final list = _remoteList('rl1', 'Live');
+      final remoteProgress = _remoteProgress('rc1-fr');
+      final remote = _SyncRemote(
+        lists: [list],
+        conceptsByList: {
+          'rl1': [_remoteConcept('rc1', 'rl1')]
+        },
+        progress: [remoteProgress],
+      );
+      final repo = repoWith(remote);
+      await repo.syncFromRemote();
+      remote.lists[0] = {...list, 'is_deleted': true};
+      final requested = Completer<void>();
+      final reply = Completer<void>();
+      remote.onLists = () {
+        requested.complete();
+        return reply.future;
+      };
+      final pull = repo.syncFromRemote();
+      try {
+        await requested.future;
+        await db.progressDao.upsert(
+            variantProgressCompanionFromRemote(remoteProgress)
+                .copyWith(reps: const Value(12), isSynced: const Value(false)));
+      } finally {
+        reply.complete();
+        await pull;
+      }
+
+      expect((await db.vocabularyListDao.getById('rl1'))!.isDeleted, isFalse);
+      expect(
+          (await db.progressDao.getById(remoteProgress['id'] as String))!.reps,
+          12);
     });
 
     test('empty userId skips the remote entirely', () async {

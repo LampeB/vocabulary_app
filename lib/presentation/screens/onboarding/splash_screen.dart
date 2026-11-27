@@ -14,9 +14,8 @@ import '../../widgets/v3_pond.dart';
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key, this.authTimeout});
 
-  /// Fails open to Welcome if auth restoration cannot finish. Normally the
-  /// provider resolves immediately; this only prevents a permanent splash when
-  /// a native or remote auth dependency is unavailable.
+  /// Falls back to the restored local session when the profile is unavailable;
+  /// only an anonymous learner goes to Welcome.
   final Duration? authTimeout;
 
   @override
@@ -56,11 +55,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     AppUser? user;
     try {
       user = await ref.read(authStateProvider.future).timeout(_authTimeout);
-    } on TimeoutException {
-      // The Welcome screen remains usable offline; keeping the user forever on
-      // a loading screen does not make the authentication state more reliable.
-      user = null;
+    } catch (_) {
+      if (!mounted) return;
+      // The router uses the same local session. Sending a signed-in learner to
+      // Welcome would redirect back to this already-initialized splash forever.
+      user = ref.read(authStateProvider.notifier).useLocalSession();
     }
+    if (!mounted) return;
+    // Session arrival can also precede the profile event after an anonymous
+    // notifier resolved. Use that identity instead of looping through Welcome.
+    user ??= ref.read(authStateProvider.notifier).useLocalSession();
     if (user != null) {
       try {
         await ref

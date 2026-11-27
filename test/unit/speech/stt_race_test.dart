@@ -398,8 +398,7 @@ void main() {
   });
 
   group('SttEngineRegistry.select — best available engines (2026-10-02)', () {
-    // Registration order = quality rank: cloud Scribe, then the platform
-    // recognizer, then on-device Whisper — the app's real registration.
+    // Keep the system registered before Whisper as in production.
     SttEngineRegistry appRegistry({bool whisperReady = true}) =>
         SttEngineRegistry()
           ..register(_FakeEngine('elevenlabs',
@@ -411,14 +410,15 @@ void main() {
     List<String> ids(List<SttEngine> engines) =>
         engines.map((e) => e.id).toList();
 
-    test('online: a ready local mic owner is preferred to paid cloud', () {
-      expect(
-          ids(appRegistry().select(langCode: 'fr', online: true)), ['system']);
+    test('online: a ready PCM local engine can use shared network fallback',
+        () {
+      expect(ids(appRegistry().select(langCode: 'fr', online: true)),
+          ['whisper', 'elevenlabs']);
     });
 
     test('offline: cloud engines are never selected', () {
-      expect(
-          ids(appRegistry().select(langCode: 'fr', online: false)), ['system']);
+      expect(ids(appRegistry().select(langCode: 'fr', online: false)),
+          ['whisper']);
     });
 
     test('online but Whisper still downloading: local system remains available',
@@ -430,7 +430,7 @@ void main() {
     });
 
     test(
-        'local phone is preferred and rescue uses Whisper before online engines',
+        'shared Whisper keeps the local lane on both normal and rescue attempts',
         () {
       final reg = SttEngineRegistry()
         ..register(_FakeEngine('elevenlabs',
@@ -439,8 +439,9 @@ void main() {
             capture: SttCapture.sharedPcm, requiresNetwork: true))
         ..register(_FakeEngine('system'))
         ..register(_FakeEngine('whisper', capture: SttCapture.sharedPcm));
-      expect(ids(reg.select(langCode: 'fr', online: true)), ['system']);
-      expect(ids(reg.select(langCode: 'fr', online: false)), ['system']);
+      expect(ids(reg.select(langCode: 'fr', online: true)),
+          ['whisper', 'elevenlabs', 'phone']);
+      expect(ids(reg.select(langCode: 'fr', online: false)), ['whisper']);
       expect(ids(reg.select(langCode: 'fr', online: true, rescue: true)),
           ['whisper', 'elevenlabs', 'phone']);
     });
@@ -456,22 +457,25 @@ void main() {
           ['a', 'b']);
     });
 
-    test('a best-ranked mic owner runs alone (never two mic owners)', () {
+    test('a mic owner runs alone when no local shared decoder is ready', () {
       final reg = SttEngineRegistry()
         ..register(_FakeEngine('system'))
         ..register(_FakeEngine('other'))
-        ..register(_FakeEngine('whisper', capture: SttCapture.sharedPcm));
+        ..register(_FakeEngine('whisper',
+            capture: SttCapture.sharedPcm, isReady: false));
       expect(ids(reg.select(langCode: 'fr', online: true)), ['system']);
     });
 
-    test('rescue attempt skips the first choice for the next best set', () {
+    test('rescue can fall back to network PCM after earlier exclusive attempts',
+        () {
       expect(
-          ids(appRegistry().select(langCode: 'fr', online: true, rescue: true)),
-          ['whisper', 'elevenlabs']);
+          ids(appRegistry(whisperReady: false)
+              .select(langCode: 'fr', online: true, rescue: true)),
+          ['elevenlabs']);
       expect(
-          ids(appRegistry()
+          ids(appRegistry(whisperReady: false)
               .select(langCode: 'fr', online: false, rescue: true)),
-          ['whisper']);
+          ['system']);
     });
 
     test('rescue with a single candidate keeps it', () {

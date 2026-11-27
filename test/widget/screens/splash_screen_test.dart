@@ -7,6 +7,7 @@ import 'package:vocab_kr/presentation/navigation/auth_redirect.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
 import 'package:vocab_kr/domain/entities/subscription_type.dart';
+import 'package:vocab_kr/domain/repositories/auth_repository.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/screens/onboarding/splash_screen.dart';
@@ -20,6 +21,14 @@ class _DelayedAuthNotifier extends AuthNotifier {
 
   @override
   Future<AppUser?> build() => _result;
+}
+
+class _LocalSessionRepository implements AuthRepository {
+  _LocalSessionRepository(this.currentUser);
+  @override
+  final AppUser? currentUser;
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
@@ -123,6 +132,7 @@ void main() {
       settle: false,
       overrides: [
         authStateProvider.overrideWith(() => _DelayedAuthNotifier(auth.future)),
+        authRepositoryProvider.overrideWithValue(_LocalSessionRepository(null)),
       ],
       routes: [
         GoRoute(
@@ -154,6 +164,7 @@ void main() {
       overrides: [
         authStateProvider
             .overrideWith(() => _DelayedAuthNotifier(pendingAuth.future)),
+        authRepositoryProvider.overrideWithValue(_LocalSessionRepository(null)),
       ],
       routes: [
         GoRoute(
@@ -172,4 +183,62 @@ void main() {
 
     expect(find.text('Welcome ready'), findsOneWidget);
   });
+
+  for (final profilePending in [true, false]) {
+    testWidgets(
+        'local session survives production redirect (pending: $profilePending)',
+        (tester) async {
+      final pendingProfile = Completer<AppUser?>();
+      final user = AppUser(
+          id: 'restored-user',
+          email: 'u@test.example',
+          username: 'learner',
+          subscriptionType: SubscriptionType.free,
+          createdAt: DateTime(2026));
+      var seeds = 0;
+      final router = GoRouter(
+        initialLocation: '/splash',
+        redirect: (_, state) =>
+            authRedirect(isSignedIn: true, location: state.matchedLocation),
+        routes: [
+          GoRoute(
+              path: '/splash',
+              builder: (_, __) =>
+                  const SplashScreen(authTimeout: Duration(milliseconds: 10))),
+          GoRoute(
+              path: '/home', builder: (_, __) => const Text('Offline home')),
+          GoRoute(path: '/welcome', builder: (_, __) => const Text('Welcome')),
+        ],
+      );
+      addTearDown(router.dispose);
+      final container = ProviderContainer(overrides: [
+        authRepositoryProvider.overrideWithValue(_LocalSessionRepository(user)),
+        authStateProvider.overrideWith(() => _DelayedAuthNotifier(
+            profilePending ? pendingProfile.future : Future.value(null))),
+        seedStarterListsProvider.overrideWith((ref) async {
+          expect(ref.read(currentUserProvider)?.id, user.id);
+          seeds++;
+        }),
+      ]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(routerConfig: router)));
+      await tester.pump(const Duration(milliseconds: 11));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Offline home'), findsOneWidget);
+      expect(seeds, 1);
+      if (profilePending) {
+        pendingProfile.complete(user.copyWith(displayName: 'Restored profile'));
+        await tester.pump();
+        await tester.pump();
+        expect(container.read(currentUserProvider)?.displayName,
+            'Restored profile');
+      }
+      expect(find.text('Offline home'), findsOneWidget);
+      expect(seeds, 1);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
 }

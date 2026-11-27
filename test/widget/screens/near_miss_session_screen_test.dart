@@ -23,6 +23,7 @@ class _FakeAudio implements CorpusAudioRecorder {
 }
 
 void main() {
+  const optedIn = bool.fromEnvironment('STT_DIAGNOSTICS');
   late Directory dir;
   var tick = 0;
   SttCorpusRecorder recorder() => SttCorpusRecorder(
@@ -85,7 +86,7 @@ void main() {
     expect(take.meta['expected'], prompts[0].expected);
     expect(take.meta['kind'], prompts[0].kind);
     expect(take.meta['condition'], 'calme');
-  });
+  }, skip: !optedIn);
 
   testWidgets('a returning participant resumes at the first missing word',
       (tester) async {
@@ -103,7 +104,7 @@ void main() {
     await start(tester, rec);
     expect(shownWord(tester), prompts[3].spoken);
     expect(find.text('4 / ${prompts.length}'), findsOneWidget);
-  });
+  }, skip: !optedIn);
 
   testWidgets('the participant board lists progress and resumes on tap',
       (tester) async {
@@ -140,5 +141,5 @@ void main() {
     });
     await tester.pump();
     expect(shownWord(tester), prompts[5].spoken);
-  });
+  }, skip: !optedIn);
 }

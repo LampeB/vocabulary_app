@@ -528,5 +528,10 @@
   "v3.signup_label": "계정 만들기",
   "v3.show_password": "비밀번호 표시",
   "v3.hide_password": "비밀번호 숨기기",
-  "v3.quit": "나가기"
+  "v3.quit": "나가기",
+  "v3.configure": "학습 설정",
+  "v3.stack_empty": "카드 없음",
+  "v3.stack_done": "모든 카드를 마쳤어요",
+  "v3.stack_last": "마지막 카드",
+  "v3.stack_remaining": "남은 카드 {count}장"
 }

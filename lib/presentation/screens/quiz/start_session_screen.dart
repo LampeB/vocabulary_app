@@ -124,7 +124,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('CONFIGURER',
+            Text('v3.configure'.tr(),
                 style: AppTextStyles.mono(10, FontWeight.w700)
                     .copyWith(letterSpacing: 1.2, color: muted)),
             Text(

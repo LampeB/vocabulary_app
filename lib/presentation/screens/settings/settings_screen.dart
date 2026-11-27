@@ -13,6 +13,7 @@ import '../../providers/settings/dev_grammar_unlock_provider.dart';
 import '../../../domain/entities/subscription_type.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/stt_diagnostics.dart';
 import '../../../core/widget_keys.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
@@ -330,14 +331,16 @@ class SettingsScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                _NavTile(
-                  icon: Icons.mic_external_on_rounded,
-                  label: 'Laboratoire STT',
-                  subtitle:
-                      'Enregistre des mots pour mesurer la reconnaissance',
-                  onTap: () => context.push('/stt-lab'),
-                ),
+                if (sttDiagnosticsEnabled) ...[
+                  const SizedBox(height: 12),
+                  _NavTile(
+                    icon: Icons.mic_external_on_rounded,
+                    label: 'Laboratoire STT',
+                    subtitle:
+                        'Enregistre des mots pour mesurer la reconnaissance',
+                    onTap: () => context.push('/stt-lab'),
+                  ),
+                ],
               ],
               const SizedBox(height: 24),
               // ── Compte — actions ─────────────────────────────────────────────

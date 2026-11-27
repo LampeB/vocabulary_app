@@ -266,6 +266,70 @@ void main() {
     expect(progress['particles'], (shown: 1, correct: 1, mastered: false));
   });
 
+  test('availability and exercises exclude known words outside prerequisites',
+      () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repo = VocabularyRepositoryImpl(
+        db.vocabularyListDao, db.conceptDao, FakeRemote(), 'u', db);
+    Future<VocabularyList> create(String seedId, String word) async =>
+        (await repo.importFromJson({
+          'list': {
+            'name': seedId,
+            'seedId': '$seedId:fr>ko',
+            'concepts': [
+              {
+                'category': 'nom',
+                'variants': [
+                  {'word': word, 'langCode': 'ko', 'isPrimary': true},
+                  {'word': 'mot', 'langCode': 'fr', 'isPrimary': true},
+                ],
+              },
+            ],
+          },
+        }))
+            .valueOrNull!;
+    final food = await create('starter-food', '사과');
+    final other = await create('starter-daily-life', '학생');
+    final variants = await db.conceptDao.getVariantsByConceptIds([
+      ...(await db.conceptDao.getConceptsByList(food.id)).map((c) => c.id),
+      ...(await db.conceptDao.getConceptsByList(other.id)).map((c) => c.id),
+    ], 'ko');
+    final rule = _rule('food', prerequisites: ['starter-food']);
+    final container = ProviderContainer(overrides: [
+      appDatabaseProvider.overrideWithValue(db),
+      currentUserProvider.overrideWithValue(_user()),
+      myListsProvider.overrideWith((ref) => repo.watchMyLists()),
+      grammarRulesProvider.overrideWith((ref, lang) async => [rule]),
+      grammarModuleProvider
+          .overrideWith((ref, lang) async => const KoreanGrammarModule()),
+      grammarProgressProvider.overrideWith((ref) => Stream.value({})),
+      progressRepositoryProvider.overrideWithValue(_StatsProgressRepository({
+        food.id: {'known': 1, 'total': 1},
+        other.id: {'known': 1, 'total': 1},
+      }, known: [
+        for (final v in variants) _progress('p-${v.id}', v.id)
+      ])),
+    ]);
+    addTearDown(container.dispose);
+    expect(await container.read(drillWordsProvider('ko').future), hasLength(2));
+    final pool = await container.read(
+        ruleDrillWordsProvider((ruleId: rule.id, targetLang: 'ko')).future);
+    expect(pool.map((word) => word.word), ['사과']);
+    expect(
+        (await container.read(ruleStatusesProvider('ko').future))
+            .single
+            .enoughWords,
+        isFalse);
+    final exercises = const GrammarDrillGenerator(KoreanGrammarModule())
+        .generate(rule, pool, count: 10);
+    expect(exercises, isNotEmpty);
+    expect(exercises.every((exercise) => exercise.expected.contains('사과')),
+        isTrue);
+    expect(
+        exercises.any((exercise) => exercise.expected.contains('학생')), isFalse);
+  });
+
   test(
       'derives locked, unlocked and mastered statuses from exact prerequisites',
       () async {
@@ -302,8 +366,10 @@ void main() {
       vocabularyProgressChangesProvider
           .overrideWith((ref) => Stream<void>.value(null)),
       drillWordsProvider.overrideWith((ref, lang) async => const [
-            DrillWord(word: '학생', category: 'nom'),
-            DrillWord(word: '친구', category: 'nom'),
+            DrillWord(word: '학생', category: 'nom', listId: 'best-progress'),
+            DrillWord(word: '친구', category: 'nom', listId: 'best-progress'),
+            DrillWord(word: '학생', category: 'nom', listId: 'legacy'),
+            DrillWord(word: '친구', category: 'nom', listId: 'legacy'),
           ]),
     ]);
     addTearDown(container.dispose);

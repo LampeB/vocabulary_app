@@ -22,45 +22,48 @@ class SttEngineRegistry {
   /// [maxEngines] of them (user rule 2026-10-02: "activate the 3 best
   /// available engines").
   ///
-  /// Registration order is quality rank within the local and network groups;
-  /// ready local engines take priority over network-dependent engines.
-  /// An engine is AVAILABLE when it is ready, supports [langCode], and — for
-  /// network engines — the device is [online]. The best available engine
-  /// decides the capture mode, because only one component can own the mic:
-  ///
-  ///  * a [SttCapture.sharedPcm] engine brings every other available shared
-  ///    engine along. Local engines decode in parallel; `SttRace` defers
-  ///    network engines until local recognition fails, using the same capture;
-  ///  * a [SttCapture.ownsMicrophone] engine runs alone.
-  ///
-  /// [rescue] (the last not-heard attempt) drops the first choice so a
-  /// DIFFERENT engine set gets a chance; with a single candidate it is kept.
+  /// Course uses shared capture when a local shared decoder is ready.
+  /// Compatible network decoders can join that attempt; `SttRace` runs
+  /// them only after local recognition fails. An exclusive local recognizer
+  /// runs alone when no local shared decoder is ready. Network-only capture
+  /// is available if local engines are absent or the exclusive lane failed
+  /// on earlier attempts ([rescue]).
   List<SttEngine> select({
     required String langCode,
     required bool online,
     int maxEngines = 3,
     bool rescue = false,
   }) {
-    var available = _engines
+    final available = _engines
         .where((e) =>
             e.isReady &&
             e.supportsLanguage(langCode) &&
             (online || !e.requiresNetwork))
         .toList();
-    // Prefer local capture whenever one is ready. Compatible cloud decoders
-    // remain in the set only as a rescue used by SttRace after local failure.
-    available = [
-      ...available.where((engine) => !engine.requiresNetwork),
-      ...available.where((engine) => engine.requiresNetwork),
-    ];
-    if (available.isEmpty) return const [];
-    if (rescue && available.length > 1) available = available.sublist(1);
-    final best = available.first;
-    if (best.capture == SttCapture.ownsMicrophone) return [best];
-    return available
-        .where((e) => e.capture == SttCapture.sharedPcm)
-        .take(maxEngines)
+    final localShared = available
+        .where((engine) =>
+            !engine.requiresNetwork && engine.capture == SttCapture.sharedPcm)
         .toList();
+    final networkShared = available.where((engine) =>
+        engine.requiresNetwork && engine.capture == SttCapture.sharedPcm);
+    if (localShared.isNotEmpty) {
+      return [
+        ...(rescue && localShared.length > 1
+            ? localShared.skip(1)
+            : localShared),
+        ...networkShared,
+      ].take(maxEngines).toList();
+    }
+    final exclusive = available
+        .where((engine) => engine.capture == SttCapture.ownsMicrophone)
+        .toList();
+    final localExclusive = exclusive.where((engine) => !engine.requiresNetwork);
+    if (!rescue && localExclusive.isNotEmpty) return [localExclusive.first];
+    if (networkShared.isNotEmpty) {
+      return networkShared.take(maxEngines).toList();
+    }
+    if (exclusive.isEmpty) return const [];
+    return [exclusive[rescue && exclusive.length > 1 ? 1 : 0]];
   }
 
   /// Prepares every engine (loads models / inits platforms) concurrently.
