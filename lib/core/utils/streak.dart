@@ -1,5 +1,5 @@
-// Pure daily-streak arithmetic, extracted from SocialRemoteDataSource.updateStreak
-// so the day-boundary rules are testable without hitting Supabase.
+// Daily-streak arithmetic shared by auth and social updates, testable without
+// hitting Supabase.
 
 /// Outcome of a streak recomputation.
 class StreakUpdate {
@@ -24,13 +24,15 @@ StreakUpdate computeStreak({
   DateTime? lastStudyDate,
   required int currentStreak,
 }) {
-  final todayDate = DateTime(today.year, today.month, today.day);
+  // Civil dates use UTC only as a zone-free calendar representation. A local
+  // day can span 23 or 25 hours at a daylight-saving transition.
+  final todayDate = DateTime.utc(today.year, today.month, today.day);
 
   if (lastStudyDate == null) {
     return const StreakUpdate(streak: 1, alreadyCountedToday: false);
   }
 
-  final lastDay = DateTime(
+  final lastDay = DateTime.utc(
     lastStudyDate.year,
     lastStudyDate.month,
     lastStudyDate.day,

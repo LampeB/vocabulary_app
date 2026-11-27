@@ -22,7 +22,11 @@ L'application utilise SQLite comme source de lecture et les colonnes
   la version envoyée est toujours la version en file. PostgreSQL refuse un
   ancien numéro dans la même transaction que l'écriture, même après une
   modification par un autre appareil. Le client exige le protocole 016 pour
-  toute mutation, y compris une modification d'import.
+  toute mutation, y compris une modification d'import. Quand une copie
+  importée existe déjà et que ses champs sont revenus à leur valeur de base,
+  l'accusé confirme la ligne canonique en validant le nouveau numéro. Un
+  renommage antérieur dont la requête a expiré ne peut plus s'appliquer et
+  les champs modifiés sur un autre appareil restent intacts.
 - Le déclencheur écoute les mutations locales validées par SQLite pour le
   compte actif. Une nouvelle édition d'une ligne déjà en attente réveille
   la file. Les accusés, les restaurations et les mutations des autres comptes
@@ -62,6 +66,8 @@ L'application utilise SQLite comme source de lecture et les colonnes
   pendant l'écriture d'un enfant et renvoie la suppression canonique si un
   appareil tente d'éditer une branche supprimée. L'app applique l'accusé à
   la branche locale et retire la progression masquée dans la même transaction.
+  Le client supprime le vocabulaire via ces tombstones. La suppression
+  physique est réservée au serveur.
 - Un partage envoie la liste ciblée et vérifie l'accusé de son token et de
   tous ses mots avant d'ouvrir le partage système. Un envoi global en cours
   partage le même travail pour cette liste. Les autres listes, la progression,
@@ -88,6 +94,9 @@ L'application utilise SQLite comme source de lecture et les colonnes
   nouvelles cartes utilisent un UUID déterministe et l'envoi distant fait un
   upsert sur cette clé métier. La récupération préserve une édition locale en
   attente et ne crée pas un doublon lorsqu'un autre appareil a un ancien UUID.
+  Une nouvelle référence doit viser une variante active dans une branche
+  possédée ou visible. Les références historiques inchangées restent
+  modifiables.
 - Chaque note calcule FSRS à partir de la progression courante, dans la
   transaction qui enregistre la réponse. Deux passages de la même carte
   incrémentent les compteurs et appliquent les transitions successives, même
@@ -126,9 +135,15 @@ L'application utilise SQLite comme source de lecture et les colonnes
   Une panne de transport ou une expiration arrête les prochaines lectures
   et conserve les pages déjà reçues. SQLite enregistre le curseur avec les
   pages appliquées pour que la reprise avance après un délai ou un
-  redémarrage. Le rapprochement des starters attend la fin des listes, de
-  leurs contenus et de la progression. Au retour du réseau, le shell relance
-  la récupération en attente avant d'envoyer les modifications locales.
+  redémarrage. La migration PostgreSQL 017 numérote les changements validés
+  par compte. Si le numéro a avancé depuis le début du parcours, SQLite
+  poursuit avec des fenêtres paginées de listes modifiées, de leurs contenus
+  et de progressions modifiées. Le curseur et les bornes de rattrapage
+  persistent entre les tentatives. Une suppression ou une insertion derrière
+  le curseur d'identifiants rejoint ainsi la restauration. Le rapprochement
+  des starters attend la fin de la couverture et la confirmation de son
+  dernier numéro. Au retour du réseau, le shell relance la récupération en
+  attente avant d'envoyer les modifications locales.
   Un retour réseau
   pendant un pull est retenu et ouvre une tentative si le pull échoue.
   En cas d'indisponibilité du profil distant, une session déjà signée fournit

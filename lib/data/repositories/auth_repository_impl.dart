@@ -61,7 +61,9 @@ class AuthRepositoryImpl implements AuthRepository {
     final normalized = username.trim().toLowerCase();
 
     if (await _remote.checkUsernameExists(normalized)) {
-      return const Failure(ValidationException('Ce pseudo est déjà utilisé.'));
+      return const Failure(
+        AuthException.forReason(AuthFailureReason.usernameTaken),
+      );
     }
 
     final result = await _remote.signUpWithEmail(email, password, normalized);
@@ -74,15 +76,7 @@ class AuthRepositoryImpl implements AuthRepository {
         });
         return Success(_mapUser(user));
       },
-      onFailure: (e) {
-        if (e is AuthException &&
-            e.message.toLowerCase().contains('already registered')) {
-          return const Failure(
-            AuthException('Cette adresse e-mail est déjà utilisée.'),
-          );
-        }
-        return Failure(e);
-      },
+      onFailure: (e) => Failure(e),
     );
   }
 

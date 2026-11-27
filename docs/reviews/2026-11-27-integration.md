@@ -618,3 +618,75 @@ L'analyse Flutter est propre ; les 25 diagnostics ciblés passent avec opt-in
 et la sonde AOT refuse l'accès en mode produit. Les 29 tests Python des outils
 s'ajoutent aux dix tests E2E, soit 39 tests Python réussis. Les fonctions Edge
 restent inchangées depuis leurs 29 tests Deno et sept bundles figés validés.
+
+## Treizième itération — `5c9d0f0`
+
+Les quatre instances ont rendu `BLOQUÉ` sur
+`5c9d0f0b09e255b24b7f786ca584df9daa121143` avant toute correction.
+Les **17 Important bruts donnent 12 constats distincts**. L'ACK d'import,
+le rattrapage de restauration et l'arrêt audio apparaissent dans deux
+rapports ; le rappel de série apparaît dans trois rapports. Aucun Bloquant
+et trois Suggestions. Les compteurs propres restent **0/2** ; la prochaine
+passe sera l'itération **14**, sans dépasser vingt.
+
+| Profil / instance | Important | Suggestion |
+| --- | --- | --- |
+| Produit — `/root/r13_product` | 6 | 2 |
+| Qualité — `/root/r13_quality` | 4 | 0 |
+| Correction — `/root/r13_correctness` | 5 | 0 |
+| Sécurité — `/root/r13_security` | 2 | 1 |
+
+| Type | Constat distinct | Correction et preuve ciblée |
+| --- | --- | --- |
+| Important | ACK d'import sans consommation de séquence | PATCH versionné limité au protocole, sans remplacer les métadonnées ; ancien PATCH livré après ACK rejeté |
+| Important | Checkpoint déclarant un succès avec un préfixe devenu périmé | Journal 017 par compte et rattrapage borné/persistant ; suppression et insertion derrière curseur, SQLite rouvert pendant le rattrapage |
+| Important | Rappel de série après logout ou activité locale | Annulation immédiate et invalidation des programmations en vol ; historique local écrit avant réseau et consulté après redémarrage, isolation entre comptes |
+| Important | Échec d'arrêt audio absorbé avant écoute | Erreur remontée et reprise explicite ; widget vérifie l'absence de signal et de STT pendant refus/timeout |
+| Important | Messages d'authentification bruts ou français | Motifs indépendants de langue et traduction UI ; vrais refus HTTP Supabase et formulaires FR/EN/KO vérifiés |
+| Important | Clavier/Révéler et saisie Voix inaccessibles | Boutons focalisables, défilement compact et champ stable ; clavier physique et paysage avec inset 180/texte doublé |
+| Important | Notifications anglaises et drapeaux fixes | Textes FR/EN/KO neutres pour la paire, intention réservée avant chargement asynchrone et reprogrammation au changement de locale |
+| Important | Cartes des deux sens présentées comme des mots | Libellés cartes dans les trois locales ; un concept SQLite dû dans deux sens affiché comme deux cartes sur plateau et chemin |
+| Important | Spécification STT sans Podfile | Document corrigé : CocoaPods est versionné, le pont Whisper iOS reste à livrer |
+| Important | Série rompue au changement d'heure | Dates civiles dans le calcul partagé ; vrais appels HTTP de fin de quiz aux deux transitions Paris enregistrent la série continue |
+| Important | Référence FSRS servant d'oracle privé | Garde 018 avant FK, même SQLSTATE/message pour privé/inexistant ; références propres/publiques et historiques existants préservés |
+| Important | DELETE physique effaçant tombstones et historiques | Droits clients révoqués et défense RLS ; trois tombstones, rejeu tardif, FSRS d'un autre compte, reset autorisé et purge serveur testés |
+
+La Suggestion sur le nombre de tests répété dans l'inventaire est traitée en
+renvoyant au statut courant sans recopier de métrique volatile. L'accord
+féminin de l'exemple espagnol reste à examiner lors de la relecture native
+du contenu ; aucune correction de seed n'est revendiquée. La Suggestion
+d'identité dédiée pour l'approbation est consignée comme préalable à tout
+nouvel accès en écriture : le propriétaire reste actuellement seul.
+
+### Première compilation iOS réussie
+
+Les **huit checks CI sont verts** sur `5c9d0f0`. Le simulateur iOS termine
+en 18 min 02 s après l'alignement des architectures Runner/Pods pour MLKit.
+Cette preuve couvre la compilation native de l'application, pas Whisper
+local iOS ni une exécution sur appareil. Chaque nouveau commit reste soumis
+aux huit contrôles et à la convergence complète ; ces résultats ne sont pas
+réutilisés pour approuver un autre SHA.
+
+Les 89 tests data ciblés et les 74 tests auth/date/cartes passent. Les 122
+tests voix/rappels initiaux, puis les 80 tests du complément de redémarrage
+passent ; ces périmètres se recouvrent et ne sont pas additionnés. Le test du
+vrai quiz recrée un container sur le même fichier SQLite avec le profil
+périmé et le réseau suspendu, puis vérifie qu'un autre compte reste distinct.
+
+PostgreSQL 16.11 valide onze suites, le refus du contrat jusqu'à 017,
+l'acceptation après 018, les gardes désactivées et droits DELETE/TRUNCATE
+réintroduits, le reset concurrent à deux connexions et l'activation atomique
+avec rejet de réapplication. Le dernier rerun couvre aussi le tombstone
+synthétique sans contenu privé pour une suppression administrative dans le
+journal 017. Les dix tests Python E2E et les 29 tests des outils passent,
+ainsi qu'actionlint et zizmor. Le contrat exact est `progress-boundaries-v1` ;
+aucune activation hébergée n'est revendiquée.
+
+La validation finale du lot passe : **1 139 tests hôte**, douze diagnostics
+positifs exclus sans opt-in, couverture **74,9 %** (14 124 / 18 852 lignes).
+L'analyse complète est propre. Les 25 diagnostics ciblés passent avec opt-in
+et la sonde AOT refuse toujours les diagnostics en mode produit. Une première
+passe complète était déjà verte ; elle a été répétée après le complément
+durable du rappel, qui réutilise l'historique SQLite existant au lieu d'un
+second stockage de journées. Les fonctions Edge restent inchangées depuis
+leurs 29 tests Deno et sept bundles figés validés.

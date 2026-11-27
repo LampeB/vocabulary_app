@@ -47,6 +47,9 @@ audio du prompt → vérification des moteurs → compte à rebours → signal d
 ```
 
 `AudioDirector` doit terminer ou annuler l'audio précédent avant l'écoute.
+Un échec ou une attente trop longue de l'arrêt affiche une reprise du tour.
+Le signal d'ouverture et la capture attendent l'arrêt confirmé du lecteur,
+y compris si l'apprenant réessaie pendant une demande d'arrêt déjà en cours.
 En grammaire mains-libres, chaque carte fait entendre la consigne dans la
 langue de l'interface puis le mot à transformer dans la langue étudiée.
 Le compte à rebours, le signal et le micro suivent la fin de ces deux lectures.
@@ -101,6 +104,9 @@ En Voix, passer au clavier ou révéler la réponse invalide également le tour
 et ferme sa capture. Une transcription reçue ensuite ne peut plus décider du
 résultat. L'arrêt de la synthèse et des signaux invalide les demandes audio
 en attente de configuration native avant qu'elles puissent jouer.
+Les boutons Clavier et Révéler s'utilisent avec Tab et Entrée. Quand le
+clavier logiciel réduit la hauteur, la consigne, le champ et le bouton
+Valider défilent ensemble.
 Les cartes suivantes et reportées conservent leurs chemins de clips en cache.
 
 La notation **écrite et orale de grammaire** préserve les formes attendues
@@ -195,9 +201,10 @@ la fin de l'inférence, succès comme échec.
 Le pont Android utilise le NDK `28.2.13676358`, aligné sur Flutter 3.44.9 et
 le module application ; les builds CI ne doivent pas installer un ancien NDK
 distinct pour le plugin.
-La disponibilité iOS n'est pas livrée : le projet iOS ne contient actuellement
-pas de `Podfile`, et le pont est donc explicitement Android-only jusqu'à une
-intégration Xcode et un test physique séparés. Aucune diffusion externe ne doit
+Whisper local iOS n'est pas livré : le pont reste explicitement limité à
+Android jusqu'à une intégration Xcode et un test physique séparés. L'application
+possède un `Podfile` versionné ; cela ne fournit pas le pont natif Whisper iOS.
+Aucune diffusion externe ne doit
 prétendre offrir Whisper local sur iOS avant cette validation.
 
 Le corpus de travail `tool/stt_corpus/` et ses résultats restent privés,

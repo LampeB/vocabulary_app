@@ -80,6 +80,10 @@ for feedback, including reaching Continue by scrolling.
 The welcome-to-auth route is exercised using Tab/Enter through both sign-up
 and sign-in, including form submission. Both no-list entries of the daily path
 open the real library and return to the daily path using its AppBar Back.
+Authentication tests map real Supabase HTTP failures to language-independent
+reasons and exercise their FR/EN/KO form messages. The auth streak HTTP path
+and shared arithmetic cover both Paris DST transitions. A real SQLite concept
+due in both directions is presented as two cards on the home and daily path.
 
 ### `test/unit/fsrs_algorithm_test.dart` (21 tests)
 Spaced-repetition scheduling (FSRS algorithm).

@@ -1,4 +1,4 @@
--- Disposable database only, after migration 016. All fixtures roll back.
+-- Disposable database only, after migration 018. All fixtures roll back.
 BEGIN;
 INSERT INTO auth.users(id,email,raw_user_meta_data,raw_app_meta_data) VALUES
  ('51000000-0000-0000-0000-000000000001','isolated@example.invalid','{"username":"isolated"}',
@@ -7,7 +7,7 @@ INSERT INTO auth.users(id,email,raw_user_meta_data,raw_app_meta_data) VALUES
  ('51000000-0000-0000-0000-000000000003','ordinary_b@example.invalid','{"username":"ordinary_b"}','{}');
 SELECT public.enroll_e2e_account('51000000-0000-0000-0000-000000000001','isolation.a','isolated');
 INSERT INTO public.vocabulary_lists(id,owner_id,name,visibility) VALUES
- ('52000000-0000-0000-0000-000000000001','51000000-0000-0000-0000-000000000001','Private E2E','private'),
+ ('52000000-0000-0000-0000-000000000001','51000000-0000-0000-0000-000000000001','Public E2E','public'),
  ('52000000-0000-0000-0000-000000000002','51000000-0000-0000-0000-000000000003','Public ordinary','public');
 INSERT INTO public.concepts(id,list_id) VALUES
  ('53000000-0000-0000-0000-000000000001','52000000-0000-0000-0000-000000000001'),
@@ -26,7 +26,7 @@ END $$;
 
 SET LOCAL ROLE anon;
 DO $$ BEGIN
-  IF public.e2e_patrol_contract() IS DISTINCT FROM 'write-order-v1' THEN
+  IF public.e2e_patrol_contract() IS DISTINCT FROM 'progress-boundaries-v1' THEN
     RAISE EXCEPTION 'CI cannot verify the installed Patrol schema';
   END IF;
 END $$;
@@ -60,6 +60,27 @@ DO $$ BEGIN
 END $$;
 RESET ROLE;
 ALTER TABLE public.word_variants ENABLE TRIGGER zz_vocabulary_write_order_update;
+ALTER TABLE public.vocabulary_lists DISABLE TRIGGER vocabulary_pull_change;
+SET LOCAL ROLE anon;
+DO $$ BEGIN
+  IF public.e2e_patrol_contract() IS NOT NULL THEN RAISE EXCEPTION 'Disabled pull catch-up reported ready'; END IF;
+END $$;
+RESET ROLE;
+ALTER TABLE public.vocabulary_lists ENABLE TRIGGER vocabulary_pull_change;
+ALTER TABLE public.variant_progress DISABLE TRIGGER check_progress_variant_access;
+SET LOCAL ROLE anon;
+DO $$ BEGIN
+  IF public.e2e_patrol_contract() IS NOT NULL THEN RAISE EXCEPTION 'Disabled progress access guard reported ready'; END IF;
+END $$;
+RESET ROLE;
+ALTER TABLE public.variant_progress ENABLE TRIGGER check_progress_variant_access;
+GRANT TRUNCATE ON public.concepts TO authenticated;
+SET LOCAL ROLE anon;
+DO $$ BEGIN
+  IF public.e2e_patrol_contract() IS NOT NULL THEN RAISE EXCEPTION 'Client truncate grant reported ready'; END IF;
+END $$;
+RESET ROLE;
+REVOKE TRUNCATE ON public.concepts FROM authenticated;
 
 SELECT set_config('request.jwt.claim.sub','51000000-0000-0000-0000-000000000002',true);
 SET LOCAL ROLE authenticated;

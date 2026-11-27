@@ -22,9 +22,11 @@ class AudioDirector {
   final AudioPlayerService _audio;
   final SoundEffectsService _sfx;
   final DateTime Function() _clock;
+  Future<void>? _stopping;
 
   /// Poll cadence for the quiet checks — 100ms mirrors the historical loops.
   static const _poll = Duration(milliseconds: 100);
+  static const _releaseTimeout = Duration(milliseconds: 900);
 
   bool get isSpeaking => _audio.isSpeaking;
 
@@ -36,12 +38,14 @@ class AudioDirector {
 
   Future<void> warmUp(String langCode) => _audio.warmUp(langCode);
 
-  Future<void> stop() => _audio.stop();
+  Future<void> stop() => _stopping ??= Future<void>.sync(
+    _audio.stop,
+  ).whenComplete(() => _stopping = null);
 
   /// Stops both speech and the separate earcon player. Unlike [stop], this is
   /// for a lifecycle interruption, where no sound may survive in background.
   Future<void> stopAll() async {
-    await Future.wait([_audio.stop(), _sfx.stop()]);
+    await Future.wait([stop(), _sfx.stop()]).timeout(_releaseTimeout);
   }
 
   /// Resolves once nothing is playing, or after [timeout] — a stuck
@@ -161,12 +165,7 @@ class AudioDirector {
   Future<void> handOffToMic({
     Duration focusBeat = const Duration(milliseconds: 450),
   }) async {
-    try {
-      await _audio.stop().timeout(const Duration(milliseconds: 900));
-    } catch (_) {
-      // A stuck platform player must never block a quiz. The clearance below
-      // is still valuable even if its stop acknowledgement was lost.
-    }
+    await stop().timeout(_releaseTimeout);
     await Future.delayed(focusBeat);
   }
 

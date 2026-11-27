@@ -43,6 +43,10 @@ Pour vérifier une branche entière avant d'ouvrir une PR :
 powershell -NoProfile -ExecutionPolicy Bypass -File tool/check-pr-policy.ps1 -BaseRef origin/main
 ```
 
+L'accès habituel en écriture du dépôt est réservé à LampeB. Avant de l'étendre,
+attribuer l'approbation formelle et l'attestation de convergence
+à une identité dédiée qui ne sert pas à proposer de modifications.
+
 ## Exemption rare
 
 Pour une modification purement mécanique qui ne change aucun contrat, lancer :

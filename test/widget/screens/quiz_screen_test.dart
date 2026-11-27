@@ -89,8 +89,10 @@ class _NoopAudio implements AudioPlayerService {
 }
 
 class _TestDirector extends AudioDirector {
-  _TestDirector([AudioPlayerService? audio]) : super(audio ?? _NoopAudio());
+  _TestDirector([AudioPlayerService? audio, this.verifyAudioHandoff = false])
+    : super(audio ?? _NoopAudio());
 
+  final bool verifyAudioHandoff;
   int cues = 0;
   int endCues = 0;
   int stops = 0;
@@ -107,7 +109,9 @@ class _TestDirector extends AudioDirector {
   }) async {}
 
   @override
-  Future<void> handOffToMic({Duration focusBeat = Duration.zero}) async {}
+  Future<void> handOffToMic({Duration focusBeat = Duration.zero}) async {
+    if (verifyAudioHandoff) await super.handOffToMic(focusBeat: focusBeat);
+  }
 
   @override
   Future<void> listenCue({Duration clearance = Duration.zero}) async {
@@ -149,6 +153,24 @@ class _BlockingPromptAudio extends _NoopAudio {
 
   @override
   Future<void> stop() async => stops++;
+}
+
+class _AudioAwaitingRelease extends _NoopAudio {
+  bool playing = true;
+  bool refuseStop = false;
+  Future<void>? pendingStop;
+  int stops = 0;
+
+  @override
+  bool get isSpeaking => playing;
+
+  @override
+  Future<void> stop() async {
+    stops++;
+    if (refuseStop) throw StateError('audio still playing');
+    await pendingStop;
+    playing = false;
+  }
 }
 
 class _FakeCapture implements SharedPcmCapture {
@@ -252,10 +274,11 @@ class _VoiceHarness {
   _VoiceHarness({
     Completer<bool>? preparePhone,
     AudioPlayerService? promptAudio,
+    bool verifyAudioHandoff = false,
     FutureOr<List<String>> Function()? checkConnectivity,
     bool Function()? acceptSystemStop,
     Future<void>? systemRelease,
-  }) : director = _TestDirector(promptAudio) {
+  }) : director = _TestDirector(promptAudio, verifyAudioHandoff) {
     SttSimulator.mode = '';
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
@@ -381,6 +404,11 @@ class _FakeProgressRepo implements ProgressRepository {
   );
 
   @override
+  Future<Result<List<VariantProgress>>> getMasteredVariants(
+    String userId,
+  ) async => const Success([]);
+
+  @override
   Future<Result<VariantProgress>> mutateProgress({
     required String variantId,
     required QuizDirection direction,
@@ -412,8 +440,15 @@ class _DelayedSttMode extends SttEngineModeNotifier {
 }
 
 class _FakeAuthRepo implements AuthRepository {
+  Future<void>? pendingStreak;
+  int streakUpdates = 0;
   @override
-  Future<Result<void>> updateStreak() async => const Success(null);
+  Future<Result<void>> updateStreak() async {
+    streakUpdates++;
+    await pendingStreak;
+    return const Success(null);
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -426,8 +461,19 @@ class _FakeAuthNotifier extends AuthNotifier {
 }
 
 class _FakeNotifService implements NotificationService {
+  int cancelledStreaks = 0;
+  final scheduledStreaks = <int>[];
   @override
-  Future<void> cancelStreakWarning() async {}
+  Future<void> scheduleDailyReminder({
+    int hour = 9,
+    int minute = 0,
+    Locale? locale,
+  }) async {}
+  @override
+  Future<void> scheduleStreakWarning(int streakDays, {Locale? locale}) async =>
+      scheduledStreaks.add(streakDays);
+  @override
+  Future<void> cancelStreakWarning() async => cancelledStreaks++;
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -477,6 +523,8 @@ void main() {
     bool grammar = false,
     bool fromDailyReview = false,
     StateProvider<AppUser?>? account,
+    _FakeAuthRepo? authRepo,
+    _FakeNotifService? reminders,
     SttEngineModeNotifier? sttMode,
     VoiceTurnMachine Function()? machineFactory,
     ThemeMode themeMode = ThemeMode.light,
@@ -520,7 +568,16 @@ void main() {
       screen: fromDailyReview
           ? const DailyPathScreen()
           : entry == null
-          ? quiz
+          ? reminders == null
+                ? quiz
+                : Consumer(
+                    builder: (context, ref, _) {
+                      ref.watch(
+                        authenticatedRemindersProvider(const Locale('fr')),
+                      );
+                      return quiz;
+                    },
+                  )
           : Builder(
               builder: (context) => Scaffold(
                 body: TextButton(
@@ -566,9 +623,11 @@ void main() {
           currentUserProvider.overrideWithValue(null)
         else
           currentUserProvider.overrideWith((ref) => ref.watch(account)),
-        authRepositoryProvider.overrideWithValue(_FakeAuthRepo()),
+        authRepositoryProvider.overrideWithValue(authRepo ?? _FakeAuthRepo()),
         authStateProvider.overrideWith(_FakeAuthNotifier.new),
-        notificationServiceProvider.overrideWithValue(_FakeNotifService()),
+        notificationServiceProvider.overrideWithValue(
+          reminders ?? _FakeNotifService(),
+        ),
       ],
       routes: [
         if (fromDailyReview)
@@ -984,6 +1043,60 @@ void main() {
       }
       await unmountScreen(tester);
       await tester.pump(const Duration(seconds: 3));
+    });
+  }
+
+  for (final action in [WidgetKeys.voiceReveal, WidgetKeys.voiceKeyboard]) {
+    testWidgets('voice $action works via Tab and Enter', (tester) async {
+      final voice = _VoiceHarness();
+      await pump(
+        tester,
+        mode: QuizMode.voice,
+        words: [('chat', '고양이')],
+        voice: voice,
+      );
+      final button = find.byKey(ValueKey(action));
+      final label = find.descendant(of: button, matching: find.byType(Text));
+      bool hasFocus() =>
+          Focus.maybeOf(tester.element(label))?.hasPrimaryFocus ?? false;
+      for (var press = 0; press < 8 && !hasFocus(); press++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+      }
+      expect(hasFocus(), isTrue);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+
+      if (action == WidgetKeys.voiceReveal) {
+        expect(
+          find.byKey(const ValueKey(WidgetKeys.feedbackWrong)),
+          findsOneWidget,
+        );
+      } else {
+        tester.view.physicalSize = const Size(1704, 960);
+        tester.view.viewInsets = const FakeViewPadding(bottom: 540);
+        tester.platformDispatcher.textScaleFactorTestValue = 2;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        await tester.pump();
+        final input = find.byKey(const ValueKey(WidgetKeys.voiceInput));
+        final validate = find.byKey(const ValueKey(WidgetKeys.voiceValidate));
+        await tester.ensureVisible(validate);
+        await tester.pump();
+        expect(input.hitTestable(), findsOneWidget);
+        expect(validate.hitTestable(), findsOneWidget);
+        expect(tester.getRect(validate).bottom, lessThanOrEqualTo(140));
+        await tester.enterText(input, '고양이');
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        tester.view.resetViewInsets();
+        await tester.pump();
+        expect(
+          find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)),
+          findsOneWidget,
+        );
+      }
+      expect(voice.capture.opens, 0);
+      expect(tester.takeException(), isNull);
+      await unmountScreen(tester);
     });
   }
 
@@ -1566,6 +1679,122 @@ void main() {
       },
     );
   }
+
+  for (final hangs in [false, true]) {
+    testWidgets(
+      'unconfirmed audio stop keeps cue and mic idle (hangs: $hangs)',
+      (tester) async {
+        final release = Completer<void>();
+        final audio = _AudioAwaitingRelease()
+          ..pendingStop = hangs ? release.future : null
+          ..refuseStop = !hangs;
+        final voice = _VoiceHarness(
+          promptAudio: audio,
+          verifyAudioHandoff: true,
+        );
+        await pump(
+          tester,
+          mode: QuizMode.handsFree,
+          words: [('chat', '고양이')],
+          voice: voice,
+        );
+        await tick(tester, times: 8);
+        expect(find.text('quiz.audio_release_failed_hf'.tr()), findsOneWidget);
+        expect(audio.playing, isTrue);
+        expect(audio.stops, 1);
+        expect(voice.director.cues, 0);
+        expect(voice.capture.opens, 0);
+        expect(voice.systemListens, 0);
+
+        final repeat = find.byKey(const ValueKey(WidgetKeys.hfRepeat));
+        if (hangs) {
+          await tester.tap(repeat);
+          await tick(tester, times: 8);
+          expect(audio.stops, 1);
+          expect(voice.director.cues, 0);
+          expect(voice.capture.opens, 0);
+          release.complete();
+          await tester.pump();
+        } else {
+          audio.refuseStop = false;
+        }
+        await tester.tap(repeat);
+        await tick(tester, times: 10);
+        expect(audio.playing, isFalse);
+        expect(voice.director.cues, 1);
+        expect(voice.capture.opens, 1);
+        await unmountScreen(tester);
+        await tester.pump(const Duration(seconds: 8));
+      },
+    );
+  }
+
+  testWidgets(
+    'offline quiz completion keeps the streak warning off after restart',
+    (tester) async {
+      final learner = AppUser(
+        id: 'u',
+        email: 'u@example.test',
+        username: 'u',
+        currentStreak: 6,
+        createdAt: _now,
+      );
+      final user = StateProvider<AppUser?>((_) => learner);
+      final update = Completer<void>();
+      final auth = _FakeAuthRepo()..pendingStreak = update.future;
+      final reminders = _FakeNotifService();
+      await pump(
+        tester,
+        mode: QuizMode.flashcard,
+        words: [('chat', '고양이')],
+        account: user,
+        authRepo: auth,
+        reminders: reminders,
+      );
+      expect(reminders.scheduledStreaks, [6]);
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.cartesCard)));
+      await tick(tester, times: 2);
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.gradeKnew)));
+      await tick(tester, times: 3);
+      expect(auth.streakUpdates, 1);
+      expect(update.isCompleted, isFalse);
+      expect(reminders.cancelledStreaks, 1);
+      expect(
+        await db.quizSessionDao.getSessionsByUser(learner.id),
+        hasLength(1),
+      );
+      final providers = ProviderScope.containerOf(
+        tester.element(find.byType(QuizScreen)),
+      );
+      providers.read(user.notifier).state = learner.copyWith(currentStreak: 7);
+      await tester.pump();
+      expect(reminders.scheduledStreaks, [6]);
+      await unmountScreen(tester);
+
+      final afterRestart = _FakeNotifService();
+      final restarted = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          currentUserProvider.overrideWith((ref) => ref.watch(user)),
+          notificationServiceProvider.overrideWithValue(afterRestart),
+        ],
+      );
+      addTearDown(restarted.dispose);
+      final restored = authenticatedRemindersProvider(const Locale('ko'));
+      restarted.listen(restored, (_, _) {});
+      await restarted.read(restored.future);
+      expect(update.isCompleted, isFalse);
+      expect(afterRestart.cancelledStreaks, 1);
+      expect(afterRestart.scheduledStreaks, isEmpty);
+
+      restarted.read(user.notifier).state = learner.copyWith(id: 'other');
+      await tester.pump(const Duration(milliseconds: 1));
+      await restarted.read(restored.future);
+      expect(afterRestart.scheduledStreaks, [6]);
+      update.complete();
+      await tester.pump();
+    },
+  );
 
   testWidgets('recognizer preflight precedes first and retry opening cues', (
     tester,

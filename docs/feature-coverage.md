@@ -1,9 +1,10 @@
 # Feature coverage — what the tests actually verify
 
-> **Current status (2026-09-29).** The tables below began as a 2026-07-03
+> **Current status (2026-11-27).** The tables below began as a 2026-07-03
 > inventory and retain useful feature-level detail, but their test counts and
-> E2E wording are historical. `TESTS.md` records 746 host tests at the latest
-> full local snapshot. The maintained Patrol configuration is the nine-suite
+> E2E wording are historical. [PROJECT_STATUS.md](../PROJECT_STATUS.md) records
+> the current validation results; [TESTS.md](../TESTS.md) describes how to run
+> the suites. The maintained Patrol configuration is the nine-suite
 > manual workflow in `.github/workflows/e2e.yml`, not a PR gate.
 >
 > The V3 slice has widget coverage for home/parcours, daily trail, list detail,
@@ -90,6 +91,13 @@ programmation déjà transmise.
 Le parcours authentifié charge les préférences avant de programmer les
 rappels. Le rappel de série est annulé pour une série vide ou une journée
 déjà étudiée.
+La déconnexion annule aussi le rappel de série, y compris pendant la lecture
+du fuseau ou le chargement du texte. Le bilan de quiz marque la journée
+étudiée localement et annule le rappel avant d'attendre le profil distant.
+Au redémarrage, la dernière séance de l'historique SQLite du compte confirme
+la journée étudiée lorsque le profil distant est encore ancien.
+Les deux rappels utilisent les textes FR, EN ou KO de la langue d'interface,
+avec reprogrammation au changement de langue.
 
 ## 6. Import / export / share
 

@@ -97,6 +97,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
                   await svc.scheduleDailyReminder(
                     hour: DateTime.now().hour,
                     minute: (DateTime.now().minute + 1) % 60,
+                    locale: EasyLocalization.of(context)?.locale,
                   );
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(

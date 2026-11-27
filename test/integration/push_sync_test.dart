@@ -353,10 +353,6 @@ void main() {
           case 'PATCH':
             expect(
               request.url.queryParameters,
-              containsPair('is_deleted', 'eq.false'),
-            );
-            expect(
-              request.url.queryParameters,
               containsPair('owner_id', 'eq.u'),
             );
             expect(jsonDecode(request.body), {
@@ -365,7 +361,7 @@ void main() {
             });
             expect(request.headers['x-ponderin-sync-sequence'], '1');
             return http.Response(
-              '[{"id":"list","owner_id":"u","name":"Edited on B","visibility":"public"}]',
+              '{"id":"list","owner_id":"u","name":"Edited on B","visibility":"public"}',
               200,
               headers: {'content-type': 'application/json'},
               request: request,

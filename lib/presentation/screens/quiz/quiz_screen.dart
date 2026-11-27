@@ -486,19 +486,26 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     await _runTurnCommands(m.on(CueFinished(sessionToken)), card, langCode);
   }
 
-  void _showMicReleaseFailure() {
+  void _showReleaseFailure({bool audio = false}) {
     _listenBarCtrl.stop();
     ref.read(quizProvider.notifier).setListening(false);
     if (widget.args.mode == QuizMode.handsFree) {
       setState(() {
         _hfAnalyzing = false;
         _hfNotHeard = false;
-        _hfFailureKey = 'quiz.mic_release_failed_hf';
+        _hfFailureKey = audio
+            ? 'quiz.audio_release_failed_hf'
+            : 'quiz.mic_release_failed_hf';
       });
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('quiz.mic_release_failed'.tr())));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            (audio ? 'quiz.audio_release_failed' : 'quiz.mic_release_failed')
+                .tr(),
+          ),
+        ),
+      );
     }
   }
 
@@ -630,7 +637,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       await _releaseTurnMicrophone();
     } catch (error) {
       sttLog('[HF] microphone release preflight failed: $error');
-      if (!_turnStale(turn, card)) _showMicReleaseFailure();
+      if (!_turnStale(turn, card)) _showReleaseFailure();
       return;
     }
     if (_turnStale(turn, card)) return;
@@ -759,7 +766,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (identical(_activeRace, race)) _activeRace = null;
     if (outcome.cancelled || _turnStale(turn, card)) return;
     if (outcome.micReleaseFailed) {
-      _showMicReleaseFailure();
+      _showReleaseFailure();
       return;
     }
     final hadReal = outcome.hadRealSession;
@@ -787,9 +794,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     sttLog(
       '[HF] _startListening  token=$token  question="${card.questionWord}"  answerWords=${card.answerWords}',
     );
-    ref.read(quizProvider.notifier).setListening(true);
-
     if (SttSimulator.isOn) {
+      ref.read(quizProvider.notifier).setListening(true);
       await Future.delayed(const Duration(milliseconds: 800));
       if (stale()) return;
       final answer = switch (SttSimulator.mode) {
@@ -815,7 +821,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // route before STT grabs the mic. A fire-and-forget stop let late TTS
     // buffers overlap the first recognition frames on Samsung.
     sttLog('[HF] Triggering audio stop + verified focus-handover wait');
-    await ref.read(audioDirectorProvider).handOffToMic();
+    try {
+      await ref.read(audioDirectorProvider).handOffToMic();
+    } catch (error) {
+      sttLog('[HF] audio release failed: $error');
+      if (!stale()) _showReleaseFailure(audio: true);
+      return;
+    }
     if (stale()) return;
 
     // Refactor 4c: EVERY voice turn — vocab AND grammar — runs on the
@@ -1719,47 +1731,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             )
           : null,
       onQuit: _quit,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final scaledInputText = MediaQuery.textScalerOf(context).scale(22);
-          final stackedControls = [
-            input,
-            const SizedBox(height: 18),
-            SizedBox(width: double.infinity, child: validate),
-          ];
-          if (constraints.maxHeight < 148 + scaledInputText) {
-            return ScrollAffordance(
-              key: const ValueKey(WidgetKeys.quizPrompt),
-              hint: 'v3.scroll_hint'.tr(),
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
-              child: Column(
-                children: [
-                  prompt,
-                  const SizedBox(height: 12),
-                  if (constraints.maxWidth >= 420)
-                    Row(
-                      children: [
-                        Expanded(flex: 2, child: input),
-                        const SizedBox(width: 12),
-                        Expanded(child: validate),
-                      ],
-                    )
-                  else
-                    ...stackedControls,
-                ],
-              ),
-            );
-          }
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
-            child: Column(
-              children: [
-                Expanded(child: _ScrollablePrompt(child: prompt)),
-                ...stackedControls,
-              ],
-            ),
-          );
-        },
+      child: _KeyboardStudyLayout(
+        prompt: prompt,
+        input: input,
+        validate: validate,
       ),
     );
   }
@@ -1796,6 +1771,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     );
     final cueColor = isDark ? AppColors.clayLight : AppColors.clayDeep;
     final kbOn = _voiceKbIndex == s.currentIndex;
+    final prompt = WordInWave(
+      word: card.questionWord,
+      isKorean: questionIsHangul,
+      cue: kbOn ? null : cue,
+      cueColor: cueColor,
+      waveActive: s.isListening,
+    );
+    void submit() {
+      ref.read(quizProvider.notifier).submitTextAnswer(_answerCtrl.text);
+      _answerCtrl.clear();
+    }
 
     return StudyScaffold(
       current: s.position,
@@ -1806,82 +1792,84 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             )
           : null,
       onQuit: _quit,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
-        child: Column(
-          children: [
-            Expanded(
-              child: _ScrollablePrompt(
-                child: WordInWave(
-                  word: card.questionWord,
-                  isKorean: questionIsHangul, // question is Korean when KO→FR
-                  cue: kbOn ? null : cue,
-                  cueColor: cueColor,
-                  waveActive: s.isListening,
-                ),
-              ),
-            ),
-            if (!kbOn && (s.isListening || !_sttOnline))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: SttStatusStrip(
-                  status: _sttStatus,
-                  online: _sttOnline,
-                  labels: _sttLabels(),
-                ),
-              ),
-            if (s.partialTranscript.isNotEmpty) ...[
-              Text(
-                s.partialTranscript,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.fig(16, FontWeight.w500).copyWith(
-                  color: isDark ? AppColors.onDarkMuted : AppColors.muted,
-                ),
-              ),
-              const SizedBox(height: 14),
-            ],
-            if (kbOn)
-              _VoiceKeyboardInput(
-                controller: _answerCtrl,
-                onSubmit: (a) {
-                  ref.read(quizProvider.notifier).submitTextAnswer(a);
-                  _answerCtrl.clear();
-                },
-              )
-            else ...[
-              MicButton(
-                key: const Key('mic_button'),
-                isListening: s.isListening,
-                answerState: s.answerState,
-                onTap: () => _startListening(card),
-              ),
-              const SizedBox(height: 18),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 12,
-                runSpacing: 8,
-                children: [
-                  _EscapePill(
-                    key: const ValueKey(WidgetKeys.voiceReveal),
-                    icon: Icons.visibility_outlined,
-                    label: 'quiz.voice_reveal'.tr(),
-                    onTap: () => unawaited(_revealVoiceAnswer(card)),
+      child: kbOn
+          ? _KeyboardStudyLayout(
+              prompt: prompt,
+              input: KeyedSubtree(
+                key: _typingFieldKey,
+                child: TextField(
+                  key: const ValueKey(WidgetKeys.voiceInput),
+                  controller: _answerCtrl,
+                  autofocus: true,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    hintText: 'quiz.typing_hint'.tr(),
                   ),
-                  _EscapePill(
-                    key: const ValueKey(WidgetKeys.voiceKeyboard),
-                    icon: Icons.keyboard_outlined,
-                    label: 'quiz.voice_keyboard'.tr(),
-                    onTap: () {
-                      setState(() => _voiceKbIndex = s.currentIndex);
-                      unawaited(_interruptTurn());
-                    },
+                  onSubmitted: (_) => submit(),
+                ),
+              ),
+              validate: FilledButton(
+                key: const ValueKey(WidgetKeys.voiceValidate),
+                onPressed: submit,
+                child: Text('quiz.validate'.tr()),
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+              child: Column(
+                children: [
+                  Expanded(child: _ScrollablePrompt(child: prompt)),
+                  if (s.isListening || !_sttOnline)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: SttStatusStrip(
+                        status: _sttStatus,
+                        online: _sttOnline,
+                        labels: _sttLabels(),
+                      ),
+                    ),
+                  if (s.partialTranscript.isNotEmpty) ...[
+                    Text(
+                      s.partialTranscript,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.fig(16, FontWeight.w500).copyWith(
+                        color: isDark ? AppColors.onDarkMuted : AppColors.muted,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+                  MicButton(
+                    key: const Key('mic_button'),
+                    isListening: s.isListening,
+                    answerState: s.answerState,
+                    onTap: () => _startListening(card),
+                  ),
+                  const SizedBox(height: 18),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 12,
+                    runSpacing: 8,
+                    children: [
+                      _EscapePill(
+                        key: const ValueKey(WidgetKeys.voiceReveal),
+                        icon: Icons.visibility_outlined,
+                        label: 'quiz.voice_reveal'.tr(),
+                        onTap: () => unawaited(_revealVoiceAnswer(card)),
+                      ),
+                      _EscapePill(
+                        key: const ValueKey(WidgetKeys.voiceKeyboard),
+                        icon: Icons.keyboard_outlined,
+                        label: 'quiz.voice_keyboard'.tr(),
+                        onTap: () {
+                          setState(() => _voiceKbIndex = s.currentIndex);
+                          unawaited(_interruptTurn());
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ],
-        ),
-      ),
+            ),
     );
   }
 
@@ -1912,35 +1900,21 @@ class _EscapePill extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final isDark = cs.brightness == Brightness.dark;
     final fg = isDark ? AppColors.onDarkMuted : AppColors.muted;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(0, 48),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest.withValues(
-            alpha: isDark ? 0.5 : 0.7,
-          ),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: cs.outline),
+        foregroundColor: fg,
+        backgroundColor: cs.surfaceContainerHighest.withValues(
+          alpha: isDark ? 0.5 : 0.7,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: fg),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.fig(
-                  13,
-                  FontWeight.w600,
-                ).copyWith(color: fg),
-              ),
-            ),
-          ],
-        ),
+        shape: const StadiumBorder(),
+        side: BorderSide(color: cs.outline),
+        textStyle: AppTextStyles.fig(13, FontWeight.w600),
       ),
+      icon: Icon(icon, size: 16),
+      label: Text(label, textAlign: TextAlign.center),
     );
   }
 }
@@ -2097,46 +2071,61 @@ class _HfButton extends StatelessWidget {
   }
 }
 
-// ── Voice "Clavier" text fallback ─────────────────────────────────────────────
-
-class _VoiceKeyboardInput extends StatelessWidget {
-  const _VoiceKeyboardInput({required this.controller, required this.onSubmit});
-  final TextEditingController controller;
-  final ValueChanged<String> onSubmit;
+/// Keeps keyboard actions anchored when they fit and scrolls the entire body
+/// when the keyboard or text scaling takes away that space.
+class _KeyboardStudyLayout extends StatelessWidget {
+  const _KeyboardStudyLayout({
+    required this.prompt,
+    required this.input,
+    required this.validate,
+  });
+  final Widget prompt;
+  final Widget input;
+  final Widget validate;
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: TextField(
-            controller: controller,
-            autofocus: true,
-            textInputAction: TextInputAction.done,
-            decoration: InputDecoration(hintText: 'quiz.typing_hint'.tr()),
-            onSubmitted: onSubmit,
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final scaledInputText = MediaQuery.textScalerOf(context).scale(22);
+      final stackedControls = [
+        input,
+        const SizedBox(height: 18),
+        SizedBox(width: double.infinity, child: validate),
+      ];
+      if (constraints.maxHeight < 148 + scaledInputText) {
+        return ScrollAffordance(
+          key: const ValueKey(WidgetKeys.quizPrompt),
+          hint: 'v3.scroll_hint'.tr(),
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+          child: Column(
+            children: [
+              prompt,
+              const SizedBox(height: 12),
+              if (constraints.maxWidth >= 420)
+                Row(
+                  children: [
+                    Expanded(flex: 2, child: input),
+                    const SizedBox(width: 12),
+                    Expanded(child: validate),
+                  ],
+                )
+              else
+                ...stackedControls,
+            ],
           ),
+        );
+      }
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+        child: Column(
+          children: [
+            Expanded(child: _ScrollablePrompt(child: prompt)),
+            ...stackedControls,
+          ],
         ),
-        const SizedBox(width: 10),
-        GestureDetector(
-          onTap: () => onSubmit(controller.text),
-          child: Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: AppColors.clay,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.send_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+      );
+    },
+  );
 }
 
 // ── Summary screen ────────────────────────────────────────────────────────────

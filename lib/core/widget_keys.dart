@@ -56,6 +56,8 @@ abstract final class WidgetKeys {
   static const micButton = 'mic_button'; // pre-existing; kept for compatibility
   static const voiceReveal = 'study.voice.reveal';
   static const voiceKeyboard = 'study.voice.keyboard';
+  static const voiceInput = 'study.voice.input';
+  static const voiceValidate = 'study.voice.validate';
   static const cartesCard = 'study.cartes.card';
   static const gradeAgain = 'study.grade.again';
   static const gradeKnew = 'study.grade.knew';

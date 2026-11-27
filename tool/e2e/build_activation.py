@@ -2,7 +2,7 @@
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
-print('-- Install the E2E reset, isolation and owner namespace together. No account is deleted.\nBEGIN;')
+print('-- Install the E2E reset and its security and sync prerequisites together. No account is deleted.\nBEGIN;')
 print('''DO $$ BEGIN
   IF to_regnamespace('e2e_private') IS NOT NULL
     OR to_regclass('public.review_events') IS NOT NULL
@@ -18,6 +18,8 @@ for name in (
     '014_vocabulary_tombstones.sql',
     '015_vocabulary_owner_namespace.sql',
     '016_vocabulary_write_order.sql',
+    '017_vocabulary_pull_catchup.sql',
+    '018_vocabulary_progress_boundaries.sql',
 ):
     print(f'\n-- {name}')
     for line in (root / 'supabase/migrations' / name).read_text(encoding='utf-8').splitlines():

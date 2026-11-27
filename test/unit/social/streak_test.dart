@@ -1,10 +1,31 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 import 'package:vocab_kr/core/utils/streak.dart';
 
 /// Daily-streak day-boundary rules (extracted from the social datasource's
 /// updateStreak). Pure → host-testable without Supabase.
 void main() {
+  setUpAll(tzdata.initializeTimeZones);
   group('computeStreak', () {
+    for (final date in [(2026, 3, 30), (2026, 10, 26)]) {
+      test('Paris civil yesterday survives DST at $date', () {
+        final paris = tz.getLocation('Europe/Paris');
+        final today = tz.TZDateTime(paris, date.$1, date.$2, date.$3);
+        final last = tz.TZDateTime(paris, date.$1, date.$2, date.$3 - 1);
+        // The autumn pair has 25 hours between civil midnights.
+        if (date.$2 == 10) {
+          expect(today.difference(last), const Duration(hours: 25));
+        }
+        final result = computeStreak(
+          today: today,
+          lastStudyDate: last,
+          currentStreak: 5,
+        );
+        expect(result.streak, 6);
+        expect(result.alreadyCountedToday, isFalse);
+      });
+    }
     test('first ever study → streak 1', () {
       final u = computeStreak(
         today: DateTime(2026, 7, 2),

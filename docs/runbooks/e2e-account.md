@@ -9,11 +9,13 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
 
 1. Réactiver le projet si nécessaire. Appliquer les migrations manquantes dans
    l'ordre de [la CI PostgreSQL](../../.github/workflows/pr-validation.yml),
-   jusqu'à [016](../../supabase/migrations/016_vocabulary_write_order.sql).
+   jusqu'à [018](../../supabase/migrations/018_vocabulary_progress_boundaries.sql).
    Patrol exige les gardes de [013](../../supabase/migrations/013_e2e_isolation.sql),
-   les suppressions persistantes de [014](../../supabase/migrations/014_vocabulary_tombstones.sql)
-   les identifiants qualifiés par propriétaire de [015](../../supabase/migrations/015_vocabulary_owner_namespace.sql)
-   et le contrôle des écritures de 016. La version actuelle de
+   les suppressions persistantes de [014](../../supabase/migrations/014_vocabulary_tombstones.sql),
+   les identifiants qualifiés par propriétaire de [015](../../supabase/migrations/015_vocabulary_owner_namespace.sql),
+   le contrôle des écritures de [016](../../supabase/migrations/016_vocabulary_write_order.sql),
+   le rattrapage de [017](../../supabase/migrations/017_vocabulary_pull_catchup.sql)
+   et les protections de la progression et des tombstones de 018. La version actuelle de
    [007](../../supabase/migrations/007_audio_storage.sql) ferme les lectures
    client de `vocab-audio` jusqu'aux règles définitives de
    [012](../../supabase/migrations/012_security_boundaries.sql).
@@ -21,11 +23,11 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
    012, rejouer la version actuelle de 007 avant les autres étapes. Si la
    version actuelle de 012 est déjà appliquée, passer aux migrations manquantes.
 
-   Si 008, 009 et 012 à 016 restent à appliquer et que les migrations 000,
+   Si 008, 009 et 012 à 018 restent à appliquer et que les migrations 000,
    004 à 007, 010, 011 et `add_subscription_type.sql` sont déjà présentes,
    le générateur
    `python3 tool/e2e/build_activation.py > /tmp/activer-vocab-e2e.sql` regroupe
-   008, 009 et 012 à 016 dans une transaction. Si le projet est déjà partiellement
+   008, 009 et 012 à 018 dans une transaction. Si le projet est déjà partiellement
    activé, appliquer uniquement les migrations manquantes.
 2. Avant toute publication du secret CI, créer l'environnement GitHub Actions
    `patrol-e2e`. Dans *Deployment branches and tags*, sélectionner les branches
@@ -54,7 +56,7 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
    ```
 
    Lorsque le contrôle réussit, définir la variable de dépôt GitHub
-   `PATROL_E2E_ACTIVATION` à `write-order-v1` pour autoriser le CI manuel et
+   `PATROL_E2E_ACTIVATION` à `progress-boundaries-v1` pour autoriser le CI manuel et
    planifié. Une valeur absente ou différente garde le CI désactivé. Retirer
    la variable pour suspendre les lancements. Lancer ensuite une suite et
    vérifier son résultat réel.
@@ -100,13 +102,13 @@ La migration 013 refuse dès l'écriture les amitiés, demandes, défis et
 progressions intercomptes impliquant un compte attribué à un scénario. Elle
 contrôle aussi le propriétaire de la liste du défi ou de la variante étudiée.
 La progression d'un compte E2E sur ses propres listes reste autorisée.
-Le prévol CI, le helper Patrol et le reset exigent tous `write-order-v1`
+Le prévol CI, le helper Patrol et le reset exigent tous `progress-boundaries-v1`
 depuis `e2e_patrol_contract()`. Cette réponse confirme les prérequis de 012,
 les déclencheurs d'isolation de 013, les gardes de suppression de 014, les
-clés qualifiées par propriétaire de 015 et la réponse positive de
-`vocabulary_sync_write_ready()` en 016. Le contrat ancien de 015 et la sonde
-booléenne de 013 gardent le CI fermé. Les migrations intermédiaires bloquent
-les resets clients jusqu'à 016.
+clés qualifiées par propriétaire de 015, le contrôle des écritures de 016,
+les déclencheurs de rattrapage de 017 et les protections de 018. Le prévol
+et le helper refusent la sonde booléenne de 013 et les anciens contrats
+textuels avant la sélection des suites et avant toute réinitialisation.
 
 Le reset efface listes, concepts, variantes, progression, abonnements Supabase,
 notifications et classement du compte. Il recrée son profil gratuit avec le
@@ -185,6 +187,8 @@ Le trafic ne garantit pas contractuellement l'absence de pause Supabase.
   [liaison de compte](../../supabase/tests/e2e_scenario_accounts.sql) et
   d'[isolation en écriture](../../supabase/tests/e2e_isolation.sql) vérifient
   les permissions, le rollback, les refus et la préservation des autres comptes.
+- La CI vérifie le contrat absent après 016 et 017, puis après 018 les
+  [limites des références de progression et de la suppression physique](../../supabase/tests/vocabulary_progress_boundaries.sql).
 - Un passage Patrol réel reste nécessaire après activation de la base hébergée.
 - `supabase/tests/reset_concurrency.sh`, sur un PostgreSQL jetable dont le nom
   se termine par `_test`, vérifie avec deux connexions qu'une demande d'amitié

@@ -15,7 +15,11 @@ import '../../helpers/pump_screen.dart';
 class _RecordingNotifService implements NotificationService {
   final calls = <String>[];
   @override
-  Future<void> scheduleDailyReminder({int hour = 9, int minute = 0}) async {
+  Future<void> scheduleDailyReminder({
+    int hour = 9,
+    int minute = 0,
+    Locale? locale,
+  }) async {
     calls.add('schedule:$hour:$minute');
   }
 

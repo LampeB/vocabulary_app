@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../services/notifications/notification_service.dart';
 import '../auth/auth_provider.dart';
+import '../lists/vocabulary_provider.dart' show appDatabaseProvider;
 
 // ─── Settings model ───────────────────────────────────────────────────────────
 
@@ -56,6 +58,8 @@ final notificationServiceProvider = Provider<NotificationService>(
 class NotificationSettingsNotifier extends Notifier<StudyNotifSettings> {
   Future<void>? _restored;
   Future<void> get restored => _restored ?? Future<void>.value();
+  Locale _locale = const Locale('fr');
+  Locale? _appliedDailyLocale;
 
   @override
   StudyNotifSettings build() {
@@ -87,6 +91,14 @@ class NotificationSettingsNotifier extends Notifier<StudyNotifSettings> {
 
   NotificationService get _svc => ref.read(notificationServiceProvider);
 
+  Future<void> useLocale(Locale locale) async {
+    _locale = locale;
+    await restored;
+    if (_locale == locale && _appliedDailyLocale != locale) {
+      await _applyDailyReminder();
+    }
+  }
+
   Future<void> setDailyReminder({
     required bool enabled,
     int? hour,
@@ -114,10 +126,12 @@ class NotificationSettingsNotifier extends Notifier<StudyNotifSettings> {
   }
 
   Future<void> _applyDailyReminder() async {
+    _appliedDailyLocale = _locale;
     if (state.dailyReminderEnabled) {
       await _svc.scheduleDailyReminder(
         hour: state.reminderHour,
         minute: state.reminderMinute,
+        locale: _locale,
       );
     } else {
       await _svc.cancelDailyReminder();
@@ -128,7 +142,7 @@ class NotificationSettingsNotifier extends Notifier<StudyNotifSettings> {
   Future<void> maybeScheduleStreakWarning(int streakDays) async {
     await restored;
     if (!state.streakWarningEnabled) return;
-    await _svc.scheduleStreakWarning(streakDays);
+    await _svc.scheduleStreakWarning(streakDays, locale: _locale);
   }
 }
 
@@ -137,40 +151,65 @@ final notificationSettingsProvider =
       NotificationSettingsNotifier.new,
     );
 
-/// Runs while the signed-in session is present, including the V3 home route.
-final authenticatedRemindersProvider = FutureProvider.autoDispose<void>((
-  ref,
-) async {
-  final profile = ref.watch(
-    currentUserProvider.select(
-      (user) => user == null
-          ? null
-          : (user.id, user.currentStreak, user.lastStudyDate),
-    ),
-  );
-  if (profile == null) return;
-  final (_, streakDays, lastStudyDate) = profile;
-  var active = true;
-  ref.onDispose(() => active = false);
-  ref.watch(
-    notificationSettingsProvider.select(
-      (settings) => settings.streakWarningEnabled,
-    ),
-  );
-  await ref.read(notificationSettingsProvider.notifier).restored;
-  if (!active) return;
+/// A locally completed day takes effect before the remote profile refresh.
+final localStudyDayProvider = StateProvider.family<DateTime?, String>(
+  (_, _) => null,
+);
 
-  final now = DateTime.now();
-  final studiedToday =
-      lastStudyDate?.year == now.year &&
-      lastStudyDate?.month == now.month &&
-      lastStudyDate?.day == now.day;
-  final service = ref.read(notificationServiceProvider);
-  if (!ref.read(notificationSettingsProvider).streakWarningEnabled ||
-      streakDays <= 0 ||
-      studiedToday) {
-    await service.cancelStreakWarning();
-  } else {
-    await service.scheduleStreakWarning(streakDays);
-  }
-});
+bool _isToday(DateTime? day, DateTime now) =>
+    day?.year == now.year && day?.month == now.month && day?.day == now.day;
+
+/// Restores and localizes reminders across the signed-in routes.
+final authenticatedRemindersProvider = FutureProvider.autoDispose
+    .family<void, Locale>((ref, locale) async {
+      final profile = ref.watch(
+        currentUserProvider.select(
+          (user) => user == null
+              ? null
+              : (user.id, user.currentStreak, user.lastStudyDate),
+        ),
+      );
+      final service = ref.read(notificationServiceProvider);
+      if (profile == null) {
+        await service.cancelStreakWarning();
+        return;
+      }
+      final (accountId, streakDays, lastStudyDate) = profile;
+      final locallyStudied = ref.watch(localStudyDayProvider(accountId));
+      var active = true;
+      ref.onDispose(() => active = false);
+      ref.watch(
+        notificationSettingsProvider.select(
+          (settings) => settings.streakWarningEnabled,
+        ),
+      );
+      final settings = ref.read(notificationSettingsProvider.notifier);
+      unawaited(
+        settings.useLocale(locale).catchError((Object error) {
+          debugPrint('Daily reminder localization failed: $error');
+        }),
+      );
+      await settings.restored;
+      if (!active) return;
+
+      final now = DateTime.now();
+      if (_isToday(locallyStudied, now)) {
+        return; // quiz completion already cancelled
+      }
+      if (!ref.read(notificationSettingsProvider).streakWarningEnabled ||
+          streakDays <= 0 ||
+          _isToday(lastStudyDate, now)) {
+        await service.cancelStreakWarning();
+        return;
+      }
+      final recent = await ref
+          .read(appDatabaseProvider)
+          .quizSessionDao
+          .getSessionsByUser(accountId, limit: 1);
+      if (!active) return;
+      if (_isToday(recent.firstOrNull?.completedAt.toLocal(), DateTime.now())) {
+        await service.cancelStreakWarning();
+      } else {
+        await service.scheduleStreakWarning(streakDays, locale: locale);
+      }
+    });

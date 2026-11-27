@@ -350,7 +350,9 @@ void main() {
       'anon',
       httpClient: MockClient((request) async {
         requests.add(request);
-        var result = '[]';
+        var result = request.url.path.endsWith('/vocabulary_pull_revision')
+            ? '0'
+            : '[]';
         if (request.url.path.endsWith('/vocabulary_lists')) {
           if (++listCalls == 1) {
             started.complete();

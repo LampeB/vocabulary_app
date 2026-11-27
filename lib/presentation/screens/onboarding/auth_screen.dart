@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/lists/vocabulary_provider.dart';
 import '../../../core/errors/failure.dart';
+import '../../../core/errors/app_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/v3_colors.dart';
@@ -143,7 +144,22 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         TextInput.finishAutofillContext(shouldSave: true);
         context.go('/home');
       } else {
-        setState(() => _errorMsg = result.exceptionOrNull?.message);
+        final error = result.exceptionOrNull;
+        final key = switch (error) {
+          NetworkException() => 'auth.error_network',
+          AuthException(reason: AuthFailureReason.invalidCredentials) =>
+            'auth.error_credentials',
+          AuthException(reason: AuthFailureReason.usernameTaken) =>
+            'auth.error_username_taken',
+          AuthException(reason: AuthFailureReason.emailTaken) =>
+            'auth.error_email_taken',
+          AuthException(reason: AuthFailureReason.emailNotConfirmed) =>
+            'auth.error_email_not_confirmed',
+          AuthException(reason: AuthFailureReason.rateLimited) =>
+            'auth.error_rate_limited',
+          _ => 'auth.error_generic',
+        };
+        setState(() => _errorMsg = key.tr());
       }
     } finally {
       if (mounted) setState(() => _submitting = false);

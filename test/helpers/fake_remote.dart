@@ -10,6 +10,12 @@ class FakeRemote implements VocabularyRemoteDataSource {
     required String ownerId,
   }) async => null;
   @override
+  Future<Result<int>> fetchPullRevision(
+    String ownerId, {
+    required VocabularyNetworkBudget budget,
+  }) async => const Success(0);
+
+  @override
   Future<Result<List<Map<String, dynamic>>>> fetchLists(
     String ownerId, {
     VocabularyNetworkBudget? budget,

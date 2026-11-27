@@ -827,6 +827,14 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   }
 
   Future<void> _restore() async {
+    final budget = VocabularyNetworkBudget(_restoreTimeout);
+    while (!await _restoreSlice(budget)) {}
+    _starterIdentityReady = true;
+  }
+
+  /// A full walk and each catch-up window use the same budget in this attempt.
+  /// SQLite records completed pages before requesting the next server fence.
+  Future<bool> _restoreSlice(VocabularyNetworkBudget budget) async {
     // Capture the whole account before any remote I/O. A push can acknowledge
     // an edit between the request and response, leaving isSynced=true again.
     final (before, traversal) = await _database.transaction(() async {
@@ -854,20 +862,51 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         await _RestoreTraversal.load(_database, _userId),
       );
     });
-    final budget = VocabularyNetworkBudget(_restoreTimeout);
+    if (traversal.throughRevision == null || traversal.progressComplete) {
+      final result = await _remote.fetchPullRevision(_userId, budget: budget);
+      if (result.exceptionOrNull case final error?) throw error;
+      final revision = result.valueOrNull!;
+      final previous = traversal.throughRevision;
+      if (previous == null) {
+        traversal.throughRevision = revision;
+      } else if (revision == previous) {
+        await _database.transaction(() async {
+          final ids = await VocabularySyncIds.load(_database, _userId);
+          await StarterDraftReconciliation(_database).reconcile(
+            _userId,
+            [
+              for (final list in traversal.catalog.values)
+                list.copyWith(
+                  id: ids.localId(SyncedVocabularyRow.list, list.id),
+                ),
+            ],
+            conflictingProgressVariantIds:
+                traversal.conflictingProgressVariantIds,
+          );
+          await traversal.clear(_database, _userId);
+        });
+        return true;
+      } else if (revision < previous) {
+        // An account reset can remove the journal. A new full walk is needed.
+        await traversal.clear(_database, _userId);
+        return false;
+      } else {
+        traversal.startCatchup(revision);
+      }
+    }
     final receivedLists = <String>{};
     final touchedLists = <String>{};
     final contents = <String, List<Map<String, dynamic>>>{};
     final completeContents = <String>{};
     AppException? incomplete;
     if (!traversal.listsComplete) {
-      budget.resumeAfter(traversal.afterId);
+      budget.resumeAfter(traversal.afterId, changes: traversal.changeWindow);
       final result = await _remote.fetchLists(_userId, budget: budget);
       final rows = result.valueOrNull ?? budget.takePartialRows();
       for (final map in rows) {
         final list = map.toVocabularyListDomain();
         if (list.ownerId != _userId) continue;
-        traversal.lists[list.id] = list;
+        traversal.recordList(list);
         receivedLists.add(list.id);
         touchedLists.add(list.id);
       }
@@ -899,7 +938,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     }
     var progress = const <Map<String, dynamic>>[];
     if (incomplete == null) {
-      budget.resumeAfter(traversal.afterId);
+      budget.resumeAfter(traversal.afterId, changes: traversal.changeWindow);
       final received = await _remote.fetchProgress(_userId, budget: budget);
       incomplete = received.exceptionOrNull;
       progress = received.valueOrNull ?? budget.takePartialRows();
@@ -1061,22 +1100,16 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         await progressDao.applyPulledProgress(changedRows.values.toList());
       }
       if (traversal.deletionDeferred) incomplete ??= _deferredDeletion;
-      if (incomplete == null) {
-        await StarterDraftReconciliation(_database).reconcile(
-          _userId,
-          [
-            for (final list in traversal.lists.values)
-              list.copyWith(id: ids.localId(SyncedVocabularyRow.list, list.id)),
-          ],
-          conflictingProgressVariantIds:
-              traversal.conflictingProgressVariantIds,
-        );
-      }
       await ids.save();
-      await traversal.save(_database, _userId);
+      if (traversal.deletionDeferred && traversal.progressComplete) {
+        // A later attempt starts over for the tombstone we deferred.
+        await traversal.clear(_database, _userId);
+      } else {
+        await traversal.save(_database, _userId);
+      }
     });
     if (incomplete case final error?) throw error;
-    _starterIdentityReady = true;
+    return false;
   }
 
   Future<_PullSnapshot> _snapshotForPull() async {
@@ -1198,18 +1231,53 @@ class _RestoreTraversal {
       conflictingProgressVariantIds = {
         ...(stored['progressConflicts'] as List? ?? const []).cast<String>(),
       },
+      catalog = {
+        for (final raw in stored['catalog'] as List? ?? const [])
+          raw['id'] as String: VocabularyList.fromJson(
+            raw as Map<String, dynamic>,
+          ),
+      },
+      fromRevision = stored['fromRevision'] as int?,
+      throughRevision = stored['throughRevision'] as int?,
       listsComplete = stored['listsComplete'] as bool? ?? false,
       contentsDone = stored['contentsDone'] as int? ?? 0,
       afterId = stored['afterId'] as String?,
+      progressComplete = stored['progressComplete'] as bool? ?? false,
       deletionDeferred = stored['deletionDeferred'] as bool? ?? false;
 
   final Map<String, VocabularyList> lists;
   final Set<String> conflictingProgressVariantIds;
+  final Map<String, VocabularyList> catalog;
+  int? fromRevision;
+  int? throughRevision;
   bool listsComplete;
   int contentsDone;
   String? afterId;
-  bool progressComplete = false;
+  bool progressComplete;
   bool deletionDeferred;
+
+  VocabularyChangeWindow? get changeWindow => fromRevision == null
+      ? null
+      : (after: fromRevision!, through: throughRevision!);
+
+  void recordList(VocabularyList list) {
+    lists[list.id] = list;
+    if (list.origin == 'starter' && list.seedId != null) {
+      catalog[list.id] = list;
+    } else {
+      catalog.remove(list.id);
+    }
+  }
+
+  void startCatchup(int revision) {
+    fromRevision = throughRevision;
+    throughRevision = revision;
+    lists.clear();
+    listsComplete = false;
+    contentsDone = 0;
+    afterId = null;
+    progressComplete = false;
+  }
 
   static String _key(String ownerId) => 'vocabulary-pull:$ownerId';
 
@@ -1222,9 +1290,9 @@ class _RestoreTraversal {
         .getSingleOrNull();
     if (row == null) return _RestoreTraversal({});
     try {
-      return _RestoreTraversal(
-        jsonDecode(row.read<String>('snapshot')) as Map<String, dynamic>,
-      );
+      final stored =
+          jsonDecode(row.read<String>('snapshot')) as Map<String, dynamic>;
+      return _RestoreTraversal(stored['throughRevision'] == null ? {} : stored);
     } on FormatException {
       return _RestoreTraversal({});
     } on TypeError {
@@ -1234,14 +1302,6 @@ class _RestoreTraversal {
 
   Future<void> save(AppDatabase db, String ownerId) async {
     final key = Variable(_key(ownerId));
-    if (progressComplete) {
-      // A deferred tombstone gets a fresh traversal after this coverage ends.
-      await db.customUpdate(
-        'DELETE FROM shared_import_bootstrap WHERE id = ?',
-        variables: [key],
-      );
-      return;
-    }
     await db.customInsert(
       'INSERT INTO shared_import_bootstrap (id, snapshot) VALUES (?, ?) '
       'ON CONFLICT(id) DO UPDATE SET snapshot = excluded.snapshot',
@@ -1250,10 +1310,14 @@ class _RestoreTraversal {
         Variable(
           jsonEncode({
             'lists': lists.values.map((list) => list.toJson()).toList(),
+            'catalog': catalog.values.map((list) => list.toJson()).toList(),
+            'fromRevision': fromRevision,
+            'throughRevision': throughRevision,
             'progressConflicts': conflictingProgressVariantIds.toList(),
             'listsComplete': listsComplete,
             'contentsDone': contentsDone,
             'afterId': afterId,
+            'progressComplete': progressComplete,
             'deletionDeferred': deletionDeferred,
           }),
         ),
@@ -1261,11 +1325,21 @@ class _RestoreTraversal {
     );
   }
 
+  Future<void> clear(AppDatabase db, String ownerId) async {
+    await db.customUpdate(
+      'DELETE FROM shared_import_bootstrap WHERE id = ?',
+      variables: [Variable(_key(ownerId))],
+    );
+  }
+
   void advancePage(List<Map<String, dynamic>> rows, {required bool complete}) {
     if (complete) {
       afterId = null;
     } else if (rows.isNotEmpty) {
-      afterId = rows.last['id'] as String;
+      afterId =
+          (rows.last[VocabularyRemoteDataSource.pullRevisionKey] ??
+                  rows.last['id'])
+              as String;
     }
   }
 }

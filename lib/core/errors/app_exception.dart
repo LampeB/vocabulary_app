@@ -7,8 +7,22 @@ final class NetworkException extends AppException {
   const NetworkException([super.message = 'No internet connection']);
 }
 
+enum AuthFailureReason {
+  invalidCredentials,
+  usernameTaken,
+  emailTaken,
+  emailNotConfirmed,
+  rateLimited,
+  unknown,
+}
+
 final class AuthException extends AppException {
-  const AuthException([super.message = 'Authentication error']);
+  const AuthException([super.message = 'Authentication error'])
+    : reason = AuthFailureReason.unknown;
+
+  const AuthException.forReason(this.reason) : super('Authentication error');
+
+  final AuthFailureReason reason;
 }
 
 final class NotFoundException extends AppException {

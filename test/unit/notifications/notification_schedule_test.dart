@@ -1,10 +1,20 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/widgets.dart' show Locale;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:vocab_kr/data/datasources/local/app_database.dart';
+import 'package:vocab_kr/domain/entities/app_user.dart';
+import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
+import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/notifications/notification_provider.dart';
 import 'package:vocab_kr/services/notifications/notification_schedule.dart';
 import 'package:vocab_kr/services/notifications/notification_service.dart';
@@ -34,10 +44,189 @@ Future<NotificationService> _mockNotifications(
   return service;
 }
 
+String _zoneBeforeCutoff() => [
+  'Europe/Paris',
+  'Pacific/Tahiti',
+  'Asia/Tokyo',
+].firstWhere((name) => tz.TZDateTime.now(tz.getLocation(name)).hour < 18);
+
 /// The *when/whether* of notifications is pure wall-clock logic (extracted from
 /// NotificationService so it's testable without the native plugin or a device).
 void main() {
-  setUpAll(tz_data.initializeTimeZones);
+  TestWidgetsFlutterBinding.ensureInitialized();
+  final translations = <String, String>{};
+  setUpAll(() async {
+    tz_data.initializeTimeZones();
+    for (final language in ['fr', 'en', 'ko']) {
+      translations[language] = await rootBundle.loadString(
+        'assets/translations/$language.json',
+      );
+    }
+  });
+  final assets =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  setUp(() {
+    rootBundle.clear();
+    assets.setMockMessageHandler('flutter/assets', (request) {
+      final path = utf8.decode(request!.buffer.asUint8List());
+      final language = path.split('/').last.split('.').first;
+      final copy = translations[language];
+      return SynchronousFuture<ByteData?>(
+        copy == null
+            ? null
+            : ByteData.sublistView(Uint8List.fromList(utf8.encode(copy))),
+      );
+    });
+  });
+  tearDown(() {
+    assets.setMockMessageHandler('flutter/assets', null);
+    rootBundle.clear();
+  });
+
+  testWidgets(
+    'cancellation supersedes a pending localized notification body',
+    (tester) async {
+      final reply = Completer<ByteData>();
+      final messenger = tester.binding.defaultBinaryMessenger;
+      String? requestedAsset;
+      rootBundle.evict('assets/translations/ko.json');
+      messenger.setMockMessageHandler('flutter/assets', (request) async {
+        requestedAsset = utf8.decode(request!.buffer.asUint8List());
+        return reply.future;
+      });
+      addTearDown(
+        () => messenger.setMockMessageHandler('flutter/assets', null),
+      );
+      final calls = <String>[];
+      final service = await _mockNotifications(
+        tester,
+        timeZone: _zoneBeforeCutoff,
+        onNotification: (call) {
+          calls.add(call.method);
+          return null;
+        },
+      );
+      final old = service.scheduleDailyReminder(locale: const Locale('ko'));
+      await tester.pump();
+      expect(requestedAsset, 'assets/translations/ko.json');
+      await service.cancelDailyReminder();
+      reply.complete(
+        ByteData.sublistView(
+          Uint8List.fromList(utf8.encode(translations['ko']!)),
+        ),
+      );
+      await old;
+      expect(calls, ['cancel', 'cancel']);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
+
+  for (final language in ['fr', 'en', 'ko']) {
+    testWidgets(
+      'Android schedules both notices in $language',
+      (tester) async {
+        final messages =
+            jsonDecode(translations[language]!) as Map<String, dynamic>;
+        final schedules = <Map<Object?, Object?>>[];
+        final service = await _mockNotifications(
+          tester,
+          timeZone: _zoneBeforeCutoff,
+          onNotification: (call) {
+            if (call.method == 'zonedSchedule') {
+              schedules.add(call.arguments as Map<Object?, Object?>);
+            }
+            return null;
+          },
+        );
+        await service.scheduleDailyReminder(locale: Locale(language));
+        await service.scheduleStreakWarning(11, locale: Locale(language));
+        expect(schedules, hasLength(2));
+        expect(schedules[0]['title'], messages['notifications.daily_title']);
+        expect(schedules[0]['body'], messages['notifications.daily_body']);
+        expect(schedules[1]['title'], messages['notifications.streak_title']);
+        expect(
+          schedules[1]['body'],
+          (messages['notifications.streak_body'] as String).replaceAll(
+            '{days}',
+            '11',
+          ),
+        );
+        expect(
+          schedules[0]['title'],
+          isNot(contains(RegExp(r'[\u{1F1E6}-\u{1F1FF}]', unicode: true))),
+        );
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.android),
+    );
+  }
+
+  for (final waitingForZone in [false, true]) {
+    testWidgets(
+      'logout clears the real streak scheduling (pending: $waitingForZone)',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({'notif_daily_enabled': false});
+        final db = AppDatabase.forTesting(NativeDatabase.memory());
+        addTearDown(db.close);
+        final zone = _zoneBeforeCutoff();
+        final zoneReply = Completer<String>();
+        var lookup = false;
+        var armed = false;
+        var cancels = 0;
+        final service = await _mockNotifications(
+          tester,
+          timeZone: () {
+            lookup = true;
+            return waitingForZone ? zoneReply.future : zone;
+          },
+          onNotification: (call) {
+            if (call.arguments['id'] == 2) {
+              if (call.method == 'zonedSchedule') armed = true;
+              if (call.method == 'cancel') {
+                armed = false;
+                cancels++;
+              }
+            }
+            return null;
+          },
+        );
+        final profile = StateProvider<AppUser?>(
+          (_) => AppUser(
+            id: 'learner',
+            email: 'learner@example.test',
+            username: 'learner',
+            createdAt: DateTime(2026),
+            currentStreak: 4,
+          ),
+        );
+        final container = ProviderContainer(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(db),
+            currentUserProvider.overrideWith((ref) => ref.watch(profile)),
+            notificationServiceProvider.overrideWithValue(service),
+          ],
+        );
+        addTearDown(container.dispose);
+        container.listen(
+          authenticatedRemindersProvider(const Locale('fr')),
+          (_, _) {},
+        );
+        await tester.pump();
+        expect(lookup, isTrue);
+        expect(armed, !waitingForZone);
+        final before = cancels;
+        container.read(profile.notifier).state = null;
+        await tester.pump(const Duration(milliseconds: 1));
+        expect(cancels, before + 1);
+        expect(armed, isFalse);
+        if (waitingForZone) {
+          zoneReply.complete(zone);
+          await tester.pump();
+          expect(armed, isFalse);
+        }
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.android),
+    );
+  }
 
   testWidgets(
     'daily schedule sends 09:00 in the device zone to Android',
@@ -92,7 +281,7 @@ void main() {
         }
         expect(calls.map((call) => call.method), ['cancel', 'cancel']);
         if (streak) {
-          await service.scheduleStreakWarning(11);
+          await service.scheduleStreakWarning(11, locale: const Locale('en'));
         } else {
           await service.scheduleDailyReminder(hour: 11);
         }

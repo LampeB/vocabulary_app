@@ -158,7 +158,10 @@ void main() {
           username: '  Taken  ',
         );
 
-        expect(result.exceptionOrNull, isA<ValidationException>());
+        expect(
+          (result.exceptionOrNull as AuthException).reason,
+          AuthFailureReason.usernameTaken,
+        );
         expect(remote.signUpCalls, 0);
       },
     );
@@ -176,10 +179,10 @@ void main() {
       expect(remote.upserts.single['display_name'], 'marie_kr');
     });
 
-    test('localizes the already-registered Supabase error', () async {
+    test('preserves the locale-independent duplicate email reason', () async {
       final remote = _FakeAuthRemote(
         signUpResult: const Failure(
-          AuthException('User already registered with email'),
+          AuthException.forReason(AuthFailureReason.emailTaken),
         ),
       );
       final result = await AuthRepositoryImpl(remote).signUpWithEmail(
@@ -189,7 +192,10 @@ void main() {
       );
 
       expect(result.exceptionOrNull, isA<AuthException>());
-      expect(result.exceptionOrNull?.message, contains('déjà utilisée'));
+      expect(
+        (result.exceptionOrNull as AuthException).reason,
+        AuthFailureReason.emailTaken,
+      );
     });
 
     test('preserves ordinary sign-in and sign-up failures', () async {

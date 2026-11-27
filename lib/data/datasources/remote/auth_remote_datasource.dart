@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/errors/app_exception.dart' as app_ex;
 import '../../../core/errors/failure.dart';
+import '../../../core/utils/streak.dart';
 
 abstract interface class AuthRemote {
   Stream<AuthState> get authStateChanges;
@@ -20,8 +21,10 @@ abstract interface class AuthRemote {
 }
 
 class AuthRemoteDataSource implements AuthRemote {
-  AuthRemoteDataSource(this._client);
+  AuthRemoteDataSource(this._client, {DateTime Function()? now})
+    : _now = now ?? DateTime.now;
   final SupabaseClient _client;
+  final DateTime Function() _now;
 
   @override
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
@@ -40,7 +43,7 @@ class AuthRemoteDataSource implements AuthRemote {
       }
       return Success(res.user!);
     } on AuthException catch (e) {
-      return Failure(app_ex.AuthException(e.message));
+      return Failure(_authFailure(e));
     } catch (e) {
       return Failure(app_ex.UnknownException(e.toString()));
     }
@@ -63,7 +66,7 @@ class AuthRemoteDataSource implements AuthRemote {
       }
       return Success(res.user!);
     } on AuthException catch (e) {
-      return Failure(app_ex.AuthException(e.message));
+      return Failure(_authFailure(e));
     } catch (e) {
       return Failure(app_ex.UnknownException(e.toString()));
     }
@@ -147,29 +150,19 @@ class AuthRemoteDataSource implements AuthRemote {
       if (rows.isEmpty) return const Success(null);
       final profile = rows.first;
 
-      final today = DateTime.now().toLocal();
+      final today = _now();
       final todayDate = DateTime(today.year, today.month, today.day);
       final lastRaw = profile['last_study_date'] as String?;
 
-      if (lastRaw != null) {
-        final last = DateTime.parse(lastRaw);
-        if (DateTime(last.year, last.month, last.day) == todayDate) {
-          return const Success(null);
-        }
-      }
-
       final current = profile['current_streak'] as int? ?? 0;
       final longest = profile['longest_streak'] as int? ?? 0;
-      final yesterday = todayDate.subtract(const Duration(days: 1));
-
-      int newStreak;
-      if (lastRaw != null) {
-        final last = DateTime.parse(lastRaw);
-        final lastDay = DateTime(last.year, last.month, last.day);
-        newStreak = lastDay == yesterday ? current + 1 : 1;
-      } else {
-        newStreak = 1;
-      }
+      final update = computeStreak(
+        today: today,
+        lastStudyDate: lastRaw == null ? null : DateTime.parse(lastRaw),
+        currentStreak: current,
+      );
+      if (update.alreadyCountedToday) return const Success(null);
+      final newStreak = update.streak;
 
       String p2(int n) => n.toString().padLeft(2, '0');
       await _client
@@ -179,7 +172,7 @@ class AuthRemoteDataSource implements AuthRemote {
             'longest_streak': newStreak > longest ? newStreak : longest,
             'last_study_date':
                 '${todayDate.year}-${p2(todayDate.month)}-${p2(todayDate.day)}',
-            'updated_at': DateTime.now().toIso8601String(),
+            'updated_at': today.toUtc().toIso8601String(),
           })
           .eq('id', userId);
 
@@ -188,4 +181,23 @@ class AuthRemoteDataSource implements AuthRemote {
       return Failure(app_ex.UnknownException(e.toString()));
     }
   }
+}
+
+app_ex.AppException _authFailure(AuthException error) {
+  if (error is AuthRetryableFetchException) {
+    return const app_ex.NetworkException();
+  }
+  final reason = switch (error.code) {
+    'invalid_credentials' => app_ex.AuthFailureReason.invalidCredentials,
+    'email_exists' ||
+    'user_already_exists' => app_ex.AuthFailureReason.emailTaken,
+    'email_not_confirmed' => app_ex.AuthFailureReason.emailNotConfirmed,
+    'over_request_rate_limit' ||
+    'over_email_send_rate_limit' ||
+    'over_sms_send_rate_limit' => app_ex.AuthFailureReason.rateLimited,
+    _ when error.message.toLowerCase().contains('already registered') =>
+      app_ex.AuthFailureReason.emailTaken,
+    _ => app_ex.AuthFailureReason.unknown,
+  };
+  return app_ex.AuthException.forReason(reason);
 }

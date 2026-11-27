@@ -17,21 +17,40 @@ class _FailingAuthRepo implements AuthRepository {
     required String email,
     required String password,
     required String username,
-  }) async =>
-      Failure(_failure);
+  }) async => Failure(_failure);
 
   // ── unused stubs ──────────────────────────────────────────────────────────
-  @override Stream<AppUser?> get authStateChanges => const Stream.empty();
-  @override AppUser? get currentUser => null;
-  @override Future<Result<AppUser>> signInWithEmail({required String email, required String password}) async => throw UnimplementedError();
-  @override Future<Result<AppUser>> signInWithGoogle() async => throw UnimplementedError();
-  @override Future<Result<AppUser>> signInWithApple() async => throw UnimplementedError();
-  @override Future<Result<void>> signOut() async => throw UnimplementedError();
-  @override Future<Result<void>> sendPasswordResetEmail(String email) async => throw UnimplementedError();
-  @override Future<Result<AppUser>> updateProfile({String? displayName, String? avatarUrl, String? bio}) async => throw UnimplementedError();
-  @override Future<Result<AppUser>> reloadProfile() async => throw UnimplementedError();
-  @override Future<Result<void>> updateStreak() async => throw UnimplementedError();
-  @override Future<Result<void>> deleteAccount() async => throw UnimplementedError();
+  @override
+  Stream<AppUser?> get authStateChanges => const Stream.empty();
+  @override
+  AppUser? get currentUser => null;
+  @override
+  Future<Result<AppUser>> signInWithEmail({
+    required String email,
+    required String password,
+  }) async => throw UnimplementedError();
+  @override
+  Future<Result<AppUser>> signInWithGoogle() async =>
+      throw UnimplementedError();
+  @override
+  Future<Result<AppUser>> signInWithApple() async => throw UnimplementedError();
+  @override
+  Future<Result<void>> signOut() async => throw UnimplementedError();
+  @override
+  Future<Result<void>> sendPasswordResetEmail(String email) async =>
+      throw UnimplementedError();
+  @override
+  Future<Result<AppUser>> updateProfile({
+    String? displayName,
+    String? avatarUrl,
+    String? bio,
+  }) async => throw UnimplementedError();
+  @override
+  Future<Result<AppUser>> reloadProfile() async => throw UnimplementedError();
+  @override
+  Future<Result<void>> updateStreak() async => throw UnimplementedError();
+  @override
+  Future<Result<void>> deleteAccount() async => throw UnimplementedError();
 }
 
 void main() {
@@ -39,12 +58,14 @@ void main() {
     late SignUpUseCase useCase;
 
     setUp(() {
-      useCase = SignUpUseCase(_FailingAuthRepo(
-        const ValidationException('Ce pseudo est déjà utilisé.'),
-      ));
+      useCase = SignUpUseCase(
+        _FailingAuthRepo(
+          const AuthException.forReason(AuthFailureReason.usernameTaken),
+        ),
+      );
     });
 
-    test('returns ValidationException with correct French message', () async {
+    test('preserves the duplicate username reason', () async {
       final result = await useCase.call(
         email: 'new@example.com',
         password: 'password123',
@@ -53,8 +74,10 @@ void main() {
 
       expect(result, isA<Failure>());
       final exception = (result as Failure).exception;
-      expect(exception, isA<ValidationException>());
-      expect(exception.message, 'Ce pseudo est déjà utilisé.');
+      expect(
+        (exception as AuthException).reason,
+        AuthFailureReason.usernameTaken,
+      );
     });
 
     test('does not succeed', () async {
@@ -71,12 +94,14 @@ void main() {
     late SignUpUseCase useCase;
 
     setUp(() {
-      useCase = SignUpUseCase(_FailingAuthRepo(
-        const AuthException('Cette adresse e-mail est déjà utilisée.'),
-      ));
+      useCase = SignUpUseCase(
+        _FailingAuthRepo(
+          const AuthException.forReason(AuthFailureReason.emailTaken),
+        ),
+      );
     });
 
-    test('returns AuthException with correct French message', () async {
+    test('preserves the duplicate email reason', () async {
       final result = await useCase.call(
         email: 'taken@example.com',
         password: 'password123',
@@ -86,7 +111,7 @@ void main() {
       expect(result, isA<Failure>());
       final exception = (result as Failure).exception;
       expect(exception, isA<AuthException>());
-      expect(exception.message, 'Cette adresse e-mail est déjà utilisée.');
+      expect((exception as AuthException).reason, AuthFailureReason.emailTaken);
     });
 
     test('does not succeed', () async {

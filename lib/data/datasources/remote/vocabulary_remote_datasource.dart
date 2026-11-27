@@ -8,6 +8,7 @@ import '../../../core/errors/failure.dart';
 import '../../sync/vocabulary_write_order.dart';
 
 typedef ProvisionedAudio = ({String path, String word, String langCode});
+typedef VocabularyChangeWindow = ({int after, int through});
 
 /// One elapsed-time budget for a sequence of network calls. A timeout does
 /// not prove a submitted write was rejected, so callers must leave it queued.
@@ -18,8 +19,12 @@ class VocabularyNetworkBudget {
   final _elapsed = Stopwatch()..start();
   List<Map<String, dynamic>> _partialRows = const [];
   String? _pageAfter;
+  VocabularyChangeWindow? _changes;
 
-  void resumeAfter(String? cursor) => _pageAfter = cursor;
+  void resumeAfter(String? cursor, {VocabularyChangeWindow? changes}) {
+    _pageAfter = cursor;
+    _changes = changes;
+  }
 
   List<Map<String, dynamic>> takePartialRows() {
     final rows = _partialRows;
@@ -53,12 +58,33 @@ class VocabularyRemoteDataSource {
 
   static const deletedListKey = '_sync_deleted_list';
   static const deletedConceptKey = '_sync_deleted_concept';
+  static const pullRevisionKey = '_sync_pull_revision';
+
+  Future<Result<int>> fetchPullRevision(
+    String ownerId, {
+    required VocabularyNetworkBudget budget,
+  }) async {
+    try {
+      final revision = await budget._request(
+        () => _client.rpc<int>(
+          'vocabulary_pull_revision',
+          params: {'p_owner_id': ownerId},
+        ),
+      );
+      return Success(revision);
+    } catch (e) {
+      return Failure(NetworkException(e.toString()));
+    }
+  }
 
   Future<Result<List<Map<String, dynamic>>>> fetchLists(
     String ownerId, {
     VocabularyNetworkBudget? budget,
   }) async {
     try {
+      if (budget?._changes case final window?) {
+        return Success(await _fetchChanged('lists', ownerId, budget!, window));
+      }
       // Deleted rows are fetched ON PURPOSE: pull-sync must propagate
       // server-side deletions (tombstones), or a list deleted remotely
       // stays visible on-device forever.
@@ -159,36 +185,19 @@ class VocabularyRemoteDataSource {
 
       final id = data['id'] as String;
       final parent = data[parentColumn] as String;
-      // Patch only explicit local changes. The live predicate is evaluated
-      // by the database alongside the update so a tombstone always wins.
-      if (changes != null && changes.isNotEmpty) {
-        final updated = await budget._request(
-          () => _versionedTable(table, stamp)
-              .update({...changes, 'sync_write_protocol': 16})
-              .eq('id', id)
-              .eq('owner_id', ownerId)
-              .eq(parentColumn, parent)
-              .eq('is_deleted', false)
-              .select(),
-        );
-        if (updated.isNotEmpty) {
-          return Success(
-            await _withAncestorTombstones(
-              table,
-              ownerId,
-              updated.single,
-              budget,
-            ),
-          );
-        }
-      }
+      // Even an unchanged copy must consume this sequence under the row lock.
+      // An earlier PATCH may still arrive after this acknowledgement.
+      // PostgreSQL keeps tombstones immutable and returns the canonical row.
       final existing = await budget._request(
-        () => _client
-            .from(table)
-            .select()
+        () => _versionedTable(table, stamp)
+            .update({
+              ...?changes,
+              'sync_write_protocol': mutation['sync_write_protocol'],
+            })
             .eq('id', id)
             .eq('owner_id', ownerId)
             .eq(parentColumn, parent)
+            .select()
             .single(),
       );
       return Success(
@@ -303,6 +312,11 @@ class VocabularyRemoteDataSource {
     VocabularyNetworkBudget? budget,
   }) async {
     try {
+      if (budget?._changes case final window?) {
+        return Success(
+          await _fetchChanged('progress', userId, budget!, window),
+        );
+      }
       return Success(
         await _fetchPages(
           () => _client
@@ -318,11 +332,35 @@ class VocabularyRemoteDataSource {
     }
   }
 
+  Future<List<Map<String, dynamic>>> _fetchChanged(
+    String kind,
+    String ownerId,
+    VocabularyNetworkBudget budget,
+    VocabularyChangeWindow window,
+  ) => _fetchPages(
+    () => _client.rpc<List<Map<String, dynamic>>>(
+      'vocabulary_pull_changed_$kind',
+      params: {
+        'p_owner_id': ownerId,
+        'p_after': window.after,
+        'p_through': window.through,
+      },
+    ),
+    budget: budget,
+    cursorColumn: 'revision',
+    project: (row) => {
+      ...(row['value'] as Map<String, dynamic>),
+      pullRevisionKey: row['revision'].toString(),
+    },
+  );
+
   // A capped response cannot prove that a starter or an existing progress
   // identity is absent. Read all pages before reconciling local drafts.
   Future<List<Map<String, dynamic>>> _fetchPages(
     PostgrestFilterBuilder<List<Map<String, dynamic>>> Function() query, {
     VocabularyNetworkBudget? budget,
+    String cursorColumn = 'id',
+    Map<String, dynamic> Function(Map<String, dynamic>)? project,
   }) async {
     const pageSize = 500;
     final rows = <Map<String, dynamic>>[];
@@ -332,12 +370,14 @@ class VocabularyRemoteDataSource {
       while (true) {
         final page = await deadline._request(() {
           var filter = query();
-          if (lastId case final previous?) filter = filter.gt('id', previous);
-          return filter.order('id').limit(pageSize);
+          if (lastId case final previous?) {
+            filter = filter.gt(cursorColumn, previous);
+          }
+          return filter.order(cursorColumn).limit(pageSize);
         }, perRequest: _pageTimeout);
-        rows.addAll(page);
+        rows.addAll(project == null ? page : page.map(project));
         if (page.length < pageSize) return rows;
-        lastId = page.last['id'] as String;
+        lastId = page.last[cursorColumn].toString();
       }
     } catch (_) {
       budget?._partialRows = rows;

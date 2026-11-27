@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   suites:
-    if: github.ref == 'refs/heads/main' && vars.PATROL_E2E_ACTIVATION == 'write-order-v1'
+    if: github.ref == 'refs/heads/main' && vars.PATROL_E2E_ACTIVATION == 'progress-boundaries-v1'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -44,7 +44,7 @@ jobs:
 
   e2e:
     needs: suites
-    if: github.ref == 'refs/heads/main' && vars.PATROL_E2E_ACTIVATION == 'write-order-v1'
+    if: github.ref == 'refs/heads/main' && vars.PATROL_E2E_ACTIVATION == 'progress-boundaries-v1'
     environment: patrol-e2e
     name: E2E (${{ matrix.target }})
     runs-on: ubuntu-latest

@@ -1,9 +1,13 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/services.dart'
     show MethodChannel, MissingPluginException, PlatformException;
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'notification_schedule.dart';
+
+typedef _ReminderText = ({String title, String body});
 
 class NotificationService {
   NotificationService._();
@@ -21,6 +25,34 @@ class NotificationService {
   bool _initialized = false;
   final _scheduleGenerations = <int, int>{};
   final _platformOperations = <int, Future<void>>{};
+  final _notificationLocales = <String, Map<String, dynamic>>{};
+
+  Future<_ReminderText> _reminderText(Locale? locale, {int? streakDays}) async {
+    final language = switch (locale?.languageCode) {
+      'en' => 'en',
+      'ko' => 'ko',
+      _ => 'fr',
+    };
+    final strings = _notificationLocales[language] ??=
+        await const RootBundleAssetLoader().load(
+          'assets/translations',
+          Locale(language),
+        ) ??
+        (throw StateError('Missing notification copy for $language'));
+    if (streakDays == null) {
+      return (
+        title: strings['notifications.daily_title'] as String,
+        body: strings['notifications.daily_body'] as String,
+      );
+    }
+    return (
+      title: strings['notifications.streak_title'] as String,
+      body: (strings['notifications.streak_body'] as String).replaceAll(
+        '{days}',
+        '$streakDays',
+      ),
+    );
+  }
 
   Future<tz.TZDateTime> _nowForScheduling() async {
     const channel = MethodChannel('vocab_kr/device_time_zone');
@@ -89,19 +121,26 @@ class NotificationService {
 
   // ─── Daily study reminder ─────────────────────────────────────────────────
 
-  Future<void> scheduleDailyReminder({int hour = 9, int minute = 0}) =>
-      _schedule(
-        _dailyReminderId,
-        (now) => nextDailyReminder(now, hour, minute),
-        _scheduleDailyReminder,
-      );
+  Future<void> scheduleDailyReminder({
+    int hour = 9,
+    int minute = 0,
+    Locale? locale,
+  }) => _schedule(
+    _dailyReminderId,
+    (now) => nextDailyReminder(now, hour, minute),
+    () => _reminderText(locale),
+    _scheduleDailyReminder,
+  );
 
-  Future<void> _scheduleDailyReminder(tz.TZDateTime next) async {
+  Future<void> _scheduleDailyReminder(
+    tz.TZDateTime next,
+    _ReminderText text,
+  ) async {
     try {
       await _plugin.zonedSchedule(
         _dailyReminderId,
-        'Time to study! 🇫🇷🇰🇷',
-        'Your vocabulary is waiting — keep the streak alive!',
+        text.title,
+        text.body,
         next,
         NotificationDetails(
           android: AndroidNotificationDetails(
@@ -131,21 +170,23 @@ class NotificationService {
 
   // Schedules a one-off warning for today at 20:00 if the user has a streak
   // and hasn't studied yet. Call after app launch / profile load.
-  Future<void> scheduleStreakWarning(int streakDays) => _schedule(
-    _streakWarningId,
-    (now) => streakWarningSlot(now, streakDays),
-    (warning) => _scheduleStreakWarning(streakDays, warning),
-  );
+  Future<void> scheduleStreakWarning(int streakDays, {Locale? locale}) =>
+      _schedule(
+        _streakWarningId,
+        (now) => streakWarningSlot(now, streakDays),
+        () => _reminderText(locale, streakDays: streakDays),
+        _scheduleStreakWarning,
+      );
 
   Future<void> _scheduleStreakWarning(
-    int streakDays,
     tz.TZDateTime warning,
+    _ReminderText text,
   ) async {
     try {
       await _plugin.zonedSchedule(
         _streakWarningId,
-        'Don\'t break your streak! 🔥',
-        '$streakDays-day streak at risk — study before midnight.',
+        text.title,
+        text.body,
         warning,
         NotificationDetails(
           android: AndroidNotificationDetails(
@@ -179,7 +220,8 @@ class NotificationService {
   Future<void> _schedule(
     int id,
     tz.TZDateTime? Function(tz.TZDateTime) nextSlot,
-    Future<void> Function(tz.TZDateTime) write,
+    Future<_ReminderText> Function() loadText,
+    Future<void> Function(tz.TZDateTime, _ReminderText) write,
   ) async {
     final generation = _invalidate(id);
     bool current() => _scheduleGenerations[id] == generation;
@@ -194,8 +236,10 @@ class NotificationService {
     if (!current()) return;
     final slot = nextSlot(now);
     if (slot == null) return;
+    final text = await loadText();
+    if (!current()) return;
     await _orderPlatformOperation(id, () async {
-      if (current()) await write(slot);
+      if (current()) await write(slot, text);
     });
   }
 

@@ -89,6 +89,13 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   poussent la bibliothèque sur la pile : son bouton Retour retrouve le chemin.
 - Les actions d'inscription et de connexion de l'accueil, puis la validation
   du formulaire, sont des boutons accessibles par Tab et Entrée.
+- Les erreurs d'authentification sont traduites dans l'interface à partir de
+  motifs indépendants de la langue (identifiants, pseudo/e-mail déjà utilisé,
+  confirmation, fréquence, réseau). Un message brut du fournisseur n'est pas
+  affiché. Les compteurs de révision indiquent des cartes jouables : un concept
+  dû dans les deux sens représente deux cartes, pas deux mots.
+- La série compare des dates civiles, y compris lors des journées de 23 ou
+  25 heures. La fin de quiz et le suivi social utilisent le même calcul.
 - Le squelette du splash s'adapte au paysage. Le splash et le verdict peuvent
   défiler lorsque la hauteur ou le texte agrandi l'exigent, avec un signal de
   défilement ; Continuer reste atteignable à 320 × 568, texte doublé.

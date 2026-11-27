@@ -904,16 +904,27 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   Future<void> _onSessionComplete(QuizState completed) async {
     if (_kTestMode || !_ownsSession) return;
     final epoch = _sessionEpoch;
-    unawaited(_recordSession(completed));
+    final accountId = _sessionUserId;
+    final completedAt = DateTime.now();
+    if (accountId != null) {
+      ref.read(localStudyDayProvider(accountId).notifier).state = completedAt;
+    }
+    final reminders = ref.read(notificationServiceProvider);
+    unawaited(
+      reminders.cancelStreakWarning().catchError((Object error) {
+        sttLog('[QUIZ] streak warning cancellation failed: $error');
+      }),
+    );
+    await _recordSession(completed, completedAt);
+    if (!_isCurrentSession(epoch)) return;
     await ref.read(authRepositoryProvider).updateStreak();
     if (!_isCurrentSession(epoch)) return;
     await ref.read(authStateProvider.notifier).reloadProfile();
     if (!_isCurrentSession(epoch)) return;
-    await ref.read(notificationServiceProvider).cancelStreakWarning();
     if (_isCurrentSession(epoch)) unawaited(_maybeRequestReview(epoch));
   }
 
-  Future<void> _recordSession(QuizState completed) async {
+  Future<void> _recordSession(QuizState completed, DateTime completedAt) async {
     final args = _lastArgs;
     if (args == null) return;
     final userId = _sessionUserId;
@@ -925,7 +936,6 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         _accountEpoch == accountEpoch &&
         ref.read(currentUserProvider)?.id == userId;
 
-    final completedAt = DateTime.now();
     final duration = _sessionStartTime == null
         ? 0
         : completedAt.difference(_sessionStartTime!).inSeconds;

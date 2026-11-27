@@ -10,7 +10,7 @@ from urllib.request import Request, build_opener
 from supabase_http import NoRedirects, supabase_origin
 
 
-PATROL_CONTRACT = 'write-order-v1'
+PATROL_CONTRACT = 'progress-boundaries-v1'
 
 
 def require_isolation_ready(url, key):

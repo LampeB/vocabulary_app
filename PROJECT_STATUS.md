@@ -97,14 +97,14 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **1 105 tests hôte passent**, avec **74,5 %**
+- L'analyse Flutter est propre ; les **1 139 tests hôte passent**, avec **74,9 %**
   de couverture sur le dernier lot du 27 novembre. Douze tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 25 tests ciblés. La sonde compilée en mode produit confirme le
   refus des diagnostics, même avec l'option fournie.
 - Sur `90a8298`, les sept anciens checks CI, dont les tests hôte, le wrapper SQL et la
   compilation native Android, sont verts. Le pont utilise le NDK 28.2 de
-  l'application. Les douze premières itérations des quatre relecteurs ont été
+  l'application. Les treize premières itérations des quatre relecteurs ont été
   bloquées ; leurs corrections sont consignées dans
   [le registre du 27 novembre](docs/reviews/2026-11-27-integration.md).
   Le sas exige deux revues propres sur le commit final ; les verdicts et les
@@ -112,14 +112,15 @@ de contenu avant bêta pédagogique.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **1 105** tests hôte réussis lors de la dernière validation locale
+- La suite compte **1 139** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
-- Les neuf suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
+- Les onze suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
   réelles, dont la protection des tombstones et le test intermédiaire de fermeture
   Storage avant activation de la politique finale. Deux connexions ont
   vérifié le verrou du reset et le refus de l'écriture concurrente. Le contrat
-  Patrol exige 016 et se ferme si une garde d'écriture est désactivée.
+  Patrol exige 018 et se ferme si une garde de référence ou d'écriture est
+  désactivée, ou si un droit client de suppression physique est réintroduit.
   Les dix tests Python E2E, le test Node de redirection TLS, vingt-neuf tests Deno, vingt-et-un tests du bot,
   quatre tests du déploiement et quatre tests du garde Git passent dans le lot courant. Le bot refuse
   aussi une CI verte issue d'un
@@ -144,13 +145,13 @@ de contenu avant bêta pédagogique.
   entre les UUID de deux comptes. Les liaisons d'identité locales conservent
   les copies séparées sur un appareil partagé et les UUID du protocole distant.
 - L'arrêt système utilise une confirmation native de session distincte de
-  l'acquittement de commande. Le nouveau pont iOS et le fuseau natif doivent
-  passer la compilation simulateur macOS, désormais huitième check CI exigé ;
-  aucun build iOS ni essai appareil n'est revendiqué sur l'hôte Windows.
+  l'acquittement de commande. Le pont système iOS, le fuseau natif et l'exclusion
+  des diagnostics des sauvegardes ont passé la compilation simulateur macOS
+  sur `5c9d0f0`, huitième check CI exigé ; aucun essai appareil n'est revendiqué.
 - Les checks iOS de `f5f5949` et `90a8298` ont échoué au lien `Pods_Runner`.
   CocoaPods est versionné et SwiftPM automatique désactivé. Le lot courant
-  applique aussi la contrainte de GoogleMLKit sur l'architecture simulateur ;
-  le prochain check macOS doit confirmer l'édition des liens.
+  applique la contrainte de GoogleMLKit sur l'architecture simulateur : le
+  check macOS de `5c9d0f0` passe en 18 minutes. Ses huit checks CI sont verts.
 - La feuille compte les cartes par source/paire/sens ; un pool devenu vide
   offre une reprise sans faux bilan. Les titres longs d'aperçu défilent avec
   leurs mots et les locales partielles disposent du repli français réel.
@@ -164,11 +165,22 @@ de contenu avant bêta pédagogique.
   contextuel. La saisie reste utilisable avec le clavier en paysage à texte
   doublé. Les rappels sont restaurés depuis le bootstrap authentifié de V3,
   et le rappel de série est annulé lorsque l'activité du jour est connue.
+  L'historique SQLite du compte empêche son réarmement après redémarrage,
+  même si le profil distant n'a pas encore reçu la fin de quiz.
 - La migration 016 refuse une écriture arrivée après une version plus récente
   du même appareil, même après expiration HTTP. La restauration conserve ses
   curseurs dans SQLite pour reprendre après redémarrage. Le comptage du chemin
   exclut les questions sans réponse active et la feuille distribue les cartes
   annoncées sans répétition de remplissage.
+- Un ACK d'import sans changement métier consomme aussi sa séquence. Le
+  rattrapage 017 reprend les mutations distantes intervenues derrière les
+  curseurs avant de terminer la restauration. La migration 018 refuse une
+  nouvelle référence FSRS privée sans révéler son existence, préserve les
+  références historiques et réserve les suppressions physiques au serveur.
+- Les erreurs d'authentification et les rappels disposent de textes FR/EN/KO.
+  Les compteurs affichent des cartes, cohérentes avec les deux sens de
+  révision. Le calcul partagé des séries utilise les dates civiles ; une
+  journée de 23 ou 25 heures ne rompt pas la série.
 - La CI Patrol contient neuf suites Android, lançables manuellement avec des
   secrets Supabase : navigation, auth, flux utilisateur, chemin quotidien,
   prérequis de leçon, paires de langues, quiz voix/cartes, écriture et login.
@@ -205,9 +217,9 @@ de contenu avant bêta pédagogique.
 - Whisper local Android utilise désormais un pont Ponderin minimal vers le
   moteur MIT `whisper.cpp`, avec modèle épinglé et vérifié. Le wrapper GPL
   historique a été retiré. Whisper local iOS n'est pas livré. Le `Podfile`
-  et les configurations CocoaPods de l'application sont versionnés, mais le
-  build simulateur échoue encore au lien `Pods_Runner` sur `90a8298` ; une
-  compilation native réussie et des essais appareil restent nécessaires.
+  et les configurations CocoaPods de l'application sont versionnés. La
+  compilation simulateur de l'application passe sur `5c9d0f0` ; elle ne livre
+  pas le pont Whisper iOS ni les essais appareil encore nécessaires.
 - Le workflow TestFlight incomplet a été retiré : aucune livraison iOS n'est
   revendiquée. Le workflow Android compile l'APK sans le publier en artefact
   GitHub Actions ; aucun APK généré ne doit être versionné dans Git.

@@ -143,7 +143,7 @@ void main() {
   });
 
   test(
-    'a silent canonical acknowledgement read is a transport failure',
+    'a silent canonical acknowledgement write is a transport failure',
     () async {
       final methods = <String>[];
       final silent = Completer<http.Response>();
@@ -162,10 +162,88 @@ void main() {
           )
           .timeout(const Duration(seconds: 2));
       expect(result.exceptionOrNull, isA<NetworkException>());
-      expect(methods, ['POST', 'GET']);
+      expect(methods, ['POST', 'PATCH']);
       expect(silent.isCompleted, isFalse);
     },
   );
+
+  test('a reverted shared import fences the timed-out rename and acknowledges '
+      'the canonical copy without touching its metadata', () async {
+    final latePatch = Completer<http.Request>();
+    final releasePatch = Completer<void>();
+    final latePatchRejected = Completer<void>();
+    final canonical = <String, dynamic>{
+      ..._timestamp,
+      'owner_id': 'u',
+      'name': 'Baseline',
+      'description': 'Edited on another device',
+      'imported_from_share_token': 'source-token',
+      'visibility': 'public',
+      'share_token': 'published-copy',
+    };
+    var lastSequence = 0;
+    var writes = 0;
+    final datasource = remote((request) async {
+      if (request.method == 'GET') {
+        expect(request.url.queryParameters['share_token'], 'eq.source-token');
+        return _reply(request, [
+          {'name': 'Baseline'},
+        ]);
+      }
+      if (request.method == 'POST') {
+        expect(
+          request.headers['prefer'],
+          contains('resolution=ignore-duplicates'),
+        );
+        return _reply(request, []);
+      }
+      expect(request.method, 'PATCH');
+      final changes = jsonDecode(request.body) as Map<String, dynamic>;
+      final sequence = int.parse(request.headers['x-ponderin-sync-sequence']!);
+      if (++writes == 1) {
+        expect(changes['name'], 'Transient rename');
+        latePatch.complete(request);
+        await releasePatch.future;
+      } else {
+        expect(changes, {'sync_write_protocol': 16});
+      }
+      if (sequence <= lastSequence) {
+        latePatchRejected.complete();
+        return http.Response(
+          '{"code":"40001","message":"Older than accepted revision"}',
+          409,
+          request: request,
+        );
+      }
+      lastSequence = sequence;
+      canonical.addAll(changes);
+      return _reply(request, canonical);
+    });
+    final repo = repository(datasource);
+    final list = (await repo.importFromShareToken('source-token')).valueOrNull!;
+    canonical['id'] = list.id;
+    await repo.renameList(list.id, 'Transient rename');
+    final running = sender(datasource).pushAll();
+    final timedOut = await latePatch.future.timeout(const Duration(seconds: 2));
+    expect(await running, 0);
+    expect((await db.vocabularyListDao.getById(list.id))?.isSynced, isFalse);
+
+    await repo.renameList(list.id, 'Baseline');
+    expect(await sender(datasource).pushAll(), 1);
+    final acknowledged = (await db.vocabularyListDao.getById(list.id))!;
+    expect(acknowledged.isSynced, isTrue);
+    expect(acknowledged.description, 'Edited on another device');
+    expect(acknowledged.shareToken, 'published-copy');
+    expect(
+      lastSequence,
+      greaterThan(int.parse(timedOut.headers['x-ponderin-sync-sequence']!)),
+    );
+
+    releasePatch.complete();
+    await latePatchRejected.future.timeout(const Duration(seconds: 2));
+    expect(canonical['name'], 'Baseline');
+    expect((await db.vocabularyListDao.getById(list.id))?.name, 'Baseline');
+  });
 
   for (final progress in [false, true]) {
     test(
@@ -274,6 +352,7 @@ void main() {
       final silent = Completer<http.Response>();
       final datasource = remote((request) async {
         final table = request.url.pathSegments.last;
+        if (table == 'vocabulary_pull_revision') return _reply(request, 0);
         final list = request.url.queryParameters['list_id'];
         requests.add(list ?? table);
         if (table == 'vocabulary_lists') {
@@ -327,6 +406,7 @@ void main() {
       final requests = <String>[];
       final datasource = remote((request) async {
         final table = request.url.pathSegments.last;
+        if (table == 'vocabulary_pull_revision') return _reply(request, 0);
         final list = request.url.queryParameters['list_id'];
         requests.add(list ?? table);
         if (table == 'vocabulary_lists') {
@@ -406,6 +486,7 @@ void main() {
       const finalVariant = 'final-variant';
       final datasource = remote((request) async {
         final table = request.url.pathSegments.last;
+        if (table == 'vocabulary_pull_revision') return _reply(request, 0);
         final cursor = request.url.queryParameters['id'];
         requests.add((table, cursor));
         await Future<void>.delayed(const Duration(milliseconds: 150));
@@ -514,6 +595,163 @@ void main() {
       expect((await db.progressDao.getById('progress-last'))?.reps, 4);
     },
   );
+
+  test('a reopened pull catches up a tombstone and an insertion behind its '
+      'list cursor before it reports completion', () async {
+    const deleted = 'list-m';
+    const tail = 'list-z';
+    const inserted = 'list-a';
+    const variant = 'variant-list-m';
+    final silent = Completer<http.Response>();
+    final silentProgress = Completer<http.Response>();
+    final requests = <String>[];
+    var pauseTail = false;
+    var pauseProgress = false;
+    var revision = 1;
+    final now = DateTime.utc(2026, 11, 27);
+    final progress = VariantProgress(
+      id: 'old-progress',
+      userId: 'u',
+      variantId: variant,
+      direction: QuizDirection.frToKo,
+      reps: 4,
+      createdAt: now,
+      updatedAt: now,
+    );
+    Map<String, dynamic> listRow(String id, {bool isDeleted = false}) => {
+      ..._timestamp,
+      'id': id,
+      'owner_id': 'u',
+      'name': id,
+      'is_deleted': isDeleted,
+    };
+    final datasource = remote((request) async {
+      final table = request.url.pathSegments.last;
+      requests.add(table);
+      switch (table) {
+        case 'vocabulary_pull_revision':
+          return _reply(request, revision);
+        case 'vocabulary_lists':
+          return _reply(request, [listRow(deleted), listRow(tail)]);
+        case 'vocabulary_pull_changed_lists':
+          expect(jsonDecode(request.body), {
+            'p_owner_id': 'u',
+            'p_after': 1,
+            'p_through': 3,
+          });
+          return _reply(request, [
+            {'revision': 2, 'value': listRow(deleted, isDeleted: true)},
+            {'revision': 3, 'value': listRow(inserted)},
+          ]);
+        case 'concepts':
+          final list = request.url.queryParameters['list_id']!.substring(3);
+          if (pauseTail && list == tail) return silent.future;
+          if (list == tail) return _reply(request, []);
+          return _reply(request, [
+            {
+              ..._timestamp,
+              'id': 'concept-$list',
+              'list_id': list,
+              'word_variants': [
+                {
+                  ..._timestamp,
+                  'id': 'variant-$list',
+                  'concept_id': 'concept-$list',
+                  'word': 'bonjour',
+                  'lang_code': 'fr',
+                },
+              ],
+            },
+          ]);
+        case 'variant_progress':
+          return _reply(request, [progress.toRemoteMap()]);
+        case 'vocabulary_pull_changed_progress':
+          if (pauseProgress) return silentProgress.future;
+          // A stale progress update from before the deletion cannot restore
+          // the now-deleted branch's FSRS row.
+          return _reply(request, [
+            {'revision': 2, 'value': progress.copyWith(reps: 5).toRemoteMap()},
+          ]);
+        default:
+          fail('Unexpected request ${request.url}');
+      }
+    });
+    final directory = await Directory.systemTemp.createTemp(
+      'ponderin-catchup-test',
+    );
+    final file = File('${directory.path}/cache.sqlite');
+    var device = AppDatabase.forTesting(NativeDatabase(file));
+    addTearDown(() async {
+      await device.close();
+      await file.delete();
+      await directory.delete();
+    });
+    await repository(datasource, device: device).syncFromRemote();
+    expect((await device.progressDao.getById(progress.id))?.reps, 4);
+
+    pauseTail = true;
+    await expectLater(
+      repository(
+        datasource,
+        device: device,
+        restoreTimeout: const Duration(milliseconds: 200),
+      ).syncFromRemote(),
+      throwsA(isA<NetworkException>()),
+    );
+    expect(silent.isCompleted, isFalse);
+    expect(
+      (await device.vocabularyListDao.getById(deleted))?.isDeleted,
+      isFalse,
+    );
+    await device.close();
+    device = AppDatabase.forTesting(NativeDatabase(file));
+    revision = 3;
+    pauseTail = false;
+    pauseProgress = true;
+    requests.clear();
+
+    await expectLater(
+      repository(
+        datasource,
+        device: device,
+        restoreTimeout: const Duration(milliseconds: 200),
+      ).syncFromRemote(),
+      throwsA(isA<NetworkException>()),
+    );
+    expect(requests, [
+      'concepts',
+      'variant_progress',
+      'vocabulary_pull_revision',
+      'vocabulary_pull_changed_lists',
+      'concepts',
+      'vocabulary_pull_changed_progress',
+    ]);
+    expect(silentProgress.isCompleted, isFalse);
+    await device.close();
+    device = AppDatabase.forTesting(NativeDatabase(file));
+    pauseProgress = false;
+    requests.clear();
+
+    await repository(datasource, device: device).syncFromRemote();
+    expect(requests, [
+      'vocabulary_pull_changed_progress',
+      'vocabulary_pull_revision',
+    ]);
+    expect(
+      (await device.vocabularyListDao.getById(deleted))?.isDeleted,
+      isTrue,
+    );
+    expect(
+      (await device.conceptDao.getById('concept-$deleted'))?.isDeleted,
+      isTrue,
+    );
+    expect(await device.progressDao.getById(progress.id), isNull);
+    expect((await device.vocabularyListDao.getById(inserted))?.wordCount, 1);
+    expect(
+      (await device.conceptDao.getById('concept-$inserted'))?.listId,
+      inserted,
+    );
+  });
 
   test('an account change discards the first audio response and stops the '
       'second queued render before it reaches the network', () async {

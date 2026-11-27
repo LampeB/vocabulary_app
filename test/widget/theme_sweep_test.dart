@@ -107,7 +107,11 @@ class _FakeNotifService implements NotificationService {
   @override
   Future<void> cancelStreakWarning() async {}
   @override
-  Future<void> scheduleDailyReminder({int hour = 9, int minute = 0}) async {}
+  Future<void> scheduleDailyReminder({
+    int hour = 9,
+    int minute = 0,
+    Locale? locale,
+  }) async {}
   @override
   Future<void> cancelDailyReminder() async {}
   @override

@@ -1,4 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
+
+// ignore: implementation_imports
+import 'package:easy_localization/src/localization.dart';
+// ignore: implementation_imports
+import 'package:easy_localization/src/translations.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,6 +39,7 @@ class _ScriptedAuthNotifier extends AuthNotifier {
     _lastAuth = this;
   }
   bool failNext = false;
+  AuthFailureReason? failureReason;
   String? signedInEmail;
   String? signedUpUsername;
 
@@ -41,7 +48,14 @@ class _ScriptedAuthNotifier extends AuthNotifier {
 
   @override
   Future<Result<AppUser>> signIn(String email, String password) async {
-    if (failNext) return const Failure(AuthException('Identifiants invalides'));
+    if (failureReason != null) {
+      return Failure(AuthException.forReason(failureReason!));
+    }
+    if (failNext) {
+      return const Failure(
+        AuthException.forReason(AuthFailureReason.invalidCredentials),
+      );
+    }
     signedInEmail = email;
     return Success(_user());
   }
@@ -52,7 +66,14 @@ class _ScriptedAuthNotifier extends AuthNotifier {
     String password,
     String username,
   ) async {
-    if (failNext) return const Failure(AuthException('Email déjà utilisé'));
+    if (failureReason != null) {
+      return Failure(AuthException.forReason(failureReason!));
+    }
+    if (failNext) {
+      return const Failure(
+        AuthException.forReason(AuthFailureReason.emailTaken),
+      );
+    }
     signedUpUsername = username;
     return Success(_user());
   }
@@ -233,7 +254,10 @@ void main() {
       await tester.tap(find.byKey(const Key('auth_submit_button')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Identifiants invalides'), findsOneWidget);
+      expect(
+        find.text('Adresse e-mail ou mot de passe incorrect.'),
+        findsOneWidget,
+      );
       expect(navigatedTo, isNull);
     });
 
@@ -269,6 +293,52 @@ void main() {
       expect(navigatedTo, '/home');
     });
   });
+
+  for (final locale in ['fr', 'en', 'ko']) {
+    for (final scenario in [
+      (
+        AuthFailureReason.invalidCredentials,
+        'auth.error_credentials',
+        'signin',
+      ),
+      (AuthFailureReason.usernameTaken, 'auth.error_username_taken', 'signup'),
+      (AuthFailureReason.emailTaken, 'auth.error_email_taken', 'signup'),
+    ]) {
+      testWidgets('auth renders ${scenario.$1} in $locale', (tester) async {
+        final raw = (await tester.runAsync(
+          () => rootBundle.loadString('assets/translations/$locale.json'),
+        ))!;
+        final copy = jsonDecode(raw) as Map<String, dynamic>;
+        final translations = Translations(copy);
+        Localization.load(
+          Locale(locale),
+          translations: translations,
+          fallbackTranslations: translations,
+        );
+        addTearDown(initTestLocalization);
+        await pump(tester, AuthScreen(initialMode: scenario.$3));
+        _lastAuth!.failureReason = scenario.$1;
+        if (scenario.$3 == 'signup') {
+          await tester.enterText(
+            find.byKey(const Key('username_field')),
+            'thomas',
+          );
+        }
+        await tester.enterText(
+          find.byKey(const Key('email_field')),
+          'a@example.test',
+        );
+        await tester.enterText(
+          find.byKey(const Key('password_field')),
+          'password123',
+        );
+        await tester.tap(find.byKey(const Key('auth_submit_button')));
+        await tester.pumpAndSettle();
+        expect(find.text(copy[scenario.$2] as String), findsOneWidget);
+        expect(navigatedTo, isNull);
+      });
+    }
+  }
 
   group('auth screen — password reset', () {
     testWidgets('forgot-password opens the dialog with email + send', (
