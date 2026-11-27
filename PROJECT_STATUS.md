@@ -92,14 +92,14 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **1 013 tests hôte passent**, avec **70,6 %**
+- L'analyse Flutter est propre ; les **1 036 tests hôte passent**, avec **71,4 %**
   de couverture sur le dernier lot du 27 novembre. Huit tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 21 tests ciblés. La sonde compilée en mode produit confirme le
   refus des diagnostics, même avec l'option fournie.
-- Sur `4dec70c`, les sept checks CI, dont les tests hôte, le wrapper SQL et la
+- Sur `9031dcc`, les sept checks CI, dont les tests hôte, le wrapper SQL et la
   compilation native Android, sont verts. Le pont utilise le NDK 28.2 de
-  l'application. Les sept premières itérations des quatre relecteurs ont été
+  l'application. Les huit premières itérations des quatre relecteurs ont été
   bloquées ; leurs corrections sont consignées dans
   [le registre du 27 novembre](docs/reviews/2026-11-27-integration.md).
   Le sas exige deux revues propres sur le commit final ; les verdicts et les
@@ -107,11 +107,12 @@ de contenu avant bêta pédagogique.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **1 013** tests hôte réussis lors de la dernière validation locale
+- La suite compte **1 036** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - Les six suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
-  réelles, dont la nouvelle protection des tombstones. Deux connexions ont
+  réelles, dont la protection des tombstones et le test intermédiaire de fermeture
+  Storage avant activation de la politique finale. Deux connexions ont
   vérifié le verrou du reset et le refus de l'écriture concurrente ; la CI de
   `f7827da` confirme le wrapper Bash des six suites.
   Les cinq tests Python E2E, vingt-huit tests Deno, vingt-et-un tests du bot
@@ -121,6 +122,12 @@ de contenu avant bêta pédagogique.
 - La règle anglaise `a/an` exclut les indénombrables. Décision utilisateur du
   27 novembre : ses prérequis regroupent Nourriture et Salutations & politesse,
   avec un minimum conservé de cinq noms éligibles, sans modifier les autres règles.
+- Les suggestions d'ajout utilisent un contexte groupé borné et affichent les
+  refus de quota sans perdre la sélection. Les imports froids retrouvent la
+  bibliothèque ; les leçons et les phases mains-libres défilent à texte doublé.
+- Les échecs de fermeture du micro et les refus natifs TTS sont récupérables
+  sans signal ni notation prématurés. Le détail des listes suit l'adoption
+  des identifiants starter, sans écraser des historiques FSRS divergents.
 - La CI Patrol contient neuf suites Android, lançables manuellement avec des
   secrets Supabase : navigation, auth, flux utilisateur, chemin quotidien,
   prérequis de leçon, paires de langues, quiz voix/cartes, écriture et login.

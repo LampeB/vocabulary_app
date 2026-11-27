@@ -3,6 +3,7 @@ import '../app_database.dart';
 import '../sync_snapshot.dart';
 import '../tables/concepts_table.dart';
 import '../tables/word_variants_table.dart';
+import 'vocabulary_list_dao.dart';
 
 part 'concept_dao.g.dart';
 
@@ -10,11 +11,41 @@ part 'concept_dao.g.dart';
 class ConceptDao extends DatabaseAccessor<AppDatabase> with _$ConceptDaoMixin {
   ConceptDao(super.db);
 
-  Stream<List<ConceptsTableData>> watchByList(String listId) =>
-      (select(conceptsTable)
-            ..where((t) => t.listId.equals(listId) & t.isDeleted.equals(false))
-            ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
-          .watch();
+  SimpleSelectStatement<$ConceptsTableTable, ConceptsTableData> _conceptsByList(
+    String listId, {
+    String? ownerId,
+  }) {
+    final query = select(conceptsTable)
+      ..where((t) => t.isDeleted.equals(false))
+      ..orderBy([
+        (t) => OrderingTerm.asc(t.createdAt),
+        (t) => OrderingTerm.asc(t.rowId),
+      ]);
+    if (ownerId == null) {
+      query.where((t) => t.listId.equals(listId));
+    } else {
+      final lists = db.vocabularyListsTable;
+      final resolved = db.vocabularyListDao.starterIdExpression(
+        StarterAliasKind.list,
+        ownerId,
+        listId,
+      );
+      final ownedList = selectOnly(lists)
+        ..addColumns([lists.id])
+        ..where(
+          lists.id.equalsExp(resolved) &
+              lists.ownerId.equals(ownerId) &
+              lists.isDeleted.equals(false),
+        );
+      query.where((t) => t.listId.isInQuery(ownedList));
+    }
+    return query;
+  }
+
+  Stream<List<ConceptsTableData>> watchByList(
+    String listId, {
+    String? ownerId,
+  }) => _conceptsByList(listId, ownerId: ownerId).watch();
 
   Future<ConceptsTableData?> getById(String id) =>
       (select(conceptsTable)..where((t) => t.id.equals(id))).getSingleOrNull();
@@ -40,33 +71,91 @@ class ConceptDao extends DatabaseAccessor<AppDatabase> with _$ConceptDaoMixin {
         ),
       );
 
-  Future<List<ConceptsTableData>> getConceptsByList(String listId) => (select(
-    conceptsTable,
-  )..where((t) => t.listId.equals(listId) & t.isDeleted.equals(false))).get();
+  Future<List<ConceptsTableData>> getConceptsByList(
+    String listId, {
+    int? limit,
+  }) {
+    final query = _conceptsByList(listId);
+    if (limit != null) query.limit(limit);
+    return query.get();
+  }
 
   SimpleSelectStatement<$WordVariantsTableTable, WordVariantsTableData>
-  _variantsByConcept(String conceptId) => select(wordVariantsTable)
-    ..where((t) => t.conceptId.equals(conceptId) & t.isDeleted.equals(false))
-    ..orderBy([(t) => OrderingTerm.asc(t.position)]);
+  _variantsByConcept(String conceptId, {String? ownerId}) {
+    final query = select(wordVariantsTable)
+      ..where((t) => t.isDeleted.equals(false))
+      ..orderBy([(t) => OrderingTerm.asc(t.position)]);
+    if (ownerId == null) {
+      query.where((t) => t.conceptId.equals(conceptId));
+    } else {
+      final lists = db.vocabularyListsTable;
+      final concepts = conceptsTable;
+      final resolved = db.vocabularyListDao.starterIdExpression(
+        StarterAliasKind.concept,
+        ownerId,
+        conceptId,
+      );
+      final ownedConcept =
+          (selectOnly(concepts)..addColumns([concepts.id])).join([
+            innerJoin(
+              lists,
+              lists.id.equalsExp(concepts.listId),
+              useColumns: false,
+            ),
+          ])..where(
+            concepts.id.equalsExp(resolved) &
+                concepts.isDeleted.equals(false) &
+                lists.ownerId.equals(ownerId) &
+                lists.isDeleted.equals(false),
+          );
+      query.where((t) => t.conceptId.isInQuery(ownedConcept));
+    }
+    return query;
+  }
 
-  Future<List<WordVariantsTableData>> getVariantsByConcept(String conceptId) =>
-      _variantsByConcept(conceptId).get();
+  Future<List<WordVariantsTableData>> getVariantsByConcept(
+    String conceptId, {
+    String? ownerId,
+  }) => _variantsByConcept(conceptId, ownerId: ownerId).get();
 
   Stream<List<WordVariantsTableData>> watchVariantsByConcept(
-    String conceptId,
-  ) => _variantsByConcept(conceptId).watch();
+    String conceptId, {
+    String? ownerId,
+  }) => _variantsByConcept(conceptId, ownerId: ownerId).watch();
 
   Future<List<WordVariantsTableData>> getVariantsByConceptIds(
     List<String> conceptIds,
-    String langCode,
-  ) =>
-      (select(wordVariantsTable)..where(
-            (t) =>
-                t.conceptId.isIn(conceptIds) &
-                t.langCode.equals(langCode) &
-                t.isDeleted.equals(false),
-          ))
-          .get();
+    String langCode, {
+    bool firstPerConcept = false,
+  }) {
+    final variants = wordVariantsTable;
+    final query = select(variants)
+      ..where(
+        (t) =>
+            t.conceptId.isIn(conceptIds) &
+            t.langCode.equals(langCode) &
+            t.isDeleted.equals(false),
+      );
+    if (firstPerConcept) {
+      final preferred = alias(variants, 'preferred_variant');
+      final preferredIds = selectOnly(preferred)
+        ..addColumns([preferred.id])
+        ..where(
+          preferred.conceptId.equalsExp(variants.conceptId) &
+              preferred.langCode.equals(langCode) &
+              preferred.isDeleted.equals(false),
+        )
+        ..orderBy([
+          OrderingTerm.asc(preferred.position),
+          OrderingTerm.asc(preferred.rowId),
+        ])
+        ..limit(1);
+      query.where(
+        (t) => t.id.equalsExp(subqueryExpression<String>(preferredIds)),
+      );
+    }
+    return query.get();
+  }
 
   Future<WordVariantsTableData?> getVariantById(String id) => (select(
     wordVariantsTable,

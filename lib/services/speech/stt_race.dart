@@ -17,6 +17,7 @@ class SttRaceOutcome {
     this.hypotheses = const [],
     this.hadRealSession = false,
     this.cancelled = false,
+    this.micReleaseFailed = false,
   });
 
   /// A guess validated against the accepted answers.
@@ -43,6 +44,10 @@ class SttRaceOutcome {
 
   /// The race was superseded ([SttRace.cancel]) — its caller must ignore it.
   final bool cancelled;
+
+  /// The recorder has not confirmed release. Retry its cleanup before any
+  /// new listen attempt.
+  final bool micReleaseFailed;
 
   static const noEngines = SttRaceOutcome(matched: false);
 }
@@ -97,6 +102,7 @@ class SttRace {
     // Shared-capture tuning (see [_runShared]).
     Duration maxSpeechOverrun = const Duration(seconds: 3),
     Duration analysisTimeout = const Duration(seconds: 6),
+    Duration micReleaseTimeout = SharedPcmCapture.defaultReleaseTimeout,
     void Function(SttRaceStatus status)? onStatus,
     void Function()? onMicClosedPending,
   }) async {
@@ -130,6 +136,7 @@ class SttRace {
         timeout: timeout,
         maxSpeechOverrun: maxSpeechOverrun,
         analysisTimeout: analysisTimeout,
+        micReleaseTimeout: micReleaseTimeout,
         onStatus: onStatus,
         onMicClosedPending: onMicClosedPending,
       );
@@ -410,6 +417,7 @@ class SttRace {
     required Duration timeout,
     required Duration maxSpeechOverrun,
     required Duration analysisTimeout,
+    required Duration micReleaseTimeout,
     void Function(SttRaceStatus status)? onStatus,
     void Function()? onMicClosedPending,
   }) async {
@@ -473,12 +481,9 @@ class SttRace {
     Future<PcmSegment?> closeCapture({bool flush = false}) async {
       final active = session;
       if (active == null) return null;
-      try {
-        return await (captureClose ??= active.close(flush: flush));
-      } catch (error) {
-        sttLog('[RACE] microphone close failed: $error');
-        return null;
-      }
+      return captureClose ??= Future.sync(
+        () => active.close(flush: flush),
+      ).timeout(micReleaseTimeout);
     }
 
     Future<PcmSegment?> stopTurn() {
@@ -497,7 +502,12 @@ class SttRace {
 
     Future<void> finish(SttRaceOutcome outcome) async {
       if (finished) return;
-      await stopTurn();
+      try {
+        await stopTurn();
+      } catch (error) {
+        sttLog('[RACE] microphone release failed: $error');
+        outcome = const SttRaceOutcome(matched: false, micReleaseFailed: true);
+      }
       if (completer.isCompleted) return;
       emit();
       completer.complete(outcome);
@@ -655,7 +665,15 @@ class SttRace {
       micClosing = true;
       overrun?.cancel();
       speaking = false;
-      final tail = await closeCapture(flush: true);
+      PcmSegment? tail;
+      try {
+        tail = await closeCapture(flush: true);
+      } catch (_) {
+        await finish(
+          const SttRaceOutcome(matched: false, micReleaseFailed: true),
+        );
+        return;
+      }
       if (tail != null) dispatch(tail);
       micClosing = false;
       micClosed = true;
@@ -670,7 +688,14 @@ class SttRace {
 
     _cancel = () {
       if (completer.isCompleted) return;
-      if (!finished) unawaited(stopTurn());
+      if (!finished) {
+        unawaited(
+          stopTurn().catchError((Object error) {
+            sttLog('[RACE] cancelled microphone release failed: $error');
+            return null;
+          }),
+        );
+      }
       completer.complete(
         SttRaceOutcome(
           matched: false,
@@ -682,24 +707,36 @@ class SttRace {
 
     emit();
     if (finished) return completer.future;
-    session = await source.open(
-      onSpeechChange: (inSpeech) {
-        if (finished || micClosed) return;
-        speaking = inSpeech;
-        emit();
-      },
-      onSegment: (segment) {
-        if (finished) return;
-        speaking = false;
-        dispatch(segment);
-        // The deadline passed while this answer was being spoken: it is now
-        // complete, so the mic can close.
-        if (overrun != null) unawaited(closeMic());
-      },
-    );
+    try {
+      session = await source.open(
+        onSpeechChange: (inSpeech) {
+          if (finished || micClosed) return;
+          speaking = inSpeech;
+          emit();
+        },
+        onSegment: (segment) {
+          if (finished) return;
+          speaking = false;
+          dispatch(segment);
+          // The deadline passed while this answer was being spoken: it is now
+          // complete, so the mic can close.
+          if (overrun != null) unawaited(closeMic());
+        },
+      );
+    } on PcmReleaseException {
+      await finish(
+        const SttRaceOutcome(matched: false, micReleaseFailed: true),
+      );
+      return completer.future;
+    }
     if (finished) {
       // Cancelled while the mic was opening.
-      unawaited(session?.close());
+      unawaited(
+        closeCapture().catchError((Object error) {
+          sttLog('[RACE] late microphone release failed: $error');
+          return null;
+        }),
+      );
       return completer.future;
     }
     if (session == null) {

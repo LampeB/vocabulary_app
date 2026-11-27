@@ -16,6 +16,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/v3_colors.dart';
 import '../../../core/widget_keys.dart';
 import '../../widgets/v3_pond.dart';
+import '../../widgets/scroll_affordance.dart';
 import '../../providers/settings/default_pair_provider.dart';
 
 /// Session setup (start-session-screen.md). An accordion: one section open
@@ -530,7 +531,8 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
       builder: (ctx) {
         final cs = Theme.of(ctx).colorScheme;
         return SafeArea(
-          child: Padding(
+          child: ScrollAffordance(
+            hint: 'v3.scroll_hint'.tr(),
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -747,11 +749,12 @@ class _Section extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 children: [
-                  Text(
-                    label,
-                    style: AppTextStyles.eyebrow.copyWith(color: muted),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: AppTextStyles.eyebrow.copyWith(color: muted),
+                    ),
                   ),
-                  const Spacer(),
                   if (!isOpen && value.isNotEmpty)
                     Flexible(
                       child: Text(

@@ -657,6 +657,39 @@ void main() {
     },
   );
 
+  for (final recovered in [true, false]) {
+    test('a request during a failed push queues exactly one fresh pass '
+        'when transport recovery is $recovered', () async {
+      final list = (await repo.createList(name: 'Queued')).valueOrNull!;
+      final started = Completer<void>();
+      final failedResponse = Completer<void>();
+      var requests = 0;
+      remote.onList = (_) async {
+        requests++;
+        if (requests == 1) {
+          started.complete();
+          await failedResponse.future;
+          remote.failAll = true;
+        } else {
+          remote.failAll = !recovered;
+        }
+      };
+
+      final originalDrain = sync.pushAll();
+      await started.future;
+      final reconnectDrain = sync.pushAll();
+      expect(reconnectDrain, same(originalDrain));
+      expect(sync.pushAll(), same(originalDrain));
+      failedResponse.complete();
+
+      expect(await reconnectDrain, recovered ? 1 : 0);
+      expect(requests, 2);
+      final persisted = await db.vocabularyListDao.getById(list.id);
+      expect(persisted?.isSynced, recovered);
+      expect(remote.pushedLists, hasLength(recovered ? 1 : 0));
+    });
+  }
+
   test('all remote payloads preserve the instant and declare UTC', () async {
     final instant = DateTime.parse('2026-11-27T12:30:00+09:00').toLocal();
     expect(instant.isUtc, isFalse);

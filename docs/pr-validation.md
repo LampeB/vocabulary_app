@@ -197,8 +197,9 @@ exige :
 - une compilation Android intégrant le moteur natif Whisper épinglé ;
 - un contrôle de la frontière de licence Whisper et des tests des fonctions
   cloud/quota sur une base PostgreSQL jetable.
-Ce dernier contrôle applique aussi les migrations de production de sécurité
-et vérifie les lectures publiques, la confidentialité des clips et l'historique
+Ce dernier contrôle applique aussi les migrations de production de sécurité.
+Il vérifie que `vocab-audio` reste fermé aux clients entre 007 et 012, puis
+exerce les lectures publiques, la confidentialité des clips et l'historique
 des réponses. Les tests d'isolation E2E couvrent les écritures de relations et de
 progression par le rôle authentifié. Deux connexions PostgreSQL vérifient qu'une
 demande d'amitié concurrente attend la fin du reset, puis est refusée.

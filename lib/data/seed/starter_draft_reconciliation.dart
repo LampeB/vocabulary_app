@@ -14,7 +14,11 @@ class StarterDraftReconciliation {
 
   final AppDatabase _db;
 
-  Future<void> reconcile(String userId, List<VocabularyList> remote) async {
+  Future<void> reconcile(
+    String userId,
+    List<VocabularyList> remote, {
+    required Set<String> conflictingProgressVariantIds,
+  }) async {
     final lists = _db.vocabularyListDao;
     final drafts = await lists.heldStarterDrafts(ownerId: userId);
     for (final draft in drafts) {
@@ -27,7 +31,15 @@ class StarterDraftReconciliation {
                 list.langB == draft.langB,
           )
           .toList();
-      if (identities.isEmpty || identities.any((list) => list.id == draft.id)) {
+      if (identities.any((list) => list.id == draft.id)) {
+        if (conflictingProgressVariantIds.isNotEmpty) {
+          final variantIds = await _db.conceptDao.getVariantIdsByLists({
+            draft.id,
+          });
+          if (variantIds.any(conflictingProgressVariantIds.contains)) continue;
+        }
+        await lists.releaseStarterDraft(draft.id);
+      } else if (identities.isEmpty) {
         await lists.releaseStarterDraft(draft.id);
       } else if (identities.length == 1) {
         final canonical = await lists.getById(identities.single.id);
@@ -192,6 +204,12 @@ class StarterDraftReconciliation {
           }).toCompanion(false),
         );
       }
+      await lists.rememberStarterAlias(
+        StarterAliasKind.concept,
+        draft.ownerId,
+        source.id,
+        target.id,
+      );
       removedConcepts.add(source.id);
     }
 

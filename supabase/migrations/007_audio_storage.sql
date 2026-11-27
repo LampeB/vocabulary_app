@@ -18,24 +18,12 @@ SET public = false,
     file_size_limit = EXCLUDED.file_size_limit,
     allowed_mime_types = EXCLUDED.allowed_mime_types;
 
--- Shared curriculum assets are readable to all authenticated learners. Custom
--- paths remain private: only the owner of the linked list can download them.
+-- Keep the bucket closed to clients until 012 installs the publication
+-- manifest and the owner-scoped private read policy in the same transaction.
 DROP POLICY IF EXISTS "vocab audio authenticated read" ON storage.objects;
-CREATE POLICY "vocab audio authenticated read"
-  ON storage.objects FOR SELECT TO authenticated
-  USING (
-    bucket_id = 'vocab-audio'
-    AND (
-      name LIKE 'seed/%'
-      OR EXISTS (
-        SELECT 1
-        FROM public.word_variants w
-        JOIN public.concepts c ON c.id = w.concept_id
-        JOIN public.vocabulary_lists l ON l.id = c.list_id
-        WHERE w.audio_path = storage.objects.name
-          AND l.owner_id = auth.uid()
-      )
-    )
-  );
+DROP POLICY IF EXISTS "vocab audio pending activation" ON storage.objects;
+CREATE POLICY "vocab audio pending activation" ON storage.objects
+  AS RESTRICTIVE FOR SELECT TO anon, authenticated
+  USING (bucket_id <> 'vocab-audio');
 
 COMMIT;

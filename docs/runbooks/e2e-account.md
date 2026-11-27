@@ -10,9 +10,16 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
 1. Réactiver le projet si nécessaire. Appliquer les migrations manquantes dans
    l'ordre de [la CI PostgreSQL](../../.github/workflows/pr-validation.yml),
    dont [012](../../supabase/migrations/012_security_boundaries.sql) et
-   [013](../../supabase/migrations/013_e2e_isolation.sql). Si aucune migration
-   E2E ou de sécurité n'a été appliquée et que les migrations 000, 004 à 007,
-   010, 011 et `add_subscription_type.sql` sont déjà présentes, le générateur
+   [013](../../supabase/migrations/013_e2e_isolation.sql). La version actuelle de
+   [007](../../supabase/migrations/007_audio_storage.sql) ferme les lectures
+   client de `vocab-audio` jusqu'à l'installation des règles définitives par
+   012. Si le projet a appliqué une ancienne version de 007 et attend encore
+   012, rejouer la version actuelle de 007 avant les autres étapes. Si 012
+   est déjà appliquée, passer directement aux migrations manquantes.
+
+   Si 008, 009, 012 et 013 restent à appliquer et que les migrations 000,
+   004 à 007, 010, 011 et `add_subscription_type.sql` sont déjà présentes,
+   le générateur
    `python3 tool/e2e/build_activation.py > /tmp/activer-vocab-e2e.sql` regroupe
    008, 009, 012 et 013 dans une transaction. Si le projet est déjà partiellement
    activé, appliquer uniquement les migrations manquantes.

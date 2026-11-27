@@ -9,7 +9,7 @@ import '../tables/word_variants_table.dart';
 
 part 'vocabulary_list_dao.g.dart';
 
-enum StarterAliasKind { list, variant }
+enum StarterAliasKind { list, concept, variant }
 
 @DriftAccessor(tables: [VocabularyListsTable, ConceptsTable, WordVariantsTable])
 class VocabularyListDao extends DatabaseAccessor<AppDatabase>
@@ -28,9 +28,21 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
     vocabularyListsTable,
   )..where((t) => t.id.equals(id))).getSingleOrNull();
 
-  Stream<VocabularyListsTableData?> watchById(String id) => (select(
-    vocabularyListsTable,
-  )..where((t) => t.id.equals(id))).watchSingleOrNull();
+  Stream<VocabularyListsTableData?> watchById(String id, {String? ownerId}) {
+    final query = select(vocabularyListsTable);
+    if (ownerId == null) {
+      query.where((t) => t.id.equals(id));
+    } else {
+      query.where(
+        (t) =>
+            t.ownerId.equals(ownerId) &
+            t.id.equalsExp(
+              starterIdExpression(StarterAliasKind.list, ownerId, id),
+            ),
+      );
+    }
+    return query.watchSingleOrNull();
+  }
 
   Future<VocabularyListsTableData?> getByShareToken(
     String token, {
@@ -102,6 +114,19 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
 
   String _starterAliasKey(StarterAliasKind kind, String ownerId, String id) =>
       'starter-alias:${kind.name}:$ownerId:$id';
+
+  /// Used in watched queries so the alias and its target are read together.
+  Expression<String> starterIdExpression(
+    StarterAliasKind kind,
+    String ownerId,
+    String id,
+  ) {
+    final table = db.sharedImportBootstrapTable;
+    final alias = selectOnly(table)
+      ..addColumns([table.snapshot])
+      ..where(table.id.equals(_starterAliasKey(kind, ownerId, id)));
+    return ifNull(subqueryExpression<String>(alias), Variable(id));
+  }
 
   Future<void> rememberStarterAlias(
     StarterAliasKind kind,

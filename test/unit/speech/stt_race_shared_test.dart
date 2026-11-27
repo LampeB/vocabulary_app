@@ -572,6 +572,44 @@ void main() {
         expect((await future).matched, isTrue);
       },
     );
+    for (final hangs in [false, true]) {
+      test(
+        'unconfirmed mic release ends the race once (hangs: $hangs)',
+        () async {
+          final source = _FakeSource();
+          final engine = _SharedEngine('whisper');
+          final phases = <SttPhase>[];
+          var micClosed = 0;
+          final result = SttRace([engine], capture: source).run(
+            langCode: 'fr',
+            acceptedAnswers: ['thé'],
+            timeout: const Duration(milliseconds: 30),
+            micReleaseTimeout: const Duration(milliseconds: 55),
+            onMicClosedPending: () => micClosed++,
+            onStatus: (status) => phases.add(status.phase),
+          );
+          await _pump();
+          final closing = Completer<PcmSegment?>();
+          source.session!.delayedClose = closing;
+          source.session!.startSpeaking();
+          source.session!.finishUtterance();
+          await _pump();
+          if (hangs) {
+            engine.answer('thé');
+          } else {
+            await _wait(42);
+            closing.completeError(StateError('mic still active'));
+          }
+          final outcome = await result.timeout(const Duration(seconds: 1));
+          expect(outcome.micReleaseFailed, isTrue);
+          expect(outcome.matched, isFalse);
+          expect(micClosed, 0);
+          expect(phases, isNot(contains(SttPhase.analyzing)));
+          expect(phases.last, SttPhase.done);
+          if (hangs) closing.complete(null);
+        },
+      );
+    }
   });
 
   test(

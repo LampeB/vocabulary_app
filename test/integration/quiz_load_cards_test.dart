@@ -41,7 +41,12 @@ class _NoopAudio implements AudioPlayerService {
   }
 
   @override
-  Future<void> speak(String text, String langCode, {String? audioPath}) async {
+  Future<void> speak(
+    String text,
+    String langCode, {
+    String? audioPath,
+    bool requirePlayback = false,
+  }) async {
     spokenPaths.add(audioPath);
   }
 

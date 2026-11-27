@@ -11,6 +11,12 @@ est un garde-fou technique, pas un avis juridique.
 
 ## Avant toute diffusion externe
 
+Le workflow [Build APK](../../.github/workflows/build-apk.yml) conserve le
+binaire dans les artefacts GitHub Actions pour la validation interne. La
+publication sur un service tiers de test par navigateur, y compris Appetize,
+relève de la diffusion externe et reste différée jusqu'aux vérifications
+ci-dessous.
+
 1. Exécuter le contrôle de licence, puis générer et archiver l'inventaire des
    dépendances et licences du livrable réellement distribué (APK, AAB ou IPA).
 2. Conserver les avis MIT de `whisper.cpp` et du modèle, référencés dans

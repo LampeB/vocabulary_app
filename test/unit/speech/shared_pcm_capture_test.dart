@@ -11,7 +11,9 @@ class _FakeMicrophone implements PcmMicrophone {
   bool permissionGranted = true;
   Completer<bool>? pendingPermission;
   Completer<void>? pendingStart;
+  Completer<void>? pendingStop;
   Object? startError;
+  Object? stopError;
   var stream = StreamController<Uint8List>.broadcast(sync: true);
   int starts = 0;
   int stops = 0;
@@ -31,7 +33,11 @@ class _FakeMicrophone implements PcmMicrophone {
   }
 
   @override
-  Future<void> stop() async => stops++;
+  Future<void> stop() async {
+    stops++;
+    await pendingStop?.future;
+    if (stopError != null) throw stopError!;
+  }
 
   @override
   void dispose() => disposals++;
@@ -51,6 +57,38 @@ Uint8List _silence(int ms) => Uint8List(16000 * ms ~/ 1000 * 2);
 
 void main() {
   group('SharedPcmCapture', () {
+    for (final hangs in [false, true]) {
+      test('unconfirmed release blocks new capture (hangs: $hangs)', () async {
+        final mic = _FakeMicrophone();
+        final capture = SharedPcmCapture(
+          microphone: mic,
+          releaseTimeout: const Duration(milliseconds: 40),
+        );
+        Future<PcmCaptureSession?> open() =>
+            capture.open(onSpeechChange: (_) {}, onSegment: (_) {});
+        final first = (await open())!;
+        if (hangs) {
+          mic.pendingStop = Completer<void>();
+        } else {
+          mic.stopError = StateError('recorder still active');
+        }
+
+        await expectLater(first.close(), throwsA(isA<PcmReleaseException>()));
+        await expectLater(open(), throwsA(isA<PcmReleaseException>()));
+        expect(mic.starts, 1);
+        expect(mic.stops, hangs ? 1 : 2);
+
+        mic.pendingStop?.complete();
+        mic.stopError = null;
+        await capture.stop();
+        expect(await open(), isNotNull);
+        expect(mic.starts, 2);
+        await capture.stop();
+        capture.dispose();
+        await mic.stream.close();
+      });
+    }
+
     test('reports speech onset/end and delivers the whole utterance', () async {
       final mic = _FakeMicrophone();
       final capture = SharedPcmCapture(microphone: mic);

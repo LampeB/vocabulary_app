@@ -5,6 +5,16 @@ import '../../core/utils/pcm_segmenter.dart';
 import '../../core/utils/stt_debug_log.dart';
 import 'pcm_microphone.dart';
 
+/// Native release was rejected or was not acknowledged by the deadline.
+class PcmReleaseException implements Exception {
+  const PcmReleaseException(this.cause);
+
+  final Object cause;
+
+  @override
+  String toString() => 'Microphone release failed: $cause';
+}
+
 /// One open microphone window of a [PcmCaptureSource].
 abstract interface class PcmCaptureSession {
   /// The user is speaking right now (an utterance is being captured).
@@ -36,6 +46,7 @@ class SharedPcmCapture implements PcmCaptureSource {
   SharedPcmCapture({
     PcmMicrophone? microphone,
     PcmSegmenter Function()? segmenterFactory,
+    this.releaseTimeout = defaultReleaseTimeout,
   }) : _microphone = microphone ?? RecordPcmMicrophone(),
        _segmenterFactory = segmenterFactory ?? _defaultSegmenter;
 
@@ -45,12 +56,17 @@ class SharedPcmCapture implements PcmCaptureSource {
   static PcmSegmenter _defaultSegmenter() =>
       PcmSegmenter(silenceEndMs: 500, maxUtteranceMs: 3000);
 
+  static const defaultReleaseTimeout = Duration(seconds: 2);
+
+  final Duration releaseTimeout;
   final PcmMicrophone _microphone;
   final PcmSegmenter Function() _segmenterFactory;
   _Session? _current;
-  Future<void>? _stopping;
   int _request = 0;
   bool _disposed = false;
+
+  /// Resolves the permission prompt without starting capture.
+  Future<bool> ensurePermission() => _microphone.hasPermission();
 
   @override
   Future<PcmCaptureSession?> open({
@@ -60,9 +76,8 @@ class SharedPcmCapture implements PcmCaptureSource {
     final request = ++_request;
     bool cancelled() => _disposed || request != _request;
     await _current?.close();
-    await _stopping;
     if (cancelled()) return null;
-    final permitted = await _microphone.hasPermission();
+    final permitted = await ensurePermission();
     if (cancelled()) return null;
     if (!permitted) {
       sttLog('[CAP] ❌ mic permission denied');
@@ -93,21 +108,15 @@ class SharedPcmCapture implements PcmCaptureSource {
 
   Future<void> _release(_Session session) async {
     if (!identical(_current, session)) return;
-    _current = null;
-    await (_stopping = _stopMicrophone(session));
-  }
-
-  Future<void> _stopMicrophone(_Session session) async {
     try {
       await session._starting;
     } catch (_) {
+      if (identical(_current, session)) _current = null;
       return; // the native recorder did not start
     }
-    try {
-      await _microphone.stop();
-    } catch (error) {
-      sttLog('[CAP] mic stop failed: $error');
-    }
+    await _microphone.stop();
+    // Keep the session quarantined until native release is acknowledged.
+    _current = null;
   }
 
   /// Invalidates a pending permission request, or waits for the recorder
@@ -115,13 +124,18 @@ class SharedPcmCapture implements PcmCaptureSource {
   Future<void> stop() async {
     _request++;
     await _current?.close();
-    await _stopping;
   }
 
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    unawaited(stop().whenComplete(_microphone.dispose));
+    unawaited(
+      stop()
+          .catchError((Object error) {
+            sttLog('[CAP] mic disposal after release failure: $error');
+          })
+          .whenComplete(_microphone.dispose),
+    );
   }
 }
 
@@ -135,13 +149,14 @@ class _Session implements PcmCaptureSession {
   StreamSubscription<Uint8List>? _sub;
   Future<Stream<Uint8List>>? _starting;
   Future<void>? _closing;
+  bool _closedForInput = false;
   bool _wasInSpeech = false;
 
   @override
-  bool get inSpeech => _closing == null && _segmenter.inSpeech;
+  bool get inSpeech => !_closedForInput && _segmenter.inSpeech;
 
   void _feed(Uint8List chunk) {
-    if (_closing != null) return;
+    if (_closedForInput) return;
     final segments = _segmenter.feed(chunk);
     if (_segmenter.inSpeech != _wasInSpeech) {
       _wasInSpeech = _segmenter.inSpeech;
@@ -164,22 +179,29 @@ class _Session implements PcmCaptureSession {
 
   @override
   Future<PcmSegment?> close({bool flush = false}) async {
-    final closing = _closing;
-    if (closing != null) {
-      await closing;
-      return null;
-    }
-    final tail = flush ? _segmenter.flush() : null;
+    final tail = flush && !_closedForInput ? _segmenter.flush() : null;
+    _closedForInput = true;
     if (tail != null) {
       sttLog('[CAP] ✂️ window closed mid-answer — kept ${tail.durationMs}ms');
     }
-    await (_closing = _close());
+    try {
+      // A timeout releases the caller, while a repeated close still joins
+      // the same native stop until its real result arrives.
+      await (_closing ??= _close()).timeout(_owner.releaseTimeout);
+    } on TimeoutException catch (error) {
+      throw PcmReleaseException(error);
+    }
     return tail;
   }
 
   Future<void> _close() async {
-    await _sub?.cancel();
-    _sub = null;
-    await _owner._release(this);
+    try {
+      await _sub?.cancel();
+      _sub = null;
+      await _owner._release(this);
+    } catch (error) {
+      _closing = null; // an explicit retry may call the native stop again
+      throw PcmReleaseException(error);
+    }
   }
 }

@@ -10,8 +10,9 @@ L'application utilise SQLite comme source de lecture et les colonnes
 - Le shell déclenche un envoi après modification locale (regroupement de
   300 ms) lorsque le réseau est disponible, à la connexion et au retour du
   réseau. Une panne de transport interrompt la passe courante et laisse les
-  écritures en attente. Un refus attaché à une ligne laisse les autres
-  écritures avancer. Les dates envoyées au serveur sont explicites en UTC.
+  écritures en attente. Un déclenchement reçu pendant cette passe ouvre
+  une nouvelle passe après l'échec. Un refus attaché à une ligne laisse
+  les autres écritures avancer. Les dates envoyées au serveur sont explicites en UTC.
 - Le déclencheur écoute les mutations locales validées par SQLite pour le
   compte actif. Une nouvelle édition d'une ligne déjà en attente réveille
   la file. Les accusés, les restaurations et les mutations des autres comptes
@@ -120,12 +121,14 @@ L'application utilise SQLite comme source de lecture et les colonnes
 - Au retour du réseau, le brouillon adopte les identifiants d'une liste
   starter existante, y compris les anciens UUID aléatoires. La transaction
   reprend les champs explicitement modifiés et rattache les révisions et les
-  événements aux variantes reconnues. Les anciennes références d'un quiz déjà
-  ouvert se résolvent vers la liste et les cartes adoptées pour la progression,
-  les événements et l'historique de session. Un brouillon en conflit d'identité ou
-  avec deux historiques FSRS pour la même carte reste disponible localement
-  avec ses données et reste hors de la file sortante. Le même traitement
-  préserve les anciens brouillons dont l'état initial est inconnu.
+  événements aux variantes reconnues. Les détails de liste et les quiz
+  déjà ouverts suivent les identifiants adoptés. Les ajouts et éditions
+  valident la destination active et résolvent les anciens identifiants
+  dans leur transaction. Un brouillon en conflit d'identité ou avec deux
+  historiques FSRS pour la même carte reste disponible localement avec ses
+  données et reste hors de la file sortante, même si ses identifiants sont
+  déjà les mêmes que sur le serveur. Le même traitement préserve les anciens
+  brouillons dont l'état initial est inconnu.
 
 ## Paires de langues
 

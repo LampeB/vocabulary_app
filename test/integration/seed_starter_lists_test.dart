@@ -293,6 +293,114 @@ void main() {
     );
   }
 
+  test('a held starter keeps divergent local FSRS off the shared ID', () async {
+    final remote = _HistoricalStarterRemote()..offline = false;
+    final otherDevice = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(otherDevice.close);
+    VocabularyRepositoryImpl repository(AppDatabase device) =>
+        VocabularyRepositoryImpl(
+          device.vocabularyListDao,
+          device.conceptDao,
+          remote,
+          'u1',
+          device,
+        );
+    final otherRepo = repository(otherDevice);
+    repo = repository(db);
+    const starter = {
+      'list': {
+        'name': 'Greetings',
+        'seedId': 'starter-greetings:fr>ko',
+        'concepts': [
+          {
+            'seedId': 'hello',
+            'variants': [
+              {'word': 'Bonjour', 'langCode': 'fr'},
+              {'word': '안녕하세요', 'langCode': 'ko'},
+            ],
+          },
+        ],
+      },
+    };
+    await otherRepo.syncFromRemote();
+    final established = (await otherRepo.importFromJson(
+      starter,
+      origin: 'starter',
+    )).valueOrNull!;
+    final establishedConcept = (await otherDevice.conceptDao.getConceptsByList(
+      established.id,
+    )).single;
+    final variants = await otherDevice.conceptDao.getVariantsByConcept(
+      establishedConcept.id,
+    );
+    final variant = variants.singleWhere((word) => word.langCode == 'fr');
+    final now = DateTime.utc(2026, 11, 27);
+    final serverProgress = VariantProgress(
+      id: 'same-progress-id',
+      userId: 'u1',
+      variantId: variant.id,
+      direction: QuizDirection.frToKo,
+      reps: 12,
+      timesShown: 12,
+      timesCorrect: 10,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await otherDevice.progressDao.upsertLocal(
+      serverProgress.toLocalCompanion(),
+    );
+    remote.lists.add(established.toRemoteMap());
+    remote.concepts.add({
+      ...establishedConcept.toRemoteMap(),
+      'word_variants': variants.map((word) => word.toRemoteMap()).toList(),
+    });
+    remote.progress.add(serverProgress.toRemoteMap());
+
+    remote.offline = true;
+    await expectLater(repo.syncFromRemote(), throwsA(isA<NetworkException>()));
+    final draft = (await repo.importFromJson(
+      starter,
+      origin: 'starter',
+    )).valueOrNull!;
+    final localConcept = (await db.conceptDao.getConceptsByList(
+      draft.id,
+    )).single;
+    final localVariant = (await db.conceptDao.getVariantsByConcept(
+      localConcept.id,
+    )).singleWhere((word) => word.langCode == 'fr');
+    expect(draft.id, established.id);
+    expect(localConcept.id, establishedConcept.id);
+    expect(localVariant.id, variant.id);
+    final localProgress = serverProgress.copyWith(
+      reps: 2,
+      timesShown: 2,
+      timesCorrect: 1,
+    );
+    await db.progressDao.upsertLocal(localProgress.toLocalCompanion());
+    remote.offline = false;
+
+    await repo.syncFromRemote();
+    expect(await db.vocabularyListDao.isStarterDraftHeld(draft.id), isTrue);
+    final localRow = (await db.progressDao.getById(localProgress.id))!;
+    expect(localRow.reps, 2);
+    expect(localRow.isSynced, isFalse);
+    final push = PushSync(
+      db.vocabularyListDao,
+      db.conceptDao,
+      db.progressDao,
+      db.reviewEventDao,
+      remote,
+      userId: 'u1',
+    );
+    expect(await push.pushAll(), 0);
+    expect(remote.pushedProgress, isEmpty);
+    expect(remote.progress.single['reps'], 12);
+    expect(
+      (await otherDevice.progressDao.getById(serverProgress.id))?.reps,
+      12,
+    );
+  });
+
   test(
     'a brand-new user gets the 6 fr>ko starter lists with all their words',
     () async {

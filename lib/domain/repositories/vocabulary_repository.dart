@@ -50,6 +50,10 @@ abstract interface class VocabularyRepository {
   // Variants
   Future<Result<List<WordVariant>>> getVariants(String conceptId);
   Stream<List<WordVariant>> watchVariants(String conceptId);
+  Future<List<({String source, String target})>> getWordPairSample(
+    String listId, {
+    required int limit,
+  });
   Future<Result<WordVariant>> createVariant({
     required String conceptId,
     required String word,
@@ -58,6 +62,7 @@ abstract interface class VocabularyRepository {
     bool isPrimary = false,
   });
   Future<Result<WordVariant>> updateVariant(WordVariant variant);
+  Future<Result<WordVariant>> updateVariantWord(String variantId, String word);
   Future<Result<void>> deleteVariant(String variantId);
 
   // Import / Export

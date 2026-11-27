@@ -14,6 +14,8 @@ void main() {
   Completer<void>? speakGate;
   Completer<void>? configurationGate;
   String? delayedMethod;
+  String? rejectedMethod;
+  Object? speakResult;
 
   setUp(() {
     calls.clear();
@@ -21,14 +23,18 @@ void main() {
     speakGate = null;
     configurationGate = null;
     delayedMethod = null;
+    rejectedMethod = null;
+    speakResult = 1;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_channel, (call) async {
           calls.add(call);
           if (call.method == delayedMethod) await configurationGate!.future;
           if (call.method == 'getEngines') return engines;
+          if (call.method == rejectedMethod) return 0;
           if (call.method == 'speak' && speakGate != null) {
             await speakGate!.future;
           }
+          if (call.method == 'speak') return speakResult;
           return 1;
         });
   });
@@ -39,6 +45,33 @@ void main() {
   });
 
   List<String> names() => calls.map((call) => call.method).toList();
+
+  test(
+    'a rejected locale is retried before speak on the same locale',
+    () async {
+      final tts = FlutterTtsService();
+      rejectedMethod = 'setLanguage';
+      await expectLater(tts.speak('책', 'ko'), throwsA(isA<TtsRejected>()));
+      expect(names(), isNot(contains('speak')));
+
+      rejectedMethod = null;
+      await tts.speak('책', 'ko');
+      expect(names().where((name) => name == 'setLanguage'), hasLength(2));
+      expect(names(), contains('speak'));
+    },
+  );
+
+  test('speak zero is rejected and a completed null result is valid', () async {
+    final tts = FlutterTtsService();
+    rejectedMethod = 'speak';
+    await expectLater(tts.speak('책', 'ko'), throwsA(isA<TtsRejected>()));
+    expect(tts.isSpeaking, isFalse);
+
+    rejectedMethod = null;
+    speakResult = null;
+    await tts.speak('책', 'ko');
+    expect(names().where((name) => name == 'setLanguage'), hasLength(1));
+  });
 
   test(
     'warm-up picks Samsung Korean then configures its locale and pace',

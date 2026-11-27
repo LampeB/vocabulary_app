@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
+import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
@@ -18,6 +19,8 @@ import 'package:vocab_kr/presentation/widgets/session_bootstrap.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/purchases/purchase_provider.dart';
 import 'package:vocab_kr/presentation/screens/import/import_from_link_screen.dart';
+import 'package:vocab_kr/presentation/screens/lists/list_detail_screen.dart';
+import 'package:vocab_kr/presentation/screens/lists/lists_screen.dart';
 import '../../helpers/fake_remote.dart';
 import '../../helpers/pump_screen.dart';
 
@@ -190,14 +193,23 @@ void main() {
           builder: (_, state) =>
               ImportFromLinkScreen(token: state.uri.queryParameters['token']!),
         ),
-        GoRoute(
-          path: '/lists/:id',
-          builder: (_, _) =>
-              const Scaffold(body: Text('Imported account list')),
+        ShellRoute(
+          builder: (_, _, child) => child,
+          routes: [
+            GoRoute(path: '/lists', builder: (_, _) => const ListsScreen()),
+            GoRoute(
+              path: '/lists/:id',
+              builder: (_, state) =>
+                  ListDetailScreen(listId: state.pathParameters['id']!),
+            ),
+          ],
         ),
       ],
     );
     addTearDown(router.dispose);
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
@@ -210,12 +222,20 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
     expect(profile.isCompleted, isFalse);
-    expect(find.text('Imported account list'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey(WidgetKeys.screenListDetail)),
+      findsOneWidget,
+    );
+    expect(find.text('merci'), findsOneWidget);
     final imported = await tester.runAsync(
       () => db.vocabularyListDao.getImportedCopy('good-token', 'u'),
     );
     expect(imported?.ownerId, 'u');
     expect(bootstrappedOwners, ['u']);
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.listDetailBack)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey(WidgetKeys.screenLists)), findsOneWidget);
+    expect(tester.takeException(), isNull);
     expect(
       (await tester.runAsync(
         () => db.vocabularyListDao.watchByOwner('').first,
@@ -227,7 +247,83 @@ void main() {
     await tester.pump();
     expect(container.read(currentUserProvider)?.currentStreak, 7);
     expect(bootstrappedOwners, ['u']);
-    expect(find.text('Imported account list'), findsOneWidget);
+    expect(find.byKey(const ValueKey(WidgetKeys.screenLists)), findsOneWidget);
+    await unmountScreen(tester);
+  });
+
+  testWidgets('warm import returns from the real detail to its entry surface', (
+    tester,
+  ) async {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final container = ProviderContainer(
+      overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+        vocabularyRemoteProvider.overrideWithValue(_SharedListRemote()),
+        authRepositoryProvider.overrideWithValue(_RestoredSessionRepository()),
+        isPremiumProvider.overrideWithValue(true),
+        seedStarterListsProvider.overrideWith((ref) async {}),
+      ],
+    );
+    addTearDown(container.dispose);
+    final router = GoRouter(
+      initialLocation: '/home',
+      routes: [
+        GoRoute(
+          path: '/import',
+          builder: (_, state) =>
+              ImportFromLinkScreen(token: state.uri.queryParameters['token']!),
+        ),
+        ShellRoute(
+          builder: (_, _, child) => child,
+          routes: [
+            GoRoute(
+              path: '/home',
+              builder: (context, _) => Scaffold(
+                body: Center(
+                  child: FilledButton(
+                    onPressed: () => context.push('/import?token=good-token'),
+                    child: const Text('Open shared link'),
+                  ),
+                ),
+              ),
+            ),
+            GoRoute(path: '/lists', builder: (_, _) => const ListsScreen()),
+            GoRoute(
+              path: '/lists/:id',
+              builder: (_, state) =>
+                  ListDetailScreen(listId: state.pathParameters['id']!),
+            ),
+          ],
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: SessionBootstrap(
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open shared link'));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(
+      find.byKey(const ValueKey(WidgetKeys.screenListDetail)),
+      findsOneWidget,
+    );
+    expect(find.text('merci'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.listDetailBack)));
+    await tester.pumpAndSettle();
+    expect(find.text('Open shared link'), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await unmountScreen(tester);
   });
 }

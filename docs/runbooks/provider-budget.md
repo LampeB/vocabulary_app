@@ -12,9 +12,11 @@ cloud à 20 EUR.
    proposé. Les fournisseurs facturent parfois en USD : convertir ce seuil
    prudemment et conserver une marge.
 2. Déployer les migrations, dont `010_provider_quota_buckets.sql` et
-   `012_security_boundaries.sql`, avant les Edge
-   Functions. Sans elle, les fonctions échouent fermées (`503`) plutôt que
-   d'appeler un fournisseur sans limite.
+   `012_security_boundaries.sql`, avant les Edge Functions. Un contrôle de
+   quota indisponible interrompt la demande au fournisseur et renvoie `503`.
+   Entre 007 et 012, le bucket `vocab-audio` reste fermé aux rôles client.
+   Sur un projet historique qui attend encore 012, appliquer d'abord la
+   version corrigée de 007. Suivre le [runbook d'activation](e2e-account.md#activation-supabase).
    L'API de quotas n'est exécutable que par `service_role` : les fonctions
    valident la session avec Auth, puis transmettent l'identité vérifiée au
    serveur. Les seuils sont définis dans SQL, jamais dans le client.
@@ -68,6 +70,11 @@ Relire le diff du verrou et repasser le script sans projet avant de commiter.
 - Les corps JSON des assistants sont lus en flux, avec un maximum de 32 Kio
   et 5 secondes. Un mot facturé est limité à 256 caractères ; les contextes,
   listes et règles ont aussi des bornes avant tout débit de quota.
+- L'assistant vocabulaire omet le thème de traduction quand il est absent.
+  Pour les suggestions, il échantillonne des paires issues des mêmes concepts
+  en deux lectures groupées de variantes. Le contexte transmis contient au
+  plus 80 paires et chaque côté tient dans 256 unités UTF-16. L'enveloppe
+  JSON entière respecte la limite de 32 Kio encodée en UTF-8.
 - Les appels IA et TTS ont un délai de 60 secondes sans retry automatique
   Anthropic. Une réservation SQL exclusive de 90 secondes protège chaque clip
   manquant. Le provisionnement ouvre un délai commun de 60 secondes avant

@@ -45,6 +45,10 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
 - Le détail d'une liste affiche et modifie les deux langues dans leur ordre
   `langA` → `langB`. Les suggestions thématiques utilisent cette même paire
   pour leur contexte, leur requête et l'ajout des variantes.
+- Le contexte des suggestions est chargé par une requête groupée et borné
+  aux limites du service. Un ajout multiple conserve les mots refusés dans
+  la sélection, indique les ajouts réussis et propose l'écran d'abonnement
+  lorsque le quota local est atteint ; il ne ferme pas silencieusement la feuille.
 - Le bouton de pratique d'une leçon transmet sa règle exacte et sa paire au
   configurateur, qui les conserve dans le quiz. Une leçon française ne doit
   jamais basculer dans le curriculum coréen.
@@ -70,9 +74,14 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   peut avancer dès que l'identité locale est connue, avant le profil distant.
 - Le lien initial et sa première répétition dans le stream ne sont traités
   qu'une fois ; les liens ouverts ensuite restent disponibles.
+- Après un import froid, Retour depuis la liste mène à la bibliothèque.
+  Après un lien ouvert dans l'application, il retrouve l'écran d'entrée.
 - Le squelette du splash s'adapte au paysage. Le splash et le verdict peuvent
   défiler lorsque la hauteur ou le texte agrandi l'exigent, avec un signal de
   défilement ; Continuer reste atteignable à 320 × 568, texte doublé.
+- L'aperçu de leçon du configurateur défile aussi avec un signal explicite :
+  le contenu réel et son bouton de pratique restent accessibles à 320 × 568,
+  texte doublé. Les libellés des sections peuvent revenir à la ligne.
 
 ## Limites connues à corriger avant de qualifier V3 de complète
 

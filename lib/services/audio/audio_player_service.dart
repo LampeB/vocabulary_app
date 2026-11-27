@@ -1,4 +1,5 @@
 import 'package:audioplayers/audioplayers.dart';
+import '../../core/utils/stt_debug_log.dart';
 import 'elevenlabs_service.dart';
 import 'flutter_tts_service.dart';
 import 'audio_ports.dart';
@@ -61,11 +62,16 @@ class AudioPlayerService {
   // repetitions still use the rendered recording.
   static const _premiumStartBudget = Duration(milliseconds: 500);
 
-  Future<void> speak(String text, String langCode, {String? audioPath}) async {
+  Future<void> speak(
+    String text,
+    String langCode, {
+    String? audioPath,
+    bool requirePlayback = false,
+  }) async {
     if (_disposed) return;
     final epoch = _playbackEpoch;
     if (!_usePremium || audioPath == null) {
-      await _tts.speak(text, langCode);
+      await _speakOnDevice(text, langCode, requirePlayback);
       return;
     }
     final path = await _assetCache
@@ -80,7 +86,20 @@ class AudioPlayerService {
       if (epoch != _playbackEpoch) return;
       await _player.playFile(path);
     } else {
+      await _speakOnDevice(text, langCode, requirePlayback);
+    }
+  }
+
+  Future<void> _speakOnDevice(
+    String text,
+    String langCode,
+    bool requirePlayback,
+  ) async {
+    try {
       await _tts.speak(text, langCode);
+    } on TtsRejected catch (error) {
+      if (requirePlayback) rethrow;
+      sttLog('[TTS] optional playback failed: $error');
     }
   }
 

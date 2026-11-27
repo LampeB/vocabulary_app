@@ -62,11 +62,17 @@ class AudioDirector {
     Duration timeout = const Duration(seconds: 5),
     String? audioPath,
     bool Function()? keepGoing,
+    bool requirePlayback = false,
   }) async {
     if (!(keepGoing?.call() ?? true)) return;
     await quiet(timeout: timeout);
     if (!(keepGoing?.call() ?? true)) return;
-    await _audio.speak(text, langCode, audioPath: audioPath);
+    await _audio.speak(
+      text,
+      langCode,
+      audioPath: audioPath,
+      requirePlayback: requirePlayback,
+    );
   }
 
   /// Plays the localized grammar instruction and then the drill word with
@@ -84,9 +90,12 @@ class AudioDirector {
         instruction,
         instructionLang,
         keepGoing: keepGoing,
+        requirePlayback: true,
       ).timeout(deadline);
       if (!keepGoing()) return false;
-      await speak(word, wordLang).timeout(deadline);
+      await _audio
+          .speak(word, wordLang, requirePlayback: true)
+          .timeout(deadline);
       return keepGoing();
     } catch (error) {
       sttLog('[TTS] grammar prompt failed: $error');

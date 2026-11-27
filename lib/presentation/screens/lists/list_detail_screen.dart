@@ -13,7 +13,6 @@ import '../../../core/widget_keys.dart';
 import '../../widgets/v3_pond.dart';
 import '../../providers/lists/vocab_assistant_provider.dart';
 import '../../../data/datasources/remote/vocab_assistant_datasource.dart';
-import '../../../domain/entities/word_variant.dart';
 import '../../../domain/usecases/quiz/get_due_cards_usecase.dart'
     show QuizSource;
 import '../../providers/quiz/quiz_provider.dart';
@@ -49,7 +48,13 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
         leading: IconButton(
           key: const ValueKey(WidgetKeys.listDetailBack),
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/lists');
+            }
+          },
         ),
         title: listAsync.when(
           data: (l) => Column(
@@ -400,25 +405,8 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
   Future<void> _showAiSuggestionsSheet(BuildContext context) async {
     final list = ref.read(listInfoProvider(widget.listId)).valueOrNull;
     if (list == null) return;
-    final concepts =
-        ref.read(listDetailProvider(widget.listId)).valueOrNull ?? [];
-    final pairs = <WordPairSuggestion>[];
-    for (final c in concepts) {
-      final variants = await ref
-          .read(variantsProvider(c.id).future)
-          .catchError((_) => <WordVariant>[]);
-      final fr = variants.where(
-        (v) => v.langCode == list.langA && !v.isDeleted,
-      );
-      final ko = variants.where(
-        (v) => v.langCode == list.langB && !v.isDeleted,
-      );
-      if (fr.isNotEmpty && ko.isNotEmpty) {
-        pairs.add(
-          WordPairSuggestion(source: fr.first.word, target: ko.first.word),
-        );
-      }
-    }
+    final actions = ref.read(listActionsProvider.notifier);
+    final pairs = await actions.getSuggestionContext(widget.listId);
     if (!context.mounted) return;
     await showModalBottomSheet<void>(
       context: context,
@@ -428,16 +416,27 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
         langA: list.langA,
         langB: list.langB,
         existingPairs: pairs,
+        onQuota: () {
+          if (context.mounted) context.push('/paywall');
+        },
         onAdd: (selected) async {
+          final added = <WordPairSuggestion>[];
           for (final p in selected) {
-            await ref
-                .read(listActionsProvider.notifier)
-                .addConcept(
-                  listId: widget.listId,
-                  wordA: p.source,
-                  wordB: p.target,
-                );
+            try {
+              final result = await actions.addConcept(
+                listId: widget.listId,
+                wordA: p.source,
+                wordB: p.target,
+              );
+              if (result.isFailure) {
+                return (added: added, error: result.exceptionOrNull);
+              }
+              added.add(p);
+            } catch (_) {
+              return (added: added, error: const UnknownException());
+            }
           }
+          return (added: added, error: null);
         },
       ),
     );
@@ -683,16 +682,24 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
 }
 
 /// Bottom sheet: AI-inferred theme + checkable new word pairs.
+typedef _SuggestionAddResult = ({
+  List<WordPairSuggestion> added,
+  AppException? error,
+});
+
 class _AiSuggestionsSheet extends ConsumerStatefulWidget {
   const _AiSuggestionsSheet({
     required this.langA,
     required this.langB,
     required this.existingPairs,
     required this.onAdd,
+    required this.onQuota,
   });
   final String langA, langB;
   final List<WordPairSuggestion> existingPairs;
-  final Future<void> Function(List<WordPairSuggestion> selected) onAdd;
+  final Future<_SuggestionAddResult> Function(List<WordPairSuggestion> selected)
+  onAdd;
+  final VoidCallback onQuota;
 
   @override
   ConsumerState<_AiSuggestionsSheet> createState() =>
@@ -703,6 +710,8 @@ class _AiSuggestionsSheetState extends ConsumerState<_AiSuggestionsSheet> {
   ThemedSuggestions? _result;
   String? _error;
   final _selected = <int>{};
+  final _added = <int>{};
+  AppException? _addError;
   bool _adding = false;
 
   @override
@@ -769,19 +778,49 @@ class _AiSuggestionsSheetState extends ConsumerState<_AiSuggestionsSheet> {
                         return CheckboxListTile(
                           dense: true,
                           controlAffinity: ListTileControlAffinity.leading,
-                          value: _selected.contains(i),
-                          onChanged: (v) => setState(() {
-                            if (v == true) {
-                              _selected.add(i);
-                            } else {
-                              _selected.remove(i);
-                            }
-                          }),
+                          value: _selected.contains(i) || _added.contains(i),
+                          subtitle: _added.contains(i)
+                              ? Text('list_detail.ai_added'.tr())
+                              : null,
+                          onChanged: _adding || _added.contains(i)
+                              ? null
+                              : (v) => setState(() {
+                                  if (v == true) {
+                                    _selected.add(i);
+                                  } else {
+                                    _selected.remove(i);
+                                  }
+                                }),
                           title: Text('${p.source}  —  ${p.target}'),
                         );
                       },
                     ),
                   ),
+                  if (_addError != null) ...[
+                    Text(
+                      'list_detail.ai_add_partial'.tr(
+                        namedArgs: {
+                          'added': '${_added.length}',
+                          'remaining': '${_selected.length}',
+                        },
+                      ),
+                      style: AppTextStyles.caption,
+                    ),
+                    Text(
+                      (_addError is QuotaExceededException
+                              ? 'list_detail.ai_add_quota'
+                              : 'list_detail.ai_add_error')
+                          .tr(),
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.rose,
+                      ),
+                    ),
+                    if (_addError is QuotaExceededException)
+                      TextButton(
+                        onPressed: widget.onQuota,
+                        child: Text('profile.upgrade_button'.tr()),
+                      ),
+                  ],
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
@@ -790,10 +829,24 @@ class _AiSuggestionsSheetState extends ConsumerState<_AiSuggestionsSheet> {
                           ? null
                           : () async {
                               setState(() => _adding = true);
-                              await widget.onAdd([
+                              final result = await widget.onAdd([
                                 for (final i in _selected) _result!.pairs[i],
                               ]);
-                              if (context.mounted) {
+                              if (!mounted || !context.mounted) return;
+                              setState(() {
+                                _adding = false;
+                                _addError = result.error;
+                                final completed = _selected
+                                    .where(
+                                      (i) => result.added.contains(
+                                        _result!.pairs[i],
+                                      ),
+                                    )
+                                    .toList();
+                                _added.addAll(completed);
+                                _selected.removeAll(completed);
+                              });
+                              if (result.error == null && _selected.isEmpty) {
                                 Navigator.pop(context);
                               }
                             },

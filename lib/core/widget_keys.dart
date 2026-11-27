@@ -73,6 +73,7 @@ abstract final class WidgetKeys {
   static const hfRepeat = 'study.hf.repeat';
   static const hfSkip = 'study.hf.skip';
   static const hfPause = 'study.hf.pause';
+  static const hfResume = 'study.hf.resume';
 
   // ── Summary ────────────────────────────────────────────────────────────────
   static const summary = 'summary';

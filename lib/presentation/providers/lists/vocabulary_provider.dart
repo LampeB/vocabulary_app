@@ -14,6 +14,7 @@ import '../../../data/datasources/local/app_database.dart';
 import '../../../data/datasources/local/daos/vocabulary_list_dao.dart';
 import '../../../data/datasources/local/daos/concept_dao.dart';
 import '../../../data/datasources/local/daos/progress_dao.dart';
+import '../../../data/datasources/remote/vocab_assistant_datasource.dart';
 import '../../../data/datasources/remote/vocabulary_remote_datasource.dart';
 import '../../../data/repositories/vocabulary_repository_impl.dart';
 import '../../../data/seed/starter_seeder.dart';
@@ -84,12 +85,10 @@ final listInfoProvider = StreamProvider.autoDispose
     });
 
 // Streams concepts for a given list.
-final listDetailProvider = StreamProvider.family<List<Concept>, String>((
-  ref,
-  listId,
-) {
-  return ref.watch(vocabularyRepositoryProvider).watchConcepts(listId);
-});
+final listDetailProvider = StreamProvider.autoDispose
+    .family<List<Concept>, String>((ref, listId) {
+      return ref.watch(vocabularyRepositoryProvider).watchConcepts(listId);
+    });
 
 // Each mounted word observes its variants and releases the subscription on exit.
 final variantsProvider = StreamProvider.autoDispose
@@ -264,6 +263,22 @@ class ListActionsNotifier extends Notifier<void> {
 
   Future<Result<void>> deleteList(String listId) => _repo.deleteList(listId);
 
+  Future<List<WordPairSuggestion>> getSuggestionContext(String listId) async {
+    final list = (await _repo.getListById(listId)).valueOrNull;
+    if (list == null) return const [];
+    final sample = await _repo.getWordPairSample(
+      listId,
+      limit: VocabAssistantDataSource.maxContextItems,
+    );
+    return VocabAssistantDataSource.boundSuggestionContext(
+      sourceLang: list.langA,
+      targetLang: list.langB,
+      pairs: sample.map(
+        (pair) => WordPairSuggestion(source: pair.source, target: pair.target),
+      ),
+    );
+  }
+
   Future<Result<Concept>> addConcept({
     required String listId,
     required String wordA,
@@ -308,8 +323,12 @@ class ListActionsNotifier extends Notifier<void> {
     required WordVariant koVariant,
     required String newKoWord,
   }) async {
-    await _repo.updateVariant(frVariant.copyWith(word: newFrWord));
-    await _repo.updateVariant(koVariant.copyWith(word: newKoWord));
+    if (frVariant.word != newFrWord) {
+      await _repo.updateVariantWord(frVariant.id, newFrWord);
+    }
+    if (koVariant.word != newKoWord) {
+      await _repo.updateVariantWord(koVariant.id, newKoWord);
+    }
   }
 
   // Returns an error message on failure, null on success.
@@ -362,17 +381,21 @@ class ListActionsNotifier extends Notifier<void> {
   ) async {
     final result = await _repo.generateShareLink(listId);
     if (result.isFailure) return result;
+    final canonical = (await _repo.getListById(listId)).valueOrNull;
+    if (canonical == null) {
+      return const Failure(NotFoundException('List not found'));
+    }
     // Wait for this list and its content to become remotely visible.
-    await ref.read(pushSyncProvider).pushList(listId);
+    await ref.read(pushSyncProvider).pushList(canonical.id);
     final dao = ref.read(vocabularyListDaoProvider);
-    final list = await dao.getById(listId);
+    final list = await dao.getById(canonical.id);
     final token = Uri.parse(result.valueOrNull!).queryParameters['token'];
     if (list == null ||
         list.isDeleted ||
         !list.isSynced ||
         list.shareToken != token ||
         list.visibility != 'public' ||
-        await dao.hasPendingContents(listId)) {
+        await dao.hasPendingContents(canonical.id)) {
       return const Failure(
         NetworkException(
           'The list must finish syncing before its link can be shared.',

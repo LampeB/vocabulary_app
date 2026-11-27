@@ -42,6 +42,7 @@ import '../../providers/speech/elevenlabs_speech_provider.dart';
 import '../../providers/speech/shared_pcm_capture_provider.dart';
 import '../../widgets/vk_waveform.dart';
 import '../../widgets/mic_button.dart';
+import '../../widgets/scroll_affordance.dart';
 import '../../widgets/study/study_scaffold.dart';
 import '../../widgets/study/word_in_wave.dart';
 import '../../widgets/study/stt_status_strip.dart';
@@ -55,6 +56,10 @@ import '../../design/v3/v3_tokens.dart';
 // (a perpetual ticker on any study screen otherwise makes every action wait out
 // the settle timeout and intermittently trips mid-layout binding assertions).
 const _kTestMode = bool.fromEnvironment('TEST_MODE');
+
+final voiceTurnMachineFactoryProvider = Provider<VoiceTurnMachine Function()>(
+  (ref) => VoiceTurnMachine.new,
+);
 
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({super.key, required this.args});
@@ -125,7 +130,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // Marked by a low closing tick + pulsing status text so the user knows to
   // stop talking (protocol spec, user request 2026-07-08).
   bool _hfAnalyzing = false;
-  bool _hfPromptFailed = false;
+  String? _hfFailureKey;
   // "3 · 2 · 1" before the mic opens (null = no countdown showing).
   int? _hfCountdown;
   // The "analysis started" bip plays once per listen attempt.
@@ -202,7 +207,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _hfAutoPausedSilence = false;
     _hfNotHeard = false;
     _hfAnalyzing = false;
-    _hfPromptFailed = false;
+    _hfFailureKey = null;
     _hfCountdown = null;
     _voiceKbIndex = null;
     _flashcardExiting = false;
@@ -267,7 +272,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _listenBarCtrl.stop();
     setState(() {
       _hfAnalyzing = false;
-      _hfPromptFailed = false;
+      _hfFailureKey = null;
       _hfNotHeard = false;
       _hfCountdown = null;
     });
@@ -277,7 +282,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     return _interruption =
         Future.wait<void>([
           ?pending,
-          if (capture != null) capture.stop(),
+          if (capture != null)
+            capture.stop().timeout(SharedPcmCapture.defaultReleaseTimeout),
           if (_usesRealStt) ...[
             _stt.stopListening(),
             _whisper.stopListening(),
@@ -338,7 +344,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         keepGoing: () => !stale(),
       );
       if (!played && !stale()) {
-        setState(() => _hfPromptFailed = true);
+        setState(() => _hfFailureKey = 'quiz.grammar_prompt_failed');
         return;
       }
     }
@@ -484,17 +490,30 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       unawaited(_whisper.ensureModel());
     }
 
-    // The caller flow (card-change listener → chain wait → hand-off → cue)
-    // has already executed the transition/prompt/cue phases — feed them
-    // through so the machine is in sync, then execute what it commands.
-    // From here machine-internal retries replace the legacy ladder: the
-    // race path never re-enters _startListening for the same card.
-    final m = _turnMachine ??= VoiceTurnMachine();
+    // Schedule the attempt after prompt playback and audio hand-off. The
+    // command handler preflights each lane before the actual countdown and cue.
+    final m = _turnMachine ??= ref.read(voiceTurnMachineFactoryProvider)();
     _turnCourseMode = courseMode;
     m.on(TurnStarted(sessionToken));
     m.on(SlateClean(sessionToken));
     m.on(PromptFinished(sessionToken));
     await _runTurnCommands(m.on(CueFinished(sessionToken)), card, langCode);
+  }
+
+  void _showMicReleaseFailure() {
+    _listenBarCtrl.stop();
+    ref.read(quizProvider.notifier).setListening(false);
+    if (widget.args.mode == QuizMode.handsFree) {
+      setState(() {
+        _hfAnalyzing = false;
+        _hfNotHeard = false;
+        _hfFailureKey = 'quiz.mic_release_failed_hf';
+      });
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('quiz.mic_release_failed'.tr())));
+    }
   }
 
   /// True when the machine's turn no longer matches reality — unmounted, a
@@ -609,14 +628,49 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final turn = m.turn;
     if (_turnStale(turn, card)) return;
 
-    // Retry attempts replay the "your turn" earcon (protocol 2026-07-08:
-    // retry message → start bip); the first attempt's cue came from the
-    // caller flow.
-    if (m.attempt > 1 &&
-        widget.args.mode == QuizMode.handsFree &&
-        !_kTestMode) {
+    final online = !isOffline(await Connectivity().checkConnectivity());
+    if (_turnStale(turn, card)) return;
+    final engines = _turnCourseMode
+        ? _sttRegistry!.select(
+            langCode: langCode,
+            online: online,
+            rescue: rescue,
+          )
+        : [if (_systemModeEngine!.isReady) _systemModeEngine!];
+    final recorder =
+        _sharedCapture ?? ref.read<SharedPcmCapture>(sharedPcmCaptureProvider);
+    _sharedCapture = recorder;
+    try {
+      // A previous shared recorder must release even when this attempt will
+      // use the exclusive system recognizer.
+      await recorder.stop().timeout(SharedPcmCapture.defaultReleaseTimeout);
+    } catch (error) {
+      sttLog('[HF] microphone release preflight failed: $error');
+      if (!_turnStale(turn, card)) _showMicReleaseFailure();
+      return;
+    }
+    if (_turnStale(turn, card)) return;
+    final shared = engines.any(
+      (engine) => engine.capture == SttCapture.sharedPcm,
+    );
+    final canOpen =
+        engines.isNotEmpty && (!shared || await recorder.ensurePermission());
+    if (_turnStale(turn, card)) return;
+    if (!canOpen) {
+      await _runTurnCommands(
+        m.on(NothingHeard(turn, hadRealWindow: false)),
+        card,
+        langCode,
+      );
+      return;
+    }
+
+    // All lanes are ready before the learner hears the opening cue. The
+    // microphone opens only after the cue has cleared.
+    if (widget.args.mode == QuizMode.handsFree && !_kTestMode) {
       if (!await _runCountdown(() => _turnStale(turn, card))) return;
       if (_turnStale(turn, card)) return;
+      HapticFeedback.selectionClick();
       await ref.read(audioDirectorProvider).listenCue();
       if (_turnStale(turn, card)) return;
     }
@@ -659,27 +713,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       }
     }
 
-    final courseMode = _turnCourseMode;
-    final online = !isOffline(await Connectivity().checkConnectivity());
-    if (_turnStale(turn, card)) return;
-    final engines = courseMode
-        ? _sttRegistry!.select(
-            langCode: langCode,
-            online: online,
-            rescue: rescue,
-          )
-        : [_systemModeEngine!];
     sttLog(
       '[RACE][HF] engines=${engines.map((e) => e.id).join("+")} '
       'online=$online turn=$turn attempt=${m.attempt} rescue=$rescue '
       'lang=$langCode',
     );
     _activeRace?.cancel(); // never two attempts alive at once
-    final capture =
-        engines.any((engine) => engine.capture == SttCapture.sharedPcm)
-        ? _sharedCapture ??= ref.read(sharedPcmCaptureProvider)
-        : null;
-    final race = SttRace(engines, capture: capture);
+    final race = SttRace(engines, capture: shared ? recorder : null);
     _activeRace = race;
     _analysisBipPlayed = false;
     // User-tunable (Réglages → Temps d'écoute). The bar drains over exactly
@@ -734,6 +774,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     );
     if (identical(_activeRace, race)) _activeRace = null;
     if (outcome.cancelled || _turnStale(turn, card)) return;
+    if (outcome.micReleaseFailed) {
+      _showMicReleaseFailure();
+      return;
+    }
     final hadReal = outcome.hadRealSession;
 
     _listenBarCtrl.stop();
@@ -789,25 +833,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     sttLog('[HF] Triggering audio stop + verified focus-handover wait');
     await ref.read(audioDirectorProvider).handOffToMic();
     if (stale()) return;
-
-    // Hands-free is eyes-off: "your turn" earcon + haptic BEFORE the mic
-    // opens — played while listening, the recognizer hears the earcon itself
-    // and can transcribe it as a (wrong) answer.
-    // Retries are cued too: the protocol is "retry message → start bip"
-    // (user request 2026-07-08). Safe now that earcons use FOCUS_NONE and
-    // session starts are serialized — the old silent-retry rule guarded
-    // against focus-contest kills that no longer happen.
-    // "3 · 2 · 1" first, so the learner knows exactly when to speak.
-    if (!await _runCountdown(stale) || stale()) return;
-
-    if (widget.args.mode == QuizMode.handsFree && !_kTestMode) {
-      sttLog(
-        '[HF] 🔔 playing listen earcon (mic opens after verified clearance)',
-      );
-      HapticFeedback.selectionClick();
-      await ref.read(audioDirectorProvider).listenCue();
-      if (stale()) return;
-    }
 
     // Refactor 4c: EVERY voice turn — vocab AND grammar — runs on the
     // VoiceTurnMachine. Système is a system-only lane, Course adds the
@@ -936,12 +961,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           // New card = back to the reading phase; don't let the previous
           // card's "analyse" banner linger over the new word.
           if (_hfAnalyzing ||
-              _hfPromptFailed ||
+              _hfFailureKey != null ||
               _hfNotHeard ||
               _hfCountdown != null) {
             setState(() {
               _hfAnalyzing = false;
-              _hfPromptFailed = false;
+              _hfFailureKey = null;
               _hfNotHeard = false;
               _hfCountdown = null;
             });
@@ -1143,179 +1168,186 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final accent = dark ? V3Colors.amber : V3Colors.terraInk;
     final cueColor = micLive || hfCue == HfCue.countdown ? accent : muted;
 
+    final failure = _hfFailureKey;
     return V3StudyScaffold(
       remaining: (s.displayTotal - s.position + 1).clamp(1, s.displayTotal),
       onQuit: _quit,
-      child: Stack(
-        children: [
-          // Reading state only: whole-canvas warm breathing pulse (not in
-          // the "pas entendu" state).
-          if (hfCue == HfCue.reading && !_hfPromptFailed && _appForeground)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: reduceMotion || _kTestMode
-                    ? _ReadingGlow(progress: 0.5)
-                    : const _ReadingPulse(),
-              ),
-            ),
-          // Main content — tap centre to pause.
-          GestureDetector(
-            key: const ValueKey(WidgetKeys.hfPause),
-            onTap: _toggleHfPause,
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: _ScrollablePrompt(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          WordInWave(
+      child: _hfPaused
+          ? _buildPausedHandsFree(foreground)
+          : Stack(
+              children: [
+                if (hfCue == HfCue.reading && failure == null && _appForeground)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: reduceMotion || _kTestMode
+                          ? _ReadingGlow(progress: 0.5)
+                          : const _ReadingPulse(),
+                    ),
+                  ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final textScale =
+                        MediaQuery.textScalerOf(context).scale(16) / 16;
+                    final short = constraints.maxHeight < 360 * textScale;
+                    final prompt = Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        GestureDetector(
+                          onTap: _toggleHfPause,
+                          excludeFromSemantics: true,
+                          child: WordInWave(
                             word: card.questionWord,
                             isKorean: questionIsHangul,
-                            cue: _hfPromptFailed ? null : cue,
+                            cue: failure == null ? cue : null,
                             wordColor: foreground,
                             cueColor: cueColor,
                             waveActive: micLive,
                           ),
-                          if (_hfPromptFailed && !_hfPaused)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: Semantics(
-                                liveRegion: true,
-                                child: Text(
-                                  'quiz.grammar_prompt_failed'.tr(),
-                                  style: V3Text.body(14, color: muted),
-                                  textAlign: TextAlign.center,
+                        ),
+                        if (failure != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                failure.tr(),
+                                style: V3Text.body(14, color: muted),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                    final body = Column(
+                      children: [
+                        if (short)
+                          prompt
+                        else
+                          Expanded(child: _ScrollablePrompt(child: prompt)),
+                        if (_hfCountdown != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              '$_hfCountdown',
+                              key: const ValueKey('hf_countdown'),
+                              style: AppTextStyles.grotesk(
+                                short ? 42 : 64,
+                                FontWeight.w700,
+                              ).copyWith(color: accent),
+                            ),
+                          ),
+                        if (listening || !_sttOnline)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: SttStatusStrip(
+                              status: _sttStatus,
+                              online: _sttOnline,
+                              labels: _sttLabels(),
+                            ),
+                          ),
+                        AnimatedOpacity(
+                          duration: const Duration(milliseconds: 200),
+                          opacity: micLive ? 1.0 : 0.0,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: AnimatedBuilder(
+                              animation: _listenBarCtrl,
+                              builder: (_, _) => ClipRRect(
+                                borderRadius: BorderRadius.circular(3),
+                                child: LinearProgressIndicator(
+                                  value: 1 - _listenBarCtrl.value,
+                                  minHeight: 5,
+                                  backgroundColor: rule.withValues(alpha: 0.7),
+                                  valueColor: AlwaysStoppedAnimation(accent),
                                 ),
                               ),
                             ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  // "3 · 2 · 1" — big, so it reads from arm's length.
-                  if (_hfCountdown != null && !_hfPaused)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        '$_hfCountdown',
-                        key: const ValueKey('hf_countdown'),
-                        style: AppTextStyles.grotesk(
-                          64,
-                          FontWeight.w700,
-                        ).copyWith(color: accent),
-                      ),
-                    ),
-                  // Which engines are working on the answer, and what each
-                  // one heard.
-                  if (!_hfPaused && (listening || !_sttOnline))
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: SttStatusStrip(
-                        status: _sttStatus,
-                        online: _sttOnline,
-                        labels: _sttLabels(),
-                      ),
-                    ),
-                  // Time left to answer: drains while the mic is open, over
-                  // the window set in Réglages → Temps d'écoute. Hidden
-                  // outside the listening phase.
-                  AnimatedOpacity(
-                    duration: const Duration(milliseconds: 200),
-                    opacity: micLive ? 1.0 : 0.0,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: AnimatedBuilder(
-                        animation: _listenBarCtrl,
-                        builder: (_, _) => ClipRRect(
-                          borderRadius: BorderRadius.circular(3),
-                          child: LinearProgressIndicator(
-                            value: 1 - _listenBarCtrl.value,
-                            minHeight: 5,
-                            backgroundColor: rule.withValues(alpha: 0.7),
-                            valueColor: AlwaysStoppedAnimation(accent),
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _HfButton(
-                          key: const ValueKey(WidgetKeys.hfRepeat),
-                          icon: Icons.replay_rounded,
-                          label: 'quiz.hf_repeat'.tr(),
-                          onTap: _hfRepeat,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: _HfButton(
-                          key: const ValueKey(WidgetKeys.hfSkip),
-                          icon: Icons.skip_next_rounded,
-                          label: 'quiz.hf_skip'.tr(),
-                          onTap: _hfSkip,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Pause overlay.
-          if (_hfPaused)
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: _toggleHfPause,
-                behavior: HitTestBehavior.opaque,
-                child: ColoredBox(
-                  color: Colors.black.withValues(alpha: 0.58),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _hfAutoPausedSilence
-                              ? Icons.hearing_disabled_rounded
-                              : Icons.pause_rounded,
-                          size: 56,
-                          color: V3Colors.inkLight,
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          (_hfAutoPausedSilence
-                                  ? 'quiz.hf_paused_silence'
-                                  : 'quiz.hf_paused')
-                              .tr(),
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.grotesk(
-                            28,
-                            FontWeight.w700,
-                          ).copyWith(color: V3Colors.inkLight),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'quiz.hf_resume_hint'.tr(),
-                          style: AppTextStyles.fig(
-                            14,
-                            FontWeight.w500,
-                          ).copyWith(color: V3Colors.inkLight70),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _HfButton(
+                                key: const ValueKey(WidgetKeys.hfRepeat),
+                                icon: Icons.replay_rounded,
+                                label: 'quiz.hf_repeat'.tr(),
+                                onTap: _hfRepeat,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _HfButton(
+                                key: const ValueKey(WidgetKeys.hfPause),
+                                icon: Icons.pause_rounded,
+                                label: 'quiz.hf_pause'.tr(),
+                                onTap: _toggleHfPause,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _HfButton(
+                                key: const ValueKey(WidgetKeys.hfSkip),
+                                icon: Icons.skip_next_rounded,
+                                label: 'quiz.hf_skip'.tr(),
+                                onTap: _hfSkip,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                  ),
+                    );
+                    const padding = EdgeInsets.fromLTRB(24, 8, 24, 28);
+                    if (short) {
+                      return ScrollAffordance(
+                        key: const ValueKey(WidgetKeys.quizPrompt),
+                        hint: 'v3.scroll_hint'.tr(),
+                        padding: padding,
+                        fillViewport: true,
+                        child: body,
+                      );
+                    }
+                    return Padding(padding: padding, child: body);
+                  },
                 ),
-              ),
+              ],
             ),
-        ],
-      ),
     );
   }
+
+  Widget _buildPausedHandsFree(Color foreground) => ScrollAffordance(
+    hint: 'v3.scroll_hint'.tr(),
+    padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+    fillViewport: true,
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          _hfAutoPausedSilence
+              ? Icons.hearing_disabled_rounded
+              : Icons.pause_rounded,
+          size: 56,
+          color: foreground,
+        ),
+        const SizedBox(height: 10),
+        Text(
+          (_hfAutoPausedSilence ? 'quiz.hf_paused_silence' : 'quiz.hf_paused')
+              .tr(),
+          textAlign: TextAlign.center,
+          style: AppTextStyles.grotesk(
+            28,
+            FontWeight.w700,
+          ).copyWith(color: foreground),
+        ),
+        const SizedBox(height: 18),
+        FilledButton(
+          key: const ValueKey(WidgetKeys.hfResume),
+          autofocus: true,
+          onPressed: _toggleHfPause,
+          child: Text('quiz.hf_resume'.tr(), textAlign: TextAlign.center),
+        ),
+      ],
+    ),
+  );
 
   Future<void> _quit() async {
     if (_quitting) return;

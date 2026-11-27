@@ -1,3 +1,5 @@
+import 'dart:convert' show jsonEncode, utf8;
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/errors/app_exception.dart';
@@ -21,6 +23,8 @@ class WordPairSuggestion {
   const WordPairSuggestion({required this.source, required this.target});
   final String source;
   final String target;
+
+  Map<String, String> _toJson() => {'source': source, 'target': target};
 }
 
 /// Response of the `translate` mode.
@@ -49,6 +53,11 @@ class VocabAssistantDataSource {
   VocabAssistantDataSource(this._client);
   final SupabaseClient _client;
 
+  // Keep in sync with vocab-assistant/index.ts and _shared/request_limits.ts.
+  static const maxContextItems = 80;
+  static const _maxFieldLength = 256;
+  static const _maxBodyBytes = 32768;
+
   Future<Result<TranslateAssist>> translate({
     required String word,
     required String sourceLang,
@@ -57,17 +66,20 @@ class VocabAssistantDataSource {
     List<String> existingWords = const [],
   }) async {
     try {
-      final res = await _client.functions.invoke(
-        'vocab-assistant',
-        body: {
-          'mode': 'translate',
-          'word': word,
-          'sourceLang': sourceLang,
-          'targetLang': targetLang,
-          'theme': theme,
-          'existingWords': existingWords,
-        },
+      final body = <String, Object>{
+        'mode': 'translate',
+        'word': word,
+        'sourceLang': sourceLang,
+        'targetLang': targetLang,
+        'theme': ?theme,
+        'existingWords': const <String>[],
+      };
+      body['existingWords'] = _boundedContext(
+        body,
+        existingWords.where(_validText),
+        (word) => word,
       );
+      final res = await _client.functions.invoke('vocab-assistant', body: body);
       final data = res.data;
       if (data is! Map<String, dynamic>) {
         return const Failure(UnknownException('réponse invalide'));
@@ -99,19 +111,12 @@ class VocabAssistantDataSource {
     int count = 8,
   }) async {
     try {
-      final res = await _client.functions.invoke(
-        'vocab-assistant',
-        body: {
-          'mode': 'suggest',
-          'sourceLang': sourceLang,
-          'targetLang': targetLang,
-          'existingPairs': [
-            for (final p in existingPairs)
-              {'source': p.source, 'target': p.target},
-          ],
-          'count': count,
-        },
-      );
+      final body = _suggestionEnvelope(sourceLang, targetLang, count);
+      body['existingPairs'] = _boundPairs(
+        body,
+        existingPairs,
+      ).map((pair) => pair._toJson()).toList();
+      final res = await _client.functions.invoke('vocab-assistant', body: body);
       final data = res.data;
       if (data is! Map<String, dynamic>) {
         return const Failure(UnknownException('réponse invalide'));
@@ -125,6 +130,55 @@ class VocabAssistantDataSource {
     } catch (e) {
       return Failure(UnknownException('$e'));
     }
+  }
+
+  static List<WordPairSuggestion> boundSuggestionContext({
+    required String sourceLang,
+    required String targetLang,
+    required Iterable<WordPairSuggestion> pairs,
+  }) => _boundPairs(_suggestionEnvelope(sourceLang, targetLang, 8), pairs);
+
+  static Map<String, Object> _suggestionEnvelope(
+    String sourceLang,
+    String targetLang,
+    int count,
+  ) => {
+    'mode': 'suggest',
+    'sourceLang': sourceLang,
+    'targetLang': targetLang,
+    'existingPairs': const [],
+    'count': count,
+  };
+
+  static List<WordPairSuggestion> _boundPairs(
+    Map<String, Object> envelope,
+    Iterable<WordPairSuggestion> pairs,
+  ) => _boundedContext(
+    envelope,
+    pairs.where((pair) => _validText(pair.source) && _validText(pair.target)),
+    (pair) => pair._toJson(),
+  );
+
+  static bool _validText(String value) =>
+      value.length <= _maxFieldLength && value.trim().isNotEmpty;
+
+  static List<T> _boundedContext<T>(
+    Map<String, Object> envelope,
+    Iterable<T> items,
+    Object Function(T) encodeItem,
+  ) {
+    var bytes = utf8.encode(jsonEncode(envelope)).length;
+    final included = <T>[];
+    for (final item in items) {
+      if (included.length == maxContextItems) break;
+      final itemBytes =
+          utf8.encode(jsonEncode(encodeItem(item))).length +
+          (included.isEmpty ? 0 : 1);
+      if (bytes + itemBytes > _maxBodyBytes) continue;
+      bytes += itemBytes;
+      included.add(item);
+    }
+    return included;
   }
 
   static List<WordPairSuggestion> _pairs(dynamic raw) => [

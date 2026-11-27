@@ -10,6 +10,7 @@ REVOKE ALL ON public.published_audio_assets FROM PUBLIC, anon, authenticated;
 GRANT SELECT ON public.published_audio_assets TO authenticated;
 GRANT ALL ON public.published_audio_assets TO service_role;
 CREATE POLICY published_audio_read ON public.published_audio_assets FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "vocab audio pending activation" ON storage.objects;
 DROP POLICY IF EXISTS "vocab audio authenticated read" ON storage.objects;
 CREATE POLICY "vocab audio authenticated read" ON storage.objects FOR SELECT TO authenticated
 USING (bucket_id = 'vocab-audio' AND

@@ -42,7 +42,7 @@ livraison et les validations qui manquent sont dans
 ## Flux mains-libres
 
 ```text
-audio du prompt → signal de fin → remise micro → hypothèses STT
+audio du prompt → vérification des moteurs → compte à rebours → signal d'ouverture → microphone → hypothèses STT
 → validation contrainte → feedback audio → carte suivante
 ```
 
@@ -51,21 +51,34 @@ En grammaire mains-libres, chaque carte fait entendre la consigne dans la
 langue de l'interface puis le mot à transformer dans la langue étudiée.
 Le compte à rebours, le signal et le micro suivent la fin de ces deux lectures.
 Si la lecture échoue ou dépasse son délai, le tour reste disponible via le
-bouton Répéter. Le microphone reste fermé.
+bouton Répéter. Le microphone reste fermé. Un refus explicite du moteur
+vocal de l'appareil, lors du réglage de la langue ou du lancement de la
+lecture, suit le même chemin.
 `SttRace` et `VoiceTurnMachine` ignorent les résultats arrivés après la fin du
 tour pour empêcher une réponse de contaminer la carte suivante.
 La fermeture de la capture attend sa dernière portion audio et l'inscrit dans
 les analyses en cours avant de permettre un verdict d'absence de réponse.
 Un décodeur peut travailler pendant l'écoute. Le signal de fin d'écoute
 attend la fermeture confirmée du microphone et un verdict encore en cours.
+Si la fermeture est refusée ou dépasse deux secondes, le tour se termine
+sans signal de fin ni notation. Répéter relance le tour après vérification
+de la fermeture. Une demande d'arrêt qui attend toujours sa réponse
+native empêche toute nouvelle ouverture du microphone.
 Chaque tour attend la restauration du mode STT et garde ce mode pour les
-nouvelles tentatives.
+nouvelles tentatives. Le premier essai et chaque relance attendent la
+sélection des moteurs disponibles et la vérification du microphone avant
+le compte à rebours et le signal d'ouverture.
 La mise en arrière-plan et la pause volontaire invalident immédiatement le
 tour en cours, y compris un compte à rebours ou une relance programmée.
 Le retour au premier plan reprend le tour interrompu si la session est
 active. Pendant un feedback, il reprend l'avance différée et conserve la
 notation déjà écrite. Une pause volontaire reste active jusqu'à la reprise
 par l'apprenant.
+Le bouton Pause et le bouton Reprendre sont accessibles au clavier. En
+pause, Reprendre reçoit le focus et les actions d'écoute sont retirées.
+Lorsque la hauteur ou le grossissement du texte réduit l'espace disponible,
+la carte entière défile avec un indicateur pour accéder à la consigne, à
+l'état d'écoute et aux commandes.
 Un changement d'identifiant de compte ferme la session, retire ses cartes
 et invalide le tour audio et les opérations différées de cette session.
 L'arrêt d'un tour invalide les portions PCM en file pour le reconnaisseur du

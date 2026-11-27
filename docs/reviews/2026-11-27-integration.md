@@ -363,3 +363,46 @@ leur provenance en lecture seule, sans approbation. Sept itérations complètes
 restent bloquées ; les quatre compteurs sont à zéro. La prochaine relecture
 sera l'itération **8**, après un commit commun complet, avec le plafond de
 vingt conservé. Aucun service hébergé n'est modifié.
+
+## Huitième itération — `9031dcc`
+
+Les quatre profils ont rendu `BLOQUÉ` sur
+`9031dccaedd9267ecf197ed29ffcdf196e332d5b` avant toute correction.
+Leurs 16 observations Important correspondent à **15 constats distincts** :
+l'arrêt PCM non confirmé est signalé par qualité et correction. Aucun
+Bloquant et une Suggestion sont remontés. Les compteurs propres restent à
+zéro ; le prochain commit commun sera relu à l'itération **9**, avec le
+plafond de vingt conservé.
+
+| Type | Constat regroupé | Correction et preuve ciblée |
+| --- | --- | --- |
+| Important | Retour depuis une liste importée à froid sans route précédente | Repli bibliothèque, vrai détail froid et retour contextuel à chaud testés |
+| Important | Aperçu réel de leçon débordant à texte doublé | Défilement annoncé, bouton de pratique atteint à 320 × 568 |
+| Important | Phases mains-libres trop hautes en paysage | Surface entière adaptable, compte à rebours et écoute à 568 × 320, texte doublé |
+| Important | Pause et reprise inaccessibles au clavier | Commandes focalisables localisées, contrôles masqués exclus du focus |
+| Important | Traduction envoyant un thème null refusé par le service | Champ optionnel omis, corps HTTP réel testé |
+| Important | Suggestions chargeant toutes les variantes en N+1 et dépassant les limites | Contexte groupé et borné, garde de sérialisation côté client |
+| Important | Ajout multiple de suggestions masquant les refus de quota | Résultats conservés, sélection restante et accès abonnement testés |
+| Important | Reconnexion perdue pendant un envoi qui échoue | Réveil mémorisé pour une nouvelle tentative, sans boucle de panne autonome |
+| Important | Arrêt PCM en erreur ou bloqué assimilé à un micro fermé | Attente bornée, échec propagé, capture en quarantaine et reprise explicite |
+| Important | Historique starter écrasé malgré des IDs déjà identiques | Détection du conflit avant libération du brouillon, progression locale préservée |
+| Important | Détail ouvert et écritures conservant des IDs adoptés périmés | Flux réactifs aux alias et destination canonique validée dans la transaction |
+| Important | Signal de début avant la préparation du moteur | Préparation attendue avant le signal, au premier tour et à la reprise |
+| Important | Refus natif TTS retournant zéro considéré comme une lecture | Accusé vérifié, langue mémorisée après succès, refus récupérable sans micro |
+| Important | Publication Appetize disponible avant décision de distribution | Envoi externe retiré ; artefact CI conservé pour les validations internes |
+| Important | Ancienne politique Storage lisible entre migrations 007 et 012 | Fermeture restrictive initiale, activation atomique et test SQL intermédiaire |
+
+La Suggestion sur le pluriel anglais de kimchi reste un travail de contenu
+séparé à faire relire ; elle n'est pas présentée comme une correction livrée.
+Elle ne modifie ni le seuil de cinq ni les prérequis anglais décidés par
+l'utilisateur.
+
+Validation du lot : **1 036 tests hôte réussis**, huit diagnostics positifs
+exclus de la passe normale, couverture **71,4 %** (12 806 / 17 943 lignes).
+Les 21 diagnostics ciblés passent avec opt-in et la sonde AOT confirme le
+refus en mode produit. Les 131 tests data ciblés, les imports froid et chaud,
+le vrai contenu grammatical à texte doublé et les nouveaux cas voix/clavier
+passent. PostgreSQL 16.11 valide le nouveau sas Storage intermédiaire, les
+six suites finales, deux connexions de reset et le script d'activation avec
+réapplication et rollback. Les 30 tests Python, la frontière de licence,
+actionlint et zizmor passent. Aucun backend ni publication externe n'est activé.

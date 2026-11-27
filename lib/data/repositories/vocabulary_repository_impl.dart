@@ -78,84 +78,69 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   }
 
   @override
-  Future<Result<VocabularyList>> updateList(VocabularyList list) async {
-    if (_userId.isEmpty) return const Failure(_accountRequired);
-    final updated = list.copyWith(updatedAt: DateTime.now(), isSynced: false);
-    try {
-      await _database.writeOutbound(
-        _userId,
-        () => _listDao.upsert(updated.toLocalCompanion()),
-      );
-      return Success(updated);
-    } catch (e) {
-      return Failure(StorageException(e.toString()));
-    }
-  }
-
-  @override
-  Future<Result<VocabularyList>> renameList(String listId, String name) async {
-    try {
-      return await _database.transaction(() async {
-        final current = await _listDao.getById(listId);
-        if (current == null ||
-            current.ownerId != _userId ||
-            current.isDeleted) {
-          return const Failure(NotFoundException('List not found'));
-        }
-        return updateList(current.toDomain().copyWith(name: name));
-      });
-    } catch (e) {
-      return Failure(StorageException(e.toString()));
-    }
-  }
-
-  @override
-  Future<Result<void>> deleteList(String listId) async {
-    try {
-      // Deleting a list frees a quota slot but the user LOSES its mastery
-      // (product decision 2026-07-04): soft-delete the words so they vanish
-      // from smart lists, and delete their progress rows outright.
-      final concepts = await _conceptDao.getConceptsByList(listId);
-      final conceptIds = concepts.map((c) => c.id).toList();
-      final variantIds = await _database.progressDao.getVariantIdsForConcepts(
-        conceptIds,
-      );
-      await _database.writeOutbound(_userId, () async {
-        await _listDao.softDelete(listId);
-        for (final id in conceptIds) {
-          await _conceptDao.softDelete(id);
-        }
-        for (final id in variantIds) {
-          await _conceptDao.softDeleteVariant(id);
-        }
-        await _database.progressDao.deleteProgressForVariants(
-          userId: _userId,
-          variantIds: variantIds,
+  Future<Result<VocabularyList>> updateList(VocabularyList list) =>
+      _write(() async {
+        final current = await _requireList(list.id);
+        return _updateList(
+          list.copyWith(
+            id: current.id,
+            ownerId: current.ownerId,
+            wordCount: current.wordCount,
+            origin: current.origin,
+            seedId: current.seedId,
+            createdAt: current.createdAt,
+            isDeleted: false,
+          ),
         );
       });
-      return const Success(null);
-    } catch (e) {
-      return Failure(StorageException(e.toString()));
-    }
+
+  @override
+  Future<Result<VocabularyList>> renameList(String listId, String name) =>
+      _write(() async {
+        final list = await _requireList(listId);
+        return _updateList(list.toDomain().copyWith(name: name));
+      });
+
+  Future<VocabularyList> _updateList(VocabularyList list) async {
+    final updated = list.copyWith(updatedAt: DateTime.now(), isSynced: false);
+    await _listDao.upsert(updated.toLocalCompanion());
+    return updated;
   }
+
+  @override
+  Future<Result<void>> deleteList(String listId) => _write(() async {
+    final list = await _requireList(listId);
+    // Deleting a list frees a quota slot but the user LOSES its mastery
+    // (product decision 2026-07-04): soft-delete the words so they vanish
+    // from smart lists, and delete their progress rows outright.
+    final concepts = await _conceptDao.getConceptsByList(list.id);
+    final conceptIds = concepts.map((c) => c.id).toList();
+    final variantIds = await _database.progressDao.getVariantIdsForConcepts(
+      conceptIds,
+    );
+    await _listDao.softDelete(list.id);
+    for (final id in conceptIds) {
+      await _conceptDao.softDelete(id);
+    }
+    for (final id in variantIds) {
+      await _conceptDao.softDeleteVariant(id);
+    }
+    await _database.progressDao.deleteProgressForVariants(
+      userId: _userId,
+      variantIds: variantIds,
+    );
+  });
 
   @override
   Future<Result<VocabularyList>> getListById(String listId) async {
-    final row = await _database.transaction(() async {
-      final canonicalId = await _listDao.resolveStarterId(
-        StarterAliasKind.list,
-        _userId,
-        listId,
-      );
-      return _listDao.getById(canonicalId);
-    });
+    final row = await _database.transaction(() => _findList(listId));
     if (row == null) return const Failure(NotFoundException('List not found'));
     return Success(row.toDomain());
   }
 
   @override
   Stream<VocabularyList?> watchListById(String listId) => _listDao
-      .watchById(listId)
+      .watchById(listId, ownerId: _userId)
       .map((row) => row?.isDeleted == false ? row!.toDomain() : null)
       .distinct(
         (previous, next) =>
@@ -171,7 +156,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
 
   @override
   Stream<List<Concept>> watchConcepts(String listId) => _conceptDao
-      .watchByList(listId)
+      .watchByList(listId, ownerId: _userId)
       .map(
         (rows) => rows
             .map(
@@ -183,12 +168,14 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
                 imageUrl: r.imageUrl,
                 exampleFr: r.exampleFr,
                 exampleKo: r.exampleKo,
+                seedId: r.seedId,
                 createdAt: r.createdAt,
                 updatedAt: r.updatedAt,
               ),
             )
             .toList(),
-      );
+      )
+      .distinct(listEquals);
 
   @override
   Future<Result<Concept>> createConcept({
@@ -197,12 +184,12 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     String? notes,
     String? exampleFr,
     String? exampleKo,
-  }) async {
-    if (_userId.isEmpty) return const Failure(_accountRequired);
+  }) => _write(() async {
+    final list = await _requireList(listId);
     final now = DateTime.now();
     final concept = Concept(
       id: _uuid.v4(),
-      listId: listId,
+      listId: list.id,
       category: category,
       notes: notes,
       exampleFr: exampleFr,
@@ -210,28 +197,10 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       createdAt: now,
       updatedAt: now,
     );
-    try {
-      await _database.writeOutbound(_userId, () async {
-        await _conceptDao.upsert(
-          ConceptsTableCompanion(
-            id: Value(concept.id),
-            listId: Value(concept.listId),
-            category: Value(concept.category),
-            notes: Value(concept.notes),
-            imageUrl: Value(concept.imageUrl),
-            exampleFr: Value(concept.exampleFr),
-            exampleKo: Value(concept.exampleKo),
-            createdAt: Value(concept.createdAt),
-            updatedAt: Value(concept.updatedAt),
-          ),
-        );
-        await _updateWordCount(listId, 1);
-      });
-      return Success(concept);
-    } catch (e) {
-      return Failure(StorageException(e.toString()));
-    }
-  }
+    await _saveConcept(concept);
+    await _updateWordCount(list.id, 1);
+    return concept;
+  });
 
   @override
   Future<Result<Concept>> addConceptWithVariants({
@@ -242,12 +211,12 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     String langB = 'ko',
     String? notes,
     String? category,
-  }) async {
-    if (_userId.isEmpty) return const Failure(_accountRequired);
+  }) => _write(() async {
+    final list = await _requireList(listId);
     final now = DateTime.now();
     final concept = Concept(
       id: _uuid.v4(),
-      listId: listId,
+      listId: list.id,
       category: category,
       notes: notes,
       createdAt: now,
@@ -285,85 +254,63 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       createdAt: now,
       updatedAt: now,
     );
-    try {
-      await _database.writeOutbound(_userId, () async {
-        await _conceptDao.upsert(
-          ConceptsTableCompanion(
-            id: Value(concept.id),
-            listId: Value(concept.listId),
-            category: Value(concept.category),
-            notes: Value(concept.notes),
-            imageUrl: Value(concept.imageUrl),
-            exampleFr: Value(concept.exampleFr),
-            exampleKo: Value(concept.exampleKo),
-            createdAt: Value(concept.createdAt),
-            updatedAt: Value(concept.updatedAt),
-          ),
-        );
-        await _conceptDao.upsertVariant(frVariant.toLocalCompanion());
-        await _conceptDao.upsertVariant(koVariant.toLocalCompanion());
-        await _updateWordCount(listId, 1);
-      });
-      return Success(concept);
-    } catch (e) {
-      return Failure(StorageException(e.toString()));
-    }
-  }
+    await _saveConcept(concept);
+    await _conceptDao.upsertVariant(frVariant.toLocalCompanion());
+    await _conceptDao.upsertVariant(koVariant.toLocalCompanion());
+    await _updateWordCount(list.id, 1);
+    return concept;
+  });
 
   @override
-  Future<Result<Concept>> updateConcept(Concept concept) async {
-    if (_userId.isEmpty) return const Failure(_accountRequired);
+  Future<Result<Concept>> updateConcept(Concept concept) => _write(() async {
+    final current = await _requireConcept(concept.id);
     final updated = concept.copyWith(
+      id: current.id,
+      listId: current.listId,
+      seedId: current.seedId,
+      createdAt: current.createdAt,
       updatedAt: DateTime.now(),
       isSynced: false,
+      isDeleted: false,
     );
-    try {
-      await _database.writeOutbound(
-        _userId,
-        () => _conceptDao.upsert(
-          ConceptsTableCompanion(
-            id: Value(updated.id),
-            listId: Value(updated.listId),
-            category: Value(updated.category),
-            notes: Value(updated.notes),
-            imageUrl: Value(updated.imageUrl),
-            exampleFr: Value(updated.exampleFr),
-            exampleKo: Value(updated.exampleKo),
-            isSynced: Value(false),
-            createdAt: Value(updated.createdAt),
-            updatedAt: Value(updated.updatedAt),
-          ),
-        ),
-      );
-      return Success(updated);
-    } catch (e) {
-      return Failure(StorageException(e.toString()));
-    }
-  }
+    await _saveConcept(updated);
+    return updated;
+  });
+
+  Future<void> _saveConcept(Concept concept) => _conceptDao.upsert(
+    ConceptsTableCompanion(
+      id: Value(concept.id),
+      listId: Value(concept.listId),
+      category: Value(concept.category),
+      notes: Value(concept.notes),
+      imageUrl: Value(concept.imageUrl),
+      exampleFr: Value(concept.exampleFr),
+      exampleKo: Value(concept.exampleKo),
+      seedId: Value(concept.seedId),
+      isSynced: const Value(false),
+      createdAt: Value(concept.createdAt),
+      updatedAt: Value(concept.updatedAt),
+    ),
+  );
 
   @override
-  Future<Result<void>> deleteConcept(String conceptId) async {
-    try {
-      await _database.writeOutbound(_userId, () async {
-        final row = await _conceptDao.getById(conceptId);
-        if (row == null) return;
-        await _conceptDao.softDelete(conceptId);
-        await _database.progressDao.deleteProgressForConcept(
-          userId: _userId,
-          conceptId: conceptId,
-        );
-        await _conceptDao.refreshListWordCount(row.listId);
-      });
-      return const Success(null);
-    } catch (e) {
-      return Failure(StorageException(e.toString()));
-    }
-  }
+  Future<Result<void>> deleteConcept(String conceptId) => _write(() async {
+    final row = await _requireConcept(conceptId);
+    await _conceptDao.softDelete(row.id);
+    await _database.progressDao.deleteProgressForConcept(
+      userId: _userId,
+      conceptId: row.id,
+    );
+    await _conceptDao.refreshListWordCount(row.listId);
+  });
 
   @override
   Future<Result<List<WordVariant>>> getVariants(String conceptId) async {
     try {
-      final rows = await _conceptDao.getVariantsByConcept(conceptId);
+      final rows = await _conceptDao.getVariantsByConcept(
+        conceptId,
+        ownerId: _userId,
+      );
       return Success(rows.map((r) => r.toDomain()).toList());
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -372,12 +319,41 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
 
   @override
   Stream<List<WordVariant>> watchVariants(String conceptId) => _conceptDao
-      .watchVariantsByConcept(conceptId)
+      .watchVariantsByConcept(conceptId, ownerId: _userId)
       .map(
         (rows) =>
             rows.map((r) => r.toDomain().copyWith(isSynced: false)).toList(),
       )
       .distinct(listEquals);
+
+  @override
+  Future<List<({String source, String target})>> getWordPairSample(
+    String listId, {
+    required int limit,
+  }) => _database.transaction(() async {
+    final list = await _findList(listId);
+    if (list == null) return [];
+    final concepts = await _conceptDao.getConceptsByList(list.id, limit: limit);
+    if (concepts.isEmpty) return [];
+    final ids = concepts.map((concept) => concept.id).toList();
+    final sourceVariants = await _conceptDao.getVariantsByConceptIds(
+      ids,
+      list.langA,
+      firstPerConcept: true,
+    );
+    final targetVariants = await _conceptDao.getVariantsByConceptIds(
+      ids,
+      list.langB,
+      firstPerConcept: true,
+    );
+    final sources = {for (final row in sourceVariants) row.conceptId: row.word};
+    final targets = {for (final row in targetVariants) row.conceptId: row.word};
+    return [
+      for (final id in ids)
+        if ((sources[id], targets[id]) case (final source?, final target?))
+          (source: source, target: target),
+    ];
+  });
 
   @override
   Future<Result<WordVariant>> createVariant({
@@ -386,13 +362,13 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     required String langCode,
     String registerTag = 'neutral',
     bool isPrimary = false,
-  }) async {
-    if (_userId.isEmpty) return const Failure(_accountRequired);
+  }) => _write(() async {
+    final concept = await _requireConcept(conceptId);
     final now = DateTime.now();
     final variantId = _uuid.v4();
     final variant = WordVariant(
       id: variantId,
-      conceptId: conceptId,
+      conceptId: concept.id,
       word: word,
       langCode: langCode,
       registerTag: registerTag,
@@ -406,100 +382,110 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       createdAt: now,
       updatedAt: now,
     );
-    try {
-      await _database.writeOutbound(
-        _userId,
-        () => _conceptDao.upsertVariant(variant.toLocalCompanion()),
-      );
-      return Success(variant);
-    } catch (e) {
-      return Failure(StorageException(e.toString()));
-    }
-  }
+    await _conceptDao.upsertVariant(variant.toLocalCompanion());
+    return variant;
+  });
 
   @override
-  Future<Result<WordVariant>> updateVariant(WordVariant variant) async {
-    if (_userId.isEmpty) return const Failure(_accountRequired);
+  Future<Result<WordVariant>> updateVariant(WordVariant variant) =>
+      _write(() async {
+        final current = await _requireVariant(variant.id);
+        return _updateVariant(current, variant);
+      });
+
+  @override
+  Future<Result<WordVariant>> updateVariantWord(
+    String variantId,
+    String word,
+  ) => _write(() async {
+    final current = await _requireVariant(variantId);
+    return _updateVariant(current, current.toDomain().copyWith(word: word));
+  });
+
+  Future<WordVariant> _updateVariant(
+    WordVariantsTableData current,
+    WordVariant variant,
+  ) async {
+    final changedAudio =
+        current.word != variant.word || current.langCode != variant.langCode;
     final updated = variant.copyWith(
-      audioPath: AudioAssetPath.user(
-        userId: _userId,
-        variantId: variant.id,
-        text: variant.word,
-        langCode: variant.langCode,
-      ),
+      id: current.id,
+      conceptId: current.conceptId,
+      createdAt: current.createdAt,
+      audioPath: changedAudio
+          ? AudioAssetPath.user(
+              userId: _userId,
+              variantId: current.id,
+              text: variant.word,
+              langCode: variant.langCode,
+            )
+          : current.audioPath,
+      audioHash: changedAudio ? null : current.audioHash,
+      audioVoiceId: changedAudio ? null : current.audioVoiceId,
       updatedAt: DateTime.now(),
       isSynced: false,
+      isDeleted: false,
     );
-    try {
-      await _database.writeOutbound(
-        _userId,
-        () => _conceptDao.upsertVariant(updated.toLocalCompanion()),
-      );
-      return Success(updated);
-    } catch (e) {
-      return Failure(StorageException(e.toString()));
-    }
+    await _conceptDao.upsertVariant(updated.toLocalCompanion());
+    return updated;
   }
 
   @override
-  Future<Result<void>> deleteVariant(String variantId) async {
-    try {
-      await _database.writeOutbound(
-        _userId,
-        () => _conceptDao.softDeleteVariant(variantId),
-      );
-      return const Success(null);
-    } catch (e) {
-      return Failure(StorageException(e.toString()));
-    }
-  }
+  Future<Result<void>> deleteVariant(String variantId) => _write(() async {
+    final variant = await _requireVariant(variantId);
+    await _conceptDao.softDeleteVariant(variant.id);
+    await _database.progressDao.deleteProgressForVariants(
+      userId: _userId,
+      variantIds: [variant.id],
+    );
+  });
 
   @override
   Future<Result<Map<String, dynamic>>> exportToJson(String listId) async {
     try {
-      final listRow = await _listDao.getById(listId);
-      if (listRow == null) {
-        return const Failure(NotFoundException('List not found'));
-      }
+      return await _database.transaction(() async {
+        final listRow = await _requireList(listId);
+        final concepts = await _conceptDao.getConceptsByList(listRow.id);
+        final conceptsJson = <Map<String, dynamic>>[];
 
-      final concepts = await _conceptDao.getConceptsByList(listId);
-      final conceptsJson = <Map<String, dynamic>>[];
+        for (final c in concepts) {
+          final variants = await _conceptDao.getVariantsByConcept(c.id);
+          conceptsJson.add({
+            'category': c.category,
+            'notes': c.notes,
+            'exampleFr': c.exampleFr,
+            'exampleKo': c.exampleKo,
+            'variants': variants
+                .map(
+                  (v) => {
+                    'word': v.word,
+                    'langCode': v.langCode,
+                    'registerTag': v.registerTag,
+                    'contextTags': jsonDecode(v.contextTags),
+                    'isPrimary': v.isPrimary,
+                    'position': v.position,
+                    'example': v.example,
+                  },
+                )
+                .toList(),
+          });
+        }
 
-      for (final c in concepts) {
-        final variants = await _conceptDao.getVariantsByConcept(c.id);
-        conceptsJson.add({
-          'category': c.category,
-          'notes': c.notes,
-          'exampleFr': c.exampleFr,
-          'exampleKo': c.exampleKo,
-          'variants': variants
-              .map(
-                (v) => {
-                  'word': v.word,
-                  'langCode': v.langCode,
-                  'registerTag': v.registerTag,
-                  'contextTags': jsonDecode(v.contextTags),
-                  'isPrimary': v.isPrimary,
-                  'position': v.position,
-                  'example': v.example,
-                },
-              )
-              .toList(),
+        return Success({
+          'version': 1,
+          'exportedAt': DateTime.now().toIso8601String(),
+          'list': {
+            'name': listRow.name,
+            'description': listRow.description,
+            'langA': listRow.langA,
+            'langB': listRow.langB,
+            'seedId': listRow.seedId,
+            'concepts': conceptsJson,
+          },
         });
-      }
-
-      return Success({
-        'version': 1,
-        'exportedAt': DateTime.now().toIso8601String(),
-        'list': {
-          'name': listRow.name,
-          'description': listRow.description,
-          'langA': listRow.langA,
-          'langB': listRow.langB,
-          'seedId': listRow.seedId,
-          'concepts': conceptsJson,
-        },
       });
+    } on AppException catch (e) {
+      return Failure(e);
     } catch (e) {
       return Failure(StorageException(e.toString()));
     }
@@ -719,17 +705,12 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
 
   @override
   Future<Result<String>> generateShareLink(String listId) async {
-    if (_userId.isEmpty) return const Failure(_accountRequired);
-    try {
+    return _write(() async {
+      final list = await _requireList(listId);
       final token = _uuid.v4().replaceAll('-', '');
-      await _database.writeOutbound(
-        _userId,
-        () => _listDao.setShareToken(listId, token, publish: true),
-      );
-      return Success('vocabkr://import?token=$token');
-    } catch (e) {
-      return Failure(StorageException(e.toString()));
-    }
+      await _listDao.setShareToken(list.id, token, publish: true);
+      return 'vocabkr://import?token=$token';
+    });
   }
 
   @override
@@ -944,6 +925,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       }
 
       // Apply progress after content so parent liveness reflects this pull.
+      final conflictingProgressVariantIds = <String>{};
       if (progress case Success(:final value) when value.isNotEmpty) {
         final progressDao = _database.progressDao;
         final liveVariantIds = await progressDao.getLiveVariantIds(_userId);
@@ -957,6 +939,11 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
             }
             final key = (row.variantId, row.direction);
             final local = current.progress[key];
+            if (local != null &&
+                !local.isSynced &&
+                local.copyWith(id: row.id, isSynced: true) != row) {
+              conflictingProgressVariantIds.add(row.variantId);
+            }
             if (local != before.progress[key] ||
                 (local != null && !local.isSynced)) {
               continue;
@@ -969,7 +956,11 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         await progressDao.applyPulledProgress(changedRows.values.toList());
       }
       if (incomplete == null) {
-        await StarterDraftReconciliation(_database).reconcile(_userId, lists);
+        await StarterDraftReconciliation(_database).reconcile(
+          _userId,
+          lists,
+          conflictingProgressVariantIds: conflictingProgressVariantIds,
+        );
       }
     });
     if (incomplete case final error?) throw error;
@@ -1020,6 +1011,65 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     if (row == null) return;
     final newCount = (row.wordCount + delta).clamp(0, 999999);
     await _listDao.updateWordCount(listId, newCount);
+  }
+
+  Future<Result<T>> _write<T>(Future<T> Function() write) async {
+    if (_userId.isEmpty) return const Failure(_accountRequired);
+    try {
+      return Success(await _database.writeOutbound(_userId, write));
+    } on AppException catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(StorageException(e.toString()));
+    }
+  }
+
+  Future<VocabularyListsTableData?> _findList(String id) async {
+    final canonicalId = await _listDao.resolveStarterId(
+      StarterAliasKind.list,
+      _userId,
+      id,
+    );
+    final row = await _listDao.getById(canonicalId);
+    if (row == null || row.ownerId != _userId || row.isDeleted) return null;
+    return row;
+  }
+
+  Future<VocabularyListsTableData> _requireList(String id) async =>
+      await _findList(id) ?? (throw const NotFoundException('List not found'));
+
+  Future<ConceptsTableData> _requireConcept(String id) async {
+    final canonicalId = await _listDao.resolveStarterId(
+      StarterAliasKind.concept,
+      _userId,
+      id,
+    );
+    return _requireActiveConcept(canonicalId);
+  }
+
+  Future<ConceptsTableData> _requireActiveConcept(String id) async {
+    final row = await _conceptDao.getById(id);
+    if (row != null && !row.isDeleted) {
+      final list = await _listDao.getById(row.listId);
+      if (list != null && list.ownerId == _userId && !list.isDeleted) {
+        return row;
+      }
+    }
+    throw const NotFoundException('Concept not found');
+  }
+
+  Future<WordVariantsTableData> _requireVariant(String id) async {
+    final canonicalId = await _listDao.resolveStarterId(
+      StarterAliasKind.variant,
+      _userId,
+      id,
+    );
+    final row = await _conceptDao.getVariantById(canonicalId);
+    if (row == null || row.isDeleted) {
+      throw const NotFoundException('Variant not found');
+    }
+    await _requireActiveConcept(row.conceptId);
+    return row;
   }
 }
 

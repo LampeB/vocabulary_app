@@ -18,6 +18,16 @@ const _enginePreferences = <String, List<String>>{
 };
 const _defaultEnginePreference = ['com.google.android.tts'];
 
+class TtsRejected implements Exception {
+  const TtsRejected(this.operation, this.language);
+
+  final String operation;
+  final String language;
+
+  @override
+  String toString() => 'Device speech rejected $operation for $language';
+}
+
 class FlutterTtsService implements AudioService, DeviceSpeech {
   FlutterTtsService({this.speechRate = 0.85, this.pitch = 1.0});
 
@@ -102,8 +112,10 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
     final sw = Stopwatch()..start();
     // The previous language is no longer known once a switch is dispatched.
     _nativeLang = null;
-    await tts.setLanguage(Languages.speechLocaleFor(langCode));
+    final lang = Languages.speechLocaleFor(langCode);
+    final result = await tts.setLanguage(lang);
     if (!_current(generation)) return null;
+    if (result == 0) throw TtsRejected('setLanguage', lang);
     // Must set rate/pitch AFTER setLanguage — Android TTS resets them on language change.
     await tts.setSpeechRate(speechRate);
     if (!_current(generation)) return null;
@@ -120,9 +132,13 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
   /// in that language starts instantly. Call during idle windows (e.g. while
   /// the hands-free mic is listening); it produces no audio.
   @override
-  Future<void> warmUp(String langCode) {
+  Future<void> warmUp(String langCode) async {
     final generation = _playbackGeneration;
-    return _serialized(() => _configure(langCode, generation));
+    try {
+      await _serialized(() => _configure(langCode, generation));
+    } on TtsRejected catch (error) {
+      sttLog('[TTS] optional warm-up failed: $error');
+    }
   }
 
   @override
@@ -135,7 +151,12 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
       '[TTS] ▶ speak start lang=$langCode "$text" (active=$_activeSpeaks)',
     );
     try {
-      await tts.speak(text);
+      final result = await tts.speak(text);
+      // The pinned native plugin reports rejection with 0. Other backends
+      // may complete successfully without a numeric acknowledgement.
+      if (result == 0 && _current(generation)) {
+        throw TtsRejected('speak', langCode);
+      }
     } finally {
       _activeSpeaks--;
       sttLog(

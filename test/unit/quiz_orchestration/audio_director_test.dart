@@ -33,7 +33,12 @@ class _FakeAudio implements AudioPlayerService {
   bool get isSpeaking => speaking;
 
   @override
-  Future<void> speak(String text, String langCode, {String? audioPath}) async {
+  Future<void> speak(
+    String text,
+    String langCode, {
+    String? audioPath,
+    bool requirePlayback = false,
+  }) async {
     spoken.add('$text|$langCode');
     spokenPaths.add(audioPath);
   }

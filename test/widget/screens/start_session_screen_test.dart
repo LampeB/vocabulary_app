@@ -677,6 +677,35 @@ void main() {
     expect(capturedArgs?.langB, 'fr');
   });
 
+  testWidgets(
+    'real French lesson preview scrolls at 320x568 with double text',
+    (tester) async {
+      final raw = (await tester.runAsync(
+        () => rootBundle.loadString('assets/seed/grammar/fr/rules.json'),
+      ))!;
+      final rules = (jsonDecode(raw) as Map<String, dynamic>)['rules'] as List;
+      final rule = rules
+          .map((json) => GrammarRule.fromJson(json as Map<String, dynamic>))
+          .firstWhere((r) => r.id == 'fr-articles-le-la');
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await pump(tester, grammar: true, langA: 'ko', langB: 'fr', rule: rule);
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      await tester.pumpAndSettle();
+      await tapKey(tester, WidgetKeys.startSection(0));
+      await tapKey(tester, WidgetKeys.startRule(rule.id));
+      expect(tester.takeException(), isNull);
+      await tester.ensureVisible(byKey(WidgetKeys.grammarLessonStart));
+      await tester.pumpAndSettle();
+      await tester.tap(byKey(WidgetKeys.grammarLessonStart));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(byKey(WidgetKeys.startQuizType('typing')), findsOneWidget);
+      await unmountScreen(tester);
+    },
+  );
+
   testWidgets('the CTA label shows the selected card count', (tester) async {
     await pump(tester);
     await pickList(tester, 'Animaux');

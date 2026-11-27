@@ -28,6 +28,12 @@ import '../../helpers/fake_remote.dart';
 import '../../helpers/pump_screen.dart';
 
 class _PairAssistant implements VocabAssistantDataSource {
+  _PairAssistant({
+    this.pairs = const [
+      WordPairSuggestion(source: 'new-source', target: 'new-target'),
+    ],
+  });
+  final List<WordPairSuggestion> pairs;
   String? source, target;
   List<WordPairSuggestion> examples = [];
   @override
@@ -40,12 +46,7 @@ class _PairAssistant implements VocabAssistantDataSource {
     source = sourceLang;
     target = targetLang;
     examples = existingPairs;
-    return const Success(
-      ThemedSuggestions(
-        theme: 'Test',
-        pairs: [WordPairSuggestion(source: 'new-source', target: 'new-target')],
-      ),
-    );
+    return Success(ThemedSuggestions(theme: 'Test', pairs: pairs));
   }
 
   @override
@@ -301,8 +302,10 @@ void main() {
         await tester.pumpAndSettle();
         expect(assistant.source, pair.$1);
         expect(assistant.target, pair.$2);
-        expect(assistant.examples.first.source, pair.$3);
-        expect(assistant.examples.first.target, pair.$4);
+        expect(
+          assistant.examples.map((p) => (p.source, p.target)),
+          contains((pair.$3, pair.$4)),
+        );
         await tester.tap(
           find.text('list_detail.ai_add_selected'.tr(namedArgs: {'n': '1'})),
         );
@@ -436,6 +439,59 @@ void main() {
 
     expect(pushedRoute, '/paywall');
     expect(find.text('trop'), findsNothing);
+    await unmountScreen(tester);
+  });
+
+  testWidgets('partial suggestions keep refused selections and show upgrade', (
+    tester,
+  ) async {
+    final assistant = _PairAssistant(
+      pairs: const [
+        WordPairSuggestion(source: 'first addition', target: '첫 추가'),
+        WordPairSuggestion(source: 'refused addition', target: '거부된 추가'),
+      ],
+    );
+    await pump(
+      tester,
+      premium: false,
+      forceWordCount: 49,
+      assistant: assistant,
+    );
+    await tester.tap(byKey(WidgetKeys.listDetailMenu));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('list_detail.menu_ai_suggest'.tr()));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.text('list_detail.ai_add_selected'.tr(namedArgs: {'n': '2'})),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'list_detail.ai_add_partial'.tr(
+          namedArgs: {'added': '1', 'remaining': '1'},
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('list_detail.ai_add_quota'.tr()), findsOneWidget);
+    final checks = tester
+        .widgetList<CheckboxListTile>(find.byType(CheckboxListTile))
+        .toList();
+    expect(checks[0].onChanged, isNull);
+    expect(checks[1].value, isTrue);
+    expect(checks[1].onChanged, isNotNull);
+    final persisted = await tester.runAsync(() async {
+      final concepts = await db.conceptDao.getConceptsByList(listId);
+      return (await db.conceptDao.getVariantsByConceptIds(
+        concepts.map((c) => c.id).toList(),
+        'fr',
+      )).map((v) => v.word).toList();
+    });
+    expect(persisted, contains('first addition'));
+    expect(persisted, isNot(contains('refused addition')));
+    await tester.tap(find.text('profile.upgrade_button'.tr()));
+    await tester.pumpAndSettle();
+    expect(pushedRoute, '/paywall');
     await unmountScreen(tester);
   });
 

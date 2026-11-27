@@ -45,6 +45,7 @@ class PushSync {
 
   Future<int>? _activeDrain;
   bool _drainAgain = false;
+  bool _pushRequested = false;
   final _listDrains = <String, Future<_PushRun>>{};
   final _listsToRetry = <String>{};
 
@@ -59,22 +60,23 @@ class PushSync {
   Future<int> pushAll() {
     if (_userId == '') return Future.value(0);
     if (_activeDrain != null) {
-      _drainAgain = true;
+      _pushRequested = true;
       return _activeDrain!;
     }
-    final drain = _pushUntilIdle();
-    _activeDrain = drain;
-    return drain.whenComplete(() => _activeDrain = null);
+    return _activeDrain = _pushUntilIdle().whenComplete(
+      () => _activeDrain = null,
+    );
   }
 
   Future<int> _pushUntilIdle() async {
     var total = 0;
     do {
       _drainAgain = false;
+      _pushRequested = false;
       final run = await _pushOnce();
       total += run.pushed;
-      if (run.transportUnavailable) break;
-    } while (_drainAgain);
+      if (run.transportUnavailable && !_pushRequested) break;
+    } while (_drainAgain || _pushRequested);
     return total;
   }
 
