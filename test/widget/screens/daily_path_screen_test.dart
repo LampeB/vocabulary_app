@@ -14,6 +14,7 @@ import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart'
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
 import 'package:vocab_kr/presentation/screens/home/daily_path_screen.dart';
+import 'package:vocab_kr/presentation/screens/lists/lists_screen.dart';
 import '../../helpers/pump_screen.dart';
 
 void main() {
@@ -105,6 +106,36 @@ void main() {
     expect(find.text('Révisions terminées'), findsNothing);
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
+
+  for (final fromActiveCard in [true, false]) {
+    testWidgets('library Back returns to the daily path from '
+        '${fromActiveCard ? 'the active card' : 'the discovery step'}', (
+      tester,
+    ) async {
+      await pumpScreen(
+        tester,
+        screen: const DailyPathScreen(),
+        overrides: [
+          myListsProvider.overrideWith((ref) => Stream.value([])),
+          dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(0)),
+        ],
+        routes: [
+          GoRoute(path: '/lists', builder: (_, _) => const ListsScreen()),
+        ],
+      );
+      final entry = fromActiveCard
+          ? find.text('Préparer une première liste')
+          : find.byKey(const ValueKey(WidgetKeys.dailyPathPractice));
+      await tester.ensureVisible(entry);
+      await tester.tap(entry);
+      await tester.pumpAndSettle();
+      expect(find.byType(ListsScreen), findsOneWidget);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.byType(DailyPathScreen), findsOneWidget);
+      expect(find.byType(ListsScreen), findsNothing);
+    });
+  }
 
   for (final locale in ['fr', 'en', 'ko']) {
     testWidgets('small screen and large text keep the path usable in $locale', (

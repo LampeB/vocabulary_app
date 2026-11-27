@@ -9,10 +9,11 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
 
 1. Réactiver le projet si nécessaire. Appliquer les migrations manquantes dans
    l'ordre de [la CI PostgreSQL](../../.github/workflows/pr-validation.yml),
-   jusqu'à [015](../../supabase/migrations/015_vocabulary_owner_namespace.sql).
+   jusqu'à [016](../../supabase/migrations/016_vocabulary_write_order.sql).
    Patrol exige les gardes de [013](../../supabase/migrations/013_e2e_isolation.sql),
    les suppressions persistantes de [014](../../supabase/migrations/014_vocabulary_tombstones.sql)
-   et les identifiants qualifiés par propriétaire de 015. La version actuelle de
+   les identifiants qualifiés par propriétaire de [015](../../supabase/migrations/015_vocabulary_owner_namespace.sql)
+   et le contrôle des écritures de 016. La version actuelle de
    [007](../../supabase/migrations/007_audio_storage.sql) ferme les lectures
    client de `vocab-audio` jusqu'aux règles définitives de
    [012](../../supabase/migrations/012_security_boundaries.sql).
@@ -20,11 +21,11 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
    012, rejouer la version actuelle de 007 avant les autres étapes. Si la
    version actuelle de 012 est déjà appliquée, passer aux migrations manquantes.
 
-   Si 008, 009 et 012 à 015 restent à appliquer et que les migrations 000,
+   Si 008, 009 et 012 à 016 restent à appliquer et que les migrations 000,
    004 à 007, 010, 011 et `add_subscription_type.sql` sont déjà présentes,
    le générateur
    `python3 tool/e2e/build_activation.py > /tmp/activer-vocab-e2e.sql` regroupe
-   008, 009 et 012 à 015 dans une transaction. Si le projet est déjà partiellement
+   008, 009 et 012 à 016 dans une transaction. Si le projet est déjà partiellement
    activé, appliquer uniquement les migrations manquantes.
 2. Avant toute publication du secret CI, créer l'environnement GitHub Actions
    `patrol-e2e`. Dans *Deployment branches and tags*, sélectionner les branches
@@ -37,8 +38,10 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
 
    Saisir la clé Supabase `service_role` ou secret key dans l'invite masquée du
    terminal. Ne pas la coller dans un chat. Elle reste en mémoire et n'est
-   transmise ni à GitHub ni à l'APK. L'option GitHub nécessite `gh auth login`
-   et écrit le secret des comptes dans l'environnement `patrol-e2e`.
+   transmise ni à GitHub ni à l'APK. Le provisionnement exige l'origine HTTPS
+   du projet Supabase et s'arrête sur toute redirection. L'option GitHub
+   nécessite `gh auth login` et écrit le secret des comptes dans
+   l'environnement `patrol-e2e`.
 3. Sauvegarder **privément** `.e2e/accounts.json`. Ce fichier ignoré par Git
    conserve les mots de passe et UUID ; `test.accounts.env.json` est généré
    pour Patrol. Les fichiers sont écrits avec des permissions 0600 sur POSIX
@@ -51,7 +54,7 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
    ```
 
    Lorsque le contrôle réussit, définir la variable de dépôt GitHub
-   `PATROL_E2E_ACTIVATION` à `owner-scoped-v1` pour autoriser le CI manuel et
+   `PATROL_E2E_ACTIVATION` à `write-order-v1` pour autoriser le CI manuel et
    planifié. Une valeur absente ou différente garde le CI désactivé. Retirer
    la variable pour suspendre les lancements. Lancer ensuite une suite et
    vérifier son résultat réel.
@@ -97,13 +100,13 @@ La migration 013 refuse dès l'écriture les amitiés, demandes, défis et
 progressions intercomptes impliquant un compte attribué à un scénario. Elle
 contrôle aussi le propriétaire de la liste du défi ou de la variante étudiée.
 La progression d'un compte E2E sur ses propres listes reste autorisée.
-La migration 015 publie `e2e_patrol_contract()`. Le prévol CI, le helper
-Patrol et le reset exigent tous la valeur `owner-scoped-v1`. Elle confirme
-les prérequis de 012, les déclencheurs d'isolation de 013, les gardes de
-suppression de 014 et les clés qualifiées par propriétaire de 015. La réponse
-booléenne de `e2e_isolation_ready()` sur un ancien projet 013 laisse le CI
-fermé. Les migrations intermédiaires gardent le reset inaccessible aux rôles
-client jusqu'à 015.
+Le prévol CI, le helper Patrol et le reset exigent tous `write-order-v1`
+depuis `e2e_patrol_contract()`. Cette réponse confirme les prérequis de 012,
+les déclencheurs d'isolation de 013, les gardes de suppression de 014, les
+clés qualifiées par propriétaire de 015 et la réponse positive de
+`vocabulary_sync_write_ready()` en 016. Le contrat ancien de 015 et la sonde
+booléenne de 013 gardent le CI fermé. Les migrations intermédiaires bloquent
+les resets clients jusqu'à 016.
 
 Le reset efface listes, concepts, variantes, progression, abonnements Supabase,
 notifications et classement du compte. Il recrée son profil gratuit avec le

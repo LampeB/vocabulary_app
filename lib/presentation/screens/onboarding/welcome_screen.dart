@@ -93,43 +93,41 @@ class WelcomeScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  GestureDetector(
-                    onTap: () => context.go('/auth?mode=signup'),
-                    child: Container(
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: V3Colors.terra,
+                  FilledButton(
+                    onPressed: () => context.go('/auth?mode=signup'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: V3Colors.terra,
+                      foregroundColor: V3Colors.paper,
+                      minimumSize: const Size.fromHeight(56),
+                      shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(13),
                       ),
-                      child: Center(
-                        child: Text(
-                          'welcome.cta_signup'.tr(),
-                          style: AppTextStyles.fig(
-                            15,
-                            FontWeight.w700,
-                          ).copyWith(color: V3Colors.paper),
-                        ),
-                      ),
+                    ),
+                    child: Text(
+                      'welcome.cta_signup'.tr(),
+                      style: AppTextStyles.fig(
+                        15,
+                        FontWeight.w700,
+                      ).copyWith(color: V3Colors.paper),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  GestureDetector(
-                    onTap: () => context.go('/auth?mode=signin'),
-                    child: Container(
-                      height: 52,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: border),
+                  OutlinedButton(
+                    onPressed: () => context.go('/auth?mode=signin'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: muted,
+                      minimumSize: const Size.fromHeight(52),
+                      side: BorderSide(color: border),
+                      shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(13),
                       ),
-                      child: Center(
-                        child: Text(
-                          'welcome.cta_signin'.tr(),
-                          style: AppTextStyles.fig(
-                            14,
-                            FontWeight.w500,
-                          ).copyWith(color: muted),
-                        ),
-                      ),
+                    ),
+                    child: Text(
+                      'welcome.cta_signin'.tr(),
+                      style: AppTextStyles.fig(
+                        14,
+                        FontWeight.w500,
+                      ).copyWith(color: muted),
                     ),
                   ),
                   const SizedBox(height: 20),

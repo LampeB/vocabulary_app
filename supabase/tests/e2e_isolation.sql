@@ -1,4 +1,4 @@
--- Disposable database only, after migration 015. All fixtures roll back.
+-- Disposable database only, after migration 016. All fixtures roll back.
 BEGIN;
 INSERT INTO auth.users(id,email,raw_user_meta_data,raw_app_meta_data) VALUES
  ('51000000-0000-0000-0000-000000000001','isolated@example.invalid','{"username":"isolated"}',
@@ -26,7 +26,7 @@ END $$;
 
 SET LOCAL ROLE anon;
 DO $$ BEGIN
-  IF public.e2e_patrol_contract() IS DISTINCT FROM 'owner-scoped-v1' THEN
+  IF public.e2e_patrol_contract() IS DISTINCT FROM 'write-order-v1' THEN
     RAISE EXCEPTION 'CI cannot verify the installed Patrol schema';
   END IF;
 END $$;
@@ -53,6 +53,13 @@ DO $$ BEGIN
 END $$;
 RESET ROLE;
 ALTER TABLE public.word_variants ENABLE TRIGGER word_variants_guard_tombstone;
+ALTER TABLE public.word_variants DISABLE TRIGGER zz_vocabulary_write_order_update;
+SET LOCAL ROLE anon;
+DO $$ BEGIN
+  IF public.e2e_patrol_contract() IS NOT NULL THEN RAISE EXCEPTION 'Disabled write ordering reported ready'; END IF;
+END $$;
+RESET ROLE;
+ALTER TABLE public.word_variants ENABLE TRIGGER zz_vocabulary_write_order_update;
 
 SELECT set_config('request.jwt.claim.sub','51000000-0000-0000-0000-000000000002',true);
 SET LOCAL ROLE authenticated;

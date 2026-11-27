@@ -85,6 +85,10 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   qu'une fois ; les liens ouverts ensuite restent disponibles.
 - Après un import froid, Retour depuis la liste mène à la bibliothèque.
   Après un lien ouvert dans l'application, il retrouve l'écran d'entrée.
+- Les deux entrées de préparation d'une liste depuis le chemin quotidien
+  poussent la bibliothèque sur la pile : son bouton Retour retrouve le chemin.
+- Les actions d'inscription et de connexion de l'accueil, puis la validation
+  du formulaire, sont des boutons accessibles par Tab et Entrée.
 - Le squelette du splash s'adapte au paysage. Le splash et le verdict peuvent
   défiler lorsque la hauteur ou le texte agrandi l'exigent, avec un signal de
   défilement ; Continuer reste atteignable à 320 × 568, texte doublé.

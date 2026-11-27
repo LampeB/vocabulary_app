@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,6 +13,9 @@ import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/datasources/remote/vocabulary_remote_datasource.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/data/sync/push_sync.dart';
+import 'package:vocab_kr/data/sync/vocabulary_write_order.dart';
+import 'package:vocab_kr/data/models/variant_progress_dto.dart';
+import 'package:vocab_kr/domain/entities/variant_progress.dart';
 
 http.Response _reply(http.Request request, Object data) => http.Response(
   jsonEncode(data),
@@ -76,14 +80,18 @@ void main() {
   VocabularyRepositoryImpl repository(
     VocabularyRemoteDataSource datasource, {
     Duration restoreTimeout = const Duration(seconds: 15),
-  }) => VocabularyRepositoryImpl(
-    db.vocabularyListDao,
-    db.conceptDao,
-    datasource,
-    'u',
-    db,
-    restoreTimeout: restoreTimeout,
-  );
+    AppDatabase? device,
+  }) {
+    final storage = device ?? db;
+    return VocabularyRepositoryImpl(
+      storage.vocabularyListDao,
+      storage.conceptDao,
+      datasource,
+      'u',
+      storage,
+      restoreTimeout: restoreTimeout,
+    );
+  }
 
   PushSync sender(VocabularyRemoteDataSource datasource) => PushSync(
     db.vocabularyListDao,
@@ -145,13 +153,119 @@ void main() {
         return silent.future;
       });
       final result = await datasource
-          .upsertList({'id': 'list', 'owner_id': 'u'}, insertOnly: true)
+          .upsertList(
+            const VocabularyWriteStamp(
+              'fixture',
+              1,
+            ).apply({'id': 'list', 'owner_id': 'u'}),
+            insertOnly: true,
+          )
           .timeout(const Duration(seconds: 2));
       expect(result.exceptionOrNull, isA<NetworkException>());
       expect(methods, ['POST', 'GET']);
       expect(silent.isCompleted, isFalse);
     },
   );
+
+  for (final progress in [false, true]) {
+    test(
+      'later ${progress ? 'FSRS' : 'metadata'} snapshot survives a timed-out HTTP write',
+      () async {
+        final oldRequest = Completer<http.Request>();
+        final letOldCommit = Completer<void>();
+        final oldFinished = Completer<void>();
+        final requests = <http.Request>[];
+        final watchedTable = progress ? 'variant_progress' : 'vocabulary_lists';
+        var armed = false;
+        var appliedSequence = 0;
+        Map<String, dynamic>? stored;
+        final datasource = remote((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          expect(body['sync_write_protocol'], 16);
+          if (!armed || request.url.pathSegments.last != watchedTable) {
+            return _reply(request, body);
+          }
+          requests.add(request);
+          final isOld = requests.length == 1;
+          if (isOld) {
+            oldRequest.complete(request);
+            await letOldCommit.future;
+          }
+          final sequence = int.parse(
+            request.headers['x-ponderin-sync-sequence']!,
+          );
+          if (sequence > appliedSequence) {
+            appliedSequence = sequence;
+            stored = body;
+          }
+          if (isOld) oldFinished.complete();
+          return _reply(request, stored!);
+        });
+        final repo = repository(datasource);
+        final list = (await repo.createList(
+          name: 'Before timeout',
+        )).valueOrNull!;
+        final concept = (await repo.addConceptWithVariants(
+          listId: list.id,
+          wordA: 'chat',
+          wordB: '고양이',
+        )).valueOrNull!;
+        final variant = (await db.conceptDao.getVariantsByConcept(
+          concept.id,
+        )).first;
+        final now = DateTime.utc(2026, 11, 27);
+        final first = VariantProgress(
+          id: 'progress',
+          userId: 'u',
+          variantId: variant.id,
+          direction: QuizDirection.frToKo,
+          reps: 1,
+          createdAt: now,
+          updatedAt: now,
+        );
+        if (progress) {
+          await sender(datasource).pushAll();
+          await db.progressDao.upsertLocal(first.toLocalCompanion());
+        }
+        armed = true;
+        final firstDrain = sender(datasource).pushAll();
+        await oldRequest.future.timeout(const Duration(seconds: 2));
+        expect(await firstDrain, 0);
+        if (progress) {
+          await db.progressDao.upsertLocal(
+            first.copyWith(reps: 2).toLocalCompanion(),
+          );
+        } else {
+          await repo.renameList(list.id, 'After timeout');
+        }
+        // A new sync instance reads the same durable installation sequence.
+        expect(await sender(datasource).pushAll(), greaterThan(0));
+        expect(requests, hasLength(2));
+        expect(
+          requests.first.headers['x-ponderin-sync-writer'],
+          requests.last.headers['x-ponderin-sync-writer'],
+        );
+        expect(
+          appliedSequence,
+          greaterThan(
+            int.parse(requests.first.headers['x-ponderin-sync-sequence']!),
+          ),
+        );
+        letOldCommit.complete();
+        await oldFinished.future.timeout(const Duration(seconds: 2));
+        if (progress) {
+          expect(stored!['reps'], 2);
+          expect((await db.progressDao.getById(first.id))?.isSynced, isTrue);
+        } else {
+          expect(stored!['name'], 'After timeout');
+          expect(
+            (await db.vocabularyListDao.getById(list.id))?.isSynced,
+            isTrue,
+          );
+        }
+      },
+    );
+  }
 
   test(
     'one pull deadline preserves received rows and stops after a silent list',
@@ -204,6 +318,200 @@ void main() {
         isTrue,
       );
       expect(silent.isCompleted, isFalse);
+    },
+  );
+
+  test(
+    'reopening SQLite resumes a large list traversal at the same latency',
+    () async {
+      final requests = <String>[];
+      final datasource = remote((request) async {
+        final table = request.url.pathSegments.last;
+        final list = request.url.queryParameters['list_id'];
+        requests.add(list ?? table);
+        if (table == 'vocabulary_lists') {
+          return _reply(request, [
+            for (var index = 0; index < 25; index++)
+              {
+                ..._timestamp,
+                'id': 'list-$index',
+                'owner_id': 'u',
+                'name': 'List $index',
+              },
+          ]);
+        }
+        if (table == 'concepts') {
+          await Future<void>.delayed(const Duration(milliseconds: 65));
+          return _reply(request, [
+            {
+              ..._timestamp,
+              'id': 'concept-$list',
+              'list_id': list!.substring(3),
+              'word_variants': [],
+            },
+          ]);
+        }
+        return _reply(request, []);
+      });
+
+      var failures = 0;
+      var complete = false;
+      final directory = await Directory.systemTemp.createTemp(
+        'ponderin-pull-test',
+      );
+      final file = File('${directory.path}/cache.sqlite');
+      var device = AppDatabase.forTesting(NativeDatabase(file));
+      addTearDown(() async {
+        await device.close();
+        await file.delete();
+        await directory.delete();
+      });
+      for (var attempt = 0; attempt < 18; attempt++) {
+        try {
+          await repository(
+            datasource,
+            device: device,
+            restoreTimeout: const Duration(milliseconds: 260),
+          ).syncFromRemote();
+          complete = true;
+          break;
+        } on NetworkException {
+          failures++;
+          if (attempt == 0) {
+            await device.close();
+            device = AppDatabase.forTesting(NativeDatabase(file));
+          }
+        }
+      }
+      expect(complete, isTrue);
+      expect(failures, greaterThan(0));
+      expect(
+        requests.where((request) => request == 'vocabulary_lists'),
+        hasLength(1),
+      );
+      expect(requests.where((request) => request == 'eq.list-0'), hasLength(1));
+      expect(requests.last, 'variant_progress');
+      expect(
+        (await device.conceptDao.getById('concept-eq.list-24'))?.listId,
+        'list-24',
+      );
+    },
+  );
+
+  test(
+    'committed list, concept and FSRS pages resume by ID after later timeouts',
+    () async {
+      final requests = <(String, String?)>[];
+      const list = 'list';
+      const finalVariant = 'final-variant';
+      final datasource = remote((request) async {
+        final table = request.url.pathSegments.last;
+        final cursor = request.url.queryParameters['id'];
+        requests.add((table, cursor));
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        if (table == 'vocabulary_lists') {
+          if (cursor == null) {
+            return _reply(request, [
+              for (var index = 0; index < 500; index++)
+                {
+                  ..._timestamp,
+                  'id': 'archived-$index',
+                  'owner_id': 'u',
+                  'name': 'Archived $index',
+                  'is_deleted': true,
+                },
+            ]);
+          }
+          return _reply(request, [
+            {
+              ..._timestamp,
+              'id': list,
+              'owner_id': 'u',
+              'name': 'Large content',
+            },
+          ]);
+        }
+        if (table == 'concepts') {
+          if (cursor == null) {
+            return _reply(request, [
+              for (var index = 0; index < 500; index++)
+                {
+                  ..._timestamp,
+                  'id': 'concept-$index',
+                  'list_id': list,
+                  'word_variants': [],
+                },
+            ]);
+          }
+          return _reply(request, [
+            {
+              ..._timestamp,
+              'id': 'concept-last',
+              'list_id': list,
+              'word_variants': [
+                {
+                  ..._timestamp,
+                  'id': finalVariant,
+                  'concept_id': 'concept-last',
+                  'word': 'bonjour',
+                  'lang_code': 'fr',
+                },
+              ],
+            },
+          ]);
+        }
+        if (cursor == null) {
+          return _reply(request, [
+            for (var index = 0; index < 500; index++)
+              {'id': 'progress-$index', 'user_id': 'unrelated'},
+          ]);
+        }
+        final now = DateTime.utc(2026, 11, 27);
+        return _reply(request, [
+          VariantProgress(
+            id: 'progress-last',
+            userId: 'u',
+            variantId: finalVariant,
+            direction: QuizDirection.frToKo,
+            reps: 4,
+            createdAt: now,
+            updatedAt: now,
+          ).toRemoteMap(),
+        ]);
+      });
+      var complete = false;
+      for (var attempt = 0; attempt < 8; attempt++) {
+        try {
+          await repository(
+            datasource,
+            restoreTimeout: const Duration(milliseconds: 260),
+          ).syncFromRemote();
+          complete = true;
+          break;
+        } on NetworkException {
+          // The next invocation uses a fresh repository and its saved page.
+        }
+      }
+      expect(complete, isTrue);
+      expect(
+        requests.where((request) => request == ('vocabulary_lists', null)),
+        hasLength(1),
+      );
+      expect(requests, contains(('vocabulary_lists', 'gt.archived-499')));
+      expect(
+        requests.where((request) => request == ('concepts', null)).length,
+        lessThanOrEqualTo(2),
+      );
+      expect(requests, contains(('concepts', 'gt.concept-499')));
+      expect(
+        requests
+            .where((request) => request == ('variant_progress', null))
+            .length,
+        lessThanOrEqualTo(2),
+      );
+      expect(requests.last, ('variant_progress', 'gt.progress-499'));
+      expect(await db.conceptDao.getConceptsByList(list), hasLength(501));
+      expect((await db.progressDao.getById('progress-last'))?.reps, 4);
     },
   );
 

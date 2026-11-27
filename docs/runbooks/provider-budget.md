@@ -16,6 +16,9 @@ cloud à 20 EUR.
    avant les Edge Functions. Un contrôle de
    quota indisponible interrompt la demande au fournisseur et renvoie `503`.
    Entre 007 et 012, le bucket `vocab-audio` reste fermé aux rôles client.
+   Après 012, leurs droits de lecture suivent le manifeste et le propriétaire.
+   L'écriture dans le bucket reste réservée au rôle serveur, y compris en
+   présence d'une politique Storage permissive préexistante.
    Sur un projet historique qui attend encore 012, appliquer d'abord la
    version corrigée de 007. Suivre le [runbook d'activation](e2e-account.md#activation-supabase).
    L'API de quotas n'est exécutable que par `service_role` : les fonctions
@@ -103,6 +106,8 @@ Relire le diff du verrou et repasser le script sans projet avant de commiter.
   Envoyer une clé moderne `sb_secret_…` dans `apikey`, ou un JWT historique
   `service_role` dans `Authorization: Bearer …`. La fonction vérifie la clé
   présentée sur la route d'administration Supabase Auth avant toute publication.
+  `tool/generate_seed_audio.mjs` envoie cette clé uniquement à l'origine HTTPS
+  configurée du projet et refuse les redirections.
   [Authentification des routes administrateur Supabase](https://supabase.com/kb/troubleshooting/auth-error-401-unauthorized_missing_api_key-on-admin-endpoints-ac2afd).
   La lecture partagée exige aussi une entrée dans `published_audio_assets`,
   écrite uniquement par ce publieur. Après migration, republier le catalogue

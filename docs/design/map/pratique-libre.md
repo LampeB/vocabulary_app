@@ -21,6 +21,10 @@ l'entrée vit sur le plateau Parcours, dans « Choisir une activité ».
   la paire et du sens sélectionnés lorsqu'il est inférieur. Un choix sans
   carte ne peut pas lancer le quiz ; un pool devenu vide permet de réessayer
   ou revenir, sans bilan artificiel.
+  Une carte annoncée est distribuée une seule fois : le remplissage utilise
+  l'autre sens disponible ou les cartes déjà planifiées de la liste, sans
+  répéter une carte pour atteindre le plafond. Les cartes dues restent seules
+  éligibles lorsque la source choisie est « cartes dues ».
   Il n'y a pas de quatrième sélecteur de quantité dans la feuille.
 - Les choix initiaux sont cartes dues, deux sens et flashcards. La mémorisation
   des derniers choix et le réglage de quantité ne sont pas livrés.

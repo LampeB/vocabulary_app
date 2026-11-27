@@ -352,38 +352,38 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         ],
                         const SizedBox(height: 28),
                         // ── Submit ────────────────────────────────────────────────
-                        GestureDetector(
-                          onTap: isLoading ? null : _submit,
-                          child: Container(
-                            key: const Key('auth_submit_button'),
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: isLoading
-                                  ? V3Colors.terra.withValues(alpha: 0.55)
-                                  : V3Colors.terra,
+                        FilledButton(
+                          key: const Key('auth_submit_button'),
+                          onPressed: isLoading ? null : _submit,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: V3Colors.terra,
+                            foregroundColor: V3Colors.paper,
+                            disabledBackgroundColor: V3Colors.terra.withValues(
+                              alpha: 0.55,
+                            ),
+                            minimumSize: const Size.fromHeight(56),
+                            shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(13),
                             ),
-                            child: Center(
-                              child: isLoading
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : Text(
-                                      _isSignIn
-                                          ? 'auth.button_signin'.tr()
-                                          : 'auth.button_signup'.tr(),
-                                      style: AppTextStyles.fig(
-                                        15,
-                                        FontWeight.w700,
-                                      ).copyWith(color: V3Colors.paper),
-                                    ),
-                            ),
                           ),
+                          child: isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  _isSignIn
+                                      ? 'auth.button_signin'.tr()
+                                      : 'auth.button_signup'.tr(),
+                                  style: AppTextStyles.fig(
+                                    15,
+                                    FontWeight.w700,
+                                  ).copyWith(color: V3Colors.paper),
+                                ),
                         ),
                         const SizedBox(height: 14),
                         // ── Toggle mode ───────────────────────────────────────────

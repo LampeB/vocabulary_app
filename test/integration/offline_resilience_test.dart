@@ -39,8 +39,6 @@ class _OfflineRemote extends FakeRemote {
     bool insertOnly = false,
     Map<String, dynamic>? changes,
   }) async => _fail();
-  @override
-  Future<Result<void>> deleteList(String id) async => _fail();
 }
 
 void main() {

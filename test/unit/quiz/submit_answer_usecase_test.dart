@@ -38,6 +38,7 @@ class _FakeProgressRepo implements ProgressRepository {
     required String listId,
     required QuizDirection direction,
     int limit = 20,
+    bool includeScheduled = false,
   }) async => throw UnimplementedError();
   @override
   Future<Result<VariantProgress>> getProgress({

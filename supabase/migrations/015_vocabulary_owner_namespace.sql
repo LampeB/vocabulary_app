@@ -281,8 +281,13 @@ ALTER TABLE public.challenges ENABLE TRIGGER e2e_guard_shared_write;
 
 -- This versioned response admits Patrol only on the schema it exercises.
 CREATE FUNCTION public.e2e_patrol_contract()
-RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
-  SELECT CASE WHEN public.e2e_isolation_ready()
+RETURNS text LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  -- Migration 016 installs the sync-write gate. Resolve the function only
+  -- after it exists so partially migrated backends can refuse Patrol safely.
+  IF to_regprocedure('public.vocabulary_sync_write_ready()') IS NULL THEN RETURN NULL; END IF;
+  IF public.vocabulary_sync_write_ready() IS DISTINCT FROM true THEN RETURN NULL; END IF;
+  RETURN (SELECT CASE WHEN public.e2e_isolation_ready()
     AND (SELECT count(*) = 3 FROM pg_catalog.pg_trigger
       WHERE tgenabled IN ('O', 'A') AND (
         (tgrelid = to_regclass('public.vocabulary_lists')
@@ -299,16 +304,16 @@ RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
     AND EXISTS (SELECT 1 FROM pg_catalog.pg_constraint
       WHERE contype = 'u' AND conrelid = to_regclass('public.variant_progress')
         AND pg_catalog.pg_get_constraintdef(oid) = 'UNIQUE (user_id, variant_owner_id, variant_id, direction)')
-    THEN 'owner-scoped-v1' END;
-$$;
+    THEN 'write-order-v1' END);
+END $$;
 REVOKE ALL ON FUNCTION public.e2e_patrol_contract() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.e2e_patrol_contract() TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.reset_e2e_account(p_scenario_id text)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
-  IF public.e2e_patrol_contract() IS DISTINCT FROM 'owner-scoped-v1' THEN
-    RAISE EXCEPTION 'E2E isolation or owner namespace is unavailable; reset refused' USING ERRCODE = '55000';
+  IF public.e2e_patrol_contract() IS DISTINCT FROM 'write-order-v1' THEN
+    RAISE EXCEPTION 'Patrol schema is unavailable; reset refused' USING ERRCODE = '55000';
   END IF;
   RETURN e2e_private.reset_e2e_account(p_scenario_id);
 END $$;

@@ -17,6 +17,7 @@ for name in (
     '013_e2e_isolation.sql',
     '014_vocabulary_tombstones.sql',
     '015_vocabulary_owner_namespace.sql',
+    '016_vocabulary_write_order.sql',
 ):
     print(f'\n-- {name}')
     for line in (root / 'supabase/migrations' / name).read_text(encoding='utf-8').splitlines():

@@ -23,9 +23,6 @@ class FakeRemote implements VocabularyRemoteDataSource {
   }) async => Success(data);
 
   @override
-  Future<Result<void>> deleteList(String id) async => const Success(null);
-
-  @override
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
     String listId, {
     required String ownerId,

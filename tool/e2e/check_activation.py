@@ -5,29 +5,21 @@ import json
 import os
 from pathlib import Path
 import sys
-from urllib.parse import urlsplit
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import Request, build_opener
+
+from supabase_http import NoRedirects, supabase_origin
 
 
-PATROL_CONTRACT = 'owner-scoped-v1'
-
-
-class NoRedirects(HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
+PATROL_CONTRACT = 'write-order-v1'
 
 
 def require_isolation_ready(url, key):
-    if not isinstance(url, str) or not isinstance(key, str):
+    if not isinstance(key, str) or not key:
         raise ValueError('Invalid Supabase project configuration')
-    parsed = urlsplit(url)
-    if (parsed.scheme != 'https' or not parsed.hostname or parsed.username is not None
-            or parsed.query or parsed.fragment or not key):
-        raise ValueError('Missing Supabase HTTPS project configuration')
     headers = {'apikey': key, 'Accept': 'application/json'}
     if key.startswith('eyJ'):
         headers['Authorization'] = f'Bearer {key}'
-    req = Request(f"{url.rstrip('/')}/rest/v1/rpc/e2e_patrol_contract", headers=headers)
+    req = Request(f"{supabase_origin(url)}/rest/v1/rpc/e2e_patrol_contract", headers=headers)
     with build_opener(NoRedirects()).open(req, timeout=10) as response:
         body = response.read(257)
         if response.status != 200 or len(body) > 256 or json.loads(body) != PATROL_CONTRACT:

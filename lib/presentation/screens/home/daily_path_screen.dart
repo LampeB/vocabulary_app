@@ -136,7 +136,7 @@ class _DailyTrail extends StatelessWidget {
             cta: reviewDone ? 'v3.take_card'.tr() : 'v3.choose_mode'.tr(),
             onTap: reviewDone
                 ? () => prerequisite == null
-                      ? context.go('/lists')
+                      ? context.push('/lists')
                       : context.push('/lists/${prerequisite!.id}')
                 : () => _showModes(context),
           ),
@@ -150,7 +150,7 @@ class _DailyTrail extends StatelessWidget {
             active: reviewDone,
             onTap: reviewDone
                 ? () => prerequisite == null
-                      ? context.go('/lists')
+                      ? context.push('/lists')
                       : context.push('/lists/${prerequisite!.id}')
                 : null,
           ),

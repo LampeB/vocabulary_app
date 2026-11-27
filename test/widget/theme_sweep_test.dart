@@ -148,6 +148,7 @@ class _EmptyProgressRepo implements ProgressRepository {
     required String listId,
     required QuizDirection direction,
     int limit = 20,
+    bool includeScheduled = false,
   }) async => const Success([]);
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

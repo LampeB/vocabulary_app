@@ -19,7 +19,7 @@ import '../seed/starter_draft_reconciliation.dart';
 import '../seed/starter_identity.dart';
 import '../sync/vocabulary_sync_ids.dart';
 import '../../services/audio/audio_asset_path.dart';
-import 'package:drift/drift.dart' show Value, innerJoin;
+import 'package:drift/drift.dart' show Value, Variable, innerJoin;
 
 const _uuid = Uuid();
 const _accountRequired = AuthException('Sign in to save vocabulary');
@@ -829,7 +829,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   Future<void> _restore() async {
     // Capture the whole account before any remote I/O. A push can acknowledge
     // an edit between the request and response, leaving isSynced=true again.
-    final before = await _database.transaction(() async {
+    final (before, traversal) = await _database.transaction(() async {
       if (!_starterIdentityReady) {
         // A previous build may have created a random-ID starter before it
         // could pull. Keep its queued snapshot on the device until we know
@@ -849,53 +849,73 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
           }
         }
       }
-      return _snapshotForPull();
+      return (
+        await _snapshotForPull(),
+        await _RestoreTraversal.load(_database, _userId),
+      );
     });
     final budget = VocabularyNetworkBudget(_restoreTimeout);
+    final receivedLists = <String>{};
+    final touchedLists = <String>{};
     final contents = <String, List<Map<String, dynamic>>>{};
     final completeContents = <String>{};
-    final result = await _remote.fetchLists(_userId, budget: budget);
-    final lists = [
-      for (final map in result.valueOrNull ?? budget.takePartialRows())
-        map.toVocabularyListDomain(),
-    ].where((list) => list.ownerId == _userId).toList();
-    AppException? incomplete = result.exceptionOrNull;
-    for (final list in lists) {
-      if (incomplete is NetworkException) break;
-      if (list.isDeleted) continue;
-      switch (await _remote.fetchConcepts(
-        list.id,
-        ownerId: _userId,
-        budget: budget,
-      )) {
-        case Success(:final value):
-          contents[list.id] = value;
-          completeContents.add(list.id);
-        case Failure(:final exception):
-          final partial = budget.takePartialRows();
-          if (partial.isNotEmpty) contents[list.id] = partial;
-          if (exception is NetworkException || incomplete == null) {
-            incomplete = exception;
-          }
+    AppException? incomplete;
+    if (!traversal.listsComplete) {
+      budget.resumeAfter(traversal.afterId);
+      final result = await _remote.fetchLists(_userId, budget: budget);
+      final rows = result.valueOrNull ?? budget.takePartialRows();
+      for (final map in rows) {
+        final list = map.toVocabularyListDomain();
+        if (list.ownerId != _userId) continue;
+        traversal.lists[list.id] = list;
+        receivedLists.add(list.id);
+        touchedLists.add(list.id);
+      }
+      incomplete = result.exceptionOrNull;
+      traversal.advancePage(rows, complete: incomplete == null);
+      traversal.listsComplete = incomplete == null;
+    }
+    if (incomplete == null) {
+      for (final list in traversal.lists.values.skip(traversal.contentsDone)) {
+        if (list.isDeleted) {
+          traversal.contentsDone++;
+          continue;
+        }
+        budget.resumeAfter(traversal.afterId);
+        final fetched = await _remote.fetchConcepts(
+          list.id,
+          ownerId: _userId,
+          budget: budget,
+        );
+        final rows = fetched.valueOrNull ?? budget.takePartialRows();
+        touchedLists.add(list.id);
+        contents[list.id] = rows;
+        incomplete = fetched.exceptionOrNull;
+        traversal.advancePage(rows, complete: incomplete == null);
+        if (incomplete != null) break;
+        completeContents.add(list.id);
+        traversal.contentsDone++;
       }
     }
     var progress = const <Map<String, dynamic>>[];
-    if (incomplete is! NetworkException) {
+    if (incomplete == null) {
+      budget.resumeAfter(traversal.afterId);
       final received = await _remote.fetchProgress(_userId, budget: budget);
-      incomplete ??= received.exceptionOrNull;
+      incomplete = received.exceptionOrNull;
       progress = received.valueOrNull ?? budget.takePartialRows();
+      traversal.advancePage(progress, complete: incomplete == null);
+      traversal.progressComplete = incomplete == null;
     }
 
     await _database.transaction(() async {
       final current = await _snapshotForPull();
       final changed = _PullChanges(before, current);
       final ids = await VocabularySyncIds.load(_database, _userId);
-      final restoredLists = <VocabularyList>[];
-      for (final remoteList in lists) {
+      for (final wireListId in touchedLists) {
+        final remoteList = traversal.lists[wireListId]!;
         final list = remoteList.copyWith(
           id: await ids.reserve(SyncedVocabularyRow.list, remoteList.id),
         );
-        restoredLists.add(list);
         if (list.origin == 'starter' && list.seedId != null) {
           await _listDao.setStarterContentsPending(
             list.id,
@@ -911,9 +931,10 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
             (localList != null && !localList.isSynced && !list.isDeleted);
         if (list.isDeleted && changed.lists.contains(list.id)) {
           incomplete ??= _deferredDeletion;
+          traversal.deletionDeferred = true;
           continue;
         }
-        if (!keepLocalList) {
+        if (receivedLists.contains(wireListId) && !keepLocalList) {
           final missingContents =
               !list.isDeleted && !completeContents.contains(remoteList.id);
           final metadata = missingContents && localList != null
@@ -945,6 +966,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
                   !remoteConceptDeleted);
           if (remoteConceptDeleted && changed.concepts.contains(conceptId)) {
             incomplete ??= _deferredDeletion;
+            traversal.deletionDeferred = true;
             continue;
           }
           if (keepLocalConcept &&
@@ -971,6 +993,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
             final remoteVariantDeleted = v['is_deleted'] as bool? ?? false;
             if (remoteVariantDeleted && changed.variants.contains(variantId)) {
               incomplete ??= _deferredDeletion;
+              traversal.deletionDeferred = true;
               continue;
             }
             if (localVariant != before.variants[variantId] ||
@@ -997,7 +1020,6 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       }
 
       // Apply progress after content so parent liveness reflects this pull.
-      final conflictingProgressVariantIds = <String>{};
       if (progress.isNotEmpty) {
         final progressDao = _database.progressDao;
         final liveVariantIds = await progressDao.getLiveVariantIds(_userId);
@@ -1025,7 +1047,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
             if (local != null &&
                 !local.isSynced &&
                 local.copyWith(id: row.id, isSynced: true) != row) {
-              conflictingProgressVariantIds.add(row.variantId);
+              traversal.conflictingProgressVariantIds.add(row.variantId);
             }
             if (local != before.progress[key] ||
                 (local != null && !local.isSynced)) {
@@ -1038,14 +1060,20 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         }
         await progressDao.applyPulledProgress(changedRows.values.toList());
       }
+      if (traversal.deletionDeferred) incomplete ??= _deferredDeletion;
       if (incomplete == null) {
         await StarterDraftReconciliation(_database).reconcile(
           _userId,
-          restoredLists,
-          conflictingProgressVariantIds: conflictingProgressVariantIds,
+          [
+            for (final list in traversal.lists.values)
+              list.copyWith(id: ids.localId(SyncedVocabularyRow.list, list.id)),
+          ],
+          conflictingProgressVariantIds:
+              traversal.conflictingProgressVariantIds,
         );
       }
       await ids.save();
+      await traversal.save(_database, _userId);
     });
     if (incomplete case final error?) throw error;
     _starterIdentityReady = true;
@@ -1154,6 +1182,91 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     }
     await _requireActiveConcept(row.conceptId);
     return row;
+  }
+}
+
+/// A committed account checkpoint makes paging resumable after a restart.
+/// Each slice compares fresh remote rows against its own local CAS snapshot.
+class _RestoreTraversal {
+  _RestoreTraversal(Map<String, dynamic> stored)
+    : lists = {
+        for (final raw in stored['lists'] as List? ?? const [])
+          raw['id'] as String: VocabularyList.fromJson(
+            raw as Map<String, dynamic>,
+          ),
+      },
+      conflictingProgressVariantIds = {
+        ...(stored['progressConflicts'] as List? ?? const []).cast<String>(),
+      },
+      listsComplete = stored['listsComplete'] as bool? ?? false,
+      contentsDone = stored['contentsDone'] as int? ?? 0,
+      afterId = stored['afterId'] as String?,
+      deletionDeferred = stored['deletionDeferred'] as bool? ?? false;
+
+  final Map<String, VocabularyList> lists;
+  final Set<String> conflictingProgressVariantIds;
+  bool listsComplete;
+  int contentsDone;
+  String? afterId;
+  bool progressComplete = false;
+  bool deletionDeferred;
+
+  static String _key(String ownerId) => 'vocabulary-pull:$ownerId';
+
+  static Future<_RestoreTraversal> load(AppDatabase db, String ownerId) async {
+    final row = await db
+        .customSelect(
+          'SELECT snapshot FROM shared_import_bootstrap WHERE id = ?',
+          variables: [Variable(_key(ownerId))],
+        )
+        .getSingleOrNull();
+    if (row == null) return _RestoreTraversal({});
+    try {
+      return _RestoreTraversal(
+        jsonDecode(row.read<String>('snapshot')) as Map<String, dynamic>,
+      );
+    } on FormatException {
+      return _RestoreTraversal({});
+    } on TypeError {
+      return _RestoreTraversal({});
+    }
+  }
+
+  Future<void> save(AppDatabase db, String ownerId) async {
+    final key = Variable(_key(ownerId));
+    if (progressComplete) {
+      // A deferred tombstone gets a fresh traversal after this coverage ends.
+      await db.customUpdate(
+        'DELETE FROM shared_import_bootstrap WHERE id = ?',
+        variables: [key],
+      );
+      return;
+    }
+    await db.customInsert(
+      'INSERT INTO shared_import_bootstrap (id, snapshot) VALUES (?, ?) '
+      'ON CONFLICT(id) DO UPDATE SET snapshot = excluded.snapshot',
+      variables: [
+        key,
+        Variable(
+          jsonEncode({
+            'lists': lists.values.map((list) => list.toJson()).toList(),
+            'progressConflicts': conflictingProgressVariantIds.toList(),
+            'listsComplete': listsComplete,
+            'contentsDone': contentsDone,
+            'afterId': afterId,
+            'deletionDeferred': deletionDeferred,
+          }),
+        ),
+      ],
+    );
+  }
+
+  void advancePage(List<Map<String, dynamic>> rows, {required bool complete}) {
+    if (complete) {
+      afterId = null;
+    } else if (rows.isNotEmpty) {
+      afterId = rows.last['id'] as String;
+    }
   }
 }
 

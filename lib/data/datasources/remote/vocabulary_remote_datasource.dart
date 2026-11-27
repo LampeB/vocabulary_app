@@ -5,6 +5,7 @@ import 'package:http/http.dart' show ClientException;
 import 'package:supabase_flutter/supabase_flutter.dart' hide StorageException;
 import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
+import '../../sync/vocabulary_write_order.dart';
 
 typedef ProvisionedAudio = ({String path, String word, String langCode});
 
@@ -16,6 +17,9 @@ class VocabularyNetworkBudget {
   final Duration _total;
   final _elapsed = Stopwatch()..start();
   List<Map<String, dynamic>> _partialRows = const [];
+  String? _pageAfter;
+
+  void resumeAfter(String? cursor) => _pageAfter = cursor;
 
   List<Map<String, dynamic>> takePartialRows() {
     final rows = _partialRows;
@@ -77,22 +81,6 @@ class VocabularyRemoteDataSource {
   }) =>
       _upsertContent('vocabulary_lists', 'owner_id', data, insertOnly, changes);
 
-  Future<Result<void>> deleteList(String id) async {
-    try {
-      await _client
-          .from('vocabulary_lists')
-          .update({
-            'is_deleted': true,
-            'updated_at': DateTime.now().toUtc().toIso8601String(),
-          })
-          .eq('id', id)
-          .timeout(_writeTimeout);
-      return const Success(null);
-    } catch (e) {
-      return Failure(NetworkException(e.toString()));
-    }
-  }
-
   Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
     String listId, {
     required String ownerId,
@@ -138,10 +126,14 @@ class VocabularyRemoteDataSource {
   ) async {
     try {
       final budget = VocabularyNetworkBudget(_writeTimeout);
+      final (stamp, mutation) = VocabularyWriteStamp.take(data);
       final ownerId = data['owner_id'] as String;
-      final write = _client
-          .from(table)
-          .upsert(data, onConflict: 'owner_id,id', ignoreDuplicates: insertOnly)
+      final write = _versionedTable(table, stamp)
+          .upsert(
+            mutation,
+            onConflict: 'owner_id,id',
+            ignoreDuplicates: insertOnly,
+          )
           .select();
       if (!insertOnly) {
         return Success(
@@ -171,9 +163,8 @@ class VocabularyRemoteDataSource {
       // by the database alongside the update so a tombstone always wins.
       if (changes != null && changes.isNotEmpty) {
         final updated = await budget._request(
-          () => _client
-              .from(table)
-              .update(changes)
+          () => _versionedTable(table, stamp)
+              .update({...changes, 'sync_write_protocol': 16})
               .eq('id', id)
               .eq('owner_id', ownerId)
               .eq(parentColumn, parent)
@@ -207,6 +198,14 @@ class VocabularyRemoteDataSource {
       return Failure(_writeFailure(e));
     }
   }
+
+  PostgrestQueryBuilder _versionedTable(
+    String table,
+    VocabularyWriteStamp stamp,
+  ) => _client
+      .from(table)
+      .setHeader('X-Ponderin-Sync-Writer', stamp.writer)
+      .setHeader('X-Ponderin-Sync-Sequence', stamp.sequence.toString());
 
   /// The database write has already enforced tombstones. Read affected
   /// ancestors only in the tombstone case so the device can hide the subtree.
@@ -327,7 +326,7 @@ class VocabularyRemoteDataSource {
   }) async {
     const pageSize = 500;
     final rows = <Map<String, dynamic>>[];
-    String? lastId;
+    var lastId = budget?._pageAfter;
     final deadline = budget ?? VocabularyNetworkBudget(_pageTimeout);
     try {
       while (true) {
@@ -350,10 +349,10 @@ class VocabularyRemoteDataSource {
     Map<String, dynamic> data,
   ) async {
     try {
-      final result = await _client
-          .from('variant_progress')
+      final (stamp, mutation) = VocabularyWriteStamp.take(data);
+      final result = await _versionedTable('variant_progress', stamp)
           .upsert({
-            ...data,
+            ...mutation,
             'variant_owner_id': data['user_id'],
           }, onConflict: 'user_id,variant_owner_id,variant_id,direction')
           .select()
@@ -367,7 +366,11 @@ class VocabularyRemoteDataSource {
 
   Future<Result<void>> upsertReviewEvent(Map<String, dynamic> data) async {
     try {
-      await _client.from('review_events').upsert(data).timeout(_writeTimeout);
+      final (stamp, mutation) = VocabularyWriteStamp.take(data);
+      await _versionedTable(
+        'review_events',
+        stamp,
+      ).upsert(mutation).timeout(_writeTimeout);
       return const Success(null);
     } catch (e) {
       return Failure(_writeFailure(e));

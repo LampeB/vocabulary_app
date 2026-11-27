@@ -9,10 +9,11 @@ import secrets
 import subprocess
 import sys
 from urllib.error import HTTPError
-from urllib.request import Request, urlopen
+from urllib.request import Request, build_opener
 
 from accounts import scenarios, validate_accounts, write_private
 from prepare import http_failure, PreparationError
+from supabase_http import NoRedirects, supabase_origin
 
 
 def provision(request, catalog, path):
@@ -63,6 +64,29 @@ def provision(request, catalog, path):
     return validate_accounts(accounts, catalog)
 
 
+def admin_requests(url, key):
+    origin = supabase_origin(url)
+    opener = build_opener(NoRedirects())
+    headers = {'apikey': key, 'Content-Type': 'application/json', 'User-Agent': 'VocabKR-E2E-Provision/1.0'}
+    if key.startswith('eyJ'):
+        headers['Authorization'] = 'Bearer ' + key
+
+    def request(method, path, body=None):
+        req = Request(origin + path, method=method, headers=headers,
+                      data=None if body is None else json.dumps(body).encode())
+        try:
+            with opener.open(req, timeout=30) as response:
+                content = response.read()
+                return json.loads(content) if content else None
+        except HTTPError as error:
+            with error:
+                if 300 <= error.code < 400:
+                    raise PreparationError('Supabase redirected the admin request; provisioning stopped') from None
+                raise http_failure('provisioning', error) from None
+
+    return request
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', default='.env.json')
@@ -70,9 +94,7 @@ def main():
                         help='Write E2E_ACCOUNTS_JSON to the patrol-e2e environment after successful provisioning')
     args = parser.parse_args()
     config = json.loads(Path(args.config).read_text())
-    url = config['SUPABASE_URL'].rstrip('/')
-    if not url.startswith('https://'):
-        raise ValueError('Expected HTTPS Supabase URL')
+    url = supabase_origin(config['SUPABASE_URL'])
     identity_file = Path('.e2e/project.json')
     if identity_file.exists() and json.loads(identity_file.read_text())['url'] != url:
         raise ValueError('Local accounts belong to another Supabase project')
@@ -81,19 +103,7 @@ def main():
     if not key:
         raise ValueError('Missing admin credential')
 
-    def request(method, path, body=None):
-        headers = {'apikey': key, 'Content-Type': 'application/json', 'User-Agent': 'VocabKR-E2E-Provision/1.0'}
-        if key.startswith('eyJ'):
-            headers['Authorization'] = 'Bearer ' + key
-        req = Request(url + path, method=method, headers=headers,
-                      data=None if body is None else json.dumps(body).encode())
-        try:
-            with urlopen(req, timeout=30) as response:
-                content = response.read()
-                return json.loads(content) if content else None
-        except HTTPError as error:
-            raise http_failure('provisioning', error) from None
-
+    request = admin_requests(url, key)
     accounts = provision(request, scenarios(), '.e2e/accounts.json')
     local = {k: config[k] for k in ('SUPABASE_URL', 'SUPABASE_ANON_KEY')}
     local.update(TEST_ACCOUNTS_JSON=json.dumps(accounts), TEST_MODE='true',

@@ -560,3 +560,61 @@ actionlint, zizmor et la frontière de licence passent. Les fonctions Edge
 restent inchangées depuis les 29 tests Deno et sept bundles figés validés.
 La configuration iOS est vérifiée statiquement ; son édition des liens
 et le contrôle de la nouvelle exclusion native attendent la CI macOS.
+
+## Douzième itération — `90a8298`
+
+Les quatre verdicts `BLOQUÉ` portent sur
+`90a8298266ea567d89a4076b269bff2f82b1fcdc` et ont été réunis avant le lot
+de corrections. Aucun Bloquant ; **14 Important bruts, 11 distincts**, et
+deux Suggestions. Les doublons concernent l'ordre des écritures après délai,
+la reprise de restauration et la sélection asymétrique de cartes.
+
+| Profil / instance | Important | Suggestion |
+| --- | --- | --- |
+| Produit — `/root/r12_product` | 5 | 0 |
+| Qualité — `/root/r12_quality` | 3 | 1 |
+| Correction — `/root/r12_correctness` | 4 | 0 |
+| Sécurité — `/root/r12_security` | 2 | 1 |
+
+| Type | Constat distinct | Correction et preuve ciblée |
+| --- | --- | --- |
+| Important | Écriture expirée arrivant après l'ACK d'une version récente | Séquence SQLite durable par installation et garde transactionnel serveur 016 ; anciennes métadonnées/FSRS refusés, autre appareil et rôle audio préservés |
+| Important | Restauration recommençant au même préfixe | Checkpoint SQLite par compte, validé avec les pages appliquées ; 25 listes et pages listes/concepts/FSRS repris après réouverture réelle |
+| Important | Comptage et chargeur divergents, répétitions dans la feuille | Cartes distinctes dans la feuille, remplissage des deux sens et des cartes planifiées ; liste 1 due/9 futures et six cartes d'un seul sens testées |
+| Important | Compteur quotidien incluant une question sans réponse active | Prédicat de carte jouable partagé ; retrait/réajout de réponse réévalue le compteur |
+| Important | Rappels absents de la véritable route V3 | Bootstrap authentifié après restauration des préférences ; vrai trajet splash/plateau, heure enregistrée et annulation après activité testés |
+| Important | Commandes de saisie dépassant le clavier en paysage | Contenu et commandes défilants à faible hauteur, champ stable ; 568 × 320, inset 180 et texte doublé avec validation effective |
+| Important | Credentials administratifs transmis lors de redirections | Origine HTTPS et refus de redirection Python/Node ; cible sans requête, deux formats de clé et cinq statuts couverts |
+| Important | Écritures Storage clientes via une ancienne règle permissive | Gardes restrictives par opération dans le bucket audio, fermeture intermédiaire 007 ; vrai rôle client avec FOR ALL préexistant et autres buckets testés |
+| Important | Entrées Bibliothèque perdant le retour du chemin | Navigation poussée pour les deux entrées ; retour AppBar de la véritable bibliothèque testé |
+| Important | Accueil/authentification sans activation clavier | Boutons standards ; deux parcours accueil/formulaire/validation réalisés avec Tab/Entrée |
+| Important | État du projet obsolète sur Podfile et APK | Paragraphes actifs corrigés : CocoaPods versionné, compilation sans artefact public et iOS encore à confirmer |
+
+La Suggestion de liaison du check iOS à l'application GitHub Actions est
+appliquée à la protection de `main` : les huit checks CI exigent l'application
+15368. Le statut indépendant reste attesté par le propriétaire. La Suggestion
+sur la durée de vie des observateurs de leçons et le coût de projection reste
+conservée pour une optimisation mesurée.
+
+Les sept autres checks CI sont verts sur `90a8298`, mais le build simulateur
+échoue encore au lien `Pods_Runner`. Le lot aligne Runner et ses pods sur la
+contrainte GoogleMLKit du seul SDK simulateur, sur le runner Intel existant.
+Le SDK iPhone garde ses architectures. La prochaine CI macOS doit confirmer
+l'édition des liens ; aucune compilation iOS réussie n'est revendiquée.
+Les compteurs propres sont **0/2 pour les quatre profils**. La prochaine
+relecture complète sera l'itération **13**, dans la limite de vingt.
+
+Les validations ciblées comptent **208 tests data**, **71 tests voix/quiz/
+notifications** et **17 tests d'accueil/authentification/retour** réussis.
+PostgreSQL 16.11 valide neuf suites, les refus de reset jusqu'à 015, le contrat
+016 et son refus lorsqu'une garde d'écriture est désactivée, la concurrence
+à deux connexions et le bundle d'activation. Les dix tests Python E2E, le test
+Node de redirection TLS, actionlint et zizmor passent. Aucun service hébergé
+n'est activé ; les nouveaux clients Patrol exigent `write-order-v1`.
+
+La suite complète du lot passe : **1 105 tests hôte**, douze diagnostics
+positifs exclus sans opt-in, couverture **74,5 %** (13 966 / 18 739 lignes).
+L'analyse Flutter est propre ; les 25 diagnostics ciblés passent avec opt-in
+et la sonde AOT refuse l'accès en mode produit. Les 29 tests Python des outils
+s'ajoutent aux dix tests E2E, soit 39 tests Python réussis. Les fonctions Edge
+restent inchangées depuis leurs 29 tests Deno et sept bundles figés validés.

@@ -236,6 +236,46 @@ void main() {
     },
   );
 
+  test('the path counter follows the active answer variant', () async {
+    final list = (await vocabRepo.createList(
+      name: 'Pair revision',
+    )).valueOrNull!;
+    final questionId = await seedWord(list.id, 'chat', '고양이');
+    final question = (await db.conceptDao.getVariantById(questionId))!;
+    final answer = (await db.conceptDao.getVariantsByConcept(
+      question.conceptId,
+    )).singleWhere((variant) => variant.langCode == 'ko');
+    await seedProgress(questionId, state: 'review', nextReview: _now);
+    final count = StreamIterator(
+      db.progressDao.watchDueCountForPair(_kUserId, 'fr', 'ko'),
+    );
+    addTearDown(count.cancel);
+    Future<int> nextValue() async {
+      expect(
+        await count.moveNext().timeout(const Duration(seconds: 2)),
+        isTrue,
+      );
+      return count.current;
+    }
+
+    expect(await nextValue(), 1);
+    await vocabRepo.deleteVariant(answer.id);
+    expect(await nextValue(), 0);
+    final empty = await progressRepo.getAllDueCards(
+      userId: _kUserId,
+      direction: QuizDirection.frToKo,
+      langA: 'fr',
+      langB: 'ko',
+    );
+    expect(empty.valueOrNull, isEmpty);
+    await vocabRepo.createVariant(
+      conceptId: question.conceptId,
+      word: '고양이',
+      langCode: 'ko',
+    );
+    expect(await nextValue(), 1);
+  });
+
   test(
     'opposite ordered language pairs do not share smart-list cards',
     () async {

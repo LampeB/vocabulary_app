@@ -16,6 +16,13 @@ L'application utilise SQLite comme source de lecture et les colonnes
 - Un envoi PostgREST dispose de 15 secondes, y compris les lectures nécessaires
   à son accusé canonique. L'expiration conserve la version locale en file et
   libère les appelants qui attendent l'envoi de la liste pour la partager.
+- La migration PostgreSQL 016 vérifie l'ordre des écritures de chaque
+  installation pour une liste, un concept, une variante, une progression ou
+  un événement. SQLite attribue le numéro durable après avoir vérifié que
+  la version envoyée est toujours la version en file. PostgreSQL refuse un
+  ancien numéro dans la même transaction que l'écriture, même après une
+  modification par un autre appareil. Le client exige le protocole 016 pour
+  toute mutation, y compris une modification d'import.
 - Le déclencheur écoute les mutations locales validées par SQLite pour le
   compte actif. Une nouvelle édition d'une ligne déjà en attente réveille
   la file. Les accusés, les restaurations et les mutations des autres comptes
@@ -117,7 +124,10 @@ L'application utilise SQLite comme source de lecture et les colonnes
   tentative. Le seeding local et l'ouverture du plateau restent disponibles
   hors ligne. Un budget de 15 secondes couvre toute la lecture distante.
   Une panne de transport ou une expiration arrête les prochaines lectures
-  et conserve les pages déjà reçues. Au retour du réseau, le shell relance
+  et conserve les pages déjà reçues. SQLite enregistre le curseur avec les
+  pages appliquées pour que la reprise avance après un délai ou un
+  redémarrage. Le rapprochement des starters attend la fin des listes, de
+  leurs contenus et de la progression. Au retour du réseau, le shell relance
   la récupération en attente avant d'envoyer les modifications locales.
   Un retour réseau
   pendant un pull est retenu et ouvre une tentative si le pull échoue.
@@ -175,8 +185,12 @@ le sens disponible. La variante principale fournit ensemble le mot prononcé
 et son extrait audio. Les autres variantes restent acceptées.
 La disponibilité de pratique suit la source, la paire et le sens choisi.
 Le compteur et le chargeur utilisent les mêmes critères de carte jouable,
-avec une variante de réponse active. Si la dernière carte disparaît avant
-le chargement, le quiz affiche un état vide récupérable.
+avec une variante de réponse active. La feuille distribue les cartes annoncées
+une fois chacune et complète, si nécessaire, depuis l'autre sens ou depuis
+les cartes déjà planifiées de la liste sélectionnée. Le configurateur de
+liste conserve ses répétitions lorsqu'il complète un paquet court.
+Si la dernière carte disparaît avant le chargement, le quiz affiche un état
+vide récupérable.
 
 Les tests d'intégration de récupération, d'envoi et d'export/import servent de
 preuves exécutables. La validation sur deux appareils reste nécessaire avant

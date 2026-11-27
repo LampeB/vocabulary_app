@@ -24,6 +24,18 @@ USING (bucket_id IS DISTINCT FROM 'vocab-audio'
 CREATE POLICY "vocab audio anonymous boundary" ON storage.objects
 AS RESTRICTIVE FOR SELECT TO anon
 USING (bucket_id IS DISTINCT FROM 'vocab-audio');
+-- Publish and provision through the service role, even if an installed
+-- permissive Storage policy also grants client writes to this bucket.
+CREATE POLICY "vocab audio client insert boundary" ON storage.objects
+AS RESTRICTIVE FOR INSERT TO anon, authenticated
+WITH CHECK (bucket_id IS DISTINCT FROM 'vocab-audio');
+CREATE POLICY "vocab audio client update boundary" ON storage.objects
+AS RESTRICTIVE FOR UPDATE TO anon, authenticated
+USING (bucket_id IS DISTINCT FROM 'vocab-audio')
+WITH CHECK (bucket_id IS DISTINCT FROM 'vocab-audio');
+CREATE POLICY "vocab audio client delete boundary" ON storage.objects
+AS RESTRICTIVE FOR DELETE TO anon, authenticated
+USING (bucket_id IS DISTINCT FROM 'vocab-audio');
 
 DROP POLICY IF EXISTS lists_public ON public.vocabulary_lists;
 CREATE POLICY lists_public ON public.vocabulary_lists FOR SELECT TO authenticated

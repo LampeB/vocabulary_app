@@ -59,8 +59,11 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
     String langB, {
     Duration refreshEvery = const Duration(minutes: 1),
   }) {
-    return _watchLiveDueCount(
-      userId,
+    final forward = QuizDirection(questionLang: langA, answerLang: langB);
+    return watchSmartQuizCardCount(
+      userId: userId,
+      directions: [forward, forward.reversed],
+      pool: SmartQuizPool.due,
       langA: langA,
       langB: langB,
       refreshEvery: refreshEvery,
@@ -69,8 +72,6 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
 
   Stream<int> _watchLiveDueCount(
     String userId, {
-    String? langA,
-    String? langB,
     Duration refreshEvery = const Duration(minutes: 1),
   }) {
     final query = customSelect(
@@ -80,18 +81,8 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
       'JOIN vocabulary_lists l ON l.id=c.list_id '
       'WHERE p.user_id=? AND l.owner_id=? AND w.is_deleted=0 '
       'AND c.is_deleted=0 AND l.is_deleted=0 '
-      "AND (p.next_review IS NULL OR p.next_review <= CAST(strftime('%s','now') AS INTEGER)) "
-      '${langA == null ? '' : 'AND l.lang_a=? AND l.lang_b=? AND p.direction IN (?,?)'}',
-      variables: [
-        Variable<String>(userId),
-        Variable<String>(userId),
-        if (langA != null) ...[
-          Variable<String>(langA),
-          Variable<String>(langB!),
-          Variable<String>('$langA>$langB'),
-          Variable<String>('$langB>$langA'),
-        ],
-      ],
+      "AND (p.next_review IS NULL OR p.next_review <= CAST(strftime('%s','now') AS INTEGER))",
+      variables: [Variable<String>(userId), Variable<String>(userId)],
       readsFrom: {
         variantProgressTable,
         wordVariantsTable,
@@ -222,6 +213,7 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
     required SmartQuizPool pool,
     required String langA,
     required String langB,
+    Duration refreshEvery = const Duration(minutes: 1),
   }) {
     final count = countAll();
     final query = _smartCards(
@@ -234,9 +226,7 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
     )..addColumns([count]);
     return _watchCount(
       query.map((row) => row.read(count)!),
-      refreshEvery: pool == SmartQuizPool.due
-          ? const Duration(minutes: 1)
-          : null,
+      refreshEvery: pool == SmartQuizPool.due ? refreshEvery : null,
     );
   }
 
@@ -492,6 +482,7 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
     required String userId,
     required String direction,
     required List<String> variantIds,
+    required int limit,
   }) {
     return (select(variantProgressTable)
           ..where(
@@ -500,7 +491,8 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
                 t.direction.equals(direction) &
                 t.variantId.isIn(variantIds),
           )
-          ..orderBy([(t) => OrderingTerm.asc(t.nextReview)]))
+          ..orderBy([(t) => OrderingTerm.asc(t.nextReview)])
+          ..limit(limit))
         .get();
   }
 

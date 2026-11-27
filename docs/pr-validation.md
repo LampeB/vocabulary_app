@@ -204,13 +204,14 @@ exige :
   cloud/quota sur une base PostgreSQL jetable.
 Ce dernier contrôle applique aussi les migrations de production de sécurité.
 Il vérifie que `vocab-audio` reste fermé aux clients entre 007 et 012, puis
-exerce les lectures publiques, la confidentialité des clips malgré une règle
-Storage permissive préexistante et l'historique des réponses. Le prévol Patrol
-et le reset exigent le contrat `owner-scoped-v1` de 015. Les suites SQL
-vérifient les refus après 013 et 014, puis l'acceptation après 015 et le refus
-quand un déclencheur d'isolation ou de suppression est désactivé. Les tests
-d'isolation E2E couvrent les écritures de relations et de
-progression par le rôle authentifié. Deux connexions PostgreSQL vérifient qu'une
+exerce les lectures publiques, la confidentialité et l'immuabilité des clips
+malgré une règle Storage permissive préexistante. Les tests des outils admin
+vérifient le refus de HTTP et des redirections avec des clés factices. Le
+prévol Patrol et le reset exigent le contrat `write-order-v1` de 016. Les
+suites SQL vérifient les refus après 013, 014 et 015, puis l'acceptation après
+016 et le refus quand un déclencheur d'isolation, de suppression ou de contrôle
+des écritures est désactivé. Les tests d'isolation E2E couvrent les écritures de
+relations et de progression par le rôle authentifié. Deux connexions PostgreSQL vérifient qu'une
 demande d'amitié concurrente attend la fin du reset, puis est refusée.
 
 La version Flutter de ce check est figée à **3.44.9**, celle qui correspond à
@@ -222,6 +223,13 @@ gèrent pas Swift Package Manager. Le `ios/Podfile` est versionné et les
 configurations Debug, Profile et Release de Runner chargent chacune les
 réglages CocoaPods correspondants. Le build Flutter installe les pods avant
 de lancer Xcode.
+
+Le check du simulateur utilise le runner `macos-15-intel`. Runner et ses pods
+excluent ARM64 pour le seul SDK `iphonesimulator`, car la caméra dépend de
+GoogleMLKit BarcodeScanning 6.0. Sur un checkout neuf, Flutter 3.44.9 génère
+ses réglages avant l'installation des pods et ne peut pas encore détecter
+cette contrainte. Le SDK iPhone conserve sa configuration d'architecture.
+[Podspec GoogleMLKit 6.0.0](https://github.com/CocoaPods/Specs/blob/master/Specs/b/e/b/GoogleMLKit/6.0.0/GoogleMLKit.podspec.json).
 
 La revue de dépendances exige que le **Dependency Graph** soit activé dans les
 réglages GitHub du dépôt. Tant que cette activation distante n'est pas faite,

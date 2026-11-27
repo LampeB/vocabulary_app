@@ -19,6 +19,7 @@ class GetDueCardsUseCase {
     String? langA,
     String? langB,
     int limit = 20,
+    bool includeScheduled = false,
   }) => switch (source) {
     QuizSource.grammar => throw StateError(
       'grammar cards are generated, not fetched',
@@ -28,6 +29,7 @@ class GetDueCardsUseCase {
       listId: listId!,
       direction: direction,
       limit: limit,
+      includeScheduled: includeScheduled,
     ),
     QuizSource.allDue => _repo.getAllDueCards(
       userId: userId,

@@ -23,7 +23,8 @@ SET public = false,
 DROP POLICY IF EXISTS "vocab audio authenticated read" ON storage.objects;
 DROP POLICY IF EXISTS "vocab audio pending activation" ON storage.objects;
 CREATE POLICY "vocab audio pending activation" ON storage.objects
-  AS RESTRICTIVE FOR SELECT TO anon, authenticated
-  USING (bucket_id <> 'vocab-audio');
+  AS RESTRICTIVE FOR ALL TO anon, authenticated
+  USING (bucket_id IS DISTINCT FROM 'vocab-audio')
+  WITH CHECK (bucket_id IS DISTINCT FROM 'vocab-audio');
 
 COMMIT;

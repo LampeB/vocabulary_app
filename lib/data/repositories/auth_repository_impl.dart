@@ -188,6 +188,9 @@ class AuthRepositoryImpl implements AuthRepository {
         totalWordsMastered: profile['total_words_mastered'] as int? ?? 0,
         currentStreak: profile['current_streak'] as int? ?? 0,
         longestStreak: profile['longest_streak'] as int? ?? 0,
+        lastStudyDate: DateTime.tryParse(
+          profile['last_study_date'] as String? ?? '',
+        ),
         subscriptionType: SubscriptionType.fromString(
           profile['subscription_type'] as String?,
         ),

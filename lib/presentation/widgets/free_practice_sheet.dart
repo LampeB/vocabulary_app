@@ -260,6 +260,7 @@ class _FreePracticeSheetState extends ConsumerState<FreePracticeSheet> {
                           mode: _mode,
                           direction: _direction,
                           cardLimit: limit,
+                          distinctCardsOnly: true,
                           langA: widget.pair.$1,
                           langB: widget.pair.$2,
                         ),

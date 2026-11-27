@@ -77,6 +77,9 @@ delivery mechanisms and a later warm link. The shared session bootstrap is
 exercised with the real header selector and the cold-import route. Explicit
 layout regressions use 568 × 320 for splash and 320 × 568 with doubled text
 for feedback, including reaching Continue by scrolling.
+The welcome-to-auth route is exercised using Tab/Enter through both sign-up
+and sign-in, including form submission. Both no-list entries of the daily path
+open the real library and return to the daily path using its AppBar Back.
 
 ### `test/unit/fsrs_algorithm_test.dart` (21 tests)
 Spaced-repetition scheduling (FSRS algorithm).

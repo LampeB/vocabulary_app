@@ -97,14 +97,14 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **1 092 tests hôte passent**, avec **73,6 %**
+- L'analyse Flutter est propre ; les **1 105 tests hôte passent**, avec **74,5 %**
   de couverture sur le dernier lot du 27 novembre. Douze tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 25 tests ciblés. La sonde compilée en mode produit confirme le
   refus des diagnostics, même avec l'option fournie.
-- Sur `f5f5949`, les sept anciens checks CI, dont les tests hôte, le wrapper SQL et la
+- Sur `90a8298`, les sept anciens checks CI, dont les tests hôte, le wrapper SQL et la
   compilation native Android, sont verts. Le pont utilise le NDK 28.2 de
-  l'application. Les onze premières itérations des quatre relecteurs ont été
+  l'application. Les douze premières itérations des quatre relecteurs ont été
   bloquées ; leurs corrections sont consignées dans
   [le registre du 27 novembre](docs/reviews/2026-11-27-integration.md).
   Le sas exige deux revues propres sur le commit final ; les verdicts et les
@@ -112,15 +112,15 @@ de contenu avant bêta pédagogique.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **1 092** tests hôte réussis lors de la dernière validation locale
+- La suite compte **1 105** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
-- Les sept suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
+- Les neuf suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
   réelles, dont la protection des tombstones et le test intermédiaire de fermeture
   Storage avant activation de la politique finale. Deux connexions ont
-  vérifié le verrou du reset et le refus de l'écriture concurrente ; la CI de
-  `f7827da` confirme le wrapper Bash des six suites.
-  Les huit tests Python E2E, vingt-neuf tests Deno, vingt-et-un tests du bot,
+  vérifié le verrou du reset et le refus de l'écriture concurrente. Le contrat
+  Patrol exige 016 et se ferme si une garde d'écriture est désactivée.
+  Les dix tests Python E2E, le test Node de redirection TLS, vingt-neuf tests Deno, vingt-et-un tests du bot,
   quatre tests du déploiement et quatre tests du garde Git passent dans le lot courant. Le bot refuse
   aussi une CI verte issue d'un
   autre workflow ou évaluée contre une autre base.
@@ -147,9 +147,10 @@ de contenu avant bêta pédagogique.
   l'acquittement de commande. Le nouveau pont iOS et le fuseau natif doivent
   passer la compilation simulateur macOS, désormais huitième check CI exigé ;
   aucun build iOS ni essai appareil n'est revendiqué sur l'hôte Windows.
-- Le premier check iOS de `f5f5949` a échoué au lien `Pods_Runner`. Le lot
-  versionne la configuration CocoaPods et désactive l'intégration SwiftPM
-  automatique ; le prochain check macOS doit confirmer cette correction.
+- Les checks iOS de `f5f5949` et `90a8298` ont échoué au lien `Pods_Runner`.
+  CocoaPods est versionné et SwiftPM automatique désactivé. Le lot courant
+  applique aussi la contrainte de GoogleMLKit sur l'architecture simulateur ;
+  le prochain check macOS doit confirmer l'édition des liens.
 - La feuille compte les cartes par source/paire/sens ; un pool devenu vide
   offre une reprise sans faux bilan. Les titres longs d'aperçu défilent avec
   leurs mots et les locales partielles disposent du repli français réel.
@@ -158,6 +159,16 @@ de contenu avant bêta pédagogique.
   restent liés au compte initial. Les annulations de rappels invalident les
   programmations tardives. Les diagnostics iOS attendent une exclusion des
   sauvegardes confirmée, également réappliquée aux dossiers existants.
+- Les boutons de l'accueil et la validation d'authentification sont accessibles
+  au clavier ; les deux entrées Bibliothèque du chemin conservent le retour
+  contextuel. La saisie reste utilisable avec le clavier en paysage à texte
+  doublé. Les rappels sont restaurés depuis le bootstrap authentifié de V3,
+  et le rappel de série est annulé lorsque l'activité du jour est connue.
+- La migration 016 refuse une écriture arrivée après une version plus récente
+  du même appareil, même après expiration HTTP. La restauration conserve ses
+  curseurs dans SQLite pour reprendre après redémarrage. Le comptage du chemin
+  exclut les questions sans réponse active et la feuille distribue les cartes
+  annoncées sans répétition de remplissage.
 - La CI Patrol contient neuf suites Android, lançables manuellement avec des
   secrets Supabase : navigation, auth, flux utilisateur, chemin quotidien,
   prérequis de leçon, paires de langues, quiz voix/cartes, écriture et login.
@@ -193,12 +204,13 @@ de contenu avant bêta pédagogique.
   l'expérience physique.
 - Whisper local Android utilise désormais un pont Ponderin minimal vers le
   moteur MIT `whisper.cpp`, avec modèle épinglé et vérifié. Le wrapper GPL
-  historique a été retiré. L'intégration iOS n'est pas livrée : le dossier iOS
-  n'a pas de `Podfile` et doit faire l'objet d'un chantier Xcode/test appareil
-  avant toute promesse de disponibilité locale sur cette plateforme.
+  historique a été retiré. Whisper local iOS n'est pas livré. Le `Podfile`
+  et les configurations CocoaPods de l'application sont versionnés, mais le
+  build simulateur échoue encore au lien `Pods_Runner` sur `90a8298` ; une
+  compilation native réussie et des essais appareil restent nécessaires.
 - Le workflow TestFlight incomplet a été retiré : aucune livraison iOS n'est
-  revendiquée. Le workflow Android peut produire un artefact GitHub Actions ;
-  aucun APK généré ne doit être versionné dans Git.
+  revendiquée. Le workflow Android compile l'APK sans le publier en artefact
+  GitHub Actions ; aucun APK généré ne doit être versionné dans Git.
 - Les routes du laboratoire STT, leurs liens et la persistance du corpus
   exigent un build debug avec `STT_DIAGNOSTICS=true`. La CI exerce aussi le
   refus en mode produit, même si cette option est fournie.
@@ -232,7 +244,7 @@ de contenu avant bêta pédagogique.
   le hook et la CI sont implémentés sur la branche d'intégration ; l'activation
   du Dependency Graph et des alertes Dependabot a été réalisée le 26 novembre
   (la comparaison des dépendances répond désormais). La protection GitHub de
-  `main` est désormais active : sept checks CI, un statut de convergence,
+  `main` est désormais active : huit checks CI, un statut de convergence,
   une approbation et la résolution des conversations, y compris pour l'admin.
   Le bot GitHub Actions choisi le 27 novembre formalise l'approbation après
   preuve des huit rapports propres et CI verte ; il n'est pas un relecteur

@@ -7,6 +7,7 @@ abstract interface class ProgressRepository {
     required String listId,
     required QuizDirection direction,
     int limit = 20,
+    bool includeScheduled = false,
   });
 
   /// Cross-list due cards — the "À réviser maintenant" smart list. Only

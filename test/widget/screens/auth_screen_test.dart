@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vocab_kr/core/errors/app_exception.dart';
@@ -96,6 +97,74 @@ void main() {
   }
 
   group('welcome screen', () {
+    for (final mode in ['signup', 'signin']) {
+      testWidgets('keyboard opens $mode and submits the actual form', (
+        tester,
+      ) async {
+        _lastAuth = null;
+        var reachedHome = false;
+        await pumpScreen(
+          tester,
+          screen: const WelcomeScreen(),
+          overrides: [
+            authStateProvider.overrideWith(_ScriptedAuthNotifier.new),
+            seedStarterListsProvider.overrideWith((ref) async {}),
+          ],
+          routes: [
+            GoRoute(
+              path: '/auth',
+              builder: (_, state) =>
+                  AuthScreen(initialMode: state.uri.queryParameters['mode']!),
+            ),
+            GoRoute(
+              path: '/home',
+              builder: (_, _) {
+                reachedHome = true;
+                return const Scaffold(body: Text('Home'));
+              },
+            ),
+          ],
+        );
+        // Traverse the two visible welcome actions using Tab alone.
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        if (mode == 'signin') {
+          await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        }
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+        expect(find.byType(AuthScreen), findsOneWidget);
+        expect(
+          find.byKey(const Key('username_field')),
+          mode == 'signup' ? findsOneWidget : findsNothing,
+        );
+        if (mode == 'signup') {
+          await tester.enterText(
+            find.byKey(const Key('username_field')),
+            'thomas',
+          );
+        }
+        await tester.enterText(find.byKey(const Key('email_field')), 't@t.fr');
+        await tester.enterText(
+          find.byKey(const Key('password_field')),
+          'secret123',
+        );
+        // Password -> visibility -> forgot password (sign in) -> submit.
+        final steps = mode == 'signin' ? 3 : 2;
+        for (var i = 0; i < steps; i++) {
+          await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        }
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+        expect(reachedHome, isTrue);
+        expect(
+          mode == 'signin'
+              ? _lastAuth!.signedInEmail
+              : _lastAuth!.signedUpUsername,
+          mode == 'signin' ? 't@t.fr' : 'thomas',
+        );
+      });
+    }
+
     testWidgets('sign-up and sign-in buttons route with the right mode', (
       tester,
     ) async {

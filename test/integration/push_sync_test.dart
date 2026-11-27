@@ -18,6 +18,7 @@ import 'package:vocab_kr/data/models/variant_progress_dto.dart';
 import 'package:vocab_kr/data/repositories/progress_repository_impl.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/data/sync/push_sync.dart';
+import 'package:vocab_kr/data/sync/vocabulary_write_order.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
 import 'package:vocab_kr/domain/entities/variant_progress.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
@@ -318,7 +319,10 @@ void main() {
       addTearDown(client.dispose);
       final datasource = VocabularyRemoteDataSource(client);
 
-      const list = {'id': 'list', 'owner_id': 'u'};
+      final list = const VocabularyWriteStamp(
+        'fixture',
+        1,
+      ).apply({'id': 'list', 'owner_id': 'u'});
       final outage = await datasource.upsertList(list);
       expect(outage.exceptionOrNull, isA<NetworkException>());
       connected = true;
@@ -355,7 +359,11 @@ void main() {
               request.url.queryParameters,
               containsPair('owner_id', 'eq.u'),
             );
-            expect(jsonDecode(request.body), {'name': 'Edited on B'});
+            expect(jsonDecode(request.body), {
+              'name': 'Edited on B',
+              'sync_write_protocol': 16,
+            });
+            expect(request.headers['x-ponderin-sync-sequence'], '1');
             return http.Response(
               '[{"id":"list","owner_id":"u","name":"Edited on B","visibility":"public"}]',
               200,
@@ -371,7 +379,10 @@ void main() {
     final datasource = VocabularyRemoteDataSource(client);
 
     final result = await datasource.upsertList(
-      {'id': 'list', 'owner_id': 'u', 'visibility': 'private'},
+      const VocabularyWriteStamp(
+        'fixture',
+        1,
+      ).apply({'id': 'list', 'owner_id': 'u', 'visibility': 'private'}),
       insertOnly: true,
       changes: {'name': 'Edited on B'},
     );

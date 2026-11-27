@@ -83,6 +83,7 @@ class _FakeProgressRepo implements ProgressRepository {
     required String listId,
     required QuizDirection direction,
     int limit = 20,
+    bool includeScheduled = false,
   }) async {
     if (listId == 'slow') await delayed?.future;
     final r = responses[direction] ?? const Success([]);
@@ -637,6 +638,109 @@ void main() {
       expect(state.cards.every((c) => c.questionWord == 'chat'), isTrue);
     },
   );
+
+  for (final source in [QuizSource.list, QuizSource.inProgress]) {
+    test(
+      'the practice sheet loads the advertised distinct ${source.name} cards',
+      () async {
+        final remote = FakeRemote();
+        final repo = VocabularyRepositoryImpl(
+          db.vocabularyListDao,
+          db.conceptDao,
+          remote,
+          'u',
+          db,
+        );
+        final list = (await repo.createList(
+          name: 'Practice selection',
+        )).valueOrNull!;
+        final expected = <String>{};
+        final total = source == QuizSource.list ? 10 : 6;
+        for (var i = 0; i < total; i++) {
+          final concept = (await repo.addConceptWithVariants(
+            listId: list.id,
+            wordA: 'mot $i',
+            wordB: '단어 $i',
+          )).valueOrNull!;
+          final variant = (await db.conceptDao.getVariantsByConcept(
+            concept.id,
+          )).singleWhere((word) => word.langCode == 'fr');
+          expected.add(variant.id);
+          await db.progressDao.upsertLocal(
+            _due(variant.id, QuizDirection.frToKo)
+                .copyWith(
+                  state: CardState.review,
+                  nextReview: i == 0
+                      ? _now
+                      : DateTime.now().add(const Duration(days: 1)),
+                )
+                .toLocalCompanion(),
+          );
+        }
+        final container = ProviderContainer(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(db),
+            vocabularyRemoteProvider.overrideWithValue(remote),
+            currentUserProvider.overrideWithValue(
+              AppUser(
+                id: 'u',
+                username: 'learner',
+                email: 'u@example.invalid',
+                createdAt: _now,
+              ),
+            ),
+            audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
+          ],
+        );
+        addTearDown(container.dispose);
+        final configuredList = source == QuizSource.list ? list.id : null;
+        final direction = source == QuizSource.list
+            ? QuizDirectionChoice.frToKo
+            : QuizDirectionChoice.both;
+        final available = await container.read(
+          quizAvailabilityProvider((
+            pair: ('fr', 'ko'),
+            source: source,
+            direction: direction,
+            listId: configuredList,
+          )).future,
+        );
+        expect(available, total);
+        final reading = container.listen(quizProvider, (_, _) {});
+        addTearDown(reading.close);
+        final quiz = container.read(quizProvider.notifier);
+        await quiz.loadCards(
+          QuizArgs(
+            listId: configuredList,
+            source: source,
+            mode: QuizMode.flashcard,
+            direction: direction,
+            cardLimit: available,
+            distinctCardsOnly: true,
+          ),
+        );
+        expect(
+          reading.read().cards.map((card) => card.progress.variantId),
+          unorderedEquals(expected),
+        );
+        if (source == QuizSource.list) {
+          await quiz.loadCards(
+            QuizArgs(
+              listId: configuredList,
+              mode: QuizMode.flashcard,
+              direction: direction,
+              cardLimit: total,
+            ),
+          );
+          expect(reading.read().cards, hasLength(total));
+          expect(
+            reading.read().cards.map((card) => card.progress.variantId).toSet(),
+            hasLength(1),
+          );
+        }
+      },
+    );
+  }
 
   test(
     'fewer due cards than the limit → padded cyclically to the limit',

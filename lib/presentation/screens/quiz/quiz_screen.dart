@@ -80,6 +80,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   late final WhisperSpeechService _whisper;
   late final ElevenLabsSpeechService _elevenLabs;
   final _answerCtrl = TextEditingController();
+  final _typingFieldKey = GlobalKey();
   AudioDirector? _sessionDirector;
   SharedPcmCapture? _sharedCapture;
   // Race adapters, created lazily on first race use. They WRAP this screen's
@@ -1667,6 +1668,48 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _answerCtrl.clear();
     }
 
+    final prompt = WordInWave(
+      word: card.questionWord,
+      isKorean: questionIsHangul,
+      cue: cue,
+      cueColor: cueColor,
+      waveActive: false,
+    );
+    // Retain the editable element and its keyboard connection when the inset
+    // switches this layout between its anchored and scrolling controls.
+    final input = KeyedSubtree(
+      key: _typingFieldKey,
+      child: TextField(
+        key: const ValueKey(WidgetKeys.ecrireInput),
+        controller: _answerCtrl,
+        autofocus: true,
+        textAlign: TextAlign.center,
+        textInputAction: TextInputAction.done,
+        cursorColor: AppColors.clay,
+        style: AppTextStyles.fig(
+          22,
+          FontWeight.w600,
+        ).copyWith(color: cs.onSurface),
+        decoration: InputDecoration(
+          filled: false,
+          hintText: 'quiz.typing_hint'.tr(),
+          border: const UnderlineInputBorder(),
+          enabledBorder: UnderlineInputBorder(
+            borderSide: BorderSide(color: cs.outline),
+          ),
+          focusedBorder: const UnderlineInputBorder(
+            borderSide: BorderSide(color: AppColors.clay, width: 2),
+          ),
+        ),
+        onSubmitted: (_) => submit(),
+      ),
+    );
+    final validate = FilledButton(
+      key: const ValueKey(WidgetKeys.ecrireValidate),
+      onPressed: submit,
+      child: Text('quiz.validate'.tr()),
+    );
+
     return StudyScaffold(
       current: s.position,
       total: s.displayTotal,
@@ -1676,57 +1719,47 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             )
           : null,
       onQuit: _quit,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
-        child: Column(
-          children: [
-            Expanded(
-              child: _ScrollablePrompt(
-                child: WordInWave(
-                  word: card.questionWord,
-                  isKorean: questionIsHangul, // question is Korean when KO→FR
-                  cue: cue,
-                  cueColor: cueColor,
-                  waveActive: false,
-                ),
-              ),
-            ),
-            // Native keyboard — underlined field, clay caret.
-            TextField(
-              key: const ValueKey(WidgetKeys.ecrireInput),
-              controller: _answerCtrl,
-              autofocus: true,
-              textAlign: TextAlign.center,
-              textInputAction: TextInputAction.done,
-              cursorColor: AppColors.clay,
-              style: AppTextStyles.fig(
-                22,
-                FontWeight.w600,
-              ).copyWith(color: cs.onSurface),
-              decoration: InputDecoration(
-                filled: false,
-                hintText: 'quiz.typing_hint'.tr(),
-                border: const UnderlineInputBorder(),
-                enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: cs.outline),
-                ),
-                focusedBorder: const UnderlineInputBorder(
-                  borderSide: BorderSide(color: AppColors.clay, width: 2),
-                ),
-              ),
-              onSubmitted: (_) => submit(),
-            ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final scaledInputText = MediaQuery.textScalerOf(context).scale(22);
+          final stackedControls = [
+            input,
             const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                key: const ValueKey(WidgetKeys.ecrireValidate),
-                onPressed: submit,
-                child: Text('quiz.validate'.tr()),
+            SizedBox(width: double.infinity, child: validate),
+          ];
+          if (constraints.maxHeight < 148 + scaledInputText) {
+            return ScrollAffordance(
+              key: const ValueKey(WidgetKeys.quizPrompt),
+              hint: 'v3.scroll_hint'.tr(),
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+              child: Column(
+                children: [
+                  prompt,
+                  const SizedBox(height: 12),
+                  if (constraints.maxWidth >= 420)
+                    Row(
+                      children: [
+                        Expanded(flex: 2, child: input),
+                        const SizedBox(width: 12),
+                        Expanded(child: validate),
+                      ],
+                    )
+                  else
+                    ...stackedControls,
+                ],
               ),
+            );
+          }
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+            child: Column(
+              children: [
+                Expanded(child: _ScrollablePrompt(child: prompt)),
+                ...stackedControls,
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

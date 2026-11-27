@@ -33,6 +33,7 @@ class ProgressRepositoryImpl implements ProgressRepository {
     required String listId,
     required QuizDirection direction,
     int limit = 20,
+    bool includeScheduled = false,
   }) async {
     try {
       final allVariantIds = await _progressDao.getPlayableListVariantIds(
@@ -82,18 +83,23 @@ class ProgressRepositoryImpl implements ProgressRepository {
           .toList();
 
       final combined = [...dueCards, ...newCards];
-      if (combined.isNotEmpty) {
+      if (combined.isNotEmpty &&
+          (!includeScheduled || combined.length >= limit)) {
         return Success(combined.take(limit).toList());
       }
 
-      // No due or new cards — fall back to all scheduled cards so the quiz
-      // is never empty for a list the user explicitly opened (early review).
+      // The practice sheet offers every playable card once. Its unused
+      // places may use scheduled cards after due and new cards.
+      final selected = {for (final card in combined) card.variantId};
       final scheduled = await _progressDao.getScheduledByVariants(
         userId: userId,
         direction: direction.name,
-        variantIds: allVariantIds,
+        variantIds: allVariantIds
+            .where((id) => !selected.contains(id))
+            .toList(),
+        limit: limit - combined.length,
       );
-      return Success(scheduled.map((r) => r.toDomain()).take(limit).toList());
+      return Success([...combined, ...scheduled.map((r) => r.toDomain())]);
     } catch (e) {
       return Failure(StorageException(e.toString()));
     }

@@ -362,6 +362,7 @@ class _FakeProgressRepo implements ProgressRepository {
     required String listId,
     required QuizDirection direction,
     int limit = 20,
+    bool includeScheduled = false,
   }) async =>
       Success(due.where((p) => p.direction == direction).take(limit).toList());
 
@@ -722,6 +723,53 @@ void main() {
     );
     expect(find.text('chien'), findsNothing);
   });
+
+  testWidgets(
+    'landscape typing keeps input and validation reachable above keyboard',
+    (tester) async {
+      await pump(tester, mode: QuizMode.typing, words: [('chat', '고양이')]);
+      tester.view.physicalSize = const Size(1704, 960);
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pump();
+      final input = find.byKey(const ValueKey(WidgetKeys.ecrireInput));
+      final validate = find.byKey(const ValueKey(WidgetKeys.ecrireValidate));
+      final editable = find.descendant(
+        of: input,
+        matching: find.byType(EditableText),
+      );
+      await tester.enterText(input, '고양이');
+      final focus = tester.widget<EditableText>(editable).focusNode;
+      tester.view.viewInsets = const FakeViewPadding(bottom: 540);
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(tester.widget<EditableText>(editable).focusNode, same(focus));
+      expect(focus.hasFocus, isTrue);
+      expect(tester.widget<EditableText>(editable).controller.text, '고양이');
+      final scroll = find.byKey(const ValueKey(WidgetKeys.quizPrompt));
+      final scrollable = find
+          .descendant(of: scroll, matching: find.byType(Scrollable))
+          .first;
+      expect(
+        tester.state<ScrollableState>(scrollable).position.maxScrollExtent,
+        greaterThan(0),
+      );
+      await tester.ensureVisible(validate);
+      await tester.pump();
+      expect(input.hitTestable(), findsOneWidget);
+      expect(validate.hitTestable(), findsOneWidget);
+      expect(tester.getRect(validate).bottom, lessThanOrEqualTo(140));
+      await tester.tap(validate);
+      tester.view.resetViewInsets();
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await unmountScreen(tester);
+    },
+  );
 
   for (final theme in [ThemeMode.light, ThemeMode.dark]) {
     testWidgets('flashcard review grade has readable ${theme.name} contrast', (

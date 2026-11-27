@@ -15,6 +15,7 @@ import '../models/variant_progress_dto.dart';
 import '../models/vocabulary_list_dto.dart';
 import '../models/word_variant_dto.dart';
 import 'vocabulary_sync_ids.dart';
+import 'vocabulary_write_order.dart';
 
 /// Outbound sync: pushes every row still marked `isSynced=false` to the
 /// remote and flips the flag on success.
@@ -104,11 +105,19 @@ class PushSync {
       rows: () async => progress,
       push: (r) async {
         final ids = await idsFor(r.userId);
+        final stamp = await _stampFor(
+          r.userId,
+          r,
+          () => _progressDao.getById(r.id),
+        );
+        if (stamp == null) return const Success(0);
         return _sendThenAcknowledge(
           _remote.upsertProgress(
-            ids.encode(
-              SyncedVocabularyRow.progress,
-              r.toDomain().toRemoteMap(),
+            stamp.apply(
+              ids.encode(
+                SyncedVocabularyRow.progress,
+                r.toDomain().toRemoteMap(),
+              ),
             ),
           ),
           () => _progressDao.acknowledge(r),
@@ -122,22 +131,33 @@ class PushSync {
       push: (r) async {
         final ids = await idsFor(r.userId);
         final listId = r.listId;
+        final stamp = await _stampFor(
+          r.userId,
+          r,
+          () => _reviewEventDao.getById(r.id),
+        );
+        if (stamp == null) return const Success(0);
         return _sendThenAcknowledge(
-          _remote.upsertReviewEvent({
-            'id': r.id,
-            'user_id': r.userId,
-            'variant_id': ids.wireId(SyncedVocabularyRow.variant, r.variantId),
-            'direction': r.direction,
-            'list_id': listId == null
-                ? null
-                : ids.wireId(SyncedVocabularyRow.list, listId),
-            'mode': r.mode,
-            'correct': r.correct,
-            'rating': r.rating,
-            'response_time_ms': r.responseTimeMs,
-            'retry_count': r.retryCount,
-            'created_at': r.createdAt.toUtc().toIso8601String(),
-          }),
+          _remote.upsertReviewEvent(
+            stamp.apply({
+              'id': r.id,
+              'user_id': r.userId,
+              'variant_id': ids.wireId(
+                SyncedVocabularyRow.variant,
+                r.variantId,
+              ),
+              'direction': r.direction,
+              'list_id': listId == null
+                  ? null
+                  : ids.wireId(SyncedVocabularyRow.list, listId),
+              'mode': r.mode,
+              'correct': r.correct,
+              'rating': r.rating,
+              'response_time_ms': r.responseTimeMs,
+              'retry_count': r.retryCount,
+              'created_at': r.createdAt.toUtc().toIso8601String(),
+            }),
+          ),
           () => _reviewEventDao.acknowledge(r),
         );
       },
@@ -145,6 +165,15 @@ class PushSync {
     );
     return run;
   }
+
+  Future<VocabularyWriteStamp?> _stampFor<R extends DataClass>(
+    String ownerId,
+    R submitted,
+    Future<R?> Function() load,
+  ) => _listDao.transaction(() async {
+    if (await load() != submitted) return null;
+    return VocabularyWriteStamp.allocate(_listDao.attachedDatabase, ownerId);
+  });
 
   Future<(List<VariantProgressTableData>, List<ReviewEventsTableData>)>
   _pendingReviews() => _listDao.transaction(() async {
@@ -326,11 +355,21 @@ class PushSync {
   }) async {
     Map<String, dynamic> wire(R row) => ids.encode(kind, toRemote(row));
     final payload = wire(submitted);
-    final base = await _listDao.getSharedImportBase(id);
+    final prepared = await _listDao.transaction(() async {
+      if (await load(id) != submitted) return null;
+      final base = await _listDao.getSharedImportBase(id);
+      final stamp = await VocabularyWriteStamp.allocate(
+        _listDao.attachedDatabase,
+        payload['owner_id'] as String,
+      );
+      return (base, stamp);
+    });
+    if (prepared == null) return const Success(0);
+    final (base, stamp) = prepared;
     final response = base == null
-        ? await push(payload)
+        ? await push(stamp.apply(payload))
         : await push(
-            payload,
+            stamp.apply(payload),
             insertOnly: true,
             changes: _changedFields(wire(fromLocalJson(base)), payload),
           );

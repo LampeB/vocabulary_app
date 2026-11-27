@@ -51,6 +51,10 @@ class ReviewEventDao extends DatabaseAccessor<AppDatabase>
   Future<int> acknowledge(ReviewEventsTableData row) =>
       acknowledgeSyncSnapshot(this, reviewEventsTable, row);
 
+  Future<ReviewEventsTableData?> getById(String id) => (select(
+    reviewEventsTable,
+  )..where((t) => t.id.equals(id))).getSingleOrNull();
+
   /// All events for a user, newest first — the stats dashboard's raw feed.
   Future<List<ReviewEventsTableData>> getByUser(String userId) =>
       (select(reviewEventsTable)

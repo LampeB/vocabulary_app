@@ -14,7 +14,18 @@ for (const name of required) {
   if (!process.env[name]) throw new Error(`Missing ${name}`);
 }
 
-const url = process.env.SUPABASE_URL.replace(/\/$/, "");
+const configuredUrl = process.env.SUPABASE_URL;
+let project;
+try {
+  project = new URL(configuredUrl);
+} catch {
+  throw new Error("Invalid Supabase HTTPS project origin");
+}
+if (/[\s\\]/.test(configuredUrl) || project.protocol !== "https:" ||
+    project.username || project.password || project.pathname !== "/" ||
+    project.search || project.hash || project.port === "0") {
+  throw new Error("Invalid Supabase HTTPS project origin");
+}
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const languages = (process.env.AUDIO_LANGS ?? "fr,en,ko").split(",").map((x) => x.trim());
 const headers = serviceKey.startsWith("sb_secret_")
@@ -35,8 +46,9 @@ const failures = [];
 for (let i = 0; i < unique.length; i += 10) {
   const chunk = unique.slice(i, i + 10);
   try {
-    const res = await fetch(`${url}/functions/v1/seed-audio-publish`, {
+    const res = await fetch(`${project.origin}/functions/v1/seed-audio-publish`, {
       method: "POST",
+      redirect: "error",
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({ items: chunk }),
     });

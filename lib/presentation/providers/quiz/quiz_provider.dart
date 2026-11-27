@@ -97,6 +97,7 @@ class QuizArgs {
     this.langB = 'ko',
     this.ruleId,
     this.ruleTitle,
+    this.distinctCardsOnly = false,
   }) : assert(
          source != QuizSource.list || listId != null,
          'a list-sourced session needs a listId',
@@ -124,6 +125,7 @@ class QuizArgs {
   /// Grammar sessions: the rule being drilled (+ its title for history).
   final String? ruleId;
   final String? ruleTitle;
+  final bool distinctCardsOnly;
 
   QuizDirection get forward =>
       QuizDirection(questionLang: langA, answerLang: langB);
@@ -362,12 +364,15 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       return;
     }
     final getDueCards = ref.read(getDueCardsUseCaseProvider);
+    final distinctCardsOnly =
+        args.distinctCardsOnly || args.source == QuizSource.allDue;
 
     // Fetch progress entries — one or two calls depending on direction choice.
     List<VariantProgress> progressList;
     if (args.direction == QuizDirectionChoice.both) {
-      final onlyDue = args.source == QuizSource.allDue;
-      final limit = onlyDue ? args.cardLimit : halfLimit(args.cardLimit);
+      final limit = distinctCardsOnly
+          ? args.cardLimit
+          : halfLimit(args.cardLimit);
       final frResult = await getDueCards.call(
         userId: ownerId,
         listId: args.listId,
@@ -376,6 +381,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         langA: args.langA,
         langB: args.langB,
         limit: limit,
+        includeScheduled: args.distinctCardsOnly,
       );
       if (!_isCurrentSession(epoch)) return;
       final koResult = await getDueCards.call(
@@ -386,6 +392,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         langA: args.langA,
         langB: args.langB,
         limit: limit,
+        includeScheduled: args.distinctCardsOnly,
       );
       if (!_isCurrentSession(epoch)) return;
       if (frResult.isFailure && koResult.isFailure) {
@@ -396,12 +403,11 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         );
         return;
       }
-      // Due-only sessions can fill unused places from either direction.
-      // Keep both pools through enrichment so an unanswerable entry can be skipped.
+      // Distinct-card sessions can fill unused places from either direction.
       progressList = interleaveAndCap(
         frResult.valueOrNull ?? [],
         koResult.valueOrNull ?? [],
-        onlyDue ? limit * 2 : args.cardLimit,
+        distinctCardsOnly ? limit * 2 : args.cardLimit,
       );
     } else {
       final direction = args.direction == QuizDirectionChoice.frToKo
@@ -415,6 +421,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         langA: args.langA,
         langB: args.langB,
         limit: args.cardLimit,
+        includeScheduled: args.distinctCardsOnly,
       );
       if (!_isCurrentSession(epoch)) return;
       if (result.isFailure) {
@@ -470,8 +477,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     var quizCards = <QuizCard>[];
     final seen = <(String, QuizDirection)>{};
     for (final p in progressList) {
-      if (args.source == QuizSource.allDue &&
-          !seen.add((p.variantId, p.direction))) {
+      if (distinctCardsOnly && !seen.add((p.variantId, p.direction))) {
         continue;
       }
       final question = questionById[p.variantId];
@@ -508,7 +514,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       );
     }
 
-    if (args.source == QuizSource.allDue) {
+    if (distinctCardsOnly) {
       quizCards = quizCards.take(args.cardLimit).toList();
     }
 
@@ -520,7 +526,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       (c) => questionById[c.progress.variantId]?.conceptId,
     );
 
-    if (args.source != QuizSource.allDue) {
+    if (!distinctCardsOnly) {
       quizCards = padCyclically(quizCards, args.cardLimit);
     }
 

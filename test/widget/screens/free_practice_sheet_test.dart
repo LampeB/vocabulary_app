@@ -198,6 +198,7 @@ void main() {
       expect(args!.direction, QuizDirectionChoice.both);
       expect((args!.langA, args!.langB), pair);
       expect(args!.cardLimit, 20);
+      expect(args!.distinctCardsOnly, isTrue);
     });
   }
 

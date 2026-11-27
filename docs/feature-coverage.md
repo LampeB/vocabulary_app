@@ -55,7 +55,7 @@
 | Active plateau → daily path → due-review mode → quiz | ✅ | widgets `daily_path_screen` / `quiz_screen`, plus provider tests for bidirectional availability and the session cap; the former Home one-tap path is historical |
 | Session assembly (both-directions interleave, cap, padding, drop rule, failure policy) | ✅ | unit `session_assembly` + provider `quiz_load_cards` |
 | Vocabulary flashcards: flip, self-grade and FSRS good/again (decision 2026-08-08 in `design/map/quiz-canvas.md`) | ✅ | widget `quiz_screen`: both grading controls persist the schedule once. Grammar cards remain practice without grammar mastery writes. E2E `Cartes ×2` checks score/summary. |
-| Typing: verdicts, KO→FR direction, card-count 10 | ✅ | widget + unit `answer_validator` + E2E `Écrire ×6` |
+| Typing: verdicts, KO→FR direction, card-count 10, controls reachable with a landscape keyboard and enlarged text | ✅ | widget + unit `answer_validator` + E2E `Écrire ×6` |
 | Voice mode | ⚠️ | E2E via the STT **simulator** (deterministic). 📵 real microphone recognition |
 | Hands-free mode (auto-advance, earcon/haptic, STT retry/failsafe timers) | ⚠️ | E2E via simulator. The Samsung-STT retry/failsafe logic in quiz_screen is 📵 (device timing) |
 | Answer validation (accents, typos, Korean particles, multi-word STT) | ✅ | unit, 100% file coverage |
@@ -80,13 +80,16 @@
 |---|---|---|
 | Daily-reminder & streak-warning scheduling rules | ✅ | unit `notification_schedule`; device time zone and calendar-day rollover across daylight-saving changes |
 | Settings screen (toggles persist, cancel/reschedule service calls, time picker) | ✅ | widget with real notifier + recording fake service |
-| Streak warning armed from Home when streak > 0 | ✅ | widget |
+| Daily reminder and streak warning restored on the authenticated route with saved preferences | ✅ | widget with the real app router |
 | Actual notification delivery | 📵 | native plugin |
 
 Une annulation invalide une programmation de même identifiant encore en
 attente du fuseau. Les commandes envoyées au système sont ordonnées par
 identifiant, y compris lorsqu'une annulation globale doit attendre une
 programmation déjà transmise.
+Le parcours authentifié charge les préférences avant de programmer les
+rappels. Le rappel de série est annulé pour une série vide ou une journée
+déjà étudiée.
 
 ## 6. Import / export / share
 
