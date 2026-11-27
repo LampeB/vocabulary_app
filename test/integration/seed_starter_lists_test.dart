@@ -1,11 +1,17 @@
 // ignore_for_file: invalid_use_of_internal_member
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
+import 'package:vocab_kr/data/models/concept_dto.dart';
+import 'package:vocab_kr/data/models/variant_progress_dto.dart';
+import 'package:vocab_kr/data/models/vocabulary_list_dto.dart';
+import 'package:vocab_kr/data/models/word_variant_dto.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/data/seed/starter_seeder.dart';
+import 'package:vocab_kr/data/sync/push_sync.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
 import 'package:vocab_kr/domain/entities/subscription_type.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
@@ -14,6 +20,57 @@ import '../helpers/fake_remote.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
+import 'package:vocab_kr/domain/entities/variant_progress.dart';
+import 'package:vocab_kr/presentation/providers/settings/default_pair_provider.dart';
+
+class _HistoricalStarterRemote extends FakeRemote {
+  bool offline = true;
+  final lists = <Map<String, dynamic>>[];
+  final concepts = <Map<String, dynamic>>[];
+  final progress = <Map<String, dynamic>>[];
+  final pushedLists = <Map<String, dynamic>>[];
+  final pushedProgress = <Map<String, dynamic>>[];
+  final pushedEvents = <Map<String, dynamic>>[];
+
+  @override
+  Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async =>
+      offline ? const Failure(NetworkException('offline')) : Success(lists);
+
+  @override
+  Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
+    String listId,
+  ) async =>
+      Success(concepts.where((row) => row['list_id'] == listId).toList());
+
+  @override
+  Future<Result<List<Map<String, dynamic>>>> fetchProgress(
+    String userId,
+  ) async => Success(progress);
+
+  @override
+  Future<Result<Map<String, dynamic>>> upsertList(
+    Map<String, dynamic> data, {
+    bool insertOnly = false,
+    Map<String, dynamic>? changes,
+  }) async {
+    pushedLists.add(data);
+    return Success(data);
+  }
+
+  @override
+  Future<Result<Map<String, dynamic>>> upsertProgress(
+    Map<String, dynamic> data,
+  ) async {
+    pushedProgress.add(data);
+    return Success(data);
+  }
+
+  @override
+  Future<Result<void>> upsertReviewEvent(Map<String, dynamic> data) async {
+    pushedEvents.add(data);
+    return const Success(null);
+  }
+}
 
 class _FailOnceSeedRepository extends VocabularyRepositoryImpl {
   _FailOnceSeedRepository(AppDatabase db)
@@ -84,6 +141,157 @@ void main() {
     );
   });
   tearDown(() => db.close());
+
+  for (final conflictingHistory in [false, true]) {
+    test(
+      'offline seed finds the historical server identity${conflictingHistory ? ' and preserves conflicting histories' : ''}',
+      () async {
+        final remote = _HistoricalStarterRemote();
+        repo = VocabularyRepositoryImpl(
+          db.vocabularyListDao,
+          db.conceptDao,
+          remote,
+          'u1',
+          db,
+        );
+        final push = PushSync(
+          db.vocabularyListDao,
+          db.conceptDao,
+          db.progressDao,
+          db.reviewEventDao,
+          remote,
+          userId: 'u1',
+        );
+        await expectLater(
+          repo.syncFromRemote(),
+          throwsA(isA<NetworkException>()),
+        );
+        await seed();
+        final draft = (await repo.watchMyLists().first).firstWhere(
+          (row) => row.seedId == 'starter-greetings:fr>ko',
+        );
+        final concept = (await db.conceptDao.getConceptsByList(draft.id)).first;
+        final words = await db.conceptDao.getVariantsByConcept(concept.id);
+        final fr = words.firstWhere((word) => word.langCode == 'fr');
+        final ko = words.firstWhere((word) => word.langCode == 'ko');
+        final now = DateTime.utc(2026, 11, 27);
+        final localProgress = VariantProgress(
+          id: 'draft-progress',
+          userId: 'u1',
+          variantId: fr.id,
+          direction: QuizDirection.frToKo,
+          reps: 2,
+          timesShown: 2,
+          createdAt: now,
+          updatedAt: now,
+        );
+        await db.progressDao.upsertLocal(localProgress.toLocalCompanion());
+        await db.reviewEventDao.insertEvent(
+          ReviewEventsTableCompanion.insert(
+            id: 'draft-review-event',
+            userId: 'u1',
+            variantId: fr.id,
+            listId: Value(draft.id),
+            direction: 'fr>ko',
+            mode: 'typing',
+            correct: true,
+            rating: 'good',
+            createdAt: now,
+          ),
+        );
+
+        // The write endpoint can be available while the restore endpoint fails.
+        // An unresolved starter never leaks into that drain, including its FK rows.
+        final personal = (await repo.createList(name: 'Personal')).valueOrNull!;
+        expect(await push.pushAll(), 1);
+        expect(remote.pushedLists.map((row) => row['id']), [personal.id]);
+        expect(remote.pushedProgress, isEmpty);
+        expect(remote.pushedEvents, isEmpty);
+
+        const oldList = 'legacy-random-list';
+        const oldConcept = 'legacy-random-concept';
+        const oldFr = 'legacy-random-fr';
+        const oldKo = 'legacy-random-ko';
+        remote.lists.add({
+          ...draft.toRemoteMap(),
+          'id': oldList,
+          'name': 'Edited on first device',
+        });
+        remote.concepts.add({
+          ...concept.toRemoteMap(),
+          'id': oldConcept,
+          'list_id': oldList,
+          'notes': 'Existing note',
+          'word_variants': [
+            {
+              ...fr.toRemoteMap(),
+              'id': oldFr,
+              'concept_id': oldConcept,
+              'word': 'Edited existing word',
+            },
+            {...ko.toRemoteMap(), 'id': oldKo, 'concept_id': oldConcept},
+          ],
+        });
+        final oldProgress = localProgress.copyWith(
+          id: 'server-progress',
+          variantId: conflictingHistory ? oldFr : oldKo,
+          direction: conflictingHistory
+              ? QuizDirection.frToKo
+              : QuizDirection.koToFr,
+          reps: 12,
+          timesShown: 12,
+        );
+        remote.progress.add(oldProgress.toRemoteMap());
+        remote.offline = false;
+
+        await repo.syncFromRemote();
+        final copies = (await repo.watchMyLists().first)
+            .where((row) => row.seedId == draft.seedId)
+            .toList();
+        expect(
+          copies.where((row) => row.id == oldList).single.name,
+          'Edited on first device',
+        );
+        expect(
+          (await db.conceptDao.getVariantById(oldFr))!.word,
+          'Edited existing word',
+        );
+        expect((await db.progressDao.getById(oldProgress.id))!.reps, 12);
+        final saved = (await db.progressDao.getById(localProgress.id))!;
+        if (conflictingHistory) {
+          expect(
+            copies.map((row) => row.id),
+            unorderedEquals([draft.id, oldList]),
+          );
+          expect(saved.variantId, fr.id);
+          expect(
+            await db.vocabularyListDao.isStarterDraftHeld(draft.id),
+            isTrue,
+          );
+        } else {
+          expect(copies.single.id, oldList);
+          expect(saved.variantId, oldFr);
+          expect(
+            (await db.reviewEventDao.getByUser('u1')).single.variantId,
+            oldFr,
+          );
+        }
+        await push.pushAll();
+        expect(
+          remote.pushedLists.where((row) => row['seed_id'] == draft.seedId),
+          isEmpty,
+        );
+        expect(
+          remote.pushedProgress.any((row) => row['variant_id'] == fr.id),
+          isFalse,
+        );
+        expect(
+          remote.pushedEvents.any((row) => row['variant_id'] == fr.id),
+          isFalse,
+        );
+      },
+    );
+  }
 
   test(
     'a brand-new user gets the 6 fr>ko starter lists with all their words',
@@ -370,6 +578,41 @@ void main() {
       c.listen(seedStarterListsProvider, (_, _) {});
       await c.read(seedStarterListsProvider.future);
       expect((await repo.watchMyLists().first).length, 6);
+    },
+  );
+
+  test(
+    'the authenticated bootstrap follows an unseeded pair selection',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'settings_default_lang_a': 'fr',
+        'settings_default_lang_b': 'ko',
+      });
+      final container = makeContainer();
+      final active = container.listen(seedStarterListsProvider, (_, _) {});
+      addTearDown(active.close);
+      await container.read(seedStarterListsProvider.future);
+      expect(
+        (await repo.watchMyLists().first)
+            .map((row) => (row.langA, row.langB))
+            .toSet(),
+        {('fr', 'ko')},
+      );
+
+      final selected = container
+          .read(defaultPairProvider.notifier)
+          .set('ko', 'fr');
+      await container.read(seedStarterListsProvider.future);
+      await selected;
+      final lists = await repo.watchMyLists().first;
+      expect(
+        lists.where((row) => (row.langA, row.langB) == ('fr', 'ko')),
+        hasLength(6),
+      );
+      expect(
+        lists.where((row) => (row.langA, row.langB) == ('ko', 'fr')),
+        hasLength(5),
+      );
     },
   );
 }

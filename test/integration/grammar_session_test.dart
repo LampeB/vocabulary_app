@@ -104,7 +104,10 @@ void main() {
     DrillWord(word: '밥', category: 'nom'),
   ];
 
-  ProviderContainer makeContainer({List<Override> overrides = const []}) {
+  ProviderContainer makeContainer({
+    List<Override> overrides = const [],
+    StateProvider<AppUser?>? account,
+  }) {
     final c = ProviderContainer(
       overrides: [
         appDatabaseProvider.overrideWithValue(db),
@@ -123,15 +126,18 @@ void main() {
             _ => words,
           },
         ),
-        currentUserProvider.overrideWithValue(
-          AppUser(
-            id: 'u',
-            email: 't@t.fr',
-            username: 't',
-            subscriptionType: SubscriptionType.free,
-            createdAt: DateTime(2026),
-          ),
-        ),
+        if (account == null)
+          currentUserProvider.overrideWithValue(
+            AppUser(
+              id: 'u',
+              email: 't@t.fr',
+              username: 't',
+              subscriptionType: SubscriptionType.free,
+              createdAt: DateTime(2026),
+            ),
+          )
+        else
+          currentUserProvider.overrideWith((ref) => ref.watch(account)),
         audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
         authRepositoryProvider.overrideWithValue(_FakeAuthRepo()),
         authStateProvider.overrideWith(_FakeAuthNotifier.new),
@@ -227,6 +233,37 @@ void main() {
     expect(sub.read().answerState, QuizAnswerState.correct);
     expect((await afterAnswers(2)).correct, 1);
   });
+
+  test(
+    'direct account replacement leaves a stale grammar drill ungraded',
+    () async {
+      AppUser user(String id) => AppUser(
+        id: id,
+        email: '$id@example.com',
+        username: id,
+        createdAt: DateTime(2026),
+      );
+      final accounts = StateProvider<AppUser?>((_) => user('u'));
+      final session = makeContainer(account: accounts);
+      final sub = session.listen(quizProvider, (_, _) {});
+      final quiz = session.read(quizProvider.notifier);
+      await quiz.loadCards(args());
+      final oldAnswer = sub.read().currentCard!.answerWords.first;
+      session.read(accounts.notifier).state = user('b');
+      quiz.submitTextAnswer(oldAnswer);
+      quiz.submitVoiceAnswer(oldAnswer, isDrivingMode: true);
+
+      expect(sub.read().cards, isEmpty);
+      expect(sub.read().errorMessage, 'quiz.account_changed'.tr());
+      for (final id in ['u', 'b']) {
+        expect(
+          await db.grammarProgressDao.get(id, 'particule-theme-eun-neun'),
+          isNull,
+        );
+        expect(await db.reviewEventDao.getByUser(id), isEmpty);
+      }
+    },
+  );
 
   test('French negation accepts the full first-person answer', () async {
     const ruleId = 'fr-negation-ne-pas';

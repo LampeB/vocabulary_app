@@ -65,7 +65,9 @@ Le serveur vérifie l'association compte/scénario sous verrou. La liste
 La fonction sans argument est privée ; le client ne peut cibler un autre UUID.
 Une erreur annule le reset et fait échouer uniquement le scénario concerné.
 Les autres suites continuent même après un échec. Les processus Android sont renouvelés par Test Orchestrator avec
-`clearPackageData=true`. `TEST_SESSION` est interdit.
+`clearPackageData=true`. Le démarrage de l'application utilise l'initialisation
+Supabase habituelle et chaque scénario se connecte avec son compte dédié.
+Le helper Patrol refuse la définition `TEST_SESSION`.
 La migration 012 étend le verrou transactionnel aux tables de relations et de
 contenu avant le précontrôle : une écriture intercompte arrivant pendant le
 reset attend sa fin au lieu d'être supprimée après un contrôle déjà passé.
@@ -161,6 +163,20 @@ les transcriptions du corpus et le journal brut dans ce build.
 Le récepteur de corpus debug exige la permission système `DUMP` détenue par
 `adb shell`, refuse les applications ordinaires, et limite ses fichiers WAV
 PCM16 mono 16 kHz de 30 secondes au répertoire externe `files/corpus/` du build.
+Les règles Android du build debug excluent des sauvegardes système et des
+transferts entre appareils le corpus interne `app_flutter/stt_corpus`, le
+journal externe `files/stt_logs` et le corpus de rejeu externe `files/corpus`.
+L'extraction manuelle reste disponible via `adb pull` pour les fichiers
+externes et via `adb exec-out run-as` pour le corpus interne du build debug.
+[Règles Android de sauvegarde et de transfert](https://developer.android.com/identity/data/autobackup).
+
+```bash
+pkg=com.vocabkr.vocab_kr.debug
+mkdir -p tool/stt_corpus
+extract_dir=$(mktemp -d tool/stt_corpus/extraction.XXXXXX)
+adb pull "/sdcard/Android/data/$pkg/files/stt_logs" "$extract_dir/"
+adb exec-out run-as "$pkg" tar -cf - app_flutter/stt_corpus > "$extract_dir/stt_corpus.tar"
+```
 
 Les jobs conservent pendant 7 jours les rapports Android HTML/XML/textuels,
 même en cas d’échec. Les identifiants configurés et JWT sont masqués avant

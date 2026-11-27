@@ -80,7 +80,12 @@ class PushSync {
 
   Future<_PushRun> _pushOnce() async {
     final run = _PushRun();
+    final heldLists = (await _listDao.heldStarterDrafts(
+      ownerId: _userId,
+    )).map((list) => list.id).toSet();
+    final heldVariants = await _conceptDao.getVariantIdsByLists(heldLists);
     for (final id in await _listDao.getPendingListIds(ownerId: _userId)) {
+      if (heldLists.contains(id)) continue;
       final list = await _flushList(id);
       run.pushed += list.pushed;
       if (list.transportUnavailable) {
@@ -90,7 +95,9 @@ class PushSync {
     }
     await _drain(
       run,
-      rows: () => _progressDao.getUnsyncedProgress(userId: _userId),
+      rows: () async => (await _progressDao.getUnsyncedProgress(
+        userId: _userId,
+      )).where((row) => !heldVariants.contains(row.variantId)).toList(),
       push: (r) => _sendThenAcknowledge(
         _remote.upsertProgress(r.toDomain().toRemoteMap()),
         () => _progressDao.acknowledge(r),
@@ -99,7 +106,13 @@ class PushSync {
     );
     await _drain(
       run,
-      rows: () => _reviewEventDao.getUnsynced(userId: _userId),
+      rows: () async => (await _reviewEventDao.getUnsynced(userId: _userId))
+          .where(
+            (row) =>
+                !heldLists.contains(row.listId) &&
+                !heldVariants.contains(row.variantId),
+          )
+          .toList(),
       push: (r) => _sendThenAcknowledge(
         _remote.upsertReviewEvent({
           'id': r.id,
@@ -148,6 +161,10 @@ class PushSync {
       _listsToRetry.remove(listId);
       final list = await _listDao.getById(listId);
       if (list == null || (_userId != null && list.ownerId != _userId)) break;
+      if (list.origin == 'starter' &&
+          await _listDao.isStarterDraftHeld(listId)) {
+        break;
+      }
 
       if (!list.isSynced) {
         await _drain(

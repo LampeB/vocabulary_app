@@ -4,7 +4,9 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <application>
+    <application
+        android:fullBackupContent="@xml/debug_backup_rules"
+        android:dataExtractionRules="@xml/debug_data_extraction_rules">
         <!-- Debug-only: replays tool/stt_corpus through PcmSpeechRecognizer. -->
         <receiver
             android:name="com.vocabkr.vocab_kr.DebugRecognizeReceiver"

@@ -32,6 +32,8 @@ import 'presentation/providers/settings/settings_provider.dart';
 import 'presentation/navigation/dive_in_page.dart';
 import 'presentation/navigation/auth_redirect.dart';
 import 'presentation/widgets/app_shell.dart';
+import 'presentation/widgets/session_bootstrap.dart';
+import 'services/incoming_link_dispatcher.dart';
 
 // Set via --dart-define-from-file in integration tests to skip page-transition
 // animations, which cause mid-layout semantics errors in the test framework.
@@ -71,7 +73,7 @@ class _PonderinAppState extends ConsumerState<PonderinApp> {
   late final GoRouter _router;
   late final _AuthChangeNotifier _authNotifier;
   late final AppLinks _appLinks;
-  StreamSubscription<Uri>? _linkSub;
+  late final IncomingLinkDispatcher _linkDispatcher;
 
   @override
   void initState() {
@@ -83,10 +85,11 @@ class _PonderinAppState extends ConsumerState<PonderinApp> {
 
   void _initDeepLinks() {
     _appLinks = AppLinks();
-    // Handle initial link (app was cold-started from a link).
-    _appLinks.getInitialLink().then((uri) => _handleLink(uri, coldStart: true));
-    // Handle links while app is already running.
-    _linkSub = _appLinks.uriLinkStream.listen(_handleLink);
+    _linkDispatcher = IncomingLinkDispatcher(
+      getInitialLink: _appLinks.getInitialLink,
+      links: _appLinks.uriLinkStream,
+      onLink: (uri, coldStart) => _handleLink(uri, coldStart: coldStart),
+    );
   }
 
   void _handleLink(Uri? uri, {bool coldStart = false}) {
@@ -117,7 +120,7 @@ class _PonderinAppState extends ConsumerState<PonderinApp> {
 
   @override
   void dispose() {
-    _linkSub?.cancel();
+    unawaited(_linkDispatcher.dispose());
     _authNotifier.dispose();
     _router.dispose();
     super.dispose();
@@ -229,20 +232,22 @@ class _PonderinAppState extends ConsumerState<PonderinApp> {
         TargetPlatform.iOS: _NoAnimationPageTransitionsBuilder(),
       },
     );
-    return MaterialApp.router(
-      title: 'Ponderin',
-      theme: _kTestMode
-          ? AppTheme.light.copyWith(pageTransitionsTheme: noTransitions)
-          : AppTheme.light,
-      darkTheme: _kTestMode
-          ? AppTheme.dark.copyWith(pageTransitionsTheme: noTransitions)
-          : AppTheme.dark,
-      themeMode: themeMode,
-      routerConfig: _router,
-      debugShowCheckedModeBanner: false,
-      localizationsDelegates: context.localizationDelegates,
-      supportedLocales: context.supportedLocales,
-      locale: context.locale,
+    return SessionBootstrap(
+      child: MaterialApp.router(
+        title: 'Ponderin',
+        theme: _kTestMode
+            ? AppTheme.light.copyWith(pageTransitionsTheme: noTransitions)
+            : AppTheme.light,
+        darkTheme: _kTestMode
+            ? AppTheme.dark.copyWith(pageTransitionsTheme: noTransitions)
+            : AppTheme.dark,
+        themeMode: themeMode,
+        routerConfig: _router,
+        debugShowCheckedModeBanner: false,
+        localizationsDelegates: context.localizationDelegates,
+        supportedLocales: context.supportedLocales,
+        locale: context.locale,
+      ),
     );
   }
 }

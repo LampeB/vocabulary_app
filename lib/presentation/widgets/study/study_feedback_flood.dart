@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widget_keys.dart';
+import '../scroll_affordance.dart';
 
 /// The unified grading feedback used by every study mode: a held, **full-screen
 /// colour flood** (not a tint) so it's catchable peripherally — bright teal for
@@ -66,7 +67,9 @@ class StudyFeedbackFlood extends StatelessWidget {
       ),
       color: color,
       child: SafeArea(
-        child: Padding(
+        child: ScrollAffordance(
+          hint: 'v3.scroll_hint'.tr(),
+          fillViewport: true,
           padding: const EdgeInsets.all(32),
           child: Column(
             children: [

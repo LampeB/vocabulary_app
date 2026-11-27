@@ -154,8 +154,6 @@ class SttRace {
       }
     }
 
-    emit();
-
     final completer = Completer<SttRaceOutcome>();
     final seen = <SttHypothesis>[];
     Timer? timer;
@@ -304,6 +302,7 @@ class SttRace {
     late Future<void> Function(SttEngine) startEngine;
     startEngine = (SttEngine e) =>
         Future(() async {
+          if (_cancelled || finishing || completer.isCompleted) return;
           startedAt[e.id] = DateTime.now();
           final ok = await e.start(
             langCode: langCode,
@@ -381,6 +380,7 @@ class SttRace {
           sttLog('[RACE] "${e.id}" start threw: $err');
         });
 
+    emit();
     for (final e in racers) {
       unawaited(startEngine(e));
     }
@@ -432,6 +432,8 @@ class SttRace {
     var speaking = false;
     var inFlight = 0;
     var finished = false;
+    var reportedClosed = false;
+    Future<PcmSegment?>? captureClose;
     final localRacers = racers.where((e) => !e.requiresNetwork).toList();
     final cloudRacers = racers.where((e) => e.requiresNetwork).toList();
     final captured = <PcmSegment>[];
@@ -445,12 +447,14 @@ class SttRace {
 
     SttPhase phase() {
       if (finished) return SttPhase.done;
+      if (!micClosed) {
+        if (speaking) return SttPhase.speaking;
+        return micOpen ? SttPhase.listening : SttPhase.starting;
+      }
       if (inFlight > 0 || queuedCloud > 0 || fallbackRunning) {
         return SttPhase.analyzing;
       }
-      if (micClosed) return SttPhase.done;
-      if (speaking) return SttPhase.speaking;
-      return micOpen ? SttPhase.listening : SttPhase.starting;
+      return SttPhase.done;
     }
 
     void emit() {
@@ -460,14 +464,27 @@ class SttRace {
       );
     }
 
-    void stopTurn() {
+    void reportClosedPending() {
+      if (reportedClosed) return;
+      reportedClosed = true;
+      onMicClosedPending?.call();
+    }
+
+    Future<PcmSegment?> closeCapture({bool flush = false}) async {
+      final active = session;
+      if (active == null) return null;
+      try {
+        return await (captureClose ??= active.close(flush: flush));
+      } catch (error) {
+        sttLog('[RACE] microphone close failed: $error');
+        return null;
+      }
+    }
+
+    Future<PcmSegment?> stopTurn() {
       finished = true;
       deadline?.cancel();
       overrun?.cancel();
-      if (!micClosed) {
-        micClosed = true;
-        unawaited(session?.close());
-      }
       for (final decoder in turnDecoders) {
         unawaited(
           decoder.stop().catchError((Object error) {
@@ -475,11 +492,13 @@ class SttRace {
           }),
         );
       }
+      return micClosed ? Future.value() : closeCapture();
     }
 
-    void finish(SttRaceOutcome outcome) {
+    Future<void> finish(SttRaceOutcome outcome) async {
       if (finished) return;
-      stopTurn();
+      await stopTurn();
+      if (completer.isCompleted) return;
       emit();
       completer.complete(outcome);
     }
@@ -499,7 +518,7 @@ class SttRace {
           captured.isNotEmpty) {
         fallbackStarted = true;
         fallbackRunning = true;
-        onMicClosedPending?.call();
+        reportClosedPending();
         emit();
         // Keep voice on-device until every local hypothesis and the flushed
         // tail have failed. Cloud is a serial rescue, never a parallel upload.
@@ -524,12 +543,14 @@ class SttRace {
         '[RACE] ⏱ window over — no engine validated '
         '(${seen.length} hypotheses)',
       );
-      finish(
-        SttRaceOutcome(
-          matched: false,
-          bestTranscript: _bestTranscript(seen, finalOnly: preserveGrammar),
-          hypotheses: List.of(seen),
-          hadRealSession: true,
+      unawaited(
+        finish(
+          SttRaceOutcome(
+            matched: false,
+            bestTranscript: _bestTranscript(seen, finalOnly: preserveGrammar),
+            hypotheses: List.of(seen),
+            hadRealSession: true,
+          ),
         ),
       );
     }
@@ -573,7 +594,7 @@ class SttRace {
         );
         if (match != null) {
           sttLog('[RACE] 🏁 "${engine.id}" wins with "$match"');
-          finish(
+          await finish(
             SttRaceOutcome(
               matched: true,
               winnerEngineId: engine.id,
@@ -634,27 +655,22 @@ class SttRace {
       micClosing = true;
       overrun?.cancel();
       speaking = false;
-      PcmSegment? tail;
-      try {
-        tail = await session?.close(flush: true);
-      } catch (error) {
-        sttLog('[RACE] microphone close failed: $error');
-      }
+      final tail = await closeCapture(flush: true);
       if (tail != null) dispatch(tail);
       micClosing = false;
       micClosed = true;
       if (finished) return;
-      if (inFlight > 0) {
+      if (inFlight > 0 || queuedCloud > 0) {
         sttLog('[RACE] 🎙️ mic closed — awaiting $inFlight analyses');
-        onMicClosedPending?.call();
+        reportClosedPending();
       }
       emit();
       finishIfSettled();
     }
 
     _cancel = () {
-      if (finished) return;
-      stopTurn();
+      if (completer.isCompleted) return;
+      if (!finished) unawaited(stopTurn());
       completer.complete(
         SttRaceOutcome(
           matched: false,
@@ -665,6 +681,7 @@ class SttRace {
     };
 
     emit();
+    if (finished) return completer.future;
     session = await source.open(
       onSpeechChange: (inSpeech) {
         if (finished || micClosed) return;
@@ -688,7 +705,7 @@ class SttRace {
     if (session == null) {
       sttLog('[RACE] shared mic failed to open');
       micClosed = true;
-      finish(const SttRaceOutcome(matched: false));
+      unawaited(finish(const SttRaceOutcome(matched: false)));
       return completer.future;
     }
     micOpen = true;

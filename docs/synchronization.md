@@ -78,7 +78,8 @@ L'application utilise SQLite comme source de lecture et les colonnes
   Dans la transaction d'application, il préserve toute liste, tout concept,
   toute variante et toute progression dont la ligne a changé, y compris son
   statut d'accusé, pendant la récupération. Une suppression distante attend
-  un autre pull si une ligne de la branche affectée a changé entre-temps.
+  un autre pull si une ligne de la branche affectée a changé entre-temps. La
+  tentative reste incomplète tant que cette suppression est reportée.
 - Une suppression distante de liste invalide ses concepts et variantes et
   retire la progression locale associée. Une progression distante ancienne
   ne doit pas faire réapparaître des cartes supprimées. La suppression locale
@@ -86,7 +87,8 @@ L'application utilise SQLite comme source de lecture et les colonnes
   conserve son tombstone dans la file sortante.
 - Le nombre de mots suit les concepts actifs après une restauration ou
   l'accusé d'un concept supprimé. Ce recalcul libère la place dans le quota
-  local et préserve les métadonnées qui attendent leur propre envoi.
+  local et préserve les métadonnées qui attendent leur propre envoi. Si la
+  récupération des concepts échoue, une liste déjà locale garde son compteur.
 - Après la restauration du contenu, une requête jointe identifie les variantes
   encore actives. Les progressions identiques sont ignorées et les autres
   mises à jour sont regroupées dans la transaction du pull.
@@ -97,7 +99,8 @@ L'application utilise SQLite comme source de lecture et les colonnes
   incomplète conserve les données reçues et reste en attente de nouvelle
   tentative. Le seeding local et l'ouverture du plateau restent disponibles
   hors ligne. Au retour du réseau, le shell relance la récupération en
-  attente avant d'envoyer les modifications locales.
+  attente avant d'envoyer les modifications locales. Un retour réseau
+  pendant un pull est retenu et ouvre une tentative si le pull échoue.
   En cas d'indisponibilité du profil distant, une session déjà signée fournit
   l'identité locale pour le seeding et l'ouverture du plateau. Un profil reçu
   plus tard enrichit la session si elle est toujours active. Après un
@@ -107,7 +110,22 @@ L'application utilise SQLite comme source de lecture et les colonnes
   locale signée, même si le profil distant est encore en cours de chargement.
   Le repository exige un identifiant de compte avant toute création ou import.
 - Les créations de listes starter partagent une exécution en cours par
-  compte/paire. Un import échoué ne positionne jamais le marqueur de complétion.
+  compte et paire ordonnée. La session observe la paire dès sa restauration,
+  y compris au démarrage par lien partagé et lors d'un changement dans
+  l'en-tête. Un import échoué ne positionne pas le marqueur de complétion.
+- Les nouvelles listes starter utilisent l'identité du compte, de la paire
+  et du catalogue. Les brouillons créés avant la première restauration
+  restent étudiables sur l'appareil. La file retient leur contenu, leur
+  progression et leurs événements jusqu'à la vérification des identités.
+- Au retour du réseau, le brouillon adopte les identifiants d'une liste
+  starter existante, y compris les anciens UUID aléatoires. La transaction
+  reprend les champs explicitement modifiés et rattache les révisions et les
+  événements aux variantes reconnues. Les anciennes références d'un quiz déjà
+  ouvert se résolvent vers la liste et les cartes adoptées pour la progression,
+  les événements et l'historique de session. Un brouillon en conflit d'identité ou
+  avec deux historiques FSRS pour la même carte reste disponible localement
+  avec ses données et reste hors de la file sortante. Le même traitement
+  préserve les anciens brouillons dont l'état initial est inconnu.
 
 ## Paires de langues
 

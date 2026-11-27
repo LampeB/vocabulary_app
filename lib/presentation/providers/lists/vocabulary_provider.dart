@@ -8,7 +8,6 @@ import 'package:easy_localization/easy_localization.dart' show Intl;
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../data/datasources/local/app_database.dart';
@@ -168,6 +167,7 @@ final seedStarterListsProvider = FutureProvider<void>((ref) async {
   final userId = ref.watch(currentUserProvider.select((user) => user?.id));
   if (userId == null || userId.isEmpty) return;
   ref.watch(defaultPairProvider);
+  final pairRestored = ref.read(defaultPairProvider.notifier).restored;
   final seeder = ref.watch(starterSeederProvider);
   var active = true;
   ref.onDispose(() => active = false);
@@ -179,15 +179,10 @@ final seedStarterListsProvider = FutureProvider<void>((ref) async {
     // The local database remains usable; a later reconnect retries the pull.
   }
 
-  // Re-read the persisted pair rather than trusting the notifier's state:
-  // its initial ('fr','ko') stands in until the async prefs load lands, and
-  // seeding the wrong pair on a non-French account would be user-visible.
+  await pairRestored;
   if (!active) return;
-  final prefs = await SharedPreferences.getInstance();
-  final langA = prefs.getString('settings_default_lang_a') ?? 'fr';
-  final langB = prefs.getString('settings_default_lang_b') ?? 'ko';
-
-  if (active) await seeder.ensureSeededForPair(langA, langB);
+  final pair = ref.read(defaultPairProvider);
+  await seeder.ensureSeededForPair(pair.$1, pair.$2);
 });
 
 /// Outbound sync (the isSynced flags are the queue — see data/sync/push_sync).

@@ -127,6 +127,32 @@ void main() {
   });
   tearDown(() => db.close());
 
+  test('restore reads past the first page of server identities', () async {
+    final filters = <String?>[];
+    final client = SupabaseClient(
+      'https://bootstrap.example.test',
+      'anon',
+      httpClient: MockClient((request) async {
+        final parameters = request.url.queryParameters;
+        filters.add(parameters['id']);
+        expect(parameters['owner_id'], 'eq.u');
+        final rows = parameters['id'] == null
+            ? List.generate(500, (i) => {'id': i.toString().padLeft(3, '0')})
+            : [
+                {
+                  'id': 'historical-starter',
+                  'seed_id': 'starter-greetings:fr>ko',
+                },
+              ];
+        return http.Response(jsonEncode(rows), 200, request: request);
+      }),
+    );
+    addTearDown(client.dispose);
+    final restored = await VocabularyRemoteDataSource(client).fetchLists('u');
+    expect(restored.valueOrNull?.last['id'], 'historical-starter');
+    expect(filters, [null, 'gt.499']);
+  });
+
   test(
     'audio acknowledgement adopts a canonical path without queuing a write',
     () async {

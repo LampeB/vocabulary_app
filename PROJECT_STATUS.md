@@ -35,8 +35,10 @@ langues.
   les prompts, réponses et signaux.
 - `SttRace` valide une hypothèse contre la réponse attendue et coordonne les
   moteurs système, Whisper et ElevenLabs selon leur disponibilité ; depuis
-  2026-10-02 tous transcrivent la même capture partagée (y compris le
-  recognizer du téléphone via le pont PCM) et l'état est affiché en direct.
+  2026-10-02 les décodeurs PCM (Whisper, téléphone via le pont et ElevenLabs)
+  transcrivent la même capture partagée. Le reconnaisseur système exclusif
+  possède son propre micro en mode Système ou en secours de Course sans
+  décodeur local compatible. L'état de chaque moteur est affiché en direct.
 - Les enregistrements de corpus et le laboratoire STT permettent de comparer
   les moteurs sur un appareil.
 - Les audios de quiz sont provisionnés à la création/publication puis téléchargés
@@ -90,31 +92,35 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **988 tests hôte passent**, avec **69,3 %**
+- L'analyse Flutter est propre ; les **1 013 tests hôte passent**, avec **70,6 %**
   de couverture sur le dernier lot du 27 novembre. Huit tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 21 tests ciblés. La sonde compilée en mode produit confirme le
   refus des diagnostics, même avec l'option fournie.
-- Sur `f7827da`, les sept checks CI, dont les tests hôte, le wrapper SQL et la
+- Sur `4dec70c`, les sept checks CI, dont les tests hôte, le wrapper SQL et la
   compilation native Android, sont verts. Le pont utilise le NDK 28.2 de
-  l'application. Les six premières itérations des quatre relecteurs restent
-  bloquées ; le lot courant traite les 17 Important de la sixième passe dans
-  [le registre du 27 novembre](docs/reviews/2026-11-27-integration.md). Aucun
-  compteur propre n'est acquis : il faut deux revues propres sur le commit final.
+  l'application. Les sept premières itérations des quatre relecteurs ont été
+  bloquées ; leurs corrections sont consignées dans
+  [le registre du 27 novembre](docs/reviews/2026-11-27-integration.md).
+  Le sas exige deux revues propres sur le commit final ; les verdicts et les
+  checks du candidat courant sont consignés dans la PR d'intégration.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **988** tests hôte réussis lors de la dernière validation locale
+- La suite compte **1 013** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - Les six suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
   réelles, dont la nouvelle protection des tombstones. Deux connexions ont
   vérifié le verrou du reset et le refus de l'écriture concurrente ; la CI de
   `f7827da` confirme le wrapper Bash des six suites.
-  Les cinq tests Python E2E, vingt-quatre tests Deno, vingt-et-un tests du bot
+  Les cinq tests Python E2E, vingt-huit tests Deno, vingt-et-un tests du bot
   et quatre tests du déploiement passent dans le lot courant. Le bot refuse
   aussi une CI verte issue d'un
   autre workflow ou évaluée contre une autre base.
+- La règle anglaise `a/an` exclut les indénombrables. Décision utilisateur du
+  27 novembre : ses prérequis regroupent Nourriture et Salutations & politesse,
+  avec un minimum conservé de cinq noms éligibles, sans modifier les autres règles.
 - La CI Patrol contient neuf suites Android, lançables manuellement avec des
   secrets Supabase : navigation, auth, flux utilisateur, chemin quotidien,
   prérequis de leçon, paires de langues, quiz voix/cartes, écriture et login.
@@ -191,7 +197,8 @@ de contenu avant bêta pédagogique.
   une approbation et la résolution des conversations, y compris pour l'admin.
   Le bot GitHub Actions choisi le 27 novembre formalise l'approbation après
   preuve des huit rapports propres et CI verte ; il n'est pas un relecteur
-  Copilot. Son premier dispatch et la convergence restent à obtenir ; voir
+  Copilot. La preuve de convergence et l'approbation portent sur le SHA exact
+  de la PR ; la première activation et les garde-fous sont décrits dans
   [`docs/pr-validation.md`](docs/pr-validation.md).
 - Le corpus vocal de travail reste local et interdit par le garde de PR.
   Les deux historiques affectés ont été purgés avec sauvegarde ; l'utilisateur

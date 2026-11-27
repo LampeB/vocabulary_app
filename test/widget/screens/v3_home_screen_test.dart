@@ -7,8 +7,14 @@ import 'package:easy_localization/src/translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
+import 'package:vocab_kr/core/languages.dart';
 import 'package:vocab_kr/core/theme/v3_colors.dart';
+import 'package:vocab_kr/domain/entities/app_user.dart';
+import 'package:vocab_kr/domain/entities/subscription_type.dart';
+import 'package:vocab_kr/presentation/providers/settings/default_pair_provider.dart';
+import 'package:vocab_kr/presentation/widgets/session_bootstrap.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/grammar/grammar_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
@@ -18,6 +24,48 @@ import '../../helpers/pump_screen.dart';
 
 void main() {
   setUpAll(initTestLocalization);
+
+  testWidgets(
+    'header switch keeps shared bootstrap subscribed to the new pair',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final seededPairs = <(String, String)>[];
+      await pumpScreen(
+        tester,
+        settle: false,
+        screen: const SessionBootstrap(child: V3HomeScreen()),
+        overrides: [
+          currentUserProvider.overrideWithValue(
+            AppUser(
+              id: 'u',
+              email: 'u@example.test',
+              username: 'u',
+              subscriptionType: SubscriptionType.free,
+              createdAt: DateTime(2026),
+            ),
+          ),
+          myListsProvider.overrideWith((ref) => Stream.value([])),
+          dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(0)),
+          ruleStatusesProvider.overrideWith((ref, lang) async => []),
+          seedStarterListsProvider.overrideWith((ref) async {
+            seededPairs.add(ref.watch(defaultPairProvider));
+          }),
+        ],
+      );
+      expect(seededPairs, [('fr', 'ko')]);
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.homePairPicker)));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(
+        find.textContaining(
+          '${Languages.displayName('ko')} → ${Languages.displayName('fr')}',
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(seededPairs, [('fr', 'ko'), ('ko', 'fr')]);
+      await unmountScreen(tester);
+    },
+  );
 
   for (final mode in [ThemeMode.light, ThemeMode.dark]) {
     testWidgets('paper sheet titles remain readable in $mode', (tester) async {

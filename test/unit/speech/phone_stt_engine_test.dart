@@ -19,11 +19,11 @@ class _FakeRecognizer implements PhonePcmRecognizer {
   Future<bool> isSupported() async => supported;
 
   @override
-  Future<List<String>> recognize(Uint8List pcm16, String locale) async {
+  Future<PhonePcmTranscript> recognize(Uint8List pcm16, String locale) async {
     calls.add((pcm16, locale));
     if (gate != null) await gate!.future;
     if (error != null) throw error!;
-    return reply;
+    return (texts: reply, isFinal: true);
   }
 
   @override
@@ -155,6 +155,7 @@ void main() {
         if (call.method == 'isSupported') return true;
         return {
           'texts': ['물', '몰'],
+          'isFinal': true,
           'confidences': <double>[],
           'elapsedMs': 700,
         };
@@ -162,7 +163,9 @@ void main() {
       const rec = MethodChannelPhonePcmRecognizer();
       expect(await rec.isSupported(), isTrue);
       final pcm = Uint8List(32);
-      expect(await rec.recognize(pcm, 'ko-KR'), ['물', '몰']);
+      final outcome = await rec.recognize(pcm, 'ko-KR');
+      expect(outcome.texts, ['물', '몰']);
+      expect(outcome.isFinal, isTrue);
       expect(seen!.method, 'recognize');
       expect(seen!.arguments['locale'], 'ko-KR');
       expect(seen!.arguments['sampleRate'], 16000);

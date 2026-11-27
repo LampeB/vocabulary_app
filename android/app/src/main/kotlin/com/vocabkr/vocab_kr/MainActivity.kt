@@ -50,6 +50,7 @@ class MainActivity : FlutterActivity() {
                                 result.success(
                                     mapOf(
                                         "texts" to outcome.texts,
+                                        "isFinal" to outcome.isFinal,
                                         "confidences" to outcome.confidences.map { it.toDouble() },
                                         "elapsedMs" to outcome.elapsedMs,
                                     ),

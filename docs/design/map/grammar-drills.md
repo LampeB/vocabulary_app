@@ -12,6 +12,12 @@ explicitement signalée non décidée (2026-08-07).
 - La disponibilité et la génération utilisent le même pool, restreint aux
   copies de listes résolues pour les prérequis de la règle. Un mot maîtrisé
   dans une autre liste ne remplit pas leur minimum de vocabulaire utilisable.
+- Une exception d'article dont la forme est le nom seul exclut ce sens du
+  vivier et du minimum de l'exercice. Cela évite d'appliquer `a/an` aux
+  noms indénombrables du vocabulaire étudié.
+- Une consigne pour une particule à variantes phonologiques nomme ses
+  formes, comme `은/는` pour le thème. En mains-libres, ces formes sont
+  prononcées dans la langue étudiée avant le mot à transformer.
 - Le générateur actuel de pluriel français demande un mot isolé : les formes
   en `-s` muet sont donc évaluées à l'écrit. Les modes vocaux de cette règle
   restent indisponibles tant qu'un énoncé audible ne distingue pas la forme.

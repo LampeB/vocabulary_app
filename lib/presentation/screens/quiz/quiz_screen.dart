@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/quiz/quiz_provider.dart';
 import '../../providers/audio/audio_provider.dart';
+import '../../providers/auth/auth_provider.dart';
 import '../../../core/languages.dart';
 import '../../../core/network/connectivity_status.dart';
 import '../../../core/theme/app_colors.dart';
@@ -124,6 +125,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // Marked by a low closing tick + pulsing status text so the user knows to
   // stop talking (protocol spec, user request 2026-07-08).
   bool _hfAnalyzing = false;
+  bool _hfPromptFailed = false;
   // "3 · 2 · 1" before the mic opens (null = no countdown showing).
   int? _hfCountdown;
   // The "analysis started" bip plays once per listen attempt.
@@ -200,6 +202,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _hfAutoPausedSilence = false;
     _hfNotHeard = false;
     _hfAnalyzing = false;
+    _hfPromptFailed = false;
     _hfCountdown = null;
     _voiceKbIndex = null;
     _flashcardExiting = false;
@@ -264,6 +267,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _listenBarCtrl.stop();
     setState(() {
       _hfAnalyzing = false;
+      _hfPromptFailed = false;
       _hfNotHeard = false;
       _hfCountdown = null;
     });
@@ -326,13 +330,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (grammarPrompt == null) {
       await director.chainQuiet(keepGoing: () => !stale());
     } else if (!_kTestMode) {
-      await director.speakGrammarPrompt(
+      final played = await director.speakGrammarPrompt(
         instruction: grammarPrompt.instruction,
         instructionLang: grammarPrompt.locale,
         word: grammarPrompt.word,
         wordLang: card.direction.answerLang,
         keepGoing: () => !stale(),
       );
+      if (!played && !stale()) {
+        setState(() => _hfPromptFailed = true);
+        return;
+      }
     }
     if (stale()) return;
     final speechWaitMs = DateTime.now().difference(waitStart).inMilliseconds;
@@ -380,7 +388,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   /// The bip that says "your answer is being analysed" — once per attempt,
-  /// whether analysis starts while the mic is open or after it closed.
+  /// after the mic closes with a verdict still pending.
   void _playAnalysisBip() {
     if (_analysisBipPlayed || widget.args.mode != QuizMode.handsFree) return;
     _analysisBipPlayed = true;
@@ -439,11 +447,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   // not-heard ladder, retry pacing and the consecutive-silence auto-pause —
   // one instance per screen so the silence streak spans the whole session.
   VoiceTurnMachine? _turnMachine;
+  late bool _turnCourseMode;
 
   Future<void> _startRaceListening(
     QuizCard card,
     String langCode,
     int sessionToken,
+    SttEngineMode mode,
   ) async {
     _raceSystemEngine ??= SystemSttEngine(_stt, onDevice: true);
     _systemModeEngine ??= SystemSttEngine(_stt, onDevice: false);
@@ -459,7 +469,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       ..register(_racePhoneEngine!)
       ..register(_raceSystemEngine!)
       ..register(_raceWhisperEngine!);
-    final courseMode = ref.read(sttEngineModeProvider) == SttEngineMode.race;
+    final courseMode = mode == SttEngineMode.race;
     await (courseMode ? _raceSystemEngine! : _systemModeEngine!).prepare();
     if (_turnStale(sessionToken, card)) return;
     if (courseMode) {
@@ -480,6 +490,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // From here machine-internal retries replace the legacy ladder: the
     // race path never re-enters _startListening for the same card.
     final m = _turnMachine ??= VoiceTurnMachine();
+    _turnCourseMode = courseMode;
     m.on(TurnStarted(sessionToken));
     m.on(SlateClean(sessionToken));
     m.on(PromptFinished(sessionToken));
@@ -648,7 +659,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       }
     }
 
-    final courseMode = ref.read(sttEngineModeProvider) == SttEngineMode.race;
+    final courseMode = _turnCourseMode;
     final online = !isOffline(await Connectivity().checkConnectivity());
     if (_turnStale(turn, card)) return;
     final engines = courseMode
@@ -707,11 +718,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           barStarted = true;
           runBar();
         }
-        if (status.phase == SttPhase.analyzing) _playAnalysisBip();
         setState(() => _sttStatus = status);
       },
       onMicClosedPending: () {
-        if (_turnStale(turn, card)) return;
+        if (!identical(_activeRace, race) || _turnStale(turn, card)) return;
         unawaited(
           _runTurnCommands(m.micClosedPendingVerdict(turn), card, langCode),
         );
@@ -770,6 +780,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       return;
     }
 
+    final mode = await ref.read(sttEngineModeProvider.notifier).restored;
+    if (stale()) return;
+
     // Wait for the question player to stop, then let Android settle the audio
     // route before STT grabs the mic. A fire-and-forget stop let late TTS
     // buffers overlap the first recognition frames on Samsung.
@@ -800,7 +813,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // VoiceTurnMachine. Système is a system-only lane, Course adds the
     // offline Whisper lane. The legacy streaming path is gone; grammar's
     // short generated answers grade exactly like vocab through the race.
-    await _startRaceListening(card, card.direction.answerLang, token);
+    await _startRaceListening(card, card.direction.answerLang, token, mode);
   }
 
   /// Start the following card's network renders as soon as this card becomes
@@ -833,6 +846,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final quizState = ref.watch(quizProvider);
     _sessionDirector = ref.watch(audioDirectorProvider);
 
+    ref.listen(currentUserProvider.select((user) => user?.id), (_, _) {
+      if (!_quitting) unawaited(_interruptTurn());
+    });
     ref.listen<QuizState>(quizProvider, (prev, next) {
       if (prev?.answerState == QuizAnswerState.idle &&
           next.answerState != QuizAnswerState.idle) {
@@ -919,9 +935,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             ..reset();
           // New card = back to the reading phase; don't let the previous
           // card's "analyse" banner linger over the new word.
-          if (_hfAnalyzing || _hfNotHeard || _hfCountdown != null) {
+          if (_hfAnalyzing ||
+              _hfPromptFailed ||
+              _hfNotHeard ||
+              _hfCountdown != null) {
             setState(() {
               _hfAnalyzing = false;
+              _hfPromptFailed = false;
               _hfNotHeard = false;
               _hfCountdown = null;
             });
@@ -1130,7 +1150,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         children: [
           // Reading state only: whole-canvas warm breathing pulse (not in
           // the "pas entendu" state).
-          if (hfCue == HfCue.reading && _appForeground)
+          if (hfCue == HfCue.reading && !_hfPromptFailed && _appForeground)
             Positioned.fill(
               child: IgnorePointer(
                 child: reduceMotion || _kTestMode
@@ -1149,13 +1169,30 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 children: [
                   Expanded(
                     child: _ScrollablePrompt(
-                      child: WordInWave(
-                        word: card.questionWord,
-                        isKorean: questionIsHangul,
-                        cue: cue,
-                        wordColor: foreground,
-                        cueColor: cueColor,
-                        waveActive: micLive,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          WordInWave(
+                            word: card.questionWord,
+                            isKorean: questionIsHangul,
+                            cue: _hfPromptFailed ? null : cue,
+                            wordColor: foreground,
+                            cueColor: cueColor,
+                            waveActive: micLive,
+                          ),
+                          if (_hfPromptFailed && !_hfPaused)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Semantics(
+                                liveRegion: true,
+                                child: Text(
+                                  'quiz.grammar_prompt_failed'.tr(),
+                                  style: V3Text.body(14, color: muted),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),

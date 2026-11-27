@@ -291,3 +291,75 @@ de `origin/main` récupéré et utilise uniquement son manifeste, ses sources,
 son verrou et sa sonde. Le contrôle de la CI et des revues de ce SHA reste
 une vérification explicite de l'opérateur, pas une attestation inventée par
 le script.
+
+## Septième itération — `4dec70c`
+
+Les quatre profils ont rendu `BLOQUÉ` sur
+`4dec70c367e45a038d7485b6ebbc3737f261c12e` avant toute correction.
+Leurs 23 observations Important correspondent à **22 constats distincts** :
+la finalité du pont PCM est signalée par correction et qualité. Aucun
+Bloquant et une Suggestion sont remontés. Les deux déclencheurs manquants
+du bootstrap — lien froid et changement de paire — gardent chacun leur preuve.
+
+| Type | Constat regroupé | Correction et preuve ciblée |
+| --- | --- | --- |
+| Important | Pont PCM étiquetant un partiel final après erreur/résultat vide | Finalité conservée Kotlin/canal/adaptateur, vocabulaire tolérant et grammaire finale uniquement |
+| Important | Démarrage système différé après annulation immédiate | Vérification avant start, run/cancel avant vidage de la file |
+| Important | Reconnexion perdue pendant le pull qui finit en erreur | Retour réseau mémorisé et nouvelle restauration avant push |
+| Important | Pull partiel rétablissant un compteur distant périmé | Compteur local conservé si la lecture de ses concepts échoue |
+| Important | Lien initial livré par API et stream démarrant deux imports | Dispatcher partagé, replay initial ignoré, lien à chaud distinct conservé |
+| Important | Quiz A gardé visible et écrit sous B après remplacement du compte | Compte capturé, invalidation et arrêt des opérations sur changement d'identité |
+| Important | Paire d'en-tête nouvelle sans abonnement au seeding | Bootstrap commun observé et attente du réglage restauré, vraie action d'en-tête testée |
+| Important | allDue répétant une seule échéance vingt fois | Limite comme plafond, remplissage de pratique de liste conservé |
+| Important | Consigne ne nommant pas la particule attendue | Formes de thème explicites dans les trois locales, écran et voix |
+| Important | a/an imposé aux noms indénombrables | Exceptions zéro article via le contrat existant ; Salutations ajouté aux prérequis avec cinq noms minimum |
+| Important | Splash paysage et verdict à texte doublé débordants | Squelette adapté et défilement annoncé, Continuer atteignable |
+| Important | Résumés affirmant à tort une capture unique pour le moteur exclusif | Décodeurs PCM partagés et reconnaisseur système exclusif distingués |
+| Important | HTTP 404 Storage ambigu autorisant un rendu facturé | Métadonnées GET et NoSuchKey explicite exigés, avant et après bail |
+| Important | Travail Storage dépassant le bail audio | Échéance HTTP commune de 60 s, bail de 90 s conservé sur issue incertaine |
+| Important | Session compilée TEST_SESSION encore restaurée | Injection retirée du point d'entrée, refus Patrol conservé |
+| Important | Corpus/logs de diagnostic éligibles au backup Android | Exclusions cloud et transfert, anciens Android et 12+, manifestes fusionnés vérifiés |
+| Important | Tombstone reporté considéré comme restauration terminée | Restauration incomplète et vraie reconnexion appliquant la suppression |
+| Important | Bootstrap hors ligne créant un doublon starter serveur historique | Identité catalogue/compte/paire, adoption transactionnelle et protection des historiques divergents |
+| Important | Import froid sautant le seeding du splash | SessionBootstrap au-dessus du routeur, import et bootstrap observés ensemble |
+| Important | Signal de fin émis pendant que le micro capture encore | Fermeture confirmée distincte de l'activité des décodeurs, ordre des signaux testé |
+| Important | Préférence STT changeant entre préparation et retry | Réglage initial attendu et mode capturé pour tout le tour |
+| Important | Échec TTS mains-libres laissant la lecture bloquée | Attente bornée, nettoyage et reprise explicite via Répéter |
+
+Le rapprochement starter a aussi révélé un cas introduit par cette correction :
+un quiz déjà chargé garde les anciens IDs. Les alias par compte sont écrits
+dans la transaction d'adoption et résolus au moment de noter, journaliser et
+enregistrer le bilan. La régression charge le brouillon avant adoption puis
+fait passer la progression canonique existante de trois à quatre révisions.
+Les historiques FSRS réellement divergents restent conservés, sans fusion
+inventée ni double publication du brouillon.
+
+Suggestion conservée : borner et mesurer les projections GROUP_CONCAT par
+compte avant une optimisation plus large. Les ACK de statut seuls restent
+silencieux ; cette Suggestion n'est pas présentée comme une correction faite.
+
+### Décision pédagogique — 27 novembre
+
+Après correction des indénombrables, starter-food fournit trois noms éligibles
+pour a/an, alors que la règle en exige cinq. L'utilisateur choisit explicitement
+d'ajouter starter-greetings et de conserver le seuil de cinq : les deux listes
+fournissent sept noms éligibles dans les sens enseignés. Le contenu utilise
+les overrides existants, sans nouvelle mécanique ni extension des tags de genre.
+
+### Validation du lot courant
+
+La suite complète finale passe : **1 013 tests**, huit diagnostics positifs exclus,
+couverture **70,6 %** (12 511 / 17 710 lignes). L'analyse Flutter est propre ;
+les 21 diagnostics ciblés passent avec opt-in. Les 28 tests Deno et les sept
+bundles Edge figés passent. Kotlin et la fusion des manifestes/ressources
+debug et release sont vérifiés. Les 129 cas data et les contrôles conjoints
+de rapprochement/quiz passent, ainsi que les widgets paysage, texte doublé,
+en-tête et import froid. Le gate seed/grammaire passe **63 tests**, dont la
+régression sur le minimum réel anglais : sept noms éligibles, plus restaurant
+dans la catégorie lieu, et huit réponses exactes générées sans indénombrable.
+
+Les sept checks GitHub et Android sont verts sur `4dec70c`. Le bot confirme
+leur provenance en lecture seule, sans approbation. Sept itérations complètes
+restent bloquées ; les quatre compteurs sont à zéro. La prochaine relecture
+sera l'itération **8**, après un commit commun complet, avec le plafond de
+vingt conservé. Aucun service hébergé n'est modifié.

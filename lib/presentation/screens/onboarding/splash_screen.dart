@@ -10,6 +10,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/v3_colors.dart';
 import '../../../domain/entities/app_user.dart';
 import '../../widgets/v3_pond.dart';
+import '../../widgets/scroll_affordance.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key, this.authTimeout});
@@ -97,70 +98,91 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         children: [
           const Positioned.fill(child: V3Pond(animate: false)),
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: FadeTransition(
-                opacity: _fade,
-                child: Column(
-                  children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Ponderin',
+            child: LayoutBuilder(
+              builder: (context, constraints) => ScrollAffordance(
+                hint: 'v3.scroll_hint'.tr(),
+                fillViewport: true,
+                padding: const EdgeInsets.all(20),
+                child: FadeTransition(
+                  opacity: _fade,
+                  child: Column(
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Ponderin',
+                          style: AppTextStyles.serif(
+                            29,
+                            FontWeight.w400,
+                            color: V3Colors.light,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      FadeTransition(
+                        opacity: Tween(begin: .55, end: 1.0).animate(
+                          CurvedAnimation(
+                            parent: _pulse,
+                            curve: Curves.easeInOut,
+                          ),
+                        ),
+                        child: SizedBox(
+                          height: (constraints.maxHeight * .4).clamp(
+                            100.0,
+                            317.0,
+                          ),
+                          child: FittedBox(
+                            fit: BoxFit.contain,
+                            child: SizedBox(
+                              width: constraints.maxWidth > 40
+                                  ? constraints.maxWidth - 40
+                                  : 1,
+                              height: 317,
+                              child: const _SplashPlateau(),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        'v3.preparing'.tr(),
                         style: AppTextStyles.serif(
-                          29,
+                          24,
                           FontWeight.w400,
                           color: V3Colors.light,
                         ),
                       ),
-                    ),
-                    const Spacer(),
-                    FadeTransition(
-                      opacity: Tween(begin: .55, end: 1.0).animate(
-                        CurvedAnimation(
-                          parent: _pulse,
-                          curve: Curves.easeInOut,
+                      const SizedBox(height: 7),
+                      Text(
+                        'v3.preparing_hint'.tr(),
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.fig(
+                          14.5,
+                          FontWeight.w400,
+                          color: V3Colors.light70,
                         ),
                       ),
-                      child: const _SplashPlateau(),
-                    ),
-                    const Spacer(),
-                    Text(
-                      'v3.preparing'.tr(),
-                      style: AppTextStyles.serif(
-                        24,
-                        FontWeight.w400,
-                        color: V3Colors.light,
+                      const SizedBox(height: 17),
+                      const LinearProgressIndicator(
+                        minHeight: 5,
+                        // Indeterminate: we don't know how far along seeding is.
+                        backgroundColor: V3Colors.chip,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          V3Colors.amber,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 7),
-                    Text(
-                      'v3.preparing_hint'.tr(),
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.fig(
-                        14.5,
-                        FontWeight.w400,
-                        color: V3Colors.light70,
+                      const SizedBox(height: 10),
+                      Text(
+                        'splash.subtitle'.tr(),
+                        style: AppTextStyles.mono(
+                          11,
+                          FontWeight.w400,
+                          letterSpacing: 1.4,
+                          color: V3Colors.light60,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 17),
-                    const LinearProgressIndicator(
-                      minHeight: 5,
-                      // Indeterminate: we don't know how far along seeding is.
-                      backgroundColor: V3Colors.chip,
-                      valueColor: AlwaysStoppedAnimation<Color>(V3Colors.amber),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'splash.subtitle'.tr(),
-                      style: AppTextStyles.mono(
-                        11,
-                        FontWeight.w400,
-                        letterSpacing: 1.4,
-                        color: V3Colors.light60,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

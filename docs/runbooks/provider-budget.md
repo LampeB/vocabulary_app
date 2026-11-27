@@ -69,11 +69,17 @@ Relire le diff du verrou et repasser le script sans projet avant de commiter.
   et 5 secondes. Un mot facturé est limité à 256 caractères ; les contextes,
   listes et règles ont aussi des bornes avant tout débit de quota.
 - Les appels IA et TTS ont un délai de 60 secondes sans retry automatique
-  Anthropic. Deux demandes du même clip manquant partagent une réservation
-  SQL exclusive de 90 secondes ; le cache est revérifié après réservation.
-  Une absence d'objet confirmée par Storage permet la génération. Une panne
-  ou une réponse ambiguë renvoie `503` avant le débit de quota ou l'appel TTS.
-  [Vérification d'existence d'un objet Supabase Storage](https://supabase.com/docs/reference/javascript/storage-from-exists).
+  Anthropic. Une réservation SQL exclusive de 90 secondes protège chaque clip
+  manquant. Le provisionnement ouvre un délai commun de 60 secondes avant
+  l'acquisition et l'applique à la nouvelle lecture du cache, au débit de
+  quota, au rendu, à l'envoi dans Storage et à l'attachement. À l'échéance,
+  les requêtes HTTP sont annulées. Une expiration du délai ou un résultat
+  incertain après le début du rendu conserve la réservation jusqu'à son
+  expiration.
+- Seule l'erreur d'objet `NoSuchKey` dans la réponse de métadonnées Storage
+  permet la génération. Une panne ou un `404` sans code d'objet renvoie
+  `503` avant le débit de quota ou l'appel TTS.
+  [Codes d'erreur Supabase Storage](https://supabase.com/docs/guides/storage/debugging/error-codes).
 - Pour un clip en cache comme pour une génération, le serveur attache le
   chemin seulement à une variante toujours active dont le mot et la langue
   correspondent au clip. Une édition ou une suppression concurrente renvoie

@@ -23,7 +23,7 @@ class PhoneSttEngine implements CancellablePcmSttEngine {
 
   /// The platform service handles one session at a time.
   Future<void> _chain = Future.value();
-  var _turnCancelled = Completer<List<String>>();
+  var _turnCancelled = Completer<PhonePcmTranscript>();
 
   @override
   String get id => 'phone';
@@ -56,7 +56,7 @@ class PhoneSttEngine implements CancellablePcmSttEngine {
     final result = _chain.then((_) async {
       if (turn.isCompleted) return null;
       final sw = Stopwatch()..start();
-      final texts = await Future.any([
+      final (:texts, :isFinal) = await Future.any([
         _recognizer.recognize(
           segment.bytes,
           Languages.speechLocaleFor(langCode),
@@ -73,8 +73,8 @@ class PhoneSttEngine implements CancellablePcmSttEngine {
         engineId: id,
         transcript: texts.first,
         candidates: texts,
-        confidence: 0.9,
-        isFinal: true,
+        confidence: isFinal ? 0.9 : 0.5,
+        isFinal: isFinal,
       );
     });
     _chain = result.then((_) {}, onError: (_) {});
@@ -91,8 +91,8 @@ class PhoneSttEngine implements CancellablePcmSttEngine {
 
   @override
   Future<void> stop() async {
-    _turnCancelled.complete(const []);
-    _turnCancelled = Completer<List<String>>();
+    _turnCancelled.complete((texts: const <String>[], isFinal: false));
+    _turnCancelled = Completer<PhonePcmTranscript>();
     // New work waits for native teardown, independent of the old queue.
     _chain = _recognizer.cancel().catchError((Object error) {
       sttLog('[PHN] cancel failed: $error');

@@ -15,11 +15,15 @@ import '../models/concept_dto.dart';
 import '../models/variant_progress_dto.dart';
 import '../models/vocabulary_list_dto.dart';
 import '../models/word_variant_dto.dart';
+import '../seed/starter_draft_reconciliation.dart';
 import '../../services/audio/audio_asset_path.dart';
 import 'package:drift/drift.dart' show Value, innerJoin;
 
 const _uuid = Uuid();
 const _accountRequired = AuthException('Sign in to save vocabulary');
+const _deferredDeletion = StorageException(
+  'A remote deletion needs another pull',
+);
 
 class VocabularyRepositoryImpl implements VocabularyRepository {
   VocabularyRepositoryImpl(
@@ -36,6 +40,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   final String _userId;
   final AppDatabase _database;
   Future<void>? _activeRestoration;
+  bool _starterIdentityReady = false;
 
   @override
   Stream<List<VocabularyList>> watchMyLists() => _listDao
@@ -136,7 +141,14 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
 
   @override
   Future<Result<VocabularyList>> getListById(String listId) async {
-    final row = await _listDao.getById(listId);
+    final row = await _database.transaction(() async {
+      final canonicalId = await _listDao.resolveStarterId(
+        StarterAliasKind.list,
+        _userId,
+        listId,
+      );
+      return _listDao.getById(canonicalId);
+    });
     if (row == null) return const Failure(NotFoundException('List not found'));
     return Success(row.toDomain());
   }
@@ -519,12 +531,28 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       }
 
       final now = DateTime.now();
-      final listId = sharedListId ?? _uuid.v4();
       final name = listData['name'] as String? ?? 'Imported List';
       final description = listData['description'] as String?;
       final langA = _field<String>(listData, 'langA', 'lang_a') ?? 'fr';
       final langB = _field<String>(listData, 'langB', 'lang_b') ?? 'ko';
       final listSeedId = _field<String>(listData, 'seedId', 'seed_id');
+      final starter = origin == 'starter' && listSeedId != null;
+      final listId =
+          sharedListId ??
+          (starter
+              ? _uuid.v5(
+                  Namespace.url.value,
+                  jsonEncode([
+                    'ponderin',
+                    'starter',
+                    _userId,
+                    langA,
+                    langB,
+                    listSeedId,
+                  ]),
+                )
+              : _uuid.v4());
+      final rememberBase = sharedListId != null || starter;
       final concepts =
           (listData['concepts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
@@ -548,7 +576,10 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
             updatedAt: Value(now),
           ),
         );
-        if (sharedListId != null) {
+        if (starter && !_starterIdentityReady) {
+          await _listDao.holdStarterDraft(listId);
+        }
+        if (rememberBase) {
           await _listDao.rememberSharedImport(
             listId,
             (await _listDao.getById(listId))!,
@@ -556,9 +587,16 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         }
 
         for (final (index, cData) in concepts.indexed) {
-          final conceptId = sharedListId == null
-              ? _uuid.v4()
-              : _uuid.v5(listId, jsonEncode(['concept', cData['id'] ?? index]));
+          final seedId = _field<String>(cData, 'seedId', 'seed_id');
+          final conceptId = rememberBase
+              ? _uuid.v5(
+                  listId,
+                  jsonEncode([
+                    'concept',
+                    starter ? seedId ?? index : cData['id'] ?? index,
+                  ]),
+                )
+              : _uuid.v4();
           await _conceptDao.upsert(
             ConceptsTableCompanion(
               id: Value(conceptId),
@@ -571,13 +609,13 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
               exampleKo: Value(
                 _field<String>(cData, 'exampleKo', 'example_ko'),
               ),
-              seedId: Value(_field<String>(cData, 'seedId', 'seed_id')),
+              seedId: Value(seedId),
               isDeleted: const Value(false),
               createdAt: Value(now),
               updatedAt: Value(now),
             ),
           );
-          if (sharedListId != null) {
+          if (rememberBase) {
             await _listDao.rememberSharedImport(
               conceptId,
               (await _conceptDao.getById(conceptId))!,
@@ -591,16 +629,28 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
                 'word_variants',
               ))?.cast<Map<String, dynamic>>() ??
               [];
+          final seenSlots = <(String, int), int>{};
           for (final (index, vData) in variants.indexed) {
-            final variantId = sharedListId == null
-                ? _uuid.v4()
-                : _uuid.v5(
-                    conceptId,
-                    jsonEncode(['variant', vData['id'] ?? index]),
-                  );
             final word = vData['word'] as String? ?? '';
             final langCode =
                 _field<String>(vData, 'langCode', 'lang_code') ?? langA;
+            final position = vData['position'] as int? ?? 0;
+            final slot = (langCode, position);
+            final occurrence = seenSlots.update(
+              slot,
+              (n) => n + 1,
+              ifAbsent: () => 0,
+            );
+            final variantId = rememberBase
+                ? _uuid.v5(
+                    conceptId,
+                    jsonEncode(
+                      starter
+                          ? ['variant', langCode, position, occurrence]
+                          : ['variant', vData['id'] ?? index],
+                    ),
+                  )
+                : _uuid.v4();
             final audioPath = origin == 'starter'
                 ? AudioAssetPath.seed(text: word, langCode: langCode)
                 : AudioAssetPath.user(
@@ -628,7 +678,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
                 isPrimary: Value(
                   _field<bool>(vData, 'isPrimary', 'is_primary') ?? false,
                 ),
-                position: Value(vData['position'] as int? ?? 0),
+                position: Value(position),
                 example: Value(vData['example'] as String?),
                 audioPath: Value(audioPath),
                 isDeleted: const Value(false),
@@ -636,7 +686,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
                 updatedAt: Value(now),
               ),
             );
-            if (sharedListId != null) {
+            if (rememberBase) {
               await _listDao.rememberSharedImport(
                 variantId,
                 (await _conceptDao.getVariantById(variantId))!,
@@ -776,7 +826,17 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   Future<void> _restore() async {
     // Capture the whole account before any remote I/O. A push can acknowledge
     // an edit between the request and response, leaving isSynced=true again.
-    final before = await _database.transaction(_snapshotForPull);
+    final before = await _database.transaction(() async {
+      if (!_starterIdentityReady) {
+        // A previous build may have created a random-ID starter before it
+        // could pull. Keep its queued snapshot on the device until we know
+        // whether the server already has a copy under another ID.
+        for (final list in await _listDao.getStarterLists(_userId)) {
+          if (!list.isSynced) await _listDao.holdStarterDraft(list.id);
+        }
+      }
+      return _snapshotForPull();
+    });
     final lists = <VocabularyList>[];
     final contents = <String, List<Map<String, dynamic>>>{};
     final result = await _remote.fetchLists(_userId);
@@ -805,9 +865,17 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         final keepLocalList =
             localList != before.lists[list.id] ||
             (localList != null && !localList.isSynced && !list.isDeleted);
-        if (list.isDeleted && changed.lists.contains(list.id)) continue;
+        if (list.isDeleted && changed.lists.contains(list.id)) {
+          incomplete ??= _deferredDeletion;
+          continue;
+        }
         if (!keepLocalList) {
-          await _listDao.upsert(list.toLocalCompanion());
+          final missingContents =
+              !list.isDeleted && !contents.containsKey(list.id);
+          final metadata = missingContents && localList != null
+              ? list.copyWith(wordCount: localList.wordCount)
+              : list;
+          await _listDao.upsert(metadata.toLocalCompanion());
         } else if (localList == null || localList.isDeleted) {
           continue;
         }
@@ -827,6 +895,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
                   !localConcept.isSynced &&
                   !remoteConceptDeleted);
           if (remoteConceptDeleted && changed.concepts.contains(conceptId)) {
+            incomplete ??= _deferredDeletion;
             continue;
           }
           if (keepLocalConcept &&
@@ -847,12 +916,14 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
             final variantId = v['id'] as String;
             final localVariant = current.variants[variantId];
             final remoteVariantDeleted = v['is_deleted'] as bool? ?? false;
+            if (remoteVariantDeleted && changed.variants.contains(variantId)) {
+              incomplete ??= _deferredDeletion;
+              continue;
+            }
             if (localVariant != before.variants[variantId] ||
                 (localVariant != null &&
                     !localVariant.isSynced &&
-                    !remoteVariantDeleted) ||
-                (remoteVariantDeleted &&
-                    changed.variants.contains(variantId))) {
+                    !remoteVariantDeleted)) {
               continue;
             }
             await _conceptDao.upsertVariant(wordVariantCompanionFromRemote(v));
@@ -897,8 +968,12 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         }
         await progressDao.applyPulledProgress(changedRows.values.toList());
       }
+      if (incomplete == null) {
+        await StarterDraftReconciliation(_database).reconcile(_userId, lists);
+      }
     });
-    if (incomplete != null) throw incomplete;
+    if (incomplete case final error?) throw error;
+    _starterIdentityReady = true;
   }
 
   Future<_PullSnapshot> _snapshotForPull() async {

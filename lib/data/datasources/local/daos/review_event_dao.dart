@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import '../app_database.dart';
 import '../tables/review_events_table.dart';
+import 'vocabulary_list_dao.dart';
 
 part 'review_event_dao.g.dart';
 
@@ -9,11 +10,32 @@ class ReviewEventDao extends DatabaseAccessor<AppDatabase>
     with _$ReviewEventDaoMixin {
   ReviewEventDao(super.db);
 
-  Future<void> insertEvent(ReviewEventsTableCompanion companion) =>
-      db.writeOutbound(
-        companion.userId.value,
-        () => into(reviewEventsTable).insert(companion),
+  Future<void> insertEvent(ReviewEventsTableCompanion companion) {
+    final userId = companion.userId.value;
+    return db.writeOutbound(userId, () async {
+      final lists = db.vocabularyListDao;
+      final variantId = await lists.resolveStarterId(
+        StarterAliasKind.variant,
+        userId,
+        companion.variantId.value,
       );
+      final listId = companion.listId.value;
+      await into(reviewEventsTable).insert(
+        companion.copyWith(
+          variantId: Value(variantId),
+          listId: listId == null
+              ? companion.listId
+              : Value(
+                  await lists.resolveStarterId(
+                    StarterAliasKind.list,
+                    userId,
+                    listId,
+                  ),
+                ),
+        ),
+      );
+    });
+  }
 
   Future<List<ReviewEventsTableData>> getUnsynced({String? userId}) =>
       (select(reviewEventsTable)..where(

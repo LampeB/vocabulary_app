@@ -34,6 +34,25 @@ class _LocalSessionRepository implements AuthRepository {
 void main() {
   setUpAll(initTestLocalization);
 
+  testWidgets('splash fits a 568x320 landscape viewport', (tester) async {
+    final auth = Completer<AppUser?>();
+    await pumpScreen(
+      tester,
+      screen: const SplashScreen(),
+      settle: false,
+      overrides: [
+        authStateProvider.overrideWith(() => _DelayedAuthNotifier(auth.future)),
+      ],
+    );
+    tester.view.physicalSize = const Size(1704, 960);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(tester.takeException(), isNull);
+    expect(find.text('Ponderin'), findsOneWidget);
+    await unmountScreen(tester);
+    auth.complete(null);
+    await tester.pump();
+  });
+
   testWidgets('waits for auth and starter content before opening home', (
     tester,
   ) async {

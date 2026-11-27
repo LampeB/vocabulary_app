@@ -30,10 +30,12 @@ import 'package:vocab_kr/presentation/providers/grammar/grammar_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/notifications/notification_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
+import 'package:vocab_kr/presentation/providers/settings/stt_engine_mode_provider.dart';
 import 'package:vocab_kr/presentation/providers/speech/elevenlabs_speech_provider.dart';
 import 'package:vocab_kr/presentation/providers/speech/shared_pcm_capture_provider.dart';
 import 'package:vocab_kr/presentation/providers/speech/whisper_speech_provider.dart';
 import 'package:vocab_kr/presentation/screens/quiz/quiz_screen.dart';
+import 'package:vocab_kr/presentation/screens/home/daily_path_screen.dart';
 import 'package:vocab_kr/presentation/widgets/study/study_feedback_flood.dart';
 import 'package:vocab_kr/presentation/widgets/study/word_in_wave.dart';
 import 'package:vocab_kr/services/audio/audio_player_service.dart';
@@ -80,6 +82,7 @@ class _TestDirector extends AudioDirector {
   _TestDirector([AudioPlayerService? audio]) : super(audio ?? _NoopAudio());
 
   int cues = 0;
+  int endCues = 0;
   int stops = 0;
   Completer<void>? pendingStop;
 
@@ -105,7 +108,7 @@ class _TestDirector extends AudioDirector {
   Future<void> playIncorrect() async {}
 
   @override
-  Future<void> playListenDone() async {}
+  Future<void> playListenDone() async => endCues++;
 
   @override
   Future<void> stopAll() async {
@@ -116,6 +119,7 @@ class _TestDirector extends AudioDirector {
 
 class _BlockingPromptAudio extends _NoopAudio {
   final utterances = <(String, String, Completer<void>)>[];
+  int stops = 0;
 
   @override
   Future<void> speak(String text, String langCode, {String? audioPath}) {
@@ -123,6 +127,9 @@ class _BlockingPromptAudio extends _NoopAudio {
     utterances.add((text, langCode, done));
     return done.future;
   }
+
+  @override
+  Future<void> stop() async => stops++;
 }
 
 class _FakeCapture implements SharedPcmCapture {
@@ -154,6 +161,7 @@ class _FakeCaptureSession implements PcmCaptureSession {
 
   final void Function(PcmSegment) onSegment;
   bool closed = false;
+  Future<void>? pendingClose;
 
   void answer() => onSegment(PcmSegment(Uint8List(32000), 1000, 5000));
 
@@ -162,6 +170,7 @@ class _FakeCaptureSession implements PcmCaptureSession {
 
   @override
   Future<PcmSegment?> close({bool flush = false}) async {
+    await pendingClose;
     closed = true;
     return null;
   }
@@ -270,6 +279,20 @@ class _FakeProgressRepo implements ProgressRepository {
       Success(due.where((p) => p.direction == direction).take(limit).toList());
 
   @override
+  Future<Result<List<VariantProgress>>> getAllDueCards({
+    required String userId,
+    required QuizDirection direction,
+    String? langA,
+    String? langB,
+    int limit = 20,
+  }) => getDueCards(
+    userId: userId,
+    listId: '',
+    direction: direction,
+    limit: limit,
+  );
+
+  @override
   Future<Result<VariantProgress>> mutateProgress({
     required String variantId,
     required QuizDirection direction,
@@ -291,6 +314,13 @@ class _FakeProgressRepo implements ProgressRepository {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _DelayedSttMode extends SttEngineModeNotifier {
+  final preference = Completer<SttEngineMode>();
+
+  @override
+  Future<SttEngineMode> get restored => preference.future;
 }
 
 class _FakeAuthRepo implements AuthRepository {
@@ -357,6 +387,9 @@ void main() {
     _VoiceHarness? voice,
     _TestDirector? director,
     bool grammar = false,
+    bool fromDailyReview = false,
+    StateProvider<AppUser?>? account,
+    SttEngineModeNotifier? sttMode,
     ThemeMode themeMode = ThemeMode.light,
   }) async {
     navigatedTo = null;
@@ -395,7 +428,9 @@ void main() {
     );
     await pumpScreen(
       tester,
-      screen: entry == null
+      screen: fromDailyReview
+          ? const DailyPathScreen()
+          : entry == null
           ? quiz
           : Builder(
               builder: (context) => Scaffold(
@@ -431,12 +466,25 @@ void main() {
         audioDirectorProvider.overrideWithValue(
           director ?? voice?.director ?? _TestDirector(),
         ),
-        currentUserProvider.overrideWithValue(null),
+        if (fromDailyReview) ...[
+          myListsProvider.overrideWith((ref) => Stream.value([])),
+          dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(1)),
+        ],
+        if (sttMode != null) sttEngineModeProvider.overrideWith(() => sttMode),
+        if (account == null)
+          currentUserProvider.overrideWithValue(null)
+        else
+          currentUserProvider.overrideWith((ref) => ref.watch(account)),
         authRepositoryProvider.overrideWithValue(_FakeAuthRepo()),
         authStateProvider.overrideWith(_FakeAuthNotifier.new),
         notificationServiceProvider.overrideWithValue(_FakeNotifService()),
       ],
       routes: [
+        if (fromDailyReview)
+          GoRoute(
+            path: '/quiz',
+            builder: (_, state) => QuizScreen(args: state.extra! as QuizArgs),
+          ),
         if (entry != null) ...[
           GoRoute(
             path: entry,
@@ -465,6 +513,13 @@ void main() {
       await tester.tap(find.byKey(ValueKey(entry)));
       await tick(tester, times: 2);
       await tester.tap(find.byKey(const ValueKey('open-quiz')));
+    }
+    if (fromDailyReview) {
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.dailyPathReview)));
+      await tick(tester, times: 4);
+      await tester.tap(
+        find.byKey(ValueKey(WidgetKeys.homeReviewMode(mode.name))),
+      );
     }
     await tick(tester, times: 4); // loadCards + first frame
   }
@@ -1060,7 +1115,7 @@ void main() {
         expect(audio.utterances, hasLength(index * 2 + 1));
         final (instruction, instructionLang, instructionDone) =
             audio.utterances.last;
-        expect(instruction, contains('le mot suivant'));
+        expect(instruction, contains('les formes de la particule'));
         expect(instructionLang, 'fr');
         expect(voice.director.cues, index);
         expect(voice.capture.opens, index);
@@ -1069,7 +1124,7 @@ void main() {
         await tick(tester, times: 8);
         expect(audio.utterances, hasLength(index * 2 + 2));
         final (word, wordLang, wordDone) = audio.utterances.last;
-        expect(word, anyOf('학생', '친구'));
+        expect(word, anyOf('은. 는. 학생', '은. 는. 친구'));
         expect(wordLang, 'ko');
         expect(voice.director.cues, index);
         expect(voice.capture.opens, index);
@@ -1087,6 +1142,181 @@ void main() {
       await tester.pump(const Duration(seconds: 3));
     },
   );
+
+  testWidgets('daily review shortcut rates its one due card once', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      mode: QuizMode.flashcard,
+      words: [('chat', '고양이')],
+      fromDailyReview: true,
+    );
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.cartesCard)));
+    await tick(tester, times: 2);
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.gradeKnew)));
+    await tick(tester, times: 6);
+    expect(find.byKey(const ValueKey(WidgetKeys.summary)), findsOneWidget);
+    expect(progressRepo.saved, hasLength(1));
+    expect(progressRepo.saved.single.timesShown, 1);
+    await unmountScreen(tester);
+  });
+
+  testWidgets('switching accounts hides cards and cancels captured speech', (
+    tester,
+  ) async {
+    AppUser user(String id) => AppUser(
+      id: id,
+      email: '$id@example.com',
+      username: id,
+      createdAt: _now,
+    );
+    final account = StateProvider<AppUser?>((_) => user('u'));
+    final voice = _VoiceHarness();
+    final decoding = voice.whisper.pendingDecode = Completer<String?>();
+    await pump(
+      tester,
+      mode: QuizMode.voice,
+      words: [('chat', '고양이')],
+      account: account,
+      voice: voice,
+    );
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.micButton)));
+    await tester.pump();
+    final capture = voice.capture.session!;
+    capture.answer();
+    await tester.pump();
+
+    final providers = ProviderScope.containerOf(
+      tester.element(find.byType(QuizScreen)),
+    );
+    providers.read(account.notifier).state = user('b');
+    await tester.pump();
+    expect(capture.closed, isTrue);
+    expect(find.text('chat'), findsNothing);
+    expect(find.text('quiz.account_changed'.tr()), findsOneWidget);
+    decoding.complete('고양이');
+    await tick(tester, times: 3);
+    expect(progressRepo.saved, isEmpty);
+    await tester.runAsync(() async {
+      expect(await db.reviewEventDao.getByUser('b'), isEmpty);
+    });
+    await unmountScreen(tester);
+  });
+
+  testWidgets('the hands-free end cue waits for the capture to close', (
+    tester,
+  ) async {
+    final voice = _VoiceHarness();
+    final decoding = voice.whisper.pendingDecode = Completer<String?>();
+    await pump(
+      tester,
+      mode: QuizMode.handsFree,
+      words: [('chat', '고양이')],
+      voice: voice,
+    );
+    await tick(tester, times: 8);
+    final capture = voice.capture.session!;
+    final closing = Completer<void>();
+    capture.pendingClose = closing.future;
+    await tester.pump(const Duration(seconds: 3));
+    capture.answer();
+    await tester.pump();
+    expect(voice.whisper.decodes, 1);
+    expect(voice.director.endCues, 0);
+    await tester.pump(const Duration(seconds: 5));
+    expect(capture.closed, isFalse);
+    expect(voice.director.endCues, 0);
+    closing.complete();
+    await tester.pump();
+    expect(capture.closed, isTrue);
+    expect(voice.director.endCues, 1);
+    decoding.complete();
+    await unmountScreen(tester);
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('the first listen uses the restored recognizer mode', (
+    tester,
+  ) async {
+    final delayed = _DelayedSttMode();
+    final voice = _VoiceHarness();
+    await pump(
+      tester,
+      mode: QuizMode.handsFree,
+      words: [('chat', '고양이')],
+      voice: voice,
+      sttMode: delayed,
+    );
+    await tick(tester, times: 8);
+    expect(voice.director.cues, 0);
+    expect(voice.phonePrepares, 0);
+    expect(voice.capture.opens, 0);
+    delayed.preference.complete(SttEngineMode.system);
+    await tick(tester, times: 8);
+    expect(voice.director.cues, 1);
+    expect(voice.systemListens, 1);
+    expect(voice.phonePrepares, 0);
+    expect(voice.capture.opens, 0);
+    const speech = MethodChannel('plugin.csdcorp.com/speech_to_text');
+    await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+      speech.name,
+      speech.codec.encodeMethodCall(
+        const MethodCall('notifyStatus', 'doneNoResult'),
+      ),
+      null,
+    );
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 3600)),
+    );
+    await tester.pump(const Duration(seconds: 4));
+    await tick(tester, times: 8);
+    expect(voice.systemListens, 2, reason: 'retry reuses the prepared mode');
+    expect(voice.capture.opens, 0);
+    await unmountScreen(tester);
+    await tester.pump(const Duration(seconds: 12));
+  });
+
+  for (final timesOut in [false, true]) {
+    testWidgets('grammar TTS failure permits a retry (timeout: $timesOut)', (
+      tester,
+    ) async {
+      final audio = _BlockingPromptAudio();
+      final voice = _VoiceHarness(promptAudio: audio);
+      await pump(
+        tester,
+        mode: QuizMode.handsFree,
+        words: [],
+        grammar: true,
+        cardLimit: 1,
+        voice: voice,
+      );
+      expect(find.textContaining('은/는'), findsOneWidget);
+      if (timesOut) {
+        await tester.pump(const Duration(seconds: 16));
+      } else {
+        audio.utterances.single.$3.completeError(StateError('TTS failed'));
+        await tester.pump();
+      }
+      await tick(tester, times: 2);
+      expect(find.text('quiz.grammar_prompt_failed'.tr()), findsOneWidget);
+      expect(audio.stops, 1);
+      expect(voice.director.cues, 0);
+      expect(voice.capture.opens, 0);
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfRepeat)));
+      await tester.pump();
+      expect(audio.utterances, hasLength(2));
+      audio.utterances.last.$3.complete();
+      await tester.pump();
+      audio.utterances.last.$3.complete();
+      await tick(tester, times: 8);
+      expect(voice.director.cues, 1);
+      expect(voice.capture.opens, 1);
+      await unmountScreen(tester);
+      await tester.pump(const Duration(seconds: 12));
+    });
+  }
 
   testWidgets(
     'a hands-free verdict advances once after background and resume',

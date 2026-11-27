@@ -30,6 +30,7 @@ class PcmSpeechRecognizer(private val context: Context) {
         /** A SpeechRecognizer ERROR_* code, or null on success / no match. */
         val errorCode: Int?,
         val elapsedMs: Long,
+        val isFinal: Boolean = false,
     )
 
     private val main = Handler(Looper.getMainLooper())
@@ -154,17 +155,16 @@ class PcmSpeechRecognizer(private val context: Context) {
 
         recognizer.setRecognitionListener(object : RecognitionListener {
             override fun onResults(results: Bundle?) {
-                val texts = (
-                    results
-                        ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                        ?.filter { it.isNotBlank() }
-                        ?: emptyList()
-                    ).ifEmpty { lastPartial }
+                val finalTexts = results
+                    ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?.filter { it.isNotBlank() }
+                    ?: emptyList()
+                val texts = finalTexts.ifEmpty { lastPartial }
                 val scores = results
                     ?.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)
                     ?.toList()
                     ?: emptyList()
-                finish(Outcome(texts, scores, null, elapsed()))
+                finish(Outcome(texts, scores, null, elapsed(), isFinal = finalTexts.isNotEmpty()))
             }
 
             override fun onError(error: Int) {

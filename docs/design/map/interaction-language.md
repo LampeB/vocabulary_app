@@ -3,11 +3,12 @@
 **Statut : 🟢 décidé (utilisateur, 2026-09-11)** · règle transverse de
 navigation, de leçon et de quiz.
 
-> **État d'implémentation (2026-09-29).** La slice V3 applique la pile/flip/
+> **État d'implémentation (2026-11-27).** La slice V3 applique la pile/flip/
 > swipe aux flashcards et utilise `DiveInPage` pour le chemin quotidien et le
 > lecteur de grammaire. La règle n'est pas encore généralisée : certaines routes
-> V3 ouvrent encore normalement, le plateau scrollable ne signale pas le scroll,
-> et des effets de pile décorative subsistent hors quiz. Voir
+> V3 ouvrent encore normalement. Le plateau et le chemin signalent le scroll,
+> les piles décoratives hors quiz sont retirées et le verdict peut défiler
+> avec le texte agrandi. Voir
 > [`../v3-sentier-de-cartes.md`](../v3-sentier-de-cartes.md).
 
 Ce document définit la métaphore à employer selon l'intention de l'action.

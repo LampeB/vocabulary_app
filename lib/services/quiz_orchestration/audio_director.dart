@@ -1,5 +1,6 @@
 import '../audio/audio_player_service.dart';
 import '../audio/sound_effects_service.dart';
+import '../../core/utils/stt_debug_log.dart';
 
 /// Step 1 of the voice-orchestration refactor
 /// (docs/refactor-voice-orchestration.md): the single owner of "when is the
@@ -70,15 +71,34 @@ class AudioDirector {
 
   /// Plays the localized grammar instruction and then the drill word with
   /// its target-language voice. Resolves when both utterances have finished.
-  Future<void> speakGrammarPrompt({
+  Future<bool> speakGrammarPrompt({
     required String instruction,
     required String instructionLang,
     required String word,
     required String wordLang,
     required bool Function() keepGoing,
   }) async {
-    await speakWhenQuiet(instruction, instructionLang, keepGoing: keepGoing);
-    if (keepGoing()) await speak(word, wordLang);
+    const deadline = Duration(seconds: 15);
+    try {
+      await speakWhenQuiet(
+        instruction,
+        instructionLang,
+        keepGoing: keepGoing,
+      ).timeout(deadline);
+      if (!keepGoing()) return false;
+      await speak(word, wordLang).timeout(deadline);
+      return keepGoing();
+    } catch (error) {
+      sttLog('[TTS] grammar prompt failed: $error');
+      if (keepGoing()) {
+        try {
+          await stop().timeout(const Duration(milliseconds: 900));
+        } catch (error) {
+          sttLog('[TTS] grammar prompt stop failed: $error');
+        }
+      }
+      return false;
+    }
   }
 
   /// Waits out a speech CHAIN — utterances queuing behind each other (a

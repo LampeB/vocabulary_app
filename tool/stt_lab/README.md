@@ -33,7 +33,8 @@ cp ~/Android/Sdk/emulator/lib/emulator_controller.proto .
    hosts; `hostmicon` is a red herring) — gRPC `injectAudio` bypasses the
    host audio stack entirely.
 
-2. **App in a hands-free session**: install the release APK, sign in as the
+2. **App in a hands-free session**: install the debug APK built with
+   `--dart-define=STT_DIAGNOSTICS=true`, sign in as the
    lab account (`stt.lab@vocabkr.com`, list "STT Lab": 물/커피/밥/학생/친구),
    grant the mic (`adb shell pm grant com.vocabkr.vocab_kr.debug
    android.permission.RECORD_AUDIO`), start Hands-free / FR→KO / 10 cards.

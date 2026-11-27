@@ -21,24 +21,38 @@ final sttEngineModeProvider =
     );
 
 class SttEngineModeNotifier extends Notifier<SttEngineMode> {
+  late Future<void> _restoring;
+  var _revision = 0;
+
+  Future<SttEngineMode> get restored async {
+    await _restoring;
+    return state;
+  }
+
   @override
   SttEngineMode build() {
-    _load();
+    _restoring = _load(_revision);
+    ref.onDispose(() => _revision++);
     return SttEngineMode.race;
   }
 
-  Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getString(_keySttEngineMode);
-    if (saved != null) {
-      state = SttEngineMode.values.firstWhere(
-        (m) => m.name == saved,
-        orElse: () => SttEngineMode.race,
-      );
+  Future<void> _load(int revision) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_keySttEngineMode);
+      if (saved != null && _revision == revision) {
+        state = SttEngineMode.values.firstWhere(
+          (m) => m.name == saved,
+          orElse: () => SttEngineMode.race,
+        );
+      }
+    } catch (_) {
+      // Keep the default when platform storage is unavailable.
     }
   }
 
   Future<void> set(SttEngineMode mode) async {
+    _revision++;
     state = mode;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keySttEngineMode, mode.name);

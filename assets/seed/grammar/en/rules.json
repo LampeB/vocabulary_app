@@ -9,20 +9,29 @@
           "fr": "Les articles indéfinis a / an"
         },
         "description": {
-          "en": "Use a before a consonant sound and an before a vowel sound.",
-          "fr": "Utiliser a devant un son consonne et an devant un son voyelle."
+          "en": "With a singular countable noun, use a before a consonant sound and an before a vowel sound.",
+          "fr": "Avec un nom dénombrable au singulier, utilise a devant un son consonne et an devant un son voyelle."
         },
         "explanation": {
-          "en": "English has no grammatical gender: the choice between a and an depends only on the FIRST SOUND of the next word. Before a consonant sound, use a: a book, a train. Before a vowel sound, use an: an apple, an airport. It's the sound that counts, not the letter: a university (you-), an hour (silent h).",
-          "fr": "L'anglais n'a pas de genre grammatical : le choix entre a et an dépend uniquement du PREMIER SON du mot suivant. Devant un son consonne, utilise a : a book, a train. Devant un son voyelle, utilise an : an apple, an airport. C'est le son qui compte, pas la lettre : a university (son \"you\"), an hour (h muet)."
+          "en": "Use a or an with a singular countable noun. English has no grammatical gender. Use a before a consonant sound, as in a book, a train or a university (you-). Use an before a vowel sound, as in an apple, an airport or an hour (silent h). For an unspecified amount of milk or water, use the noun on its own. In a café, a coffee means one serving.",
+          "fr": "On emploie a ou an avec un nom dénombrable au singulier. En anglais, les noms n'ont pas de genre grammatical. Utilise a devant un son consonne, comme dans a book, a train ou a university (qui commence par le son « you »). Utilise an devant un son voyelle, comme dans an apple, an airport ou an hour (h muet). Pour parler d'une quantité indéterminée de lait ou d'eau, emploie milk ou water sans article. Dans un café, a coffee désigne une tasse de café."
         },
-        "prerequisite_lists": ["starter-food"],
+        "prerequisite_lists": ["starter-food", "starter-greetings"],
         "min_known_words": { "nom": 5 },
         "applies_to_categories": ["nom", "lieu"],
         "mechanics": {
           "type": "article",
           "article": {
-            "forms": { "default": "a" }
+            "forms": { "default": "a" },
+            "overrides": {
+              "water": "water",
+              "kimchi": "kimchi",
+              "meat": "meat",
+              "fruit": "fruit",
+              "tea": "tea",
+              "milk": "milk",
+              "bread": "bread"
+            }
           }
         },
         "worked_examples": [
@@ -33,6 +42,10 @@
           {
             "target": "an apple",
             "translations": { "en": "an apple", "fr": "une pomme" }
+          },
+          {
+            "target": "A coffee, please.",
+            "translations": { "en": "A coffee, please.", "fr": "Un café, s'il vous plaît." }
           }
         ],
         "test_vectors": [
@@ -43,7 +56,14 @@
           { "input": "apple", "context": "vowel", "expected": "an apple" },
           { "input": "airport", "context": "vowel", "expected": "an airport" },
           { "input": "school", "context": "consonant", "expected": "a school" },
-          { "input": "teacher", "context": "consonant", "expected": "a teacher" }
+          { "input": "teacher", "context": "consonant", "expected": "a teacher" },
+          { "input": "water", "context": "uncountable", "expected": "water" },
+          { "input": "kimchi", "context": "uncountable", "expected": "kimchi" },
+          { "input": "meat", "context": "uncountable", "expected": "meat" },
+          { "input": "fruit", "context": "uncountable", "expected": "fruit" },
+          { "input": "tea", "context": "uncountable", "expected": "tea" },
+          { "input": "milk", "context": "uncountable", "expected": "milk" },
+          { "input": "bread", "context": "uncountable", "expected": "bread" }
         ]
       }
     },

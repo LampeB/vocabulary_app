@@ -1,3 +1,3 @@
 import { handleAudioProvision } from "./handler.ts";
 
-Deno.serve(handleAudioProvision);
+Deno.serve((req) => handleAudioProvision(req));

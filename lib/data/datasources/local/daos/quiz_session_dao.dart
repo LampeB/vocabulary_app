@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import '../app_database.dart';
 import '../tables/quiz_sessions_table.dart';
+import 'vocabulary_list_dao.dart';
 
 part 'quiz_session_dao.g.dart';
 
@@ -10,7 +11,26 @@ class QuizSessionDao extends DatabaseAccessor<AppDatabase>
   QuizSessionDao(super.db);
 
   Future<void> insertSession(QuizSessionsTableCompanion companion) =>
-      into(quizSessionsTable).insert(companion);
+      db.transaction(() async {
+        final listId = companion.listId.value;
+        var session = companion;
+        if (listId != null) {
+          final lists = db.vocabularyListDao;
+          final canonicalId = await lists.resolveStarterId(
+            StarterAliasKind.list,
+            companion.userId.value,
+            listId,
+          );
+          if (canonicalId != listId) {
+            final canonical = await lists.getById(canonicalId);
+            session = companion.copyWith(
+              listId: Value(canonicalId),
+              listName: canonical == null ? null : Value(canonical.name),
+            );
+          }
+        }
+        await into(quizSessionsTable).insert(session);
+      });
 
   Future<List<QuizSessionsTableData>> getSessionsByUser(
     String userId, {

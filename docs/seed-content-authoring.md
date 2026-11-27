@@ -55,6 +55,25 @@ reconciled by these ids (`concepts.seed_id`, `vocabulary_lists.seed_id`), and
 grammar prerequisites reference list ids. List display names live in the
 translation files; they are resolved once at seed time and user-editable after.
 
+## Grammar article overrides
+
+Each key in `mechanics.article.overrides` matches the exact target word.
+The value is the full expected form. When a learned sense takes no article,
+map the word to itself, as in `"milk": "milk"`. The generator excludes
+these entries from article exercises and from the corresponding
+`min_known_words` counts. Check that the rule's prerequisite lists still
+provide enough eligible nouns.
+
+Use the aligned vocabulary examples to check the taught sense. In
+`starter-food`, coffee keeps its countable serving sense for the a/an rule
+because the English example is “A coffee, please.” The revised English
+article card copy is pending native review.
+
+By the 2026-11-27 decision, `en-articles-a-an` requires `starter-food`
+and `starter-greetings`, with a minimum of five known eligible nouns.
+The food list supplies three eligible nouns and the greetings list adds
+four. Both lists use the standard vocabulary mastery gate.
+
 ## Grammar lesson pages (P3)
 
 Grammar rules may carry an optional `lesson_pages` array. It is authored

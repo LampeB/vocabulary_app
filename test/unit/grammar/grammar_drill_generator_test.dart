@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/core/grammar/grammar_drill_generator.dart';
 import 'package:vocab_kr/core/grammar/grammar_language_module.dart';
+import 'package:vocab_kr/core/grammar/latin/latin_grammar_modules.dart';
 import 'package:vocab_kr/domain/entities/grammar_rule.dart';
 
 /// Stage-2 drill generation: exercises are built at runtime from the rule +
@@ -109,4 +110,37 @@ void main() {
       isEmpty,
     );
   });
+
+  test(
+    'an article override equal to the noun excludes that learned meaning',
+    () {
+      const articles = GrammarRule(
+        id: 'en-indefinite-articles',
+        titles: {'en': 'A and an'},
+        descriptions: {},
+        explanations: {},
+        workedExamples: [],
+        prerequisiteLists: [],
+        appliesToCategories: ['nom'],
+        minKnownWords: {'nom': 2},
+        mechanics: ArticleMechanics(
+          forms: {'default': 'a'},
+          overrides: {'water': 'water', 'hour': 'an hour'},
+        ),
+        testVectors: [],
+      );
+      const drills = GrammarDrillGenerator(EnglishGrammarModule());
+      const water = DrillWord(word: 'water', category: 'nom');
+      const hour = DrillWord(word: 'hour', category: 'nom');
+      const book = DrillWord(word: 'book', category: 'nom');
+      expect(drills.canGenerate(articles, [water, hour]), isFalse);
+      expect(drills.canGenerate(articles, [water, hour, book]), isTrue);
+      expect(
+        drills
+            .generate(articles, [water, hour, book], count: 4)
+            .map((exercise) => exercise.expected),
+        unorderedEquals(['an hour', 'a book', 'an hour', 'a book']),
+      );
+    },
+  );
 }

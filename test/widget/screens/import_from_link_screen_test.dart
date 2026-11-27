@@ -14,6 +14,7 @@ import 'package:vocab_kr/domain/entities/subscription_type.dart';
 import 'package:vocab_kr/domain/repositories/auth_repository.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/navigation/auth_redirect.dart';
+import 'package:vocab_kr/presentation/widgets/session_bootstrap.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/purchases/purchase_provider.dart';
 import 'package:vocab_kr/presentation/screens/import/import_from_link_screen.dart';
@@ -159,6 +160,7 @@ void main() {
     tester,
   ) async {
     final profile = Completer<Result<AppUser>>();
+    final bootstrappedOwners = <String>[];
     db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     final container = ProviderContainer(
@@ -169,6 +171,10 @@ void main() {
           _RestoredSessionRepository(profile: profile.future),
         ),
         isPremiumProvider.overrideWithValue(true),
+        seedStarterListsProvider.overrideWith((ref) async {
+          final id = ref.watch(currentUserProvider.select((user) => user?.id));
+          if (id != null) bootstrappedOwners.add(id);
+        }),
       ],
     );
     addTearDown(container.dispose);
@@ -195,7 +201,9 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: MaterialApp.router(routerConfig: router),
+        child: SessionBootstrap(
+          child: MaterialApp.router(routerConfig: router),
+        ),
       ),
     );
     for (var i = 0; i < 8; i++) {
@@ -207,6 +215,7 @@ void main() {
       () => db.vocabularyListDao.getImportedCopy('good-token', 'u'),
     );
     expect(imported?.ownerId, 'u');
+    expect(bootstrappedOwners, ['u']);
     expect(
       (await tester.runAsync(
         () => db.vocabularyListDao.watchByOwner('').first,
@@ -217,6 +226,7 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(container.read(currentUserProvider)?.currentStreak, 7);
+    expect(bootstrappedOwners, ['u']);
     expect(find.text('Imported account list'), findsOneWidget);
     await unmountScreen(tester);
   });

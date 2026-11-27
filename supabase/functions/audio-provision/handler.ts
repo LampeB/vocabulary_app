@@ -1,5 +1,7 @@
-import { createClient } from "npm:@supabase/supabase-js@2.119.2";
-import { authorizeAndConsume } from "../_shared/provider_gate.ts";
+import {
+  createClient,
+  StorageApiError,
+} from "npm:@supabase/supabase-js@2.119.2";
 import {
   audioPathForUser,
   boundedJson,
@@ -14,6 +16,7 @@ const cors = {
 
 const bucket = "vocab-audio";
 const seedVersion = "v1";
+const audioWorkTimeoutMs = 60_000;
 const voiceByLanguage: Record<string, { id: string; label: string }> = {
   fr: { id: "XB0fDUnXU5powFXDhCwa", label: "Charlotte" },
   en: { id: "21m00Tcm4TlvDq8ikWAM", label: "Rachel" },
@@ -32,7 +35,10 @@ async function hash(text: string, lang: string) {
     .join("");
 }
 
-export async function handleAudioProvision(req: Request) {
+export async function handleAudioProvision(
+  req: Request,
+  workDeadline = () => AbortSignal.timeout(audioWorkTimeoutMs),
+) {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   if (req.method !== "POST") {
     return response({ error: "Method not allowed" }, 405);
@@ -48,7 +54,21 @@ export async function handleAudioProvision(req: Request) {
   const token = authHeader.replace(/^Bearer\s+/i, "");
   if (!token) return response({ error: "Authentication required" }, 401);
 
-  const auth = createClient(supabaseUrl, anonKey);
+  const client = (key: string, deadline?: AbortSignal) =>
+    createClient(supabaseUrl, key, {
+      db: { retry: false },
+      global: {
+        fetch: (input, init) => {
+          const limit = deadline ?? AbortSignal.timeout(10_000);
+          const signal = init?.signal
+            ? AbortSignal.any([limit, init.signal])
+            : limit;
+          signal.throwIfAborted();
+          return fetch(input, { ...init, signal });
+        },
+      },
+    });
+  const auth = client(anonKey);
   const { data: authData, error: authError } = await auth.auth.getUser(token);
   const user = authData.user;
   if (authError || !user) return response({ error: "Invalid session" }, 401);
@@ -63,7 +83,7 @@ export async function handleAudioProvision(req: Request) {
     return response({ error: "Invalid variant_id" }, 400);
   }
 
-  const admin = createClient(supabaseUrl, serviceRoleKey);
+  const admin = client(serviceRoleKey);
   const { data: variant, error: variantError } = await admin
     .from("word_variants")
     .select(
@@ -93,14 +113,23 @@ export async function handleAudioProvision(req: Request) {
   }
   const textHash = await hash(text, lang);
   const voice = voiceByLanguage[lang] ?? voiceByLanguage.fr;
-  const storage = admin.storage.from(bucket);
-  // The pinned Storage SDK distinguishes a missing object from every other
-  // failure. It checks metadata, so cache hits don't transfer an MP3.
-  const objectExists = (path: string) =>
-    storage.exists(path).then(({ data }) => data, () => null);
+  const objectExists = async (db: typeof admin, path: string) => {
+    // Read metadata with the error body. An unqualified HTTP 404 could
+    // originate from the gateway; only Storage's NoSuchKey permits generation.
+    const { error } = await db.storage.from(bucket).info(path);
+    if (!error) return true;
+    if (
+      error instanceof StorageApiError && error.code === "NoSuchKey" &&
+      (error.status === 404 ||
+        (error.status === 400 && error.statusCode === "404"))
+    ) {
+      return false;
+    }
+    return null;
+  };
   const unavailable = () => response({ error: "Audio unavailable" }, 503);
-  const attach = async (path: string) => {
-    const { data, error } = await admin.from("word_variants")
+  const attach = async (db: typeof admin, path: string) => {
+    const { data, error } = await db.from("word_variants")
       .update({
         audio_path: path,
         audio_hash: textHash,
@@ -139,16 +168,21 @@ export async function handleAudioProvision(req: Request) {
     .select("path").eq("path", publishedPath).maybeSingle();
   if (manifestError) return unavailable();
   if (published) {
-    const found = await objectExists(publishedPath);
+    const found = await objectExists(admin, publishedPath);
     if (found === null) return unavailable();
-    if (found) return await attach(publishedPath);
+    if (found) return await attach(admin, publishedPath);
   }
   const audioPath = audioPathForUser(user.id, variant.id, textHash);
 
-  const existing = await objectExists(audioPath);
+  const existing = await objectExists(admin, audioPath);
   if (existing === null) return unavailable();
-  if (existing) return await attach(audioPath);
-  const { data: lease, error: leaseError } = await admin.rpc(
+  if (existing) return await attach(admin, audioPath);
+
+  // Include lease acquisition in the 60s budget. Every subsequent fetch and
+  // response body is cancelled before the database lease can expire at 90s.
+  const deadline = workDeadline();
+  const leasedAdmin = client(serviceRoleKey, deadline);
+  const { data: lease, error: leaseError } = await leasedAdmin.rpc(
     "acquire_audio_generation",
     {
       p_user_id: user.id,
@@ -159,31 +193,31 @@ export async function handleAudioProvision(req: Request) {
   if (!lease) {
     return response({ error: "Audio generation already in progress" }, 429);
   }
+  let paidWorkPending = false;
   try {
     // Recheck after acquisition: another request may have completed between
     // this request's first cache check and acquiring the now-released lease.
-    const cachedAfterLock = await objectExists(audioPath);
+    const cachedAfterLock = await objectExists(leasedAdmin, audioPath);
     if (cachedAfterLock === null) return unavailable();
-    if (cachedAfterLock) return await attach(audioPath);
-    const quota = await authorizeAndConsume(req, "audio_provision");
-    if (quota !== "allowed") {
-      return response(
-        {
-          error: quota === "limited"
-            ? "Daily audio limit reached"
-            : "Audio unavailable",
-        },
-        quota === "limited" ? 429 : 503,
-      );
-    }
+    if (cachedAfterLock) return await attach(leasedAdmin, audioPath);
     const elevenLabsKey = Deno.env.get("ELEVENLABS_API_KEY") ?? "";
     if (!elevenLabsKey) return response({ error: "TTS unavailable" }, 503);
+    const { data: quota, error: quotaError } = await leasedAdmin.rpc(
+      "consume_provider_quota",
+      { p_user_id: user.id, p_metric: "audio_provision" },
+    );
+    if (quotaError || typeof quota?.allowed !== "boolean") return unavailable();
+    if (!quota.allowed) {
+      return response({ error: "Daily audio limit reached" }, 429);
+    }
 
+    deadline.throwIfAborted();
+    paidWorkPending = true;
     const tts = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voice.id}?output_format=mp3_22050_32`,
       {
         method: "POST",
-        signal: AbortSignal.timeout(60_000),
+        signal: deadline,
         headers: {
           "xi-api-key": elevenLabsKey,
           "Content-Type": "application/json",
@@ -203,24 +237,33 @@ export async function handleAudioProvision(req: Request) {
     );
     if (!tts.ok) return response({ error: "TTS generation failed" }, 502);
 
-    const { error: uploadError } = await storage.upload(
-      audioPath,
-      new Uint8Array(await tts.arrayBuffer()),
-      { contentType: "audio/mpeg", cacheControl: "31536000", upsert: false },
-    );
+    const { error: uploadError } = await leasedAdmin.storage.from(bucket)
+      .upload(
+        audioPath,
+        new Uint8Array(await tts.arrayBuffer()),
+        { contentType: "audio/mpeg", cacheControl: "31536000", upsert: false },
+      );
+    if (deadline.aborted) return unavailable();
     // A concurrent request may have won the immutable upload race; either way,
     // the object now exists and the variant can safely reference it.
     if (uploadError && !/already exists/i.test(uploadError.message)) {
       return response({ error: "Audio storage failed" }, 502);
     }
+    paidWorkPending = false;
 
-    return await attach(audioPath);
+    return await attach(leasedAdmin, audioPath);
   } catch (_) {
-    return response({ error: "Audio unavailable" }, 502);
+    return deadline.aborted
+      ? unavailable()
+      : response({ error: "Audio unavailable" }, 502);
   } finally {
-    await admin.rpc("release_audio_generation", {
-      p_path: audioPath,
-      p_token: lease,
-    });
+    // Transport cancellation cannot confirm a remote write or render stopped.
+    // Leave the token in place until it expires if paid work is uncertain.
+    if (!deadline.aborted && !paidWorkPending) {
+      await leasedAdmin.rpc("release_audio_generation", {
+        p_path: audioPath,
+        p_token: lease,
+      });
+    }
   }
 }

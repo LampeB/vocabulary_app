@@ -9,6 +9,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/core/utils/fsrs_algorithm.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
+import 'package:vocab_kr/data/models/concept_dto.dart';
+import 'package:vocab_kr/data/models/variant_progress_dto.dart';
+import 'package:vocab_kr/data/models/vocabulary_list_dto.dart';
+import 'package:vocab_kr/data/models/word_variant_dto.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
 import 'package:vocab_kr/domain/entities/subscription_type.dart';
@@ -117,7 +121,159 @@ class _FakeNotifService implements NotificationService {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _StarterRestoreRemote extends FakeRemote {
+  late Map<String, dynamic> list;
+  late Map<String, dynamic> concept;
+  late Map<String, dynamic> progress;
+
+  @override
+  Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async =>
+      Success([list]);
+
+  @override
+  Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
+    String listId,
+  ) async => Success([concept]);
+
+  @override
+  Future<Result<List<Map<String, dynamic>>>> fetchProgress(
+    String userId,
+  ) async => Success([progress]);
+}
+
 void main() {
+  test('a quiz loaded before starter adoption records its grade and summary '
+      'against the server identities', () async {
+    SharedPreferences.setMockInitialValues({});
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final remote = _StarterRestoreRemote();
+    final repo = VocabularyRepositoryImpl(
+      db.vocabularyListDao,
+      db.conceptDao,
+      remote,
+      'u',
+      db,
+    );
+    final draft = (await repo.importFromJson({
+      'list': {
+        'name': 'Starter offline',
+        'seed_id': 'starter-greetings:fr>ko',
+        'concepts': [
+          {
+            'seed_id': 'greeting-bonjour',
+            'variants': [
+              {'word': 'bonjour', 'lang_code': 'fr'},
+              {'word': '안녕하세요', 'lang_code': 'ko'},
+            ],
+          },
+        ],
+      },
+    }, origin: 'starter')).valueOrNull!;
+    expect(await db.vocabularyListDao.isStarterDraftHeld(draft.id), isTrue);
+
+    final container = ProviderContainer(
+      overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+        vocabularyRemoteProvider.overrideWithValue(remote),
+        audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
+        currentUserProvider.overrideWithValue(
+          AppUser(
+            id: 'u',
+            email: 'u@example.com',
+            username: 'u',
+            createdAt: _now,
+          ),
+        ),
+        authRepositoryProvider.overrideWithValue(_FakeAuthRepo()),
+        authStateProvider.overrideWith(_FakeAuthNotifier.new),
+        notificationServiceProvider.overrideWithValue(_FakeNotifService()),
+      ],
+    );
+    addTearDown(container.dispose);
+    final session = container.listen(quizProvider, (_, _) {});
+    final quiz = container.read(quizProvider.notifier);
+    await quiz.loadCards(
+      QuizArgs(
+        listId: draft.id,
+        mode: QuizMode.flashcard,
+        direction: QuizDirectionChoice.frToKo,
+        cardLimit: 1,
+      ),
+    );
+    final heldCard = session.read().currentCard!;
+    final concept = (await db.conceptDao.getConceptsByList(draft.id)).single;
+    final variants = await db.conceptDao.getVariantsByConcept(concept.id);
+    final fr = variants.singleWhere((variant) => variant.langCode == 'fr');
+    final ko = variants.singleWhere((variant) => variant.langCode == 'ko');
+    expect(heldCard.progress.variantId, fr.id);
+
+    const serverList = 'server-list';
+    const serverConcept = 'server-concept';
+    const serverFr = 'server-fr';
+    remote.list = {
+      ...draft.toRemoteMap(),
+      'id': serverList,
+      'name': 'Server list name',
+    };
+    remote.concept = {
+      ...concept.toRemoteMap(),
+      'id': serverConcept,
+      'list_id': serverList,
+      'word_variants': [
+        {...fr.toRemoteMap(), 'id': serverFr, 'concept_id': serverConcept},
+        {...ko.toRemoteMap(), 'id': 'server-ko', 'concept_id': serverConcept},
+      ],
+    };
+    remote.progress = VariantProgress(
+      id: 'server-progress',
+      userId: 'u',
+      variantId: serverFr,
+      direction: QuizDirection.frToKo,
+      timesShown: 3,
+      timesCorrect: 2,
+      createdAt: _now,
+      updatedAt: _now,
+    ).toRemoteMap();
+    await repo.syncFromRemote();
+    expect(await db.conceptDao.getVariantById(fr.id), isNull);
+    expect(session.read().currentCard, same(heldCard));
+
+    quiz.flipCard();
+    quiz.gradeFlashcard(FsrsRating.good);
+    quiz.advance();
+    expect(session.read().isComplete, isTrue);
+    expect(session.read().accuracy, 1);
+
+    final progress = await db
+        .select(db.variantProgressTable)
+        .watch()
+        .expand((rows) => rows)
+        .firstWhere((row) => row.id == 'server-progress' && row.timesShown == 4)
+        .timeout(const Duration(seconds: 2));
+    expect(progress.variantId, serverFr);
+    expect(progress.timesCorrect, 3);
+    expect(
+      (await db.select(db.variantProgressTable).get()).map(
+        (row) => row.variantId,
+      ),
+      [serverFr],
+    );
+    final event = (await db.reviewEventDao.getByUser('u')).single;
+    expect(event.variantId, serverFr);
+    expect(event.listId, serverList);
+    final history = await db
+        .select(db.quizSessionsTable)
+        .watch()
+        .expand((rows) => rows)
+        .first
+        .timeout(const Duration(seconds: 2));
+    expect(history.listId, serverList);
+    expect(history.listName, 'Server list name');
+    expect(history.cardCount, 1);
+    expect(history.correctCount, 1);
+  });
+
   test(
     'a skipped then correct card records 100% even if a new session loads',
     () async {

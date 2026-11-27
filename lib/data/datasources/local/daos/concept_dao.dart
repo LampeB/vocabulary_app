@@ -143,6 +143,21 @@ class ConceptDao extends DatabaseAccessor<AppDatabase> with _$ConceptDaoMixin {
     return row.read(count) ?? 0;
   }
 
+  Future<Set<String>> getVariantIdsByLists(Set<String> listIds) async {
+    if (listIds.isEmpty) return {};
+    final variants = selectOnly(wordVariantsTable)
+      ..addColumns([wordVariantsTable.id]);
+    final joined = variants.join([
+      innerJoin(
+        conceptsTable,
+        conceptsTable.id.equalsExp(wordVariantsTable.conceptId),
+        useColumns: false,
+      ),
+    ])..where(conceptsTable.listId.isIn(listIds));
+    return (await joined.map((row) => row.read(wordVariantsTable.id)!).get())
+        .toSet();
+  }
+
   Future<void> refreshListWordCount(String listId) async {
     await db.vocabularyListDao.refreshWordCount(
       listId,

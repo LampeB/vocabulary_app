@@ -30,7 +30,7 @@ livraison et les validations qui manquent sont dans
 | `VoiceTurnMachine` | Politique d'un tour mains-libres : retries, pause silencieuse, validation unique et transition. |
 | `AudioDirector` | Sérialise TTS, clips, earcons et remise du microphone. |
 | `SttRace` | Coordonne les hypothèses des moteurs, rejette les callbacks périmés et accepte la première réponse validée. Expose l'état en direct (`SttRaceStatus`). |
-| `SharedPcmCapture` | Micro unique pour toute la vie de l'app : **tous les moteurs transcrivent le même enregistrement** (décision utilisateur 2026-10-02). |
+| `SharedPcmCapture` | Les décodeurs PCM transcrivent la même capture (décision utilisateur 2026-10-02). Le reconnaisseur système exclusif ouvre son propre micro lorsqu'il est sélectionné. |
 | `PhoneSttEngine` / `PcmSpeechRecognizer.kt` | Reconnaissance du téléphone appliquée à NOTRE enregistrement (Android 13+ `EXTRA_AUDIO_SOURCE`, canal `vocab_kr/pcm_speech`). |
 | `SttStatusStrip` | Montre à l'apprenant s'il est écouté, entendu, ou si chaque moteur envoie/analyse/échoue. |
 | `hf_cue.dart` | Séquence mains-libres visible : lecture → 3·2·1 → bip « Écoute en cours » + barre qui se vide (durée réglable dans les paramètres). |
@@ -50,16 +50,24 @@ audio du prompt → signal de fin → remise micro → hypothèses STT
 En grammaire mains-libres, chaque carte fait entendre la consigne dans la
 langue de l'interface puis le mot à transformer dans la langue étudiée.
 Le compte à rebours, le signal et le micro suivent la fin de ces deux lectures.
+Si la lecture échoue ou dépasse son délai, le tour reste disponible via le
+bouton Répéter. Le microphone reste fermé.
 `SttRace` et `VoiceTurnMachine` ignorent les résultats arrivés après la fin du
 tour pour empêcher une réponse de contaminer la carte suivante.
 La fermeture de la capture attend sa dernière portion audio et l'inscrit dans
 les analyses en cours avant de permettre un verdict d'absence de réponse.
+Un décodeur peut travailler pendant l'écoute. Le signal de fin d'écoute
+attend la fermeture confirmée du microphone et un verdict encore en cours.
+Chaque tour attend la restauration du mode STT et garde ce mode pour les
+nouvelles tentatives.
 La mise en arrière-plan et la pause volontaire invalident immédiatement le
 tour en cours, y compris un compte à rebours ou une relance programmée.
 Le retour au premier plan reprend le tour interrompu si la session est
 active. Pendant un feedback, il reprend l'avance différée et conserve la
 notation déjà écrite. Une pause volontaire reste active jusqu'à la reprise
 par l'apprenant.
+Un changement d'identifiant de compte ferme la session, retire ses cartes
+et invalide le tour audio et les opérations différées de cette session.
 L'arrêt d'un tour invalide les portions PCM en file pour le reconnaisseur du
 téléphone. Le pont Android annule et détruit le reconnaisseur actif et ferme
 ses deux descripteurs de capture. Le nouveau tour attend cette remise à zéro
@@ -79,7 +87,9 @@ particules. Le même contrôle s'applique à chaque hypothèse finale de la
 course et à l'enregistrement du verdict. Les hypothèses partielles restent
 visibles, sans verdict si aucun résultat final n'arrive. La transcription
 orale peut ajouter de la ponctuation finale. Le vocabulaire conserve ses
-normalisations tolérantes.
+normalisations tolérantes et peut valider une hypothèse partielle. Le pont
+PCM préserve le caractère provisoire d'un texte conservé après une erreur
+ou un résultat final vide.
 Les réponses de grammaire alimentent la maîtrise de la règle. Le feedback de
 vocabulaire annonce l'intervalle renvoyé par la notation FSRS enregistrée
 pour cette réponse. Les verdicts s'affichent dès la validation.

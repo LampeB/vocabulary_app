@@ -507,14 +507,16 @@ void main() {
       final source = _FakeSource();
       final scribe = _SharedEngine('elevenlabs', requiresNetwork: true);
       final statuses = <SttRaceStatus>[];
-      final future = SttRace(
-        [scribe],
-        capture: source,
-      ).run(langCode: 'ko', acceptedAnswers: ['책'], onStatus: statuses.add);
+      final future = SttRace([scribe], capture: source).run(
+        langCode: 'ko',
+        acceptedAnswers: ['책'],
+        timeout: const Duration(milliseconds: 25),
+        onStatus: statuses.add,
+      );
       await _pump();
       source.session!.startSpeaking();
       source.session!.finishUtterance();
-      await _pump();
+      await _wait(60);
       scribe.answer('책');
       await future;
 
@@ -539,27 +541,77 @@ void main() {
     });
 
     test(
-      'mic closing with analyses in flight reports a pending verdict',
+      'engine work becomes analysis only after microphone closure completes',
       () async {
         final source = _FakeSource();
         final scribe = _SharedEngine('elevenlabs');
         var pending = 0;
+        final statuses = <SttRaceStatus>[];
         final future = SttRace([scribe], capture: source).run(
           langCode: 'fr',
           acceptedAnswers: ['thé'],
           timeout: const Duration(milliseconds: 20),
           onMicClosedPending: () => pending++,
+          onStatus: statuses.add,
         );
         await _pump();
         source.session!.startSpeaking();
         source.session!.finishUtterance();
+        final closing = Completer<PcmSegment?>();
+        source.session!.delayedClose = closing;
         await _wait(50);
+        expect(scribe.calls, hasLength(1));
+        expect(statuses.last.phase, SttPhase.listening);
+        expect(statuses.last.engines.single.state, SttEngineState.working);
+        expect(pending, 0);
+        closing.complete(null);
+        await _pump();
         expect(pending, 1);
+        expect(statuses.last.phase, SttPhase.analyzing);
         scribe.answer('thé');
         expect((await future).matched, isTrue);
       },
     );
   });
+
+  test(
+    'phone partial returned after native end can only grade vocabulary',
+    () async {
+      const channel = MethodChannel('vocab_kr/pcm_speech');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(
+        channel,
+        (call) async => switch (call.method) {
+          'isSupported' => true,
+          // Retained partial after an empty native final bundle or an error.
+          'recognize' => {
+            'texts': ['사과가'],
+            'isFinal': false,
+          },
+          _ => null,
+        },
+      );
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+      final phone = PhoneSttEngine(const MethodChannelPhonePcmRecognizer());
+      await phone.prepare();
+      for (final grammar in [true, false]) {
+        final source = _FakeSource();
+        final verdict = SttRace([phone], capture: source).run(
+          langCode: 'ko',
+          acceptedAnswers: ['사과가'],
+          preserveGrammar: grammar,
+          timeout: const Duration(milliseconds: 35),
+        );
+        await _pump();
+        source.session!.finishUtterance();
+        final outcome = await verdict;
+        expect(outcome.hypotheses.single.isFinal, isFalse);
+        expect(outcome.matched, !grammar);
+        expect(outcome.bestTranscript, grammar ? isNull : '사과가');
+      }
+    },
+  );
 
   group('SttRace.cancel — a superseded listen must not touch the next one', () {
     test(

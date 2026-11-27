@@ -5,6 +5,7 @@ import '../../core/errors/failure.dart';
 import '../../core/errors/app_exception.dart';
 import '../datasources/local/daos/progress_dao.dart';
 import '../datasources/local/daos/concept_dao.dart';
+import '../datasources/local/daos/vocabulary_list_dao.dart';
 import '../datasources/remote/vocabulary_remote_datasource.dart';
 import '../models/variant_progress_dto.dart';
 
@@ -22,6 +23,9 @@ class ProgressRepositoryImpl implements ProgressRepository {
   final ConceptDao _conceptDao;
   final String _userId;
 
+  VocabularyListDao get _listDao =>
+      _progressDao.attachedDatabase.vocabularyListDao;
+
   @override
   Future<Result<List<VariantProgress>>> getDueCards({
     required String userId,
@@ -32,7 +36,12 @@ class ProgressRepositoryImpl implements ProgressRepository {
     try {
       final questionLang = direction.questionLang;
 
-      final concepts = await _conceptDao.getConceptsByList(listId);
+      final canonicalId = await _listDao.resolveStarterId(
+        StarterAliasKind.list,
+        userId,
+        listId,
+      );
+      final concepts = await _conceptDao.getConceptsByList(canonicalId);
       if (concepts.isEmpty) return const Success([]);
 
       final conceptIds = concepts.map((c) => c.id).toList();
@@ -151,7 +160,16 @@ class ProgressRepositoryImpl implements ProgressRepository {
     required QuizDirection direction,
   }) async {
     try {
-      return Success(await _currentProgress(variantId, direction));
+      return Success(
+        await _progressDao.transaction(() async {
+          final canonicalId = await _listDao.resolveStarterId(
+            StarterAliasKind.variant,
+            _userId,
+            variantId,
+          );
+          return _currentProgress(canonicalId, direction);
+        }),
+      );
     } catch (e) {
       return Failure(StorageException(e.toString()));
     }
@@ -189,14 +207,19 @@ class ProgressRepositoryImpl implements ProgressRepository {
   }) async {
     try {
       return await _progressDao.transaction(() async {
-        if (!await _progressDao.isLiveVariant(_userId, variantId)) {
+        final canonicalId = await _listDao.resolveStarterId(
+          StarterAliasKind.variant,
+          _userId,
+          variantId,
+        );
+        if (!await _progressDao.isLiveVariant(_userId, canonicalId)) {
           return const Failure(NotFoundException('Card not found'));
         }
-        final current = await _currentProgress(variantId, direction);
+        final current = await _currentProgress(canonicalId, direction);
         final local = mutate(current).copyWith(
           id: current.id,
           userId: _userId,
-          variantId: variantId,
+          variantId: canonicalId,
           direction: direction,
           isSynced: false,
         );

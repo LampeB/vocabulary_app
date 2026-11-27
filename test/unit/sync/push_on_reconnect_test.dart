@@ -276,4 +276,57 @@ void main() {
       expect(sync.calls, 1);
     },
   );
+
+  test(
+    'a reconnect during a failed pull queues one retry before push',
+    () async {
+      final network = StreamController<List<ConnectivityResult>>.broadcast();
+      final firstStarted = Completer<void>();
+      final firstReply = Completer<void>();
+      final retryStarted = Completer<void>();
+      final retryReply = Completer<void>();
+      final sync = _CountingPushSync();
+      final writes = StreamController<void>.broadcast();
+      var restores = 0;
+      final container = ProviderContainer(
+        overrides: [
+          currentUserProvider.overrideWithValue(_user('u')),
+          connectivityStreamProvider.overrideWith((ref) => network.stream),
+          outboundMutationsProvider.overrideWith((ref) => writes.stream),
+          pushSyncProvider.overrideWithValue(sync),
+          syncOnLoginProvider.overrideWith((ref) {
+            if (++restores == 1) {
+              firstStarted.complete();
+              return firstReply.future;
+            }
+            retryStarted.complete();
+            return retryReply.future;
+          }),
+        ],
+      );
+      addTearDown(network.close);
+      addTearDown(writes.close);
+      addTearDown(container.dispose);
+
+      container.read(pushOnReconnectProvider);
+      network.add([ConnectivityResult.wifi]);
+      await firstStarted.future.timeout(const Duration(seconds: 2));
+      network.add([ConnectivityResult.none]);
+      await Future<void>.delayed(Duration.zero);
+      network.add([ConnectivityResult.wifi]);
+      await Future<void>.delayed(Duration.zero);
+      expect(restores, 1);
+      expect(sync.calls, 0);
+
+      firstReply.completeError(
+        const NetworkException('previous connection lost'),
+      );
+      await retryStarted.future.timeout(const Duration(seconds: 2));
+      expect(sync.calls, 0);
+      retryReply.complete();
+      await sync.first.future.timeout(const Duration(seconds: 2));
+      expect(restores, 2);
+      expect(sync.calls, 1);
+    },
+  );
 }

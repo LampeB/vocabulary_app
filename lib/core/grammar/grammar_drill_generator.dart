@@ -60,11 +60,16 @@ class GrammarDrillGenerator {
       ArticleMechanics(:final forms, gendered: true) => forms.keys.toSet(),
       _ => const <String>{},
     };
+    final articleOverrides = switch (rule.mechanics) {
+      ArticleMechanics(:final overrides) => overrides,
+      _ => const <String, String>{},
+    };
     return mastered
         .where((w) => rule.appliesToCategories.contains(w.category))
         // Compound display words ('riz / repas', 'mañana (parte del día)')
         // don't inflect as one token — keep them out of morphology drills.
         .where((w) => !w.word.contains('/') && !w.word.contains('('))
+        .where((w) => articleOverrides[w.word] != w.word)
         .where(
           (w) =>
               requiredTags.isEmpty ||
@@ -136,9 +141,15 @@ class GrammarDrillGenerator {
           'grammar.drill.particle_variant',
           {'word': word.word, 'hint': 'grammar.hint.$variantKey'},
         ),
-        ParticleMechanics() => (
+        ParticleMechanics(:final variants) => (
           'grammar.drill.particle',
-          {'word': word.word, 'rule': rule.title(promptLocale)},
+          {
+            'word': word.word,
+            'forms': {
+              variants.single.afterConsonant,
+              variants.single.afterVowel,
+            }.join('/'),
+          },
         ),
         ConjugationMechanics() when variantKey != null => (
           'grammar.drill.conjugate_person',

@@ -97,11 +97,12 @@ class StarterSeeder {
       await _adoptLegacyFrKoLists(catalog, sourceLayer, targetLayer);
     }
 
-    final myLists = await _listDao.watchByOwner(_userId).first;
-    final bySeedId = {
-      for (final l in myLists)
-        if (l.seedId != null) l.seedId!: l,
-    };
+    final bySeedId = <String, VocabularyListsTableData>{};
+    for (final list in await _listDao.getStarterLists(_userId)) {
+      if (list.langA == source && list.langB == target) {
+        bySeedId.putIfAbsent(list.seedId!, () => list);
+      }
+    }
 
     for (final seedList in catalog.listsForTarget(target)) {
       final seedId = seedList.seedIdFor(source, target);
@@ -123,7 +124,7 @@ class StarterSeeder {
             'Starter import failed: ${imported.exceptionOrNull?.message}',
           );
         }
-      } else {
+      } else if (!existing.isDeleted) {
         await _topUp(existing.id, seedList, catalog, sourceLayer, targetLayer);
       }
     }

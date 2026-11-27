@@ -108,4 +108,40 @@ void main() {
       expect(continued, 1);
     });
   }
+
+  testWidgets(
+    'long feedback keeps Continue reachable at 320x568 and double text',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      var continued = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(320, 568),
+              textScaler: TextScaler.linear(2),
+            ),
+            child: StudyFeedbackFlood(
+              isCorrect: false,
+              label: 'À revoir',
+              answer: 'ne travaille pas / je ne travaille pas',
+              answerIsKorean: false,
+              detail: 'Prochain rappel dans quelques minutes',
+              onContinue: () => continued = true,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      final button = find.byType(FilledButton);
+      await tester.ensureVisible(button);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.tap(button);
+      expect(continued, isTrue);
+    },
+  );
 }

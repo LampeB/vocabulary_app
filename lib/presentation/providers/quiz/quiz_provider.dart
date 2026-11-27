@@ -268,7 +268,14 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   var _paused = false;
   var _sessionEpoch = 0;
   var _lifecycleEpoch = 0;
-  bool get _canPlay => _foreground && !_paused;
+  var _accountEpoch = 0;
+  String? _observedAccountId;
+  String? _sessionUserId;
+  bool get _ownsSession =>
+      _alive &&
+      _lastArgs != null &&
+      _sessionUserId == ref.read(currentUserProvider)?.id;
+  bool get _canPlay => _ownsSession && _foreground && !_paused;
   ({int index, bool correct})? _pendingAutoAdvance;
   // Eagerly mirrored in the state setter so build() can restore it after a
   // dependency-triggered rebuild. Riverpod resets internal state to
@@ -290,40 +297,62 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     _alive = true; // rebuild ≠ disposal; reset so _onSessionComplete can run
     _audio = ref.watch(audioPlayerServiceProvider);
     _director = ref.watch(audioDirectorProvider);
+    final accountId = currentUserProvider.select((user) => user?.id);
+    final invalidated = _accountChange(ref.read(accountId));
+    if (invalidated != null) _preserved = invalidated;
+    ref.listen(accountId, (_, next) {
+      final invalidated = _accountChange(next);
+      if (invalidated != null) state = invalidated;
+    });
     ref.onDispose(() => _alive = false);
     return _preserved;
   }
 
+  QuizState? _accountChange(String? userId) {
+    if (_observedAccountId != userId) {
+      _observedAccountId = userId;
+      _accountEpoch++;
+    }
+    if (_lastArgs == null || _sessionUserId == userId) return null;
+    return _newSessionState(errorMessage: 'quiz.account_changed'.tr());
+  }
+
   /// Clears any prior session's state so a freshly-entered quiz screen never
   /// flashes the old session's summary before loadCards runs.
-  void reset() => _resetSession();
+  void reset() => state = _newSessionState();
 
-  void _resetSession({QuizArgs? args}) {
+  QuizState _newSessionState({
+    QuizArgs? args,
+    String? userId,
+    String? errorMessage,
+  }) {
     _pendingAutoAdvance = null;
     _sessionEpoch++;
     _lifecycleEpoch++;
     _foreground = true;
     _paused = false;
     _lastArgs = args;
+    _sessionUserId = userId;
     _cardShownAt = null;
     _sessionStartTime = args == null ? null : DateTime.now();
     _requeuedOnce.clear();
-    state = QuizState(isLoading: args != null);
+    return QuizState(isLoading: args != null, errorMessage: errorMessage);
   }
 
-  bool _isCurrentSession(int epoch) => _alive && _sessionEpoch == epoch;
+  bool _isCurrentSession(int epoch) => _ownsSession && _sessionEpoch == epoch;
 
   Future<void> loadCards(QuizArgs args, {String? promptLocale}) async {
-    _resetSession(args: args);
+    final userId = ref.read(currentUserProvider)?.id;
+    state = _newSessionState(args: args, userId: userId);
     final epoch = _sessionEpoch;
 
-    final userId = ref.read(currentUserProvider)?.id ?? '';
+    final ownerId = userId ?? '';
 
     if (args.source == QuizSource.grammar) {
       await _loadGrammarCards(
         args,
         epoch,
-        userId,
+        ownerId,
         promptLocale ?? Intl.defaultLocale?.split(RegExp('[_-]')).first ?? 'en',
       );
       return;
@@ -335,7 +364,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     if (args.direction == QuizDirectionChoice.both) {
       final limit = halfLimit(args.cardLimit);
       final frResult = await getDueCards.call(
-        userId: userId,
+        userId: ownerId,
         listId: args.listId,
         source: args.source,
         direction: args.forward,
@@ -345,7 +374,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       );
       if (!_isCurrentSession(epoch)) return;
       final koResult = await getDueCards.call(
-        userId: userId,
+        userId: ownerId,
         listId: args.listId,
         source: args.source,
         direction: args.backward,
@@ -373,7 +402,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
           ? args.forward
           : args.backward;
       final result = await getDueCards.call(
-        userId: userId,
+        userId: ownerId,
         listId: args.listId,
         source: args.source,
         direction: direction,
@@ -473,8 +502,11 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
       (c) => questionById[c.progress.variantId]?.conceptId,
     );
 
-    // Pad to the requested limit by repeating cards cyclically.
-    quizCards = padCyclically(quizCards, args.cardLimit);
+    if (args.source == QuizSource.allDue) {
+      quizCards = quizCards.take(args.cardLimit).toList();
+    } else {
+      quizCards = padCyclically(quizCards, args.cardLimit);
+    }
 
     _cardShownAt = quizCards.isEmpty ? null : DateTime.now();
     state = state.copyWith(
@@ -580,6 +612,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         for (final entry in exercise.promptParams.entries)
           entry.key: entry.key == 'hint' ? entry.value.tr() : entry.value,
       };
+      final forms = promptArgs['forms'];
+      final word = promptArgs['word']!;
       return QuizCard(
         progress: VariantProgress(
           id: 'grammar|${exercise.ruleId}',
@@ -591,14 +625,16 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
         ),
         questionWord: exercise.promptKey.tr(namedArgs: promptArgs),
         grammarAudioPrompt: (
-          instruction: exercise.promptKey.tr(
-            namedArgs: {
-              ...promptArgs,
-              'word': 'grammar.drill.spoken_word'.tr(),
-            },
-          ),
+          instruction: forms == null
+              ? exercise.promptKey.tr(
+                  namedArgs: {
+                    ...promptArgs,
+                    'word': 'grammar.drill.spoken_word'.tr(),
+                  },
+                )
+              : 'grammar.drill.spoken_particle'.tr(),
           locale: promptLocale,
-          word: exercise.promptParams['word']!,
+          word: forms == null ? word : '${forms.split('/').join('. ')}. $word',
         ),
         answerWords: exercise.accepted,
       );
@@ -614,6 +650,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   }
 
   void flipCard() {
+    if (!_ownsSession) return;
     final flipped = !state.isFlipped;
     state = state.copyWith(isFlipped: flipped);
     // TTS muted in TEST_MODE — emulator audio destabilizes the E2E runner.
@@ -634,6 +671,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
 
   /// Rates the revealed card once, whether dismissed by a swipe or a button.
   void gradeFlashcard(FsrsRating rating) {
+    if (!_ownsSession) return;
     final card = state.currentCard;
     if (card == null ||
         !state.isFlipped ||
@@ -656,11 +694,13 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
 
   /// Called by the "Continuer" button on the feedback screen.
   void advance() {
+    if (!_ownsSession) return;
     if (state.isComplete || state.answerState == QuizAnswerState.idle) return;
     _advance(isCorrect: state.answerState == QuizAnswerState.correct);
   }
 
   void submitTextAnswer(String answer) {
+    if (!_ownsSession) return;
     final card = state.currentCard;
     if (card == null ||
         state.isComplete ||
@@ -793,8 +833,8 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     int? retryCount,
   }) {
     try {
-      final userId = ref.read(currentUserProvider)?.id ?? '';
-      if (userId.isEmpty) return;
+      final userId = _sessionUserId;
+      if (!_ownsSession || userId == null) return;
       final now = DateTime.now();
       final rt = _cardShownAt == null
           ? null
@@ -827,14 +867,18 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     }
   }
 
-  void setPartialTranscript(String text) =>
-      state = state.copyWith(partialTranscript: text);
+  void setPartialTranscript(String text) {
+    if (_ownsSession) state = state.copyWith(partialTranscript: text);
+  }
 
-  void setListening(bool listening) =>
+  void setListening(bool listening) {
+    if (_ownsSession) {
       state = state.copyWith(isListening: listening, partialTranscript: '');
+    }
+  }
 
   Future<void> _onSessionComplete(QuizState completed) async {
-    if (_kTestMode || !_alive) return;
+    if (_kTestMode || !_ownsSession) return;
     final epoch = _sessionEpoch;
     unawaited(_recordSession(completed));
     await ref.read(authRepositoryProvider).updateStreak();
@@ -842,14 +886,20 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     await ref.read(authStateProvider.notifier).reloadProfile();
     if (!_isCurrentSession(epoch)) return;
     await ref.read(notificationServiceProvider).cancelStreakWarning();
-    unawaited(_maybeRequestReview());
+    if (_isCurrentSession(epoch)) unawaited(_maybeRequestReview(epoch));
   }
 
   Future<void> _recordSession(QuizState completed) async {
     final args = _lastArgs;
     if (args == null) return;
-    final userId = ref.read(currentUserProvider)?.id ?? '';
-    if (userId.isEmpty) return;
+    final userId = _sessionUserId;
+    if (!_ownsSession || userId == null) return;
+    // Completed history belongs to this account across successive quizzes.
+    final accountEpoch = _accountEpoch;
+    bool sameAccount() =>
+        _alive &&
+        _accountEpoch == accountEpoch &&
+        ref.read(currentUserProvider)?.id == userId;
 
     final completedAt = DateTime.now();
     final duration = _sessionStartTime == null
@@ -859,22 +909,27 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
     try {
       final dao = ref.read(appDatabaseProvider).quizSessionDao;
       final progress = ref.read(progressRepositoryProvider);
+      final list = args.source == QuizSource.list
+          ? (await ref
+                    .read(vocabularyRepositoryProvider)
+                    .getListById(args.listId!))
+                .valueOrNull
+          : null;
       final listName = switch (args.source) {
         QuizSource.grammar => args.ruleTitle ?? args.ruleId ?? '',
-        QuizSource.list =>
-          (await ref.read(vocabularyListDaoProvider).getById(args.listId!))
-                  ?.name ??
-              '',
+        QuizSource.list => list?.name ?? '',
         QuizSource.allDue => 'start_session.smart_due'.tr(),
         QuizSource.inProgress => 'start_session.smart_in_progress'.tr(),
       };
+      if (!sameAccount()) return;
       final masteredResult = await progress.getMasteredVariants(userId);
+      if (!sameAccount()) return;
       final masteredCount = (masteredResult.valueOrNull ?? []).length;
       await dao.insertSession(
         QuizSessionsTableCompanion.insert(
           id: _uuid.v4(),
           userId: userId,
-          listId: Value(args.listId),
+          listId: Value(list?.id ?? args.listId),
           listName: listName,
           mode: args.mode.name,
           direction: args.direction.name,
@@ -892,15 +947,16 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
 
   static const _prefKeySessionCount = 'quiz_session_count';
 
-  Future<void> _maybeRequestReview() async {
+  Future<void> _maybeRequestReview(int epoch) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      if (!_isCurrentSession(epoch)) return;
       final count = (prefs.getInt(_prefKeySessionCount) ?? 0) + 1;
       await prefs.setInt(_prefKeySessionCount, count);
       // Prompt at session 5 and every 25 thereafter.
       if (count == 5 || (count > 5 && (count - 5) % 25 == 0)) {
         final review = InAppReview.instance;
-        if (await review.isAvailable()) {
+        if (await review.isAvailable() && _isCurrentSession(epoch)) {
           await review.requestReview();
         }
       }
@@ -912,14 +968,15 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   /// The verdict appears immediately. An interval appears only when FSRS
   /// returns the saved progress for this turn, including repeats of one word.
   Future<void> _persistRating(QuizCard card, FsrsRating rating) async {
+    if (!_ownsSession) return;
     final args = _lastArgs;
     final epoch = _sessionEpoch;
     final index = state.currentIndex;
     try {
       if (args?.source == QuizSource.grammar) {
         // Grammar typing and voice answers count toward rule mastery.
-        final userId = ref.read(currentUserProvider)?.id ?? '';
-        if (userId.isEmpty) return;
+        final userId = _sessionUserId;
+        if (userId == null) return;
         await ref
             .read(appDatabaseProvider)
             .grammarProgressDao
@@ -961,6 +1018,7 @@ class QuizNotifier extends AutoDisposeNotifier<QuizState> {
   /// (user feedback 2026-07-06: background noise was failing words the
   /// user never spoke).
   void skipCurrentCard() {
+    if (!_ownsSession) return;
     final card = state.currentCard;
     if (card == null ||
         state.isComplete ||

@@ -13,9 +13,15 @@ final defaultPairProvider =
     );
 
 class DefaultPairNotifier extends Notifier<(String, String)> {
+  Future<void>? _restoration;
+  bool _selected = false;
+
+  Future<void> get restored => _restoration ?? Future.value();
+
   @override
   (String, String) build() {
-    _load();
+    _selected = false;
+    _restoration = _load();
     return ('fr', 'ko');
   }
 
@@ -23,10 +29,11 @@ class DefaultPairNotifier extends Notifier<(String, String)> {
     final prefs = await SharedPreferences.getInstance();
     final a = prefs.getString(_keyLangA);
     final b = prefs.getString(_keyLangB);
-    if (a != null && b != null) state = (a, b);
+    if (!_selected && a != null && b != null) state = (a, b);
   }
 
   Future<void> set(String langA, String langB) async {
+    _selected = true;
     state = (langA, langB);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyLangA, langA);

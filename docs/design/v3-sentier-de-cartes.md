@@ -52,6 +52,8 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   notation localisés, accessibles au clavier et aux lecteurs d'écran.
   Le bouton de révision associe un texte et un fond contrastés dans les deux
   thèmes.
+- Le nombre choisi pour une révision des cartes dues sert de plafond.
+  La session ne répète pas une carte pour remplir les places restantes.
 - Le plateau distingue mots/listes disponibles et acquis. L'absence de cartes
   dues ne prouve aucune activité terminée : le chemin montre une recommandation
   sans faux compteur de complétion ni estimation de mots inédits.
@@ -62,6 +64,15 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   Continuer est un bouton focalisable : une seconde activation Entrée après
   la réponse fait avancer la révision. La paire d'une nouvelle liste libre
   est mémorisée sans changer le contexte guidé choisi dans l'en-tête.
+
+- Le bootstrap reste observé au-dessus du routeur : un import froid et un
+  changement de paire d'en-tête déclenchent aussi le seeding local. L'import
+  peut avancer dès que l'identité locale est connue, avant le profil distant.
+- Le lien initial et sa première répétition dans le stream ne sont traités
+  qu'une fois ; les liens ouverts ensuite restent disponibles.
+- Le squelette du splash s'adapte au paysage. Le splash et le verdict peuvent
+  défiler lorsque la hauteur ou le texte agrandi l'exigent, avec un signal de
+  défilement ; Continuer reste atteignable à 320 × 568, texte doublé.
 
 ## Limites connues à corriger avant de qualifier V3 de complète
 

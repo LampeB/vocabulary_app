@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 
 /// A readable scroll surface that makes further content explicit.
@@ -14,11 +13,15 @@ class ScrollAffordance extends StatefulWidget {
     required this.hint,
     super.key,
     this.padding = EdgeInsets.zero,
+    this.fillViewport = false,
   });
 
   final Widget child;
   final String hint;
   final EdgeInsetsGeometry padding;
+
+  /// Keeps short content spread across the viewport while long content scrolls.
+  final bool fillViewport;
 
   @override
   State<ScrollAffordance> createState() => _ScrollAffordanceState();
@@ -53,55 +56,71 @@ class _ScrollAffordanceState extends State<ScrollAffordance> {
   }
 
   @override
-  Widget build(BuildContext context) => Stack(
-    children: [
-      Scrollbar(
-        controller: _controller,
-        thumbVisibility: true,
-        child: SingleChildScrollView(
-          controller: _controller,
-          padding: widget.padding,
-          child: widget.child,
-        ),
-      ),
-      Positioned(
-        right: 16,
-        bottom: 12,
-        child: IgnorePointer(
-          child: AnimatedOpacity(
-            opacity: _showCue ? 1 : 0,
-            duration: const Duration(milliseconds: 120),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(999),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x1F000000), blurRadius: 10),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final padding = widget.padding.resolve(Directionality.of(context));
+      final child = widget.fillViewport
+          ? ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: (constraints.maxHeight - padding.vertical).clamp(
+                  0.0,
+                  double.infinity,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      widget.hint,
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.muted,
-                      ),
+              ),
+              child: IntrinsicHeight(child: widget.child),
+            )
+          : widget.child;
+      return Stack(
+        children: [
+          Scrollbar(
+            controller: _controller,
+            thumbVisibility: true,
+            child: SingleChildScrollView(
+              controller: _controller,
+              padding: widget.padding,
+              child: child,
+            ),
+          ),
+          Positioned(
+            right: 16,
+            bottom: 12,
+            child: IgnorePointer(
+              child: AnimatedOpacity(
+                opacity: _showCue ? 1 : 0,
+                duration: const Duration(milliseconds: 120),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x1F000000), blurRadius: 10),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
                     ),
-                    const SizedBox(width: 3),
-                    const Icon(Icons.keyboard_arrow_down_rounded, size: 17),
-                  ],
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.hint,
+                          style: AppTextStyles.caption.copyWith(
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        const Icon(Icons.keyboard_arrow_down_rounded, size: 17),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
-    ],
+        ],
+      );
+    },
   );
 }

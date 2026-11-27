@@ -20,12 +20,12 @@ class VocabularyRemoteDataSource {
       // Deleted rows are fetched ON PURPOSE: pull-sync must propagate
       // server-side deletions (tombstones), or a list deleted remotely
       // stays visible on-device forever.
-      final data = await _client
-          .from('vocabulary_lists')
-          .select()
-          .eq('owner_id', ownerId)
-          .order('updated_at', ascending: false);
-      return Success(List<Map<String, dynamic>>.from(data));
+      return Success(
+        await _fetchPages(
+          () =>
+              _client.from('vocabulary_lists').select().eq('owner_id', ownerId),
+        ),
+      );
     } catch (e) {
       return Failure(NetworkException(e.toString()));
     }
@@ -59,12 +59,14 @@ class VocabularyRemoteDataSource {
     try {
       // Includes deleted concepts — same tombstone-propagation rationale
       // as fetchLists (the local upsert carries the is_deleted flag).
-      final data = await _client
-          .from('concepts')
-          .select('*, word_variants(*)')
-          .eq('list_id', listId)
-          .order('created_at');
-      return Success(List<Map<String, dynamic>>.from(data));
+      return Success(
+        await _fetchPages(
+          () => _client
+              .from('concepts')
+              .select('*, word_variants(*)')
+              .eq('list_id', listId),
+        ),
+      );
     } catch (e) {
       return Failure(NetworkException(e.toString()));
     }
@@ -208,13 +210,31 @@ class VocabularyRemoteDataSource {
     String userId,
   ) async {
     try {
-      final data = await _client
-          .from('variant_progress')
-          .select()
-          .eq('user_id', userId);
-      return Success(List<Map<String, dynamic>>.from(data));
+      return Success(
+        await _fetchPages(
+          () => _client.from('variant_progress').select().eq('user_id', userId),
+        ),
+      );
     } catch (e) {
       return Failure(NetworkException(e.toString()));
+    }
+  }
+
+  // A capped response cannot prove that a starter or an existing progress
+  // identity is absent. Read all pages before reconciling local drafts.
+  Future<List<Map<String, dynamic>>> _fetchPages(
+    PostgrestFilterBuilder<List<Map<String, dynamic>>> Function() query,
+  ) async {
+    const pageSize = 500;
+    final rows = <Map<String, dynamic>>[];
+    String? lastId;
+    while (true) {
+      var filter = query();
+      if (lastId != null) filter = filter.gt('id', lastId);
+      final page = await filter.order('id').limit(pageSize);
+      rows.addAll(page);
+      if (page.length < pageSize) return rows;
+      lastId = page.last['id'] as String;
     }
   }
 

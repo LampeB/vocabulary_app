@@ -1,6 +1,7 @@
 // ignore_for_file: invalid_use_of_internal_member
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,8 +13,11 @@ import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/models/variant_progress_dto.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/data/sync/push_sync.dart';
+import 'package:vocab_kr/domain/entities/app_user.dart';
+import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/purchases/purchase_provider.dart';
+import 'package:vocab_kr/presentation/widgets/app_shell.dart';
 import '../helpers/fake_remote.dart';
 
 const _kUserId = 'test-user-sync';
@@ -153,6 +157,36 @@ void main() {
   tearDown(() => db.close());
 
   group('syncFromRemote', () {
+    test(
+      'a failed contents fetch preserves the derived quota count of an existing list',
+      () async {
+        final rows = [_remoteList('rl1', 'Old name')];
+        final remote = _SyncRemote(
+          lists: rows,
+          conceptsByList: {
+            'rl1': [_remoteConcept('card', 'rl1')],
+          },
+        );
+        final repo = repoWith(remote);
+        await repo.syncFromRemote();
+
+        rows[0] = {
+          ...rows.single,
+          'name': 'New name',
+          'word_count': AppConfig.maxFreeWordsPerList,
+        };
+        remote.unavailableList = 'rl1';
+        await expectLater(
+          repo.syncFromRemote(),
+          throwsA(isA<NetworkException>()),
+        );
+
+        final local = (await db.vocabularyListDao.getById('rl1'))!;
+        expect(local.name, 'New name');
+        expect(local.wordCount, 1);
+        expect(local.isSynced, isTrue);
+      },
+    );
     test(
       'partial retrieval keeps received data and reports a retryable failure',
       () async {
@@ -477,7 +511,26 @@ void main() {
           progress: [remoteProgress],
         );
         final repo = repoWith(remote);
-        await repo.syncFromRemote();
+        final network = StreamController<List<ConnectivityResult>>.broadcast();
+        final container = ProviderContainer(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(db),
+            vocabularyRepositoryProvider.overrideWithValue(repo),
+            vocabularyRemoteProvider.overrideWithValue(remote),
+            connectivityStreamProvider.overrideWith((ref) => network.stream),
+            currentUserProvider.overrideWithValue(
+              AppUser(
+                id: _kUserId,
+                email: 'u@test',
+                username: 'u',
+                createdAt: DateTime(2026),
+              ),
+            ),
+          ],
+        );
+        addTearDown(network.close);
+        addTearDown(container.dispose);
+        await container.read(syncOnLoginProvider.future);
         remote.lists[0] = {...list, 'is_deleted': true};
         final requested = Completer<void>();
         final reply = Completer<void>();
@@ -485,7 +538,11 @@ void main() {
           requested.complete();
           return reply.future;
         };
-        final pull = repo.syncFromRemote();
+        container.invalidate(syncOnLoginProvider);
+        final pull = expectLater(
+          container.read(syncOnLoginProvider.future),
+          throwsA(isA<StorageException>()),
+        );
         try {
           await requested.future;
           await db.progressDao.upsert(
@@ -502,6 +559,20 @@ void main() {
         expect(
           (await db.progressDao.getById(remoteProgress['id'] as String))!.reps,
           12,
+        );
+        remote.onLists = null;
+        final deletion = db.vocabularyListDao
+            .watchById('rl1')
+            .firstWhere((row) => row?.isDeleted == true);
+        container.read(pushOnReconnectProvider);
+        network.add([ConnectivityResult.none]);
+        await container.read(connectivityStreamProvider.future);
+        network.add([ConnectivityResult.wifi]);
+        await deletion.timeout(const Duration(seconds: 2));
+        expect((await db.vocabularyListDao.getById('rl1'))!.isDeleted, isTrue);
+        expect(
+          await db.progressDao.getById(remoteProgress['id'] as String),
+          isNull,
         );
       },
     );

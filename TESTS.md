@@ -72,6 +72,12 @@ pond tickers when reduced motion or an inactive subtree requires it.
 dominance under the real authenticated role; these host/SQL checks do not
 replace validation on two physical devices.
 
+`test/unit/incoming_link_dispatcher_test.dart` simulates both initial-link
+delivery mechanisms and a later warm link. The shared session bootstrap is
+exercised with the real header selector and the cold-import route. Explicit
+layout regressions use 568 × 320 for splash and 320 × 568 with doubled text
+for feedback, including reaching Continue by scrolling.
+
 ### `test/unit/fsrs_algorithm_test.dart` (21 tests)
 Spaced-repetition scheduling (FSRS algorithm).
 

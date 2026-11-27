@@ -470,6 +470,18 @@ void main() {
 
   group('SttRace.cancel — mic-owner path', () {
     test(
+      'cancelling synchronously before the deferred start never opens mic',
+      () async {
+        final system = _FakeEngine('system');
+        final race = SttRace([system]);
+        final outcome = race.run(langCode: 'fr', acceptedAnswers: ['thé']);
+        race.cancel();
+        expect((await outcome).cancelled, isTrue);
+        await _pump();
+        expect(system.startCalls, 0);
+      },
+    );
+    test(
       'cancel resolves without stopping the engine; its timer never fires',
       () async {
         final a = _FakeEngine('system');

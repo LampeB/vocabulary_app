@@ -9,6 +9,8 @@ import '../tables/word_variants_table.dart';
 
 part 'vocabulary_list_dao.g.dart';
 
+enum StarterAliasKind { list, variant }
+
 @DriftAccessor(tables: [VocabularyListsTable, ConceptsTable, WordVariantsTable])
 class VocabularyListDao extends DatabaseAccessor<AppDatabase>
     with _$VocabularyListDaoMixin {
@@ -95,6 +97,81 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
   Future<void> forgetSharedImportBases(Iterable<String> ids) => (delete(
     db.sharedImportBootstrapTable,
   )..where((t) => t.id.isIn(ids))).go();
+
+  static const _starterDraftPrefix = 'starter-draft:';
+
+  String _starterAliasKey(StarterAliasKind kind, String ownerId, String id) =>
+      'starter-alias:${kind.name}:$ownerId:$id';
+
+  Future<void> rememberStarterAlias(
+    StarterAliasKind kind,
+    String ownerId,
+    String oldId,
+    String canonicalId,
+  ) => into(db.sharedImportBootstrapTable).insertOnConflictUpdate(
+    SharedImportBootstrapTableCompanion.insert(
+      id: _starterAliasKey(kind, ownerId, oldId),
+      snapshot: canonicalId,
+    ),
+  );
+
+  Future<String> resolveStarterId(
+    StarterAliasKind kind,
+    String ownerId,
+    String id,
+  ) async {
+    final alias =
+        await (select(db.sharedImportBootstrapTable)
+              ..where((t) => t.id.equals(_starterAliasKey(kind, ownerId, id))))
+            .getSingleOrNull();
+    return alias?.snapshot ?? id;
+  }
+
+  Future<void> holdStarterDraft(String listId) =>
+      into(db.sharedImportBootstrapTable).insert(
+        SharedImportBootstrapTableCompanion.insert(
+          id: '$_starterDraftPrefix$listId',
+          snapshot: '{}',
+        ),
+        mode: InsertMode.insertOrIgnore,
+      );
+
+  Future<void> releaseStarterDraft(String listId) =>
+      forgetSharedImportBases(['$_starterDraftPrefix$listId']);
+
+  Future<bool> isStarterDraftHeld(String listId) async =>
+      (await (select(db.sharedImportBootstrapTable)
+            ..where((t) => t.id.equals('$_starterDraftPrefix$listId')))
+          .getSingleOrNull()) !=
+      null;
+
+  Future<List<VocabularyListsTableData>> heldStarterDrafts({String? ownerId}) {
+    final bootstrap = db.sharedImportBootstrapTable;
+    final lists = vocabularyListsTable;
+    final query = select(lists).join([
+      innerJoin(
+        bootstrap,
+        bootstrap.id.equalsExp(const Constant(_starterDraftPrefix) + lists.id),
+      ),
+    ])..where(lists.origin.equals('starter') & lists.seedId.isNotNull());
+    if (ownerId != null) query.where(lists.ownerId.equals(ownerId));
+    return query.map((row) => row.readTable(lists)).get();
+  }
+
+  Future<List<VocabularyListsTableData>> getStarterLists(String ownerId) =>
+      (select(vocabularyListsTable)
+            ..where(
+              (t) =>
+                  t.ownerId.equals(ownerId) &
+                  t.origin.equals('starter') &
+                  t.seedId.isNotNull(),
+            )
+            ..orderBy([
+              (t) => OrderingTerm.asc(t.isDeleted),
+              (t) => OrderingTerm.asc(t.createdAt),
+              (t) => OrderingTerm.asc(t.id),
+            ]))
+          .get();
 
   Future<int> softDelete(String id) =>
       (update(vocabularyListsTable)..where((t) => t.id.equals(id))).write(

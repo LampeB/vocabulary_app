@@ -86,12 +86,18 @@ class _SpeechToTextRecognizer implements SystemSpeechRecognizer {
   Future<bool> initialize({
     required void Function(String message, bool permanent) onError,
     required void Function(String status) onStatus,
-  }) => _speech.initialize(
-    onError: (error) => onError(error.errorMsg, error.permanent),
-    onStatus: onStatus,
-    // The plugin otherwise promotes its last partial to a synthetic final.
-    finalTimeout: Duration.zero,
-  );
+  }) {
+    // The plugin is a singleton and skips listener installation after its
+    // first initialization. Route future events to this quiz's adapter.
+    _speech.errorListener = (error) => onError(error.errorMsg, error.permanent);
+    _speech.statusListener = onStatus;
+    return _speech.initialize(
+      onError: _speech.errorListener,
+      onStatus: onStatus,
+      // The plugin otherwise promotes its last partial to a synthetic final.
+      finalTimeout: Duration.zero,
+    );
+  }
 
   @override
   Future<void> listen({

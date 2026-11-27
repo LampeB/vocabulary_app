@@ -36,6 +36,7 @@ final pushOnReconnectProvider = Provider<void>((ref) {
 
   var active = true;
   var restoring = false;
+  var reconnectPending = false;
   void drain() {
     if (active && online() && !restoring) {
       unawaited(ref.read(pushSyncProvider).pushAll());
@@ -43,18 +44,29 @@ final pushOnReconnectProvider = Provider<void>((ref) {
   }
 
   Future<void> restoreThenDrain() async {
-    if (!active || !online() || restoring) return;
+    if (!active || !online()) return;
+    if (restoring) {
+      reconnectPending = true;
+      return;
+    }
     restoring = true;
     try {
-      if (ref.read(syncOnLoginProvider).hasError) {
-        ref.invalidate(syncOnLoginProvider);
-      }
-      await ref.read(syncOnLoginProvider.future);
-    } catch (_) {
-      // A partial pull remains eligible for the next reconnect. Outbound
-      // changes can still be sent if their endpoint is reachable.
+      do {
+        reconnectPending = false;
+        try {
+          if (ref.read(syncOnLoginProvider).hasError) {
+            ref.invalidate(syncOnLoginProvider);
+          }
+          await ref.read(syncOnLoginProvider.future);
+          break;
+        } catch (_) {
+          // A reconnect during a failed pull retries before any push. Repeated
+          // failures without a new reconnect remain pending for later.
+        }
+      } while (active && online() && reconnectPending);
     } finally {
       restoring = false;
+      reconnectPending = false;
     }
     drain();
   }

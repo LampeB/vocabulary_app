@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vocab_kr/core/grammar/grammar_drill_generator.dart';
+import 'package:vocab_kr/core/grammar/latin/latin_grammar_modules.dart';
 import 'package:vocab_kr/core/languages.dart';
 import 'package:vocab_kr/data/seed/seed_catalog.dart';
 import 'package:vocab_kr/domain/entities/grammar_rule.dart';
@@ -219,6 +221,73 @@ void main() {
           }
         }
       }
+    },
+  );
+
+  test(
+    'English a/an drills use countable nouns from the real prerequisites',
+    () async {
+      final raw =
+          jsonDecode(
+                await rootBundle.loadString(
+                  'assets/seed/grammar/en/rules.json',
+                ),
+              )
+              as Map<String, dynamic>;
+      final rule = (raw['rules'] as List)
+          .cast<Map<String, dynamic>>()
+          .map(GrammarRule.fromJson)
+          .singleWhere((rule) => rule.id == 'en-articles-a-an');
+      expect(
+        rule.prerequisiteLists,
+        unorderedEquals(['starter-food', 'starter-greetings']),
+      );
+      expect(rule.minKnownWords, {'nom': 5});
+
+      final english = layers['en']!;
+      final mastered = <DrillWord>[];
+      for (final list in catalog.lists) {
+        if (!rule.prerequisiteLists.contains(list.id)) continue;
+        for (final id in list.conceptIds) {
+          final word = english.entries[id]!.primary!;
+          mastered.add(
+            DrillWord(
+              word: word.word,
+              category: catalog.conceptCategories[id] ?? '',
+              tags: word.tags,
+              listId: list.id,
+            ),
+          );
+        }
+      }
+
+      const generator = GrammarDrillGenerator(EnglishGrammarModule());
+      final eligible = generator.eligibleWords(rule, mastered);
+      expect(eligible.where((word) => word.category == 'nom'), hasLength(7));
+      final food = mastered
+          .where((word) => word.listId == 'starter-food')
+          .toList();
+      expect(generator.canGenerate(rule, food), isFalse);
+      expect(generator.canGenerate(rule, mastered), isTrue);
+
+      final exercises = generator.generate(
+        rule,
+        mastered,
+        count: eligible.length,
+      );
+      expect(
+        exercises.map((exercise) => exercise.expected),
+        unorderedEquals([
+          'an apple',
+          'a coffee',
+          'a vegetable',
+          'a name',
+          'a friend',
+          'a teacher',
+          'a person',
+          'a restaurant',
+        ]),
+      );
     },
   );
 
