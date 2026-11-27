@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import '../../core/utils/pcm_segmenter.dart';
 import '../../core/utils/stt_debug_log.dart';
 import 'pcm_microphone.dart';
+import 'stt_engine.dart';
 
 /// Native release was rejected or was not acknowledged by the deadline.
 class PcmReleaseException implements Exception {
@@ -46,7 +47,7 @@ class SharedPcmCapture implements PcmCaptureSource {
   SharedPcmCapture({
     PcmMicrophone? microphone,
     PcmSegmenter Function()? segmenterFactory,
-    this.releaseTimeout = defaultReleaseTimeout,
+    this.releaseTimeout = sttMicReleaseTimeout,
   }) : _microphone = microphone ?? RecordPcmMicrophone(),
        _segmenterFactory = segmenterFactory ?? _defaultSegmenter;
 
@@ -55,8 +56,6 @@ class SharedPcmCapture implements PcmCaptureSource {
   /// two, so utterances hard-stop at 3s (longer is ambient conversation).
   static PcmSegmenter _defaultSegmenter() =>
       PcmSegmenter(silenceEndMs: 500, maxUtteranceMs: 3000);
-
-  static const defaultReleaseTimeout = Duration(seconds: 2);
 
   final Duration releaseTimeout;
   final PcmMicrophone _microphone;

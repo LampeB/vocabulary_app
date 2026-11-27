@@ -11,11 +11,12 @@ est un garde-fou technique, pas un avis juridique.
 
 ## Avant toute diffusion externe
 
-Le workflow [Build APK](../../.github/workflows/build-apk.yml) conserve le
-binaire dans les artefacts GitHub Actions pour la validation interne. La
-publication sur un service tiers de test par navigateur, y compris Appetize,
-relève de la diffusion externe et reste différée jusqu'aux vérifications
-ci-dessous.
+Le workflow [Validate release APK build](../../.github/workflows/build-apk.yml)
+s'arrête après la compilation Android. Pour un essai privé, construire l'APK
+sur son poste avec [la commande locale](../../README.md#getting-started).
+La publication d'un binaire dans les artefacts de ce dépôt public ou sur un
+service de test par navigateur, y compris Appetize, reste différée jusqu'aux
+vérifications ci-dessous.
 
 1. Exécuter le contrôle de licence, puis générer et archiver l'inventaire des
    dépendances et licences du livrable réellement distribué (APK, AAB ou IPA).

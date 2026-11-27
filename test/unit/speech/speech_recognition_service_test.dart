@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
@@ -9,7 +10,9 @@ class _FakeRecognizer implements SystemSpeechRecognizer {
   bool initializeResult = true;
   bool throwOnListen = false;
   bool throwOnStop = false;
+  Completer<void>? pendingStop;
   var initializeCalls = 0;
+  var listenCalls = 0;
   var stopCalls = 0;
   String? localeId;
   Duration? pauseFor;
@@ -40,9 +43,10 @@ class _FakeRecognizer implements SystemSpeechRecognizer {
     required void Function(SystemRecognitionResult result) onResult,
     required String localeId,
     required bool onDevice,
-    required Duration pauseFor,
-    required Duration listenFor,
+    required Duration? pauseFor,
+    required Duration? listenFor,
   }) async {
+    listenCalls++;
     if (throwOnListen) throw StateError('platform unavailable');
     this.onSoundLevel = onSoundLevel;
     this.onResult = onResult;
@@ -55,7 +59,8 @@ class _FakeRecognizer implements SystemSpeechRecognizer {
   @override
   Future<void> stop() async {
     stopCalls++;
-    if (throwOnStop) throw StateError('already released');
+    if (throwOnStop) throw StateError('platform refused to release');
+    await pendingStop?.future;
   }
 }
 
@@ -164,7 +169,7 @@ void main() {
   );
 
   test(
-    'releases a stale session, absorbs platform failures, and disposes',
+    'a release rejection prevents another native start until cleanup succeeds',
     () async {
       final native = _FakeRecognizer();
       final delays = <Duration>[];
@@ -173,22 +178,62 @@ void main() {
         delay: (duration) async => delays.add(duration),
       );
       await service.initialize();
-      native.onStatus!('listening');
+      bool started = await service.startListening(
+        langCode: 'en',
+        onResult: (_, _) {},
+      );
+      expect(started, isTrue);
+      native.onStatus!('notListening');
       native.throwOnStop = true;
-      native.throwOnListen = true;
 
-      expect(
-        await service.startListening(langCode: 'en', onResult: (_, _) {}),
-        isFalse,
+      await expectLater(
+        service.startListening(langCode: 'en', onResult: (_, _) {}),
+        throwsStateError,
       );
       expect(native.stopCalls, 1);
-      expect(delays, [const Duration(milliseconds: 200)]);
-      expect(service.isListening, isFalse);
+      expect(native.listenCalls, 1);
+      expect(delays, isEmpty);
 
       native.throwOnStop = false;
-      service.dispose();
-      await Future<void>.delayed(Duration.zero);
+      started = await service.startListening(
+        langCode: 'en',
+        onResult: (_, _) {},
+      );
+      expect(started, isTrue);
       expect(native.stopCalls, 2);
+      expect(native.listenCalls, 2);
+      expect(delays, [const Duration(milliseconds: 200)]);
+      await service.stopListening();
+      service.dispose();
+    },
+  );
+
+  test(
+    'stop timeout retains the native operation through retry and dispose',
+    () async {
+      final native = _FakeRecognizer()..pendingStop = Completer<void>();
+      final service = SpeechRecognitionService(
+        recognizer: native,
+        releaseTimeout: const Duration(milliseconds: 40),
+      );
+      await service.initialize();
+      await service.startListening(langCode: 'en', onResult: (_, _) {});
+      await expectLater(
+        service.stopListening(),
+        throwsA(isA<TimeoutException>()),
+      );
+      await expectLater(
+        service.startListening(langCode: 'en', onResult: (_, _) {}),
+        throwsA(isA<TimeoutException>()),
+      );
+      expect(native.stopCalls, 1);
+      expect(native.listenCalls, 1);
+      expect(service.isListening, isTrue);
+
+      service.dispose();
+      native.pendingStop!.complete();
+      await service.stopListening();
+      expect(native.stopCalls, 1);
       expect(service.isListening, isFalse);
     },
   );
@@ -256,6 +301,7 @@ void main() {
         isTrue,
       );
       expect(listenOptions.single['onDevice'], isTrue);
+      expect(listenOptions.single['pauseFor'], isNull);
       await messenger.handlePlatformMessage(
         speech.name,
         speech.codec.encodeMethodCall(

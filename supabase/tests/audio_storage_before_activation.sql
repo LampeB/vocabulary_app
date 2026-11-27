@@ -24,11 +24,7 @@ INSERT INTO storage.objects(bucket_id,name) VALUES
  ('vocab-audio','users/00000000-0000-0000-0000-000000000001/own.mp3'),
  ('other','unrelated.mp3');
 
--- A pre-existing permissive Storage rule must not bypass the bucket guard.
-GRANT SELECT ON storage.objects TO anon;
-CREATE POLICY fixture_existing_storage_read ON storage.objects
-  FOR SELECT TO anon, authenticated USING (true);
-
+-- The bootstrap's pre-existing permissive rule must not bypass the guard.
 SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',true);
 SET LOCAL ROLE authenticated;
 DO $$ DECLARE changed integer; BEGIN

@@ -22,6 +22,9 @@ Future<void> resetTestAccount(ScenarioAccount account) async {
     AppConfig.supabaseAnonKey,
   );
   try {
+    if (await client.rpc<bool>('e2e_isolation_ready', get: true) != true) {
+      throw StateError('Hosted E2E isolation is unavailable.');
+    }
     final auth = await client.auth.signInWithPassword(
       email: email,
       password: password,

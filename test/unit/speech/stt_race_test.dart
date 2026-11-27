@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/core/utils/pcm_segmenter.dart';
 import 'package:vocab_kr/services/speech/stt_engine.dart';
@@ -98,6 +100,15 @@ class _SlowStopEngine extends _FakeEngine {
     stopCompleted = true;
     stopped = true;
   }
+}
+
+class _UnconfirmedStopEngine extends _FakeEngine {
+  _UnconfirmedStopEngine(this.stopResult) : super('system');
+
+  final Future<void> Function() stopResult;
+
+  @override
+  Future<void> stop() => stopResult();
 }
 
 /// Yields so the coordinator's start()/stop() microtasks run.
@@ -467,6 +478,41 @@ void main() {
       );
     });
   });
+
+  for (final hangs in [false, true]) {
+    test(
+      'exclusive release failure invalidates a good answer (hangs: $hangs)',
+      () async {
+        final pending = Completer<void>();
+        final engine = _UnconfirmedStopEngine(() async {
+          if (!hangs) {
+            throw StateError('system recognizer still owns microphone');
+          }
+          await pending.future;
+        });
+        final phases = <SttPhase>[];
+        var closed = 0;
+        final result = SttRace([engine]).run(
+          langCode: 'fr',
+          acceptedAnswers: ['chat'],
+          micReleaseTimeout: const Duration(milliseconds: 50),
+          onStatus: (status) => phases.add(status.phase),
+          onMicClosedPending: () => closed++,
+        );
+        await _pump();
+        engine.emit('chat');
+
+        final outcome = await result.timeout(const Duration(seconds: 1));
+        expect(outcome.micReleaseFailed, isTrue);
+        expect(outcome.matched, isFalse);
+        expect(outcome.bestTranscript, isNull);
+        expect(phases.last, SttPhase.done);
+        expect(phases, isNot(contains(SttPhase.analyzing)));
+        expect(closed, 0);
+        if (hangs) pending.complete();
+      },
+    );
+  }
 
   group('SttRace.cancel — mic-owner path', () {
     test(

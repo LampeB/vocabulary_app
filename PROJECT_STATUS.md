@@ -92,14 +92,14 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **1 036 tests hôte passent**, avec **71,4 %**
+- L'analyse Flutter est propre ; les **1 052 tests hôte passent**, avec **72,1 %**
   de couverture sur le dernier lot du 27 novembre. Huit tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 21 tests ciblés. La sonde compilée en mode produit confirme le
   refus des diagnostics, même avec l'option fournie.
-- Sur `9031dcc`, les sept checks CI, dont les tests hôte, le wrapper SQL et la
+- Sur `be081c8`, les sept checks CI, dont les tests hôte, le wrapper SQL et la
   compilation native Android, sont verts. Le pont utilise le NDK 28.2 de
-  l'application. Les huit premières itérations des quatre relecteurs ont été
+  l'application. Les neuf premières itérations des quatre relecteurs ont été
   bloquées ; leurs corrections sont consignées dans
   [le registre du 27 novembre](docs/reviews/2026-11-27-integration.md).
   Le sas exige deux revues propres sur le commit final ; les verdicts et les
@@ -107,7 +107,7 @@ de contenu avant bêta pédagogique.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **1 036** tests hôte réussis lors de la dernière validation locale
+- La suite compte **1 052** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - Les six suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
@@ -115,7 +115,7 @@ de contenu avant bêta pédagogique.
   Storage avant activation de la politique finale. Deux connexions ont
   vérifié le verrou du reset et le refus de l'écriture concurrente ; la CI de
   `f7827da` confirme le wrapper Bash des six suites.
-  Les cinq tests Python E2E, vingt-huit tests Deno, vingt-et-un tests du bot
+  Les huit tests Python E2E, vingt-huit tests Deno, vingt-et-un tests du bot
   et quatre tests du déploiement passent dans le lot courant. Le bot refuse
   aussi une CI verte issue d'un
   autre workflow ou évaluée contre une autre base.
@@ -128,9 +128,18 @@ de contenu avant bêta pédagogique.
 - Les échecs de fermeture du micro et les refus natifs TTS sont récupérables
   sans signal ni notation prématurés. Le détail des listes suit l'adoption
   des identifiants starter, sans écraser des historiques FSRS divergents.
+- Le complément des starters préserve les suppressions restaurées. Les
+  événements d'un brouillon restent retenus jusqu'à son rapprochement, y
+  compris pendant un envoi concurrent. L'arrêt système exclusif conserve
+  aussi sa possession du micro jusqu'à l'accusé natif, même après retour système.
+- Les titres longs restent accessibles par défilement ; les commandes Retour
+  portent un nom accessible et les prérequis absents un libellé de catalogue.
+  La compilation APK ne publie plus de binaire dans les artefacts publics.
 - La CI Patrol contient neuf suites Android, lançables manuellement avec des
   secrets Supabase : navigation, auth, flux utilisateur, chemin quotidien,
   prérequis de leçon, paires de langues, quiz voix/cartes, écriture et login.
+  Ses lancements restent fermés par défaut : activation explicite et sonde
+  d'isolation hébergée sont exigées avant tout reset.
 - Le reset E2E par scénario, le verrou commun et le planning quotidien à
   22 h 17 (Séoul) sont implémentés. Le dispatcher livré par
   [la PR #1](https://github.com/LampeB/vocabulary_app/pull/1) ciblait la branche

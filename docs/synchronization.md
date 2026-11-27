@@ -115,16 +115,21 @@ L'application utilise SQLite comme source de lecture et les colonnes
   y compris au démarrage par lien partagé et lors d'un changement dans
   l'en-tête. Un import échoué ne positionne pas le marqueur de complétion.
 - Les nouvelles listes starter utilisent l'identité du compte, de la paire
-  et du catalogue. Les brouillons créés avant la première restauration
-  restent étudiables sur l'appareil. La file retient leur contenu, leur
-  progression et leurs événements jusqu'à la vérification des identités.
+  et du catalogue. Le complément utilise les mêmes identifiants de concepts
+  et de variantes que l'import. Il tient compte des suppressions déjà
+  enregistrées, y compris pour une langue dont tous les mots ont été supprimés.
+  Les brouillons créés avant la première restauration restent étudiables sur
+  l'appareil. La file vérifie leur retenue dans la transaction qui sélectionne
+  la progression et les événements à envoyer.
 - Au retour du réseau, le brouillon adopte les identifiants d'une liste
   starter existante, y compris les anciens UUID aléatoires. La transaction
   reprend les champs explicitement modifiés et rattache les révisions et les
   événements aux variantes reconnues. Les détails de liste et les quiz
   déjà ouverts suivent les identifiants adoptés. Les ajouts et éditions
   valident la destination active et résolvent les anciens identifiants
-  dans leur transaction. Un brouillon en conflit d'identité ou avec deux
+  dans leur transaction. Un événement dont les références ont changé repasse
+  en attente et seul un accusé pour ses champs courants clôt son envoi.
+  Un brouillon en conflit d'identité ou avec deux
   historiques FSRS pour la même carte reste disponible localement avec ses
   données et reste hors de la file sortante, même si ses identifiants sont
   déjà les mêmes que sur le serveur. Le même traitement préserve les anciens

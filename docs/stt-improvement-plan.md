@@ -61,9 +61,13 @@ les analyses en cours avant de permettre un verdict d'absence de réponse.
 Un décodeur peut travailler pendant l'écoute. Le signal de fin d'écoute
 attend la fermeture confirmée du microphone et un verdict encore en cours.
 Si la fermeture est refusée ou dépasse deux secondes, le tour se termine
-sans signal de fin ni notation. Répéter relance le tour après vérification
-de la fermeture. Une demande d'arrêt qui attend toujours sa réponse
-native empêche toute nouvelle ouverture du microphone.
+sans signal de fin ni notation. Cette règle couvre le microphone partagé
+et le reconnaisseur système exclusif. Répéter relance le tour après
+confirmation de la fermeture. Un arrêt qui attend toujours sa réponse
+native bloque toute nouvelle ouverture, même si le mode ou la route du
+quiz change. Le retour système demande aussi la fermeture et journalise
+les échecs. Pour le mode Système, le délai du quiz appartient à la course
+STT. Le minuteur Dart du plugin ne lance pas un arrêt concurrent.
 Chaque tour attend la restauration du mode STT et garde ce mode pour les
 nouvelles tentatives. Le premier essai et chaque relance attendent la
 sélection des moteurs disponibles et la vérification du microphone avant

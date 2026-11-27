@@ -18,10 +18,32 @@ INSERT INTO public.word_variants(id,concept_id,word,lang_code) VALUES
 DO $$ BEGIN
   IF has_schema_privilege('authenticated','e2e_private','USAGE')
     OR has_table_privilege('authenticated','e2e_private.accounts','SELECT')
-    OR has_function_privilege('authenticated','e2e_private.guard_shared_write()','EXECUTE') THEN
+    OR has_function_privilege('authenticated','e2e_private.guard_shared_write()','EXECUTE')
+    OR has_function_privilege('authenticated','e2e_private.reset_e2e_account(text)','EXECUTE') THEN
     RAISE EXCEPTION 'Isolation exposes the registry or trigger function';
   END IF;
 END $$;
+
+SET LOCAL ROLE anon;
+DO $$ BEGIN
+  IF NOT public.e2e_isolation_ready() THEN RAISE EXCEPTION 'CI cannot verify installed isolation'; END IF;
+END $$;
+RESET ROLE;
+ALTER TABLE public.friend_requests DISABLE TRIGGER e2e_guard_shared_write;
+SELECT set_config('request.jwt.claim.sub','51000000-0000-0000-0000-000000000001',true);
+SET LOCAL ROLE authenticated;
+DO $$ BEGIN
+  IF public.e2e_isolation_ready() THEN RAISE EXCEPTION 'Disabled isolation reported ready'; END IF;
+  BEGIN
+    PERFORM public.reset_e2e_account('isolation.a');
+    RAISE EXCEPTION 'Reset accepted with disabled isolation';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  IF NOT EXISTS(SELECT 1 FROM public.vocabulary_lists WHERE id='52000000-0000-0000-0000-000000000001') THEN
+    RAISE EXCEPTION 'Reset with disabled isolation changed a list';
+  END IF;
+END $$;
+RESET ROLE;
+ALTER TABLE public.friend_requests ENABLE TRIGGER e2e_guard_shared_write;
 
 SELECT set_config('request.jwt.claim.sub','51000000-0000-0000-0000-000000000002',true);
 SET LOCAL ROLE authenticated;

@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../core/utils/stt_debug_log.dart';
 import '../../core/languages.dart';
+import 'stt_engine.dart';
 
 /// Platform recognizer capabilities consumed by [SystemSttEngine].
 abstract interface class SystemSpeechCapture {
@@ -50,8 +53,8 @@ abstract interface class SystemSpeechRecognizer {
     required void Function(SystemRecognitionResult result) onResult,
     required String localeId,
     required bool onDevice,
-    required Duration pauseFor,
-    required Duration listenFor,
+    required Duration? pauseFor,
+    required Duration? listenFor,
   });
   Future<void> stop();
 }
@@ -105,8 +108,8 @@ class _SpeechToTextRecognizer implements SystemSpeechRecognizer {
     required void Function(SystemRecognitionResult result) onResult,
     required String localeId,
     required bool onDevice,
-    required Duration pauseFor,
-    required Duration listenFor,
+    required Duration? pauseFor,
+    required Duration? listenFor,
   }) => _speech.listen(
     onSoundLevelChange: onSoundLevel,
     onResult: (result) => onResult(
@@ -144,6 +147,7 @@ class SpeechRecognitionService implements SystemSpeechCapture {
     SystemSpeechRecognizer? recognizer,
     DateTime Function()? clock,
     Future<void> Function(Duration duration)? delay,
+    this.releaseTimeout = sttMicReleaseTimeout,
   }) : _speech = recognizer ?? _SpeechToTextRecognizer(),
        _clock = clock ?? DateTime.now,
        _delay = delay ?? Future<void>.delayed;
@@ -151,8 +155,17 @@ class SpeechRecognitionService implements SystemSpeechCapture {
   final SystemSpeechRecognizer _speech;
   final DateTime Function() _clock;
   final Future<void> Function(Duration duration) _delay;
+  final Duration releaseTimeout;
   bool _initialized = false;
+  bool _disposed = false;
+  Future<bool>? _initializing;
   bool _isListening = false;
+  // Platform status is for the UI and endpointing. Only the native stop
+  // acknowledgement releases ownership for another turn or route.
+  bool _nativeMayOwnMic = false;
+  Future<void>? _nativeStart;
+  Future<void>? _nativeStop;
+  int _listenGeneration = 0;
   // Guards against duplicate onListeningDone calls within a single session.
   // Android fires notListening → done → possibly error_no_match in sequence;
   // without this flag each one would re-trigger the quiz state machine.
@@ -181,10 +194,18 @@ class SpeechRecognitionService implements SystemSpeechCapture {
       _speech.supportsOnDeviceRecognition();
 
   @override
-  Future<bool> initialize() async {
-    if (_initialized) return true;
-    _initialized = await _speech.initialize(
+  Future<bool> initialize() {
+    if (_disposed) return Future.value(false);
+    if (_initialized) return Future.value(true);
+    return _initializing ??= _initialize().whenComplete(() {
+      _initializing = null;
+    });
+  }
+
+  Future<bool> _initialize() async {
+    final initialized = await _speech.initialize(
       onError: (message, permanent) {
+        if (_disposed || (_sessionDone && _nativeStop != null)) return;
         sttLog(
           '[STT] ❌ onError: "$message"  permanent=$permanent  elapsed=${listenElapsedMs}ms',
         );
@@ -212,12 +233,13 @@ class SpeechRecognitionService implements SystemSpeechCapture {
         }
       },
       onStatus: (status) {
+        if (_disposed) return;
         sttLog(
           '[STT] onStatus: "$status"  _isListening=$_isListening  elapsed=${listenElapsedMs}ms',
         );
         if (status == 'listening') {
+          if (_sessionDone) return;
           _isListening = true;
-          _sessionDone = false;
           _listenStartTime = _clock();
           sttLog('[STT] ✅ STT now listening — timer reset');
         } else if (status == 'notListening') {
@@ -239,6 +261,7 @@ class SpeechRecognitionService implements SystemSpeechCapture {
         }
       },
     );
+    _initialized = initialized && !_disposed;
     sttLog('[STT] initialize() → $_initialized');
     return _initialized;
   }
@@ -249,19 +272,26 @@ class SpeechRecognitionService implements SystemSpeechCapture {
     bool onDevice = false,
     required void Function(String primary, List<String> candidates) onResult,
     void Function(String primary, List<String> candidates)? onPartial,
-    Duration pauseFor = const Duration(seconds: 5),
-    Duration listenFor = const Duration(seconds: 10),
+    // Quiz deadlines belong to SttRace, so speech_to_text never starts a
+    // second, untracked Dart stop timer for the same microphone.
+    Duration? pauseFor,
+    Duration? listenFor,
   }) async {
     if (!_initialized) {
       sttLog('[STT] startListening() skipped — not initialised');
       return false;
     }
-    if (_isListening) {
+    if (_nativeMayOwnMic) {
       sttLog('[STT] startListening() — stopping stale session first');
-      await stopListening();
+      final stopping = stopListening();
+      final generation = _listenGeneration;
+      await stopping;
       await _delay(const Duration(milliseconds: 200));
+      if (generation != _listenGeneration || _disposed) return false;
     }
 
+    final generation = ++_listenGeneration;
+    _nativeMayOwnMic = true;
     _sessionDone = false;
     lastError = null;
     final localeId = Languages.speechLocaleFor(langCode);
@@ -275,55 +305,62 @@ class SpeechRecognitionService implements SystemSpeechCapture {
     var rmsLastLogged = _clock();
 
     try {
-      await _speech.listen(
-        onSoundLevel: (level) {
-          if (level < rmsMin) rmsMin = level;
-          if (level > rmsMax) rmsMax = level;
-          // One line per second keeps the trace readable at 10+ events/s.
-          final now = _clock();
-          if (now.difference(rmsLastLogged).inMilliseconds >= 1000) {
-            rmsLastLogged = now;
+      final starting = _nativeStart = Future<void>.microtask(() async {
+        if (generation != _listenGeneration) return;
+        await _speech.listen(
+          onSoundLevel: (level) {
+            if (generation != _listenGeneration) return;
+            if (level < rmsMin) rmsMin = level;
+            if (level > rmsMax) rmsMax = level;
+            // One line per second keeps the trace readable at 10+ events/s.
+            final now = _clock();
+            if (now.difference(rmsLastLogged).inMilliseconds >= 1000) {
+              rmsLastLogged = now;
+              sttLog(
+                '[STT] 🎚 level=${level.toStringAsFixed(1)}  min=${rmsMin.toStringAsFixed(1)}  max=${rmsMax.toStringAsFixed(1)}  elapsed=${listenElapsedMs}ms',
+              );
+            }
+          },
+          onResult: (result) {
+            if (generation != _listenGeneration) return;
+            // Every interpretation the engine considered, with confidence —
+            // the raw evidence for "what did it actually hear". The engine's
+            // top pick is often NOT the right one while an alternate is
+            // (field log 2026-07-06: primary "병환이" 0.87, alternate
+            // "병아리" 1.00 — the user's actual word), so ALL candidates are
+            // forwarded for validation.
+            final alternates = [
+              for (final a in result.alternates)
+                '"${a.words}"(${a.confidence.toStringAsFixed(2)})',
+            ].join(' | ');
+            final candidates = <String>{
+              result.words,
+              for (final a in result.alternates) a.words,
+            }.where((w) => w.trim().isNotEmpty).toList();
             sttLog(
-              '[STT] 🎚 level=${level.toStringAsFixed(1)}  min=${rmsMin.toStringAsFixed(1)}  max=${rmsMax.toStringAsFixed(1)}  elapsed=${listenElapsedMs}ms',
+              '[STT] onResult: "${result.words}"  final=${result.isFinal}  confidence=${result.confidence.toStringAsFixed(2)}  elapsed=${listenElapsedMs}ms  alternates=[$alternates]',
             );
-          }
-        },
-        onResult: (result) {
-          // Every interpretation the engine considered, with confidence —
-          // the raw evidence for "what did it actually hear". The engine's
-          // top pick is often NOT the right one while an alternate is
-          // (field log 2026-07-06: primary "병환이" 0.87, alternate
-          // "병아리" 1.00 — the user's actual word), so ALL candidates are
-          // forwarded for validation.
-          final alternates = [
-            for (final a in result.alternates)
-              '"${a.words}"(${a.confidence.toStringAsFixed(2)})',
-          ].join(' | ');
-          final candidates = <String>{
-            result.words,
-            for (final a in result.alternates) a.words,
-          }.where((w) => w.trim().isNotEmpty).toList();
-          sttLog(
-            '[STT] onResult: "${result.words}"  final=${result.isFinal}  confidence=${result.confidence.toStringAsFixed(2)}  elapsed=${listenElapsedMs}ms  alternates=[$alternates]',
-          );
-          if (result.isFinal) {
-            sttLog(
-              '[STT] ✅ Final result → forwarding ${candidates.length} candidate(s)',
-            );
-            onResult(result.words, candidates);
-          } else if (result.words.isNotEmpty) {
-            sttLog('[STT] ⏳ Partial: "${result.words}"');
-            onPartial?.call(result.words, candidates);
-          }
-        },
-        localeId: localeId,
-        onDevice: onDevice,
-        listenFor: listenFor,
-        pauseFor: pauseFor,
-      );
-      _isListening = true;
+            if (result.isFinal) {
+              sttLog(
+                '[STT] ✅ Final result → forwarding ${candidates.length} candidate(s)',
+              );
+              onResult(result.words, candidates);
+            } else if (result.words.isNotEmpty) {
+              sttLog('[STT] ⏳ Partial: "${result.words}"');
+              onPartial?.call(result.words, candidates);
+            }
+          },
+          localeId: localeId,
+          onDevice: onDevice,
+          listenFor: listenFor,
+          pauseFor: pauseFor,
+        );
+      });
+      await starting;
+      if (generation != _listenGeneration) return false;
+      if (!_sessionDone) _isListening = true;
       sttLog(
-        '[STT] 🎙️ startListening() → started (locale=$localeId pauseFor=${pauseFor.inSeconds}s listenFor=${listenFor.inSeconds}s)',
+        '[STT] 🎙️ startListening() → started (locale=$localeId pauseFor=$pauseFor listenFor=$listenFor)',
       );
       return true;
     } catch (e) {
@@ -333,27 +370,43 @@ class SpeechRecognitionService implements SystemSpeechCapture {
   }
 
   @override
-  Future<void> stopListening() async {
+  Future<void> stopListening() {
     sttLog('[STT] stopListening() _isListening=$_isListening');
-    // Always send the platform stop, even when its callback has already said
-    // `notListening`. Samsung's remote recognizer can still own the audio
-    // session after that callback; skipping this release caused a following
-    // system/Whisper lane to collide with an invisible live microphone.
-    // Swallow the killed session's trailing done/error events so they cannot
-    // be attributed to the lane that starts next.
+    _listenGeneration++;
     _sessionDone = true;
+    if (!_nativeMayOwnMic) return Future.value();
+    // A caller can time out while the underlying stop is still running.
+    // Subsequent callers join that request until it really settles.
+    return (_nativeStop ??= _release()).timeout(releaseTimeout);
+  }
+
+  Future<void> _release() async {
     try {
+      // A transition during native startup must stop AFTER that request.
+      // A failed startup can still have dispatched work on the platform.
+      try {
+        await _nativeStart;
+      } catch (_) {}
       await _speech.stop();
-    } catch (error) {
-      sttLog('[STT] stopListening() platform stop failed: $error');
+      _nativeMayOwnMic = false;
+      _isListening = false;
+    } finally {
+      _nativeStart = null;
+      _nativeStop = null;
     }
-    _isListening = false;
   }
 
   @override
   void dispose() {
-    _speech.stop();
+    if (_disposed) return;
+    _disposed = true;
     _initialized = false;
-    _isListening = false;
+    onListeningDone = null;
+    onError = null;
+    unawaited(
+      stopListening().catchError((Object error) {
+        sttLog('[STT] disposal could not release the microphone: $error');
+      }),
+    );
   }
 }

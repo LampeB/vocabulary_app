@@ -66,6 +66,5 @@ BEGIN
     'username', baseline_username);
 END;
 $$;
-REVOKE ALL ON FUNCTION public.reset_e2e_account() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.reset_e2e_account() TO authenticated;
+REVOKE ALL ON FUNCTION public.reset_e2e_account() FROM PUBLIC, anon, authenticated;
 COMMIT;

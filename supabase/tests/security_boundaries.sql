@@ -13,12 +13,24 @@ INSERT INTO public.word_variants(id,concept_id,word,lang_code,audio_path) VALUES
  ('30000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000001','public','en',NULL),
  ('30000000-0000-0000-0000-000000000002','20000000-0000-0000-0000-000000000002','private','en',
   'users/00000000-0000-0000-0000-000000000001/private.mp3');
+INSERT INTO storage.buckets(id,name,public) VALUES ('other','other',false);
 INSERT INTO storage.objects(bucket_id,name) VALUES
  ('vocab-audio','users/00000000-0000-0000-0000-000000000001/private.mp3'),
  ('vocab-audio','users/00000000-0000-0000-0000-000000000002/own.mp3'),
  ('vocab-audio','seed/v1/en/published.mp3'),
- ('vocab-audio','seed/v1/en/legacy-private.mp3');
+ ('vocab-audio','seed/v1/en/legacy-private.mp3'),
+ ('other','unrelated.mp3');
 INSERT INTO public.published_audio_assets VALUES ('seed/v1/en/published.mp3');
+SET LOCAL ROLE anon;
+DO $$ BEGIN
+  IF EXISTS(SELECT 1 FROM storage.objects WHERE bucket_id='vocab-audio') THEN
+    RAISE EXCEPTION 'Pre-existing Storage rule exposed audio to an anonymous reader';
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM storage.objects WHERE bucket_id='other') THEN
+    RAISE EXCEPTION 'Audio policy blocked anonymous access to another bucket';
+  END IF;
+END $$;
+RESET ROLE;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',true);
 SET LOCAL ROLE authenticated;
 DO $$ DECLARE changed integer; BEGIN
@@ -32,7 +44,13 @@ DO $$ DECLARE changed integer; BEGIN
   IF EXISTS(SELECT 1 FROM storage.objects WHERE name LIKE 'users/00000000-0000-0000-0000-000000000001/%') THEN
     RAISE EXCEPTION 'Forged variant path permits private audio theft';
   END IF;
-  IF (SELECT count(*) FROM storage.objects) <> 2 THEN RAISE EXCEPTION 'Own/published audio inaccessible'; END IF;
+  IF (SELECT count(*) FROM storage.objects WHERE bucket_id='vocab-audio' AND
+      name IN ('users/00000000-0000-0000-0000-000000000002/own.mp3','seed/v1/en/published.mp3')) <> 2 THEN
+    RAISE EXCEPTION 'Own/published audio inaccessible';
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM storage.objects WHERE bucket_id='other') THEN
+    RAISE EXCEPTION 'Audio policy blocked authenticated access to another bucket';
+  END IF;
   IF EXISTS(SELECT 1 FROM storage.objects WHERE name='seed/v1/en/legacy-private.mp3') THEN
     RAISE EXCEPTION 'Unmanifested legacy seed asset is public';
   END IF;

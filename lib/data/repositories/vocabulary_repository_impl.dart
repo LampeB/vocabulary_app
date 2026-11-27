@@ -16,6 +16,7 @@ import '../models/variant_progress_dto.dart';
 import '../models/vocabulary_list_dto.dart';
 import '../models/word_variant_dto.dart';
 import '../seed/starter_draft_reconciliation.dart';
+import '../seed/starter_identity.dart';
 import '../../services/audio/audio_asset_path.dart';
 import 'package:drift/drift.dart' show Value, innerJoin;
 
@@ -574,14 +575,10 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
 
         for (final (index, cData) in concepts.indexed) {
           final seedId = _field<String>(cData, 'seedId', 'seed_id');
-          final conceptId = rememberBase
-              ? _uuid.v5(
-                  listId,
-                  jsonEncode([
-                    'concept',
-                    starter ? seedId ?? index : cData['id'] ?? index,
-                  ]),
-                )
+          final conceptId = starter
+              ? starterConceptId(listId, seedId ?? index)
+              : sharedListId != null
+              ? _uuid.v5(listId, jsonEncode(['concept', cData['id'] ?? index]))
               : _uuid.v4();
           await _conceptDao.upsert(
             ConceptsTableCompanion(
@@ -627,14 +624,12 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
               (n) => n + 1,
               ifAbsent: () => 0,
             );
-            final variantId = rememberBase
+            final variantId = starter
+                ? starterVariantId(conceptId, langCode, position, occurrence)
+                : sharedListId != null
                 ? _uuid.v5(
                     conceptId,
-                    jsonEncode(
-                      starter
-                          ? ['variant', langCode, position, occurrence]
-                          : ['variant', vData['id'] ?? index],
-                    ),
+                    jsonEncode(['variant', vData['id'] ?? index]),
                   )
                 : _uuid.v4();
             final audioPath = origin == 'starter'

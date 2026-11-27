@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
+import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/grammar/grammar_drill_generator.dart';
 import 'package:vocab_kr/core/grammar/grammar_language_module.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
@@ -26,14 +27,21 @@ import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
 import '../../helpers/fake_remote.dart';
 
 class _StatsProgressRepository implements ProgressRepository {
-  _StatsProgressRepository(this.stats, {this.known = const []});
+  _StatsProgressRepository(
+    this.stats, {
+    this.known = const [],
+    this.unavailable = const {},
+  });
 
   final Map<String, Map<String, int>> stats;
   final List<VariantProgress> known;
+  final Set<String> unavailable;
 
   @override
   Future<Result<Map<String, int>>> getListStats(String listId) async =>
-      Success(stats[listId] ?? const {});
+      unavailable.contains(listId)
+      ? const Failure(UnknownException())
+      : Success(stats[listId] ?? const {});
 
   @override
   Future<Result<List<VariantProgress>>> getKnownVariants(String userId) async =>
@@ -578,6 +586,39 @@ void main() {
       expect(mastered.enoughWords, isFalse);
     },
   );
+
+  test('a resolved prerequisite keeps its name when its stats fail', () async {
+    final container = ProviderContainer(
+      overrides: [
+        vocabularyProgressChangesProvider.overrideWith(
+          (ref) => Stream<void>.value(null),
+        ),
+        grammarRulesProvider.overrideWith(
+          (ref, lang) async => [
+            _rule('r', prerequisites: ['starter-greetings']),
+          ],
+        ),
+        myListsProvider.overrideWith(
+          (ref) => Stream.value([
+            _list(
+              id: 'greetings',
+              name: 'Mes salutations',
+              seedId: 'starter-greetings:fr>ko',
+            ),
+          ]),
+        ),
+        progressRepositoryProvider.overrideWithValue(
+          _StatsProgressRepository({}, unavailable: {'greetings'}),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final prerequisites = await container.read(
+      grammarPrerequisitesProvider('ko').future,
+    );
+    expect(prerequisites.names['starter-greetings'], 'Mes salutations');
+    expect(prerequisites.progress['starter-greetings']!.fraction, 0);
+  });
 
   test(
     'refreshes prerequisite availability when FSRS progress changes',

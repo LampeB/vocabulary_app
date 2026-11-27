@@ -1,5 +1,7 @@
 import '../../core/utils/pcm_segmenter.dart';
 
+const sttMicReleaseTimeout = Duration(seconds: 2);
+
 /// How an STT engine gets its audio — the key constraint for racing engines in
 /// parallel. On Android/iOS only ONE component can own the microphone at a
 /// time, so [ownsMicrophone] engines can't run alongside each other or a

@@ -310,8 +310,16 @@ void main() {
   }
 
   Future<void> appBarBack(WidgetTester tester) async {
+    final semantics = tester.ensureSemantics();
+    final back = find.byTooltip('common.back'.tr());
+    expect(back, findsOneWidget);
+    expect(
+      tester.getSemantics(back).getSemanticsData().tooltip,
+      'common.back'.tr(),
+    );
     await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
     await tester.pumpAndSettle();
+    semantics.dispose();
   }
 
   testWidgets('quiz preserves setup and the plateau below it', (tester) async {
@@ -693,6 +701,15 @@ void main() {
       tester.view.physicalSize = const Size(320, 568);
       tester.view.devicePixelRatio = 1;
       await tester.pumpAndSettle();
+      final title = find.text('start_session.title_grammar'.tr());
+      expect(
+        find.ancestor(of: title, matching: find.byType(Scrollable)),
+        findsOneWidget,
+      );
+      final titleRect = tester.getRect(title);
+      final viewport = tester.getRect(find.byType(Scrollable).first);
+      expect(titleRect.top, greaterThanOrEqualTo(viewport.top));
+      expect(titleRect.bottom, lessThanOrEqualTo(viewport.bottom));
       await tapKey(tester, WidgetKeys.startSection(0));
       await tapKey(tester, WidgetKeys.startRule(rule.id));
       expect(tester.takeException(), isNull);

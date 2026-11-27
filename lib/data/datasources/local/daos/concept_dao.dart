@@ -14,13 +14,14 @@ class ConceptDao extends DatabaseAccessor<AppDatabase> with _$ConceptDaoMixin {
   SimpleSelectStatement<$ConceptsTableTable, ConceptsTableData> _conceptsByList(
     String listId, {
     String? ownerId,
+    bool includeDeleted = false,
   }) {
     final query = select(conceptsTable)
-      ..where((t) => t.isDeleted.equals(false))
       ..orderBy([
         (t) => OrderingTerm.asc(t.createdAt),
         (t) => OrderingTerm.asc(t.rowId),
       ]);
+    if (!includeDeleted) query.where((t) => t.isDeleted.equals(false));
     if (ownerId == null) {
       query.where((t) => t.listId.equals(listId));
     } else {
@@ -74,17 +75,22 @@ class ConceptDao extends DatabaseAccessor<AppDatabase> with _$ConceptDaoMixin {
   Future<List<ConceptsTableData>> getConceptsByList(
     String listId, {
     int? limit,
+    bool includeDeleted = false,
   }) {
-    final query = _conceptsByList(listId);
+    final query = _conceptsByList(listId, includeDeleted: includeDeleted);
     if (limit != null) query.limit(limit);
     return query.get();
   }
 
   SimpleSelectStatement<$WordVariantsTableTable, WordVariantsTableData>
-  _variantsByConcept(String conceptId, {String? ownerId}) {
+  _variantsByConcept(
+    String conceptId, {
+    String? ownerId,
+    bool includeDeleted = false,
+  }) {
     final query = select(wordVariantsTable)
-      ..where((t) => t.isDeleted.equals(false))
       ..orderBy([(t) => OrderingTerm.asc(t.position)]);
+    if (!includeDeleted) query.where((t) => t.isDeleted.equals(false));
     if (ownerId == null) {
       query.where((t) => t.conceptId.equals(conceptId));
     } else {
@@ -116,7 +122,12 @@ class ConceptDao extends DatabaseAccessor<AppDatabase> with _$ConceptDaoMixin {
   Future<List<WordVariantsTableData>> getVariantsByConcept(
     String conceptId, {
     String? ownerId,
-  }) => _variantsByConcept(conceptId, ownerId: ownerId).get();
+    bool includeDeleted = false,
+  }) => _variantsByConcept(
+    conceptId,
+    ownerId: ownerId,
+    includeDeleted: includeDeleted,
+  ).get();
 
   Stream<List<WordVariantsTableData>> watchVariantsByConcept(
     String conceptId, {

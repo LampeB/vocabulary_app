@@ -99,10 +99,10 @@ class SttRace {
     Duration throttleCooldown = const Duration(milliseconds: 3500),
     Duration lateResultGrace = const Duration(milliseconds: 2500),
     bool restartOnSessionEnd = true,
+    Duration micReleaseTimeout = sttMicReleaseTimeout,
     // Shared-capture tuning (see [_runShared]).
     Duration maxSpeechOverrun = const Duration(seconds: 3),
     Duration analysisTimeout = const Duration(seconds: 6),
-    Duration micReleaseTimeout = SharedPcmCapture.defaultReleaseTimeout,
     void Function(SttRaceStatus status)? onStatus,
     void Function()? onMicClosedPending,
   }) async {
@@ -187,12 +187,13 @@ class SttRace {
       // freshly installed session-end handler — which left the mic dead for
       // the rest of that window (field log 2026-07-21: 12 "nothing heard"
       // cards in one session).
-      for (final e in racers) {
-        try {
-          await e.stop().timeout(const Duration(milliseconds: 800));
-        } catch (err) {
-          sttLog('[RACE] stop "${e.id}" failed/timed out: $err');
-        }
+      try {
+        await Future.wait(
+          racers.map((e) => Future.sync(e.stop)),
+        ).timeout(micReleaseTimeout);
+      } catch (error) {
+        sttLog('[RACE] exclusive microphone release failed: $error');
+        outcome = const SttRaceOutcome(matched: false, micReleaseFailed: true);
       }
       emit(SttPhase.done);
       completer.complete(outcome);
@@ -230,7 +231,7 @@ class SttRace {
         transcript: h.transcript,
         matched: match != null,
       );
-      emit(h.isFinal ? SttPhase.analyzing : SttPhase.speaking);
+      emit(SttPhase.speaking);
       if (match != null) {
         sttLog(
           '[RACE] 🏁 "${engine.id}" wins with "$match" (${h.isFinal ? "final" : "partial"})',

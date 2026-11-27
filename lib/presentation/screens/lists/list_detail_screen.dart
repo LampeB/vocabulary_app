@@ -47,6 +47,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
         elevation: 0,
         leading: IconButton(
           key: const ValueKey(WidgetKeys.listDetailBack),
+          tooltip: 'common.back'.tr(),
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
           onPressed: () {
             if (context.canPop()) {
@@ -55,35 +56,6 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
               context.go('/lists');
             }
           },
-        ),
-        title: listAsync.when(
-          data: (l) => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'list_detail.kind'.tr(),
-                style: AppTextStyles.mono(
-                  10,
-                  FontWeight.w700,
-                ).copyWith(color: muted, letterSpacing: 1.2),
-              ),
-              Text(
-                l?.name ?? 'list_detail.appbar_fallback'.tr(),
-                style: AppTextStyles.serif(
-                  24,
-                  FontWeight.w400,
-                ).copyWith(color: foreground),
-              ),
-            ],
-          ),
-          loading: () => const SizedBox.shrink(),
-          error: (_, _) => Text(
-            'list_detail.appbar_fallback'.tr(),
-            style: AppTextStyles.serif(
-              24,
-              FontWeight.w400,
-            ).copyWith(color: foreground),
-          ),
         ),
         actions: _editMode
             ? [
@@ -173,33 +145,75 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
       body: Stack(
         children: [
           const Positioned.fill(child: V3Pond(animate: false)),
-          conceptsAsync.when(
-            loading: () => const Center(
-              child: CircularProgressIndicator(
-                color: V3Colors.terra,
-                strokeWidth: 2,
+          CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'list_detail.kind'.tr(),
+                        style: AppTextStyles.mono(
+                          10,
+                          FontWeight.w700,
+                        ).copyWith(color: muted, letterSpacing: 1.2),
+                      ),
+                      Text(
+                        listAsync.valueOrNull?.name ??
+                            'list_detail.appbar_fallback'.tr(),
+                        style: AppTextStyles.serif(
+                          24,
+                          FontWeight.w400,
+                        ).copyWith(color: foreground),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            error: (e, _) => Center(
-              child: Text(
-                '$e',
-                style: AppTextStyles.caption.copyWith(color: AppColors.rose),
-              ),
-            ),
-            data: (concepts) => concepts.isEmpty
-                ? _EmptyState(onAddTap: () => _showAddWordDialog(context))
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                    itemCount: concepts.length,
-                    itemBuilder: (ctx, i) => _ConceptTile(
-                      key: Key(concepts[i].id),
-                      concept: concepts[i],
-                      listId: widget.listId,
-                      langA: listAsync.valueOrNull?.langA ?? 'fr',
-                      langB: listAsync.valueOrNull?.langB ?? 'ko',
-                      editMode: _editMode,
+              conceptsAsync.when(
+                loading: () => const SliverFillRemaining(
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: V3Colors.terra,
+                      strokeWidth: 2,
                     ),
                   ),
+                ),
+                error: (e, _) => SliverFillRemaining(
+                  child: Center(
+                    child: Text(
+                      '$e',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.rose,
+                      ),
+                    ),
+                  ),
+                ),
+                data: (concepts) => concepts.isEmpty
+                    ? SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: _EmptyState(
+                          onAddTap: () => _showAddWordDialog(context),
+                        ),
+                      )
+                    : SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        sliver: SliverList.builder(
+                          itemCount: concepts.length,
+                          itemBuilder: (ctx, i) => _ConceptTile(
+                            key: Key(concepts[i].id),
+                            concept: concepts[i],
+                            listId: widget.listId,
+                            langA: listAsync.valueOrNull?.langA ?? 'fr',
+                            langB: listAsync.valueOrNull?.langB ?? 'ko',
+                            editMode: _editMode,
+                          ),
+                        ),
+                      ),
+              ),
+            ],
           ),
         ],
       ),

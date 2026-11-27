@@ -1,8 +1,16 @@
+import 'dart:convert';
+import 'package:easy_localization/easy_localization.dart';
+// ignore: implementation_imports
+import 'package:easy_localization/src/localization.dart';
+// ignore: implementation_imports
+import 'package:easy_localization/src/translations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/domain/entities/grammar_rule.dart';
+import 'package:vocab_kr/data/seed/seed_catalog.dart';
 import 'package:vocab_kr/presentation/providers/grammar/grammar_provider.dart';
 import 'package:vocab_kr/presentation/screens/grammar/grammar_screen.dart';
 import '../../helpers/pump_screen.dart';
@@ -39,13 +47,21 @@ void main() {
 
   String? navigatedTo;
 
-  Future<void> pump(WidgetTester tester, List<RuleStatus> statuses) {
+  Future<void> pump(WidgetTester tester, List<RuleStatus> statuses) async {
     navigatedTo = null;
-    return pumpScreen(
+    final catalog = (await tester.runAsync(
+      () => SeedCatalog.load(rootBundle),
+    ))!;
+    await pumpScreen(
       tester,
       screen: const GrammarScreen(),
       overrides: [
         ruleStatusesProvider.overrideWith((ref, lang) async => statuses),
+        grammarPrerequisiteNameKeysProvider.overrideWith(
+          (ref) async => {
+            for (final list in catalog.lists) list.id: list.nameKey,
+          },
+        ),
       ],
       routes: [
         GoRoute(
@@ -69,6 +85,48 @@ void main() {
     expect(tester.widget<AppBar>(find.byType(AppBar)).leading, isNull);
   });
 
+  for (final locale in ['fr', 'en', 'ko']) {
+    testWidgets('missing prerequisite uses catalog labels in $locale', (
+      tester,
+    ) async {
+      final raw = (await tester.runAsync(
+        () => rootBundle.loadString('assets/translations/$locale.json'),
+      ))!;
+      final translations = Translations(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+      Localization.load(
+        Locale(locale),
+        translations: translations,
+        fallbackTranslations: translations,
+      );
+      addTearDown(initTestLocalization);
+      await pump(tester, [
+        RuleStatus(
+          rule: _rule(
+            'missing',
+            'Articles',
+            prereqs: ['starter-greetings', 'starter-food'],
+          ),
+          availability: RuleAvailability.locked,
+          missingLists: const ['starter-greetings', 'starter-food'],
+          enoughWords: false,
+          correct: 0,
+          // A resolved list name wins, even when stats have not arrived.
+          prereqNames: const {'starter-food': 'Ma cuisine personnelle'},
+        ),
+      ]);
+      expect(
+        find.text('seed.list.starter-greetings.name'.tr()),
+        findsOneWidget,
+      );
+      expect(find.text('Ma cuisine personnelle'), findsOneWidget);
+      expect(find.text('starter-greetings'), findsNothing);
+      expect(find.text('starter-food'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets(
     'a locked rule shows the unlock bar plus one bar per prerequisite '
     'list, and no start button',
@@ -86,6 +144,10 @@ void main() {
           correct: 0,
           prereqProgress: const {'Salutations': 0.9, 'La nourriture': 0.45},
           prereqTotals: const {'Salutations': 20, 'La nourriture': 20},
+          prereqNames: const {
+            'Salutations': 'Salutations',
+            'La nourriture': 'La nourriture',
+          },
         ),
       ]);
 

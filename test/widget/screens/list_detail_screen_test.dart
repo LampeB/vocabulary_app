@@ -8,6 +8,7 @@ import 'package:easy_localization/src/localization.dart';
 // ignore: implementation_imports
 import 'package:easy_localization/src/translations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -240,6 +241,67 @@ void main() {
     expect(find.text('chien'), findsOneWidget);
     await unmountScreen(tester);
   });
+
+  testWidgets(
+    'long list title wraps in the scroller at 320x568 with double text',
+    (tester) async {
+      await pump(tester);
+      const name = 'Vocabulaire pour saluer et rencontrer mes nouveaux amis';
+      await tester.runAsync(() => repo.renameList(listId, name));
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      await tester.pumpAndSettle();
+      final title = find.text(name);
+      expect(
+        find.ancestor(of: title, matching: find.byType(Scrollable)),
+        findsOneWidget,
+      );
+      final titleRect = tester.getRect(title);
+      final viewport = tester.getRect(find.byType(Scrollable).first);
+      expect(titleRect.top, greaterThanOrEqualTo(viewport.top));
+      final paragraph = tester.renderObject<RenderParagraph>(title);
+      final lastLine = paragraph
+          .getBoxesForSelection(
+            const TextSelection(
+              baseOffset: name.length - 1,
+              extentOffset: name.length,
+            ),
+          )
+          .single
+          .toRect();
+      final lastBottom = paragraph.localToGlobal(lastLine.bottomRight).dy;
+      final scroller = tester.state<ScrollableState>(
+        find.byType(Scrollable).first,
+      );
+      scroller.position.jumpTo(
+        (lastBottom - viewport.bottom + 12).clamp(
+          0,
+          scroller.position.maxScrollExtent,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        paragraph.localToGlobal(lastLine.bottomRight).dy,
+        lessThanOrEqualTo(viewport.bottom),
+      );
+      expect(
+        paragraph.localToGlobal(lastLine.topLeft).dy,
+        greaterThanOrEqualTo(viewport.top),
+      );
+      expect(tester.widget<Text>(title).maxLines, isNull);
+      final semantics = tester.ensureSemantics();
+      final back = byKey(WidgetKeys.listDetailBack);
+      expect(
+        tester.getSemantics(back).getSemanticsData().tooltip,
+        'common.back'.tr(),
+      );
+      semantics.dispose();
+      expect(tester.takeException(), isNull);
+      await unmountScreen(tester);
+    },
+  );
 
   for (final (locale, kind, required) in [
     ('fr', 'LISTE DE VOCABULAIRE', 'Requis'),

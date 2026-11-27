@@ -103,6 +103,13 @@ class SystemSttEngine implements SttEngine {
 
   @override
   Future<void> stop() {
+    detachSessionEnd();
+    return _service.stopListening();
+  }
+
+  /// Releases this adapter's callback when the owning quiz leaves a turn.
+  /// The app-level recognizer may continue awaiting the native stop.
+  void detachSessionEnd() {
     if (_hooked) {
       // Restore ONLY if the live handler is still the one this session
       // installed — a newer session may have re-hooked already, and blindly
@@ -110,17 +117,16 @@ class SystemSttEngine implements SttEngine {
       // field log 2026-07-21).
       if (identical(_service.onListeningDone, _installedDone)) {
         _service.onListeningDone = _restoreDone;
-        _hooked = false;
-        _restoreDone = null;
       } else {
         sttLog(
           '[RACE] "system" stale stop — newer session owns the handler, '
           'not restoring',
         );
       }
+      _hooked = false;
+      _restoreDone = null;
       _installedDone = null;
     }
-    return _service.stopListening();
   }
 
   @override

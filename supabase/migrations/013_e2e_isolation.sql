@@ -45,4 +45,44 @@ CREATE TRIGGER e2e_guard_shared_write BEFORE INSERT OR UPDATE ON public.challeng
 CREATE TRIGGER e2e_guard_shared_write BEFORE INSERT OR UPDATE ON public.variant_progress
   FOR EACH ROW EXECUTE FUNCTION e2e_private.guard_shared_write();
 
+-- The read-only check exposes a boolean to CI and Patrol. A disabled isolation
+-- trigger or a missing 012 prerequisite closes the reset boundary again.
+CREATE FUNCTION public.e2e_isolation_ready()
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  SELECT to_regclass('public.review_events') IS NOT NULL
+    AND to_regclass('public.published_audio_assets') IS NOT NULL
+    AND (SELECT count(*) = 2 FROM pg_catalog.pg_policy
+      WHERE polrelid = to_regclass('storage.objects') AND NOT polpermissive
+        AND polname IN ('vocab audio anonymous boundary', 'vocab audio authenticated boundary'))
+    AND (SELECT count(*) = 4 FROM pg_catalog.pg_trigger
+      WHERE tgrelid IN (to_regclass('public.friend_requests'), to_regclass('public.friendships'),
+                       to_regclass('public.challenges'), to_regclass('public.variant_progress'))
+        AND tgname = 'e2e_guard_shared_write'
+        AND tgfoid = to_regprocedure('e2e_private.guard_shared_write()')
+        AND tgenabled IN ('O', 'A')
+        AND tgtype = 23); -- BEFORE INSERT OR UPDATE, FOR EACH ROW
+$$;
+REVOKE ALL ON FUNCTION public.e2e_isolation_ready() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.e2e_isolation_ready() TO anon, authenticated;
+
+DO $$ BEGIN
+  IF NOT public.e2e_isolation_ready() THEN
+    RAISE EXCEPTION 'Apply migration 012 before activating E2E reset';
+  END IF;
+END $$;
+
+ALTER FUNCTION public.reset_e2e_account(text) SET SCHEMA e2e_private;
+REVOKE ALL ON FUNCTION e2e_private.reset_e2e_account(text) FROM PUBLIC, anon, authenticated;
+CREATE FUNCTION public.reset_e2e_account(p_scenario_id text)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF NOT public.e2e_isolation_ready() THEN
+    RAISE EXCEPTION 'E2E isolation is unavailable; reset refused' USING ERRCODE = '55000';
+  END IF;
+  RETURN e2e_private.reset_e2e_account(p_scenario_id);
+END $$;
+REVOKE ALL ON FUNCTION public.reset_e2e_account(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.reset_e2e_account(text) TO authenticated;
+NOTIFY pgrst, 'reload schema';
+
 COMMIT;

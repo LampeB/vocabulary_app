@@ -25,12 +25,16 @@ class GrammarScreen extends ConsumerWidget {
     // language (seam for the future header language chip).
     final targetLang = ref.watch(defaultPairProvider).$2;
     final statusesAsync = ref.watch(ruleStatusesProvider(targetLang));
+    final catalogNames =
+        ref.watch(grammarPrerequisiteNameKeysProvider).valueOrNull ??
+        const <String, String>{};
     return Scaffold(
       key: const ValueKey(WidgetKeys.screenGrammar),
       appBar: AppBar(
         automaticallyImplyLeading: false,
         leading: context.canPop()
             ? IconButton(
+                tooltip: 'common.back'.tr(),
                 icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
                 onPressed: () => context.pop(),
               )
@@ -67,7 +71,7 @@ class GrammarScreen extends ConsumerWidget {
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                     children: [
                       for (final s in statuses) ...[
-                        _RuleCard(status: s),
+                        _RuleCard(status: s, catalogNames: catalogNames),
                         const SizedBox(height: 12),
                       ],
                     ],
@@ -80,8 +84,9 @@ class GrammarScreen extends ConsumerWidget {
 }
 
 class _RuleCard extends StatelessWidget {
-  const _RuleCard({required this.status});
+  const _RuleCard({required this.status, required this.catalogNames});
   final RuleStatus status;
+  final Map<String, String> catalogNames;
 
   @override
   Widget build(BuildContext context) {
@@ -148,7 +153,9 @@ class _RuleCard extends StatelessWidget {
             for (final name in status.rule.prerequisiteLists) ...[
               _Bar(
                 key: ValueKey(WidgetKeys.grammarPrerequisiteList(name)),
-                label: status.prereqNames[name] ?? name,
+                label:
+                    status.prereqNames[name] ??
+                    (catalogNames[name] ?? 'list_detail.appbar_fallback').tr(),
                 fraction: (status.prereqProgress[name] ?? 0).clamp(0.0, 1.0),
                 color: AppColors.clay,
                 dense: true,

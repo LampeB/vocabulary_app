@@ -26,7 +26,7 @@ void main() {
       );
 
   test(
-    'insert → getUnsynced returns only unsynced → markSynced clears them',
+    'insert → getUnsynced returns only unsynced → acknowledgement clears them',
     () async {
       await db.reviewEventDao.insertEvent(evt('a'));
       await db.reviewEventDao.insertEvent(evt('b'));
@@ -35,7 +35,9 @@ void main() {
       final unsynced = await db.reviewEventDao.getUnsynced();
       expect(unsynced.map((e) => e.id).toSet(), {'a', 'b'});
 
-      await db.reviewEventDao.markSynced(['a', 'b']);
+      for (final event in unsynced) {
+        expect(await db.reviewEventDao.acknowledge(event), 1);
+      }
       expect(await db.reviewEventDao.getUnsynced(), isEmpty);
     },
   );

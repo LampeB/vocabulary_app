@@ -169,7 +169,12 @@ class StarterDraftReconciliation {
     await (_db.update(_db.reviewEventsTable)..where(
           (t) => t.userId.equals(draft.ownerId) & t.listId.equals(draft.id),
         ))
-        .write(ReviewEventsTableCompanion(listId: Value(canonical.id)));
+        .write(
+          ReviewEventsTableCompanion(
+            listId: Value(canonical.id),
+            isSynced: const Value(false),
+          ),
+        );
     await (_db.update(_db.quizSessionsTable)..where(
           (t) => t.userId.equals(draft.ownerId) & t.listId.equals(draft.id),
         ))
@@ -300,7 +305,12 @@ class StarterDraftReconciliation {
     await (_db.update(_db.reviewEventsTable)..where(
           (t) => t.userId.equals(userId) & t.variantId.equals(source.id),
         ))
-        .write(ReviewEventsTableCompanion(variantId: Value(target.id)));
+        .write(
+          ReviewEventsTableCompanion(
+            variantId: Value(target.id),
+            isSynced: const Value(false),
+          ),
+        );
     await _db.vocabularyListDao.rememberStarterAlias(
       StarterAliasKind.variant,
       userId,

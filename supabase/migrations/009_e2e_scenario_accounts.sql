@@ -48,8 +48,7 @@ BEGIN
   result := e2e_private.reset_e2e_account();
   RETURN result || jsonb_build_object('scenario_id', registered);
 END $$;
-REVOKE ALL ON FUNCTION public.reset_e2e_account(text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.reset_e2e_account(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.reset_e2e_account(text) FROM PUBLIC, anon, authenticated;
 
 -- Provisioning only: the service-role credential never goes into the test APK.
 CREATE OR REPLACE FUNCTION public.enroll_e2e_account(

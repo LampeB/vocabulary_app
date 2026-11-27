@@ -13,10 +13,17 @@ CREATE POLICY published_audio_read ON public.published_audio_assets FOR SELECT T
 DROP POLICY IF EXISTS "vocab audio pending activation" ON storage.objects;
 DROP POLICY IF EXISTS "vocab audio authenticated read" ON storage.objects;
 CREATE POLICY "vocab audio authenticated read" ON storage.objects FOR SELECT TO authenticated
-USING (bucket_id = 'vocab-audio' AND
-  (EXISTS(SELECT 1 FROM public.published_audio_assets p WHERE p.path = storage.objects.name)
-   OR split_part(name, '/', 1) = 'users' AND
-    split_part(name, '/', 2) = auth.uid()::text));
+USING (bucket_id = 'vocab-audio');
+-- Storage policies from other buckets can be permissive. These restrictive
+-- rules still apply to every vocab-audio read for the respective client role.
+CREATE POLICY "vocab audio authenticated boundary" ON storage.objects
+AS RESTRICTIVE FOR SELECT TO authenticated
+USING (bucket_id IS DISTINCT FROM 'vocab-audio'
+  OR EXISTS(SELECT 1 FROM public.published_audio_assets p WHERE p.path = storage.objects.name)
+  OR (split_part(name, '/', 1) = 'users' AND split_part(name, '/', 2) = auth.uid()::text));
+CREATE POLICY "vocab audio anonymous boundary" ON storage.objects
+AS RESTRICTIVE FOR SELECT TO anon
+USING (bucket_id IS DISTINCT FROM 'vocab-audio');
 
 DROP POLICY IF EXISTS lists_public ON public.vocabulary_lists;
 CREATE POLICY lists_public ON public.vocabulary_lists FOR SELECT TO authenticated
@@ -112,7 +119,6 @@ BEGIN
   result := e2e_private.reset_e2e_account();
   RETURN result || jsonb_build_object('scenario_id', registered);
 END $$;
-REVOKE ALL ON FUNCTION public.reset_e2e_account(text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.reset_e2e_account(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.reset_e2e_account(text) FROM PUBLIC, anon, authenticated;
 NOTIFY pgrst, 'reload schema';
 COMMIT;

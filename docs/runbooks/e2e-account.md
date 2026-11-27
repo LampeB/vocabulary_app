@@ -14,8 +14,8 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
    [007](../../supabase/migrations/007_audio_storage.sql) ferme les lectures
    client de `vocab-audio` jusqu'à l'installation des règles définitives par
    012. Si le projet a appliqué une ancienne version de 007 et attend encore
-   012, rejouer la version actuelle de 007 avant les autres étapes. Si 012
-   est déjà appliquée, passer directement aux migrations manquantes.
+   012, rejouer la version actuelle de 007 avant les autres étapes. Si la
+   version actuelle de 012 est déjà appliquée, passer aux migrations manquantes.
 
    Si 008, 009, 012 et 013 restent à appliquer et que les migrations 000,
    004 à 007, 010, 011 et `add_subscription_type.sql` sont déjà présentes,
@@ -40,7 +40,18 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
    conserve les mots de passe et UUID ; `test.accounts.env.json` est généré
    pour Patrol. Les fichiers sont écrits avec des permissions 0600 sur POSIX
    et une ACL réservée à l'utilisateur courant sur Windows.
-4. Lancer une suite locale ou le workflow E2E et vérifier son résultat réel.
+4. Une fois les migrations appliquées, vérifier l'isolation du projet qui
+   correspond aux secrets CI avec le contrôle en lecture seule.
+
+   ```bash
+   python3 tool/e2e/check_activation.py --config .env.json
+   ```
+
+   Lorsque le contrôle réussit, définir la variable de dépôt GitHub
+   `PATROL_E2E_ACTIVATION` à `isolated-v1` pour autoriser le CI manuel et
+   planifié. Une valeur absente ou différente garde le CI désactivé. Retirer
+   la variable pour suspendre les lancements. Lancer ensuite une suite et
+   vérifier son résultat réel.
 
 L'outil crée les comptes via l'API administrateur, avec email confirmé et
 métadonnées administrateur identifiant le scénario. Il les inscrit via une RPC
@@ -61,7 +72,8 @@ Chaque `isolatedPatrolTest` reçoit un `scenarioId` explicite. La configuration
 Les UUID et emails doivent être distincts ; aucune entrée de secours partagée.
 Avant `app.main()`, le helper :
 
-1. sélectionne le compte du scénario, se connecte et vérifie UUID et email ;
+1. vérifie l'isolation hébergée en lecture seule, sélectionne le compte du
+   scénario, se connecte et vérifie UUID et email ;
 2. appelle `reset_e2e_account(p_scenario_id)` et vérifie identité, scénario,
    pseudo et baseline `empty-free-v1` ;
 3. vide transactionnellement les tables SQLite et les préférences locales ;
@@ -82,6 +94,10 @@ La migration 013 refuse dès l'écriture les amitiés, demandes, défis et
 progressions intercomptes impliquant un compte attribué à un scénario. Elle
 contrôle aussi le propriétaire de la liste du défi ou de la variante étudiée.
 La progression d'un compte E2E sur ses propres listes reste autorisée.
+Elle publie `e2e_isolation_ready()` pour vérifier les prérequis de 012 et la
+présence des quatre déclencheurs d'isolation actifs. Le reset vérifie ce résultat
+au moment de l'appel. Les migrations intermédiaires retirent aux rôles client
+l'autorisation d'exécuter le reset jusqu'à cette activation.
 
 Le reset efface listes, concepts, variantes, progression, abonnements Supabase,
 notifications et classement du compte. Il recrée son profil gratuit avec le
@@ -134,21 +150,24 @@ Les anciens secrets `TEST_EMAIL`
 et `TEST_PASSWORD` ne sont plus requis.
 [Environnements GitHub Actions](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments).
 
-Le précontrôle valide le catalogue complet sans modifier les comptes. Pour
-chaque job, le fichier de compilation contient uniquement les comptes du fichier
+Le premier job vérifie l'isolation sur le projet ciblé avant de sélectionner
+les suites. Le précontrôle de chaque suite valide ensuite le catalogue complet
+sans modifier les comptes. Pour chaque job, le fichier de compilation contient
+uniquement les comptes du fichier
 Patrol ciblé. La cible manuelle `quiz_all_test.dart` reçoit les scénarios de ses
 suites importées. Seul le scénario en cours réinitialise son compte.
 
-Le dispatcher cible `main` après intégration de cette branche, chaque soir à
-22 h 17 Asia/Seoul (13 h 17 UTC). Le verrou `supabase-e2e-account` sérialise les
+Après activation, le dispatcher cible `main` chaque soir à 22 h 17 Asia/Seoul
+(13 h 17 UTC). Le verrou `supabase-e2e-account` sérialise les
 runs ; ne pas exécuter le même scénario localement pendant la CI. Un dispatcher
 réussi ne prouve pas le succès du run « E2E (emulator) ».
 Le trafic ne garantit pas contractuellement l'absence de pause Supabase.
 
 ## Vérification
 
-- `python3 -m unittest discover -s tool/e2e -p 'test_*.py'` : catalogue,
-  unicité et reprise du provisioning sans rotation d'identité.
+- `python3 -m unittest discover -s tool/e2e -p 'test_*.py'` vérifie le catalogue,
+  l'unicité, la reprise du provisioning sans rotation d'identité et le refus
+  lorsque le contrôle hébergé est absent ou négatif.
 - `flutter test test/unit/e2e_scenario_accounts_test.dart test/integration/e2e_reset_test.dart` :
   sélection, absence de compte partagé, reset local et rollback.
 - Sur une base **jetable**, appliquer le bootstrap et les migrations dans

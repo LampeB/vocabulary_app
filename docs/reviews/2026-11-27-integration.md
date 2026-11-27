@@ -406,3 +406,46 @@ passent. PostgreSQL 16.11 valide le nouveau sas Storage intermédiaire, les
 six suites finales, deux connexions de reset et le script d'activation avec
 réapplication et rollback. Les 30 tests Python, la frontière de licence,
 actionlint et zizmor passent. Aucun backend ni publication externe n'est activé.
+
+## Neuvième itération — `be081c8`
+
+Les quatre profils ont rendu `BLOQUÉ` sur
+`be081c8404577c1df8ed0ae688c7e0d4cb984523` avant toute correction.
+Leurs 11 observations Important correspondent à **10 constats distincts** :
+la fermeture PCM au démontage est signalée par qualité et correction. Aucun
+Bloquant et une Suggestion sont remontés. Les quatre compteurs propres
+restent à zéro ; le prochain commit sera relu à l'itération **10**, avec
+le plafond de vingt inchangé.
+
+| Type | Constat regroupé | Correction et preuve ciblée |
+| --- | --- | --- |
+| Important | Commandes Retour sans nom accessible | Libellés localisés et arbre sémantique du parcours réel vérifiés |
+| Important | Titres longs ou agrandis rognés par la barre d'application | Titres dans le contenu défilant, dernière ligne et titre grammatical accessibles |
+| Important | Prérequis absent affichant son identifiant technique | Repli catalogue en FR/EN/KO et nom résolu conservé si les statistiques échouent |
+| Important | Complément du catalogue ressuscitant un starter supprimé | Tombstones inclus et IDs déterministes partagés avec l'import, deux SQLite vérifiées |
+| Important | Retour système lançant un arrêt micro non géré | Nettoyage sûr au démontage, refus et arrêt bloqué testés |
+| Important | Moteur système exclusif non libéré avant verdict ou changement de voie | Accusé d'arrêt conservé, échec propagé et nouvelle écoute bloquée jusqu'au nettoyage |
+| Important | Événement d'un brouillon créé pendant le push publié trop tôt | Éligibilité et candidats dans le même snapshot, ACK conditionnel et réexpédition canonique |
+| Important | Politique Storage permissive contournant l'activation finale | Garde restrictif final et politique permissive historique conservée dans le test |
+| Important | APK téléversé dans les artefacts d'un dépôt public | Workflow de compilation sans publication binaire, usage privé local documenté |
+| Important | Planification Patrol active avant isolation hébergée | Verrou fermé par défaut et vérification en lecture seule avant tout reset |
+
+Suggestion conservée : le publieur audio administrateur devrait distinguer
+une absence Storage confirmée d'une panne avant tout rendu facturé. Cette
+amélioration ne fait pas partie des corrections revendiquées dans ce lot.
+
+Les sept checks GitHub, dont Android natif, sont verts sur `be081c8`.
+Ils ne constituent pas une convergence des agents ni une autorisation
+d'activation du backend hébergé.
+
+Validation du lot : **1 052 tests hôte réussis**, huit diagnostics positifs
+exclus sans opt-in, couverture **72,1 %** (12 978 / 18 011 lignes).
+L'analyse Flutter est propre ; les 21 diagnostics ciblés passent avec opt-in.
+Les tests ciblés comptent 73 cas data, 57 cas interface/grammaire et 213 cas
+voix/quiz/thèmes, dont les retours système et les transitions entre moteurs.
+Les huit tests Python E2E et les 25 tests Python bot/déploiement passent.
+PostgreSQL 16.11 valide les refus E2E après 009 et 012, le sas Storage après
+007, les six suites finales avec règle permissive préexistante, la désactivation
+d'un déclencheur d'isolation, deux connexions de reset et le bundle d'activation.
+Actionlint, zizmor et la frontière de licence passent. Aucune variable
+d'activation ni modification hébergée n'est appliquée.

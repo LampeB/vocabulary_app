@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/services.dart' show AssetBundle;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../domain/repositories/vocabulary_repository.dart';
 import '../../core/errors/failure.dart';
@@ -11,6 +10,7 @@ import '../datasources/local/app_database.dart';
 import '../datasources/local/daos/concept_dao.dart';
 import '../datasources/local/daos/vocabulary_list_dao.dart';
 import 'seed_catalog.dart';
+import 'starter_identity.dart';
 import '../../services/audio/audio_asset_path.dart';
 
 /// Seeds the starter curriculum for one ordered language pair, composing the
@@ -40,7 +40,6 @@ class StarterSeeder {
   final ConceptDao _conceptDao;
   final String _userId;
   final String? _uiLocale;
-  final _uuid = const Uuid();
   static final _executions = Expando<Map<String, Future<void>>>();
 
   /// Canonical French names of the pre-catalog fr→ko starter lists, for
@@ -168,12 +167,19 @@ class StarterSeeder {
             },
         };
 
-        final concepts = await _conceptDao.getConceptsByList(list.id);
+        final concepts = await _conceptDao.getConceptsByList(
+          list.id,
+          includeDeleted: true,
+        );
         for (final concept in concepts) {
-          final variants = await _conceptDao.getVariantsByConcept(concept.id);
+          if (concept.seedId != null) continue;
+          final variants = await _conceptDao.getVariantsByConcept(
+            concept.id,
+            includeDeleted: true,
+          );
           if (variants.isEmpty) {
-            await _conceptDao.softDelete(concept.id);
-          } else if (concept.seedId == null) {
+            if (!concept.isDeleted) await _conceptDao.softDelete(concept.id);
+          } else {
             // Healthy pre-catalog concept: recover its registry id by matching
             // any of its words in either language so top-up won't duplicate it.
             final registryId = wordIndex.entries
@@ -261,12 +267,24 @@ class StarterSeeder {
     SeedLanguageLayer sourceLayer,
     SeedLanguageLayer targetLayer,
   ) => _listDao.transaction(() async {
+    final resolved = await _listDao.resolveStarterId(
+      StarterAliasKind.list,
+      _userId,
+      listId,
+    );
+    final list = await _listDao.getById(resolved);
+    if (list == null || list.isDeleted || list.ownerId != _userId) return;
     final now = DateTime.now();
-    final concepts = await _conceptDao.getConceptsByList(listId);
-    final bySeedId = {
-      for (final c in concepts)
-        if (c.seedId != null) c.seedId!: c,
-    };
+    final concepts = await _conceptDao.getConceptsByList(
+      list.id,
+      includeDeleted: true,
+    );
+    final bySeedId = <String, ConceptsTableData>{};
+    for (final concept in concepts) {
+      final seedId = concept.seedId;
+      if (seedId == null) continue;
+      if (bySeedId[seedId]?.isDeleted != false) bySeedId[seedId] = concept;
+    }
 
     var added = false;
     for (final conceptId in seedList.conceptIds) {
@@ -275,13 +293,14 @@ class StarterSeeder {
       if (sourceEntry == null || targetEntry == null) continue;
 
       final existing = bySeedId[conceptId];
+      if (existing?.isDeleted == true) continue;
       if (existing == null) {
         added = true;
-        final newConceptId = _uuid.v4();
+        final newConceptId = starterConceptId(list.id, conceptId);
         await _conceptDao.upsert(
           ConceptsTableCompanion(
             id: Value(newConceptId),
-            listId: Value(listId),
+            listId: Value(list.id),
             category: Value(catalog.conceptCategories[conceptId]),
             notes: Value(targetEntry.noteFor(sourceLayer.lang)),
             seedId: Value(conceptId),
@@ -290,6 +309,10 @@ class StarterSeeder {
             updatedAt: Value(now),
           ),
         );
+        await _listDao.rememberSharedImport(
+          newConceptId,
+          (await _conceptDao.getById(newConceptId))!,
+        );
         for (final entry in [
           (sourceEntry, sourceLayer.lang),
           (targetEntry, targetLayer.lang),
@@ -297,7 +320,10 @@ class StarterSeeder {
           await _insertVariants(newConceptId, entry.$1, entry.$2, now);
         }
       } else {
-        final variants = await _conceptDao.getVariantsByConcept(existing.id);
+        final variants = await _conceptDao.getVariantsByConcept(
+          existing.id,
+          includeDeleted: true,
+        );
         final presentLangs = variants.map((v) => v.langCode).toSet();
         if (!presentLangs.contains(sourceLayer.lang)) {
           added = true;
@@ -321,8 +347,8 @@ class StarterSeeder {
     }
 
     if (added) {
-      final count = await _conceptDao.countByList(listId);
-      await _listDao.updateWordCount(listId, count);
+      final count = await _conceptDao.countByList(list.id);
+      await _listDao.updateWordCount(list.id, count);
       _listDao.attachedDatabase.notifyOutboundMutation(_userId);
     }
   });
@@ -333,10 +359,17 @@ class StarterSeeder {
     String lang,
     DateTime now,
   ) async {
+    final seenSlots = <int, int>{};
     for (final w in entry.words) {
+      final occurrence = seenSlots.update(
+        w.position,
+        (n) => n + 1,
+        ifAbsent: () => 0,
+      );
+      final id = starterVariantId(conceptId, lang, w.position, occurrence);
       await _conceptDao.upsertVariant(
         WordVariantsTableCompanion(
-          id: Value(_uuid.v4()),
+          id: Value(id),
           conceptId: Value(conceptId),
           word: Value(w.word),
           langCode: Value(lang),
@@ -349,6 +382,10 @@ class StarterSeeder {
           createdAt: Value(now),
           updatedAt: Value(now),
         ),
+      );
+      await _listDao.rememberSharedImport(
+        id,
+        (await _conceptDao.getVariantById(id))!,
       );
     }
   }

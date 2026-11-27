@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import '../app_database.dart';
+import '../sync_snapshot.dart';
 import '../tables/review_events_table.dart';
 import 'vocabulary_list_dao.dart';
 
@@ -47,10 +48,8 @@ class ReviewEventDao extends DatabaseAccessor<AppDatabase>
           ))
           .get();
 
-  Future<int> markSynced(List<String> ids) =>
-      (update(reviewEventsTable)..where((t) => t.id.isIn(ids))).write(
-        const ReviewEventsTableCompanion(isSynced: Value(true)),
-      );
+  Future<int> acknowledge(ReviewEventsTableData row) =>
+      acknowledgeSyncSnapshot(this, reviewEventsTable, row);
 
   /// All events for a user, newest first — the stats dashboard's raw feed.
   Future<List<ReviewEventsTableData>> getByUser(String userId) =>

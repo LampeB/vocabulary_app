@@ -73,8 +73,9 @@ LD_LIBRARY_PATH="$HOME/.local/lib:$LD_LIBRARY_PATH" flutter test
   `workflow_dispatch` workflow in `.github/workflows/e2e.yml`; config in
   `patrol.toml`.
 - CI runs the host tests on pushes and pull requests. `e2e.yml` accepts manual
-  dispatch. `build-apk.yml` produces Android artifacts and injects `.env.json`
-  from repository secrets. iOS delivery is deferred until the Xcode archive,
+  dispatch after Supabase activation. `build-apk.yml` validates an Android
+  release build with `.env.json` from repository secrets. Use the local command
+  above for a private APK. iOS delivery is deferred until the Xcode archive,
   signing and device testing have been validated.
 
 Discipline: run the suite and read its verdict **before** building or

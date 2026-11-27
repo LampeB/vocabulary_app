@@ -1,4 +1,6 @@
 // ignore_for_file: invalid_use_of_internal_member
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,6 +33,8 @@ class _HistoricalStarterRemote extends FakeRemote {
   final pushedLists = <Map<String, dynamic>>[];
   final pushedProgress = <Map<String, dynamic>>[];
   final pushedEvents = <Map<String, dynamic>>[];
+  Future<void> Function(Map<String, dynamic>)? onList;
+  Future<void> Function(Map<String, dynamic>)? onEvent;
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchLists(String ownerId) async =>
@@ -53,6 +57,7 @@ class _HistoricalStarterRemote extends FakeRemote {
     bool insertOnly = false,
     Map<String, dynamic>? changes,
   }) async {
+    await onList?.call(data);
     pushedLists.add(data);
     return Success(data);
   }
@@ -68,9 +73,26 @@ class _HistoricalStarterRemote extends FakeRemote {
   @override
   Future<Result<void>> upsertReviewEvent(Map<String, dynamic> data) async {
     pushedEvents.add(data);
+    await onEvent?.call(data);
     return const Success(null);
   }
 }
+
+const _oneWordStarter = {
+  'list': {
+    'name': 'Greetings',
+    'seedId': 'starter-greetings:fr>ko',
+    'concepts': [
+      {
+        'seedId': 'bonjour',
+        'variants': [
+          {'word': 'Bonjour', 'langCode': 'fr'},
+          {'word': '안녕하세요', 'langCode': 'ko'},
+        ],
+      },
+    ],
+  },
+};
 
 class _FailOnceSeedRepository extends VocabularyRepositoryImpl {
   _FailOnceSeedRepository(AppDatabase db)
@@ -111,11 +133,15 @@ void main() {
   late AppDatabase db;
   late VocabularyRepositoryImpl repo;
 
-  ProviderContainer makeContainer({String userId = 'u1'}) {
+  ProviderContainer makeContainer({
+    String userId = 'u1',
+    AppDatabase? device,
+    VocabularyRepositoryImpl? repository,
+  }) {
     final c = ProviderContainer(
       overrides: [
-        appDatabaseProvider.overrideWithValue(db),
-        vocabularyRepositoryProvider.overrideWithValue(repo),
+        appDatabaseProvider.overrideWithValue(device ?? db),
+        vocabularyRepositoryProvider.overrideWithValue(repository ?? repo),
         currentUserProvider.overrideWithValue(_user(userId)),
         syncOnLoginProvider.overrideWith((ref) async {}),
       ],
@@ -129,6 +155,80 @@ void main() {
           .read(starterSeederProvider)
           .ensureSeededForPair(source, target);
 
+  VocabularyRepositoryImpl repositoryFor(
+    AppDatabase device,
+    FakeRemote remote,
+  ) => VocabularyRepositoryImpl(
+    device.vocabularyListDao,
+    device.conceptDao,
+    remote,
+    'u1',
+    device,
+  );
+
+  PushSync pushFor(FakeRemote remote) => PushSync(
+    db.vocabularyListDao,
+    db.conceptDao,
+    db.progressDao,
+    db.reviewEventDao,
+    remote,
+    userId: 'u1',
+  );
+
+  Future<(String, String)> createDraftWithAnswer(
+    _HistoricalStarterRemote remote, {
+    bool includeListInEvent = true,
+  }) async {
+    final draft = (await repo.importFromJson(
+      _oneWordStarter,
+      origin: 'starter',
+    )).valueOrNull!;
+    final concept = (await db.conceptDao.getConceptsByList(draft.id)).single;
+    final variants = await db.conceptDao.getVariantsByConcept(concept.id);
+    final variant = variants.singleWhere((word) => word.langCode == 'fr');
+    final now = DateTime.utc(2026, 11, 27);
+    await db.progressDao.upsertLocal(
+      VariantProgress(
+        id: 'draft-progress',
+        userId: 'u1',
+        variantId: variant.id,
+        direction: QuizDirection.frToKo,
+        reps: 1,
+        timesShown: 1,
+        createdAt: now,
+        updatedAt: now,
+      ).toLocalCompanion(),
+    );
+    await db.reviewEventDao.insertEvent(
+      ReviewEventsTableCompanion.insert(
+        id: 'draft-review',
+        userId: 'u1',
+        variantId: variant.id,
+        listId: Value(includeListInEvent ? draft.id : null),
+        direction: 'fr>ko',
+        mode: 'typing',
+        correct: true,
+        rating: 'good',
+        createdAt: now,
+      ),
+    );
+    remote.lists.add({...draft.toRemoteMap(), 'id': 'canonical-list'});
+    remote.concepts.add({
+      ...concept.toRemoteMap(),
+      'id': 'canonical-concept',
+      'list_id': 'canonical-list',
+      'word_variants': [
+        for (final canonical in variants)
+          {
+            ...canonical.toRemoteMap(),
+            'id': 'canonical-${canonical.langCode}',
+            'concept_id': 'canonical-concept',
+          },
+      ],
+    });
+    return (draft.id, variant.id);
+  }
+
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -141,6 +241,235 @@ void main() {
     );
   });
   tearDown(() => db.close());
+
+  test('fresh devices preserve starter tombstones and complete missing '
+      'catalogue rows with the original import IDs', () async {
+    await seed();
+    final original = (await repo.watchMyLists().first).singleWhere(
+      (list) => list.seedId == 'starter-greetings:fr>ko',
+    );
+    final originalConcepts = await db.conceptDao.getConceptsByList(original.id);
+    final originalVariants = <String, List<WordVariantsTableData>>{
+      for (final concept in originalConcepts)
+        concept.id: await db.conceptDao.getVariantsByConcept(concept.id),
+    };
+    const deletedConcept = 'bonjour';
+    const deletedKoreanVariants = 'merci';
+    const missingConcept = 'oui';
+    const missingKoreanVariants = 'non';
+    final remote = _HistoricalStarterRemote()
+      ..offline = false
+      ..lists.add(original.toRemoteMap());
+    for (final concept in originalConcepts) {
+      if (concept.seedId == missingConcept) continue;
+      remote.concepts.add({
+        ...concept.toRemoteMap(),
+        if (concept.seedId == deletedConcept) ...{
+          'id': 'legacy-deleted-concept',
+          'is_deleted': true,
+        },
+        'word_variants': [
+          if (concept.seedId != deletedConcept)
+            for (final variant in originalVariants[concept.id]!)
+              if (concept.seedId != missingKoreanVariants ||
+                  variant.langCode != 'ko')
+                {
+                  ...variant.toRemoteMap(),
+                  if (concept.seedId == deletedKoreanVariants &&
+                      variant.langCode == 'ko') ...{
+                    'id': 'legacy-deleted-${variant.id}',
+                    'is_deleted': true,
+                  },
+                },
+        ],
+      });
+    }
+    SharedPreferences.setMockInitialValues({});
+    final devices = [
+      AppDatabase.forTesting(NativeDatabase.memory()),
+      AppDatabase.forTesting(NativeDatabase.memory()),
+    ];
+    final seeders = <StarterSeeder>[];
+    for (final device in devices) {
+      addTearDown(device.close);
+      final restored = repositoryFor(device, remote);
+      await restored.syncFromRemote();
+      seeders.add(
+        makeContainer(
+          device: device,
+          repository: restored,
+        ).read(starterSeederProvider),
+      );
+    }
+    await Future.wait([
+      for (final seeder in seeders) seeder.ensureSeededForPair('fr', 'ko'),
+    ]);
+
+    for (final device in devices) {
+      final all = await device.conceptDao.getConceptsByList(
+        original.id,
+        includeDeleted: true,
+      );
+      final restoredDeleted = all.singleWhere(
+        (c) => c.seedId == deletedConcept,
+      );
+      expect(restoredDeleted.id, 'legacy-deleted-concept');
+      expect(restoredDeleted.isDeleted, isTrue);
+      expect(restoredDeleted.isSynced, isTrue);
+      expect(all, hasLength(originalConcepts.length));
+      expect(
+        (await device.vocabularyListDao.getById(original.id))?.wordCount,
+        originalConcepts.length - 1,
+      );
+      for (final seedId in [missingConcept, missingKoreanVariants]) {
+        final expected = originalConcepts.singleWhere(
+          (concept) => concept.seedId == seedId,
+        );
+        final restored = all.singleWhere((concept) => concept.seedId == seedId);
+        expect(restored.id, expected.id);
+        final variants = await device.conceptDao.getVariantsByConcept(
+          restored.id,
+        );
+        expect(
+          variants.map((variant) => variant.id),
+          unorderedEquals(
+            originalVariants[expected.id]!.map((variant) => variant.id),
+          ),
+        );
+      }
+      final preserved = all.singleWhere(
+        (c) => c.seedId == deletedKoreanVariants,
+      );
+      final variants = await device.conceptDao.getVariantsByConcept(
+        preserved.id,
+        includeDeleted: true,
+      );
+      final korean = variants.where((variant) => variant.langCode == 'ko');
+      expect(korean, isNotEmpty);
+      expect(
+        korean.every((variant) => variant.isDeleted && variant.isSynced),
+        isTrue,
+      );
+      expect(
+        korean.map((variant) => variant.id),
+        unorderedEquals(
+          originalVariants[preserved.id]!
+              .where((variant) => variant.langCode == 'ko')
+              .map((variant) => 'legacy-deleted-${variant.id}'),
+        ),
+      );
+    }
+  });
+
+  for (final includeListInEvent in [true, false]) {
+    test('a draft created during another list upload keeps its reviews local '
+        '(event has list ID: $includeListInEvent)', () async {
+      final remote = _HistoricalStarterRemote();
+      repo = repositoryFor(db, remote);
+      final personal = (await repo.createList(name: 'Personal')).valueOrNull!;
+      final uploadStarted = Completer<void>();
+      final uploadResponse = Completer<void>();
+      remote.onList = (payload) async {
+        if (payload['id'] != personal.id) return;
+        uploadStarted.complete();
+        await uploadResponse.future;
+      };
+      final push = pushFor(remote);
+      final sending = push.pushAll();
+      await uploadStarted.future;
+
+      final (draftId, variantId) = await createDraftWithAnswer(
+        remote,
+        includeListInEvent: includeListInEvent,
+      );
+      expect(await db.vocabularyListDao.isStarterDraftHeld(draftId), isTrue);
+      uploadResponse.complete();
+      expect(await sending, 1);
+      expect(remote.pushedProgress, isEmpty);
+      expect(remote.pushedEvents, isEmpty);
+      final unsent = (await db.reviewEventDao.getUnsynced(userId: 'u1')).single;
+      expect(unsent.variantId, variantId);
+
+      remote.offline = false;
+      await repo.syncFromRemote();
+      await push.pushAll();
+      expect(remote.pushedProgress.single['variant_id'], 'canonical-fr');
+      final event = remote.pushedEvents.single;
+      expect(event['variant_id'], 'canonical-fr');
+      expect(event['list_id'], includeListInEvent ? 'canonical-list' : null);
+      expect(event['id'], unsent.id);
+      expect(await db.reviewEventDao.getUnsynced(userId: 'u1'), isEmpty);
+    });
+  }
+
+  test('starter adoption requeues a previously accepted event and rejects an '
+      'in-flight acknowledgement of its old IDs', () async {
+    final remote = _HistoricalStarterRemote()..offline = false;
+    repo = repositoryFor(db, remote);
+    final (draftId, variantId) = await createDraftWithAnswer(remote);
+    final draftEvent = (await db.reviewEventDao.getByUser('u1')).single;
+    await db.reviewEventDao.insertEvent(
+      draftEvent
+          .copyWith(id: 'accepted-review', isSynced: true)
+          .toCompanion(false),
+    );
+    // Reproduce a legacy copy that was already released from the hold and
+    // whose metadata snapshots are still available for reconciliation.
+    await db.vocabularyListDao.releaseStarterDraft(draftId);
+    await db
+        .update(db.vocabularyListsTable)
+        .write(const VocabularyListsTableCompanion(isSynced: Value(true)));
+    await db
+        .update(db.conceptsTable)
+        .write(const ConceptsTableCompanion(isSynced: Value(true)));
+    await db
+        .update(db.wordVariantsTable)
+        .write(const WordVariantsTableCompanion(isSynced: Value(true)));
+    final firstEvent = Completer<void>();
+    final eventResponse = Completer<void>();
+    remote.onEvent = (event) async {
+      if (event['variant_id'] != variantId) return;
+      firstEvent.complete();
+      await eventResponse.future;
+    };
+
+    final push = pushFor(remote);
+    final pushing = push.pushAll();
+    await firstEvent.future;
+    expect((await repo.renameList(draftId, 'Offline title')).isSuccess, isTrue);
+    await repo.syncFromRemote();
+    final requeued = await db.reviewEventDao.getUnsynced(userId: 'u1');
+    expect(
+      requeued.map((event) => event.id),
+      unorderedEquals(['draft-review', 'accepted-review']),
+    );
+    expect(
+      requeued.every(
+        (event) =>
+            event.variantId == 'canonical-fr' &&
+            event.listId == 'canonical-list',
+      ),
+      isTrue,
+    );
+    eventResponse.complete();
+    await pushing;
+
+    expect(remote.pushedEvents.first['variant_id'], variantId);
+    final corrected = remote.pushedEvents.skip(1).toList();
+    expect(
+      corrected.map((event) => event['id']),
+      unorderedEquals(['draft-review', 'accepted-review']),
+    );
+    expect(
+      corrected.every(
+        (event) =>
+            event['variant_id'] == 'canonical-fr' &&
+            event['list_id'] == 'canonical-list',
+      ),
+      isTrue,
+    );
+    expect(await db.reviewEventDao.getUnsynced(userId: 'u1'), isEmpty);
+  });
 
   for (final conflictingHistory in [false, true]) {
     test(

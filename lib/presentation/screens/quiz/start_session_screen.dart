@@ -123,30 +123,11 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
         automaticallyImplyLeading: false,
         leading: context.canPop()
             ? IconButton(
+                tooltip: 'common.back'.tr(),
                 icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
                 onPressed: () => context.pop(),
               )
             : null,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'v3.configure'.tr(),
-              style: AppTextStyles.mono(
-                10,
-                FontWeight.w700,
-              ).copyWith(letterSpacing: 1.2, color: muted),
-            ),
-            Text(
-              (_grammar ? 'start_session.title_grammar' : 'start_session.title')
-                  .tr(),
-              style: AppTextStyles.serif(
-                24,
-                FontWeight.w400,
-              ).copyWith(color: foreground),
-            ),
-          ],
-        ),
       ),
       body: Stack(
         children: [
@@ -154,6 +135,24 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
           ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
             children: [
+              Text(
+                'v3.configure'.tr(),
+                style: AppTextStyles.mono(
+                  10,
+                  FontWeight.w700,
+                ).copyWith(letterSpacing: 1.2, color: muted),
+              ),
+              Text(
+                (_grammar
+                        ? 'start_session.title_grammar'
+                        : 'start_session.title')
+                    .tr(),
+                style: AppTextStyles.serif(
+                  24,
+                  FontWeight.w400,
+                ).copyWith(color: foreground),
+              ),
+              const SizedBox(height: 16),
               // 0 — Langue (vocab only). Pick the pair; the list section then
               // shows only that language's lists.
               if (!_grammar) ...[

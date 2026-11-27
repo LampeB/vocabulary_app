@@ -82,12 +82,7 @@ class PushSync {
 
   Future<_PushRun> _pushOnce() async {
     final run = _PushRun();
-    final heldLists = (await _listDao.heldStarterDrafts(
-      ownerId: _userId,
-    )).map((list) => list.id).toSet();
-    final heldVariants = await _conceptDao.getVariantIdsByLists(heldLists);
     for (final id in await _listDao.getPendingListIds(ownerId: _userId)) {
-      if (heldLists.contains(id)) continue;
       final list = await _flushList(id);
       run.pushed += list.pushed;
       if (list.transportUnavailable) {
@@ -95,11 +90,12 @@ class PushSync {
         return run;
       }
     }
+    // Read eligible reviews after the network writes above. Draft creation
+    // and adoption both change eligibility in the transaction that changes IDs.
+    final (progress, events) = await _pendingReviews();
     await _drain(
       run,
-      rows: () async => (await _progressDao.getUnsyncedProgress(
-        userId: _userId,
-      )).where((row) => !heldVariants.contains(row.variantId)).toList(),
+      rows: () async => progress,
       push: (r) => _sendThenAcknowledge(
         _remote.upsertProgress(r.toDomain().toRemoteMap()),
         () => _progressDao.acknowledge(r),
@@ -108,13 +104,7 @@ class PushSync {
     );
     await _drain(
       run,
-      rows: () async => (await _reviewEventDao.getUnsynced(userId: _userId))
-          .where(
-            (row) =>
-                !heldLists.contains(row.listId) &&
-                !heldVariants.contains(row.variantId),
-          )
-          .toList(),
+      rows: () async => events,
       push: (r) => _sendThenAcknowledge(
         _remote.upsertReviewEvent({
           'id': r.id,
@@ -129,11 +119,34 @@ class PushSync {
           'retry_count': r.retryCount,
           'created_at': r.createdAt.toUtc().toIso8601String(),
         }),
-        () => _reviewEventDao.markSynced([r.id]),
+        () => _reviewEventDao.acknowledge(r),
       ),
+      onChanged: () => _drainAgain = true,
     );
     return run;
   }
+
+  Future<(List<VariantProgressTableData>, List<ReviewEventsTableData>)>
+  _pendingReviews() => _listDao.transaction(() async {
+    final heldLists = (await _listDao.heldStarterDrafts(
+      ownerId: _userId,
+    )).map((list) => list.id).toSet();
+    final heldVariants = await _conceptDao.getVariantIdsByLists(heldLists);
+    final progress = await _progressDao.getUnsyncedProgress(userId: _userId);
+    final events = await _reviewEventDao.getUnsynced(userId: _userId);
+    return (
+      [
+        for (final row in progress)
+          if (!heldVariants.contains(row.variantId)) row,
+      ],
+      [
+        for (final row in events)
+          if (!heldLists.contains(row.listId) &&
+              !heldVariants.contains(row.variantId))
+            row,
+      ],
+    );
+  });
 
   /// Flushes the list and its content for publication. A simultaneous global
   /// drain shares work on this list while other lists can progress independently.

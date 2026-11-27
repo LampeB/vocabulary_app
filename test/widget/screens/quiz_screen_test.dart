@@ -1,5 +1,6 @@
 // ignore_for_file: invalid_use_of_internal_member
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
 import 'package:drift/native.dart';
@@ -47,6 +48,7 @@ import 'package:vocab_kr/services/quiz_orchestration/audio_director.dart';
 import 'package:vocab_kr/services/quiz_orchestration/voice_turn_machine.dart';
 import 'package:vocab_kr/services/speech/elevenlabs_speech_service.dart';
 import 'package:vocab_kr/services/speech/shared_pcm_capture.dart';
+import 'package:vocab_kr/services/speech/stt_engine.dart';
 import 'package:vocab_kr/services/speech/whisper_speech_service.dart';
 import '../../helpers/fake_remote.dart';
 import '../../helpers/pump_screen.dart';
@@ -156,7 +158,7 @@ class _FakeCapture implements SharedPcmCapture {
   _FakeCaptureSession? session;
 
   @override
-  Duration get releaseTimeout => SharedPcmCapture.defaultReleaseTimeout;
+  Duration get releaseTimeout => sttMicReleaseTimeout;
 
   @override
   Future<bool> ensurePermission() async => true;
@@ -186,6 +188,8 @@ class _FakeCaptureSession implements PcmCaptureSession {
   final void Function(PcmSegment) onSegment;
   bool closed = false;
   Future<void>? pendingClose;
+  Object? closeError;
+  int closeCalls = 0;
 
   void answer() => onSegment(PcmSegment(Uint8List(32000), 1000, 5000));
 
@@ -194,7 +198,9 @@ class _FakeCaptureSession implements PcmCaptureSession {
 
   @override
   Future<PcmSegment?> close({bool flush = false}) async {
+    closeCalls++;
     await pendingClose;
+    if (closeError case final error?) throw error;
     closed = true;
     return null;
   }
@@ -248,20 +254,25 @@ class _VoiceHarness {
     Completer<bool>? preparePhone,
     AudioPlayerService? promptAudio,
     FutureOr<List<String>> Function()? checkConnectivity,
+    Future<void> Function()? stopSystem,
   }) : director = _TestDirector(promptAudio) {
     SttSimulator.mode = '';
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-    const speech = MethodChannel('plugin.csdcorp.com/speech_to_text');
     const phone = MethodChannel('vocab_kr/pcm_speech');
     const localCapability = MethodChannel('vocab_kr/system_speech');
     const connectivity = MethodChannel(
       'dev.fluttercommunity.plus/connectivity',
     );
-    messenger.setMockMethodCallHandler(speech, (call) async {
+    messenger.setMockMethodCallHandler(_speech, (call) async {
       if (call.method == 'initialize') return true;
       if (call.method == 'listen') {
         systemListens++;
+        return true;
+      }
+      if (call.method == 'stop') {
+        systemStops++;
+        await stopSystem?.call();
         return true;
       }
       return null;
@@ -275,18 +286,40 @@ class _VoiceHarness {
       return checkConnectivity == null ? ['none'] : await checkConnectivity();
     });
     addTearDown(() {
-      messenger.setMockMethodCallHandler(speech, null);
+      messenger.setMockMethodCallHandler(_speech, null);
       messenger.setMockMethodCallHandler(phone, null);
       messenger.setMockMethodCallHandler(localCapability, null);
       messenger.setMockMethodCallHandler(connectivity, null);
     });
   }
 
+  static const _speech = MethodChannel('plugin.csdcorp.com/speech_to_text');
   final capture = _FakeCapture();
   final whisper = _FakeWhisper();
   final _TestDirector director;
   int systemListens = 0;
+  int systemStops = 0;
   int phonePrepares = 0;
+
+  Future<void> systemFinalResult(String transcript) {
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    return messenger.handlePlatformMessage(
+      _speech.name,
+      _speech.codec.encodeMethodCall(
+        MethodCall(
+          'textRecognition',
+          jsonEncode({
+            'resultType': 2,
+            'alternates': [
+              {'recognizedWords': transcript, 'confidence': .95},
+            ],
+          }),
+        ),
+      ),
+      null,
+    );
+  }
 }
 
 class _SilentFilePlayer implements FileAudioPlayer {
@@ -1092,6 +1125,61 @@ void main() {
     });
   }
 
+  for (final hangs in [false, true]) {
+    testWidgets('system back handles PCM cleanup failure (hangs: $hangs)', (
+      tester,
+    ) async {
+      final voice = _VoiceHarness();
+      await pump(
+        tester,
+        mode: QuizMode.handsFree,
+        entry: '/daily-path',
+        words: [('chat', '고양이')],
+        voice: voice,
+      );
+      await tick(tester, times: 8);
+      final capture = voice.capture.session!;
+      final closing = Completer<void>();
+      if (hangs) {
+        capture.pendingClose = closing.future;
+      } else {
+        capture.closeError = StateError('recorder still active');
+      }
+      final providers = ProviderScope.containerOf(
+        tester.element(find.byType(QuizScreen)),
+      );
+      await providers
+          .read(sttEngineModeProvider.notifier)
+          .set(SttEngineMode.system);
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await tick(tester, times: 12);
+      expect(find.byType(QuizScreen), findsNothing);
+      expect(find.byKey(const ValueKey('open-quiz')), findsOneWidget);
+      expect(capture.closeCalls, greaterThan(0));
+      expect(capture.closed, isFalse);
+      expect(tester.takeException(), isNull);
+
+      // A new route cannot switch to the exclusive recognizer while the app's
+      // earlier shared microphone has not confirmed release.
+      await tester.tap(find.byKey(const ValueKey('open-quiz')));
+      await tick(tester, times: 16);
+      expect(find.text('quiz.mic_release_failed_hf'.tr()), findsOneWidget);
+      expect(voice.systemListens, 0);
+      expect(voice.director.cues, 1);
+      expect(voice.director.endCues, 0);
+      if (hangs) closing.complete();
+      capture.closeError = null;
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfRepeat)));
+      await tick(tester, times: 10);
+      expect(voice.systemListens, 1);
+      expect(voice.director.cues, 2);
+      await unmountScreen(tester);
+      await tester.pump(const Duration(seconds: 8));
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('hands-free pause during countdown prevents cue and capture', (
     tester,
   ) async {
@@ -1320,6 +1408,81 @@ void main() {
     await unmountScreen(tester);
     await tester.pump(const Duration(seconds: 8));
   });
+
+  for (final hangs in [false, true]) {
+    testWidgets(
+      'system release blocks grading and a switch to PCM (hangs: $hangs)',
+      (tester) async {
+        var reject = !hangs;
+        final nativeStop = Completer<void>();
+        final voice = _VoiceHarness(
+          stopSystem: () async {
+            if (reject) throw PlatformException(code: 'release_failed');
+            if (hangs) await nativeStop.future;
+          },
+        );
+        SharedPreferences.setMockInitialValues({
+          'settings_stt_engine_mode': 'system',
+        });
+        await pump(
+          tester,
+          mode: QuizMode.handsFree,
+          entry: '/daily-path',
+          words: [('chat', '고양이')],
+          voice: voice,
+        );
+        await tick(tester, times: 8);
+        expect(voice.systemListens, 1);
+        expect(voice.director.cues, 1);
+        await voice.systemFinalResult('고양이');
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 3));
+        expect(voice.systemStops, 1);
+        expect(voice.director.endCues, 0);
+        expect(progressRepo.saved, isEmpty);
+        expect(find.text('quiz.mic_release_failed_hf'.tr()), findsOneWidget);
+
+        final providers = ProviderScope.containerOf(
+          tester.element(find.byType(QuizScreen)),
+        );
+        await providers
+            .read(sttEngineModeProvider.notifier)
+            .set(SttEngineMode.race);
+        final repeat = find.byKey(const ValueKey(WidgetKeys.hfRepeat));
+        await tester.tap(repeat);
+        await tick(tester, times: 24);
+        expect(voice.capture.opens, 0);
+        expect(voice.systemListens, 1);
+        expect(voice.director.cues, 1);
+        expect(voice.director.endCues, 0);
+        if (hangs) {
+          expect(await tester.binding.handlePopRoute(), isTrue);
+          await tick(tester, times: 12);
+          await tester.tap(find.byKey(const ValueKey('open-quiz')));
+          await tick(tester, times: 16);
+          expect(find.text('quiz.mic_release_failed_hf'.tr()), findsOneWidget);
+          expect(voice.capture.opens, 0);
+          expect(voice.director.cues, 1);
+          expect(voice.systemStops, 1);
+          nativeStop.complete();
+        }
+        reject = false;
+        await tester.pump();
+        await tester.tap(repeat);
+        await tick(tester, times: 12);
+        expect(voice.capture.opens, 1);
+        expect(voice.director.cues, 2);
+        expect(voice.director.endCues, 0);
+        expect(progressRepo.saved, isEmpty);
+        voice.capture.session!.answer();
+        await tick(tester, times: 3);
+        expect(progressRepo.saved, hasLength(1));
+        await unmountScreen(tester);
+        await tester.pump(const Duration(seconds: 8));
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets('recognizer preflight precedes first and retry opening cues', (
     tester,

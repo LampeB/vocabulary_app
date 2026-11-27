@@ -82,6 +82,13 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
 - L'aperçu de leçon du configurateur défile aussi avec un signal explicite :
   le contenu réel et son bouton de pratique restent accessibles à 320 × 568,
   texte doublé. Les libellés des sections peuvent revenir à la ligne.
+- Les titres du configurateur et du détail de liste font partie du contenu
+  défilant : leur hauteur suit les grandes polices et les noms longs, sans
+  rognage par la barre d'application. Les commandes Retour des parcours
+  liste/leçon/configuration exposent un libellé localisé aux lecteurs d'écran.
+- Un prérequis absent utilise le libellé localisé du catalogue. Une liste
+  résolue garde son nom, même si ses statistiques ne sont pas disponibles ;
+  aucun identifiant technique n'est affiché à l'apprenant.
 
 ## Limites connues à corriger avant de qualifier V3 de complète
 

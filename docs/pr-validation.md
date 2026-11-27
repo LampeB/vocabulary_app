@@ -199,8 +199,10 @@ exige :
   cloud/quota sur une base PostgreSQL jetable.
 Ce dernier contrôle applique aussi les migrations de production de sécurité.
 Il vérifie que `vocab-audio` reste fermé aux clients entre 007 et 012, puis
-exerce les lectures publiques, la confidentialité des clips et l'historique
-des réponses. Les tests d'isolation E2E couvrent les écritures de relations et de
+exerce les lectures publiques, la confidentialité des clips malgré une règle
+Storage permissive préexistante et l'historique des réponses. Le reset E2E est
+refusé avant 013 et quand un déclencheur d'isolation est désactivé. Les tests
+d'isolation E2E couvrent les écritures de relations et de
 progression par le rôle authentifié. Deux connexions PostgreSQL vérifient qu'une
 demande d'amitié concurrente attend la fin du reset, puis est refusée.
 

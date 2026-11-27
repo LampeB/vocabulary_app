@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Variable;
 import '../../../core/errors/failure.dart';
 import '../../../data/datasources/local/app_database.dart'
     show WordVariantsTableData;
+import '../../../data/seed/seed_catalog.dart';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +27,15 @@ import '../settings/dev_grammar_unlock_provider.dart';
 /// normally — curricula are delivered progressively (design decision, see
 /// docs/design/map/multi-language.md).
 const kGrammarCurricula = {'ko', 'es', 'it', 'fr', 'en', 'de'};
+
+/// Keep catalog keys, rather than translated strings, so a locale change
+/// relabels missing prerequisites without reloading progress.
+final grammarPrerequisiteNameKeysProvider = FutureProvider<Map<String, String>>(
+  (ref) async {
+    final catalog = await SeedCatalog.load(rootBundle);
+    return {for (final list in catalog.lists) list.id: list.nameKey};
+  },
+);
 
 /// The bundled grammar rules for one target language; empty when the
 /// language has no curriculum yet. Rules whose mechanics this app version
@@ -263,6 +273,7 @@ final grammarPrerequisitesProvider =
               l,
         ];
         var best = const PrerequisiteProgress(known: 0, total: 0);
+        if (matches.isNotEmpty) displayName[token] = matches.first.name;
         String? bestListId;
         for (final list in matches) {
           final stats = (await progressRepo.getListStats(list.id)).valueOrNull;

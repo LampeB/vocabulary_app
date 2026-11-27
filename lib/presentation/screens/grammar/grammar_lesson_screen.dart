@@ -34,6 +34,7 @@ class GrammarLessonScreen extends ConsumerWidget {
         automaticallyImplyLeading: false,
         leading: context.canPop()
             ? IconButton(
+                tooltip: 'common.back'.tr(),
                 icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
                 onPressed: () => context.pop(),
               )

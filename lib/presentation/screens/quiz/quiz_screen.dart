@@ -40,6 +40,7 @@ import 'hf_cue.dart';
 import '../../providers/speech/whisper_speech_provider.dart';
 import '../../providers/speech/elevenlabs_speech_provider.dart';
 import '../../providers/speech/shared_pcm_capture_provider.dart';
+import '../../providers/speech/system_speech_recognition_provider.dart';
 import '../../widgets/vk_waveform.dart';
 import '../../widgets/mic_button.dart';
 import '../../widgets/scroll_affordance.dart';
@@ -71,7 +72,7 @@ class QuizScreen extends ConsumerStatefulWidget {
 
 class _QuizScreenState extends ConsumerState<QuizScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  final _stt = SpeechRecognitionService();
+  late final SpeechRecognitionService _stt;
   late final bool _usesRealStt;
   // Whisper engine (own capture + own endpointing) — app-lifetime via
   // provider; the model is heavy. Initialized in initState: a lazy `late`
@@ -156,10 +157,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         (widget.args.mode == QuizMode.handsFree ||
             widget.args.mode == QuizMode.voice);
     if (_usesRealStt) {
+      _stt = ref.read(systemSpeechRecognitionProvider);
       _whisper = ref.read(whisperSpeechProvider);
       _elevenLabs = ref.read(elevenLabsSpeechProvider);
     }
-    // Duration mirrors SpeechRecognitionService.startListening's listenFor.
     _listenBarCtrl = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 10),
@@ -180,20 +181,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           );
         }
       }
-      // All voice sessions are machine/race-managed (refactor 4c): engine
-      // errors surface as failed windows and go through the machine's
-      // ladder. Log-only here.
-      _stt.onError = (msg) => sttLog('[STT] engine error (race-managed): $msg');
-
-      // Between race-managed sessions any session-end event is stale — the
-      // SystemSttEngine adapter borrows this hook DURING sessions and
-      // restores it after (refactor 4c deleted the legacy retry ladder that
-      // used to live here).
-      _stt.onListeningDone = () {
-        sttLog(
-          '[STT] stale onListeningDone outside a race-managed session — ignored',
-        );
-      };
     });
   }
 
@@ -224,16 +211,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _listenToken++;
     _listenBarCtrl.dispose();
     _activeRace?.cancel();
     if (!_quitting) {
-      unawaited(_sessionDirector?.stopAll());
-      unawaited(_sharedCapture?.stop());
-    }
-    if (_usesRealStt) {
-      _stt.dispose();
-      unawaited(_whisper.stopListening());
-      unawaited(_elevenLabs.stopListening());
+      unawaited(_stopTurnResources(_sessionDirector));
     }
     _answerCtrl.dispose();
     super.dispose();
@@ -277,25 +259,43 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _hfCountdown = null;
     });
     ref.read(quizProvider.notifier).setListening(false);
-    final pending = _interruption;
+    return _interruption = _stopTurnResources(
+      ref.read(audioDirectorProvider),
+      pending: _interruption,
+    );
+  }
+
+  /// Both capture modes must release before either can open on the next turn.
+  /// The app-scoped services retain any unconfirmed native stop across routes.
+  Future<void> _releaseTurnMicrophone() async {
+    _raceSystemEngine?.detachSessionEnd();
+    _systemModeEngine?.detachSessionEnd();
     final capture = _sharedCapture;
-    return _interruption =
-        Future.wait<void>([
-          ?pending,
-          if (capture != null)
-            capture.stop().timeout(SharedPcmCapture.defaultReleaseTimeout),
-          if (_usesRealStt) ...[
-            _stt.stopListening(),
-            _whisper.stopListening(),
-            _elevenLabs.stopListening(),
-          ],
-          ref.read(audioDirectorProvider).stopAll(),
-        ]).then<void>(
-          (_) {},
-          onError: (Object error) {
-            sttLog('[QUIZ] audio or microphone stop failed: $error');
-          },
-        );
+    await Future.wait<void>([
+      if (capture != null)
+        Future.sync(capture.stop).timeout(sttMicReleaseTimeout),
+      if (_usesRealStt) _stt.stopListening(),
+    ]);
+  }
+
+  /// Can run during disposal using cached services only.
+  Future<void> _stopTurnResources(
+    AudioDirector? director, {
+    Future<void>? pending,
+  }) async {
+    try {
+      await Future.wait<void>([
+        ?pending,
+        _releaseTurnMicrophone(),
+        if (_usesRealStt) ...[
+          Future.sync(_whisper.stopListening),
+          Future.sync(_elevenLabs.stopListening),
+        ],
+        if (director != null) Future.sync(director.stopAll),
+      ]);
+    } catch (error) {
+      sttLog('[QUIZ] audio or microphone stop failed: $error');
+    }
   }
 
   Future<void> _resumeHandsFree() async {
@@ -356,21 +356,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // Echo tail: let the room go quiet before the mic opens.
     await Future.delayed(const Duration(milliseconds: 250));
     if (stale()) return;
-    if (_usesRealStt &&
-        (_stt.isListening || _whisper.isListening || _elevenLabs.isListening)) {
-      // A stale session must not swallow this card's window (it would hear
-      // our TTS and validate against the wrong card) — stop it, then start
-      // fresh. Never skip: skipping left cards without their own session.
-      sttLog(
-        '[HF] stale session still open — stopping it before this card\'s listen',
-      );
-      _cancelActiveRace();
-      await _stt.stopListening();
-      await _whisper.stopListening();
-      await _elevenLabs.stopListening();
-      await Future.delayed(const Duration(milliseconds: 200));
-      if (stale()) return;
-    }
     sttLog('[HF] speech finished — calling _startListening');
     unawaited(_startListening(card));
   }
@@ -641,9 +626,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         _sharedCapture ?? ref.read<SharedPcmCapture>(sharedPcmCaptureProvider);
     _sharedCapture = recorder;
     try {
-      // A previous shared recorder must release even when this attempt will
-      // use the exclusive system recognizer.
-      await recorder.stop().timeout(SharedPcmCapture.defaultReleaseTimeout);
+      await _releaseTurnMicrophone();
     } catch (error) {
       sttLog('[HF] microphone release preflight failed: $error');
       if (!_turnStale(turn, card)) _showMicReleaseFailure();
@@ -947,9 +930,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   _whisper.isListening ||
                   _elevenLabs.isListening)) {
             sttLog('[HF] stopping stale listen session from previous card');
-            unawaited(_stt.stopListening());
-            unawaited(_whisper.stopListening());
-            unawaited(_elevenLabs.stopListening());
+            unawaited(_stopTurnResources(null));
           }
           // Clean slate at the card boundary (field report 2026-07-20): the
           // countdown bar kept the PREVIOUS card's frozen value all through
