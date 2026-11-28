@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2.119.2";
+import { createAudioClient } from "../_shared/audio_client.ts";
 import { boundedJson, boundedText } from "../_shared/request_limits.ts";
 import { storageObjectExists } from "../_shared/storage_presence.ts";
 import { canPublishSeedAudio } from "./authorization.ts";
@@ -26,7 +26,10 @@ async function contentHash(text: string, lang: string) {
     .join("");
 }
 
-export async function handleSeedAudioPublish(req: Request) {
+export async function handleSeedAudioPublish(
+  req: Request,
+  workDeadline = () => AbortSignal.timeout(60_000),
+) {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
@@ -51,7 +54,13 @@ export async function handleSeedAudioPublish(req: Request) {
     return json({ error: "items must contain 1 to 25 entries" }, 400);
   }
 
-  const admin = createClient(supabaseUrl, serviceRoleKey);
+  const admin = createAudioClient(supabaseUrl, serviceRoleKey);
+  const attest = async (client: typeof admin, path: string) => {
+    const { error } = await client.from("published_audio_assets").upsert({
+      path,
+    });
+    if (error) throw error;
+  };
   var generated = 0;
   var existing = 0;
   const failed: string[] = [];
@@ -68,23 +77,56 @@ export async function handleSeedAudioPublish(req: Request) {
       continue;
     }
     if (present) {
-      const { error: manifestError } = await admin.from(
-        "published_audio_assets",
-      ).upsert({ path });
-      if (manifestError) {
+      try {
+        await attest(admin, path);
+        existing++;
+      } catch (_) {
         failed.push(`${item.lang}:manifest`);
-        continue;
       }
-      existing++;
       continue;
     }
+    // The same 60s work budget covers acquisition, recheck and publication.
+    // The SQL lease lasts 90s, including uncertain/cancelled paid work.
+    const deadline = workDeadline();
+    const leasedAdmin = createAudioClient(
+      supabaseUrl,
+      serviceRoleKey,
+      deadline,
+    );
+    let lease: string | undefined;
+    let paidWorkPending = false;
     try {
+      const { data, error } = await leasedAdmin.rpc(
+        "acquire_seed_audio_generation",
+        { p_path: path },
+      );
+      if (error || typeof data !== "string" || !data) {
+        failed.push(`${item.lang}:busy`);
+        continue;
+      }
+      lease = data;
+      const presentAfterLock = await storageObjectExists(
+        leasedAdmin,
+        bucket,
+        path,
+      );
+      if (presentAfterLock === null) {
+        failed.push(`${item.lang}:storage`);
+        continue;
+      }
+      if (presentAfterLock) {
+        await attest(leasedAdmin, path);
+        existing++;
+        continue;
+      }
+      deadline.throwIfAborted();
+      paidWorkPending = true;
       const voiceId = voiceByLanguage[item.lang];
       const tts = await fetch(
         `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_22050_32`,
         {
           method: "POST",
-          signal: AbortSignal.timeout(60_000),
+          signal: deadline,
           headers: {
             "xi-api-key": elevenLabsKey,
             "Content-Type": "application/json",
@@ -97,21 +139,37 @@ export async function handleSeedAudioPublish(req: Request) {
         },
       );
       if (!tts.ok) throw new Error(`TTS ${tts.status}`);
-      const { error: uploadError } = await admin.storage.from(bucket).upload(
-        path,
-        new Uint8Array(await tts.arrayBuffer()),
-        { contentType: "audio/mpeg", cacheControl: "31536000", upsert: false },
-      );
+      const { error: uploadError } = await leasedAdmin.storage.from(bucket)
+        .upload(
+          path,
+          new Uint8Array(await tts.arrayBuffer()),
+          {
+            contentType: "audio/mpeg",
+            cacheControl: "31536000",
+            upsert: false,
+          },
+        );
+      deadline.throwIfAborted();
       if (uploadError && !/already exists/i.test(uploadError.message)) {
         throw uploadError;
       }
-      const { error: manifestError } = await admin.from(
-        "published_audio_assets",
-      ).upsert({ path });
-      if (manifestError) throw manifestError;
-      generated++;
+      paidWorkPending = false;
+      await attest(leasedAdmin, path);
+      if (uploadError) existing++;
+      else generated++;
     } catch (_) {
       failed.push(`${item.lang}:${item.text}`);
+    } finally {
+      if (lease && !deadline.aborted && !paidWorkPending) {
+        // A failed release is safe: the token expires, and a retry first sees
+        // the immutable object. Never release an uncertain render/upload.
+        try {
+          await leasedAdmin.rpc("release_audio_generation", {
+            p_path: path,
+            p_token: lease,
+          });
+        } catch (_) { /* leave expiry to release ownership */ }
+      }
     }
   }
   return json({ generated, existing, failed });

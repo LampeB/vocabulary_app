@@ -51,6 +51,12 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
 - Le détail d'une liste affiche et modifie les deux langues dans leur ordre
   `langA` → `langB`. Les suggestions thématiques utilisent cette même paire
   pour leur contexte, leur requête et l'ajout des variantes.
+  Ajouter et Modifier attendent la paire confirmée ; leur écriture la vérifie
+  encore dans la transaction SQLite et modifie les deux variantes atomiquement.
+  Un changement de paire ou de compte conserve le texte saisi et invite à
+  rouvrir le formulaire. Le titre, les champs et les actions des deux dialogues
+  défilent ensemble avec le signal commun. Terminer et les petits libellés du
+  détail utilisent une encre adaptée au thème ; les champs requis sont traduits.
 - Le choix bidirectionnel utilise « Les deux sens » pour toute paire. Les
   anciens bilans, qui ne conservent pas les deux codes de langue, affichent
   le sens relatif de la liste au lieu d'affirmer FR/KR.

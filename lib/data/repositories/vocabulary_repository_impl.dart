@@ -227,6 +227,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     String? category,
   }) => _write(() async {
     final list = await _requireList(listId);
+    _requireListPair(list, (langA, langB));
     final now = DateTime.now();
     final concept = Concept(
       id: _uuid.v4(),
@@ -414,6 +415,33 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   ) => _write(() async {
     final current = await _requireVariant(variantId);
     return _updateVariant(current, current.toDomain().copyWith(word: word));
+  });
+
+  @override
+  Future<Result<void>> updateWordPair({
+    required String listId,
+    required WordVariant variantA,
+    required WordVariant variantB,
+    required String wordA,
+    required String wordB,
+  }) => _write(() async {
+    final list = await _requireList(listId);
+    _requireListPair(list, (variantA.langCode, variantB.langCode));
+    final currentA = await _requireVariant(variantA.id);
+    final currentB = await _requireVariant(variantB.id);
+    final concept = await _requireActiveConcept(currentA.conceptId);
+    if (concept.listId != list.id ||
+        currentB.conceptId != concept.id ||
+        currentA.id == currentB.id ||
+        (currentA.langCode, currentB.langCode) != (list.langA, list.langB)) {
+      throw const ValidationException('Variants no longer match the list pair');
+    }
+    if (variantA.word != wordA && currentA.word != wordA) {
+      await _updateVariant(currentA, currentA.toDomain().copyWith(word: wordA));
+    }
+    if (variantB.word != wordB && currentB.word != wordB) {
+      await _updateVariant(currentB, currentB.toDomain().copyWith(word: wordB));
+    }
   });
 
   Future<WordVariant> _updateVariant(
@@ -1323,6 +1351,12 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
 
   Future<VocabularyListsTableData> _requireList(String id) async =>
       await _findList(id) ?? (throw const NotFoundException('List not found'));
+
+  void _requireListPair(VocabularyListsTableData list, (String, String) pair) {
+    if ((list.langA, list.langB) != pair) {
+      throw const ValidationException('List language pair changed');
+    }
+  }
 
   Future<ConceptsTableData> _requireConcept(String id) async {
     final canonicalId = await _listDao.resolveStarterId(

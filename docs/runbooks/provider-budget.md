@@ -125,6 +125,14 @@ Relire le diff du verrou et repasser le script sans projet avant de commiter.
   marque l'entrée du lot en échec, sans rendu payant ni publication de manifeste.
   Les autres entrées du lot peuvent avancer. Un objet présent est attesté
   dans le manifeste sans être régénéré.
+  La migration 026 ajoute `acquire_seed_audio_generation`, réservée au rôle
+  serveur et aux chemins canoniques du catalogue. Elle partage le registre
+  atomique des réservations de 90 secondes sans ouvrir le namespace utilisateur.
+  Après acquisition, le publieur vérifie de nouveau Storage avant le rendu.
+  Son délai commun de 60 secondes couvre réservation, relecture, rendu,
+  upload et manifeste. Un travail payant incertain conserve sa réservation
+  jusqu'à expiration ; un appel concurrent échoue pour cette entrée sans
+  nouveau rendu. Après publication, une relance compte l'objet existant.
 - Storage vérifie le propriétaire dans le chemin privé généré côté serveur,
   indépendamment du champ `audio_path` modifiable dans une variante. Les
   audios publiés du catalogue restent lisibles aux utilisateurs authentifiés.

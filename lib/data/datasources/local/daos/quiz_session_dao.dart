@@ -57,6 +57,17 @@ class QuizSessionDao extends DatabaseAccessor<AppDatabase>
           ))
           .write(const QuizStudyDaysTableCompanion(isSynced: Value(true)));
 
+  /// Includes acknowledged dates. A timestamp from legacy history cannot
+  /// reconstruct the civil date captured in the device's original time zone.
+  Future<bool> hasStudyDay(String userId, DateTime day) async =>
+      await (select(quizStudyDaysTable)..where(
+            (t) =>
+                t.userId.equals(userId) &
+                t.studyDate.equals(day.toIso8601String().split('T').first),
+          ))
+          .getSingleOrNull() !=
+      null;
+
   Future<List<QuizSessionsTableData>> getSessionsByUser(
     String userId, {
     int limit = 100,

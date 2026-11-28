@@ -33,8 +33,8 @@ abstract interface class VocabularyRepository {
   });
 
   /// Creates a concept with one variant per side of the list's language pair.
-  /// [wordA] is stored in [langA], [wordB] in [langB] — the caller passes the
-  /// owning list's pair (generic-language-pairs epic; was fr/ko-hardcoded).
+  /// [wordA] is stored in [langA] and [wordB] in [langB]. The write is rejected
+  /// if those languages no longer match the owning list in that order.
   Future<Result<Concept>> addConceptWithVariants({
     required String listId,
     required String wordA,
@@ -63,6 +63,16 @@ abstract interface class VocabularyRepository {
   });
   Future<Result<WordVariant>> updateVariant(WordVariant variant);
   Future<Result<WordVariant>> updateVariantWord(String variantId, String word);
+
+  /// Changes the edited sides of a concept together, provided the list and
+  /// both variants still match the pair shown when the form was opened.
+  Future<Result<void>> updateWordPair({
+    required String listId,
+    required WordVariant variantA,
+    required WordVariant variantB,
+    required String wordA,
+    required String wordB,
+  });
   Future<Result<void>> deleteVariant(String variantId);
 
   // Import / Export

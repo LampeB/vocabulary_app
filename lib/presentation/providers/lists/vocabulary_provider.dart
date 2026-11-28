@@ -48,15 +48,6 @@ final progressDaoProvider = Provider<ProgressDao>(
   (ref) => ref.watch(appDatabaseProvider).progressDao,
 );
 
-/// Emits whenever the signed-in learner's FSRS rows change. This is separate
-/// from [myListsProvider]: completing a card changes list *progress*, not its
-/// metadata, but consumers such as grammar prerequisites must recompute.
-final vocabularyProgressChangesProvider = StreamProvider<void>((ref) {
-  final userId = ref.watch(currentUserProvider)?.id ?? '';
-  if (userId.isEmpty) return Stream<void>.empty();
-  return ref.watch(progressDaoProvider).watchChanges(userId);
-});
-
 final vocabularyRemoteProvider = Provider<VocabularyRemoteDataSource>(
   (ref) => VocabularyRemoteDataSource(ref.watch(supabaseClientProvider)),
 );
@@ -283,19 +274,25 @@ class ListActionsNotifier extends Notifier<void> {
     required String listId,
     required String wordA,
     required String wordB,
+    (String, String)? expectedPair,
     String? notes,
     String? category,
   }) async {
-    // Fetch the list once: for the free-tier word quota AND to learn its
-    // language pair, so the two variants get the right lang codes instead of
-    // a hardcoded fr/ko (generic-language-pairs epic).
-    final listResult = await _repo.getListById(listId);
-    final list = switch (listResult) {
-      Success(:final value) => value,
-      _ => null,
-    };
+    final repo = _repo;
+    final Result<VocabularyList> listResult;
+    try {
+      listResult = await repo.getListById(listId);
+    } catch (error) {
+      return Failure(StorageException(error.toString()));
+    }
+    if (!identical(repo, _repo)) return const Failure(PermissionException());
+    if (listResult case Failure(:final exception)) return Failure(exception);
+    final list = listResult.valueOrNull!;
+    final pair = (list.langA, list.langB);
+    if (expectedPair != null && expectedPair != pair) {
+      return const Failure(ValidationException('List language pair changed'));
+    }
     if (!ref.read(isPremiumProvider) &&
-        list != null &&
         list.wordCount >= AppConfig.maxFreeWordsPerList) {
       return const Failure(
         QuotaExceededException(
@@ -303,12 +300,12 @@ class ListActionsNotifier extends Notifier<void> {
         ),
       );
     }
-    return _repo.addConceptWithVariants(
+    return repo.addConceptWithVariants(
       listId: listId,
       wordA: wordA,
       wordB: wordB,
-      langA: list?.langA ?? 'fr',
-      langB: list?.langB ?? 'ko',
+      langA: pair.$1,
+      langB: pair.$2,
       notes: notes,
       category: category,
     );
@@ -317,19 +314,19 @@ class ListActionsNotifier extends Notifier<void> {
   Future<Result<void>> deleteConcept(String conceptId) =>
       _repo.deleteConcept(conceptId);
 
-  Future<void> updateVariants({
-    required WordVariant frVariant,
-    required String newFrWord,
-    required WordVariant koVariant,
-    required String newKoWord,
-  }) async {
-    if (frVariant.word != newFrWord) {
-      await _repo.updateVariantWord(frVariant.id, newFrWord);
-    }
-    if (koVariant.word != newKoWord) {
-      await _repo.updateVariantWord(koVariant.id, newKoWord);
-    }
-  }
+  Future<Result<void>> updateVariants({
+    required String listId,
+    required WordVariant variantA,
+    required WordVariant variantB,
+    required String wordA,
+    required String wordB,
+  }) => _repo.updateWordPair(
+    listId: listId,
+    variantA: variantA,
+    variantB: variantB,
+    wordA: wordA,
+    wordB: wordB,
+  );
 
   // Returns an error message on failure, null on success.
   Future<String?> exportList(String listId, String listName) async {

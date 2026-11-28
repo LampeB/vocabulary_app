@@ -312,16 +312,6 @@ class ProgressRepositoryImpl implements ProgressRepository {
   }
 
   @override
-  Future<Result<List<VariantProgress>>> getKnownVariants(String userId) async {
-    try {
-      final rows = await _progressDao.getGraduatedProgress(userId: userId);
-      return Success(rows.map((r) => r.toDomain()).toList());
-    } catch (e) {
-      return Failure(StorageException(e.toString()));
-    }
-  }
-
-  @override
   Future<Result<void>> resetProgress(String listId) async {
     try {
       final concepts = await _conceptDao.getConceptsByList(listId);

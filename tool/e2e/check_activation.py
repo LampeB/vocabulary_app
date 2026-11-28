@@ -10,7 +10,7 @@ from urllib.request import Request, build_opener
 from supabase_http import NoRedirects, supabase_origin
 
 
-PATROL_CONTRACT = 'study-catalog-v1'
+PATROL_CONTRACT = 'study-catalog-v2'
 
 
 def require_isolation_ready(url, key):

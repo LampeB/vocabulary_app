@@ -105,13 +105,15 @@ jobs:
           done
           psql -v ON_ERROR_STOP=1 -f supabase/tests/audio_storage_before_activation.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/audio_storage_write_boundaries.sql
-          for migration in 008_e2e_reset 009_e2e_scenario_accounts 010_provider_quota_buckets 011_sync_identity 012_security_boundaries 013_e2e_isolation 014_vocabulary_tombstones 015_vocabulary_owner_namespace 016_vocabulary_write_order 017_vocabulary_pull_catchup 018_vocabulary_progress_boundaries 019_challenge_list_boundaries 020_vocabulary_physical_purges 021_friendship_consent 022_study_days 023_purge_catalog_identity 024_vocabulary_content_visibility add_subscription_type; do
+          for migration in 008_e2e_reset 009_e2e_scenario_accounts 010_provider_quota_buckets 011_sync_identity 012_security_boundaries 013_e2e_isolation 014_vocabulary_tombstones 015_vocabulary_owner_namespace 016_vocabulary_write_order 017_vocabulary_pull_catchup 018_vocabulary_progress_boundaries 019_challenge_list_boundaries 020_vocabulary_physical_purges 021_friendship_consent 022_study_days 023_purge_catalog_identity 024_vocabulary_content_visibility 025_patrol_upgrade_readiness 026_seed_audio_generation add_subscription_type; do
             psql -v ON_ERROR_STOP=1 -f "supabase/migrations/${migration}.sql"
             case "$migration" in
               009_*|01[2-9]_*|02[0-2]_*) psql -v ON_ERROR_STOP=1 -f supabase/tests/e2e_reset_before_activation.sql ;;
             esac
             case "$migration" in
+              011_*) psql -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE ponderin_upgrade_012_test TEMPLATE ponderin_security_test' ;;
               012_*) psql -v ON_ERROR_STOP=1 -f supabase/tests/review_event_privileges.sql ;;
+              014_*) psql -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE ponderin_upgrade_015_test TEMPLATE ponderin_security_test' ;;
               016_*) psql -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE ponderin_upgrade_017_test TEMPLATE ponderin_security_test' ;;
               021_*) psql -v ON_ERROR_STOP=1 -f supabase/tests/study_days_before_upgrade.sql ;;
             esac
@@ -132,13 +134,33 @@ jobs:
           psql -v ON_ERROR_STOP=1 -c 'GRANT ALL ON public.review_events TO authenticated'
           psql -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/017_vocabulary_pull_catchup_round13.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/vocabulary_upgrade_017_setup.sql
-          for upgrade in 018_vocabulary_progress_boundaries 019_challenge_list_boundaries 020_vocabulary_physical_purges 021_friendship_consent 022_study_days 023_purge_catalog_identity 024_vocabulary_content_visibility add_subscription_type; do
+          for upgrade in 018_vocabulary_progress_boundaries 019_challenge_list_boundaries 020_vocabulary_physical_purges 021_friendship_consent 022_study_days 023_purge_catalog_identity 024_vocabulary_content_visibility 025_patrol_upgrade_readiness 026_seed_audio_generation add_subscription_type; do
             psql -v ON_ERROR_STOP=1 -f "supabase/migrations/${upgrade}.sql"
           done
           psql -v ON_ERROR_STOP=1 -f supabase/tests/vocabulary_upgrade_017_assert.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/review_event_privileges.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/e2e_isolation.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/friendship_consent.sql
+
+          # Byte-for-byte snapshots of the installed 012 and 015 from 90a8298.
+          for historical in 012 015; do
+            export PGDATABASE="ponderin_upgrade_${historical}_test"
+            if [[ "$historical" == 012 ]]; then
+              psql -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/90a8298/012_security_boundaries.sql
+              for pending in 013_e2e_isolation 014_vocabulary_tombstones 015_vocabulary_owner_namespace; do
+                psql -v ON_ERROR_STOP=1 -f "supabase/migrations/${pending}.sql"
+              done
+            else
+              psql -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/90a8298/015_vocabulary_owner_namespace.sql
+            fi
+            psql -v ON_ERROR_STOP=1 -c 'REVOKE EXECUTE ON FUNCTION public.reset_e2e_account(text) FROM PUBLIC, anon, authenticated'
+            for pending in 016_vocabulary_write_order 017_vocabulary_pull_catchup 018_vocabulary_progress_boundaries 019_challenge_list_boundaries 020_vocabulary_physical_purges 021_friendship_consent 022_study_days 023_purge_catalog_identity 024_vocabulary_content_visibility 025_patrol_upgrade_readiness 026_seed_audio_generation add_subscription_type; do
+              psql -v ON_ERROR_STOP=1 -f "supabase/migrations/${pending}.sql"
+            done
+            for suite in audio_storage_write_boundaries review_event_privileges e2e_isolation; do
+              psql -v ON_ERROR_STOP=1 -f "supabase/tests/${suite}.sql"
+            done
+          done
 
   android-build:
     name: PR / Android native build

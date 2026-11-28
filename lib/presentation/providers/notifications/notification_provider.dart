@@ -202,12 +202,12 @@ final authenticatedRemindersProvider = FutureProvider.autoDispose
         await service.cancelStreakWarning();
         return;
       }
-      final recent = await ref
+      final studiedToday = await ref
           .read(appDatabaseProvider)
           .quizSessionDao
-          .getSessionsByUser(accountId, limit: 1);
+          .hasStudyDay(accountId, now);
       if (!active) return;
-      if (_isToday(recent.firstOrNull?.completedAt.toLocal(), DateTime.now())) {
+      if (studiedToday) {
         await service.cancelStreakWarning();
       } else {
         await service.scheduleStreakWarning(streakDays, locale: locale);

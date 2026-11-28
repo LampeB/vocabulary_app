@@ -1,4 +1,4 @@
--- Disposable database only. Run both after 007 and with the final 012 policies.
+-- Disposable database only. Run after 007 and with the final Storage policies.
 BEGIN;
 INSERT INTO storage.buckets(id,name,public) VALUES ('other','other',false);
 SET LOCAL ROLE service_role;

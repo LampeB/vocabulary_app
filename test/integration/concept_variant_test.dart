@@ -1,7 +1,10 @@
 // ignore_for_file: invalid_use_of_internal_member
 
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
@@ -137,6 +140,37 @@ void main() {
         ),
       );
     });
+
+    test(
+      'a pending pair update is checked inside the Add transaction',
+      () async {
+        final entered = Completer<void>();
+        final release = Completer<void>();
+        final update = db.transaction(() async {
+          final row = (await db.vocabularyListDao.getById(list.id))!;
+          await db.vocabularyListDao.upsert(
+            row.copyWith(langA: 'ko', langB: 'fr').toCompanion(false),
+          );
+          entered.complete();
+          await release.future;
+        });
+        await entered.future;
+        final staleAdd = repo.addConceptWithVariants(
+          listId: list.id,
+          wordA: 'pomme',
+          wordB: '사과',
+          langA: 'fr',
+          langB: 'ko',
+        );
+        release.complete();
+        await update;
+
+        expect((await staleAdd).exceptionOrNull, isA<ValidationException>());
+        expect(await db.conceptDao.getConceptsByList(list.id), isEmpty);
+        final latest = (await repo.getListById(list.id)).valueOrNull!;
+        expect((latest.langA, latest.langB, latest.wordCount), ('ko', 'fr', 0));
+      },
+    );
 
     test('a non-FR/KO list tags each variant with the list pair', () async {
       // Generic-language-pairs epic: createList persists the chosen pair, and

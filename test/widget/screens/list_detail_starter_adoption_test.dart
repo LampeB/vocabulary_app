@@ -12,6 +12,7 @@ import 'package:vocab_kr/data/models/concept_dto.dart';
 import 'package:vocab_kr/data/models/vocabulary_list_dto.dart';
 import 'package:vocab_kr/data/models/word_variant_dto.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
+import 'package:vocab_kr/domain/entities/word_variant.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/purchases/purchase_provider.dart';
 import 'package:vocab_kr/presentation/screens/lists/list_detail_screen.dart';
@@ -58,6 +59,7 @@ void main() {
     late String draftListId;
     late String draftConceptId;
     late String draftVariantId;
+    late List<WordVariant> openedPair;
     await tester.runAsync(() async {
       final draft = (await repo.importFromJson(const {
         'list': {
@@ -77,6 +79,7 @@ void main() {
       draftListId = draft.id;
       final concept = (await db.conceptDao.getConceptsByList(draft.id)).single;
       draftConceptId = concept.id;
+      openedPair = (await repo.getVariants(draftConceptId)).valueOrNull!;
       final variants = await db.conceptDao.getVariantsByConcept(concept.id);
       final fr = variants.singleWhere((variant) => variant.langCode == 'fr');
       draftVariantId = fr.id;
@@ -117,24 +120,24 @@ void main() {
     expect(find.text('Salutations hors ligne'), findsOneWidget);
     expect(find.text('Salut'), findsOneWidget);
 
+    Finder byKey(String key) => find.byKey(ValueKey(key));
+    await tester.tap(byKey(WidgetKeys.listDetailAddWord));
+    await tester.pumpAndSettle();
+    await tester.enterText(byKey(WidgetKeys.addWordFr), 'Bonsoir');
+    await tester.enterText(byKey(WidgetKeys.addWordKo), '안녕히 주무세요');
+
     var restored = false;
     final pull = repo.syncFromRemote().whenComplete(() => restored = true);
     await tester.pump();
     await tester.pumpAndSettle();
     expect(restored, isTrue);
     await pull;
+    await tester.tap(byKey(WidgetKeys.addWordConfirm));
+    await tester.pumpAndSettle();
     expect(find.text('Salutations du serveur'), findsOneWidget);
     expect(find.text('Bonjour'), findsOneWidget);
     expect(find.text('안녕하세요'), findsOneWidget);
     expect(find.text('Salut'), findsNothing);
-
-    Finder byKey(String key) => find.byKey(ValueKey(key));
-    await tester.tap(byKey(WidgetKeys.listDetailAddWord));
-    await tester.pumpAndSettle();
-    await tester.enterText(byKey(WidgetKeys.addWordFr), 'Bonsoir');
-    await tester.enterText(byKey(WidgetKeys.addWordKo), '안녕히 주무세요');
-    await tester.tap(byKey(WidgetKeys.addWordConfirm));
-    await tester.pumpAndSettle();
     expect(find.text('Bonsoir'), findsOneWidget);
     await unmountScreen(tester);
 
@@ -152,6 +155,21 @@ void main() {
       )).valueOrNull!;
       expect(edited.id, serverVariantId);
       expect(edited.example, 'Bonjour à tous');
+
+      final pairEdit = await repo.updateWordPair(
+        listId: draftListId,
+        variantA: openedPair.singleWhere((word) => word.langCode == 'fr'),
+        variantB: openedPair.singleWhere((word) => word.langCode == 'ko'),
+        wordA: 'Bonjour à vous deux',
+        wordB: '안녕하세요, 여러분',
+      );
+      expect(pairEdit.isSuccess, isTrue);
+      final variants = (await repo.getVariants(serverConceptId)).valueOrNull!;
+      expect(
+        {for (final variant in variants) variant.langCode: variant.word},
+        {'fr': 'Bonjour à vous deux', 'ko': '안녕하세요, 여러분'},
+      );
+
       final extraVariant = (await repo.createVariant(
         conceptId: draftConceptId,
         word: 'Coucou',

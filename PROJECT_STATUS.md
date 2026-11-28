@@ -101,7 +101,7 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **1 347 tests hôte passent**, avec **76,7 %**
+- L'analyse Flutter est propre ; les **1 368 tests hôte passent**, avec **76,8 %**
   de couverture sur le dernier lot du 28 novembre. Douze tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 25 tests ciblés. La sonde compilée en mode produit confirme le
@@ -112,8 +112,8 @@ de contenu avant bêta pédagogique.
   convergence. Le 28 novembre, l'utilisateur autorise le cycle 2, avec vingt
   nouvelles passes au maximum,
   des relecteurs libres d'explorer et des correcteurs chargés de chercher la
-  cause, les cas voisins et les effets de leurs changements. Les quatre premières
-  passes y relèvent huit, quatre, huit puis dix Important distincts, traités ensemble
+  cause, les cas voisins et les effets de leurs changements. Les cinq premières
+  passes y relèvent huit, quatre, huit, dix puis huit Important distincts, traités ensemble
   après chaque collecte des quatre verdicts. Les ponts TTS mobiles ont compilé
   sur Android/iOS ; le cache partagé publie atomiquement des clips vérifiés et
   se replie sur l'appareil après libération du lecteur défaillant. Les anciens
@@ -138,12 +138,19 @@ de contenu avant bêta pédagogique.
   confirmés la lecture des mots de leur liste ; le publieur audio exige une
   absence Storage confirmée avant rendu payant. Les outils et règles de
   validation sont aussi couverts par le garde documentaire.
+  La cinquième passe protège la paire des formulaires de mots dans leur
+  transaction, fait défiler leurs commandes avec le clavier et adapte leur
+  contraste. Les rappels lisent la date civile conservée, le graphe grammatical
+  se libère sans lecteurs et reste limité au compte/pool. Les publications
+  audio concurrentes partagent un bail de catalogue en 026. La migration 025
+  répare les chemins historiques 012/015 testés et le prévol exige désormais
+  `study-catalog-v2` ; aucun réglage hébergé n'est activé.
   Le sas exige deux revues propres sur le commit final ; les verdicts et les
   checks du candidat courant sont consignés dans la PR d'intégration.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **1 347** tests hôte réussis lors de la dernière validation locale
+- La suite compte **1 368** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - Les dix-sept suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
@@ -152,7 +159,7 @@ de contenu avant bêta pédagogique.
   vérifié trois scénarios concurrents : reset, purge et jour étudié. La migration
   024 et les lectures des amis sont aussi exercées après activation générée et
   mise à niveau d'un ancien 017. Le contrat
-  Patrol exige 022 et 023 et se ferme si une garde de référence ou d'écriture est
+  Patrol exige 022, 023 et 025 et se ferme si une garde de référence ou d'écriture est
   désactivée, ou si un droit client de suppression physique est réintroduit.
   Les dix tests Python E2E, le test Node de redirection TLS, trente-et-un tests Deno, vingt-six tests du bot,
   cinq tests du déploiement et sept tests du garde Git passent dans le lot courant. Le bot refuse
@@ -231,8 +238,8 @@ de contenu avant bêta pédagogique.
 - La migration 021 exige un consentement d'amitié authentifié pour ouvrir
   les listes réservées aux amis. Les anciens liens restent visibles et
   exigent une nouvelle demande acceptée pour cet accès. Le contrat Patrol
-  `study-catalog-v1` exige les migrations 022 et 023 et refuse le reset aux
-  douze étapes intermédiaires testées.
+  `study-catalog-v2` exige aussi 025 : protections Storage actives et garde
+  d'upgrade 012/015, en plus de 022/023 et des étapes intermédiaires testées.
 - Les nouvelles purges gardent les seules clés catalogue nécessaires aux
   starters historiques à UUID aléatoires. Une base SQLite neuve ne les recrée
   plus sous un nouvel UUID. Les clés effacées par une ancienne version de 020

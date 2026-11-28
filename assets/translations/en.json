@@ -134,6 +134,7 @@
   "list_detail.ai_added": "Added",
   "list_detail.ai_add_partial": "Added: {added}. Still selected: {remaining}.",
   "list_detail.ai_add_quota": "This list has reached its word limit.",
+  "list_detail.word_pair_changed": "The list has changed. Close this form and open it again.",
   "list_detail.ai_add_error": "These words could not be added. Your selections are kept.",
   "list_detail.ai_suggest_title": "Theme: {theme}",
   "list_detail.ai_add_selected": "Add {n} word(s)",

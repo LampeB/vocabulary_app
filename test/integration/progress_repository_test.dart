@@ -48,7 +48,7 @@ void main() {
   tearDown(() => db.close());
 
   // Helper: create list + one word → sets frVariantId and koVariantId.
-  Future<VocabularyList> setup() async {
+  Future<VocabularyList> setup({String? category}) async {
     final list =
         ((await vocabRepo.createList(name: 'Quiz List', description: null))
                 as Success<VocabularyList>)
@@ -58,6 +58,7 @@ void main() {
                   listId: list.id,
                   wordA: 'Bonjour',
                   wordB: '안녕하세요',
+                  category: category,
                 ))
                 as Success<Concept>)
             .value;
@@ -183,9 +184,9 @@ void main() {
   );
 
   test(
-    'a sync acknowledgement does not invalidate pedagogical progress',
+    'a sync acknowledgement leaves the grammar drill pool unchanged',
     () async {
-      await setup();
+      await setup(category: 'nom');
       final card = (await progressRepo.getProgress(
         variantId: frVariantId,
         direction: QuizDirection.frToKo,
@@ -196,21 +197,23 @@ void main() {
       final initial = Completer<void>();
       final changed = Completer<void>();
       var events = 0;
-      final subscription = db.progressDao.watchChanges(_kUserId).listen((_) {
-        events++;
-        if (!initial.isCompleted) {
-          initial.complete();
-        } else if (!changed.isCompleted) {
-          changed.complete();
-        }
-      });
+      final subscription = db.progressDao
+          .watchGrammarDrillWords(_kUserId, 'ko')
+          .listen((_) {
+            events++;
+            if (!initial.isCompleted) {
+              initial.complete();
+            } else if (!changed.isCompleted) {
+              changed.complete();
+            }
+          });
       addTearDown(subscription.cancel);
       await initial.future;
       await db.progressDao.markProgressSynced([card.id]);
       await Future<void>.delayed(const Duration(milliseconds: 50));
       expect(events, 1);
       await progressRepo.updateProgress(
-        card.copyWith(state: CardState.review, reps: 2),
+        card.copyWith(state: CardState.learning, reps: 2),
       );
       await changed.future.timeout(const Duration(seconds: 2));
       expect(events, 2);

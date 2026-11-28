@@ -1,12 +1,12 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
-import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/grammar/grammar_drill_generator.dart';
 import 'package:vocab_kr/core/grammar/grammar_language_module.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
@@ -19,37 +19,10 @@ import 'package:vocab_kr/domain/entities/grammar_rule.dart';
 import 'package:vocab_kr/domain/entities/subscription_type.dart';
 import 'package:vocab_kr/domain/entities/variant_progress.dart';
 import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
-import 'package:vocab_kr/domain/repositories/progress_repository.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/grammar/grammar_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
-import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
 import '../../helpers/fake_remote.dart';
-
-class _StatsProgressRepository implements ProgressRepository {
-  _StatsProgressRepository(
-    this.stats, {
-    this.known = const [],
-    this.unavailable = const {},
-  });
-
-  final Map<String, Map<String, int>> stats;
-  final List<VariantProgress> known;
-  final Set<String> unavailable;
-
-  @override
-  Future<Result<Map<String, int>>> getListStats(String listId) async =>
-      unavailable.contains(listId)
-      ? const Failure(UnknownException())
-      : Success(stats[listId] ?? const {});
-
-  @override
-  Future<Result<List<VariantProgress>>> getKnownVariants(String userId) async =>
-      Success(known);
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
 
 GrammarRule _rule(
   String id, {
@@ -72,23 +45,6 @@ GrammarRule _rule(
   testVectors: const [],
 );
 
-VocabularyList _list({
-  required String id,
-  required String name,
-  String? seedId,
-  String langA = 'fr',
-  String langB = 'ko',
-}) => VocabularyList(
-  id: id,
-  ownerId: 'u',
-  name: name,
-  seedId: seedId,
-  langA: langA,
-  langB: langB,
-  createdAt: DateTime(2026),
-  updatedAt: DateTime(2026),
-);
-
 AppUser _user() => AppUser(
   id: 'u',
   email: 'user@example.com',
@@ -97,19 +53,28 @@ AppUser _user() => AppUser(
   createdAt: DateTime(2026),
 );
 
-VariantProgress _progress(String id, String variantId) => VariantProgress(
-  id: id,
-  userId: 'u',
-  variantId: variantId,
-  direction: QuizDirection.frToKo,
-  createdAt: DateTime(2026),
-  updatedAt: DateTime(2026),
-);
-
-Stream<void> _withInitialProgressChange(Stream<void> changes) async* {
-  yield null;
-  yield* changes;
+Future<T> _observe<T>(
+  ProviderContainer container,
+  ProviderListenable<Future<T>> future,
+) async {
+  final subscription = container.listen(future, (_, _) {});
+  try {
+    return await subscription.read();
+  } finally {
+    subscription.close();
+  }
 }
+
+VariantProgressTableCompanion _graduated(String variantId) =>
+    VariantProgressTableCompanion.insert(
+      id: 'progress-$variantId',
+      userId: 'u',
+      variantId: variantId,
+      direction: 'fr>ko',
+      state: const Value('review'),
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -175,44 +140,48 @@ void main() {
         wordA: 'misc',
         wordB: '기타',
       )).valueOrNull!;
+      final learnedInFrench = (await repo.addConceptWithVariants(
+        listId: list.id,
+        wordA: 'friend',
+        wordB: '친구',
+        category: 'nom',
+      )).valueOrNull!;
       final usableVariants = await db.conceptDao.getVariantsByConcept(
         usable.id,
       );
       final uncategorizedVariants = await db.conceptDao.getVariantsByConcept(
         uncategorized.id,
       );
-
-      final progress = _StatsProgressRepository(
-        {},
-        known: [
-          _progress(
-            'target',
-            usableVariants.singleWhere((v) => v.langCode == 'ko').id,
-          ),
-          // Both variants of one concept can be known; drills must not repeat it.
-          _progress(
-            'duplicate',
-            usableVariants.singleWhere((v) => v.langCode == 'fr').id,
-          ),
-          _progress('deleted-remote', 'does-not-exist'),
-          _progress('uncategorized', uncategorizedVariants.first.id),
-        ],
+      final learnedInFrenchVariants = await db.conceptDao.getVariantsByConcept(
+        learnedInFrench.id,
       );
+
+      // Both variants of one concept can graduate without duplicating the word.
+      for (final variant in [...usableVariants, uncategorizedVariants.first]) {
+        await db.progressDao.upsert(_graduated(variant.id));
+      }
+      await db.progressDao.upsert(
+        _graduated(
+          learnedInFrenchVariants.singleWhere((v) => v.langCode == 'fr').id,
+        ),
+      );
+      await db.progressDao.upsert(_graduated('deleted-remote'));
       final container = ProviderContainer(
         overrides: [
           appDatabaseProvider.overrideWithValue(db),
           currentUserProvider.overrideWithValue(_user()),
-          progressRepositoryProvider.overrideWithValue(progress),
         ],
       );
       addTearDown(container.dispose);
 
-      final korean = await container.read(drillWordsProvider('ko').future);
-      expect(korean, hasLength(1));
-      expect(korean.single.word, '학생');
-      expect(korean.single.category, 'nom');
+      final korean = await _observe(container, drillWordsProvider('ko').future);
+      expect(korean.map((word) => word.word), unorderedEquals(['학생', '친구']));
+      expect(korean.map((word) => word.category), everyElement('nom'));
       // The same known concepts cannot supply a Spanish drill word.
-      expect(await container.read(drillWordsProvider('es').future), isEmpty);
+      expect(
+        await _observe(container, drillWordsProvider('es').future),
+        isEmpty,
+      );
     },
   );
 
@@ -220,7 +189,7 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
-    expect(await container.read(drillWordsProvider('ko').future), isEmpty);
+    expect(await _observe(container, drillWordsProvider('ko').future), isEmpty);
   });
 
   test(
@@ -260,8 +229,6 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(db),
           currentUserProvider.overrideWithValue(_user()),
-          progressRepositoryProvider.overrideWithValue(progress),
-          myListsProvider.overrideWith((ref) => vocab.watchMyLists()),
           grammarRulesProvider.overrideWith(
             (ref, lang) async => [_rule('reactive', minKnownWords: 2)],
           ),
@@ -330,7 +297,10 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final progress = await container.read(grammarProgressProvider.future);
+      final progress = await _observe(
+        container,
+        grammarProgressProvider.future,
+      );
       expect(progress['particles'], (shown: 1, correct: 1, mastered: false));
     },
   );
@@ -369,39 +339,34 @@ void main() {
         ...(await db.conceptDao.getConceptsByList(food.id)).map((c) => c.id),
         ...(await db.conceptDao.getConceptsByList(other.id)).map((c) => c.id),
       ], 'ko');
+      for (final variant in variants) {
+        await db.progressDao.upsert(_graduated(variant.id));
+      }
       final rule = _rule('food', prerequisites: ['starter-food']);
       final container = ProviderContainer(
         overrides: [
           appDatabaseProvider.overrideWithValue(db),
           currentUserProvider.overrideWithValue(_user()),
-          myListsProvider.overrideWith((ref) => repo.watchMyLists()),
           grammarRulesProvider.overrideWith((ref, lang) async => [rule]),
           grammarModuleProvider.overrideWith(
             (ref, lang) async => const KoreanGrammarModule(),
           ),
           grammarProgressProvider.overrideWith((ref) => Stream.value({})),
-          progressRepositoryProvider.overrideWithValue(
-            _StatsProgressRepository(
-              {
-                food.id: {'known': 1, 'total': 1},
-                other.id: {'known': 1, 'total': 1},
-              },
-              known: [for (final v in variants) _progress('p-${v.id}', v.id)],
-            ),
-          ),
         ],
       );
       addTearDown(container.dispose);
       expect(
-        await container.read(drillWordsProvider('ko').future),
+        await _observe(container, drillWordsProvider('ko').future),
         hasLength(2),
       );
-      final pool = await container.read(
+      final pool = await _observe(
+        container,
         ruleDrillWordsProvider((ruleId: rule.id, targetLang: 'ko')).future,
       );
       expect(pool.map((word) => word.word), ['사과']);
       expect(
-        (await container.read(
+        (await _observe(
+          container,
           ruleStatusesProvider('ko').future,
         )).single.enoughWords,
         isFalse,
@@ -441,33 +406,28 @@ void main() {
         userId: 'u',
       ).ensureSeededForPair('fr', 'ko');
       final lists = (await repo.watchMyLists().first);
-      final variants = <WordVariantsTableData>[];
-      final stats = <String, Map<String, int>>{};
       for (final list in lists) {
         final concepts = await db.conceptDao.getConceptsByList(list.id);
         final words = await db.conceptDao.getVariantsByConceptIds(
           concepts.map((c) => c.id).toList(),
           'ko',
         );
-        variants.addAll(words);
-        stats[list.id] = {'known': concepts.length, 'total': concepts.length};
+        for (final variant in words) {
+          await db.progressDao.upsert(_graduated(variant.id));
+        }
       }
       final container = ProviderContainer(
         overrides: [
           appDatabaseProvider.overrideWithValue(db),
           currentUserProvider.overrideWithValue(_user()),
-          myListsProvider.overrideWith((ref) => repo.watchMyLists()),
           grammarProgressProvider.overrideWith((ref) => Stream.value({})),
-          progressRepositoryProvider.overrideWithValue(
-            _StatsProgressRepository(
-              stats,
-              known: [for (final v in variants) _progress('p-${v.id}', v.id)],
-            ),
-          ),
         ],
       );
       addTearDown(container.dispose);
-      final statuses = await container.read(ruleStatusesProvider('ko').future);
+      final statuses = await _observe(
+        container,
+        ruleStatusesProvider('ko').future,
+      );
       final generator = GrammarDrillGenerator(
         (await container.read(grammarModuleProvider('ko').future))!,
       );
@@ -476,7 +436,8 @@ void main() {
         expect(status.availability, RuleAvailability.unlocked);
         expect(status.enoughWords, isTrue, reason: status.rule.id);
         expect(status.prereqProgress.values, everyElement(1.0));
-        final pool = await container.read(
+        final pool = await _observe(
+          container,
           ruleDrillWordsProvider((
             ruleId: status.rule.id,
             targetLang: 'ko',
@@ -499,6 +460,78 @@ void main() {
   test(
     'derives locked, unlocked and mastered statuses from exact prerequisites',
     () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final now = DateTime(2026);
+      Future<void> saveList({
+        required String id,
+        required String name,
+        String? seedId,
+        String langA = 'fr',
+        String langB = 'ko',
+        int known = 4,
+        int total = 4,
+      }) async {
+        await db.vocabularyListDao.upsert(
+          VocabularyListsTableCompanion.insert(
+            id: id,
+            ownerId: 'u',
+            name: name,
+            seedId: Value(seedId),
+            langA: Value(langA),
+            langB: Value(langB),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+        for (var i = 0; i < total; i++) {
+          final conceptId = '$id-$i';
+          await db.conceptDao.upsert(
+            ConceptsTableCompanion.insert(
+              id: conceptId,
+              listId: id,
+              category: const Value('nom'),
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+          final variantId = '$conceptId-$langB';
+          await db.conceptDao.upsertVariant(
+            WordVariantsTableCompanion.insert(
+              id: variantId,
+              conceptId: conceptId,
+              langCode: langB,
+              word: i.isEven ? '학생' : '친구',
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+          if (i < known) await db.progressDao.upsert(_graduated(variantId));
+        }
+      }
+
+      await saveList(
+        id: 'fr-progress',
+        name: 'Salutations FR',
+        seedId: 'starter-greetings:fr>ko',
+        known: 3,
+      );
+      await saveList(
+        id: 'best-progress',
+        name: 'Greetings EN',
+        seedId: 'starter-greetings:en>ko',
+        langA: 'en',
+        known: 9,
+        total: 10,
+      );
+      await saveList(id: 'homonym', name: 'starter-greetings');
+      await saveList(
+        id: 'wrong-pair',
+        name: 'starter-greetings',
+        seedId: 'starter-greetings:fr>en',
+        langB: 'en',
+      );
+      await saveList(id: 'legacy', name: 'Legacy list');
       final rules = [
         _rule('unlocked', prerequisites: const ['starter-greetings']),
         _rule('locked', prerequisites: const ['Legacy list']),
@@ -506,70 +539,31 @@ void main() {
       ];
       final container = ProviderContainer(
         overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          currentUserProvider.overrideWithValue(_user()),
           grammarRulesProvider.overrideWith((ref, lang) async => rules),
           grammarModuleProvider.overrideWith(
             (ref, lang) async => const KoreanGrammarModule(),
-          ),
-          myListsProvider.overrideWith(
-            (ref) => Stream.value([
-              _list(
-                id: 'fr-progress',
-                name: 'Salutations FR',
-                seedId: 'starter-greetings:fr>ko',
-              ),
-              _list(
-                id: 'best-progress',
-                name: 'Greetings EN',
-                seedId: 'starter-greetings:en>ko',
-                langA: 'en',
-              ),
-              _list(id: 'homonym', name: 'starter-greetings'),
-              _list(
-                id: 'wrong-pair',
-                name: 'starter-greetings',
-                seedId: 'starter-greetings:fr>en',
-                langB: 'en',
-              ),
-              _list(id: 'legacy', name: 'Legacy list'),
-            ]),
-          ),
-          progressRepositoryProvider.overrideWithValue(
-            _StatsProgressRepository({
-              'fr-progress': const {'known': 15, 'total': 20},
-              'best-progress': const {'known': 18, 'total': 20},
-              'homonym': const {'known': 20, 'total': 20},
-              'wrong-pair': const {'known': 20, 'total': 20},
-              'legacy': const {'known': 6, 'total': 10},
-            }),
           ),
           grammarProgressProvider.overrideWith(
             (ref) => Stream.value({
               'mastered': (shown: 10, correct: 10, mastered: true),
             }),
           ),
-          vocabularyProgressChangesProvider.overrideWith(
-            (ref) => Stream<void>.value(null),
-          ),
-          drillWordsProvider.overrideWith(
-            (ref, lang) async => const [
-              DrillWord(word: '학생', category: 'nom', listId: 'best-progress'),
-              DrillWord(word: '친구', category: 'nom', listId: 'best-progress'),
-              DrillWord(word: '학생', category: 'nom', listId: 'legacy'),
-              DrillWord(word: '친구', category: 'nom', listId: 'legacy'),
-            ],
-          ),
         ],
       );
       addTearDown(container.dispose);
 
-      final statuses = await container.read(ruleStatusesProvider('ko').future);
+      final statuses = await _observe(
+        container,
+        ruleStatusesProvider('ko').future,
+      );
 
       final unlocked = statuses[0];
       expect(unlocked.availability, RuleAvailability.unlocked);
       expect(unlocked.enoughWords, isTrue);
       expect(unlocked.missingLists, isEmpty);
-      // The learner's furthest equivalent curriculum list wins, regardless of
-      // source language, and keeps the precise list id for the CTA.
+      // The furthest copy wins across source languages and keeps its local ID.
       expect(unlocked.prereqProgress['starter-greetings'], 0.9);
       expect(unlocked.prereqNames['starter-greetings'], 'Greetings EN');
       expect(unlocked.prereqListIds['starter-greetings'], 'best-progress');
@@ -587,97 +581,40 @@ void main() {
     },
   );
 
-  test('a resolved prerequisite keeps its name when its stats fail', () async {
-    final container = ProviderContainer(
-      overrides: [
-        vocabularyProgressChangesProvider.overrideWith(
-          (ref) => Stream<void>.value(null),
-        ),
-        grammarRulesProvider.overrideWith(
-          (ref, lang) async => [
-            _rule('r', prerequisites: ['starter-greetings']),
-          ],
-        ),
-        myListsProvider.overrideWith(
-          (ref) => Stream.value([
-            _list(
-              id: 'greetings',
-              name: 'Mes salutations',
-              seedId: 'starter-greetings:fr>ko',
-            ),
-          ]),
-        ),
-        progressRepositoryProvider.overrideWithValue(
-          _StatsProgressRepository({}, unavailable: {'greetings'}),
-        ),
-      ],
-    );
-    addTearDown(container.dispose);
-    final prerequisites = await container.read(
-      grammarPrerequisitesProvider('ko').future,
-    );
-    expect(prerequisites.names['starter-greetings'], 'Mes salutations');
-    expect(prerequisites.progress['starter-greetings']!.fraction, 0);
-  });
-
   test(
-    'refreshes prerequisite availability when FSRS progress changes',
+    'an empty prerequisite keeps its name and shows zero progress',
     () async {
-      final changes = StreamController<void>.broadcast();
-      addTearDown(changes.close);
-      final stats = <String, Map<String, int>>{
-        'starter': {'known': 0, 'total': 10},
-      };
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final now = DateTime(2026);
+      await db.vocabularyListDao.upsert(
+        VocabularyListsTableCompanion.insert(
+          id: 'greetings',
+          ownerId: 'u',
+          name: 'Mes salutations',
+          seedId: const Value('starter-greetings:fr>ko'),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
       final container = ProviderContainer(
         overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          currentUserProvider.overrideWithValue(_user()),
           grammarRulesProvider.overrideWith(
             (ref, lang) async => [
-              _rule('reactive', prerequisites: const ['a']),
+              _rule('r', prerequisites: ['starter-greetings']),
             ],
-          ),
-          grammarModuleProvider.overrideWith(
-            (ref, lang) async => const KoreanGrammarModule(),
-          ),
-          myListsProvider.overrideWith(
-            (ref) => Stream.value([
-              _list(id: 'starter', name: 'A', seedId: 'a:fr>ko'),
-            ]),
-          ),
-          progressRepositoryProvider.overrideWithValue(
-            _StatsProgressRepository(stats),
-          ),
-          grammarProgressProvider.overrideWith((ref) => Stream.value({})),
-          drillWordsProvider.overrideWith((ref, lang) async => const []),
-          vocabularyProgressChangesProvider.overrideWith(
-            (ref) => _withInitialProgressChange(changes.stream),
           ),
         ],
       );
       addTearDown(container.dispose);
-
-      final initial = await container.read(ruleStatusesProvider('ko').future);
-      expect(initial.single.availability, RuleAvailability.locked);
-
-      final refreshed = Completer<List<RuleStatus>>();
-      final subscription = container.listen(ruleStatusesProvider('ko'), (
-        _,
-        next,
-      ) {
-        final statuses = next.valueOrNull;
-        if (statuses?.single.availability == RuleAvailability.unlocked &&
-            !refreshed.isCompleted) {
-          refreshed.complete(statuses!);
-        }
-      });
-      addTearDown(subscription.close);
-
-      stats['starter'] = {'known': 10, 'total': 10};
-      changes.add(null);
-
-      expect(
-        (await refreshed.future).single.availability,
-        RuleAvailability.unlocked,
+      final prerequisites = await _observe(
+        container,
+        grammarPrerequisitesProvider('ko').future,
       );
+      expect(prerequisites.names['starter-greetings'], 'Mes salutations');
+      expect(prerequisites.progress['starter-greetings']!.fraction, 0);
     },
   );
 }

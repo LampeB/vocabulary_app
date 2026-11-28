@@ -12,6 +12,7 @@ import 'package:vocab_kr/data/repositories/progress_repository_impl.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
 import 'package:vocab_kr/domain/entities/variant_progress.dart';
+import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
 import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
@@ -63,12 +64,18 @@ void main() {
   late VocabularyRepositoryImpl vocabRepo;
   late ProgressRepositoryImpl progressRepo;
 
-  /// Seeds a word in [listName] and returns its FR variant id.
-  Future<String> seedWord(String listId, String fr, String ko) async {
+  /// Seeds words in the list's order and returns the French question variant.
+  Future<String> seedWord(
+    VocabularyList list,
+    String wordA,
+    String wordB,
+  ) async {
     final concept = (await vocabRepo.addConceptWithVariants(
-      listId: listId,
-      wordA: fr,
-      wordB: ko,
+      listId: list.id,
+      wordA: wordA,
+      wordB: wordB,
+      langA: list.langA,
+      langB: list.langB,
     )).valueOrNull!;
     final variants = await db.conceptDao.getVariantsByConcept(concept.id);
     return variants.firstWhere((v) => v.langCode == 'fr').id;
@@ -116,14 +123,14 @@ void main() {
     final past = _now.subtract(const Duration(days: 1));
     final future = DateTime.now().add(const Duration(days: 30));
 
-    final dueA = await seedWord(l1.id, 'chat', '고양이');
+    final dueA = await seedWord(l1, 'chat', '고양이');
     await seedProgress(dueA, state: 'review', nextReview: past);
-    final dueB = await seedWord(l2.id, 'chien', '개');
+    final dueB = await seedWord(l2, 'chien', '개');
     await seedProgress(dueB, state: 'learning', nextReview: past);
-    final futureCard = await seedWord(l1.id, 'maison', '집');
+    final futureCard = await seedWord(l1, 'maison', '집');
     await seedProgress(futureCard, state: 'review', nextReview: future);
-    await seedWord(l2.id, 'pain', '빵'); // never studied — no progress row
-    final deleted = await seedWord(l1.id, 'lait', '우유');
+    await seedWord(l2, 'pain', '빵'); // never studied — no progress row
+    final deleted = await seedWord(l1, 'lait', '우유');
     await seedProgress(deleted, state: 'review', nextReview: past);
     await db.conceptDao.softDeleteVariant(deleted);
 
@@ -141,17 +148,17 @@ void main() {
     final l1 = (await vocabRepo.createList(name: 'A')).valueOrNull!;
     final future = DateTime.now().add(const Duration(days: 30));
 
-    final started = await seedWord(l1.id, 'chat', '고양이');
+    final started = await seedWord(l1, 'chat', '고양이');
     await seedProgress(
       started,
       state: 'learning',
       nextReview: _now.subtract(const Duration(days: 1)),
     );
-    final scheduled = await seedWord(l1.id, 'maison', '집');
+    final scheduled = await seedWord(l1, 'maison', '집');
     await seedProgress(scheduled, state: 'review', nextReview: future);
-    final newState = await seedWord(l1.id, 'pain', '빵');
+    final newState = await seedWord(l1, 'pain', '빵');
     await seedProgress(newState, state: 'newCard', nextReview: null);
-    await seedWord(l1.id, 'lait', '우유'); // never studied
+    await seedWord(l1, 'lait', '우유'); // never studied
 
     final result = await progressRepo.getInProgressCards(
       userId: _kUserId,
@@ -164,13 +171,13 @@ void main() {
 
   test('the use case routes each QuizSource to the right query', () async {
     final l1 = (await vocabRepo.createList(name: 'A')).valueOrNull!;
-    final due = await seedWord(l1.id, 'chat', '고양이');
+    final due = await seedWord(l1, 'chat', '고양이');
     await seedProgress(
       due,
       state: 'review',
       nextReview: _now.subtract(const Duration(days: 1)),
     );
-    final futureCard = await seedWord(l1.id, 'maison', '집');
+    final futureCard = await seedWord(l1, 'maison', '집');
     await seedProgress(
       futureCard,
       state: 'review',
@@ -211,7 +218,7 @@ void main() {
       final list = (await vocabRepo.createList(
         name: 'Deleted word',
       )).valueOrNull!;
-      final variantId = await seedWord(list.id, 'chat', '고양이');
+      final variantId = await seedWord(list, 'chat', '고양이');
       await seedProgress(variantId, state: 'review', nextReview: _now);
       final variant = await db.conceptDao.getVariantById(variantId);
       await vocabRepo.deleteConcept(variant!.conceptId);
@@ -240,7 +247,7 @@ void main() {
     final list = (await vocabRepo.createList(
       name: 'Pair revision',
     )).valueOrNull!;
-    final questionId = await seedWord(list.id, 'chat', '고양이');
+    final questionId = await seedWord(list, 'chat', '고양이');
     final question = (await db.conceptDao.getVariantById(questionId))!;
     final answer = (await db.conceptDao.getVariantsByConcept(
       question.conceptId,
@@ -285,8 +292,10 @@ void main() {
         langA: 'ko',
         langB: 'fr',
       )).valueOrNull!;
-      final first = await seedWord(a.id, 'chat', '고양이');
-      final second = await seedWord(b.id, 'chien', '개');
+      final first = await seedWord(a, 'chat', '고양이');
+      final second = await seedWord(b, '개', 'chien');
+      // Both cards ask in French, so only the list's ordered pair can
+      // distinguish them in the cross-list query.
       await seedProgress(first, state: 'review', nextReview: _now);
       await seedProgress(second, state: 'review', nextReview: _now);
       final result = await GetDueCardsUseCase(progressRepo).call(
@@ -308,7 +317,7 @@ void main() {
     'an open daily counter observes a due time without a database write',
     () async {
       final list = (await vocabRepo.createList(name: 'Due soon')).valueOrNull!;
-      final variant = await seedWord(list.id, 'chat', '고양이');
+      final variant = await seedWord(list, 'chat', '고양이');
       await seedProgress(
         variant,
         state: 'review',

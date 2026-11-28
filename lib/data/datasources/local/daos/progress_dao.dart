@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import '../../../../domain/entities/variant_progress.dart';
 import '../app_database.dart';
 import '../sync_snapshot.dart';
@@ -11,19 +12,120 @@ part 'progress_dao.g.dart';
 
 enum SmartQuizPool { due, inProgress }
 
+typedef GrammarDrillRow = ({
+  String word,
+  String contextTags,
+  String category,
+  String listId,
+});
+typedef GrammarPrerequisiteRow = ({
+  String listId,
+  String token,
+  String name,
+  int known,
+  int total,
+});
+
 @DriftAccessor(tables: [VariantProgressTable, WordVariantsTable])
 class ProgressDao extends DatabaseAccessor<AppDatabase>
     with _$ProgressDaoMixin {
   ProgressDao(super.db);
 
-  /// Emits after any of [userId]'s FSRS rows changes. Consumers that derive
-  /// aggregate vocabulary state (for example lesson prerequisites) need this
-  /// invalidation signal even when a list's metadata itself did not change.
-  Stream<void> watchChanges(String userId) => customSelect(
-    "SELECT COALESCE(GROUP_CONCAT(id || ':' || variant_id || ':' || state || ':' || reps || ':' || scheduled_days || ':' || times_shown || ':' || times_correct), '') AS signature FROM (SELECT * FROM variant_progress WHERE user_id = ? ORDER BY id)",
-    variables: [Variable<String>(userId)],
-    readsFrom: {variantProgressTable},
-  ).watchSingle().map((row) => row.read<String>('signature')).distinct().map((_) {});
+  Set<ResultSetImplementation> get _grammarTables => {
+    variantProgressTable,
+    wordVariantsTable,
+    db.conceptsTable,
+    db.vocabularyListsTable,
+  };
+
+  /// One target word per graduated concept, ordered by FSRS confidence.
+  /// Any active variant can establish that the concept was learned.
+  /// Resolve alternate forms in their existing storage order.
+  Stream<List<GrammarDrillRow>> watchGrammarDrillWords(
+    String userId,
+    String targetLang,
+  ) =>
+      customSelect(
+            '''
+    SELECT target.word, target.context_tags, c.category, c.list_id
+    FROM variant_progress p
+    JOIN word_variants source ON source.id = p.variant_id
+    JOIN concepts c ON c.id = source.concept_id
+    JOIN vocabulary_lists l ON l.id = c.list_id
+    JOIN word_variants target ON target.id = (
+      SELECT w.id FROM word_variants w
+      WHERE w.concept_id = c.id AND w.lang_code = ? AND w.is_deleted = 0
+      ORDER BY w.rowid LIMIT 1
+    )
+    WHERE p.user_id = ? AND p.state IN ('review', 'relearning')
+      AND l.owner_id = p.user_id AND l.is_deleted = 0 AND c.is_deleted = 0
+      AND source.is_deleted = 0
+      AND c.category IS NOT NULL
+    GROUP BY c.id
+    ORDER BY MAX(p.scheduled_days) DESC, c.id
+    ''',
+            variables: [Variable(targetLang), Variable(userId)],
+            readsFrom: _grammarTables,
+          )
+          .map(
+            (row) => (
+              word: row.read<String>('word'),
+              contextTags: row.read<String>('context_tags'),
+              category: row.read<String>('category'),
+              listId: row.read<String>('list_id'),
+            ),
+          )
+          .watch()
+          .distinct(listEquals);
+
+  /// Counts each live concept once, for the account's exact catalog copies.
+  /// Content changes can change the denominator even before a card is reviewed.
+  Stream<List<GrammarPrerequisiteRow>> watchGrammarPrerequisites({
+    required String userId,
+    required String targetLang,
+    required Set<String> tokens,
+  }) {
+    if (tokens.isEmpty) return Stream.value(const []);
+    final tokenValues = tokens.map((_) => '(?)').join(', ');
+    return customSelect(
+          '''
+      WITH tokens(value) AS (VALUES $tokenValues)
+      SELECT l.id, tokens.value AS token, l.name, COUNT(c.id) AS total,
+        COUNT(CASE WHEN EXISTS (
+          SELECT 1 FROM word_variants w
+          WHERE w.concept_id = c.id AND w.is_deleted = 0
+            AND EXISTS (
+              SELECT 1 FROM variant_progress p
+              WHERE p.user_id = l.owner_id AND p.variant_id = w.id
+                AND p.state IN ('review', 'relearning')
+            )
+        ) THEN 1 END) AS known
+      FROM vocabulary_lists l
+      JOIN tokens ON l.seed_id = tokens.value || ':' || l.lang_a || '>' || l.lang_b
+      LEFT JOIN concepts c ON c.list_id = l.id AND c.is_deleted = 0
+      WHERE l.owner_id = ? AND l.lang_b = ? AND l.is_deleted = 0
+      GROUP BY l.id
+      ORDER BY l.updated_at DESC, l.rowid
+      ''',
+          variables: [
+            ...tokens.map(Variable<String>.new),
+            Variable(userId),
+            Variable(targetLang),
+          ],
+          readsFrom: _grammarTables,
+        )
+        .map(
+          (row) => (
+            listId: row.read<String>('id'),
+            token: row.read<String>('token'),
+            name: row.read<String>('name'),
+            known: row.read<int>('known'),
+            total: row.read<int>('total'),
+          ),
+        )
+        .watch()
+        .distinct(listEquals);
+  }
 
   Stream<int> watchDueCount(String userId) {
     return _watchLiveDueCount(userId);
@@ -584,21 +686,6 @@ class ProgressDao extends DatabaseAccessor<AppDatabase>
                   t.userId.equals(userId) &
                   t.state.equals('review') &
                   t.scheduledDays.isBiggerOrEqualValue(minScheduledDays),
-            )
-            ..orderBy([(t) => OrderingTerm.desc(t.scheduledDays)]))
-          .get();
-
-  /// Rows whose FSRS card graduated from the learning phase (review or
-  /// relearning — a lapsed word was still learned once). The "known" bar
-  /// that gates grammar; lighter than [getMasteredProgress].
-  Future<List<VariantProgressTableData>> getGraduatedProgress({
-    required String userId,
-  }) =>
-      (select(variantProgressTable)
-            ..where(
-              (t) =>
-                  t.userId.equals(userId) &
-                  t.state.isIn(['review', 'relearning']),
             )
             ..orderBy([(t) => OrderingTerm.desc(t.scheduledDays)]))
           .get();

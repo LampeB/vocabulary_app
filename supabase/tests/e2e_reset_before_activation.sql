@@ -3,7 +3,7 @@ BEGIN;
 SET LOCAL ROLE anon;
 DO $$ BEGIN
   IF to_regprocedure('public.e2e_patrol_contract()') IS NOT NULL THEN
-    IF public.e2e_patrol_contract() IS NOT DISTINCT FROM 'study-catalog-v1' THEN
+    IF public.e2e_patrol_contract() IN ('study-catalog-v1', 'study-catalog-v2') THEN
       RAISE EXCEPTION 'A partial schema advertises the current Patrol contract';
     END IF;
   END IF;

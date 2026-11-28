@@ -9,7 +9,7 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
 
 1. Réactiver le projet si nécessaire. Appliquer les migrations manquantes dans
    l'ordre de [la CI PostgreSQL](../../.github/workflows/pr-validation.yml),
-   jusqu'à [024](../../supabase/migrations/024_vocabulary_content_visibility.sql).
+   jusqu'à [026](../../supabase/migrations/026_seed_audio_generation.sql).
    Patrol exige les gardes de [013](../../supabase/migrations/013_e2e_isolation.sql),
    les suppressions persistantes de [014](../../supabase/migrations/014_vocabulary_tombstones.sql),
    les identifiants qualifiés par propriétaire de [015](../../supabase/migrations/015_vocabulary_owner_namespace.sql),
@@ -22,7 +22,9 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
    les jours d'étude de [022](../../supabase/migrations/022_study_days.sql)
    et l'identité catalogue des tombstones de 023. La migration 024 étend aux
    concepts et variantes la visibilité de leur liste pour les amis confirmés.
-   Elle ne change pas les prérequis du reset ni son contrat `study-catalog-v1`.
+   [025](../../supabase/migrations/025_patrol_upgrade_readiness.sql) répare
+   les anciens chemins 012/015 et exige `study-catalog-v2`. La migration 026
+   ajoute la réservation des clips du catalogue et ne change pas ce prévol.
    La version actuelle de
    [007](../../supabase/migrations/007_audio_storage.sql) ferme les lectures
    client de `vocab-audio` jusqu'aux règles définitives de
@@ -31,18 +33,25 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
    012, rejouer la version actuelle de 007 avant les autres étapes. Si la
    version actuelle de 012 est déjà appliquée, passer aux migrations manquantes.
 
-   Si 008, 009 et 012 à 024 restent à appliquer et que les migrations 000,
+   Si 008, 009 et 012 à 026 restent à appliquer et que les migrations 000,
    004 à 007, 010, 011 et `add_subscription_type.sql` sont déjà présentes,
    le générateur
    `python3 tool/e2e/build_activation.py > /tmp/activer-vocab-e2e.sql` regroupe
-   008, 009 et 012 à 024 dans une transaction. Si une ancienne version de 015
+   008, 009 et 012 à 026 dans une transaction. Si une ancienne version de 015
    à 021 est déjà présente, fermer d'abord la RPC de reset aux rôles client
    avec `REVOKE EXECUTE ON FUNCTION public.reset_e2e_account(text) FROM PUBLIC, anon, authenticated;`.
    Appliquer les migrations manquantes. La migration 020 met à jour un ancien
-   017 sans rejouer les migrations appliquées. Seule 023 rouvre le reset avec
-   le contrat complet.
-   Si 023 est déjà installée, appliquer uniquement la migration 024 manquante,
+   017 sans rejouer les migrations appliquées. La migration 025 établit le
+   contrat complet v2 avant toute activation.
+   Si 023 est déjà installée, appliquer uniquement 024 à 026 manquantes,
    sans rejouer les migrations précédentes.
+
+   Les chemins historiques 012/015 vérifiés sont ceux de `90a8298`. Une version
+   antérieure de 012 sans les politiques SELECT restrictives reste refusée
+   dès 013 : diagnostiquer ce schéma avant de poursuivre, sans contourner le
+   prévol. Le contrat v2 vérifie les protections Storage actives, la portée des
+   commandes et rôles, leurs prédicats, RLS et le bucket privé, puis les gardes
+   de namespace 015 et d'ordre d'écriture 016, avec tous les contrôles ultérieurs.
 2. Avant toute publication du secret CI, créer l'environnement GitHub Actions
    `patrol-e2e`. Dans *Deployment branches and tags*, sélectionner les branches
    et tags explicitement autorisés et ajouter uniquement la branche `main`.
@@ -70,7 +79,7 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
    ```
 
    Lorsque le contrôle réussit, définir la variable de dépôt GitHub
-   `PATROL_E2E_ACTIVATION` à `study-catalog-v1` pour autoriser le CI manuel et
+   `PATROL_E2E_ACTIVATION` à `study-catalog-v2` pour autoriser le CI manuel et
    planifié. Une valeur absente ou différente garde le CI désactivé. Retirer
    la variable pour suspendre les lancements. Lancer ensuite une suite et
    vérifier son résultat réel.
@@ -116,16 +125,19 @@ La migration 013 refuse dès l'écriture les amitiés, demandes, défis et
 progressions intercomptes impliquant un compte attribué à un scénario. Elle
 contrôle aussi le propriétaire de la liste du défi ou de la variante étudiée.
 La progression d'un compte E2E sur ses propres listes reste autorisée.
-Le prévol CI, le helper Patrol et le reset exigent tous `study-catalog-v1`
+Le prévol CI, le helper Patrol et le reset exigent tous `study-catalog-v2`
 depuis `e2e_patrol_contract()`. Cette réponse confirme les prérequis de 012,
 les déclencheurs d'isolation de 013, les gardes de suppression de 014, les
 clés qualifiées par propriétaire de 015, le contrôle des écritures de 016,
 l'inventaire et les déclencheurs de rattrapage de 017, les protections
 de 018 et 019, la prise en compte des purges de 020 et les droits
 sociaux et d'historique de 021, la RPC de jour d'étude de 022 et les
-tombstones catalogue de 023. Le prévol et le helper refusent les versions antérieures.
-Les étapes de migration gardent l'exécution du reset inaccessible
-aux rôles client jusqu'à 023. Le reset vérifie ensuite le contrat à chaque appel.
+tombstones catalogue de 023, avec la réparation et les gardes effectives de
+025. Le prévol et le helper refusent les réponses v1, même si un ancien 012
+annonçait ce jeton sans les protections d'écriture nécessaires.
+Les clients de validation n'appellent le reset qu'après le prévol v2.
+Après 025, le reset vérifie ce contrat à chaque appel. Les acceptations v1
+historiques à 023 ne constituent pas un feu vert pour les clients actuels.
 
 Le reset efface listes, concepts, variantes, progression, abonnements Supabase,
 notifications et classement du compte. Il recrée son profil gratuit avec le

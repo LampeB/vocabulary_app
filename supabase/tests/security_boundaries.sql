@@ -93,4 +93,55 @@ DO $$ DECLARE lease uuid; next_lease uuid; path text := 'users/00000000-0000-000
     RAISE EXCEPTION 'Private generation can enter shared namespace';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
+
+DO $$
+DECLARE
+  seed_path text := 'seed/v1/ko/' || repeat('a', 64) || '.mp3';
+  rejected_path text;
+  first_token uuid;
+  next_token uuid;
+BEGIN
+  IF has_function_privilege('anon','public.acquire_seed_audio_generation(text)','EXECUTE')
+    OR has_function_privilege('authenticated','public.acquire_seed_audio_generation(text)','EXECUTE')
+    OR has_function_privilege('service_role','vocabulary_private.acquire_audio_generation_lease(text)','EXECUTE') THEN
+    RAISE EXCEPTION 'Audio lease function exposes an unintended caller';
+  END IF;
+  SET LOCAL ROLE service_role;
+  FOREACH rejected_path IN ARRAY ARRAY[
+    NULL, seed_path || chr(10), replace(seed_path, '/ko/', '/ja/'), replace(seed_path, '/v1/', '/v2/'),
+    replace(seed_path, repeat('a', 64), repeat('A', 64)), replace(seed_path, repeat('a', 64), repeat('a', 63)),
+    'users/00000000-0000-0000-0000-000000000002/private.mp3'
+  ] LOOP
+    BEGIN
+      PERFORM public.acquire_seed_audio_generation(rejected_path);
+      RAISE EXCEPTION 'Seed lease accepted an invalid path %', rejected_path;
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  END LOOP;
+
+  first_token := public.acquire_seed_audio_generation(seed_path);
+  IF first_token IS NULL OR public.acquire_seed_audio_generation(seed_path) IS NOT NULL THEN
+    RAISE EXCEPTION 'Seed lease did not have one exclusive owner';
+  END IF;
+  RESET ROLE;
+  IF NOT EXISTS (SELECT 1 FROM public.audio_generation_leases l
+    WHERE l.path = seed_path AND l.token = first_token AND l.expires_at = now() + interval '90 seconds') THEN
+    RAISE EXCEPTION 'Seed lease was not recorded for the expected duration';
+  END IF;
+  UPDATE public.audio_generation_leases l SET expires_at = now() - interval '1 second'
+    WHERE l.token = first_token;
+  SET LOCAL ROLE service_role;
+  next_token := public.acquire_seed_audio_generation(seed_path);
+  IF next_token IS NULL OR next_token = first_token THEN
+    RAISE EXCEPTION 'Expired seed lease did not get a new owner';
+  END IF;
+  PERFORM public.release_audio_generation(seed_path, first_token);
+  IF public.acquire_seed_audio_generation(seed_path) IS NOT NULL THEN
+    RAISE EXCEPTION 'Stale token released a renewed seed lease';
+  END IF;
+  PERFORM public.release_audio_generation(seed_path, next_token);
+  IF public.acquire_seed_audio_generation(seed_path) IS NULL THEN
+    RAISE EXCEPTION 'Current token did not release the seed lease';
+  END IF;
+  RESET ROLE;
+END $$;
 ROLLBACK;

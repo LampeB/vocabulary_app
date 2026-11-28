@@ -10,6 +10,11 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/v3_colors.dart';
 import '../../../core/widget_keys.dart';
+import '../../../domain/entities/concept.dart';
+import '../../../domain/entities/vocabulary_list.dart';
+import '../../../domain/entities/word_variant.dart';
+import '../../../domain/repositories/vocabulary_repository.dart';
+import '../../widgets/scroll_affordance.dart';
 import '../../widgets/v3_pond.dart';
 import '../../providers/lists/vocab_assistant_provider.dart';
 import '../../../data/datasources/remote/vocab_assistant_datasource.dart';
@@ -28,9 +33,14 @@ class ListDetailScreen extends ConsumerStatefulWidget {
 class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
   bool _editMode = false;
 
+  VocabularyList? _confirmedList(AsyncValue<VocabularyList?> info) =>
+      info.isLoading ? null : info.asData?.value;
+
   @override
   Widget build(BuildContext context) {
-    final listAsync = ref.watch(listInfoProvider(widget.listId));
+    final infoProvider = listInfoProvider(widget.listId);
+    final listAsync = ref.watch(infoProvider);
+    final list = _confirmedList(listAsync);
     final conceptsAsync = ref.watch(listDetailProvider(widget.listId));
     final dark = Theme.of(context).brightness == Brightness.dark;
     final foreground = dark ? V3Colors.light : V3Colors.ink;
@@ -41,7 +51,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
       key: const ValueKey(WidgetKeys.screenListDetail),
       backgroundColor: dark ? V3Colors.app : V3Colors.paper,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: dark ? V3Colors.app : V3Colors.paper,
         surfaceTintColor: Colors.transparent,
         foregroundColor: foreground,
         elevation: 0,
@@ -63,10 +73,9 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                   onPressed: () => setState(() => _editMode = false),
                   child: Text(
                     'list_detail.action_done'.tr(),
-                    style: AppTextStyles.fig(
-                      14,
-                      FontWeight.w600,
-                    ).copyWith(color: AppColors.clay),
+                    style: AppTextStyles.fig(14, FontWeight.w600).copyWith(
+                      color: dark ? V3Colors.amber : V3Colors.terraInk,
+                    ),
                   ),
                 ),
               ]
@@ -92,6 +101,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                   itemBuilder: (ctx) => [
                     PopupMenuItem(
                       key: const ValueKey(WidgetKeys.listDetailEditItem),
+                      enabled: list != null,
                       value: 'edit',
                       child: Row(
                         children: [
@@ -109,6 +119,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                       ),
                     ),
                     PopupMenuItem(
+                      enabled: list != null,
                       value: 'ai_suggest',
                       child: Row(
                         children: [
@@ -172,115 +183,98 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                   ),
                 ),
               ),
-              conceptsAsync.when(
-                loading: () => const SliverFillRemaining(
+              if (list == null)
+                SliverFillRemaining(
+                  hasScrollBody: false,
                   child: Center(
-                    child: CircularProgressIndicator(
-                      color: V3Colors.terra,
-                      strokeWidth: 2,
-                    ),
+                    child: listAsync.isLoading
+                        ? const CircularProgressIndicator(color: V3Colors.terra)
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('common.error'.tr()),
+                              TextButton(
+                                onPressed: () => ref.invalidate(infoProvider),
+                                child: Text('common.retry'.tr()),
+                              ),
+                            ],
+                          ),
                   ),
-                ),
-                error: (e, _) => SliverFillRemaining(
-                  child: Center(
-                    child: Text(
-                      '$e',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.rose,
+                )
+              else
+                conceptsAsync.when(
+                  loading: () => const SliverFillRemaining(
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: V3Colors.terra,
+                        strokeWidth: 2,
                       ),
                     ),
                   ),
-                ),
-                data: (concepts) => concepts.isEmpty
-                    ? SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: _EmptyState(
-                          onAddTap: () => _showAddWordDialog(context),
+                  error: (e, _) => SliverFillRemaining(
+                    child: Center(
+                      child: Text(
+                        '$e',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.rose,
                         ),
-                      )
-                    : SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                        sliver: SliverList.builder(
-                          itemCount: concepts.length,
-                          itemBuilder: (ctx, i) => _ConceptTile(
-                            key: Key(concepts[i].id),
-                            concept: concepts[i],
-                            listId: widget.listId,
-                            langA: listAsync.valueOrNull?.langA ?? 'fr',
-                            langB: listAsync.valueOrNull?.langB ?? 'ko',
-                            editMode: _editMode,
+                      ),
+                    ),
+                  ),
+                  data: (concepts) => concepts.isEmpty
+                      ? SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: _EmptyState(
+                            onAddTap: () => _showAddWordDialog(context),
+                          ),
+                        )
+                      : SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                          sliver: SliverList.builder(
+                            itemCount: concepts.length,
+                            itemBuilder: (ctx, i) => _ConceptTile(
+                              key: Key(concepts[i].id),
+                              concept: concepts[i],
+                              langA: list.langA,
+                              langB: list.langB,
+                              editMode: _editMode,
+                              onEdit: (a, b) =>
+                                  _showEditWordDialog(context, a, b),
+                            ),
                           ),
                         ),
-                      ),
-              ),
+                ),
             ],
           ),
         ],
       ),
-      bottomNavigationBar: DecoratedBox(
-        decoration: BoxDecoration(
-          color: surface,
-          border: Border(
-            top: BorderSide(
-              color: dark ? V3Colors.ruleDark : V3Colors.edgeWarm2,
+      bottomNavigationBar: list == null
+          ? null
+          : DecoratedBox(
+              decoration: BoxDecoration(
+                color: surface,
+                border: Border(
+                  top: BorderSide(
+                    color: dark ? V3Colors.ruleDark : V3Colors.edgeWarm2,
+                  ),
+                ),
+              ),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                  child: _studyAndEditBar(context, list),
+                ),
+              ),
             ),
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-            child: listAsync.when(
-              loading: () => _addWordBar(context),
-              error: (_, _) => _addWordBar(context),
-              data: (list) => list == null
-                  ? _addWordBar(context)
-                  : _studyAndEditBar(context, list),
-            ),
-          ),
-        ),
-      ),
     );
   }
 
-  // ── Bottom bar variants ───────────────────────────────────────────────────
-
-  Widget _addWordBar(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final muted = dark ? V3Colors.light70 : V3Colors.ink60;
-    return GestureDetector(
-      key: const ValueKey(WidgetKeys.listDetailAddWord),
-      onTap: () => _showAddWordDialog(context),
-      child: Container(
-        decoration: BoxDecoration(
-          color: dark ? V3Colors.block2 : V3Colors.paper3,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: dark ? V3Colors.ruleDark : V3Colors.edgeWarm2,
-          ),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.add, color: muted, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              'list_detail.add_word_bar'.tr(),
-              style: AppTextStyles.fig(
-                15,
-                FontWeight.w600,
-              ).copyWith(color: muted),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // ── Bottom bar ──────────────────────────────────────────────────────────
 
   /// A prerequisite list must lead somewhere concrete. The primary action
   /// starts an immediate flashcard run; editing remains available alongside
   /// it instead of forcing a learner through the generic setup accordion.
-  Widget _studyAndEditBar(BuildContext context, dynamic list) {
+  Widget _studyAndEditBar(BuildContext context, VocabularyList list) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final outline = dark ? V3Colors.ruleDark : V3Colors.edgeWarm2;
     final icon = dark ? V3Colors.light : V3Colors.ink;
@@ -299,13 +293,13 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
             onPressed: () => context.push(
               '/quiz',
               extra: QuizArgs(
-                listId: list.id as String,
+                listId: list.id,
                 source: QuizSource.list,
                 mode: QuizMode.flashcard,
                 direction: QuizDirectionChoice.both,
                 cardLimit: 10,
-                langA: list.langA as String,
-                langB: list.langB as String,
+                langA: list.langA,
+                langB: list.langB,
               ),
             ),
             icon: const Icon(Icons.play_arrow_rounded),
@@ -329,13 +323,13 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
             onPressed: () => context.push(
               '/quiz',
               extra: QuizArgs(
-                listId: list.id as String,
+                listId: list.id,
                 source: QuizSource.list,
                 mode: QuizMode.handsFree,
                 direction: QuizDirectionChoice.both,
                 cardLimit: 10,
-                langA: list.langA as String,
-                langB: list.langB as String,
+                langA: list.langA,
+                langB: list.langB,
               ),
             ),
             child: Icon(
@@ -381,55 +375,109 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
     }
   }
 
+  bool _isCurrentForm(String listId, VocabularyRepository repository) =>
+      mounted &&
+      widget.listId == listId &&
+      identical(ref.read(vocabularyRepositoryProvider), repository);
+
   Future<void> _showAddWordDialog(BuildContext context) async {
-    var quotaExceeded = false;
-    final list = ref.read(listInfoProvider(widget.listId)).valueOrNull;
-    final langA = list?.langA ?? 'fr';
-    final langB = list?.langB ?? 'ko';
+    final listId = widget.listId;
+    final list = _confirmedList(ref.read(listInfoProvider(listId)));
+    if (list == null) return;
+    final repository = ref.read(vocabularyRepositoryProvider);
     // Existing source-language words give the assistant the list's theme context.
-    final concepts = ref.read(listDetailProvider(widget.listId)).valueOrNull;
+    final concepts = ref.read(listDetailProvider(listId)).valueOrNull;
     final existingSource = <String>[
       if (concepts != null)
         for (final c in concepts)
           ...?ref
               .read(variantsProvider(c.id))
               .valueOrNull
-              ?.where((v) => v.langCode == langA && !v.isDeleted)
+              ?.where((v) => v.langCode == list.langA && !v.isDeleted)
               .map((v) => v.word),
     ];
 
-    await showDialog<void>(
+    final failure = await showDialog<AppException>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => _AddWordDialog(
-        langA: langA,
-        langB: langB,
+      builder: (ctx) => _WordPairDialog(
+        langA: list.langA,
+        langB: list.langB,
         existingSource: existingSource,
         onSubmit: (wordA, wordB) async {
+          if (!_isCurrentForm(listId, repository)) {
+            return const PermissionException();
+          }
           final result = await ref
               .read(listActionsProvider.notifier)
-              .addConcept(listId: widget.listId, wordA: wordA, wordB: wordB);
-          if (result.isFailure &&
-              result.exceptionOrNull is QuotaExceededException) {
-            quotaExceeded = true;
-            return false;
-          }
-          return result.isSuccess;
+              .addConcept(
+                listId: listId,
+                wordA: wordA,
+                wordB: wordB,
+                expectedPair: (list.langA, list.langB),
+              );
+          return result.exceptionOrNull;
         },
       ),
     );
 
-    if (quotaExceeded && context.mounted) context.push('/paywall');
+    if (failure is QuotaExceededException &&
+        context.mounted &&
+        _isCurrentForm(listId, repository)) {
+      context.push('/paywall');
+    }
+  }
+
+  Future<void> _showEditWordDialog(
+    BuildContext context,
+    WordVariant variantA,
+    WordVariant variantB,
+  ) async {
+    final listId = widget.listId;
+    final list = _confirmedList(ref.read(listInfoProvider(listId)));
+    if (list == null ||
+        (list.langA, list.langB) != (variantA.langCode, variantB.langCode)) {
+      return;
+    }
+    final repository = ref.read(vocabularyRepositoryProvider);
+    await showDialog<AppException>(
+      context: context,
+      builder: (ctx) => _WordPairDialog(
+        langA: list.langA,
+        langB: list.langB,
+        originalWords: (variantA.word, variantB.word),
+        onSubmit: (wordA, wordB) async {
+          if (!_isCurrentForm(listId, repository)) {
+            return const PermissionException();
+          }
+          final result = await ref
+              .read(listActionsProvider.notifier)
+              .updateVariants(
+                listId: listId,
+                variantA: variantA,
+                variantB: variantB,
+                wordA: wordA,
+                wordB: wordB,
+              );
+          return result.exceptionOrNull;
+        },
+      ),
+    );
   }
 
   /// Themed AI suggestions: infer the list's theme from its pairs, propose
   /// new words, add the checked ones (user request 2026-07-11).
   Future<void> _showAiSuggestionsSheet(BuildContext context) async {
-    final list = ref.read(listInfoProvider(widget.listId)).valueOrNull;
+    final listId = widget.listId;
+    final infoProvider = listInfoProvider(listId);
+    final list = _confirmedList(ref.read(infoProvider));
     if (list == null) return;
+    final repository = ref.read(vocabularyRepositoryProvider);
     final actions = ref.read(listActionsProvider.notifier);
-    final pairs = await actions.getSuggestionContext(widget.listId);
-    if (!context.mounted) return;
+    final pairs = await actions.getSuggestionContext(listId);
+    if (!context.mounted || !_isCurrentForm(listId, repository)) return;
+    final latest = _confirmedList(ref.read(infoProvider));
+    if ((latest?.langA, latest?.langB) != (list.langA, list.langB)) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -439,16 +487,22 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
         langB: list.langB,
         existingPairs: pairs,
         onQuota: () {
-          if (context.mounted) context.push('/paywall');
+          if (context.mounted && _isCurrentForm(listId, repository)) {
+            context.push('/paywall');
+          }
         },
         onAdd: (selected) async {
           final added = <WordPairSuggestion>[];
           for (final p in selected) {
             try {
+              if (!_isCurrentForm(listId, repository)) {
+                return (added: added, error: const PermissionException());
+              }
               final result = await actions.addConcept(
-                listId: widget.listId,
+                listId: listId,
                 wordA: p.source,
                 wordB: p.target,
+                expectedPair: (list.langA, list.langB),
               );
               if (result.isFailure) {
                 return (added: added, error: result.exceptionOrNull);
@@ -468,11 +522,12 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
 /// Add-word dialog with AI assistance: type one side, get translation
 /// suggestions (+ voice-friendly longer forms for short words) as tappable
 /// chips. The manual flow is unchanged — AI is one optional button.
-class _AddWordDialog extends ConsumerStatefulWidget {
-  const _AddWordDialog({
+class _WordPairDialog extends ConsumerStatefulWidget {
+  const _WordPairDialog({
     required this.langA,
     required this.langB,
-    required this.existingSource,
+    this.existingSource = const [],
+    this.originalWords,
     required this.onSubmit,
   });
 
@@ -481,42 +536,44 @@ class _AddWordDialog extends ConsumerStatefulWidget {
   final String langA;
   final String langB;
   final List<String> existingSource;
-
-  /// Returns true when the pair was added (dialog closes).
-  final Future<bool> Function(String wordA, String wordB) onSubmit;
+  final (String, String)? originalWords;
+  final Future<AppException?> Function(String wordA, String wordB) onSubmit;
 
   @override
-  ConsumerState<_AddWordDialog> createState() => _AddWordDialogState();
+  ConsumerState<_WordPairDialog> createState() => _WordPairDialogState();
 }
 
-class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
-  final _frCtrl = TextEditingController();
-  final _koCtrl = TextEditingController();
+class _WordPairDialogState extends ConsumerState<_WordPairDialog> {
+  late final _wordACtrl = TextEditingController(text: widget.originalWords?.$1);
+  late final _wordBCtrl = TextEditingController(text: widget.originalWords?.$2);
   final _formKey = GlobalKey<FormState>();
+  bool get _editing => widget.originalWords != null;
   bool _loading = false;
+  bool _saving = false;
+  String? _saveError;
   TranslateAssist? _assist;
   String? _assistError;
   // Captured at request time so the chips fill BOTH fields consistently,
   // regardless of what the fields hold when a chip is tapped.
   String _reqWord = '';
-  bool _reqFromFr = true;
+  bool _reqFromA = true;
 
   @override
   void dispose() {
-    _frCtrl.dispose();
-    _koCtrl.dispose();
+    _wordACtrl.dispose();
+    _wordBCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _askAssistant() async {
-    final fr = _frCtrl.text.trim();
-    final ko = _koCtrl.text.trim();
-    // Whichever side has text is the source; FR wins when both do.
-    final fromFr = fr.isNotEmpty || ko.isEmpty;
-    final word = fromFr ? fr : ko;
+    final a = _wordACtrl.text.trim();
+    final b = _wordBCtrl.text.trim();
+    // Translate from the first filled side.
+    final fromA = a.isNotEmpty || b.isEmpty;
+    final word = fromA ? a : b;
     if (word.isEmpty) return;
     _reqWord = word;
-    _reqFromFr = fromFr;
+    _reqFromA = fromA;
     setState(() {
       _loading = true;
       _assist = null;
@@ -526,8 +583,8 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
         .read(vocabAssistantProvider)
         .translate(
           word: word,
-          sourceLang: fromFr ? widget.langA : widget.langB,
-          targetLang: fromFr ? widget.langB : widget.langA,
+          sourceLang: fromA ? widget.langA : widget.langB,
+          targetLang: fromA ? widget.langB : widget.langA,
           existingWords: widget.existingSource,
         );
     if (!mounted) return;
@@ -540,170 +597,257 @@ class _AddWordDialogState extends ConsumerState<_AddWordDialog> {
     });
   }
 
+  Future<void> _submit() async {
+    if (_saving || !(_formKey.currentState?.validate() ?? false)) return;
+    setState(() {
+      _saving = true;
+      _saveError = null;
+    });
+    final AppException? failure;
+    try {
+      failure = await widget.onSubmit(
+        _wordACtrl.text.trim(),
+        _wordBCtrl.text.trim(),
+      );
+    } catch (_) {
+      if (mounted) _showSaveError(const UnknownException());
+      return;
+    }
+    if (!mounted) return;
+    if (failure == null || failure is QuotaExceededException) {
+      Navigator.pop(context, failure);
+      return;
+    }
+    _showSaveError(failure);
+  }
+
+  void _showSaveError(AppException failure) => setState(() {
+    _saving = false;
+    _saveError = switch (failure) {
+      ValidationException() ||
+      PermissionException() ||
+      NotFoundException() => 'list_detail.word_pair_changed',
+      _ => 'common.error',
+    };
+  });
+
+  String? _requireWord(String? input) =>
+      (input?.trim().isEmpty ?? true) ? 'common.required'.tr() : null;
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text('list_detail.add_dialog_title'.tr()),
-      content: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                key: const ValueKey(WidgetKeys.addWordFr),
-                controller: _frCtrl,
-                autofocus: true,
-                decoration: InputDecoration(
-                  labelText: Languages.displayName(widget.langA),
-                  prefixText: '${Languages.flagFor(widget.langA)}  ',
-                ),
-                textInputAction: TextInputAction.next,
-                validator: (v) =>
-                    (v?.trim().isEmpty ?? true) ? 'common.required'.tr() : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                key: const ValueKey(WidgetKeys.addWordKo),
-                controller: _koCtrl,
-                decoration: InputDecoration(
-                  labelText: Languages.displayName(widget.langB),
-                  prefixText: '${Languages.flagFor(widget.langB)}  ',
-                ),
-                validator: (v) =>
-                    (v?.trim().isEmpty ?? true) ? 'common.required'.tr() : null,
-              ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: _loading
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 6),
-                        child: SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    : TextButton.icon(
-                        key: const ValueKey(WidgetKeys.addWordAiSuggest),
-                        onPressed: _askAssistant,
-                        icon: const Icon(Icons.auto_awesome_rounded, size: 16),
-                        label: Text('list_detail.ai_translate'.tr()),
-                      ),
-              ),
-              if (_assistError != null)
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: SizedBox(
+        width: 400,
+        child: ScrollAffordance(
+          hint: 'v3.scroll_hint'.tr(),
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 Text(
-                  _assistError!,
-                  style: AppTextStyles.caption.copyWith(color: AppColors.rose),
+                  (_editing
+                          ? 'list_detail.edit_dialog_title'
+                          : 'list_detail.add_dialog_title')
+                      .tr(),
+                  style: Theme.of(context).textTheme.headlineSmall,
                 ),
-              if (_assist != null) ...[
-                // Translation chips fill BOTH sides as a coherent pair
-                // (source word → translation), shown FR → KO regardless of
-                // which side was typed — tapping one never leaves a stale
-                // 'optimized' word on the other side (bug 2026-07-14).
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final t in _assist!.translations)
-                      ActionChip(
-                        avatar: const Icon(Icons.translate_rounded, size: 14),
-                        label: Text(
-                          _reqFromFr
-                              ? '$_reqWord → ${t.display}'
-                              : '${t.display} → $_reqWord',
-                        ),
-                        onPressed: () => setState(() {
-                          if (_reqFromFr) {
-                            _frCtrl.text = _reqWord;
-                            _koCtrl.text = t.display;
-                          } else {
-                            _koCtrl.text = _reqWord;
-                            _frCtrl.text = t.display;
-                          }
-                        }),
-                      ),
-                  ],
-                ),
-                if (_assist!.voiceFriendly.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.only(top: 1),
-                        child: Icon(
-                          Icons.mic_rounded,
-                          size: 14,
-                          color: AppColors.clay,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'list_detail.ai_voice_friendly'.tr(),
-                          style: AppTextStyles.caption,
-                        ),
-                      ),
-                    ],
+                const SizedBox(height: 16),
+                TextFormField(
+                  key: ValueKey(
+                    _editing ? WidgetKeys.editWordFr : WidgetKeys.addWordFr,
                   ),
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final p in _assist!.voiceFriendly)
-                        ActionChip(
-                          avatar: const Icon(Icons.mic_rounded, size: 14),
-                          label: Text(
-                            _reqFromFr
-                                ? '${p.source} → ${p.target}'
-                                : '${p.target} → ${p.source}',
+                  controller: _wordACtrl,
+                  readOnly: _saving,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: Languages.displayName(widget.langA),
+                    prefixText: '${Languages.flagFor(widget.langA)}  ',
+                  ),
+                  textInputAction: TextInputAction.next,
+                  validator: _requireWord,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: ValueKey(
+                    _editing ? WidgetKeys.editWordKo : WidgetKeys.addWordKo,
+                  ),
+                  controller: _wordBCtrl,
+                  readOnly: _saving,
+                  decoration: InputDecoration(
+                    labelText: Languages.displayName(widget.langB),
+                    prefixText: '${Languages.flagFor(widget.langB)}  ',
+                  ),
+                  validator: _requireWord,
+                ),
+                if (!_editing) ...[
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: _loading
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 6),
+                            child: SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : TextButton.icon(
+                            key: const ValueKey(WidgetKeys.addWordAiSuggest),
+                            onPressed: _saving ? null : _askAssistant,
+                            icon: const Icon(
+                              Icons.auto_awesome_rounded,
+                              size: 16,
+                            ),
+                            label: Text('list_detail.ai_translate'.tr()),
                           ),
-                          // Voice-friendly pairs replace BOTH sides.
-                          onPressed: () => setState(() {
-                            if (_reqFromFr) {
-                              _frCtrl.text = p.source;
-                              _koCtrl.text = p.target;
-                            } else {
-                              _koCtrl.text = p.source;
-                              _frCtrl.text = p.target;
-                            }
-                          }),
-                        ),
+                  ),
+                  if (_assistError != null)
+                    Text(
+                      _assistError!,
+                      style: AppTextStyles.caption.copyWith(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  if (_assist != null) ...[
+                    // Translation chips fill BOTH sides as a coherent pair
+                    // (source word → translation), in list order regardless of
+                    // which side was typed — tapping one never leaves a stale
+                    // 'optimized' word on the other side (bug 2026-07-14).
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final t in _assist!.translations)
+                          ActionChip(
+                            avatar: const Icon(
+                              Icons.translate_rounded,
+                              size: 14,
+                            ),
+                            label: Text(
+                              _reqFromA
+                                  ? '$_reqWord → ${t.display}'
+                                  : '${t.display} → $_reqWord',
+                            ),
+                            onPressed: () => setState(() {
+                              if (_reqFromA) {
+                                _wordACtrl.text = _reqWord;
+                                _wordBCtrl.text = t.display;
+                              } else {
+                                _wordBCtrl.text = _reqWord;
+                                _wordACtrl.text = t.display;
+                              }
+                            }),
+                          ),
+                      ],
+                    ),
+                    if (_assist!.voiceFriendly.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 1),
+                            child: Icon(
+                              Icons.mic_rounded,
+                              size: 14,
+                              color: AppColors.clay,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'list_detail.ai_voice_friendly'.tr(),
+                              style: AppTextStyles.caption,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final p in _assist!.voiceFriendly)
+                            ActionChip(
+                              avatar: const Icon(Icons.mic_rounded, size: 14),
+                              label: Text(
+                                _reqFromA
+                                    ? '${p.source} → ${p.target}'
+                                    : '${p.target} → ${p.source}',
+                              ),
+                              // Voice-friendly pairs replace BOTH sides.
+                              onPressed: () => setState(() {
+                                if (_reqFromA) {
+                                  _wordACtrl.text = p.source;
+                                  _wordBCtrl.text = p.target;
+                                } else {
+                                  _wordBCtrl.text = p.source;
+                                  _wordACtrl.text = p.target;
+                                }
+                              }),
+                            ),
+                        ],
+                      ),
                     ],
+                  ],
+                ],
+                if (_saveError case final error?) ...[
+                  const SizedBox(height: 12),
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      error.tr(),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
                   ),
                 ],
+                const SizedBox(height: 16),
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 8,
+                    children: [
+                      TextButton(
+                        onPressed: _saving
+                            ? null
+                            : () => Navigator.pop(context),
+                        child: Text('common.cancel'.tr()),
+                      ),
+                      FilledButton(
+                        key: ValueKey(
+                          _editing
+                              ? WidgetKeys.editWordConfirm
+                              : WidgetKeys.addWordConfirm,
+                        ),
+                        onPressed: _saving ? null : _submit,
+                        child: Text(
+                          (_editing
+                                  ? 'list_detail.edit_confirm'
+                                  : 'list_detail.add_confirm')
+                              .tr(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
-            ],
+            ),
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text('common.cancel'.tr()),
-        ),
-        FilledButton(
-          key: const ValueKey(WidgetKeys.addWordConfirm),
-          onPressed: () async {
-            if (!(_formKey.currentState?.validate() ?? false)) return;
-            final ok = await widget.onSubmit(
-              _frCtrl.text.trim(),
-              _koCtrl.text.trim(),
-            );
-            if (context.mounted && ok) Navigator.pop(context);
-            if (context.mounted && !ok) Navigator.pop(context);
-          },
-          child: Text('list_detail.add_confirm'.tr()),
-        ),
-      ],
     );
   }
 }
 
-/// Bottom sheet: AI-inferred theme + checkable new word pairs.
 typedef _SuggestionAddResult = ({
   List<WordPairSuggestion> added,
   AppException? error,
@@ -894,15 +1038,15 @@ class _ConceptTile extends ConsumerWidget {
   const _ConceptTile({
     super.key,
     required this.concept,
-    required this.listId,
     required this.langA,
     required this.langB,
     required this.editMode,
+    required this.onEdit,
   });
-  final dynamic concept;
-  final String listId;
+  final Concept concept;
   final String langA, langB;
   final bool editMode;
+  final void Function(WordVariant, WordVariant) onEdit;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -932,71 +1076,9 @@ class _ConceptTile extends ConsumerWidget {
         final frWord = fr.isNotEmpty ? fr.first.word : '—';
         final koWord = ko.isNotEmpty ? ko.first.word : '—';
 
-        Future<void> showEditDialog() async {
-          if (fr.isEmpty || ko.isEmpty) return;
-          final frCtrl = TextEditingController(text: frWord);
-          final koCtrl = TextEditingController(text: koWord);
-          final formKey = GlobalKey<FormState>();
-          await showDialog<void>(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: Text('list_detail.edit_dialog_title'.tr()),
-              content: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      key: const ValueKey(WidgetKeys.editWordFr),
-                      controller: frCtrl,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        labelText: Languages.displayName(langA),
-                        prefixText: '${Languages.flagFor(langA)}  ',
-                      ),
-                      textInputAction: TextInputAction.next,
-                      validator: (v) =>
-                          (v?.trim().isEmpty ?? true) ? 'Requis' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      key: const ValueKey(WidgetKeys.editWordKo),
-                      controller: koCtrl,
-                      decoration: InputDecoration(
-                        labelText: Languages.displayName(langB),
-                        prefixText: '${Languages.flagFor(langB)}  ',
-                      ),
-                      validator: (v) =>
-                          (v?.trim().isEmpty ?? true) ? 'Requis' : null,
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: Text('common.cancel'.tr()),
-                ),
-                FilledButton(
-                  key: const ValueKey(WidgetKeys.editWordConfirm),
-                  onPressed: () async {
-                    if (!(formKey.currentState?.validate() ?? false)) return;
-                    await ref
-                        .read(listActionsProvider.notifier)
-                        .updateVariants(
-                          frVariant: fr.first,
-                          newFrWord: frCtrl.text.trim(),
-                          koVariant: ko.first,
-                          newKoWord: koCtrl.text.trim(),
-                        );
-                    if (ctx.mounted) Navigator.pop(ctx);
-                  },
-                  child: Text('list_detail.edit_confirm'.tr()),
-                ),
-              ],
-            ),
-          );
-        }
+        final VoidCallback? edit = editMode && fr.isNotEmpty && ko.isNotEmpty
+            ? () => onEdit(fr.first, ko.first)
+            : null;
 
         Future<void> confirmDelete() async {
           final confirmed = await showDialog<bool>(
@@ -1015,14 +1097,13 @@ class _ConceptTile extends ConsumerWidget {
                 ),
                 TextButton(
                   key: const ValueKey(WidgetKeys.deleteWordConfirm),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.rose),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Theme.of(ctx).colorScheme.error,
+                  ),
                   onPressed: () => Navigator.pop(ctx, true),
                   child: Text(
                     'common.delete'.tr(),
-                    style: AppTextStyles.fig(
-                      14,
-                      FontWeight.w600,
-                    ).copyWith(color: AppColors.rose),
+                    style: AppTextStyles.fig(14, FontWeight.w600),
                   ),
                 ),
               ],
@@ -1050,7 +1131,7 @@ class _ConceptTile extends ConsumerWidget {
                     Text(
                       Languages.displayName(langA),
                       style: AppTextStyles.eyebrowSm.copyWith(
-                        color: AppColors.teal,
+                        color: dark ? AppColors.tealDark : V3Colors.ink60,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -1082,7 +1163,7 @@ class _ConceptTile extends ConsumerWidget {
                     Text(
                       Languages.displayName(langB),
                       style: AppTextStyles.eyebrowSm.copyWith(
-                        color: AppColors.clay,
+                        color: dark ? AppColors.clayDark : AppColors.clayText,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -1101,19 +1182,21 @@ class _ConceptTile extends ConsumerWidget {
               ),
               // Edit-mode action buttons
               if (editMode) ...[
-                const SizedBox(width: 8),
-                GestureDetector(
-                  key: ValueKey(WidgetKeys.conceptEditIcon(frWord)),
-                  onTap: showEditDialog,
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      Icons.edit_outlined,
-                      color: AppColors.teal.withValues(alpha: 0.7),
-                      size: 20,
+                if (edit != null) ...[
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    key: ValueKey(WidgetKeys.conceptEditIcon(frWord)),
+                    onTap: edit,
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.edit_outlined,
+                        color: AppColors.teal.withValues(alpha: 0.7),
+                        size: 20,
+                      ),
                     ),
                   ),
-                ),
+                ],
                 const SizedBox(width: 4),
                 GestureDetector(
                   key: ValueKey(WidgetKeys.conceptDeleteIcon(frWord)),
@@ -1134,9 +1217,9 @@ class _ConceptTile extends ConsumerWidget {
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),
-          child: editMode
-              ? GestureDetector(onTap: showEditDialog, child: tile)
-              : tile,
+          child: edit == null
+              ? tile
+              : GestureDetector(onTap: edit, child: tile),
         );
       },
     );

@@ -26,7 +26,7 @@ Future<void> resetTestAccount(ScenarioAccount account) async {
       'e2e_patrol_contract',
       get: true,
     );
-    if (contract != 'study-catalog-v1') {
+    if (contract != 'study-catalog-v2') {
       throw StateError('Hosted Patrol schema is not ready.');
     }
     final auth = await client.auth.signInWithPassword(

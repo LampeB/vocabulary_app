@@ -23,6 +23,11 @@ L'application utilise SQLite comme source de lecture et les colonnes
   Un échec de transaction locale conserve le bilan affiché mais ne marque pas
   le jour étudié, ne supprime pas son rappel et n'envoie pas de RPC pour une
   persistance non confirmée. La réponse distante n'enrichit que le compte actif.
+  À la restauration des rappels, la présence du jour civil courant est lue pour
+  ce compte dans SQLite, y compris les dates acquittées. Un ancien timestamp
+  de séance n'est pas converti dans le fuseau courant pour affirmer qu'un jour
+  a été étudié. L'historique antérieur à SQLite 14 reste disponible ; seule une
+  date civile confirmée localement ou dans le profil peut supprimer ce rappel.
 
 - Les repositories écrivent localement. `PushSync` est le seul responsable
   des envois de listes, concepts, variantes, progression et événements.

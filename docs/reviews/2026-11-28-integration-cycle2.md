@@ -740,3 +740,179 @@ La convergence repart à **0/2** et la prochaine passe est **5/20** du cycle 2,
 relecture cumulée 25. Les quatre nouvelles instances relisent le même commit
 avant toute nouvelle modification. Le cycle 3 reste soumis à une décision
 explicite ; le plafond du cycle courant reste vingt passes.
+
+## Passe 5 — `7ff5343` — relecture cumulée 25
+
+Les quatre rapports finaux portent sur
+`7ff53438e37dfd63c347dcecb52b2a9f897933c0`, contre la base inchangée
+`179f9ae0b34fe7c469b73d59ee4d25ef61515f9e`. Ils sont archivés avant correction.
+Les neuf observations Important représentent **huit défauts distincts** :
+Qualité et Correction rapportent le même défaut de rappel civil. Leur doublon
+est regroupé sans modifier son type. Il n'y a pas de Bloquant et une Suggestion.
+La convergence reste **0/2**. Les huit checks CI et leur provenance sont verts,
+y compris les nouvelles vérifications des artefacts de liens Android/iOS.
+
+| Profil / instance | Verdict | Important | Suggestion |
+| --- | --- | --- | --- |
+| Produit — `/root/c2p5_product` | BLOQUÉ | 3 | 1 |
+| Qualité — `/root/c2p5_quality` | BLOQUÉ | 2 | 0 |
+| Correction — `/root/c2p5_correctness` | BLOQUÉ | 2 | 0 |
+| Sécurité — `/root/c2p5_security` | BLOQUÉ | 2 | 0 |
+
+| Identifiant | Type | Constat |
+| --- | --- | --- |
+| C2-P5-01 | Important | Ajouter ouvre une paire par défaut pendant le chargement et sauvegarde les mots dans les langues inversées |
+| C2-P5-02 | Important | Ajouter/Modifier débordent à texte doublé avec clavier et la zone des champs peut disparaître |
+| C2-P5-03 | Important | Terminer utilise une encre d'accent à 2,18:1 en clair |
+| C2-P5-04 | Important | Le rappel restauré convertit le timestamp du quiz plutôt que son jour civil conservé ; doublon Qualité/Correction |
+| C2-P5-05 | Important | Les abonnements grammaticaux persistent sans lecteur et leurs agrégats couvrent les variantes de tous les comptes |
+| C2-P5-06 | Important | Deux publications simultanées du même clip manquant déclenchent deux rendus payants |
+| C2-P5-07 | Important | L'ancien 012 n'installe pas les restrictions d'écriture Storage ajoutées ensuite en place |
+| C2-P5-08 | Important | L'ancienne garde de 015 renvoie un jeton que la chaîne actuelle refuse après mise à niveau |
+| C2-P5-S01 | Suggestion | Modifier affiche Requis sans traduction en anglais/coréen |
+
+### C2-P5-01 à C2-P5-03 et C2-P5-S01 — une paire et une saisie stables
+
+Les métadonnées de liste sont asynchrones ; le formulaire ne peut pas les
+remplacer par une paire par défaut. Ajouter et Modifier attendent leur valeur
+confirmée puis vérifient la même paire, le compte et la destination canonique
+dans la transaction d'écriture. Modifier vérifie aussi que ses variantes
+appartiennent au même concept et les modifie atomiquement. Une modification
+concurrente conserve le texte du formulaire et demande sa réouverture.
+
+Le titre, les champs et les actions utilisent la surface défilante signalée
+déjà livrée pour le reset. Les deux champs et Enregistrer restent atteignables
+à 568 × 320, texte doublé, clavier de 180 pixels dans les trois locales.
+Terminer et les petits libellés utilisent l'encre adaptée au thème. Les erreurs
+de champ réutilisent `common.required`, sans changer le type Suggestion de S01.
+
+Les **154 tests ciblés** passent avec analyse propre : chargement retardé,
+erreur/null et relance vers KO→FR, codes réellement enregistrés en SQLite,
+changement de paire/compte conservant la saisie, paire changée dans la file
+transactionnelle et adoption d'un alias starter pendant le formulaire.
+Le contraste rendu passe dans les deux thèmes. La fixture de pompe désactive
+le ruban Flutter DEBUG, comme le fait déjà l'application ; les pixels de ce
+ruban superposé ne sont pas utilisés comme preuve du contraste de Terminer.
+Les sondes originales restent intactes ; aucun clavier physique n'est testé.
+La première suite globale révèle une fixture smart-list KO→FR utilisant
+encore les langues implicites FR→KO et des mots dans l'autre ordre. Elle
+fournit désormais la paire et les mots réellement ordonnés, avec direction de
+carte identique dans les deux listes pour conserver la preuve d'isolation.
+Les huit tests du fichier passent ; le seul appelant applicatif fournit déjà
+les langues confirmées. Le garde transactionnel n'est pas relâché.
+
+### C2-P5-04 — date civile et restauration du rappel
+
+Le DAO interroge directement le jour civil du compte dans `quiz_study_days`,
+sans filtrer les dates acquittées. Le timestamp de l'historique n'est plus
+reconverti dans le fuseau du nouvel appareil pour prouver le jour étudié.
+L'ancien historique reste disponible sans date inventée ; une date confirmée
+dans le profil reste utilisable pour la suppression du rappel.
+
+Les **40 tests ciblés** passent avec analyse propre. Une vraie fermeture et
+réouverture SQLite couvre les deux décalages jour/timestamp et leurs variantes
+avant/après ACK, avec un conteneur Riverpod neuf et profil en retard. Un jour
+d'un autre compte ne supprime pas le rappel. Les anciennes séances sans date
+ne créent pas de jour rétrospectif, tandis que le profil confirmé reste reconnu.
+Les validations sont sur hôte avec service de notification contrôlé.
+
+### C2-P5-05 — durée et périmètre des lectures grammaticales
+
+Les agrégats globaux `GROUP_CONCAT` et les lectures de résolution répétées
+sont remplacés par des snapshots DAO directement bornés au compte, à la langue
+cible et aux copies catalogue concernées. Leur égalité par valeur coupe les
+notifications en aval si une invalidation de table étrangère ne change rien.
+Le graphe est auto-disposé ; sa source est aussi annulée explicitement, car
+la Future interne pouvait retenir un abonnement après disparition de l'élément.
+Le quiz maintient un abonnement seulement pendant sa préparation initiale.
+
+Les **158 tests ciblés** passent avec analyse de neuf fichiers propre. Le
+retour de la sonde originale est vide après fermeture des deux lecteurs.
+Deux écritures observées pour deux langues produisent huit snapshots bornés,
+zéro agrégat global, zéro lecture de suivi et zéro notification de statut.
+Après fermeture, l'écriture suivante ne produit aucun SELECT. La réactivité
+pendant la consultation, le changement de compte et les vrais catalogues
+EN→KO/KO→FR sont vérifiés ; un chargement de quiz retardé survit à une frame,
+puis libère ses abonnements alors que les cartes restent jouables.
+
+Un concept gradué uniquement sur sa variante française fournit toujours le
+mot cible coréen ; deux directions graduées ne le comptent pas deux fois.
+Les états review/relearning correspondent au critère de graduation documenté ;
+une ancienne ligne newCard n'est pas assimilée à un mot connu. Les seuils et
+minima restent inchangés. EXPLAIN confirme les index compte/progression,
+concept/langue et identité de progression. Les métadonnées de listes sont
+parcourues pour choisir les copies seed exactes, sans scanner les concepts
+et variantes des autres comptes. Les relectures bornées normales de Drift
+pendant une observation restent une limite explicitement conservée.
+
+### C2-P5-06 — coût partagé et réservation du catalogue
+
+La migration 026 ajoute la réservation serveur des chemins canoniques du
+catalogue en réutilisant le registre atomique de 90 secondes. La réservation
+privée conserve son namespace utilisateur ; la libération vérifie le jeton.
+Le publieur relit Storage après acquisition avant tout rendu. Un concurrent
+échoue sur cette entrée sans payer ; après publication la relance compte
+l'objet existant. Les doublons dans un lot ne recréent pas un clip.
+
+Le client HTTP audio commun reprend les bornes du provisionnement utilisateur.
+Le délai de 60 secondes couvre acquisition, relecture, rendu, upload et
+manifeste. Un rendu ou upload incertain garde sa réservation jusqu'à expiration.
+Un échec certain avant travail payant peut la libérer. Les compteurs ne
+déclarent pas deux créations pour un seul objet immuable.
+
+Les **32 tests SDK ciblés**, **44 tests Edge** complets et **sept bundles gelés**
+avec sonde hors réseau passent. Les scénarios contrôlent la concurrence sur
+`bonjour`, la reprise après publication, la relecture sous verrou et
+l'annulation du travail payant suivie d'une relance bloquée. La réservation
+SQL est aussi vérifiée à deux connexions réelles, avec ACL, namespace, expiration
+et ancien jeton incapable de libérer le nouveau. Aucun appel fournisseur réel.
+
+### C2-P5-07 et C2-P5-08 — versions réellement installées
+
+Les fixtures 012/015 sont copiées à l'identique de `90a8298` et leur hash de
+blob est vérifié. Le premier chemin annonce v1 après 024 mais permet une
+insertion audio anonyme via une politique permissive ; le second applique
+016–024 sans erreur mais son prévol retourne NULL. Ces échecs sont reproduits
+avant la correction additive, sans substituer le 012 déjà corrigé du dépôt.
+
+La migration 025 installe les restrictions Storage et vérifie leurs commandes,
+rôles, prédicats, RLS et bucket privé. Elle vérifie les gardes effectives de
+namespace/tombstone 015 et d'ordre d'écriture 016 puis préserve les contrôles
+018–023. Le contrat `study-catalog-v2` permet aux clients actuels de refuser
+les serveurs v1 qui ne prouvent pas ces réparations. Les réglages hébergés et
+la variable d'activation GitHub ne sont pas modifiés ; le prévol v2 doit
+réussir avant toute activation future.
+
+Les **17 suites SQL**, les **trois courses existantes**, la nouvelle course de
+bail seed, l'activation complète générée, son refus de réapplication et les
+mises à niveau 012/015/017 testées passent sur PostgreSQL 16.11 jetable. Les
+tests retirent ou altèrent aussi des gardes et vérifient le refus du prévol et
+du reset. Les **dix tests Python E2E**, actionlint et le diff passent. La base
+locale est arrêtée proprement.
+
+Les affirmations historiques portent sur `90a8298`. Une version encore
+antérieure de 012 sans gardes SELECT est déjà refusée avant activation à 013 ;
+elle nécessite un diagnostic de schéma et n'est pas assimilée au chemin testé.
+
+### Validation commune après la passe 5
+
+Les **1 368 tests hôte** passent, avec douze diagnostics positifs exclus sans
+opt-in et **76,8 %** de couverture (15 489 / 20 178 lignes). L'analyse Flutter
+complète est propre. La suite et l'analyse sont relancées après la correction
+de la fixture smart-list ; le contrat de paire n'est pas assoupli. Les
+25 diagnostics ciblés passent avec opt-in, avec le test de refus inverse exclu.
+
+Les 44 tests Edge et sept bundles, les 17 suites SQL, quatre scénarios de
+contention, chemins historiques 012/015/017 et activation générée, les dix
+tests Python E2E, actionlint, garde de licence et contrôle des manifests
+Android fusionnés passent. Les sources natives sont inchangées depuis les
+builds Android/iOS verts de `7ff5343`, dont les artefacts vérifient déjà les
+liens ; le prochain SHA doit toutefois obtenir ses propres huit checks.
+Les suites ciblées se recouvrent et ne sont pas additionnées. Aucun appel
+fournisseur réel, réglage hébergé ou essai physique n'est effectué.
+
+Le commit commun rassemble les huit Important distincts, S01 et les contrats
+associés. La convergence repart à **0/2** et la prochaine passe est **6/20**
+du cycle 2, relecture cumulée 26. Les quatre nouvelles instances relisent le
+même commit avant toute nouvelle modification ; aucun troisième cycle n'est
+autorisé automatiquement.

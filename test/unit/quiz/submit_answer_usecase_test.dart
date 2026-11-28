@@ -58,9 +58,6 @@ class _FakeProgressRepo implements ProgressRepository {
     String userId,
   ) async => throw UnimplementedError();
   @override
-  Future<Result<List<VariantProgress>>> getKnownVariants(String userId) async =>
-      throw UnimplementedError();
-  @override
   Future<Result<List<VariantProgress>>> getAllDueCards({
     required String userId,
     required QuizDirection direction,

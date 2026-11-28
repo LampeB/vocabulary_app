@@ -66,6 +66,7 @@ Future<void> pumpScreen(
     ProviderScope(
       overrides: overrides,
       child: MaterialApp.router(
+        debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         themeMode: themeMode,

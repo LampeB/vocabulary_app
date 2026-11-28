@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2.119.2";
+import { createAudioClient } from "../_shared/audio_client.ts";
 import { storageObjectExists } from "../_shared/storage_presence.ts";
 import {
   audioPathForUser,
@@ -53,19 +53,7 @@ export async function handleAudioProvision(
   if (!token) return response({ error: "Authentication required" }, 401);
 
   const client = (key: string, deadline?: AbortSignal) =>
-    createClient(supabaseUrl, key, {
-      db: { retry: false },
-      global: {
-        fetch: (input, init) => {
-          const limit = deadline ?? AbortSignal.timeout(10_000);
-          const signal = init?.signal
-            ? AbortSignal.any([limit, init.signal])
-            : limit;
-          signal.throwIfAborted();
-          return fetch(input, { ...init, signal });
-        },
-      },
-    });
+    createAudioClient(supabaseUrl, key, deadline);
   const auth = client(anonKey);
   const { data: authData, error: authError } = await auth.auth.getUser(token);
   const user = authData.user;

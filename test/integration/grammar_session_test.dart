@@ -5,7 +5,8 @@ import 'dart:ui' show Locale;
 
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart'
+    show ApplyInterceptor, QueryExecutor, QueryInterceptor, Value;
 import 'package:drift/native.dart';
 import 'package:easy_localization/easy_localization.dart';
 // ignore: implementation_imports
@@ -39,6 +40,29 @@ import '../helpers/fake_remote.dart';
 import '../helpers/pump_screen.dart' show initTestLocalization;
 
 final _quiz = quizProvider(Object());
+
+class _GrammarReads extends QueryInterceptor {
+  final selects = <({String sql, List<Object?> args})>[];
+  final started = Completer<void>();
+  Completer<void>? holdDrill;
+  bool record = false;
+
+  @override
+  Future<List<Map<String, Object?>>> runSelect(
+    QueryExecutor executor,
+    String statement,
+    List<Object?> args,
+  ) async {
+    if (record) selects.add((sql: statement, args: args));
+    final held = holdDrill;
+    if (held != null && statement.contains('MAX(p.scheduled_days)')) {
+      holdDrill = null;
+      started.complete();
+      await held.future;
+    }
+    return super.runSelect(executor, statement, args);
+  }
+}
 
 /// Grammar drill sessions through the REAL quiz flow: cards generated from
 /// the rule + mastered words, answers recording rule progress (never FSRS),
@@ -176,6 +200,7 @@ void main() {
 
   late AppDatabase db;
   late ProviderContainer container;
+  late _GrammarReads sql;
 
   const words = [
     DrillWord(word: '학생', category: 'nom'),
@@ -247,7 +272,8 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-    db = AppDatabase.forTesting(NativeDatabase.memory());
+    sql = _GrammarReads();
+    db = AppDatabase.forTesting(NativeDatabase.memory().interceptWith(sql));
     container = makeContainer();
     addTearDown(db.close);
   });
@@ -262,12 +288,21 @@ void main() {
         cardLimit: cardLimit,
       );
 
-  Future<ProviderContainer> masterCatalog(String langA, String langB) async {
-    final session = makeContainer(useCatalog: true);
+  Future<ProviderContainer> masterCatalog(
+    String langA,
+    String langB, {
+    ProviderContainer? inSession,
+  }) async {
+    final session = inSession ?? makeContainer(useCatalog: true);
     await session.read(starterSeederProvider).ensureSeededForPair(langA, langB);
-    final lists = await session.read(myListsProvider.future);
+    final lists = await session
+        .read(vocabularyRepositoryProvider)
+        .watchMyLists()
+        .first;
     final now = DateTime(2026);
-    for (final list in lists) {
+    for (final list in lists.where(
+      (list) => list.langA == langA && list.langB == langB,
+    )) {
       final concepts = await db.conceptDao.getConceptsByList(list.id);
       final variants = await db.conceptDao.getVariantsByConceptIds([
         for (final concept in concepts) concept.id,
@@ -288,6 +323,209 @@ void main() {
     }
     return session;
   }
+
+  test(
+    'live grammar projections stay scoped and stop after both lessons close',
+    () async {
+      final account = StateProvider<AppUser?>(
+        (ref) => AppUser(
+          id: 'u',
+          email: 'u@test.example',
+          username: 'Learner',
+          createdAt: DateTime(2026),
+        ),
+      );
+      final session = makeContainer(useCatalog: true, account: account);
+      await masterCatalog('en', 'ko', inSession: session);
+      await masterCatalog('ko', 'fr', inSession: session);
+
+      final korean = ruleStatusesProvider('ko');
+      final french = ruleStatusesProvider('fr');
+      var statusUpdates = 0;
+      final ko = session.listen(korean, (_, _) => statusUpdates++);
+      final fr = session.listen(french, (_, _) => statusUpdates++);
+      addTearDown(ko.close);
+      addTearDown(fr.close);
+      const articleRule = 'fr-articles-le-la';
+      final initialKo = await session.read(korean.future);
+      expect(initialKo.any((s) => s.enoughWords), isTrue);
+      final initialFr = (await session.read(
+        french.future,
+      )).singleWhere((s) => s.rule.id == articleRule);
+      expect(initialFr.availability, RuleAvailability.unlocked);
+      expect(initialFr.enoughWords, isTrue);
+
+      final now = DateTime(2026);
+      // Simulate a restore arriving through the same DAO writes that update the
+      // local tables. Even a retained cross-account FSRS reference cannot make
+      // the other account's row part of the current learner's projection.
+      Future<void> restoreWord(String id, String owner, String target) =>
+          db.transaction(() async {
+            await db.vocabularyListDao.upsert(
+              VocabularyListsTableCompanion.insert(
+                id: id,
+                ownerId: owner,
+                name: id,
+                langA: const Value('ko'),
+                langB: Value(target),
+                seedId: Value('starter-food:ko>$target'),
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
+            await db.conceptDao.upsert(
+              ConceptsTableCompanion.insert(
+                id: 'concept-$id',
+                listId: id,
+                category: const Value('nom'),
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
+            await db.conceptDao.upsertVariant(
+              WordVariantsTableCompanion.insert(
+                id: 'variant-$id',
+                conceptId: 'concept-$id',
+                langCode: target,
+                word: 'mot-$id',
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
+            await db.batch((batch) {
+              for (final userId in {'u', owner}) {
+                batch.insert(
+                  db.variantProgressTable,
+                  VariantProgressTableCompanion.insert(
+                    id: 'progress-$id-$userId',
+                    userId: userId,
+                    variantId: 'variant-$id',
+                    direction: 'ko>$target',
+                    state: const Value('review'),
+                    createdAt: now,
+                    updatedAt: now,
+                  ),
+                );
+              }
+            });
+          });
+
+      Future<void> settleReads() async {
+        await Future<void>.delayed(const Duration(milliseconds: 25));
+        await session.pump();
+      }
+
+      await settleReads();
+      final beforeRestore = statusUpdates;
+      sql.record = true;
+      await restoreWord('foreign', 'another-account', 'fr');
+      await settleReads();
+      await restoreWord('other-language', 'u', 'es');
+      await settleReads();
+      expect(statusUpdates, beforeRestore);
+      expect(sql.selects, hasLength(8)); // two snapshots per target per commit
+      expect(
+        sql.selects.every(
+          (select) =>
+              select.args.contains('u') &&
+              (select.args.contains('ko') || select.args.contains('fr')) &&
+              !select.sql.contains('GROUP_CONCAT') &&
+              (select.sql.contains('MAX(p.scheduled_days)') ||
+                  select.sql.contains('WITH tokens')),
+        ),
+        isTrue,
+      );
+
+      final denominator = initialFr.prereqTotals['starter-food']! + 1;
+      final changed = Completer<RuleStatus>();
+      final updates = session.listen(french, (_, next) {
+        final article = next.asData?.value.singleWhere(
+          (s) => s.rule.id == articleRule,
+        );
+        if (article?.prereqTotals['starter-food'] == denominator &&
+            !changed.isCompleted) {
+          changed.complete(article);
+        }
+      });
+      addTearDown(updates.close);
+      await db.conceptDao.upsert(
+        ConceptsTableCompanion.insert(
+          id: 'a-new-food-concept',
+          listId: initialFr.prereqListIds['starter-food']!,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      expect(
+        (await changed.future.timeout(
+          const Duration(seconds: 3),
+        )).prereqProgress['starter-food'],
+        lessThan(1),
+      );
+      updates.close();
+
+      session.read(account.notifier).state = session
+          .read(account)!
+          .copyWith(id: 'another-account');
+      await session.pump();
+      final switchedFr = (await session.read(
+        french.future,
+      )).singleWhere((s) => s.rule.id == articleRule);
+      expect(switchedFr.prereqListIds['starter-food'], 'foreign');
+      expect(switchedFr.prereqTotals['starter-food'], 1);
+      expect(switchedFr.enoughWords, isFalse);
+      expect(
+        (await session.read(korean.future)).every((s) => !s.enoughWords),
+        isTrue,
+      );
+
+      ko.close();
+      fr.close();
+      await settleReads();
+      await settleReads();
+      expect(session.exists(korean), isFalse);
+      expect(session.exists(french), isFalse);
+      expect(session.exists(grammarProgressProvider), isFalse);
+      expect(session.exists(grammarPrerequisitesProvider('fr')), isFalse);
+      expect(session.exists(grammarPrerequisitesProvider('ko')), isFalse);
+      expect(session.exists(drillWordsProvider('ko')), isFalse);
+      sql.selects.clear();
+      await restoreWord('after-closing', 'u', 'fr');
+      await settleReads();
+      expect(sql.selects, isEmpty);
+    },
+  );
+
+  test(
+    'quiz holds a delayed catalog pool until load and releases it while playing',
+    () async {
+      final session = await masterCatalog('en', 'ko');
+      final quiz = session.listen(_quiz, (_, _) {});
+      addTearDown(quiz.close);
+      final held = Completer<void>();
+      sql.holdDrill = held;
+      addTearDown(() {
+        if (!held.isCompleted) held.complete();
+      });
+
+      final loading = session.read(_quiz.notifier).loadCards(args());
+      await sql.started.future.timeout(const Duration(seconds: 3));
+      await session.pump();
+      expect(quiz.read().isLoading, isTrue);
+      expect(session.exists(drillWordsProvider('ko')), isTrue);
+      held.complete();
+      await loading.timeout(const Duration(seconds: 3));
+      expect(quiz.read().isLoading, isFalse);
+      expect(quiz.read().cards, hasLength(3));
+
+      await session.pump();
+      await session.pump();
+      await session.pump();
+      expect(session.exists(drillWordsProvider('ko')), isFalse);
+      expect(session.exists(grammarPrerequisitesProvider('ko')), isFalse);
+      expect(quiz.read().cards, hasLength(3));
+    },
+  );
 
   Future<void> gradeCatalogAnswers(
     ProviderContainer session, {

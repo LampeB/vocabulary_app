@@ -134,6 +134,7 @@
   "list_detail.ai_added": "추가됨",
   "list_detail.ai_add_partial": "추가됨: {added}개. 남은 선택: {remaining}개.",
   "list_detail.ai_add_quota": "이 목록의 단어 수 한도에 도달했어요.",
+  "list_detail.word_pair_changed": "목록이 변경되었어요. 이 창을 닫고 다시 열어 주세요.",
   "list_detail.ai_add_error": "이 단어들을 추가하지 못했어요. 선택은 유지돼요.",
   "list_detail.ai_suggest_title": "주제: {theme}",
   "list_detail.ai_add_selected": "{n}개 단어 추가",

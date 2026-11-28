@@ -656,12 +656,21 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
       state = state.copyWith(isLoading: false, isEmpty: true);
       return;
     }
-    final words = await ref.read(
+    // Quiz assembly is a one-shot consumer of the live lesson pool. Keep the
+    // subscription through the await, then release it before serving cards.
+    final pool = ref.listen(
       ruleDrillWordsProvider((
         ruleId: args.ruleId!,
         targetLang: args.langB,
       )).future,
+      (_, _) {},
     );
+    final List<DrillWord> words;
+    try {
+      words = await pool.read();
+    } finally {
+      pool.close();
+    }
     if (!_isCurrentSession(epoch)) return;
 
     final exercises = GrammarDrillGenerator(module).generate(

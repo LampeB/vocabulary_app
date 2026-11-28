@@ -134,6 +134,7 @@
   "list_detail.ai_added": "Ajouté",
   "list_detail.ai_add_partial": "Ajoutés : {added}. Encore sélectionnés : {remaining}.",
   "list_detail.ai_add_quota": "La limite de mots de cette liste est atteinte.",
+  "list_detail.word_pair_changed": "La liste a changé. Ferme ce formulaire et ouvre-le de nouveau.",
   "list_detail.ai_add_error": "Impossible d'ajouter ces mots. Tes sélections sont conservées.",
   "list_detail.ai_suggest_title": "Thème : {theme}",
   "list_detail.ai_add_selected": "Ajouter {n} mot(s)",

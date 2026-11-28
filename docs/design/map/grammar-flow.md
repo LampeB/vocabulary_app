@@ -34,6 +34,18 @@ diagramme : `../diagrams/grammar-stage-ramp.svg`
   et langue cible exacte. Une liste personnelle homonyme ne compte pas ;
   l'adoption des anciens noms reste réservée à la migration des listes starter.
 
+### Réactivité livrée et durée d'observation
+
+Les abonnements SQLite des leçons suivent la vie de leurs consommateurs.
+Les prérequis agrègent
+les concepts vivants des copies catalogue du compte pour la langue cible.
+Les exercices résolvent ses concepts gradués dans cette langue puis les limitent
+aux copies de prérequis sélectionnées. Une écriture étrangère peut faire
+revérifier ces projections bornées sans modifier leurs résultats. Le graphe
+libère les abonnements après le départ du dernier consommateur ; le quiz en
+garde un uniquement pendant la préparation de ses cartes. Les seuils et minima
+pédagogiques restent ceux du contrat ci-dessous.
+
 ## Décidé (utilisateur, 2026-08-08, précisé le 2026-09-12) — porte hybride
 - La porte d'une règle se calcule sur l'ENSEMBLE de ses listes prérequises :
   mots connus / mots totaux ≥ **80 %**, pondéré par le nombre de mots.

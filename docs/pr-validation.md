@@ -279,14 +279,17 @@ Il vérifie que `vocab-audio` reste fermé aux clients entre 007 et 012, puis
 exerce les lectures publiques, la confidentialité et l'immuabilité des clips
 malgré une règle Storage permissive préexistante. Les tests des outils admin
 vérifient le refus de HTTP et des redirections avec des clés factices. Le
-prévol Patrol et le reset exigent le contrat `study-catalog-v1`, disponible
-après 022 et 023 : jours d'étude transactionnels et identité catalogue des
-purges physiques sont requis ensemble.
+prévol Patrol et le reset exigent le contrat `study-catalog-v2`, disponible
+après 025 : jours d'étude et identité catalogue des purges de 022/023,
+protections Storage effectives et gardes d'upgrade 012/015 sont requis ensemble.
 Les suites SQL vérifient les vrais refus de reset avec données conservées
-à 009 et de 012 à 022, puis l'acceptation après 023
+à 009 et de 012 à 022, l'acceptation historique v1 après 023, puis le contrat v2
+après 025 sur les chemins neuf et historiques 012/015/017
 et le refus quand un garde d'isolation, de suppression, de référence privée ou
 d'écriture est désactivé. Les tests d'isolation E2E couvrent les écritures de
-relations et de progression par le rôle authentifié. Deux connexions PostgreSQL vérifient qu'une
+relations et de progression par le rôle authentifié. Les réservations 026
+vérifient aussi les ACL, namespaces, expiration, jetons périmés et une contention
+réelle à deux connexions pour le catalogue audio. Deux connexions PostgreSQL vérifient qu'une
 demande d'amitié concurrente attend la fin du reset, puis est refusée.
 Une autre course réelle fait attendre le jour 25 derrière le jour 26 sous
 verrou de profil, puis vérifie la même série et le même record que dans

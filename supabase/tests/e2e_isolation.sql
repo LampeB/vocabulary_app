@@ -1,4 +1,4 @@
--- Disposable database only, after migration 023. All fixtures roll back.
+-- Disposable database only, after migration 025. All fixtures roll back.
 BEGIN;
 INSERT INTO auth.users(id,email,raw_user_meta_data,raw_app_meta_data) VALUES
  ('51000000-0000-0000-0000-000000000001','isolated@example.invalid','{"username":"isolated"}',
@@ -26,13 +26,40 @@ END $$;
 
 SET LOCAL ROLE anon;
 DO $$ BEGIN
-  IF public.e2e_patrol_contract() IS DISTINCT FROM 'study-catalog-v1' THEN
+  IF public.e2e_patrol_contract() IS DISTINCT FROM 'study-catalog-v2' THEN
     RAISE EXCEPTION 'CI cannot verify the installed Patrol schema';
   END IF;
 END $$;
 RESET ROLE;
-ALTER TABLE public.friend_requests DISABLE TRIGGER e2e_guard_shared_write;
 SELECT set_config('request.jwt.claim.sub','51000000-0000-0000-0000-000000000001',true);
+DO $$
+DECLARE change text;
+BEGIN
+  FOREACH change IN ARRAY ARRAY[
+    'DROP POLICY "vocab audio client insert boundary" ON storage.objects',
+    'ALTER POLICY "vocab audio client update boundary" ON storage.objects WITH CHECK (true)',
+    'ALTER POLICY "vocab audio client delete boundary" ON storage.objects TO authenticated',
+    'ALTER TABLE storage.objects DISABLE ROW LEVEL SECURITY'
+  ] LOOP
+    BEGIN
+      EXECUTE change;
+      SET LOCAL ROLE anon;
+      IF public.e2e_patrol_contract() IS NOT NULL THEN
+        RAISE EXCEPTION 'Patrol reported ready after %', change;
+      END IF;
+      SET LOCAL ROLE authenticated;
+      BEGIN
+        PERFORM public.reset_e2e_account('isolation.a');
+        RAISE EXCEPTION 'Reset accepted after %', change;
+      EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+      IF NOT EXISTS (SELECT 1 FROM public.vocabulary_lists WHERE id='52000000-0000-0000-0000-000000000001') THEN
+        RAISE EXCEPTION 'Reset changed a list after %', change;
+      END IF;
+      RAISE SQLSTATE 'P9500'; -- Roll back the policy change and local role.
+    EXCEPTION WHEN SQLSTATE 'P9500' THEN NULL; END;
+  END LOOP;
+END $$;
+ALTER TABLE public.friend_requests DISABLE TRIGGER e2e_guard_shared_write;
 SET LOCAL ROLE authenticated;
 DO $$ BEGIN
   IF public.e2e_patrol_contract() IS NOT NULL THEN RAISE EXCEPTION 'Disabled isolation reported ready'; END IF;
@@ -54,9 +81,16 @@ END $$;
 RESET ROLE;
 ALTER TABLE public.word_variants ENABLE TRIGGER word_variants_guard_tombstone;
 ALTER TABLE public.word_variants DISABLE TRIGGER zz_vocabulary_write_order_update;
-SET LOCAL ROLE anon;
+SET LOCAL ROLE authenticated;
 DO $$ BEGIN
   IF public.e2e_patrol_contract() IS NOT NULL THEN RAISE EXCEPTION 'Disabled write ordering reported ready'; END IF;
+  BEGIN
+    PERFORM public.reset_e2e_account('isolation.a');
+    RAISE EXCEPTION 'Reset accepted with disabled write ordering';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  IF NOT EXISTS (SELECT 1 FROM public.vocabulary_lists WHERE id='52000000-0000-0000-0000-000000000001') THEN
+    RAISE EXCEPTION 'Reset with disabled write ordering changed a list';
+  END IF;
 END $$;
 RESET ROLE;
 ALTER TABLE public.word_variants ENABLE TRIGGER zz_vocabulary_write_order_update;

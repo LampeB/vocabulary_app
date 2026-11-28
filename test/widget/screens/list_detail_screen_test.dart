@@ -1,4 +1,5 @@
 // ignore_for_file: invalid_use_of_internal_member
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/native.dart';
@@ -8,12 +9,16 @@ import 'package:easy_localization/src/localization.dart';
 // ignore: implementation_imports
 import 'package:easy_localization/src/translations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
+import 'package:vocab_kr/core/languages.dart';
+import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
+import 'package:vocab_kr/domain/repositories/vocabulary_repository.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/data/sync/push_sync.dart';
@@ -27,6 +32,7 @@ import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
 import 'package:vocab_kr/presentation/screens/lists/list_detail_screen.dart';
 import '../../helpers/fake_remote.dart';
 import '../../helpers/pump_screen.dart';
+import '../../helpers/rendered_text_contrast.dart';
 
 class _PairAssistant implements VocabAssistantDataSource {
   _PairAssistant({
@@ -105,6 +111,7 @@ void main() {
   late AppDatabase db;
   late VocabularyRepositoryImpl repo;
   late String listId;
+  final activeRepository = StateProvider<VocabularyRepository?>((ref) => null);
 
   // drift awaits deadlock under testWidgets' FakeAsync zone (nothing flushes
   // their microtasks outside a pump), so all direct DB work — seeding and
@@ -123,6 +130,8 @@ void main() {
     _PairAssistant? assistant,
     _CanonicalDetailRemote? canonicalRemote,
     ThemeMode themeMode = ThemeMode.light,
+    Stream<VocabularyList?> Function()? metadata,
+    bool settle = true,
   }) async {
     pushedRoute = null;
     launchedQuiz = null;
@@ -169,8 +178,13 @@ void main() {
       tester,
       screen: ListDetailScreen(listId: listId),
       themeMode: themeMode,
+      settle: settle,
       overrides: [
-        vocabularyRepositoryProvider.overrideWithValue(repo),
+        vocabularyRepositoryProvider.overrideWith(
+          (ref) => ref.watch(activeRepository) ?? repo,
+        ),
+        if (metadata != null)
+          listInfoProvider.overrideWith((ref, _) => metadata()),
         isPremiumProvider.overrideWithValue(premium),
         if (assistant != null)
           vocabAssistantProvider.overrideWithValue(assistant),
@@ -274,6 +288,210 @@ void main() {
     await tester.tap(byKey(WidgetKeys.listDetailEditItem));
     await tester.pumpAndSettle();
   }
+
+  for (final theme in [ThemeMode.light, ThemeMode.dark]) {
+    testWidgets(
+      'Done and the word language labels have readable contrast in $theme',
+      (tester) async {
+        useFallbackFontsForContrast();
+        await pump(tester, themeMode: theme);
+        await enterEditMode(tester);
+        for (final label in [
+          find.text('list_detail.action_done'.tr()),
+          find.text(Languages.displayName('fr')).first,
+          find.text(Languages.displayName('ko')).first,
+        ]) {
+          expect(
+            await renderedTextContrast(tester, label),
+            greaterThanOrEqualTo(4.5),
+            reason: tester.widget<Text>(label).data,
+          );
+        }
+        await tester.tap(find.text('list_detail.action_done'.tr()));
+        await tester.pumpAndSettle();
+        expect(byKey(WidgetKeys.listDetailMenu), findsOneWidget);
+        await unmountScreen(tester);
+      },
+    );
+  }
+
+  testWidgets('Add waits for the confirmed pair after a metadata read fails', (
+    tester,
+  ) async {
+    final queries = <StreamController<VocabularyList?>>[];
+    await pump(
+      tester,
+      langA: 'ko',
+      langB: 'fr',
+      wordA: '고양이',
+      wordB: 'chat',
+      settle: false,
+      metadata: () {
+        final query = StreamController<VocabularyList?>();
+        queries.add(query);
+        return query.stream;
+      },
+    );
+    final add = byKey(WidgetKeys.listDetailAddWord);
+    expect(add, findsNothing);
+    expect(find.byType(Dialog), findsNothing);
+
+    queries.single.addError(StateError('metadata unavailable'));
+    await tester.pumpAndSettle();
+    expect(add, findsNothing);
+    expect(find.text('common.error'.tr()), findsOneWidget);
+    expect(find.textContaining('metadata unavailable'), findsNothing);
+    await tester.tap(find.widgetWithText(TextButton, 'common.retry'.tr()));
+    await tester.pump();
+    expect(queries, hasLength(2));
+    expect(add, findsNothing);
+
+    queries.last.add(null);
+    await tester.pumpAndSettle();
+    expect(add, findsNothing);
+
+    final list = await tester.runAsync(
+      () async => (await repo.getListById(listId)).valueOrNull!,
+    );
+    queries.last.add(list);
+    await tester.pumpAndSettle();
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+    final fieldA = byKey(WidgetKeys.addWordFr);
+    final fieldB = byKey(WidgetKeys.addWordKo);
+    expect(
+      find.descendant(
+        of: fieldA,
+        matching: find.text(Languages.displayName('ko')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: fieldB,
+        matching: find.text(Languages.displayName('fr')),
+      ),
+      findsOneWidget,
+    );
+    await tester.enterText(fieldA, '사과');
+    await tester.enterText(fieldB, 'pomme');
+    await tester.tap(byKey(WidgetKeys.addWordConfirm));
+    await tester.pumpAndSettle();
+
+    final words = await tester.runAsync(() async {
+      final concepts = await db.conceptDao.getConceptsByList(listId);
+      return {
+        for (final concept in concepts)
+          for (final word in await db.conceptDao.getVariantsByConcept(
+            concept.id,
+          ))
+            word.word: word.langCode,
+      };
+    });
+    expect(words, containsPair('사과', 'ko'));
+    expect(words, containsPair('pomme', 'fr'));
+    await unmountScreen(tester);
+    for (final query in queries) {
+      unawaited(query.close());
+    }
+  });
+
+  for (final edit in [false, true]) {
+    testWidgets(
+      'a changed pair rejects an already open ${edit ? 'Edit' : 'Add'} form',
+      (tester) async {
+        await pump(
+          tester,
+          langA: 'ko',
+          langB: 'fr',
+          wordA: '고양이',
+          wordB: 'chat',
+        );
+        if (edit) await enterEditMode(tester);
+        await tester.tap(
+          edit
+              ? byKey(WidgetKeys.conceptEditIcon('고양이'))
+              : byKey(WidgetKeys.listDetailAddWord),
+        );
+        await tester.pumpAndSettle();
+
+        final fieldA = byKey(
+          edit ? WidgetKeys.editWordFr : WidgetKeys.addWordFr,
+        );
+        final fieldB = byKey(
+          edit ? WidgetKeys.editWordKo : WidgetKeys.addWordKo,
+        );
+        final save = byKey(
+          edit ? WidgetKeys.editWordConfirm : WidgetKeys.addWordConfirm,
+        );
+        await tester.enterText(fieldA, '사과');
+        await tester.enterText(fieldB, 'pomme');
+        final changed = await tester.runAsync(() async {
+          final list = (await repo.getListById(listId)).valueOrNull!;
+          return repo.updateList(list.copyWith(langA: 'en', langB: 'ko'));
+        });
+        expect(changed?.isSuccess, isTrue);
+        await tester.pumpAndSettle();
+        await tester.tap(save);
+        await tester.pumpAndSettle();
+
+        expect(find.text('list_detail.word_pair_changed'.tr()), findsOneWidget);
+        expect(
+          find.descendant(of: fieldA, matching: find.text('사과')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: fieldB, matching: find.text('pomme')),
+          findsOneWidget,
+        );
+        final words = await tester.runAsync(() async {
+          final concepts = await db.conceptDao.getConceptsByList(listId);
+          return {
+            for (final concept in concepts)
+              for (final word in await db.conceptDao.getVariantsByConcept(
+                concept.id,
+              ))
+                word.word: word.langCode,
+          };
+        });
+        expect(words, containsPair('고양이', 'ko'));
+        expect(words, containsPair('chat', 'fr'));
+        expect(words, isNot(contains('사과')));
+        expect(words, isNot(contains('pomme')));
+        await unmountScreen(tester);
+      },
+    );
+  }
+
+  testWidgets('a word form opened by one account cannot save after switching', (
+    tester,
+  ) async {
+    await pump(tester);
+    final scope = ProviderScope.containerOf(
+      tester.element(byKey(WidgetKeys.screenListDetail)),
+    );
+    await tester.tap(byKey(WidgetKeys.listDetailAddWord));
+    await tester.pumpAndSettle();
+    await tester.enterText(byKey(WidgetKeys.addWordFr), 'pomme');
+    await tester.enterText(byKey(WidgetKeys.addWordKo), '사과');
+    scope.read(activeRepository.notifier).state = VocabularyRepositoryImpl(
+      db.vocabularyListDao,
+      db.conceptDao,
+      FakeRemote(),
+      'another-account',
+      db,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(byKey(WidgetKeys.addWordConfirm));
+    await tester.pumpAndSettle();
+
+    expect(find.text('list_detail.word_pair_changed'.tr()), findsOneWidget);
+    final concepts = await tester.runAsync(
+      () => db.conceptDao.getConceptsByList(listId),
+    );
+    expect(concepts, hasLength(2));
+    await unmountScreen(tester);
+  });
 
   testWidgets('renders the list name and its word tiles', (tester) async {
     await pump(tester);
@@ -381,9 +599,156 @@ void main() {
           required,
         );
       }
-      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.byType(Dialog), findsOneWidget);
       await unmountScreen(tester);
     });
+  }
+
+  for (final (locale, required) in [
+    ('fr', 'Requis'),
+    ('en', 'Required'),
+    ('ko', '필수'),
+  ]) {
+    for (final edit in [false, true]) {
+      testWidgets(
+        '${edit ? 'Edit' : 'Add'} keeps both fields and Save reachable in $locale with keyboard',
+        (tester) async {
+          final raw = (await tester.runAsync(
+            () => rootBundle.loadString('assets/translations/$locale.json'),
+          ))!;
+          final translations = Translations(
+            jsonDecode(raw) as Map<String, dynamic>,
+          );
+          Localization.load(
+            Locale(locale),
+            translations: translations,
+            fallbackTranslations: translations,
+          );
+          addTearDown(initTestLocalization);
+          await pump(
+            tester,
+            langA: 'ko',
+            langB: 'fr',
+            wordA: '고양이',
+            wordB: 'chat',
+          );
+          if (edit) await enterEditMode(tester);
+          tester.view.physicalSize = const Size(568, 320);
+          tester.view.devicePixelRatio = 1;
+          tester.platformDispatcher.textScaleFactorTestValue = 2;
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+          await tester.pumpAndSettle();
+          final launch = edit
+              ? byKey(WidgetKeys.conceptEditIcon('고양이'))
+              : byKey(WidgetKeys.listDetailAddWord);
+          await tester.ensureVisible(launch);
+          await tester.pumpAndSettle();
+          expect(launch.hitTestable(), findsOneWidget);
+          await tester.tap(launch);
+          await tester.pumpAndSettle();
+          tester.view.viewInsets = const FakeViewPadding(bottom: 180);
+          await tester.pumpAndSettle();
+
+          final dialog = find.byType(Dialog);
+          final scroll = find.descendant(
+            of: dialog,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Scrollable &&
+                  widget.axisDirection == AxisDirection.down,
+            ),
+          );
+          final title = find.text(
+            (edit
+                    ? 'list_detail.edit_dialog_title'
+                    : 'list_detail.add_dialog_title')
+                .tr(),
+          );
+          expect(find.ancestor(of: title, matching: scroll), findsOneWidget);
+          expect(tester.getRect(scroll).height, greaterThan(0));
+          expect(tester.getRect(scroll).bottom, lessThanOrEqualTo(140));
+          expect(
+            tester.state<ScrollableState>(scroll).position.maxScrollExtent,
+            greaterThan(0),
+          );
+          final cue = find.descendant(
+            of: dialog,
+            matching: find.text('v3.scroll_hint'.tr()),
+          );
+          final cueOpacity = find
+              .ancestor(of: cue, matching: find.byType(AnimatedOpacity))
+              .first;
+          expect(tester.widget<AnimatedOpacity>(cueOpacity).opacity, 1);
+          expect(tester.takeException(), isNull);
+
+          final fieldA = byKey(
+            edit ? WidgetKeys.editWordFr : WidgetKeys.addWordFr,
+          );
+          final fieldB = byKey(
+            edit ? WidgetKeys.editWordKo : WidgetKeys.addWordKo,
+          );
+          final save = byKey(
+            edit ? WidgetKeys.editWordConfirm : WidgetKeys.addWordConfirm,
+          );
+          expect(find.ancestor(of: save, matching: scroll), findsOneWidget);
+
+          Future<void> reach(Finder control) async {
+            await tester.pumpAndSettle();
+            await Scrollable.ensureVisible(
+              tester.element(control),
+              alignment: 0.5,
+            );
+            await tester.pumpAndSettle();
+            expect(
+              control.hitTestable(),
+              findsOneWidget,
+              reason:
+                  'control ${tester.getRect(control)} within viewport ${tester.getRect(scroll)}',
+            );
+          }
+
+          if (edit) {
+            await reach(fieldA);
+            await tester.enterText(fieldA, '');
+            await reach(fieldB);
+            await tester.enterText(fieldB, '');
+            await reach(save);
+            await tester.tap(save);
+            await tester.pumpAndSettle();
+            for (final field in [fieldA, fieldB]) {
+              expect(
+                tester.state<FormFieldState<String>>(field).errorText,
+                required,
+              );
+            }
+          }
+          await reach(fieldA);
+          await tester.enterText(fieldA, '사과');
+          await reach(fieldB);
+          await tester.enterText(fieldB, 'pomme');
+          await reach(save);
+          await tester.tap(save);
+          await tester.pumpAndSettle();
+          expect(dialog, findsNothing);
+          expect(tester.view.viewInsets.bottom, 180);
+          expect(tester.takeException(), isNull);
+
+          final words = await tester.runAsync(() async {
+            final concepts = await db.conceptDao.getConceptsByList(listId);
+            return {
+              for (final concept in concepts)
+                for (final word in await db.conceptDao.getVariantsByConcept(
+                  concept.id,
+                ))
+                  word.word: word.langCode,
+            };
+          });
+          expect(words, containsPair('사과', 'ko'));
+          expect(words, containsPair('pomme', 'fr'));
+          await unmountScreen(tester);
+        },
+      );
+    }
   }
 
   for (final pair in [
