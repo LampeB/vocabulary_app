@@ -916,3 +916,203 @@ associés. La convergence repart à **0/2** et la prochaine passe est **6/20**
 du cycle 2, relecture cumulée 26. Les quatre nouvelles instances relisent le
 même commit avant toute nouvelle modification ; aucun troisième cycle n'est
 autorisé automatiquement.
+
+## Passe 6 — `7221d63` — relecture cumulée 26
+
+Les quatre rapports finaux portent sur
+`7221d63e995ee1671422c36091e3681ce7742703`, contre la base inchangée
+`179f9ae0b34fe7c469b73d59ee4d25ef61515f9e`. Ils sont archivés avant correction.
+Les neuf Important sont distincts. Aucun Bloquant et une Suggestion ; la
+sécurité est propre. La convergence collective reste **0/2**.
+
+| Profil / instance | Verdict | Important | Suggestion |
+| --- | --- | --- | --- |
+| Produit — `/root/c2p6_product` | BLOQUÉ | 3 | 1 |
+| Qualité — `/root/c2p6_quality` | BLOQUÉ | 3 | 0 |
+| Correction — `/root/c2p6_correctness` | BLOQUÉ | 3 | 0 |
+| Sécurité — `/root/c2p6_security` | PROPRE | 0 | 0 |
+
+| Identifiant | Type | Constat |
+| --- | --- | --- |
+| C2-P6-01 | Important | Ouvrir Ajouter observe les variantes de tous les concepts avant toute demande d'assistance |
+| C2-P6-02 | Important | Le partage natif d'une ancienne session peut s'ouvrir après changement de compte |
+| C2-P6-03 | Important | Une erreur ou une fin inattendue du flux PCM n'est pas remontée à la course et ne ferme pas le micro |
+| C2-P6-04 | Important | Révéler traite un arrêt expiré comme confirmé et note/lit la réponse avant la libération native |
+| C2-P6-05 | Important | La fin d'une sauvegarde de mot ou de suggestions peut dépiler un import qui recouvre la modale |
+| C2-P6-06 | Important | L'oracle de reprise SQLite suppose qu'une requête commencée constitue une page durablement appliquée |
+| C2-P6-07 | Important | Modifier/Supprimer un mot ne porte pas de nom accessible et n'est pas focalisable au clavier |
+| C2-P6-08 | Important | Les suggestions peuvent modifier les champs pendant l'enregistrement de leur ancienne valeur |
+| C2-P6-09 | Important | Le plateau et le chemin assimilent une lecture de listes indisponible à une collection vide |
+| C2-P6-S01 | Suggestion | L'aperçu d'une liste existante vide invite à créer une liste |
+
+Les sept checks du workflow PR sont verts sur cette tête, y compris les
+builds natifs et leurs contrôles de liens. Le check obligatoire `test` du
+push échoue sur `reopening SQLite resumes a large list traversal at the same
+latency` : deux requêtes de `list-0` au lieu d'une. Sa réussite isolée locale
+ne clôt pas ce défaut ; aucune relance GitHub ne remplace sa correction.
+
+### C2-P6-09 — disponibilité des listes
+
+La source asynchrone est conservée jusqu'aux recommandations et aux métriques,
+sans repli vers une collection vide en cas de chargement ou d'erreur. Une
+absence confirmée reste seule capable de proposer une première liste ou
+d'afficher des compteurs mots/listes à zéro. Les états indisponibles ont un
+message FR/EN/KO et une relance du seul provider local. Le chemin et le
+plateau conservent les entrées indépendantes, même pendant le chargement.
+
+Les **25 tests ciblés** des trois fichiers de plateau/chemin passent. Les
+scénarios couvrent les trois locales, chargement, échec, relance, vide confirmé,
+liste existante et erreur après donnée. La paire étrangère ne fournit pas la
+recommandation. La feuille du parcours ne propose pas de créer une liste
+quand sa source est inconnue ; ses leçons restent accessibles. Une lecture
+de listes en panne n'empêche pas une révision due confirmée de lancer le vrai
+sélecteur de mode et de transmettre les arguments de quiz.
+
+Le consommateur historique `HomeScreen` a aussi été lu : il affiche déjà
+l'erreur de listes explicitement et utilise une relance par rafraîchissement,
+sans la remplacer par un état vide. Ces tests de widgets contrôlent les flux
+du provider ; ils ne simulent pas une panne physique du stockage.
+
+### C2-P6-01, C2-P6-05, C2-P6-07, C2-P6-08 et S01 — formulaires et modales
+
+Le contexte est demandé seulement depuis l'assistance, via l'échantillon groupé
+existant limité à 80 paires. La paire attendue est vérifiée dans la même
+transaction SQLite. Les contrôles de session, de formulaire et de paire
+précèdent l'appel HTTP ; la direction inverse utilise les mots de son côté
+source. L'ouverture manuelle n'observe plus chaque concept hors écran.
+
+Le résultat de sauvegarde attend que sa modale soit courante. Le scope de
+visibilité de route déjà utilisé par le quiz est extrait en
+`ShellRouteVisibility`, afin de reconnaître aussi un import du navigateur
+racine qui recouvre une feuille du navigateur imbriqué. La feuille reste
+imbriquée pour que l'abonnement s'ouvre au-dessus d'elle puis restitue sa
+sélection. Aucun consommateur de liste ne dépend de l'écran Quiz.
+
+Les deux types de suggestions qui remplacent les champs sont désactivés
+pendant l'écriture, avec garde dans l'action elle-même. Modifier/Supprimer
+utilisent des boutons standard de 48 pixels et un tooltip localisé qui
+annonce l'action et le mot. L'aperçu vide d'une liste existante invite à
+ajouter des mots, sans changer le type Suggestion du constat.
+
+Les **101 tests ciblés** de cinq fichiers passent, avec analyse propre. Les
+18 nouveaux cas couvrent mille concepts sans observation supplémentaire,
+échantillon inverse et invalidations, six sauvegardes Add/Edit/IA derrière
+la vraie route d'import, une importation réussie après sauvegarde, puces
+gelées sur réussite/échec, trois locales pour accessibilité et texte d'aperçu.
+Les erreurs d'écriture utilisent un vrai trigger SQLite. Le test voisin de
+quota conserve la sélection après Retour du paywall. Le premier lot a révélé
+des assertions du banc erronées sur `SemanticsData.tooltip` et le cycle du
+handle sémantique ; elles sont corrigées avant le succès final. Aucun
+clavier ni lecteur d'écran physique n'est revendiqué.
+
+### C2-P6-02 — effets externes et identité de session
+
+Le partage conserve son repository, son DAO et son `PushSync`, puis vérifie
+dans une transaction l'accusé de publication, le propriétaire, le token,
+la visibilité et les enfants. Une identité de session mise à jour à la
+source distingue déconnexion/reconnexion au même compte d'un enrichissement
+du profil. Le retrait local de la session avant l'événement SDK est également
+consulté. Un ancien travail ne peut ouvrir le partage sous cette nouvelle
+session. Le voisin export suit la même garde avant le plugin et utilise
+son propre dossier temporaire ; une préparation abandonnée est nettoyée.
+
+Les **99 tests ciblés** du lot partage/contexte/reprise/auth passent, avec
+analyse propre de sept fichiers. Les scénarios de partage utilisent le vrai
+`PushSync` et Drift avec canal de partage contrôlé : changement de compte,
+retour au même identifiant, déconnexion avant événement, profil stable et
+refus d'un enfant. Aucun envoi natif réel ni serveur hébergé n'est testé.
+
+### C2-P6-06 — réponse reçue et checkpoint durable
+
+Le test de réouverture immobilise seulement la première page incomplète et
+laisse expirer son délai HTTP réel de 260 ms. Le budget global de production
+reste quinze secondes ; le voisin qui prouve son échéance globale de 450 ms
+reste conservé. Avant fermeture, le test vérifie le contenu SQLite et le
+snapshot durable `contentsDone=1`. Après réouverture du fichier, la page
+confirmée n'est pas redemandée et la première page incomplète est rejouée.
+
+Le voisin de plus de 500 lignes présentait la même hypothèse temporelle.
+Il utilise désormais trois arrêts ciblés sur inventaire, concepts et progrès,
+puis vérifie les curseurs `afterId` et leurs données avant reprise, y compris
+une vraie progression FSRS reçue dans la première page. La preuve ne repose
+plus sur un nombre de requêtes commencées supposées acquittées. Ces scénarios
+font partie des 99 tests ci-dessus ; leurs résultats ne sont pas additionnés
+aux suites qui les recouvrent. Les réponses HTTP sont contrôlées sur hôte.
+
+### Cas voisins SDK de C2-P6-01/C2-P6-02
+
+Le SDK épinglé encode les Maps de fonctions dans un isolate avant de consulter
+l'autorisation implicite de son client HTTP. La garde UI seule ne protège
+donc pas cet intervalle. Le helper commun `AuthenticatedEdgeSession` fixe
+l'autorisation de la session d'origine, conserve le renouvellement de cette
+session et écarte les résultats devenus étrangers. Il est réutilisé par
+traduction, suggestions, transcription ElevenLabs et les deux benchmarks du
+laboratoire. Ces derniers capturent leur portée avant la lecture de fichiers
+et arrêtent les demandes suivantes après une transition.
+
+Les **17 tests ciblés** additionnels utilisent le SDK réel et HTTP contrôlé.
+Dans les deux modes assistant, B est réellement courant lors de l'envoi,
+mais l'en-tête porte A et le résultat est rejeté. Le renouvellement de A
+utilise son nouveau bearer ; un changement pendant ce renouvellement
+n'envoie aucune fonction. La portée multi-échantillons refuse le deuxième
+échantillon après A→B→A pendant une lecture contrôlée. Aucun jeton réel ni
+appel fournisseur n'est utilisé. Après remise au plugin de partage natif,
+son API publique ne permet plus d'annuler l'effet ; la garde applicative
+est vérifiée juste avant cette remise.
+
+### C2-P6-03/C2-P6-04 — interruption et libération native
+
+La course reçoit une erreur ou une fin inattendue du flux public PCM, ferme
+sa capture puis rend un résultat technique sans note ni signal de fin.
+Fermer volontairement le flux ne déclenche pas ce résultat. Les erreurs et
+expirations d'arrêt ne sont plus absorbées en tant que preuve de libération
+dans l'écran : Révéler, Clavier, Passer et la reprise des prompts attendent
+le résultat explicite audio/micro. Une relance rejoint la même fermeture
+encore en attente ou redemande un arrêt refusé.
+
+La recherche des consommateurs voisins a reproduit un nouveau quiz Cartes
+qui prononçait son premier mot pendant que le micro du quiz Voix recouvert
+attendait `released`, malgré l'ACK de `stop`. La garde d'`AudioDirector`
+rejoint désormais les arrêts des contrôleurs déjà instanciés avant lecture.
+Elle n'instancie pas de recorder pour Cartes/Écrire et n'arrête jamais elle-même
+une capture active. Une lecture facultative peut rester muette après le
+refus ou l'échéance de deux secondes ; une lecture requise suit son erreur
+récupérable. Quitter peut finir la navigation après expiration sans présenter
+cet arrêt comme une confirmation autorisant une lecture.
+
+Les **186 tests ciblés** de six fichiers passent, avec analyse propre des
+dix fichiers voix/visibilité. Ils comprennent la chaîne du vrai adaptateur
+Record au flux partagé puis à la course, avec enveloppe d'erreur injectée
+sur le canal `com.llfbandit.record/eventsRecord/<id>`. La course attend
+l'ACK de fermeture du recorder avant son résultat technique. Les tests du
+reconnaisseur système distinguent cet ACK de l'événement terminal `released`
+de sa session ; Révéler/Clavier/Passer ne notent ni ne jouent avant lui.
+La sonde interroutes échoue avant la garde puis passe, et le cas Cartes seul
+ne crée aucun contrôleur micro. Une régression de relance pendant nettoyage
+est corrigée avant le résultat final en renouvelant l'attente UI autour du
+même arrêt natif ; aucune nouvelle capture n'est ouverte en parallèle.
+
+Les événements natifs sont simulés. L'EOF public du port est testé, mais
+`record` 7.1.1 ne relaie pas la fin spontanée de son flux plateforme interne
+dans ce flux public. La détection d'une interruption non exposée par ce
+plugin n'est pas revendiquée et reste à vérifier physiquement. Aucun code
+tiers n'est modifié pour prétendre obtenir cet événement absent.
+
+### Validation commune après la passe 6
+
+Les **1 418 tests hôte** passent avec douze diagnostics positifs exclus sans
+opt-in. La couverture est **77,5 %** (15 830 / 20 427 lignes) et l'analyse
+Flutter complète est propre. Les 25 diagnostics ciblés passent avec opt-in,
+avec le test de refus inverse exclu. La sonde compilée en mode produit
+refuse les diagnostics malgré l'option fournie. Les suites ciblées ci-dessus
+se recouvrent et ne sont pas additionnées.
+Le garde de politique passe sur l'index et sur tout le diff de PR : formatage,
+documentation, liens locaux et absence de nouveaux artefacts privés, y compris
+dans l'historique introduit. Le hook reste actif pour le commit commun.
+
+Les neuf Important, S01 et les cas voisins confirmés sont rassemblés dans
+un commit commun. Le nouveau SHA doit obtenir sa propre CI ; le succès local
+ne réécrit pas le check rouge du parent. Aucun essai physique, appel fournisseur
+réel ou réglage hébergé n'est revendiqué. La convergence repart à **0/2**,
+avec prochaine passe **7/20** du cycle 2, relecture cumulée 27. Les quatre
+nouvelles instances examinent ce même commit avant toute modification.

@@ -15,21 +15,31 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
+import 'package:vocab_kr/core/theme/app_theme.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/core/languages.dart';
 import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
+import 'package:vocab_kr/domain/entities/app_user.dart';
+import 'package:vocab_kr/domain/entities/concept.dart';
+import 'package:vocab_kr/domain/entities/subscription_type.dart';
+import 'package:vocab_kr/domain/entities/word_variant.dart';
+import 'package:vocab_kr/domain/repositories/auth_repository.dart';
 import 'package:vocab_kr/domain/repositories/vocabulary_repository.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/data/sync/push_sync.dart';
 import 'package:vocab_kr/data/datasources/remote/vocab_assistant_datasource.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocab_assistant_provider.dart';
+import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart'
     show QuizSource;
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/purchases/purchase_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
+import 'package:vocab_kr/presentation/navigation/shell_route_visibility.dart';
 import 'package:vocab_kr/presentation/screens/lists/list_detail_screen.dart';
+import 'package:vocab_kr/presentation/screens/import/import_from_link_screen.dart';
+import 'package:vocab_kr/presentation/widgets/list_preview_sheet.dart';
 import '../../helpers/fake_remote.dart';
 import '../../helpers/pump_screen.dart';
 import '../../helpers/rendered_text_contrast.dart';
@@ -43,6 +53,31 @@ class _PairAssistant implements VocabAssistantDataSource {
   final List<WordPairSuggestion> pairs;
   String? source, target;
   List<WordPairSuggestion> examples = [];
+  String? translatedWord;
+  List<String> contextWords = [];
+
+  @override
+  Future<Result<TranslateAssist>> translate({
+    required String word,
+    required String sourceLang,
+    required String targetLang,
+    String? theme,
+    List<String> existingWords = const [],
+  }) async {
+    translatedWord = word;
+    source = sourceLang;
+    target = targetLang;
+    contextWords = existingWords;
+    return const Success(
+      TranslateAssist(
+        translations: [TranslationSuggestion(text: '고양이', note: '')],
+        voiceFriendly: [
+          WordPairSuggestion(source: 'le chat', target: '고양이 한 마리'),
+        ],
+      ),
+    );
+  }
+
   @override
   Future<Result<ThemedSuggestions>> suggest({
     required String sourceLang,
@@ -58,6 +93,130 @@ class _PairAssistant implements VocabAssistantDataSource {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _DetailAuthRepository implements AuthRepository {
+  final _events = StreamController<AppUser?>.broadcast(sync: true);
+
+  @override
+  AppUser? currentUser = _user('u');
+
+  static AppUser _user(String id) => AppUser(
+    id: id,
+    email: '$id@example.test',
+    username: id,
+    subscriptionType: SubscriptionType.free,
+    createdAt: DateTime(2026),
+  );
+
+  void switchAccount(String? id) {
+    currentUser = id == null ? null : _user(id);
+    _events.add(currentUser);
+  }
+
+  Future<void> close() => _events.close();
+
+  @override
+  Stream<AppUser?> get authStateChanges => _events.stream;
+
+  @override
+  Future<Result<AppUser>> reloadProfile() async => Success(currentUser!);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _PendingImportRemote extends FakeRemote {
+  final reply = Completer<Result<Map<String, dynamic>?>>();
+  String? requestedToken;
+
+  @override
+  Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(String token) {
+    requestedToken = token;
+    return reply.future;
+  }
+}
+
+/// Pauses the result after SQLite has completed the real operation.
+class _ObservedDetailRepository extends VocabularyRepositoryImpl {
+  _ObservedDetailRepository(AppDatabase db, FakeRemote remote)
+    : super(db.vocabularyListDao, db.conceptDao, remote, 'u', db);
+
+  Completer<void>? saveGate;
+  Completer<void>? sampleGate;
+  bool saveFinished = false;
+  int variantObservations = 0;
+  final sampleLimits = <int>[];
+
+  @override
+  Stream<List<WordVariant>> watchVariants(String conceptId) {
+    variantObservations++;
+    return super.watchVariants(conceptId);
+  }
+
+  @override
+  Future<List<({String source, String target})>?> getWordPairSample(
+    String listId, {
+    required int limit,
+    required (String, String) expectedPair,
+  }) async {
+    sampleLimits.add(limit);
+    final pairs = await super.getWordPairSample(
+      listId,
+      limit: limit,
+      expectedPair: expectedPair,
+    );
+    await sampleGate?.future;
+    return pairs;
+  }
+
+  Future<Result<T>> _afterSave<T>(Future<Result<T>> operation) async {
+    final result = await operation;
+    final gate = saveGate;
+    if (gate != null) {
+      saveFinished = true;
+      await gate.future;
+    }
+    return result;
+  }
+
+  @override
+  Future<Result<Concept>> addConceptWithVariants({
+    required String listId,
+    required String wordA,
+    required String wordB,
+    String langA = 'fr',
+    String langB = 'ko',
+    String? notes,
+    String? category,
+  }) => _afterSave(
+    super.addConceptWithVariants(
+      listId: listId,
+      wordA: wordA,
+      wordB: wordB,
+      langA: langA,
+      langB: langB,
+      notes: notes,
+      category: category,
+    ),
+  );
+
+  @override
+  Future<Result<void>> updateWordPair({
+    required String listId,
+    required WordVariant variantA,
+    required WordVariant variantB,
+    required String wordA,
+    required String wordB,
+  }) => _afterSave(
+    super.updateWordPair(
+      listId: listId,
+      variantA: variantA,
+      variantB: variantB,
+      wordA: wordA,
+      wordB: wordB,
+    ),
+  );
 }
 
 class _CanonicalDetailRemote extends FakeRemote {
@@ -109,7 +268,9 @@ void main() {
   setUpAll(initTestLocalization);
 
   late AppDatabase db;
-  late VocabularyRepositoryImpl repo;
+  late _ObservedDetailRepository repo;
+  late _DetailAuthRepository auth;
+  GoRouter? detailRouter;
   late String listId;
   final activeRepository = StateProvider<VocabularyRepository?>((ref) => null);
 
@@ -129,6 +290,9 @@ void main() {
     String wordB = '고양이',
     _PairAssistant? assistant,
     _CanonicalDetailRemote? canonicalRemote,
+    _PendingImportRemote? importRemote,
+    int extraWords = 0,
+    bool seedWords = true,
     ThemeMode themeMode = ThemeMode.light,
     Stream<VocabularyList?> Function()? metadata,
     bool settle = true,
@@ -138,12 +302,9 @@ void main() {
     await tester.runAsync(() async {
       db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
-      repo = VocabularyRepositoryImpl(
-        db.vocabularyListDao,
-        db.conceptDao,
-        canonicalRemote ?? FakeRemote(),
-        'u',
+      repo = _ObservedDetailRepository(
         db,
+        canonicalRemote ?? importRemote ?? FakeRemote(),
       );
       if (canonicalRemote != null) {
         listId = (await repo.importFromShareToken('shared')).valueOrNull!.id;
@@ -155,6 +316,7 @@ void main() {
         langB: langB,
       )).valueOrNull!;
       listId = list.id;
+      if (!seedWords) return;
       await repo.addConceptWithVariants(
         listId: listId,
         wordA: wordA,
@@ -162,6 +324,20 @@ void main() {
         langA: langA,
         langB: langB,
       );
+      if (extraWords > 0) {
+        await db.transaction(() async {
+          for (var i = 0; i < extraWords; i++) {
+            // Spread the same two languages over many real stored concepts.
+            await repo.addConceptWithVariants(
+              listId: listId,
+              wordA: 'sample A $i',
+              wordB: 'sample B $i',
+              langA: langA,
+              langB: langB,
+            );
+          }
+        });
+      }
       await repo.addConceptWithVariants(
         listId: listId,
         wordA: 'chien',
@@ -174,38 +350,96 @@ void main() {
         await db.vocabularyListDao.updateWordCount(listId, forceWordCount);
       }
     });
-    await pumpScreen(
-      tester,
-      screen: ListDetailScreen(listId: listId),
-      themeMode: themeMode,
-      settle: settle,
-      overrides: [
-        vocabularyRepositoryProvider.overrideWith(
-          (ref) => ref.watch(activeRepository) ?? repo,
-        ),
-        if (metadata != null)
-          listInfoProvider.overrideWith((ref, _) => metadata()),
-        isPremiumProvider.overrideWithValue(premium),
-        if (assistant != null)
-          vocabAssistantProvider.overrideWithValue(assistant),
-      ],
+    auth = _DetailAuthRepository();
+    addTearDown(auth.close);
+    final overrides = [
+      authRepositoryProvider.overrideWithValue(auth),
+      vocabularyRepositoryProvider.overrideWith(
+        (ref) => ref.watch(activeRepository) ?? repo,
+      ),
+      if (metadata != null)
+        listInfoProvider.overrideWith((ref, _) => metadata()),
+      isPremiumProvider.overrideWithValue(premium),
+      if (assistant != null)
+        vocabAssistantProvider.overrideWithValue(assistant),
+    ];
+    final routes = [
+      GoRoute(
+        path: '/paywall',
+        pageBuilder: (_, state) {
+          pushedRoute = '/paywall';
+          return const MaterialPage<void>(
+            child: Scaffold(
+              key: ValueKey(WidgetKeys.screenPaywall),
+              body: SizedBox(),
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/quiz',
+        pageBuilder: (_, state) {
+          launchedQuiz = state.extra! as QuizArgs;
+          return const MaterialPage<void>(child: Scaffold(body: SizedBox()));
+        },
+      ),
+    ];
+    if (importRemote == null) {
+      await pumpScreen(
+        tester,
+        screen: ListDetailScreen(listId: listId),
+        themeMode: themeMode,
+        settle: settle,
+        overrides: overrides,
+        routes: routes,
+      );
+      // Initialize the restored auth identity before an AI form can capture it.
+      ProviderScope.containerOf(
+        tester.element(find.byType(ListDetailScreen)),
+      ).read(authStateProvider);
+      await tester.pump();
+      return;
+    }
+    final router = detailRouter = GoRouter(
+      initialLocation: '/lists/$listId',
       routes: [
-        GoRoute(
-          path: '/paywall',
-          pageBuilder: (_, state) {
-            pushedRoute = '/paywall';
-            return const MaterialPage<void>(child: Scaffold(body: SizedBox()));
-          },
+        ShellRoute(
+          builder: (_, _, child) => ShellRouteVisibility(child: child),
+          routes: [
+            GoRoute(
+              path: '/lists/:listId',
+              builder: (_, state) =>
+                  ListDetailScreen(listId: state.pathParameters['listId']!),
+            ),
+            ...routes,
+          ],
         ),
         GoRoute(
-          path: '/quiz',
-          pageBuilder: (_, state) {
-            launchedQuiz = state.extra! as QuizArgs;
-            return const MaterialPage<void>(child: Scaffold(body: SizedBox()));
-          },
+          path: '/import',
+          builder: (_, state) =>
+              ImportFromLinkScreen(token: state.uri.queryParameters['token']!),
         ),
       ],
     );
+    addTearDown(router.dispose);
+    final container = ProviderContainer(overrides: overrides);
+    addTearDown(container.dispose);
+    await container.read(authStateProvider.future);
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          routerConfig: router,
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: themeMode,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
   }
 
   for (final theme in [ThemeMode.light, ThemeMode.dark]) {
@@ -280,13 +514,328 @@ void main() {
     },
   );
 
-  Finder byKey(String key) => find.byKey(ValueKey(key));
+  Finder byKey(String key, {bool skipOffstage = true}) =>
+      find.byKey(ValueKey(key), skipOffstage: skipOffstage);
 
   Future<void> enterEditMode(WidgetTester tester) async {
     await tester.tap(byKey(WidgetKeys.listDetailMenu));
     await tester.pumpAndSettle();
     await tester.tap(byKey(WidgetKeys.listDetailEditItem));
     await tester.pumpAndSettle();
+  }
+
+  Future<void> openAiSheet(WidgetTester tester) async {
+    await tester.tap(byKey(WidgetKeys.listDetailMenu));
+    await tester.pumpAndSettle();
+    await tester.tap(byKey(WidgetKeys.listDetailAiSuggestItem));
+    await tester.pumpAndSettle();
+  }
+
+  Future<List<String>> storedWords(WidgetTester tester) async =>
+      (await tester.runAsync(() async {
+        final concepts = await db.conceptDao.getConceptsByList(listId);
+        return [
+          for (final concept in concepts)
+            for (final variant in await db.conceptDao.getVariantsByConcept(
+              concept.id,
+            ))
+              variant.word,
+        ];
+      }))!;
+
+  Future<void> rejectWordWrites(WidgetTester tester) async {
+    await tester.runAsync(() async {
+      for (final operation in ['INSERT', 'UPDATE']) {
+        await db.customStatement('''
+          CREATE TRIGGER fail_word_$operation BEFORE $operation ON word_variants
+          BEGIN SELECT RAISE(ABORT, 'test: word write failed'); END;
+        ''');
+      }
+    });
+  }
+
+  testWidgets('manual Add avoids observing offscreen words in a large list', (
+    tester,
+  ) async {
+    final assistant = _PairAssistant();
+    await pump(tester, extraWords: 998, assistant: assistant);
+    final visibleObservations = repo.variantObservations;
+    expect(visibleObservations, inInclusiveRange(1, 30));
+
+    await tester.tap(byKey(WidgetKeys.listDetailAddWord));
+    await tester.pumpAndSettle();
+    expect(byKey(WidgetKeys.addWordFr), findsOneWidget);
+    expect(repo.variantObservations, visibleObservations);
+    expect(repo.sampleLimits, isEmpty);
+    expect(assistant.translatedWord, isNull);
+
+    await tester.enterText(byKey(WidgetKeys.addWordKo), '단어');
+    await tester.tap(byKey(WidgetKeys.addWordAiSuggest));
+    await tester.pumpAndSettle();
+    expect(assistant.translatedWord, '단어');
+    expect((assistant.source, assistant.target), ('ko', 'fr'));
+    expect(repo.sampleLimits, [VocabAssistantDataSource.maxContextItems]);
+    expect(
+      assistant.contextWords,
+      hasLength(VocabAssistantDataSource.maxContextItems),
+    );
+    expect(
+      assistant.contextWords.where((word) => word.startsWith('sample A')),
+      isEmpty,
+    );
+    expect(
+      assistant.contextWords.where((word) => word.startsWith('sample B')),
+      isNotEmpty,
+    );
+    expect(repo.variantObservations, visibleObservations);
+    await unmountScreen(tester);
+  });
+
+  for (final interruption in [
+    'changed pair',
+    'same account reconnected',
+    'cancelled form',
+  ]) {
+    testWidgets(
+      'Add translation discards pending context after $interruption',
+      (tester) async {
+        final assistant = _PairAssistant();
+        await pump(tester, assistant: assistant);
+        final gate = repo.sampleGate = Completer<void>();
+        await tester.tap(byKey(WidgetKeys.listDetailAddWord));
+        await tester.pumpAndSettle();
+        await tester.enterText(byKey(WidgetKeys.addWordFr), 'chat');
+        await tester.tap(byKey(WidgetKeys.addWordAiSuggest));
+        await tester.pump();
+        expect(repo.sampleLimits, hasLength(1));
+        expect(assistant.translatedWord, isNull);
+
+        switch (interruption) {
+          case 'changed pair':
+            await tester.runAsync(() async {
+              final list = (await repo.getListById(listId)).valueOrNull!;
+              expect(
+                (await repo.updateList(list.copyWith(langA: 'en'))).isSuccess,
+                isTrue,
+              );
+            });
+          case 'same account reconnected':
+            auth.switchAccount(null);
+            auth.switchAccount('u');
+          case 'cancelled form':
+            await tester.tap(
+              find.widgetWithText(TextButton, 'common.cancel'.tr()),
+            );
+            await tester.pump();
+        }
+        gate.complete();
+        await tester.pumpAndSettle();
+
+        expect(assistant.translatedWord, isNull);
+        if (interruption == 'cancelled form') {
+          expect(byKey(WidgetKeys.addWordFr), findsNothing);
+        } else {
+          expect(
+            find.text('list_detail.word_pair_changed'.tr()),
+            findsOneWidget,
+          );
+          expect(
+            tester
+                .widget<TextFormField>(byKey(WidgetKeys.addWordFr))
+                .controller!
+                .text,
+            'chat',
+          );
+        }
+        await unmountScreen(tester);
+      },
+    );
+  }
+
+  for (final mode in ['Add', 'Edit', 'themed suggestions']) {
+    for (final fails in [false, true]) {
+      testWidgets(
+        '$mode ${fails ? 'failure' : 'success'} waits for the covering import',
+        (tester) async {
+          final remote = _PendingImportRemote();
+          await pump(
+            tester,
+            importRemote: remote,
+            assistant: _PairAssistant(
+              pairs: const [
+                WordPairSuggestion(source: 'saved source', target: '저장'),
+              ],
+            ),
+          );
+          final themed = mode == 'themed suggestions';
+          final edit = mode == 'Edit';
+          final saveKey = themed
+              ? WidgetKeys.listDetailAiAddSelected
+              : edit
+              ? WidgetKeys.editWordConfirm
+              : WidgetKeys.addWordConfirm;
+          final save = byKey(saveKey);
+          if (themed) {
+            await openAiSheet(tester);
+          } else {
+            if (edit) await enterEditMode(tester);
+            await tester.tap(
+              byKey(
+                edit
+                    ? WidgetKeys.conceptEditIcon('chat')
+                    : WidgetKeys.listDetailAddWord,
+              ),
+            );
+            await tester.pumpAndSettle();
+            await tester.enterText(
+              byKey(edit ? WidgetKeys.editWordFr : WidgetKeys.addWordFr),
+              'saved source',
+            );
+            await tester.enterText(
+              byKey(edit ? WidgetKeys.editWordKo : WidgetKeys.addWordKo),
+              '저장',
+            );
+          }
+          if (fails) await rejectWordWrites(tester);
+          final gate = repo.saveGate = Completer<void>();
+          await tester.tap(save);
+          await tester.pump();
+          expect(repo.saveFinished, isTrue);
+          final words = await storedWords(tester);
+          expect(words.contains('saved source'), !fails);
+          expect(words.contains('저장'), !fails);
+          expect(words.contains('chat'), fails || !edit);
+
+          unawaited(detailRouter!.push<void>('/import?token=covering'));
+          for (var i = 0; i < 4; i++) {
+            await tester.pump(const Duration(milliseconds: 100));
+          }
+          expect(byKey(WidgetKeys.screenImport), findsOneWidget);
+          expect(remote.requestedToken, 'covering');
+          gate.complete();
+          await tester.pump(const Duration(milliseconds: 400));
+          expect(byKey(WidgetKeys.screenImport), findsOneWidget);
+          final hiddenSave = byKey(saveKey, skipOffstage: false);
+          expect(tester.widget<FilledButton>(hiddenSave).onPressed, isNull);
+
+          final importSucceeds = mode == 'Add' && !fails;
+          remote.reply.complete(
+            Success(
+              importSucceeds
+                  ? {'name': 'Imported covering list', 'concepts': <Object>[]}
+                  : null,
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(byKey(WidgetKeys.screenImport), findsNothing);
+          if (importSucceeds) {
+            expect(find.text('Imported covering list'), findsOneWidget);
+            await tester.tap(byKey(WidgetKeys.listDetailBack));
+            await tester.pumpAndSettle();
+          }
+          if (fails) {
+            expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
+            expect(
+              find.text(
+                (themed ? 'list_detail.ai_add_error' : 'common.error').tr(),
+              ),
+              findsOneWidget,
+            );
+            if (themed) {
+              expect(
+                tester
+                    .widget<CheckboxListTile>(find.byType(CheckboxListTile))
+                    .value,
+                isTrue,
+              );
+            } else {
+              final field = byKey(
+                edit ? WidgetKeys.editWordFr : WidgetKeys.addWordFr,
+              );
+              expect(
+                tester.widget<TextFormField>(field).controller!.text,
+                'saved source',
+              );
+            }
+          } else {
+            expect(save, findsNothing);
+            expect(find.text('saved source'), findsOneWidget);
+          }
+          expect(byKey(WidgetKeys.screenListDetail), findsOneWidget);
+          expect(tester.takeException(), isNull);
+          await unmountScreen(tester);
+        },
+      );
+    }
+  }
+
+  for (final fails in [false, true]) {
+    testWidgets(
+      'Add blocks both suggestion types until save ${fails ? 'fails' : 'succeeds'}',
+      (tester) async {
+        await pump(tester, assistant: _PairAssistant());
+        await tester.tap(byKey(WidgetKeys.listDetailAddWord));
+        await tester.pumpAndSettle();
+        final first = byKey(WidgetKeys.addWordFr);
+        final second = byKey(WidgetKeys.addWordKo);
+        await tester.enterText(first, 'chat');
+        await tester.tap(byKey(WidgetKeys.addWordAiSuggest));
+        await tester.pumpAndSettle();
+        final chips = find.byType(ActionChip);
+        expect(chips, findsNWidgets(2));
+        for (final chip in tester.widgetList<ActionChip>(chips)) {
+          expect(chip.onPressed, isNotNull);
+        }
+        await tester.enterText(first, 'submitted source');
+        await tester.enterText(second, '제출');
+        if (fails) await rejectWordWrites(tester);
+        final gate = repo.saveGate = Completer<void>();
+        await tester.tap(byKey(WidgetKeys.addWordConfirm));
+        await tester.pumpAndSettle();
+
+        expect(repo.saveFinished, isTrue);
+        for (var i = 0; i < 2; i++) {
+          expect(tester.widget<ActionChip>(chips.at(i)).onPressed, isNull);
+          await tester.tap(chips.at(i), warnIfMissed: false);
+        }
+        expect(
+          tester.widget<TextFormField>(first).controller!.text,
+          'submitted source',
+        );
+        expect(tester.widget<TextFormField>(second).controller!.text, '제출');
+        gate.complete();
+        await tester.pumpAndSettle();
+        final words = await storedWords(tester);
+        expect(words.contains('submitted source'), !fails);
+        expect(words.contains('제출'), !fails);
+        expect(words, isNot(contains('le chat')));
+        expect(words, isNot(contains('고양이 한 마리')));
+        if (fails) {
+          expect(find.text('common.error'.tr()), findsOneWidget);
+          expect(
+            tester.widget<TextFormField>(first).controller!.text,
+            'submitted source',
+          );
+          expect(tester.widget<TextFormField>(second).controller!.text, '제출');
+          for (final chip in tester.widgetList<ActionChip>(chips)) {
+            expect(chip.onPressed, isNotNull);
+          }
+          await tester.tap(chips.last);
+          await tester.pumpAndSettle();
+          expect(
+            tester.widget<TextFormField>(first).controller!.text,
+            'le chat',
+          );
+          expect(
+            tester.widget<TextFormField>(second).controller!.text,
+            '고양이 한 마리',
+          );
+        } else {
+          expect(first, findsNothing);
+        }
+        await unmountScreen(tester);
+      },
+    );
   }
 
   for (final theme in [ThemeMode.light, ThemeMode.dark]) {
@@ -313,6 +862,125 @@ void main() {
         await unmountScreen(tester);
       },
     );
+  }
+
+  for (final (locale, editLabel, deleteLabel, emptyPreview) in [
+    (
+      'fr',
+      'Modifier « chat »',
+      'Supprimer « chat »',
+      'Ajoute des paires de mots pour commencer à étudier.',
+    ),
+    ('en', 'Edit “chat”', 'Delete “chat”', 'Add word pairs to start studying.'),
+    ('ko', '‘chat’ 편집', '‘chat’ 삭제', '학습을 시작하려면 단어 쌍을 추가하세요.'),
+  ]) {
+    Future<void> loadLocale(WidgetTester tester) async {
+      final raw = await tester.runAsync(
+        () => rootBundle.loadString('assets/translations/$locale.json'),
+      );
+      final translations = Translations(
+        jsonDecode(raw!) as Map<String, dynamic>,
+      );
+      Localization.load(
+        Locale(locale),
+        translations: translations,
+        fallbackTranslations: translations,
+      );
+      addTearDown(initTestLocalization);
+    }
+
+    testWidgets(
+      'word row edit and delete are usable by keyboard in $locale',
+      (tester) async {
+        await loadLocale(tester);
+        await pump(tester);
+        await enterEditMode(tester);
+        final edit = byKey(WidgetKeys.conceptEditIcon('chat'));
+        final delete = byKey(WidgetKeys.conceptDeleteIcon('chat'));
+        for (final (button, label) in [
+          (edit, editLabel),
+          (delete, deleteLabel),
+        ]) {
+          expect(tester.getSize(button).width, greaterThanOrEqualTo(48));
+          expect(tester.getSize(button).height, greaterThanOrEqualTo(48));
+          expect(
+            tester.getSemantics(button),
+            matchesSemantics(
+              tooltip: label,
+              isButton: true,
+              hasTapAction: true,
+              isEnabled: true,
+              hasEnabledState: true,
+              isFocusable: true,
+              hasFocusAction: true,
+            ),
+          );
+        }
+
+        Future<void> activate(Finder button) async {
+          bool containsFocus() {
+            final element = tester.element(button);
+            var focusedInside = false;
+            FocusManager.instance.primaryFocus?.context?.visitAncestorElements((
+              ancestor,
+            ) {
+              focusedInside = ancestor == element;
+              return !focusedInside;
+            });
+            return focusedInside;
+          }
+
+          for (var tabs = 0; tabs < 20 && !containsFocus(); tabs++) {
+            await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+            await tester.pumpAndSettle();
+          }
+          expect(containsFocus(), isTrue);
+          await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+          await tester.pumpAndSettle();
+        }
+
+        await activate(edit);
+        final field = byKey(WidgetKeys.editWordFr);
+        expect(tester.widget<TextFormField>(field).controller!.text, 'chat');
+        await tester.tap(find.widgetWithText(TextButton, 'common.cancel'.tr()));
+        await tester.pumpAndSettle();
+        await activate(delete);
+        await tester.tap(byKey(WidgetKeys.deleteWordConfirm));
+        await tester.pumpAndSettle();
+        expect(await storedWords(tester), unorderedEquals(['chien', '개']));
+        await unmountScreen(tester);
+      },
+      semanticsEnabled: true,
+    );
+
+    testWidgets('empty preview asks for words in $locale', (tester) async {
+      await loadLocale(tester);
+      await pump(tester, seedWords: false);
+      final list = (await tester.runAsync(
+        () => repo.getListById(listId),
+      ))!.valueOrNull!;
+      final context = tester.element(byKey(WidgetKeys.screenListDetail));
+      unawaited(showListPreviewSheet(context, list));
+      await tester.pumpAndSettle();
+
+      final preview = find.byType(BottomSheet);
+      expect(
+        find.descendant(of: preview, matching: find.text(list.name)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: preview, matching: find.text(emptyPreview)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: preview,
+          matching: find.text('start_session.empty_lists'.tr()),
+        ),
+        findsNothing,
+      );
+      await unmountScreen(tester);
+    });
   }
 
   testWidgets('Add waits for the confirmed pair after a metadata read fails', (
@@ -913,58 +1581,71 @@ void main() {
     await unmountScreen(tester);
   });
 
-  testWidgets('partial suggestions keep refused selections and show upgrade', (
-    tester,
-  ) async {
-    final assistant = _PairAssistant(
-      pairs: const [
-        WordPairSuggestion(source: 'first addition', target: '첫 추가'),
-        WordPairSuggestion(source: 'refused addition', target: '거부된 추가'),
-      ],
-    );
-    await pump(
-      tester,
-      premium: false,
-      forceWordCount: 49,
-      assistant: assistant,
-    );
-    await tester.tap(byKey(WidgetKeys.listDetailMenu));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('list_detail.menu_ai_suggest'.tr()));
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.text('list_detail.ai_add_selected'.tr(namedArgs: {'n': '2'})),
-    );
-    await tester.pumpAndSettle();
-    expect(
-      find.text(
-        'list_detail.ai_add_partial'.tr(
-          namedArgs: {'added': '1', 'remaining': '1'},
+  testWidgets(
+    'partial suggestions keep refused selections through upgrade and back',
+    (tester) async {
+      final assistant = _PairAssistant(
+        pairs: const [
+          WordPairSuggestion(source: 'first addition', target: '첫 추가'),
+          WordPairSuggestion(source: 'refused addition', target: '거부된 추가'),
+        ],
+      );
+      await pump(
+        tester,
+        premium: false,
+        forceWordCount: 49,
+        assistant: assistant,
+        importRemote: _PendingImportRemote(),
+      );
+      await tester.tap(byKey(WidgetKeys.listDetailMenu));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('list_detail.menu_ai_suggest'.tr()));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.text('list_detail.ai_add_selected'.tr(namedArgs: {'n': '2'})),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'list_detail.ai_add_partial'.tr(
+            namedArgs: {'added': '1', 'remaining': '1'},
+          ),
         ),
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('list_detail.ai_add_quota'.tr()), findsOneWidget);
-    final checks = tester
-        .widgetList<CheckboxListTile>(find.byType(CheckboxListTile))
-        .toList();
-    expect(checks[0].onChanged, isNull);
-    expect(checks[1].value, isTrue);
-    expect(checks[1].onChanged, isNotNull);
-    final persisted = await tester.runAsync(() async {
-      final concepts = await db.conceptDao.getConceptsByList(listId);
-      return (await db.conceptDao.getVariantsByConceptIds(
-        concepts.map((c) => c.id).toList(),
-        'fr',
-      )).map((v) => v.word).toList();
-    });
-    expect(persisted, contains('first addition'));
-    expect(persisted, isNot(contains('refused addition')));
-    await tester.tap(find.text('profile.upgrade_button'.tr()));
-    await tester.pumpAndSettle();
-    expect(pushedRoute, '/paywall');
-    await unmountScreen(tester);
-  });
+        findsOneWidget,
+      );
+      expect(find.text('list_detail.ai_add_quota'.tr()), findsOneWidget);
+      final checks = tester
+          .widgetList<CheckboxListTile>(find.byType(CheckboxListTile))
+          .toList();
+      expect(checks[0].onChanged, isNull);
+      expect(checks[1].value, isTrue);
+      expect(checks[1].onChanged, isNotNull);
+      final persisted = await tester.runAsync(() async {
+        final concepts = await db.conceptDao.getConceptsByList(listId);
+        return (await db.conceptDao.getVariantsByConceptIds(
+          concepts.map((c) => c.id).toList(),
+          'fr',
+        )).map((v) => v.word).toList();
+      });
+      expect(persisted, contains('first addition'));
+      expect(persisted, isNot(contains('refused addition')));
+      await tester.tap(find.text('profile.upgrade_button'.tr()));
+      await tester.pumpAndSettle();
+      expect(pushedRoute, '/paywall');
+      expect(byKey(WidgetKeys.screenPaywall), findsOneWidget);
+      expect(byKey(WidgetKeys.listDetailAiAddSelected), findsNothing);
+      detailRouter!.pop();
+      await tester.pumpAndSettle();
+      expect(byKey(WidgetKeys.screenPaywall), findsNothing);
+      final resumedSelection = tester
+          .widgetList<CheckboxListTile>(find.byType(CheckboxListTile))
+          .toList();
+      expect(resumedSelection[0].onChanged, isNull);
+      expect(resumedSelection[1].value, isTrue);
+      expect(resumedSelection[1].onChanged, isNotNull);
+      await unmountScreen(tester);
+    },
+  );
 
   testWidgets('deleting a word removes its tile after confirmation', (
     tester,

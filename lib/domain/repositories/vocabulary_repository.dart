@@ -50,9 +50,12 @@ abstract interface class VocabularyRepository {
   // Variants
   Future<Result<List<WordVariant>>> getVariants(String conceptId);
   Stream<List<WordVariant>> watchVariants(String conceptId);
-  Future<List<({String source, String target})>> getWordPairSample(
+
+  /// Returns no context when the list is unavailable or its pair has changed.
+  Future<List<({String source, String target})>?> getWordPairSample(
     String listId, {
     required int limit,
+    required (String, String) expectedPair,
   });
   Future<Result<WordVariant>> createVariant({
     required String conceptId,

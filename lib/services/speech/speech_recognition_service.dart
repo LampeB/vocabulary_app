@@ -362,6 +362,14 @@ class SpeechRecognitionService implements SystemSpeechCapture {
     }
   }
 
+  /// Joins a release already requested by the owner before allowing audio
+  /// playback on a different route or card.
+  Future<void>? waitForMicrophoneRelease() {
+    if (!_nativeMayOwnMic) return null;
+    return _nativeStop?.timeout(releaseTimeout) ??
+        Future<void>.error(StateError('System microphone still in use'));
+  }
+
   @override
   Future<void> stopListening() {
     sttLog('[STT] stopListening() _isListening=$_isListening');

@@ -33,6 +33,7 @@ import 'presentation/providers/quiz/quiz_provider.dart' show QuizArgs;
 import 'presentation/providers/settings/settings_provider.dart';
 import 'presentation/navigation/dive_in_page.dart';
 import 'presentation/navigation/auth_redirect.dart';
+import 'presentation/navigation/shell_route_visibility.dart';
 import 'presentation/widgets/app_shell.dart';
 import 'presentation/widgets/session_bootstrap.dart';
 import 'services/incoming_link_dispatcher.dart';
@@ -154,7 +155,7 @@ class _PonderinAppState extends ConsumerState<PonderinApp> {
       ),
       ShellRoute(
         builder: (_, _, child) =>
-            QuizRouteVisibility(child: AppShell(child: child)),
+            ShellRouteVisibility(child: AppShell(child: child)),
         routes: [
           // The signed-in landing page is the learning path. Vocabulary
           // and lessons remain independent tabs, but the first-use flow

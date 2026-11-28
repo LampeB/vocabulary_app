@@ -1,4 +1,4 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show FutureOr, unawaited;
 import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../navigation/shell_route_visibility.dart';
 import '../../providers/quiz/quiz_provider.dart';
 import '../../providers/audio/audio_provider.dart';
 import '../../providers/auth/auth_provider.dart';
@@ -59,42 +60,11 @@ import '../../design/v3/v3_tokens.dart';
 // the settle timeout and intermittently trips mid-layout binding assertions).
 const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
+enum _TurnStopFailure { microphone, audio }
+
 final voiceTurnMachineFactoryProvider = Provider<VoiceTurnMachine Function()>(
   (ref) => VoiceTurnMachine.new,
 );
-
-/// Exposes the route containing the shell's nested navigator. The quiz's own
-/// route can stay current inside that navigator when a root route covers it.
-class QuizRouteVisibility extends StatelessWidget {
-  const QuizRouteVisibility({super.key, required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final route = ModalRoute.of(context);
-    return _QuizRouteScope(
-      route: route,
-      current: route?.isCurrent ?? true,
-      child: child,
-    );
-  }
-}
-
-class _QuizRouteScope extends InheritedWidget {
-  const _QuizRouteScope({
-    required this.route,
-    required this.current,
-    required super.child,
-  });
-
-  final ModalRoute<Object?>? route;
-  final bool current;
-
-  @override
-  bool updateShouldNotify(_QuizRouteScope oldWidget) =>
-      route != oldWidget.route || current != oldWidget.current;
-}
 
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({super.key, required this.args});
@@ -163,7 +133,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   bool _quitting = false;
   bool _quitReady = false;
   bool _sessionStarted = false;
-  Future<void>? _interruption;
+  Future<bool>? _microphoneStop;
+  Future<bool>? _audioStop;
+  bool _needsMicRelease = false;
   Future<void>? _hfCorrection;
   AudioDirector? _replacedPromptDirector;
   // Display-only: attempts consumed on the current card, fed by the
@@ -264,9 +236,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _quizRoute = ModalRoute.of(context);
-    _shellRoute = context
-        .dependOnInheritedWidgetOfExactType<_QuizRouteScope>()
-        ?.route;
+    _shellRoute = ShellRouteVisibility.routeOf(context);
     // Apply provider changes outside build. Callbacks independently check the
     // actual route objects so a result cannot win during the transition frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -297,10 +267,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
   }
 
-  Future<void> _interruptTurn() {
+  Future<_TurnStopFailure?> _interruptTurn({bool confirmMic = false}) {
     _listenToken++; // every in-flight STT completion is now stale
     _hfCorrection = null;
-    final releaseMic = _cancelActiveRace();
+    final releaseMic =
+        _cancelActiveRace() ||
+        (_canInteract && (_needsMicRelease || (confirmMic && _usesRealStt)));
     _listenBarCtrl.stop();
     setState(() {
       _hfAnalyzing = false;
@@ -309,10 +281,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _hfCountdown = null;
     });
     ref.read(_quiz.notifier).setListening(false);
-    return _interruption = _stopTurnResources(
+    if (releaseMic && confirmMic && _usesRealStt) {
+      _sharedCapture ??= ref.read(sharedPcmCaptureProvider);
+    }
+    return _stopTurnResources(
       ref.read(audioDirectorProvider),
       releaseMic: releaseMic,
-      pending: _interruption,
     );
   }
 
@@ -329,40 +303,80 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     ]);
   }
 
+  Future<bool> _confirmStop(Future<void> Function() stop, String kind) async {
+    try {
+      await stop();
+      return true;
+    } catch (error) {
+      sttLog('[QUIZ] $kind stop failed: $error');
+      return false;
+    }
+  }
+
+  Future<bool> _confirmMicrophoneRelease() {
+    // Both capture services keep the native stop pending across timeouts.
+    // Give an explicit retry its own bounded wait for that same stop.
+    final stop = _confirmStop(_releaseTurnMicrophone, 'microphone');
+    _microphoneStop = stop;
+    unawaited(
+      stop.then((released) {
+        if (!identical(_microphoneStop, stop)) return;
+        _needsMicRelease = !released;
+        _microphoneStop = null;
+      }),
+    );
+    return stop;
+  }
+
   /// Can run during disposal using cached services only.
-  Future<void> _stopTurnResources(
+  Future<_TurnStopFailure?> _stopTurnResources(
     AudioDirector? director, {
     required bool releaseMic,
-    Future<void>? pending,
-  }) async {
-    try {
-      await Future.wait<void>([
-        ?pending,
-        if (releaseMic) _releaseTurnMicrophone(),
-        if (director != null) Future.sync(director.stopAll),
-      ]);
-    } catch (error) {
-      // Leaving the route can proceed. The audio director and capture
-      // services still retain native release until it is confirmed.
-      sttLog('[QUIZ] audio or microphone stop failed: $error');
+  }) {
+    final microphone = releaseMic
+        ? _confirmMicrophoneRelease()
+        : _microphoneStop;
+    if (director != null) {
+      final stop = _confirmStop(director.stopAll, 'audio');
+      _audioStop = stop;
+      unawaited(
+        stop.whenComplete(() {
+          if (identical(_audioStop, stop)) _audioStop = null;
+        }),
+      );
     }
+    return _turnStopResult(microphone, _audioStop);
+  }
+
+  Future<_TurnStopFailure?> _turnStopResult(
+    Future<bool>? microphone,
+    Future<bool>? audio,
+  ) async {
+    final micStopped = await microphone ?? true;
+    final audioStopped = await audio ?? true;
+    if (!micStopped) return _TurnStopFailure.microphone;
+    if (!audioStopped) return _TurnStopFailure.audio;
+    return null;
+  }
+
+  bool _acceptTurnStop(_TurnStopFailure? failure, bool Function() stale) {
+    if (stale()) return false;
+    if (failure == null) return true;
+    _showReleaseFailure(audio: failure == _TurnStopFailure.audio);
+    return false;
   }
 
   void _stopPreviousCardCapture() {
     // A loading or covered route can see another quiz's app-scoped services
     // listening. Only its own race gives it permission to stop a capture.
     if (!_cancelActiveRace()) return;
-    _interruption = _stopTurnResources(
-      null,
-      releaseMic: true,
-      pending: _interruption,
-    );
+    unawaited(_confirmMicrophoneRelease());
   }
 
-  Future<void> _resumeHandsFree({bool retryRelease = false}) async {
+  Future<void> _resumeHandsFree() async {
     final card = ref.read(_quiz).currentCard;
     if (card == null) return;
-    await _readPromptAndListen(card, retryRelease: retryRelease);
+    await _readPromptAndListen(card);
   }
 
   /// Owns playback of the current hands-free prompt and waits for it before
@@ -374,8 +388,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final token = _listenToken;
     bool stale() => _turnStale(token, card);
     if (stale()) return;
-    await _interruption;
-    if (stale()) return;
+    if (_usesRealStt) _sharedCapture ??= ref.read(sharedPcmCaptureProvider);
+    final stopped = await _stopTurnResources(null, releaseMic: _usesRealStt);
+    if (!_acceptTurnStop(stopped, stale)) return;
     if (!_kTestMode) {
       if (!await _playCurrentPrompt(card, stale, retryRelease: retryRelease)) {
         return;
@@ -500,9 +515,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     bool stale() =>
         _turnStale(token, card) || ref.read(currentUserProvider)?.id != userId;
     try {
-      final pending = _interruption;
-      if (pending != null) await pending;
-      if (stale()) return;
+      _stopPreviousCardCapture();
+      final stopped = await _stopTurnResources(
+        null,
+        releaseMic: _needsMicRelease,
+      );
+      if (!_acceptTurnStop(stopped, stale)) return;
       await _startListeningInner(card, token, stale);
     } catch (error) {
       await _handleVoiceAttemptFailure(error, stale);
@@ -731,7 +749,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (stale()) return;
     // A detached attempt may have reached native mic startup. Join release
     // before any retry can start, including a retry during cleanup.
-    await (_interruption = _recoverRaceAttempt(stale));
+    final stopped = await _stopTurnResources(
+      null,
+      releaseMic: _cancelActiveRace(),
+    );
+    if (_acceptTurnStop(stopped, stale)) {
+      _showVoiceAttemptFailure('quiz.voice_prepare_failed');
+    }
   }
 
   Future<bool> _raceNetworkAvailable() async {
@@ -743,19 +767,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
   }
 
-  Future<void> _recoverRaceAttempt(bool Function() stale) async {
-    final releaseMic = _cancelActiveRace();
+  void _showVoiceAttemptFailure(String key) {
     _listenBarCtrl.stop();
-    try {
-      if (releaseMic) await _releaseTurnMicrophone();
-    } catch (error) {
-      sttLog('[QUIZ] failed attempt could not release the microphone: $error');
-      if (!stale()) _showReleaseFailure();
-      return;
-    }
-    if (!mounted || stale()) return;
     ref.read(_quiz.notifier).setListening(false);
-    const key = 'quiz.voice_prepare_failed';
     if (widget.args.mode == QuizMode.handsFree) {
       setState(() {
         _hfCountdown = null;
@@ -791,14 +805,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final recorder =
         _sharedCapture ?? ref.read<SharedPcmCapture>(sharedPcmCaptureProvider);
     _sharedCapture = recorder;
-    try {
-      await _releaseTurnMicrophone();
-    } catch (error) {
-      sttLog('[HF] microphone release preflight failed: $error');
-      if (!stale()) _showReleaseFailure();
-      return;
-    }
-    if (stale()) return;
+    final released = await _confirmMicrophoneRelease();
+    final failure = released ? null : _TurnStopFailure.microphone;
+    if (!_acceptTurnStop(failure, stale)) return;
     final shared = engines.any(
       (engine) => engine.capture == SttCapture.sharedPcm,
     );
@@ -923,7 +932,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (identical(_activeRace, race)) _activeRace = null;
     if (outcome.cancelled || stale()) return;
     if (outcome.micReleaseFailed) {
+      _needsMicRelease = true;
       _showReleaseFailure();
+      return;
+    }
+    if (outcome.captureInterrupted) {
+      _showVoiceAttemptFailure('quiz.voice_capture_interrupted');
       return;
     }
     final hadReal = outcome.hadRealSession;
@@ -949,8 +963,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         _hfAnalyzing = false;
       });
     }
-    _stopPreviousCardCapture();
-    await _interruption;
     if (stale()) return;
     sttLog(
       '[HF] _startListening  token=$token  question="${card.questionWord}"  answerWords=${card.answerWords}',
@@ -1274,13 +1286,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     } else {
       // Manual resume = the user says the environment is OK again.
       _turnMachine?.resetSilenceStreak();
-      unawaited(_resumeHandsFree());
+      _hfRepeat();
     }
   }
 
   void _hfRepeat() {
-    unawaited(_interruptTurn());
-    unawaited(_resumeHandsFree(retryRelease: true));
+    final card = ref.read(_quiz).currentCard;
+    if (card == null) return;
+    unawaited(
+      _afterTurnStopped(
+        card,
+        () => _readPromptAndListen(card, retryRelease: true),
+      ),
+    );
   }
 
   Future<void> _hfSkip() async {
@@ -1288,11 +1306,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // returns later in the session.
     final card = ref.read(_quiz).currentCard;
     if (card == null) return;
-    final stopped = _interruptTurn();
-    final token = _listenToken;
-    await stopped;
-    if (_turnStale(token, card)) return;
-    ref.read(_quiz.notifier).skipCurrentCard();
+    await _afterTurnStopped(
+      card,
+      () => ref.read(_quiz.notifier).skipCurrentCard(),
+    );
   }
 
   /// Hands-free (Mains libres) — eyes-off canvas: word in the wave with the
@@ -2046,16 +2063,25 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                         key: const ValueKey(WidgetKeys.voiceReveal),
                         icon: Icons.visibility_outlined,
                         label: 'quiz.voice_reveal'.tr(),
-                        onTap: () => unawaited(_revealVoiceAnswer(card)),
+                        onTap: () => unawaited(
+                          _afterTurnStopped(
+                            card,
+                            () =>
+                                ref.read(_quiz.notifier).submitVoiceAnswer(''),
+                          ),
+                        ),
                       ),
                       _EscapePill(
                         key: const ValueKey(WidgetKeys.voiceKeyboard),
                         icon: Icons.keyboard_outlined,
                         label: 'quiz.voice_keyboard'.tr(),
-                        onTap: () {
-                          setState(() => _voiceKbIndex = s.currentIndex);
-                          unawaited(_interruptTurn());
-                        },
+                        onTap: () => unawaited(
+                          _afterTurnStopped(
+                            card,
+                            () =>
+                                setState(() => _voiceKbIndex = s.currentIndex),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -2065,12 +2091,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     );
   }
 
-  Future<void> _revealVoiceAnswer(QuizCard card) async {
-    final stopped = _interruptTurn();
+  Future<void> _afterTurnStopped(
+    QuizCard card,
+    FutureOr<void> Function() action,
+  ) async {
+    if (_turnStale(_listenToken, card)) return;
+    final stopped = _interruptTurn(confirmMic: true);
     final token = _listenToken;
-    await stopped;
-    if (_turnStale(token, card)) return;
-    ref.read(_quiz.notifier).submitVoiceAnswer('');
+    if (_acceptTurnStop(await stopped, () => _turnStale(token, card))) {
+      await action();
+    }
   }
 }
 

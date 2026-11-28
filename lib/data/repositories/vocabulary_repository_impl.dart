@@ -342,12 +342,13 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       .distinct(listEquals);
 
   @override
-  Future<List<({String source, String target})>> getWordPairSample(
+  Future<List<({String source, String target})>?> getWordPairSample(
     String listId, {
     required int limit,
+    required (String, String) expectedPair,
   }) => _database.transaction(() async {
     final list = await _findList(listId);
-    if (list == null) return [];
+    if (list == null || (list.langA, list.langB) != expectedPair) return null;
     final concepts = await _conceptDao.getConceptsByList(list.id, limit: limit);
     if (concepts.isEmpty) return [];
     final ids = concepts.map((concept) => concept.id).toList();

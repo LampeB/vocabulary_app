@@ -33,9 +33,12 @@ abstract interface class PcmCaptureSession {
 abstract interface class PcmCaptureSource {
   /// Opens the mic. Returns null when it could not open (permission denied,
   /// mic busy). Opening a new window silences any previous one first.
+  /// [onInterruption] reports an unexpected end of input. The caller must
+  /// close that session and wait for native release.
   Future<PcmCaptureSession?> open({
     required void Function(bool inSpeech) onSpeechChange,
     required void Function(PcmSegment segment) onSegment,
+    required void Function(Object error) onInterruption,
   });
 }
 
@@ -67,10 +70,20 @@ class SharedPcmCapture implements PcmCaptureSource {
   /// Resolves the permission prompt without starting capture.
   Future<bool> ensurePermission() => _microphone.hasPermission();
 
+  /// Checks whether playback may use the audio channel. Only the owner of
+  /// the capture can request a stop.
+  Future<void>? waitForMicrophoneRelease() {
+    final session = _current;
+    if (session == null) return null;
+    return session._closing?.timeout(releaseTimeout) ??
+        Future<void>.error(StateError('PCM microphone still in use'));
+  }
+
   @override
   Future<PcmCaptureSession?> open({
     required void Function(bool inSpeech) onSpeechChange,
     required void Function(PcmSegment segment) onSegment,
+    required void Function(Object error) onInterruption,
   }) async {
     final request = ++_request;
     bool cancelled() => _disposed || request != _request;
@@ -87,6 +100,7 @@ class SharedPcmCapture implements PcmCaptureSource {
       _segmenterFactory(),
       onSpeechChange,
       onSegment,
+      onInterruption,
     );
     _current = session;
     final starting = session._starting = Future.sync(
@@ -95,7 +109,13 @@ class SharedPcmCapture implements PcmCaptureSource {
     try {
       final stream = await starting;
       if (cancelled()) return null;
-      session._sub = stream.listen(session._feed);
+      session._sub = stream.listen(
+        session._feed,
+        onError: session._interruptInput,
+        onDone: () => session._interruptInput(
+          StateError('Microphone stream ended unexpectedly'),
+        ),
+      );
       sttLog('[CAP] 🎙️ mic open');
       return session;
     } catch (error) {
@@ -139,12 +159,19 @@ class SharedPcmCapture implements PcmCaptureSource {
 }
 
 class _Session implements PcmCaptureSession {
-  _Session(this._owner, this._segmenter, this._onSpeechChange, this._onSegment);
+  _Session(
+    this._owner,
+    this._segmenter,
+    this._onSpeechChange,
+    this._onSegment,
+    this._onInterruption,
+  );
 
   final SharedPcmCapture _owner;
   final PcmSegmenter _segmenter;
   final void Function(bool) _onSpeechChange;
   final void Function(PcmSegment) _onSegment;
+  final void Function(Object) _onInterruption;
   StreamSubscription<Uint8List>? _sub;
   Future<Stream<Uint8List>>? _starting;
   Future<void>? _closing;
@@ -153,6 +180,12 @@ class _Session implements PcmCaptureSession {
 
   @override
   bool get inSpeech => !_closedForInput && _segmenter.inSpeech;
+
+  void _interruptInput(Object error) {
+    if (_closedForInput) return;
+    _closedForInput = true;
+    _onInterruption(error);
+  }
 
   void _feed(Uint8List chunk) {
     if (_closedForInput) return;
@@ -186,7 +219,9 @@ class _Session implements PcmCaptureSession {
     try {
       // A timeout releases the caller, while a repeated close still joins
       // the same native stop until its real result arrives.
-      await (_closing ??= _close()).timeout(_owner.releaseTimeout);
+      await (_closing ??= Future<void>.microtask(
+        _close,
+      )).timeout(_owner.releaseTimeout);
     } on TimeoutException catch (error) {
       throw PcmReleaseException(error);
     }
@@ -194,9 +229,18 @@ class _Session implements PcmCaptureSession {
   }
 
   Future<void> _close() async {
+    final subscription = _sub;
+    _sub = null;
+    // Sealing input and detaching the Dart stream are separate from asking
+    // the recorder to release the native microphone.
+    if (subscription != null) {
+      unawaited(
+        Future<void>.sync(subscription.cancel).catchError((Object error) {
+          sttLog('[CAP] mic stream cancellation failed: $error');
+        }),
+      );
+    }
     try {
-      await _sub?.cancel();
-      _sub = null;
       await _owner._release(this);
     } catch (error) {
       _closing = null; // an explicit retry may call the native stop again

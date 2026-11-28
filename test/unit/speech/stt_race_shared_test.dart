@@ -63,6 +63,7 @@ class _FakeSource implements PcmCaptureSource {
   Future<PcmCaptureSession?> open({
     required void Function(bool inSpeech) onSpeechChange,
     required void Function(PcmSegment segment) onSegment,
+    required void Function(Object) onInterruption,
   }) async {
     opens++;
     if (!openResult) return null;
@@ -156,6 +157,78 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('SttRace — shared capture (local before cloud)', () {
+    test(
+      'a record event channel error ends the race after native stop',
+      () async {
+        final messenger =
+            TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+        const channel = MethodChannel('com.llfbandit.record/messages');
+        MethodChannel? events;
+        MethodChannel? states;
+        final recordingOpened = Completer<void>();
+        final stopRequested = Completer<void>();
+        final release = Completer<void>();
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          switch (call.method) {
+            case 'create':
+              final id = call.arguments['recorderId'] as String;
+              events = MethodChannel('com.llfbandit.record/eventsRecord/$id');
+              states = MethodChannel('com.llfbandit.record/events/$id');
+              messenger.setMockMethodCallHandler(events!, (_) async => null);
+              messenger.setMockMethodCallHandler(states!, (_) async => null);
+            case 'hasPermission':
+              return true;
+            case 'stop':
+              stopRequested.complete();
+              await release.future;
+          }
+          return null;
+        });
+        final capture = SharedPcmCapture();
+        addTearDown(() async {
+          capture.dispose();
+          await _pump();
+          messenger.setMockMethodCallHandler(channel, null);
+          if (events != null) messenger.setMockMethodCallHandler(events!, null);
+          if (states != null) messenger.setMockMethodCallHandler(states!, null);
+        });
+        final decoder = _SharedEngine('whisper');
+        var finished = false;
+        final race = SttRace([decoder], capture: capture)
+            .run(
+              langCode: 'en',
+              acceptedAnswers: ['cat'],
+              onStatus: (status) {
+                if (status.phase == SttPhase.listening) {
+                  recordingOpened.complete();
+                }
+              },
+            )
+            .then((outcome) {
+              finished = true;
+              return outcome;
+            });
+        await recordingOpened.future.timeout(const Duration(seconds: 2));
+        await messenger.handlePlatformMessage(
+          events!.name,
+          const StandardMethodCodec().encodeErrorEnvelope(
+            code: 'record_failed',
+          ),
+          null,
+        );
+        await stopRequested.future.timeout(const Duration(seconds: 2));
+        expect(finished, isFalse);
+
+        release.complete();
+        final outcome = await race;
+        expect(outcome.captureInterrupted, isTrue);
+        expect(outcome.micReleaseFailed, isFalse);
+        expect(outcome.matched, isFalse);
+        expect(outcome.hadRealSession, isFalse);
+        expect(decoder.segments, isEmpty);
+      },
+    );
+
     test('English cap cannot win the shared race for cat', () async {
       final source = _FakeSource();
       final decoder = _SharedEngine('whisper');

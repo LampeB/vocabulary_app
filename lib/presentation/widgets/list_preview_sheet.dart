@@ -83,7 +83,7 @@ class _ListPreviewSheet extends ConsumerWidget {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 24),
                       child: Text(
-                        'start_session.empty_lists'.tr(),
+                        'list_detail.empty_subtitle'.tr(),
                         style: AppTextStyles.body,
                       ),
                     ),

@@ -47,30 +47,16 @@ class V3HomeScreen extends ConsumerWidget {
         children: [
           const Positioned.fill(child: V3Pond()),
           SafeArea(
-            child: lists.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(color: V3Colors.amber),
-              ),
-              error: (_, _) => _V3HomeBody(
-                pair: pair,
-                userInitial: _initial(user?.displayName ?? user?.username),
-                streak: user?.currentStreak ?? 0,
-                due: due,
-                onRetryDue: () => ref.invalidate(dueProvider),
-                lists: const [],
-                rules: rules,
-                onPairTap: () => _showPairPicker(context, ref, pair),
-              ),
-              data: (items) => _V3HomeBody(
-                pair: pair,
-                userInitial: _initial(user?.displayName ?? user?.username),
-                streak: user?.currentStreak ?? 0,
-                due: due,
-                onRetryDue: () => ref.invalidate(dueProvider),
-                lists: items,
-                rules: rules,
-                onPairTap: () => _showPairPicker(context, ref, pair),
-              ),
+            child: _V3HomeBody(
+              pair: pair,
+              userInitial: _initial(user?.displayName ?? user?.username),
+              streak: user?.currentStreak ?? 0,
+              due: due,
+              onRetryDue: () => ref.invalidate(dueProvider),
+              lists: lists,
+              onRetryLists: () => ref.invalidate(myListsProvider),
+              rules: rules,
+              onPairTap: () => _showPairPicker(context, ref, pair),
             ),
           ),
         ],
@@ -142,6 +128,7 @@ class _V3HomeBody extends StatelessWidget {
     required this.due,
     required this.onRetryDue,
     required this.lists,
+    required this.onRetryLists,
     required this.rules,
     required this.onPairTap,
   });
@@ -151,17 +138,24 @@ class _V3HomeBody extends StatelessWidget {
   final int streak;
   final AsyncValue<int> due;
   final VoidCallback onRetryDue;
-  final List<VocabularyList> lists;
+  final AsyncValue<List<VocabularyList>> lists;
+  final VoidCallback onRetryLists;
   final List<RuleStatus> rules;
   final VoidCallback onPairTap;
 
   @override
   Widget build(BuildContext context) {
-    final pairLists = lists
-        .where((list) => list.langA == pair.$1 && list.langB == pair.$2)
+    final confirmedLists = lists.isLoading ? null : lists.asData?.value;
+    final pairLists = confirmedLists
+        ?.where((list) => list.langA == pair.$1 && list.langB == pair.$2)
         .toList();
-    final firstList = pairLists.isEmpty ? null : pairLists.first;
-    final totalWords = pairLists.fold<int>(
+    final firstList = pairLists == null || pairLists.isEmpty
+        ? null
+        : pairLists.first;
+    final listState = pairLists == null
+        ? (lists.isLoading ? 'v3.lists_loading' : 'v3.lists_error').tr()
+        : null;
+    final totalWords = pairLists?.fold<int>(
       0,
       (sum, list) => sum + list.wordCount,
     );
@@ -174,17 +168,21 @@ class _V3HomeBody extends StatelessWidget {
     final nextTitle = switch (dueCount) {
       null =>
         (due.isLoading ? 'v3.review_due_loading' : 'v3.review_due_error').tr(),
-      0 => switch (firstList) {
-        null => 'v3.prepare_list'.tr(),
-        VocabularyList(wordCount: 0) => 'v3.add_words'.tr(),
-        VocabularyList(:final name) => name,
-      },
+      0 =>
+        listState ??
+            switch (firstList) {
+              null => 'v3.prepare_list'.tr(),
+              VocabularyList(wordCount: 0) => 'v3.add_words'.tr(),
+              VocabularyList(:final name) => name,
+            },
       _ => 'v3.words_due'.tr(namedArgs: {'count': '$dueCount'}),
     };
     final nextSubtitle = switch (dueCount) {
       null => null,
       0 =>
-        firstList == null
+        listState != null
+            ? null
+            : firstList == null
             ? 'v3.few_words'.tr()
             : 'v3.list_duration'.tr(namedArgs: {'name': firstList.name}),
       _ => 'v3.resume_known'.tr(),
@@ -206,7 +204,7 @@ class _V3HomeBody extends StatelessWidget {
           _DailyEntry(
             countLabel: switch (dueCount) {
               null => null,
-              0 => 'v3.one_activity'.tr(),
+              0 => listState == null ? 'v3.one_activity'.tr() : null,
               _ => 'v3.words_due'.tr(namedArgs: {'count': '$dueCount'}),
             },
             title: nextTitle,
@@ -225,9 +223,28 @@ class _V3HomeBody extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 14),
+          if (!lists.isLoading && lists.hasError)
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton(
+                key: const ValueKey(WidgetKeys.homeListsRetry),
+                style: TextButton.styleFrom(foregroundColor: V3Colors.amber),
+                onPressed: onRetryLists,
+                child: Text('common.retry'.tr()),
+              ),
+            ),
+          if (listState != null && dueCount != 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                listState,
+                style: const TextStyle(color: V3Colors.light70),
+              ),
+            ),
           _PathEntry(
             remainingLessons: lessonsRemaining,
             firstList: firstList,
+            listState: listState,
             rules: rules,
           ),
           const SizedBox(height: 10),
@@ -236,7 +253,7 @@ class _V3HomeBody extends StatelessWidget {
             readLessons: lessonsRead,
             remainingLessons: lessonsRemaining,
             totalWords: totalWords,
-            listCount: pairLists.length,
+            listCount: pairLists?.length,
           ),
           const SizedBox(height: 10),
           Row(
@@ -450,10 +467,12 @@ class _PathEntry extends StatelessWidget {
   const _PathEntry({
     required this.remainingLessons,
     required this.firstList,
+    required this.listState,
     required this.rules,
   });
   final int remainingLessons;
   final VocabularyList? firstList;
+  final String? listState;
   final List<RuleStatus> rules;
 
   @override
@@ -515,11 +534,12 @@ class _PathEntry extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        firstList == null
-                            ? 'v3.prepare_words'.tr()
-                            : 'v3.current_list'.tr(
-                                namedArgs: {'name': firstList!.name},
-                              ),
+                        listState ??
+                            (firstList == null
+                                ? 'v3.prepare_words'.tr()
+                                : 'v3.current_list'.tr(
+                                    namedArgs: {'name': firstList!.name},
+                                  )),
                         style: AppTextStyles.fig(
                           13,
                           FontWeight.w400,
@@ -575,7 +595,9 @@ class _PathEntry extends StatelessWidget {
             ),
             const SizedBox(height: 17),
             _SheetChoice(
-              label: firstList == null
+              label: listState != null
+                  ? 'v3.my_lists'.tr()
+                  : firstList == null
                   ? 'v3.create_list'.tr()
                   : 'v3.resume_list'.tr(namedArgs: {'name': firstList!.name}),
               onTap: () {
@@ -615,8 +637,8 @@ class _MetricGrid extends StatelessWidget {
   final int? due;
   final int readLessons;
   final int remainingLessons;
-  final int totalWords;
-  final int listCount;
+  final int? totalWords;
+  final int? listCount;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -643,12 +665,12 @@ class _MetricGrid extends StatelessWidget {
           meta: 'v3.to_discover'.tr(namedArgs: {'count': '$remainingLessons'}),
         ),
         _Metric(
-          value: '$totalWords',
+          value: totalWords?.toString() ?? '—',
           title: 'v3.words_in_lists'.tr(),
           meta: 'v3.at_your_pace'.tr(),
         ),
         _Metric(
-          value: '$listCount',
+          value: listCount?.toString() ?? '—',
           title: 'v3.available_lists'.tr(),
           meta: 'v3.building'.tr(),
         ),

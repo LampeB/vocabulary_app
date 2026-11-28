@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/network/authenticated_edge_session.dart';
 import '../../core/utils/pcm_segmenter.dart';
 import '../../core/utils/stt_debug_log.dart';
 import 'whisper_speech_service.dart';
@@ -29,7 +30,8 @@ class _SupabaseCloudTranscriber implements CloudTranscriber {
     required String langCode,
     required String expectedWord,
   }) async {
-    final response = await Supabase.instance.client.functions.invoke(
+    final response = await invokeAuthenticatedEdgeFunction(
+      Supabase.instance.client,
       'elevenlabs-stt-proxy',
       body: {
         'audio_base64': base64Encode(pcm16),

@@ -76,6 +76,15 @@ VariantProgress _remoteProgress(String list) => VariantProgress(
   updatedAt: DateTime.utc(2026, 11, 27),
 );
 
+Future<Map<String, dynamic>> _pullCheckpoint(AppDatabase db) async {
+  final stored = await db
+      .customSelect(
+        "SELECT snapshot FROM shared_import_bootstrap WHERE id = 'vocabulary-pull:u'",
+      )
+      .getSingle();
+  return jsonDecode(stored.read<String>('snapshot')) as Map<String, dynamic>;
+}
+
 Future<void> _useSession(SupabaseClient client, String id) async {
   String encode(Object value) =>
       base64Url.encode(utf8.encode(jsonEncode(value))).replaceAll('=', '');
@@ -108,6 +117,7 @@ void main() {
   VocabularyRemoteDataSource remote(
     Future<http.Response> Function(http.Request) send, {
     Duration writeTimeout = const Duration(milliseconds: 250),
+    Duration pageTimeout = const Duration(seconds: 4),
     void Function(SupabaseClient)? captureClient,
   }) {
     final client = SupabaseClient(
@@ -120,7 +130,7 @@ void main() {
     return VocabularyRemoteDataSource(
       client,
       writeTimeout: writeTimeout,
-      pageTimeout: const Duration(seconds: 4),
+      pageTimeout: pageTimeout,
     );
   }
 
@@ -501,9 +511,11 @@ void main() {
   );
 
   test(
-    'reopening SQLite resumes a large list traversal at the same latency',
+    'reopening SQLite skips committed list content and retries a timed-out list',
     () async {
       final requests = <String>[];
+      final firstIncompletePage = Completer<http.Response>();
+      var stallIncompletePage = true;
       final datasource = remote((request) async {
         final table = request.url.pathSegments.last;
         if (table == 'vocabulary_pull_revision') return _reply(request, 0);
@@ -521,7 +533,9 @@ void main() {
           ]);
         }
         if (table == _conceptEndpoint) {
-          await Future<void>.delayed(const Duration(milliseconds: 65));
+          if (list == 'list-1' && stallIncompletePage) {
+            return firstIncompletePage.future;
+          }
           return _conceptReply(request, [
             {
               ..._timestamp,
@@ -532,10 +546,8 @@ void main() {
           ]);
         }
         return _reply(request, []);
-      });
+      }, pageTimeout: const Duration(milliseconds: 260));
 
-      var failures = 0;
-      var complete = false;
       final directory = await Directory.systemTemp.createTemp(
         'ponderin-pull-test',
       );
@@ -546,31 +558,50 @@ void main() {
         await file.delete();
         await directory.delete();
       });
-      for (var attempt = 0; attempt < 18; attempt++) {
-        try {
-          await repository(
-            datasource,
-            device: device,
-            restoreTimeout: const Duration(milliseconds: 260),
-          ).syncFromRemote();
-          complete = true;
-          break;
-        } on NetworkException {
-          failures++;
-          if (attempt == 0) {
-            await device.close();
-            device = AppDatabase.forTesting(NativeDatabase(file));
-          }
-        }
-      }
-      expect(complete, isTrue);
-      expect(failures, greaterThan(0));
+      // Only the first incomplete list stalls its HTTP page. The earlier
+      // response can be applied without relying on a wall-clock head start.
+      await expectLater(
+        repository(
+          datasource,
+          device: device,
+        ).syncFromRemote().timeout(const Duration(seconds: 2)),
+        throwsA(isA<NetworkException>()),
+      );
+      expect(requests, ['vocabulary_pull_inventory', 'list-0', 'list-1']);
+      expect(firstIncompletePage.isCompleted, isFalse);
+      final checkpoint = await _pullCheckpoint(device);
+      expect(checkpoint, containsPair('listsComplete', true));
+      expect(checkpoint, containsPair('contentsDone', 1));
+      expect(checkpoint, containsPair('progressComplete', false));
+      expect(
+        (await device.conceptDao.getById('concept-list-0'))?.listId,
+        'list-0',
+      );
+      expect(await device.conceptDao.getById('concept-list-1'), isNull);
+
+      await device.close();
+      device = AppDatabase.forTesting(NativeDatabase(file));
+      stallIncompletePage = false;
+      await repository(
+        datasource,
+        device: device,
+      ).syncFromRemote().timeout(const Duration(seconds: 2));
       expect(
         requests.where((request) => request == 'vocabulary_pull_inventory'),
         hasLength(1),
       );
       expect(requests.where((request) => request == 'list-0'), hasLength(1));
+      expect(requests.where((request) => request == 'list-1'), hasLength(2));
+      expect(requests[3], 'list-1');
       expect(requests.last, 'variant_progress');
+      expect(
+        (await device.conceptDao.getById('concept-list-0'))?.listId,
+        'list-0',
+      );
+      expect(
+        (await device.conceptDao.getById('concept-list-1'))?.listId,
+        'list-1',
+      );
       expect(
         (await device.conceptDao.getById('concept-list-24'))?.listId,
         'list-24',
@@ -583,17 +614,25 @@ void main() {
     () async {
       final requests = <(String, String?)>[];
       const list = 'list';
+      const firstVariant = 'first-variant';
       const finalVariant = 'final-variant';
+      const inventoryEndpoint = 'vocabulary_pull_inventory';
+      const progressEndpoint = 'variant_progress';
+      const inventoryAfter = 'archived-499';
+      const conceptsAfter = 'concept-499';
+      const progressAfter = 'progress-499';
+      (String, String)? blockedPage = (inventoryEndpoint, inventoryAfter);
+      final silent = Completer<http.Response>();
       final datasource = remote((request) async {
         final table = request.url.pathSegments.last;
         if (table == 'vocabulary_pull_revision') return _reply(request, 0);
-        final cursor =
-            table == 'vocabulary_pull_inventory' || table == _conceptEndpoint
+        final cursor = table == inventoryEndpoint || table == _conceptEndpoint
             ? jsonDecode(request.body)['p_after_id'] as String?
             : request.url.queryParameters['id'];
-        requests.add((table, cursor));
-        await Future<void>.delayed(const Duration(milliseconds: 150));
-        if (table == 'vocabulary_pull_inventory') {
+        final page = (table, cursor);
+        requests.add(page);
+        if (page == blockedPage) return silent.future;
+        if (table == inventoryEndpoint) {
           if (cursor == null) {
             return _reply(request, [
               for (var index = 0; index < 500; index++)
@@ -623,7 +662,16 @@ void main() {
                   ..._timestamp,
                   'id': 'concept-$index',
                   'list_id': list,
-                  'word_variants': [],
+                  'word_variants': [
+                    if (index == 0)
+                      {
+                        ..._timestamp,
+                        'id': firstVariant,
+                        'concept_id': 'concept-0',
+                        'word': 'salut',
+                        'lang_code': 'fr',
+                      },
+                  ],
                 },
             ]);
           }
@@ -646,56 +694,65 @@ void main() {
         }
         if (cursor == null) {
           return _reply(request, [
-            for (var index = 0; index < 500; index++)
+            _remoteProgress(
+              list,
+            ).copyWith(id: 'progress-0', variantId: firstVariant).toRemoteMap(),
+            for (var index = 1; index < 500; index++)
               {'id': 'progress-$index', 'user_id': 'unrelated'},
           ]);
         }
-        final now = DateTime.utc(2026, 11, 27);
         return _reply(request, [
-          VariantProgress(
-            id: 'progress-last',
-            userId: 'u',
-            variantId: finalVariant,
-            direction: QuizDirection.frToKo,
-            reps: 4,
-            createdAt: now,
-            updatedAt: now,
-          ).toRemoteMap(),
+          _remoteProgress(list)
+              .copyWith(id: 'progress-last', variantId: finalVariant)
+              .toRemoteMap(),
         ]);
-      });
-      var complete = false;
-      for (var attempt = 0; attempt < 8; attempt++) {
-        try {
-          await repository(
-            datasource,
-            restoreTimeout: const Duration(milliseconds: 260),
-          ).syncFromRemote();
-          complete = true;
-          break;
-        } on NetworkException {
-          // The next invocation uses a fresh repository and its saved page.
-        }
+      }, pageTimeout: const Duration(milliseconds: 260));
+
+      Future<void> expectTimeoutWithCheckpoint(String committedAfter) async {
+        await expectLater(
+          repository(datasource).syncFromRemote(),
+          throwsA(isA<NetworkException>()),
+        );
+        expect(requests.last, blockedPage);
+        expect(
+          await _pullCheckpoint(db),
+          containsPair('afterId', committedAfter),
+        );
       }
-      expect(complete, isTrue);
+
+      await expectTimeoutWithCheckpoint(inventoryAfter);
       expect(
-        requests.where(
-          (request) => request == ('vocabulary_pull_inventory', null),
-        ),
-        hasLength(1),
+        (await db.vocabularyListDao.getById(inventoryAfter))?.isDeleted,
+        isTrue,
       );
-      expect(requests, contains(('vocabulary_pull_inventory', 'archived-499')));
+      expect(await db.vocabularyListDao.getById(list), isNull);
+
+      blockedPage = (_conceptEndpoint, conceptsAfter);
+      await expectTimeoutWithCheckpoint(conceptsAfter);
+      expect(await db.conceptDao.getConceptsByList(list), hasLength(500));
+      expect(await db.conceptDao.getById('concept-last'), isNull);
+
+      blockedPage = (progressEndpoint, 'gt.$progressAfter');
+      await expectTimeoutWithCheckpoint(progressAfter);
       expect(
-        requests.where((request) => request == (_conceptEndpoint, null)).length,
-        lessThanOrEqualTo(2),
+        (await db.progressDao.getById('progress-0'))?.variantId,
+        firstVariant,
       );
-      expect(requests, contains((_conceptEndpoint, 'concept-499')));
-      expect(
-        requests
-            .where((request) => request == ('variant_progress', null))
-            .length,
-        lessThanOrEqualTo(2),
-      );
-      expect(requests.last, ('variant_progress', 'gt.progress-499'));
+      expect(await db.progressDao.getById('progress-last'), isNull);
+
+      blockedPage = null;
+      await repository(datasource).syncFromRemote();
+      expect(requests, [
+        (inventoryEndpoint, null),
+        (inventoryEndpoint, inventoryAfter),
+        (inventoryEndpoint, inventoryAfter),
+        (_conceptEndpoint, null),
+        (_conceptEndpoint, conceptsAfter),
+        (_conceptEndpoint, conceptsAfter),
+        (progressEndpoint, null),
+        (progressEndpoint, 'gt.$progressAfter'),
+        (progressEndpoint, 'gt.$progressAfter'),
+      ]);
       expect(await db.conceptDao.getConceptsByList(list), hasLength(501));
       expect((await db.progressDao.getById('progress-last'))?.reps, 4);
     },

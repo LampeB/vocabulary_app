@@ -6,6 +6,8 @@ import '../../../services/audio/elevenlabs_service.dart';
 import '../../../services/quiz_orchestration/audio_director.dart';
 import '../../../core/config/app_config.dart';
 import '../settings/audio_settings_provider.dart';
+import '../speech/shared_pcm_capture_provider.dart';
+import '../speech/system_speech_recognition_provider.dart';
 
 // Prefetch and playback can overlap when settings replace a player.
 final _audioAssetCacheProvider = Provider((ref) => ElevenLabsService());
@@ -36,6 +38,18 @@ final audioDirectorProvider = Provider.autoDispose<AudioDirector>((ref) {
   final director = AudioDirector(
     ref.watch(audioPlayerServiceProvider),
     waitForReplacedAudio: retired.wait,
+    waitForMicrophoneRelease: () {
+      // A quiz that only plays audio does not need to create a recorder.
+      final releases = [
+        if (ref.exists(sharedPcmCaptureProvider))
+          ?ref.read(sharedPcmCaptureProvider).waitForMicrophoneRelease(),
+        if (ref.exists(systemSpeechRecognitionProvider))
+          ?ref.read(systemSpeechRecognitionProvider).waitForMicrophoneRelease(),
+      ];
+      return releases.isEmpty
+          ? null
+          : Future.wait<void>(releases, eagerError: true);
+    },
   );
   ref.onDispose(() => retired.retire(director));
   return director;

@@ -101,19 +101,22 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **1 368 tests hôte passent**, avec **76,8 %**
+- L'analyse Flutter est propre ; les **1 418 tests hôte passent**, avec **77,5 %**
   de couverture sur le dernier lot du 28 novembre. Douze tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 25 tests ciblés. La sonde compilée en mode produit confirme le
   refus des diagnostics, même avec l'option fournie.
-- Sur `5e60e52`, les huit checks CI, dont les tests hôte, le wrapper SQL,
-  Android et le simulateur iOS, sont verts. Le pont utilise le NDK 28.2 de
+- Sur `7221d63`, les sept checks du workflow PR, dont Android et le simulateur
+  iOS, sont verts. Le check obligatoire du push échoue sur un oracle de
+  reprise SQLite qui confond requête commencée et page confirmée. Le lot
+  courant vérifie le checkpoint durable avant réouverture ; son nouveau SHA
+  doit encore obtenir ses huit checks. Le pont utilise le NDK 28.2 de
   l'application. Le premier cycle a atteint son plafond de vingt passes sans
   convergence. Le 28 novembre, l'utilisateur autorise le cycle 2, avec vingt
   nouvelles passes au maximum,
   des relecteurs libres d'explorer et des correcteurs chargés de chercher la
-  cause, les cas voisins et les effets de leurs changements. Les cinq premières
-  passes y relèvent huit, quatre, huit, dix puis huit Important distincts, traités ensemble
+  cause, les cas voisins et les effets de leurs changements. Les six premières
+  passes y relèvent huit, quatre, huit, dix, huit puis neuf Important distincts, traités ensemble
   après chaque collecte des quatre verdicts. Les ponts TTS mobiles ont compilé
   sur Android/iOS ; le cache partagé publie atomiquement des clips vérifiés et
   se replie sur l'appareil après libération du lecteur défaillant. Les anciens
@@ -145,12 +148,21 @@ de contenu avant bêta pédagogique.
   audio concurrentes partagent un bail de catalogue en 026. La migration 025
   répare les chemins historiques 012/015 testés et le prévol exige désormais
   `study-catalog-v2` ; aucun réglage hébergé n'est activé.
+  La sixième passe rend le contexte de l'assistant paresseux et borné, lie
+  partage/export et appels Edge à leur session, protège les sauvegardes de
+  mots derrière un import et rend leurs actions accessibles. Le plateau et
+  le chemin distinguent la lecture de listes indisponible du vide confirmé.
+  Les erreurs PCM interrompent sans noter ; Révéler/Clavier/Passer et les
+  lectures d'un nouveau quiz attendent la libération effective du micro.
+  La reprise SQLite vérifie les pages durables plutôt qu'une avance temporelle
+  supposée. Les neuf Important et leurs cas voisins sont livrés ensemble ;
+  la convergence reste à zéro et la prochaine passe est la septième.
   Le sas exige deux revues propres sur le commit final ; les verdicts et les
   checks du candidat courant sont consignés dans la PR d'intégration.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **1 368** tests hôte réussis lors de la dernière validation locale
+- La suite compte **1 418** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - Les dix-sept suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
@@ -177,7 +189,7 @@ de contenu avant bêta pédagogique.
 - Le complément des starters préserve les suppressions restaurées. Les
   événements d'un brouillon restent retenus jusqu'à son rapprochement, y
   compris pendant un envoi concurrent. L'arrêt système exclusif conserve
-  aussi sa possession du micro jusqu'à l'accusé natif, même après retour système.
+  aussi sa possession du micro jusqu'à la libération native confirmée, même après retour système.
 - Les titres longs restent accessibles par défilement ; les commandes Retour
   portent un nom accessible et les prérequis absents un libellé de catalogue.
   La compilation APK ne publie plus de binaire dans les artefacts publics.

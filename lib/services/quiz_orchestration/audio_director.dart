@@ -22,6 +22,7 @@ class AudioDirector {
     SoundEffectsService? sfx,
     DateTime Function()? clock,
     this._waitForReplacedAudio,
+    this._waitForMicrophoneRelease,
   }) : _sfx = sfx ?? SoundEffectsService(),
        _clock = clock ?? DateTime.now;
 
@@ -29,6 +30,7 @@ class AudioDirector {
   final SoundEffectsService _sfx;
   final DateTime Function() _clock;
   final Future<void>? Function({required bool retry})? _waitForReplacedAudio;
+  final Future<void>? Function()? _waitForMicrophoneRelease;
   Future<void>? _stopping;
   bool _stopRefused = false;
   bool _disposed = false;
@@ -114,6 +116,10 @@ class AudioDirector {
     try {
       final stopping = _releaseBarrier();
       if (stopping != null) await stopping;
+      if (isCurrent()) {
+        final releasingMic = _waitForMicrophoneRelease?.call();
+        if (releasingMic != null) await releasingMic;
+      }
     } catch (error) {
       if (requirePlayback) rethrow;
       sttLog('[AUDIO] playback skipped after release failure: $error');

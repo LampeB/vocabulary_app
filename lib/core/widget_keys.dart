@@ -36,6 +36,7 @@ abstract final class WidgetKeys {
   static const homeDailyPath = 'home.daily_path';
   static const dailyPathReview = 'daily_path.review';
   static const reviewDueRetry = 'review.due.retry';
+  static const homeListsRetry = 'home.lists.retry';
   static const dailyPathLessons = 'daily_path.lessons';
   static const dailyPathPractice = 'daily_path.practice';
   static String homePair(String langA, String langB) =>
@@ -94,6 +95,8 @@ abstract final class WidgetKeys {
   static const listDetailHandsFree = 'list_detail.hands_free';
   static const listDetailMenu = 'list_detail.menu'; // ⋮ menu
   static const listDetailEditItem = 'list_detail.menu.edit'; // → edit mode
+  static const listDetailAiSuggestItem = 'list_detail.menu.ai_suggest';
+  static const listDetailAiAddSelected = 'list_detail.ai.add_selected';
   static const addWordFr = 'word.add.fr';
   static const addWordKo = 'word.add.ko';
   static const addWordConfirm = 'word.add.confirm';

@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
+import '../../../core/network/authenticated_edge_session.dart';
 
 /// One translation candidate for a word being added to a list.
 class TranslationSuggestion {
@@ -79,7 +80,11 @@ class VocabAssistantDataSource {
         existingWords.where(_validText),
         (word) => word,
       );
-      final res = await _client.functions.invoke('vocab-assistant', body: body);
+      final res = await invokeAuthenticatedEdgeFunction(
+        _client,
+        'vocab-assistant',
+        body: body,
+      );
       final data = res.data;
       if (data is! Map<String, dynamic>) {
         return const Failure(UnknownException('réponse invalide'));
@@ -99,6 +104,8 @@ class VocabAssistantDataSource {
           voiceFriendly: _pairs(data['voiceFriendly']),
         ),
       );
+    } on PermissionException catch (e) {
+      return Failure(e);
     } catch (e) {
       return Failure(UnknownException('$e'));
     }
@@ -116,7 +123,11 @@ class VocabAssistantDataSource {
         body,
         existingPairs,
       ).map((pair) => pair._toJson()).toList();
-      final res = await _client.functions.invoke('vocab-assistant', body: body);
+      final res = await invokeAuthenticatedEdgeFunction(
+        _client,
+        'vocab-assistant',
+        body: body,
+      );
       final data = res.data;
       if (data is! Map<String, dynamic>) {
         return const Failure(UnknownException('réponse invalide'));
@@ -127,6 +138,8 @@ class VocabAssistantDataSource {
           pairs: _pairs(data['suggestions']),
         ),
       );
+    } on PermissionException catch (e) {
+      return Failure(e);
     } catch (e) {
       return Failure(UnknownException('$e'));
     }

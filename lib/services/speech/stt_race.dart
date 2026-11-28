@@ -18,6 +18,7 @@ class SttRaceOutcome {
     this.hadRealSession = false,
     this.cancelled = false,
     this.micReleaseFailed = false,
+    this.captureInterrupted = false,
   });
 
   /// A guess validated against the accepted answers.
@@ -48,6 +49,9 @@ class SttRaceOutcome {
   /// The recorder has not confirmed release. Retry its cleanup before any
   /// new listen attempt.
   final bool micReleaseFailed;
+
+  /// The shared capture stopped supplying input before the turn closed it.
+  final bool captureInterrupted;
 
   static const noEngines = SttRaceOutcome(matched: false);
 }
@@ -439,6 +443,7 @@ class SttRace {
     var micOpen = false;
     var micClosed = false;
     var micClosing = false;
+    var captureInterrupted = false;
     var speaking = false;
     var inFlight = 0;
     var finished = false;
@@ -514,6 +519,9 @@ class SttRace {
       emit();
       completer.complete(outcome);
     }
+
+    Future<void> finishInterrupted() =>
+        finish(const SttRaceOutcome(matched: false, captureInterrupted: true));
 
     void finishIfSettled() {
       if (finished ||
@@ -725,6 +733,12 @@ class SttRace {
           // complete, so the mic can close.
           if (overrun != null) unawaited(closeMic());
         },
+        onInterruption: (error) {
+          if (finished || micClosing || micClosed) return;
+          sttLog('[RACE] shared microphone input interrupted: $error');
+          captureInterrupted = true;
+          if (session != null) unawaited(finishInterrupted());
+        },
       );
     } on PcmReleaseException {
       await finish(
@@ -740,6 +754,10 @@ class SttRace {
           return null;
         }),
       );
+      return completer.future;
+    }
+    if (captureInterrupted) {
+      await finishInterrupted();
       return completer.future;
     }
     if (session == null) {

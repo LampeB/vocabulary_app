@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/authenticated_edge_session.dart';
 import '../../../core/utils/answer_validator.dart';
 import '../../../core/utils/stt_diagnostics.dart';
 import '../../../domain/entities/concept.dart';
@@ -175,31 +176,42 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
     });
   }
 
+  bool _benchmarkSessionIsCurrent(AuthenticatedEdgeSession session) {
+    if (session.isCurrent) return true;
+    if (mounted) {
+      setState(
+        () => _message = 'Analyse interrompue après un changement de session.',
+      );
+    }
+    return false;
+  }
+
   Future<void> _runOpenAiBenchmark(String listId) async {
     final captures = _samples
         .where((sample) => sample.listId == listId)
         .toList();
     if (captures.isEmpty || _isBenchmarking) return;
+    final session = AuthenticatedEdgeSession(ref.read(supabaseClientProvider));
     setState(() {
       _isBenchmarking = true;
       _benchmarkDone = 0;
       _benchmarkTotal = captures.length;
       _message = 'Connexion à OpenAI…';
     });
-    final client = ref.read(supabaseClientProvider);
     var correct = 0;
     try {
       for (var index = 0; index < captures.length; index++) {
+        if (!_benchmarkSessionIsCurrent(session)) return;
         final sample = captures[index];
         final startedAt = DateTime.now();
         String? transcript;
         try {
-          final response = await client.functions.invoke(
+          final audio = await File(sample.path).readAsBytes();
+          if (!_benchmarkSessionIsCurrent(session)) return;
+          final response = await session.invoke(
             'whisper-proxy',
             body: {
-              'audio_base64': base64Encode(
-                await File(sample.path).readAsBytes(),
-              ),
+              'audio_base64': base64Encode(audio),
               'language': sample.langCode,
               // The Edge Function turns this known quiz answer into a
               // transcription hint. Keep this key in lockstep with its API.
@@ -211,6 +223,7 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
         } catch (_) {
           // A missing result is persisted so the corpus remains diagnostic.
         }
+        if (!_benchmarkSessionIsCurrent(session)) return;
         final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
         final accepted =
             transcript != null &&
@@ -236,12 +249,13 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
         }
       }
       await _reload();
-      if (!mounted) return;
+      if (!mounted || !_benchmarkSessionIsCurrent(session)) return;
       setState(
         () =>
             _message = 'OpenAI : $correct/${captures.length} prises reconnues.',
       );
     } finally {
+      await session.close();
       if (mounted) setState(() => _isBenchmarking = false);
     }
   }
@@ -251,27 +265,28 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
         .where((sample) => sample.listId == listId)
         .toList();
     if (captures.isEmpty || _isBenchmarking) return;
+    final session = AuthenticatedEdgeSession(ref.read(supabaseClientProvider));
     setState(() {
       _isBenchmarking = true;
       _benchmarkDone = 0;
       _benchmarkTotal = captures.length;
       _message = 'Connexion à ElevenLabs…';
     });
-    final client = ref.read(supabaseClientProvider);
     var correct = 0;
     var failures = 0;
     try {
       for (var index = 0; index < captures.length; index++) {
+        if (!_benchmarkSessionIsCurrent(session)) return;
         final sample = captures[index];
         final startedAt = DateTime.now();
         String? transcript;
         try {
-          final response = await client.functions.invoke(
+          final audio = await File(sample.path).readAsBytes();
+          if (!_benchmarkSessionIsCurrent(session)) return;
+          final response = await session.invoke(
             'elevenlabs-stt-proxy',
             body: {
-              'audio_base64': base64Encode(
-                await File(sample.path).readAsBytes(),
-              ),
+              'audio_base64': base64Encode(audio),
               'language': sample.langCode,
               'expected_word': sample.word,
             },
@@ -281,6 +296,7 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
         } catch (_) {
           failures++;
         }
+        if (!_benchmarkSessionIsCurrent(session)) return;
         final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
         final accepted =
             transcript != null &&
@@ -306,7 +322,7 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
         }
       }
       await _reload();
-      if (!mounted) return;
+      if (!mounted || !_benchmarkSessionIsCurrent(session)) return;
       setState(
         () => _message = failures == 0
             ? 'ElevenLabs : $correct/${captures.length} prises reconnues.'
@@ -314,6 +330,7 @@ class _SttLabScreenState extends ConsumerState<SttLabScreen> {
                   '($failures erreur(s) de service).',
       );
     } finally {
+      await session.close();
       if (mounted) setState(() => _isBenchmarking = false);
     }
   }

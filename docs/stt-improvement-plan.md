@@ -137,6 +137,26 @@ les échecs. Sur Android et iOS, le pont système associe la capture et
 sa libération à un identifiant de session. Le retour de la commande
 d'arrêt n'autorise pas à ouvrir un autre micro : la course attend
 l'événement de libération de cette session après le nettoyage natif.
+Les actions Révéler, Clavier, Passer et la reprise des consignes distinguent
+également cette confirmation d'un arrêt expiré ou refusé. Une action qui
+nécessite le micro fermé ne note pas et ne lit pas de réponse avant sa
+libération ; elle conserve une relance récupérable sur la carte courante.
+Une erreur asynchrone ou une fin inattendue du flux PCM est une interruption
+technique, pas une absence de réponse. La course en est informée, demande
+la fermeture confirmée et termine sans notation ; une fermeture volontaire
+ne déclenche pas ce faux échec. Le nettoyage en attente reste partagé pour
+empêcher une nouvelle capture avant la libération native.
+Les lectures du quiz, y compris le premier prompt facultatif d'un nouveau
+quiz, consultent aussi les contrôleurs micro déjà instanciés. Elles rejoignent
+un arrêt en attente et ne démarrent pas si une capture possède encore le
+micro ; cette garde ne crée pas de recorder pour Cartes/Écrire et n'arrête
+pas une écoute active d'une autre route. Une lecture requise conserve son
+parcours d'erreur récupérable ; une lecture facultative peut rester muette.
+La preuve de fin inattendue porte sur le flux public du port PCM. Dans
+`record` 7.1.1, les erreurs sont propagées, mais la fermeture spontanée de
+son flux plateforme interne n'est pas relayée comme `onDone` par son wrapper
+Dart. Aucune sonde hôte ne prouve la détection d'un événement que ce plugin
+n'expose pas ; la vérification physique des interruptions reste requise.
 Chaque tour attend la restauration du mode STT et garde ce mode pour les
 nouvelles tentatives. Le premier essai et chaque relance attendent la
 sélection des moteurs disponibles et la vérification du microphone avant

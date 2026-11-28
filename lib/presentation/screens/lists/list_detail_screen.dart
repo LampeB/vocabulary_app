@@ -14,6 +14,8 @@ import '../../../domain/entities/concept.dart';
 import '../../../domain/entities/vocabulary_list.dart';
 import '../../../domain/entities/word_variant.dart';
 import '../../../domain/repositories/vocabulary_repository.dart';
+import '../../navigation/shell_route_visibility.dart';
+import '../../providers/auth/auth_provider.dart';
 import '../../widgets/scroll_affordance.dart';
 import '../../widgets/v3_pond.dart';
 import '../../providers/lists/vocab_assistant_provider.dart';
@@ -119,6 +121,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                       ),
                     ),
                     PopupMenuItem(
+                      key: const ValueKey(WidgetKeys.listDetailAiSuggestItem),
                       enabled: list != null,
                       value: 'ai_suggest',
                       child: Row(
@@ -380,30 +383,34 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
       widget.listId == listId &&
       identical(ref.read(vocabularyRepositoryProvider), repository);
 
+  bool _canSuggest(
+    VocabularyList list,
+    VocabularyRepository repository,
+    Object sessionToken,
+  ) {
+    if (!_isCurrentForm(list.id, repository) ||
+        !identical(ref.read(authSessionIdentityProvider).token, sessionToken)) {
+      return false;
+    }
+    final latest = _confirmedList(ref.read(listInfoProvider(list.id)));
+    return (latest?.langA, latest?.langB) == (list.langA, list.langB);
+  }
+
   Future<void> _showAddWordDialog(BuildContext context) async {
     final listId = widget.listId;
     final list = _confirmedList(ref.read(listInfoProvider(listId)));
     if (list == null) return;
     final repository = ref.read(vocabularyRepositoryProvider);
-    // Existing source-language words give the assistant the list's theme context.
-    final concepts = ref.read(listDetailProvider(listId)).valueOrNull;
-    final existingSource = <String>[
-      if (concepts != null)
-        for (final c in concepts)
-          ...?ref
-              .read(variantsProvider(c.id))
-              .valueOrNull
-              ?.where((v) => v.langCode == list.langA && !v.isDeleted)
-              .map((v) => v.word),
-    ];
+    final sessionToken = ref.read(authSessionIdentityProvider).token;
 
     final failure = await showDialog<AppException>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => _WordPairDialog(
+        listId: listId,
         langA: list.langA,
         langB: list.langB,
-        existingSource: existingSource,
+        canTranslate: () => _canSuggest(list, repository, sessionToken),
         onSubmit: (wordA, wordB) async {
           if (!_isCurrentForm(listId, repository)) {
             return const PermissionException();
@@ -443,6 +450,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
     await showDialog<AppException>(
       context: context,
       builder: (ctx) => _WordPairDialog(
+        listId: listId,
         langA: list.langA,
         langB: list.langB,
         originalWords: (variantA.word, variantB.word),
@@ -469,23 +477,20 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
   /// new words, add the checked ones (user request 2026-07-11).
   Future<void> _showAiSuggestionsSheet(BuildContext context) async {
     final listId = widget.listId;
-    final infoProvider = listInfoProvider(listId);
-    final list = _confirmedList(ref.read(infoProvider));
+    final list = _confirmedList(ref.read(listInfoProvider(listId)));
     if (list == null) return;
     final repository = ref.read(vocabularyRepositoryProvider);
+    final sessionToken = ref.read(authSessionIdentityProvider).token;
     final actions = ref.read(listActionsProvider.notifier);
-    final pairs = await actions.getSuggestionContext(listId);
-    if (!context.mounted || !_isCurrentForm(listId, repository)) return;
-    final latest = _confirmedList(ref.read(infoProvider));
-    if ((latest?.langA, latest?.langB) != (list.langA, list.langB)) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (ctx) => _AiSuggestionsSheet(
+        listId: listId,
         langA: list.langA,
         langB: list.langB,
-        existingPairs: pairs,
+        canSuggest: () => _canSuggest(list, repository, sessionToken),
         onQuota: () {
           if (context.mounted && _isCurrentForm(listId, repository)) {
             context.push('/paywall');
@@ -519,14 +524,44 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
   }
 }
 
+/// Delivers a pending result only while its own modal is topmost. The route
+/// dependency rebuilds this widget when an overlay above the modal leaves.
+class _WhenRouteCurrent extends StatelessWidget {
+  const _WhenRouteCurrent({required this.onCurrent, required this.child});
+
+  final VoidCallback? onCurrent;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final callback = onCurrent;
+    final route = ModalRoute.of(context);
+    final shellRoute = ShellRouteVisibility.routeOf(context);
+    if (callback != null &&
+        route != null &&
+        route.isCurrent &&
+        (shellRoute?.isCurrent ?? true)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted &&
+            route.isCurrent &&
+            (shellRoute?.isCurrent ?? true)) {
+          callback();
+        }
+      });
+    }
+    return child;
+  }
+}
+
 /// Add-word dialog with AI assistance: type one side, get translation
 /// suggestions (+ voice-friendly longer forms for short words) as tappable
 /// chips. The manual flow is unchanged — AI is one optional button.
 class _WordPairDialog extends ConsumerStatefulWidget {
   const _WordPairDialog({
+    required this.listId,
     required this.langA,
     required this.langB,
-    this.existingSource = const [],
+    this.canTranslate,
     this.originalWords,
     required this.onSubmit,
   });
@@ -535,7 +570,8 @@ class _WordPairDialog extends ConsumerStatefulWidget {
   /// translation direction (generic-language-pairs epic; was fr/ko-hardcoded).
   final String langA;
   final String langB;
-  final List<String> existingSource;
+  final String listId;
+  final bool Function()? canTranslate;
   final (String, String)? originalWords;
   final Future<AppException?> Function(String wordA, String wordB) onSubmit;
 
@@ -550,6 +586,7 @@ class _WordPairDialogState extends ConsumerState<_WordPairDialog> {
   bool get _editing => widget.originalWords != null;
   bool _loading = false;
   bool _saving = false;
+  Result<void>? _saveResult;
   String? _saveError;
   TranslateAssist? _assist;
   String? _assistError;
@@ -566,12 +603,15 @@ class _WordPairDialogState extends ConsumerState<_WordPairDialog> {
   }
 
   Future<void> _askAssistant() async {
+    final canTranslate = widget.canTranslate;
+    if (_saving || _loading || canTranslate == null) return;
     final a = _wordACtrl.text.trim();
     final b = _wordBCtrl.text.trim();
     // Translate from the first filled side.
     final fromA = a.isNotEmpty || b.isEmpty;
     final word = fromA ? a : b;
     if (word.isEmpty) return;
+    final route = ModalRoute.of(context);
     _reqWord = word;
     _reqFromA = fromA;
     setState(() {
@@ -579,21 +619,51 @@ class _WordPairDialogState extends ConsumerState<_WordPairDialog> {
       _assist = null;
       _assistError = null;
     });
-    final result = await ref
-        .read(vocabAssistantProvider)
-        .translate(
-          word: word,
-          sourceLang: fromA ? widget.langA : widget.langB,
-          targetLang: fromA ? widget.langB : widget.langA,
-          existingWords: widget.existingSource,
-        );
-    if (!mounted) return;
+    Result<TranslateAssist> result;
+    try {
+      final pairs = canTranslate()
+          ? await ref
+                .read(listActionsProvider.notifier)
+                .getSuggestionContext(
+                  widget.listId,
+                  expectedPair: (widget.langA, widget.langB),
+                )
+          : null;
+      if (!mounted || route?.isActive != true) return;
+      result = pairs == null || !canTranslate()
+          ? const Failure(PermissionException())
+          : await ref
+                .read(vocabAssistantProvider)
+                .translate(
+                  word: word,
+                  sourceLang: fromA ? widget.langA : widget.langB,
+                  targetLang: fromA ? widget.langB : widget.langA,
+                  existingWords: [
+                    for (final pair in pairs) fromA ? pair.source : pair.target,
+                  ],
+                );
+    } catch (_) {
+      result = const Failure(UnknownException());
+    }
+    if (!mounted || route?.isActive != true) return;
     setState(() {
       _loading = false;
+      if (!canTranslate() || result.exceptionOrNull is PermissionException) {
+        _assistError = 'list_detail.word_pair_changed'.tr();
+        return;
+      }
       result.fold(
         onSuccess: (a) => _assist = a,
         onFailure: (_) => _assistError = 'list_detail.ai_error'.tr(),
       );
+    });
+  }
+
+  void _applySuggestion(String source, String target) {
+    if (_saving) return;
+    setState(() {
+      _wordACtrl.text = _reqFromA ? source : target;
+      _wordBCtrl.text = _reqFromA ? target : source;
     });
   }
 
@@ -603,17 +673,28 @@ class _WordPairDialogState extends ConsumerState<_WordPairDialog> {
       _saving = true;
       _saveError = null;
     });
-    final AppException? failure;
+    AppException? failure;
     try {
       failure = await widget.onSubmit(
         _wordACtrl.text.trim(),
         _wordBCtrl.text.trim(),
       );
     } catch (_) {
-      if (mounted) _showSaveError(const UnknownException());
-      return;
+      failure = const UnknownException();
     }
     if (!mounted) return;
+    setState(
+      () => _saveResult = failure == null
+          ? const Success(null)
+          : Failure(failure),
+    );
+  }
+
+  void _consumeSaveResult() {
+    final result = _saveResult;
+    if (result == null) return;
+    _saveResult = null;
+    final failure = result.exceptionOrNull;
     if (failure == null || failure is QuotaExceededException) {
       Navigator.pop(context, failure);
       return;
@@ -636,6 +717,13 @@ class _WordPairDialogState extends ConsumerState<_WordPairDialog> {
 
   @override
   Widget build(BuildContext context) {
+    return _WhenRouteCurrent(
+      onCurrent: _saveResult == null ? null : _consumeSaveResult,
+      child: _buildDialog(context),
+    );
+  }
+
+  Widget _buildDialog(BuildContext context) {
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       child: SizedBox(
@@ -734,15 +822,9 @@ class _WordPairDialogState extends ConsumerState<_WordPairDialog> {
                                   ? '$_reqWord → ${t.display}'
                                   : '${t.display} → $_reqWord',
                             ),
-                            onPressed: () => setState(() {
-                              if (_reqFromA) {
-                                _wordACtrl.text = _reqWord;
-                                _wordBCtrl.text = t.display;
-                              } else {
-                                _wordBCtrl.text = _reqWord;
-                                _wordACtrl.text = t.display;
-                              }
-                            }),
+                            onPressed: _saving
+                                ? null
+                                : () => _applySuggestion(_reqWord, t.display),
                           ),
                       ],
                     ),
@@ -782,15 +864,9 @@ class _WordPairDialogState extends ConsumerState<_WordPairDialog> {
                                     : '${p.target} → ${p.source}',
                               ),
                               // Voice-friendly pairs replace BOTH sides.
-                              onPressed: () => setState(() {
-                                if (_reqFromA) {
-                                  _wordACtrl.text = p.source;
-                                  _wordBCtrl.text = p.target;
-                                } else {
-                                  _wordBCtrl.text = p.source;
-                                  _wordACtrl.text = p.target;
-                                }
-                              }),
+                              onPressed: _saving
+                                  ? null
+                                  : () => _applySuggestion(p.source, p.target),
                             ),
                         ],
                       ),
@@ -855,14 +931,16 @@ typedef _SuggestionAddResult = ({
 
 class _AiSuggestionsSheet extends ConsumerStatefulWidget {
   const _AiSuggestionsSheet({
+    required this.listId,
     required this.langA,
     required this.langB,
-    required this.existingPairs,
+    required this.canSuggest,
     required this.onAdd,
     required this.onQuota,
   });
+  final String listId;
   final String langA, langB;
-  final List<WordPairSuggestion> existingPairs;
+  final bool Function() canSuggest;
   final Future<_SuggestionAddResult> Function(List<WordPairSuggestion> selected)
   onAdd;
   final VoidCallback onQuota;
@@ -878,24 +956,49 @@ class _AiSuggestionsSheetState extends ConsumerState<_AiSuggestionsSheet> {
   final _selected = <int>{};
   final _added = <int>{};
   AppException? _addError;
+  _SuggestionAddResult? _addResult;
   bool _adding = false;
 
   @override
   void initState() {
     super.initState();
-    _fetch();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _fetch();
+    });
   }
 
   Future<void> _fetch() async {
-    final result = await ref
-        .read(vocabAssistantProvider)
-        .suggest(
-          sourceLang: widget.langA,
-          targetLang: widget.langB,
-          existingPairs: widget.existingPairs,
-        );
-    if (!mounted) return;
+    final route = ModalRoute.of(context);
+    Result<ThemedSuggestions> result;
+    try {
+      final pairs = widget.canSuggest()
+          ? await ref
+                .read(listActionsProvider.notifier)
+                .getSuggestionContext(
+                  widget.listId,
+                  expectedPair: (widget.langA, widget.langB),
+                )
+          : null;
+      if (!mounted || route?.isActive != true) return;
+      result = pairs == null || !widget.canSuggest()
+          ? const Failure(PermissionException())
+          : await ref
+                .read(vocabAssistantProvider)
+                .suggest(
+                  sourceLang: widget.langA,
+                  targetLang: widget.langB,
+                  existingPairs: pairs,
+                );
+    } catch (_) {
+      result = const Failure(UnknownException());
+    }
+    if (!mounted || route?.isActive != true) return;
     setState(() {
+      if (!widget.canSuggest() ||
+          result.exceptionOrNull is PermissionException) {
+        _error = 'list_detail.word_pair_changed'.tr();
+        return;
+      }
       result.fold(
         onSuccess: (r) {
           _result = r;
@@ -906,8 +1009,41 @@ class _AiSuggestionsSheetState extends ConsumerState<_AiSuggestionsSheet> {
     });
   }
 
+  Future<void> _addSelected() async {
+    if (_adding || _selected.isEmpty) return;
+    setState(() => _adding = true);
+    final result = await widget.onAdd([
+      for (final i in _selected) _result!.pairs[i],
+    ]);
+    if (!mounted) return;
+    setState(() => _addResult = result);
+  }
+
+  void _consumeAddResult() {
+    final result = _addResult;
+    if (result == null) return;
+    _addResult = null;
+    setState(() {
+      _adding = false;
+      _addError = result.error;
+      final completed = _selected
+          .where((i) => result.added.contains(_result!.pairs[i]))
+          .toList();
+      _added.addAll(completed);
+      _selected.removeAll(completed);
+    });
+    if (result.error == null && _selected.isEmpty) Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
+    return _WhenRouteCurrent(
+      onCurrent: _addResult == null ? null : _consumeAddResult,
+      child: _buildSheet(),
+    );
+  }
+
+  Widget _buildSheet() {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
@@ -983,7 +1119,7 @@ class _AiSuggestionsSheetState extends ConsumerState<_AiSuggestionsSheet> {
                     ),
                     if (_addError is QuotaExceededException)
                       TextButton(
-                        onPressed: widget.onQuota,
+                        onPressed: _adding ? null : widget.onQuota,
                         child: Text('profile.upgrade_button'.tr()),
                       ),
                   ],
@@ -991,31 +1127,10 @@ class _AiSuggestionsSheetState extends ConsumerState<_AiSuggestionsSheet> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
+                      key: const ValueKey(WidgetKeys.listDetailAiAddSelected),
                       onPressed: _selected.isEmpty || _adding
                           ? null
-                          : () async {
-                              setState(() => _adding = true);
-                              final result = await widget.onAdd([
-                                for (final i in _selected) _result!.pairs[i],
-                              ]);
-                              if (!mounted || !context.mounted) return;
-                              setState(() {
-                                _adding = false;
-                                _addError = result.error;
-                                final completed = _selected
-                                    .where(
-                                      (i) => result.added.contains(
-                                        _result!.pairs[i],
-                                      ),
-                                    )
-                                    .toList();
-                                _added.addAll(completed);
-                                _selected.removeAll(completed);
-                              });
-                              if (result.error == null && _selected.isEmpty) {
-                                Navigator.pop(context);
-                              }
-                            },
+                          : _addSelected,
                       child: Text(
                         _adding
                             ? '…'
@@ -1182,33 +1297,32 @@ class _ConceptTile extends ConsumerWidget {
               ),
               // Edit-mode action buttons
               if (editMode) ...[
-                if (edit != null) ...[
-                  const SizedBox(width: 8),
-                  GestureDetector(
+                if (edit != null)
+                  IconButton(
                     key: ValueKey(WidgetKeys.conceptEditIcon(frWord)),
-                    onTap: edit,
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.edit_outlined,
-                        color: AppColors.teal.withValues(alpha: 0.7),
-                        size: 20,
-                      ),
+                    tooltip: 'list_detail.edit_word_action'.tr(
+                      namedArgs: {'word': frWord},
                     ),
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size.square(48),
+                      visualDensity: VisualDensity.standard,
+                      foregroundColor: ink,
+                    ),
+                    onPressed: edit,
+                    icon: const Icon(Icons.edit_outlined, size: 20),
                   ),
-                ],
-                const SizedBox(width: 4),
-                GestureDetector(
+                IconButton(
                   key: ValueKey(WidgetKeys.conceptDeleteIcon(frWord)),
-                  onTap: confirmDelete,
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      Icons.delete_outline,
-                      color: AppColors.rose.withValues(alpha: 0.6),
-                      size: 20,
-                    ),
+                  tooltip: 'list_detail.delete_word_action'.tr(
+                    namedArgs: {'word': fr.isEmpty ? koWord : frWord},
                   ),
+                  style: IconButton.styleFrom(
+                    minimumSize: const Size.square(48),
+                    visualDensity: VisualDensity.standard,
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                  onPressed: confirmDelete,
+                  icon: const Icon(Icons.delete_outline, size: 20),
                 ),
               ],
             ],
@@ -1219,7 +1333,11 @@ class _ConceptTile extends ConsumerWidget {
           padding: const EdgeInsets.only(bottom: 8),
           child: edit == null
               ? tile
-              : GestureDetector(onTap: edit, child: tile),
+              : GestureDetector(
+                  onTap: edit,
+                  excludeFromSemantics: true,
+                  child: tile,
+                ),
         );
       },
     );

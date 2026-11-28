@@ -25,15 +25,17 @@ class DailyPathScreen extends ConsumerWidget {
     final pair = ref.watch(defaultPairProvider);
     final dueProvider = dueCountForPairProvider(pair);
     final due = ref.watch(dueProvider);
-    final lists =
-        ref.watch(myListsProvider).valueOrNull ?? const <VocabularyList>[];
-    final matching = lists.where(
-      (list) => list.langA == pair.$1 && list.langB == pair.$2,
+    final lists = ref.watch(myListsProvider);
+    final matching = lists.whenData(
+      (items) =>
+          items.where((list) => list.langA == pair.$1 && list.langB == pair.$2),
     );
     // The daily path must stay within the learner's selected language pair.
     // Falling back to an unrelated list sent, for example, an EN→KO learner
     // into a FR→KO prerequisite and violated the pair shown by the screen.
-    final prerequisite = matching.isEmpty ? null : matching.first;
+    final prerequisite = matching.whenData(
+      (items) => items.isEmpty ? null : items.first,
+    );
 
     return Scaffold(
       key: const ValueKey(WidgetKeys.screenDailyPath),
@@ -47,6 +49,7 @@ class DailyPathScreen extends ConsumerWidget {
               due: due,
               prerequisite: prerequisite,
               onRetryDue: () => ref.invalidate(dueProvider),
+              onRetryLists: () => ref.invalidate(myListsProvider),
             ),
           ),
         ],
@@ -61,19 +64,24 @@ class _DailyTrail extends StatelessWidget {
     required this.due,
     required this.prerequisite,
     required this.onRetryDue,
+    required this.onRetryLists,
   });
 
   final (String, String) pair;
   final AsyncValue<int> due;
-  final VocabularyList? prerequisite;
+  final AsyncValue<VocabularyList?> prerequisite;
   final VoidCallback onRetryDue;
+  final VoidCallback onRetryLists;
 
   @override
   Widget build(BuildContext context) {
     final dueCount = due.isLoading ? null : due.asData?.value;
     final noReviewsDue = dueCount == 0;
     final hasReviewsDue = dueCount != null && dueCount > 0;
-    final list = prerequisite;
+    final list = prerequisite.isLoading ? null : prerequisite.asData?.value;
+    final listsKnown = !prerequisite.isLoading && prerequisite is AsyncData;
+    final listState =
+        (prerequisite.isLoading ? 'v3.lists_loading' : 'v3.lists_error').tr();
 
     return ScrollAffordance(
       hint: 'v3.scroll_hint'.tr(),
@@ -128,7 +136,7 @@ class _DailyTrail extends StatelessWidget {
                 child: Text('common.retry'.tr()),
               ),
             ),
-          if (dueCount != null) ...[
+          if (dueCount != null && (!noReviewsDue || listsKnown)) ...[
             const SizedBox(height: 20),
             _ActiveCard(
               label: noReviewsDue
@@ -152,6 +160,20 @@ class _DailyTrail extends StatelessWidget {
                   : () => _showModes(context),
             ),
           ],
+          if (!listsKnown) ...[
+            const SizedBox(height: 20),
+            Text(listState, style: const TextStyle(color: V3Colors.light70)),
+            if (!prerequisite.isLoading && prerequisite.hasError)
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton(
+                  key: const ValueKey(WidgetKeys.homeListsRetry),
+                  style: TextButton.styleFrom(foregroundColor: V3Colors.amber),
+                  onPressed: onRetryLists,
+                  child: Text('common.retry'.tr()),
+                ),
+              ),
+          ],
           const SizedBox(height: 20),
           _TrailCard(
             key: const ValueKey(WidgetKeys.dailyPathPractice),
@@ -160,11 +182,11 @@ class _DailyTrail extends StatelessWidget {
               0 => 'v3.your_discovery'.tr(),
               _ => 'v3.next_discovery'.tr(),
             },
-            title: dueCount == null
+            title: dueCount == null || !listsKnown
                 ? 'v3.my_lists'.tr()
                 : list?.name ?? 'v3.first_list'.tr(),
             active: noReviewsDue,
-            onTap: dueCount == null
+            onTap: dueCount == null || !listsKnown
                 ? () => context.push('/lists')
                 : noReviewsDue
                 ? () => _openList(context)
@@ -186,7 +208,7 @@ class _DailyTrail extends StatelessWidget {
   }
 
   void _openList(BuildContext context) {
-    final list = prerequisite;
+    final list = prerequisite.isLoading ? null : prerequisite.asData?.value;
     context.push(list == null ? '/lists' : '/lists/${list.id}');
   }
 

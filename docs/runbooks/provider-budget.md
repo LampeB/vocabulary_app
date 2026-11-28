@@ -77,6 +77,13 @@ Relire le diff du verrou et repasser le script sans projet avant de commiter.
 
 ## Frontières des contenus et des audios
 
+- Les appels client d'assistance et de transcription capturent leur session
+  et fixent son en-tête Authorization avant l'encodage asynchrone du SDK.
+  Un renouvellement garde le même compte ; un changement de session écarte
+  la réponse et les demandes restantes. Les benchmarks conservent cette
+  portée avant la lecture des fichiers et sur tout leur lot. Une demande
+  déjà remise au transport peut finir sous son identité d'origine ; elle
+  n'emprunte pas les identifiants du compte connecté entre-temps.
 - Les corps JSON des assistants sont lus en flux, avec un maximum de 32 Kio
   et 5 secondes. Un mot facturé est limité à 256 caractères ; les contextes,
   listes et règles ont aussi des bornes avant tout débit de quota.

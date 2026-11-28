@@ -57,13 +57,19 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   rouvrir le formulaire. Le titre, les champs et les actions des deux dialogues
   défilent ensemble avec le signal commun. Terminer et les petits libellés du
   détail utilisent une encre adaptée au thème ; les champs requis sont traduits.
+  Les suggestions qui remplacent la paire sont désactivées pendant sa sauvegarde.
+  Les résultats d'ajout, de modification et de la feuille de suggestions restent
+  attachés à leur propre route. Un import ouvert par-dessus reste visible ;
+  la modale attend de redevenir courante avant d'appliquer sa fermeture.
 - Le choix bidirectionnel utilise « Les deux sens » pour toute paire. Les
   anciens bilans, qui ne conservent pas les deux codes de langue, affichent
   le sens relatif de la liste au lieu d'affirmer FR/KR.
-- Le contexte des suggestions est chargé par une requête groupée et borné
+- Le contexte des suggestions est chargé seulement à leur demande, par une requête groupée et borné
   aux limites du service. Un ajout multiple conserve les mots refusés dans
   la sélection, indique les ajouts réussis et propose l'écran d'abonnement
   lorsque le quota local est atteint ; il ne ferme pas silencieusement la feuille.
+  Ouvrir Ajouter pour une saisie manuelle n'observe pas toutes les variantes
+  de la liste. Le contexte vérifie le compte et la paire du formulaire.
 - Le bouton de pratique d'une leçon transmet sa règle exacte et sa paire au
   configurateur, qui les conserve dans le quiz. Une leçon française ne doit
   jamais basculer dans le curriculum coréen.
@@ -86,6 +92,10 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   en erreur distinct d'un zéro confirmé. La relance reste à côté de la source
   en échec même si une autre source jouable est choisie. Les cartes de cette
   autre source peuvent toujours être lancées.
+  La lecture des listes suit aussi ces états : son échec ne suggère pas de
+  créer une première liste et ne produit pas des compteurs mots/listes à zéro.
+  Le plateau et le chemin proposent sa relance ; les révisions dues confirmées
+  et les entrées indépendantes restent utilisables pendant son indisponibilité.
 - Le configurateur de leçon signale le défilement dès l'ouverture lorsque son
   contenu déborde, y compris en paysage avec texte doublé. Le choix de quantité
   et le lancement restent accessibles dans les trois locales V0.
@@ -140,6 +150,9 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   distincts pour les lecteurs d'écran. Leurs fonds, comme celui du bouton
   de connexion de l'accueil, sont explicites dans les deux thèmes : l'encre
   claire ne repose plus sur un fond blanc translucide en thème sombre.
+  Modifier et Supprimer sur chaque mot sont aussi des boutons focalisables
+  de 48 pixels, nommés dans les trois locales avec le mot concerné. L'aperçu
+  d'une liste existante vide invite à ajouter des mots à cette liste.
 - Les erreurs d'authentification sont traduites dans l'interface à partir de
   motifs indépendants de la langue (identifiants, pseudo/e-mail déjà utilisé,
   confirmation, fréquence, réseau). Un message brut du fournisseur n'est pas

@@ -1,6 +1,6 @@
 import 'dart:async' show unawaited;
 import 'dart:convert' show jsonDecode, jsonEncode;
-import 'dart:io' show File;
+import 'dart:io' show Directory, File, FileSystemException;
 import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
 
@@ -204,6 +204,16 @@ class ListActionsNotifier extends Notifier<void> {
 
   VocabularyRepository get _repo => ref.read(vocabularyRepositoryProvider);
 
+  bool Function() _captureSession(String? userId, VocabularyRepository repo) {
+    final sessionIdentity = ref.read(authSessionIdentityProvider);
+    final token = sessionIdentity.token;
+    return () =>
+        userId != null &&
+        sessionIdentity.matches(token, userId) &&
+        ref.read(currentUserProvider)?.id == userId &&
+        identical(repo, _repo);
+  }
+
   Future<Result<VocabularyList>> createList(
     String name,
     String? description, {
@@ -254,16 +264,29 @@ class ListActionsNotifier extends Notifier<void> {
 
   Future<Result<void>> deleteList(String listId) => _repo.deleteList(listId);
 
-  Future<List<WordPairSuggestion>> getSuggestionContext(String listId) async {
-    final list = (await _repo.getListById(listId)).valueOrNull;
-    if (list == null) return const [];
-    final sample = await _repo.getWordPairSample(
+  Future<List<WordPairSuggestion>?> getSuggestionContext(
+    String listId, {
+    required (String, String) expectedPair,
+  }) async {
+    final userId = ref.read(currentUserProvider)?.id;
+    final repo = _repo;
+    final isCurrent = _captureSession(userId, repo);
+    if (!isCurrent()) return null;
+    final sample = await repo.getWordPairSample(
       listId,
       limit: VocabAssistantDataSource.maxContextItems,
+      expectedPair: expectedPair,
     );
+    if (sample == null || !isCurrent()) return null;
+    final confirmed = (await repo.getListById(listId)).valueOrNull;
+    if (!isCurrent() ||
+        confirmed?.ownerId != userId ||
+        (confirmed?.langA, confirmed?.langB) != expectedPair) {
+      return null;
+    }
     return VocabAssistantDataSource.boundSuggestionContext(
-      sourceLang: list.langA,
-      targetLang: list.langB,
+      sourceLang: expectedPair.$1,
+      targetLang: expectedPair.$2,
       pairs: sample.map(
         (pair) => WordPairSuggestion(source: pair.source, target: pair.target),
       ),
@@ -330,22 +353,44 @@ class ListActionsNotifier extends Notifier<void> {
 
   // Returns an error message on failure, null on success.
   Future<String?> exportList(String listId, String listName) async {
-    final result = await _repo.exportToJson(listId);
+    const cancelled = PermissionException();
+    final userId = ref.read(currentUserProvider)?.id;
+    final repo = _repo;
+    final isCurrent = _captureSession(userId, repo);
+    if (!isCurrent()) return cancelled.message;
+    final result = await repo.exportToJson(listId);
+    if (!isCurrent()) return cancelled.message;
     if (result.isFailure) {
       return result.exceptionOrNull?.message ?? 'Export failed';
     }
+    Directory? stagingDirectory;
+    var shareStarted = false;
     try {
       final jsonStr = jsonEncode(result.valueOrNull!);
       final dir = await getTemporaryDirectory();
+      if (!isCurrent()) return cancelled.message;
+      // Keep concurrent exports with the same display name in separate files.
+      stagingDirectory = await dir.createTemp('ponderin-export-');
+      if (!isCurrent()) return cancelled.message;
       final safeName = listName.replaceAll(RegExp(r'[^\w ]'), '_').trim();
-      final file = File('${dir.path}/${safeName}_vocabkr.json');
+      final file = File('${stagingDirectory.path}/${safeName}_vocabkr.json');
       await file.writeAsString(jsonStr);
+      if (!isCurrent()) return cancelled.message;
+      shareStarted = true;
       await Share.shareXFiles([
         XFile(file.path, mimeType: 'application/json'),
       ], subject: '$listName — Ponderin Export');
       return null;
     } catch (e) {
       return e.toString();
+    } finally {
+      if (!shareStarted && stagingDirectory != null) {
+        try {
+          await stagingDirectory.delete(recursive: true);
+        } on FileSystemException catch (e) {
+          debugPrint('Discarded export cleanup failed: $e');
+        }
+      }
     }
   }
 
@@ -376,30 +421,48 @@ class ListActionsNotifier extends Notifier<void> {
     String listId,
     String listName,
   ) async {
-    final result = await _repo.generateShareLink(listId);
+    final userId = ref.read(currentUserProvider)?.id;
+    final repo = _repo;
+    final isCurrent = _captureSession(userId, repo);
+    if (!isCurrent()) return const Failure(PermissionException());
+    final push = ref.read(pushSyncProvider);
+    final dao = ref.read(vocabularyListDaoProvider);
+    final result = await repo.generateShareLink(listId);
+    if (!isCurrent()) return const Failure(PermissionException());
     if (result.isFailure) return result;
-    final canonical = (await _repo.getListById(listId)).valueOrNull;
+    final canonical = (await repo.getListById(listId)).valueOrNull;
+    if (!isCurrent()) return const Failure(PermissionException());
     if (canonical == null) {
       return const Failure(NotFoundException('List not found'));
     }
+    if (canonical.ownerId != userId) {
+      return const Failure(PermissionException());
+    }
     // Wait for this list and its content to become remotely visible.
-    await ref.read(pushSyncProvider).pushList(canonical.id);
-    final dao = ref.read(vocabularyListDaoProvider);
-    final list = await dao.getById(canonical.id);
-    final token = Uri.parse(result.valueOrNull!).queryParameters['token'];
-    if (list == null ||
-        list.isDeleted ||
-        !list.isSynced ||
-        list.shareToken != token ||
-        list.visibility != 'public' ||
-        await dao.hasPendingContents(canonical.id)) {
+    await push.pushList(canonical.id);
+    if (!isCurrent()) return const Failure(PermissionException());
+    final link = result.valueOrNull!;
+    final token = Uri.parse(link).queryParameters['token'];
+    final acknowledged = await dao.transaction(() async {
+      final list = await dao.getById(canonical.id);
+      return token != null &&
+          list != null &&
+          list.ownerId == userId &&
+          !list.isDeleted &&
+          list.isSynced &&
+          list.shareToken == token &&
+          list.visibility == 'public' &&
+          !await dao.hasPendingContents(canonical.id);
+    });
+    if (!isCurrent()) return const Failure(PermissionException());
+    if (!acknowledged) {
       return const Failure(
         NetworkException(
           'The list must finish syncing before its link can be shared.',
         ),
       );
     }
-    await Share.share(result.valueOrNull!, subject: '$listName — Ponderin');
+    await Share.share(link, subject: '$listName — Ponderin');
     return result;
   }
 

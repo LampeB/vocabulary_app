@@ -29,10 +29,51 @@ final authStateProvider = AsyncNotifierProvider<AuthNotifier, AppUser?>(
   AuthNotifier.new,
 );
 
+/// A stable token for work started by the signed-in session. Auth transitions
+/// rotate it synchronously, even if downstream providers haven't rebuilt yet.
+final authSessionIdentityProvider = Provider<AuthSessionIdentity>((ref) {
+  final identity = AuthSessionIdentity._();
+  ref.onDispose(identity._invalidate);
+  return identity;
+});
+
+class AuthSessionIdentity {
+  AuthSessionIdentity._();
+
+  AuthRepository? _repository;
+  String? _userId;
+  Object _token = Object();
+
+  Object get token {
+    final repository = _repository;
+    // The local session can change before its auth event is delivered.
+    if (repository != null) _setUser(repository.currentUser?.id);
+    return _token;
+  }
+
+  bool matches(Object captured, String userId) =>
+      identical(captured, token) && (_repository == null || _userId == userId);
+
+  void _setUser(String? userId) {
+    if (_userId == userId) return;
+    _userId = userId;
+    _token = Object();
+  }
+
+  void _invalidate() {
+    _repository = null;
+    _userId = null;
+    _token = Object();
+  }
+}
+
 class AuthNotifier extends AsyncNotifier<AppUser?> {
   late AuthRepository _repo;
   int _revision = 0;
   bool _active = false;
+
+  AuthSessionIdentity get _sessionIdentity =>
+      ref.read(authSessionIdentityProvider);
 
   bool _isCurrent(int revision, AuthRepository repo, String? userId) =>
       _active &&
@@ -45,11 +86,16 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
   @override
   Future<AppUser?> build() async {
     final repo = _repo = ref.watch(authRepositoryProvider);
+    final identity = _sessionIdentity;
+    final user = repo.currentUser;
+    identity._repository = repo;
+    identity._setUser(user?.id);
     _active = true;
     final revision = ++_revision;
     // Establish the local identity before refreshing its profile.
     final subscription = repo.authStateChanges.listen((user) async {
       if (!_active || !identical(repo, _repo)) return;
+      identity._setUser(user?.id);
       final local = repo.currentUser;
       if (local?.id != user?.id) return;
       final eventRevision = ++_revision;
@@ -71,10 +117,10 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
       unawaited(subscription.cancel());
       if (identical(repo, _repo)) {
         _active = false;
+        identity._invalidate();
         ++_revision;
       }
     });
-    final user = repo.currentUser;
     if (user == null) return null;
     final result = await repo.reloadProfile();
     if (!_isCurrent(revision, repo, user.id)) {
@@ -93,6 +139,7 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
   Future<Result<AppUser>> signIn(String email, String password) async {
     final repo = _repo;
     final revision = ++_revision;
+    _sessionIdentity._setUser(null);
     state = const AsyncLoading();
     final result = await repo.signInWithEmail(email: email, password: password);
     if (!_active || revision != _revision || !identical(repo, _repo)) {
@@ -101,6 +148,7 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
     result.fold(
       onSuccess: (user) {
         if (!_isCurrent(revision, repo, user.id)) return;
+        _sessionIdentity._setUser(user.id);
         state = AsyncData(user);
         if (!_kTestMode) unawaited(PurchaseService.instance.logIn(user.id));
       },
@@ -116,6 +164,7 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
   ) async {
     final repo = _repo;
     final revision = ++_revision;
+    _sessionIdentity._setUser(null);
     state = const AsyncLoading();
     final result = await repo.signUpWithEmail(
       email: email,
@@ -128,6 +177,7 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
     result.fold(
       onSuccess: (user) {
         if (!_isCurrent(revision, repo, user.id)) return;
+        _sessionIdentity._setUser(user.id);
         state = AsyncData(user);
         if (!_kTestMode) unawaited(PurchaseService.instance.logIn(user.id));
       },
@@ -139,6 +189,7 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
   Future<void> signOut() async {
     final repo = _repo;
     final revision = ++_revision;
+    _sessionIdentity._setUser(null);
     state = const AsyncData(null);
     await repo.signOut();
     if (_isCurrent(revision, repo, null) && !_kTestMode) {
@@ -165,6 +216,7 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
   /// The pending request may still enrich this identity when it completes.
   AppUser? useLocalSession() {
     final user = ref.read(authRepositoryProvider).currentUser;
+    _sessionIdentity._setUser(user?.id);
     final resolved = state.valueOrNull;
     if (user != null && resolved?.id == user.id) return resolved;
     state = AsyncData(user);

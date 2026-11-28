@@ -34,6 +34,7 @@ import 'package:vocab_kr/domain/repositories/progress_repository.dart';
 import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart';
 import 'package:vocab_kr/presentation/design/v3/v3_tokens.dart';
 import 'package:vocab_kr/presentation/design/v3/v3_card_stack.dart';
+import 'package:vocab_kr/presentation/navigation/shell_route_visibility.dart';
 import 'package:vocab_kr/presentation/providers/audio/audio_provider.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/grammar/grammar_provider.dart';
@@ -45,6 +46,7 @@ import 'package:vocab_kr/presentation/providers/settings/audio_settings_provider
 import 'package:vocab_kr/presentation/providers/settings/stt_engine_mode_provider.dart';
 import 'package:vocab_kr/presentation/providers/speech/elevenlabs_speech_provider.dart';
 import 'package:vocab_kr/presentation/providers/speech/shared_pcm_capture_provider.dart';
+import 'package:vocab_kr/presentation/providers/speech/system_speech_recognition_provider.dart';
 import 'package:vocab_kr/presentation/providers/speech/whisper_speech_provider.dart';
 import 'package:vocab_kr/presentation/screens/quiz/quiz_screen.dart';
 import 'package:vocab_kr/presentation/screens/home/daily_path_screen.dart';
@@ -127,6 +129,7 @@ class _TestDirector extends AudioDirector {
   final bool verifyAudioHandoff;
   int cues = 0;
   int endCues = 0;
+  int incorrectCues = 0;
   int stops = 0;
   bool verifyNativeStop = false;
   Completer<void>? pendingStop;
@@ -156,7 +159,7 @@ class _TestDirector extends AudioDirector {
   Future<void> playCorrect() async {}
 
   @override
-  Future<void> playIncorrect() async {}
+  Future<void> playIncorrect() async => incorrectCues++;
 
   @override
   Future<void> playListenDone() async => endCues++;
@@ -241,6 +244,7 @@ class _FakeCapture implements SharedPcmCapture {
   Future<PcmCaptureSession?> open({
     required void Function(bool) onSpeechChange,
     required void Function(PcmSegment) onSegment,
+    required void Function(Object) onInterruption,
   }) async {
     opens++;
     if (!canOpen) return null;
@@ -252,6 +256,35 @@ class _FakeCapture implements SharedPcmCapture {
   @override
   Future<void> stop() async {
     await session?.close();
+  }
+
+  @override
+  Future<void>? waitForMicrophoneRelease() => null;
+
+  @override
+  void dispose() {}
+}
+
+class _StreamingMicrophone implements PcmMicrophone {
+  final recordings = <StreamController<Uint8List>>[];
+  Future<void> Function()? onStop;
+  int stops = 0;
+
+  @override
+  Future<bool> hasPermission() async => true;
+
+  @override
+  Future<Stream<Uint8List>> startVoiceStream() async {
+    final recording = StreamController<Uint8List>.broadcast();
+    recordings.add(recording);
+    return recording.stream;
+  }
+
+  @override
+  Future<void> stop() async {
+    stops++;
+    await onStop?.call();
+    await recordings.last.close();
   }
 
   @override
@@ -741,6 +774,7 @@ void main() {
     int? cardLimit,
     String? entry,
     _VoiceHarness? voice,
+    PcmMicrophone? microphone,
     AudioDirector? director,
     bool grammar = false,
     bool fromDailyReview = false,
@@ -884,7 +918,11 @@ void main() {
         if (audioSettings != null)
           audioSettingsProvider.overrideWith(() => audioSettings),
         if (voice != null) ...[
-          sharedPcmCaptureProvider.overrideWithValue(voice.capture),
+          sharedPcmCaptureProvider.overrideWithValue(
+            microphone == null
+                ? voice.capture
+                : SharedPcmCapture(microphone: microphone),
+          ),
           whisperSpeechProvider.overrideWithValue(voice.whisper),
           elevenLabsSpeechProvider.overrideWithValue(_FakeScribe()),
         ],
@@ -916,7 +954,7 @@ void main() {
       routes: [
         if (importRemote != null) ...[
           ShellRoute(
-            builder: (_, _, child) => QuizRouteVisibility(child: child),
+            builder: (_, _, child) => ShellRouteVisibility(child: child),
             routes: [
               GoRoute(
                 path: '/quiz',
@@ -1410,6 +1448,92 @@ void main() {
   }
 
   for (final action in [WidgetKeys.voiceReveal, WidgetKeys.voiceKeyboard]) {
+    for (final rejected in [false, true]) {
+      testWidgets(
+        'voice $action waits for system release (refused: $rejected)',
+        (tester) async {
+          var refuseStop = rejected;
+          final nativeRelease = Completer<void>();
+          final audio = _BlockingPromptAudio();
+          final voice = _VoiceHarness(
+            promptAudio: audio,
+            acceptSystemStop: () => !refuseStop,
+            systemRelease: nativeRelease.future,
+          );
+          SharedPreferences.setMockInitialValues({
+            'settings_stt_engine_mode': 'system',
+          });
+          await pump(
+            tester,
+            mode: QuizMode.voice,
+            words: [('chat', '고양이')],
+            voice: voice,
+          );
+          final (word, language, played) = audio.utterances.single;
+          expect((word, language), ('chat', 'fr'));
+          played.complete();
+          audio.utterances.clear();
+          await tester.tap(find.byKey(const ValueKey(WidgetKeys.micButton)));
+          await tick(tester);
+          expect(voice.systemListens, 1);
+
+          final button = find.byKey(ValueKey(action));
+          final wrong = find.byKey(const ValueKey(WidgetKeys.feedbackWrong));
+          final input = find.byKey(const ValueKey(WidgetKeys.voiceInput));
+          await tester.tap(button);
+          await tester.pump();
+          expect(voice.systemStops, 1);
+          await voice.systemEvent(
+            'released',
+            const {},
+            session: voice.systemSession! - 1,
+          );
+          await tester.pump(const Duration(seconds: 3));
+          expect(button, findsOneWidget);
+          expect(wrong, findsNothing);
+          expect(input, findsNothing);
+          expect(progressRepo.saved, isEmpty);
+          expect(voice.director.incorrectCues, 0);
+          expect(audio.utterances, isEmpty);
+          expect(find.text('quiz.mic_release_failed'.tr()), findsOneWidget);
+          // The refusal appears immediately, so its snackbar can still cover
+          // the escape pills when we reach this assertion.
+          await tick(tester, times: 24);
+
+          refuseStop = false;
+          await tester.tap(button);
+          await tester.pump();
+          expect(voice.systemStops, rejected ? 2 : 1);
+          expect(progressRepo.saved, isEmpty);
+          expect(audio.utterances, isEmpty);
+
+          nativeRelease.complete();
+          await tester.pump();
+          if (action == WidgetKeys.voiceReveal) {
+            expect(wrong, findsOneWidget);
+            expect(progressRepo.saved.single.timesShown, 1);
+            expect(progressRepo.saved.single.timesCorrect, 0);
+            expect(voice.director.incorrectCues, 1);
+            final (word, language, played) = audio.utterances.single;
+            expect((word, language), ('고양이', 'ko'));
+            played.complete();
+          } else {
+            expect(input, findsOneWidget);
+            expect(progressRepo.saved, isEmpty);
+            await tester.enterText(input, '고양이');
+            await tester.testTextInput.receiveAction(TextInputAction.done);
+            await tester.pump();
+            expect(progressRepo.saved.single.timesCorrect, 1);
+          }
+          await unmountScreen(tester);
+          await tester.pump(const Duration(seconds: 8));
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+
+  for (final action in [WidgetKeys.voiceReveal, WidgetKeys.voiceKeyboard]) {
     testWidgets('voice $action works via Tab and Enter', (tester) async {
       final voice = _VoiceHarness();
       await pump(
@@ -1462,6 +1586,83 @@ void main() {
       await unmountScreen(tester);
     });
   }
+
+  testWidgets('a new quiz prompt waits for the covered quiz microphone', (
+    tester,
+  ) async {
+    final released = Completer<void>();
+    final voice = _VoiceHarness(systemRelease: released.future);
+    final audio = _BlockingPromptAudio();
+    SharedPreferences.setMockInitialValues({
+      'settings_stt_engine_mode': 'system',
+    });
+    await pump(
+      tester,
+      mode: QuizMode.voice,
+      words: [('chat', '고양이')],
+      voice: voice,
+      audioFactory: (_) => audio,
+      useRealDirector: true,
+      importRemote: _PendingImportRemote(),
+    );
+    audio.utterances.single.$3.complete();
+    audio.utterances.clear();
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.micButton)));
+    await tick(tester, times: 4);
+    expect(voice.systemListens, 1);
+    final quiz = tester.element(find.byType(QuizScreen));
+    final director = ProviderScope.containerOf(
+      quiz,
+    ).read(audioDirectorProvider);
+    await director.speak('chat', 'fr');
+    expect(voice.systemStops, 0);
+    expect(audio.utterances, isEmpty);
+    final router = GoRouter.of(quiz);
+    unawaited(
+      router.push(
+        '/quiz',
+        extra: const QuizArgs(
+          listId: 'l',
+          mode: QuizMode.flashcard,
+          direction: QuizDirectionChoice.frToKo,
+          cardLimit: 1,
+        ),
+      ),
+    );
+    await tick(tester, times: 4);
+    expect(voice.systemStops, 1);
+    expect(audio.utterances, isEmpty);
+
+    released.complete();
+    await tester.pump();
+    expect(audio.utterances.single.$1, 'chat');
+    audio.utterances.single.$3.complete();
+    await unmountScreen(tester);
+    await tester.pump(const Duration(seconds: 8));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('flashcard playback creates neither microphone controller', (
+    tester,
+  ) async {
+    final audio = _BlockingPromptAudio();
+    await pump(
+      tester,
+      mode: QuizMode.flashcard,
+      words: [('chat', '고양이')],
+      useRealDirector: true,
+      audioFactory: (_) => audio,
+    );
+    expect(audio.utterances.single.$1, 'chat');
+    final providers = ProviderScope.containerOf(
+      tester.element(find.byType(QuizScreen)),
+    );
+    expect(providers.exists(sharedPcmCaptureProvider), isFalse);
+    expect(providers.exists(systemSpeechRecognitionProvider), isFalse);
+    audio.utterances.single.$3.complete();
+    await unmountScreen(tester);
+    await tester.pump();
+  });
 
   testWidgets('voice microphone has a localized name and opens with Enter', (
     tester,
@@ -2095,7 +2296,7 @@ void main() {
     expect(voice.capture.opens, 1);
     expect(voice.director.cues, 1);
     release.complete();
-    await tick(tester, times: 10);
+    await tick(tester, times: 12);
     expect(partial.closed, isTrue);
     expect(voice.capture.opens, 2);
     expect(voice.director.cues, 2);
@@ -3133,6 +3334,108 @@ void main() {
     await tester.pump(const Duration(seconds: 8));
   });
 
+  for (final closesStream in [false, true]) {
+    testWidgets('live PCM interruption allows retry (EOF: $closesStream)', (
+      tester,
+    ) async {
+      final release = Completer<void>();
+      final mic = _StreamingMicrophone()..onStop = () => release.future;
+      final voice = _VoiceHarness();
+      await pump(
+        tester,
+        mode: QuizMode.handsFree,
+        words: [('chat', '고양이')],
+        voice: voice,
+        microphone: mic,
+      );
+      await tick(tester, times: 8);
+      expect(mic.recordings, hasLength(1));
+      final capture = mic.recordings.single;
+      if (closesStream) {
+        unawaited(capture.close());
+      } else {
+        capture.addError(StateError('recorder stream failed'));
+      }
+      await tester.pump();
+      expect(mic.stops, 1, reason: 'stop before the original listen deadline');
+      expect(voice.director.endCues, 0);
+      expect(progressRepo.saved, isEmpty);
+      final interrupted = find.text('quiz.voice_capture_interrupted'.tr());
+      expect(interrupted, findsNothing);
+
+      release.complete();
+      await tester.pump();
+      expect(interrupted, findsOneWidget);
+      expect(voice.director.endCues, 0);
+      expect(voice.director.incorrectCues, 0);
+      expect(progressRepo.saved, isEmpty);
+
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfRepeat)));
+      await tick(tester, times: 12);
+      expect(mic.recordings, hasLength(2));
+      expect(voice.director.cues, 2);
+      expect(interrupted, findsNothing);
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfPause)));
+      await tester.pump();
+      expect(mic.stops, 2);
+      expect(interrupted, findsNothing);
+      expect(progressRepo.saved, isEmpty);
+      expect(tester.takeException(), isNull);
+      await unmountScreen(tester);
+      await tester.pump(const Duration(seconds: 8));
+    });
+  }
+
+  for (final rejected in [false, true]) {
+    testWidgets(
+      'interrupted PCM quarantines failed release (refused: $rejected)',
+      (tester) async {
+        final release = Completer<void>();
+        var refuseStop = rejected;
+        final mic = _StreamingMicrophone()
+          ..onStop = () async {
+            if (refuseStop) throw StateError('recorder refused to stop');
+            await release.future;
+          };
+        final voice = _VoiceHarness();
+        await pump(
+          tester,
+          mode: QuizMode.handsFree,
+          words: [('chat', '고양이')],
+          voice: voice,
+          microphone: mic,
+        );
+        await tick(tester, times: 8);
+        mic.recordings.single.addError(StateError('recorder stream failed'));
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 3));
+        expect(find.text('quiz.mic_release_failed_hf'.tr()), findsOneWidget);
+        expect(mic.stops, 1);
+        expect(voice.director.endCues, 0);
+        expect(voice.director.incorrectCues, 0);
+        expect(progressRepo.saved, isEmpty);
+
+        refuseStop = false;
+        await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfRepeat)));
+        await tester.pump();
+        expect(mic.stops, rejected ? 2 : 1);
+        expect(mic.recordings, hasLength(1));
+        expect(voice.director.cues, 1);
+        expect(voice.director.endCues, 0);
+
+        release.complete();
+        await tick(tester, times: 12);
+        expect(mic.recordings, hasLength(2));
+        expect(voice.director.cues, 2);
+        expect(voice.director.endCues, 0);
+        expect(progressRepo.saved, isEmpty);
+        await unmountScreen(tester);
+        await tester.pump(const Duration(seconds: 8));
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   for (final hangs in [false, true]) {
     testWidgets(
       'system release blocks grading and a switch to PCM (hangs: $hangs)',
@@ -3212,6 +3515,49 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'hands-free skip stays on the card until the microphone releases',
+    (tester) async {
+      final release = Completer<void>();
+      final voice = _VoiceHarness(systemRelease: release.future);
+      SharedPreferences.setMockInitialValues({
+        'settings_stt_engine_mode': 'system',
+      });
+      await pump(
+        tester,
+        mode: QuizMode.handsFree,
+        words: [('chat', '고양이'), ('chien', '개')],
+        voice: voice,
+      );
+      await tick(tester, times: 8);
+      final prompt = find.byType(WordInWave);
+      final firstWord = tester.widget<WordInWave>(prompt).word;
+      final skip = find.byKey(const ValueKey(WidgetKeys.hfSkip));
+      await tester.tap(skip);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 3));
+      expect(voice.systemStops, 1);
+      expect(find.text('quiz.mic_release_failed_hf'.tr()), findsOneWidget);
+      expect(tester.widget<WordInWave>(prompt).word, firstWord);
+      expect(voice.director.cues, 1);
+      expect(progressRepo.saved, isEmpty);
+
+      await tester.tap(skip);
+      await tester.pump();
+      expect(voice.systemStops, 1);
+      expect(tester.widget<WordInWave>(prompt).word, firstWord);
+      release.complete();
+      await tick(tester, times: 12);
+      expect(tester.widget<WordInWave>(prompt).word, isNot(firstWord));
+      expect(voice.systemListens, 2);
+      expect(voice.director.cues, 2);
+      expect(progressRepo.saved, isEmpty);
+      await unmountScreen(tester);
+      await tester.pump(const Duration(seconds: 8));
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   for (final hangs in [false, true]) {
     testWidgets(

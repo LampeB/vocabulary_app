@@ -101,6 +101,12 @@ L'application utilise SQLite comme source de lecture et les colonnes
   partage le même travail pour cette liste. Les autres listes, la progression,
   les événements et l'audio n'interviennent pas dans cette attente. Les copies
   importées restent privées jusqu'à leur propre publication.
+  Le compte, le repository et la session sont capturés avant les attentes.
+  Une déconnexion ou un changement de session annule l'ouverture du partage
+  système, même si le même compte s'est reconnecté avant la fin de l'envoi.
+  Un simple enrichissement du profil de la session courante ne l'annule pas.
+  L'export JSON applique la même garde avant son ouverture dans le partage
+  système ; chaque préparation dispose de son dossier temporaire séparé.
 - La provenance d'import (`imported_from_share_token`) est distincte du jeton
   public unique. Elle est écrite atomiquement avec la copie et sert à la
   déduplication par compte. Les nouveaux imports utilisent un UUIDv5 dérivé

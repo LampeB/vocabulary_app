@@ -1,13 +1,16 @@
 // ignore_for_file: invalid_use_of_internal_member
 import 'dart:async';
 import 'dart:convert' show jsonDecode, jsonEncode;
+import 'dart:io' show Directory, File;
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show SupabaseClient;
 import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
@@ -21,6 +24,7 @@ import 'package:vocab_kr/data/sync/push_sync.dart';
 import 'package:vocab_kr/data/sync/vocabulary_write_order.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
 import 'package:vocab_kr/domain/entities/variant_progress.dart';
+import 'package:vocab_kr/domain/repositories/auth_repository.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/services/audio/audio_asset_path.dart';
@@ -104,7 +108,52 @@ class _RecordingRemote extends FakeRemote {
   }
 }
 
+class _ShareAuthRepository implements AuthRepository {
+  _ShareAuthRepository(this.currentUser);
+
+  final _changes = StreamController<AppUser?>.broadcast(sync: true);
+
+  @override
+  AppUser? currentUser;
+
+  @override
+  Stream<AppUser?> get authStateChanges => _changes.stream;
+
+  void authenticate(AppUser? user) {
+    currentUser = user;
+    _changes.add(user);
+  }
+
+  @override
+  Future<Result<AppUser>> reloadProfile() async => Success(currentUser!);
+
+  Future<void> close() => _changes.close();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _PendingExportPath extends PathProviderPlatform {
+  final requested = Completer<void>();
+  final path = Completer<String>();
+
+  @override
+  Future<String?> getTemporaryPath() {
+    requested.complete();
+    return path.future;
+  }
+}
+
+enum _ShareOutcome {
+  acknowledged,
+  switchedAccount,
+  signedBackIn,
+  signedOutBeforeEvent,
+  rejected,
+}
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late AppDatabase db;
   late _RecordingRemote remote;
   late VocabularyRepositoryImpl repo;
@@ -129,6 +178,180 @@ void main() {
     );
   });
   tearDown(() => db.close());
+
+  final owner = AppUser(
+    id: 'u',
+    email: 'test@example.com',
+    username: 'test',
+    createdAt: DateTime.utc(2026),
+  );
+  final otherUser = owner.copyWith(id: 'other');
+
+  Future<ProviderContainer> sessionProviders(_ShareAuthRepository auth) async {
+    addTearDown(auth.close);
+    final container = ProviderContainer(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(auth),
+        appDatabaseProvider.overrideWithValue(db),
+        vocabularyRemoteProvider.overrideWithValue(remote),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container.read(authStateProvider.future);
+    return container;
+  }
+
+  List<MethodCall> recordNativeShares() {
+    final calls = <MethodCall>[];
+    const channel = MethodChannel('dev.fluttercommunity.plus/share');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call);
+      return '';
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    return calls;
+  }
+
+  for (final outcome in _ShareOutcome.values) {
+    test(
+      'native link sharing after the PushSync acknowledgement: ${outcome.name}',
+      () async {
+        final auth = _ShareAuthRepository(owner);
+        final container = await sessionProviders(auth);
+        final calls = recordNativeShares();
+        final list = (await repo.createList(name: 'Share from A')).valueOrNull!;
+        await repo.addConceptWithVariants(
+          listId: list.id,
+          wordA: 'bonjour',
+          wordB: '안녕하세요',
+        );
+        final submitted = Completer<Map<String, dynamic>>();
+        final acknowledge = Completer<void>();
+        remote.onList = (row) async {
+          submitted.complete(row);
+          await acknowledge.future;
+        };
+        remote.failConcepts = outcome == _ShareOutcome.rejected;
+
+        final sharing = container
+            .read(listActionsProvider.notifier)
+            .generateAndShareLink(list.id, list.name);
+        try {
+          final publication = await submitted.future.timeout(
+            const Duration(seconds: 2),
+          );
+          expect(publication['owner_id'], owner.id);
+          expect(publication['visibility'], 'public');
+          expect(calls, isEmpty);
+          switch (outcome) {
+            case _ShareOutcome.switchedAccount:
+              auth.authenticate(otherUser);
+            case _ShareOutcome.signedBackIn:
+              auth.authenticate(null);
+              auth.authenticate(owner);
+            case _ShareOutcome.signedOutBeforeEvent:
+              // GoTrue can clear its local session before notifying listeners.
+              auth.currentUser = null;
+            case _ShareOutcome.acknowledged:
+              auth.authenticate(
+                owner.copyWith(displayName: 'Refreshed profile'),
+              );
+              await container.read(authStateProvider.notifier).reloadProfile();
+              expect(
+                container.read(currentUserProvider)?.displayName,
+                'Refreshed profile',
+              );
+            case _ShareOutcome.rejected:
+              break;
+          }
+        } finally {
+          acknowledge.complete();
+        }
+        final result = await sharing.timeout(const Duration(seconds: 2));
+        final row = (await db.vocabularyListDao.getById(list.id))!;
+        expect(row.isSynced, isTrue);
+        expect(row.shareToken, isNotEmpty);
+        expect(
+          await db.vocabularyListDao.hasPendingContents(list.id),
+          outcome == _ShareOutcome.rejected,
+        );
+        switch (outcome) {
+          case _ShareOutcome.acknowledged:
+            expect(result.isSuccess, isTrue);
+            final call = calls.single;
+            expect(call.method, 'share');
+            expect(call.arguments, {
+              'text': 'vocabkr://import?token=${row.shareToken}',
+              'subject': '${list.name} — Ponderin',
+            });
+          case _ShareOutcome.switchedAccount:
+          case _ShareOutcome.signedBackIn:
+          case _ShareOutcome.signedOutBeforeEvent:
+            expect(result.exceptionOrNull, isA<PermissionException>());
+            expect(calls, isEmpty);
+            expect(
+              container.read(currentUserProvider)?.id,
+              outcome == _ShareOutcome.switchedAccount
+                  ? otherUser.id
+                  : owner.id,
+            );
+          case _ShareOutcome.rejected:
+            expect(result.exceptionOrNull, isA<NetworkException>());
+            expect(calls, isEmpty);
+        }
+      },
+    );
+  }
+
+  for (final accountChanges in [false, true]) {
+    test(
+      'export waits for file preparation in its own session ($accountChanges)',
+      () async {
+        final auth = _ShareAuthRepository(owner);
+        final container = await sessionProviders(auth);
+        final calls = recordNativeShares();
+        final list = (await repo.createList(
+          name: 'Export from A',
+        )).valueOrNull!;
+        final directory = await Directory.systemTemp.createTemp(
+          'ponderin-export-test-',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        final originalPathProvider = PathProviderPlatform.instance;
+        final pathProvider = _PendingExportPath();
+        PathProviderPlatform.instance = pathProvider;
+        addTearDown(() => PathProviderPlatform.instance = originalPathProvider);
+
+        final exporting = container
+            .read(listActionsProvider.notifier)
+            .exportList(list.id, list.name);
+        try {
+          await pathProvider.requested.future.timeout(
+            const Duration(seconds: 2),
+          );
+          if (accountChanges) auth.authenticate(otherUser);
+        } finally {
+          pathProvider.path.complete(directory.path);
+        }
+        final result = await exporting.timeout(const Duration(seconds: 2));
+        if (accountChanges) {
+          expect(result, const PermissionException().message);
+          expect(calls, isEmpty);
+          expect(await directory.list().toList(), isEmpty);
+        } else {
+          expect(result, isNull);
+          expect(calls.single.method, 'shareFiles');
+          final paths = (calls.single.arguments as Map)['paths'] as List;
+          final payload = jsonDecode(
+            await File(paths.single as String).readAsString(),
+          );
+          expect(payload['list']['name'], list.name);
+        }
+      },
+    );
+  }
 
   test('restore reads past the first page of server identities', () async {
     final filters = <String?>[];
