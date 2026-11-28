@@ -30,11 +30,30 @@ Collect every verdict before changing code. Preserve the required finding type:
 `Bloquant`, `Important` or `Suggestion`. Deduplicate equivalent findings but
 never silently downgrade a Bloquant or Important.
 
+Keep reviewers free to follow unexpected evidence within their broad roles.
+Attention points are non-exhaustive and may evolve between rounds. Ask for a
+short account of examined areas and limits, not a checklist that implies an
+exhaustive review. Freeze instructions during each four-verdict round.
+
+## Correction batch
+
+Assign stable finding IDs and explicit file ownership, then use the
+[finding corrector profile](../../../.codex/agents/pr-finding-corrector.toml).
+Give correctors the consolidated reports and affected contracts. Require them
+to identify the underlying invariant, search sibling cases and shared callers,
+and check the effects of their fix before returning the batch. Keep this
+investigation proportional to the concrete risk; it does not authorize new
+product decisions or unrelated rewrites. Preserve findings, related cases,
+fixes, actual validation and remaining limits in the review ledger.
+
 Correct all Bloquants and Importants together, make one new commit, then begin
 a new round. If all four reviewers are clean, do not change code: repeat the
-round on the same SHA with fresh agents. Stop after twenty rounds without
-convergence and ask for a human decision. A final clean result requires two
-consecutive clean rounds for all four reviewers on the same SHA.
+round on the same SHA with fresh agents. Count at most twenty rounds per
+reviewer in one explicitly numbered cycle. Stop without convergence and ask
+for a human decision before starting another cycle. Keep earlier cycles and
+their findings visible; do not silently renumber them. A final clean result
+requires two consecutive clean rounds in the same cycle for all four reviewers
+on the same SHA. The user authorized cycle 2 on 28 November 2026.
 
 ## Required convergence status
 
@@ -43,7 +62,9 @@ GitHub commit statuses. Keep it pending until all four reviewers have two
 consecutive clean verdicts on that exact SHA. A new commit always starts
 pending; never reuse verdicts from a prior SHA or count interrupted runs.
 Record the four profiles, iteration counts and final verdicts in the PR body.
-Only then publish success. Required CI and an eligible GitHub approval are
+Record the cycle as well: version-2 evidence binds its `review_cycle` to each
+report's `cycle`, and iterations remain 1–20 within that cycle. Only then
+publish success. Required CI and an eligible GitHub approval are
 separate gates. The validated-PR GitHub Actions bot may formalize the approval
 only after checking the owner-attested convergence evidence and required CI
 for the exact current SHA. It performs no extra Copilot code review.

@@ -1,6 +1,6 @@
 # Ponderin — état actuel
 
-**Mis à jour : 27 novembre 2026**
+**Mis à jour : 28 novembre 2026**
 
 ## Produit en une phrase
 
@@ -102,15 +102,21 @@ de contenu avant bêta pédagogique.
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 25 tests ciblés. La sonde compilée en mode produit confirme le
   refus des diagnostics, même avec l'option fournie.
-- Sur `65a0a07`, les huit checks CI, dont les tests hôte, le wrapper SQL,
+- Sur `48b12ee`, les huit checks CI, dont les tests hôte, le wrapper SQL,
   Android et le simulateur iOS, sont verts. Le pont utilise le NDK 28.2 de
   l'application. Les vingt itérations autorisées n'ont pas convergé ;
   le profil sécurité est propre de la dix-septième à la vingtième sur quatre
   commits différents. Les quatre Important de la dernière passe sont corrigés,
-  mais ce candidat n'a pas reçu de nouvelle revue indépendante. La boucle est
-  arrêtée au plafond décidé ; toute prolongation exige une décision utilisateur.
-  La convergence collective reste 0/2. Les corrections sont consignées dans
+  mais ce candidat n'a pas reçu de nouvelle revue indépendante. Le 28 novembre,
+  l'utilisateur autorise le cycle 2, avec vingt nouvelles passes au maximum,
+  des relecteurs libres d'explorer et des correcteurs chargés de chercher la
+  cause, les cas voisins et les effets de leurs changements. Les anciens
+  rapports restent conservés ; aucun compteur propre n'est acquis. La
+  [décision et ses limites](docs/decisions/2026-11-28-review-corrections-and-cycles.md)
+  s'appliquent avant toute nouvelle revue. Les corrections sont consignées dans
   [le registre du 27 novembre](docs/reviews/2026-11-27-integration.md).
+  Le nouveau cycle est suivi dans
+  [le registre du 28 novembre](docs/reviews/2026-11-28-integration-cycle2.md).
   Le sas exige deux revues propres sur le commit final ; les verdicts et les
   checks du candidat courant sont consignés dans la PR d'intégration.
 - La CI de PR vérifie également la compilation native Android, les frontières
@@ -125,7 +131,7 @@ de contenu avant bêta pédagogique.
   vérifié le verrou du reset et le refus de l'écriture concurrente. Le contrat
   Patrol exige 022 et 023 et se ferme si une garde de référence ou d'écriture est
   désactivée, ou si un droit client de suppression physique est réintroduit.
-  Les dix tests Python E2E, le test Node de redirection TLS, trente-et-un tests Deno, vingt-et-un tests du bot,
+  Les dix tests Python E2E, le test Node de redirection TLS, trente-et-un tests Deno, vingt-six tests du bot,
   cinq tests du déploiement et sept tests du garde Git passent dans le lot courant. Le bot refuse
   aussi une CI verte issue d'un
   autre workflow ou évaluée contre une autre base.

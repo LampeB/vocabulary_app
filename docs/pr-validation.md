@@ -22,6 +22,13 @@ Un relecteur dont la spécialité n'est pas touchée le signale explicitement ;
 il vérifie tout de même que le diff ne franchit pas une frontière relevant de
 sa mission.
 
+Les missions restent ouvertes : chaque profil peut suivre une piste inattendue
+et signaler tout défaut concret relevant de sa spécialité. Les points
+d'attention issus des analyses sont indicatifs et non exhaustifs. Ils peuvent
+évoluer entre deux itérations, sans changer les critères de preuve ou de
+sévérité pour obtenir un verdict propre. Les consignes restent identiques
+pendant la collecte des quatre verdicts d'une itération.
+
 ## Format de verdict
 
 Chaque observation porte obligatoirement **un type unique** : `Bloquant`,
@@ -44,6 +51,9 @@ Commit analysé : <SHA>
   Emplacement : <fichier:ligne ou scénario>
   Preuve et risque : <constat vérifiable>
   Correction attendue : <action précise>
+
+Zones examinées : <principales zones réellement lues ou exercées>
+Limites : <hypothèses ou validations non vérifiées>
 
 Verdict final : BLOQUÉ | PROPRE
 ```
@@ -87,9 +97,49 @@ obtenu **deux verdicts propres consécutifs** sur le même commit final. Tout
 nouveau commit remet ces compteurs à zéro pour les quatre relecteurs : un
 correctif local peut avoir un effet de bord hors de sa zone apparente.
 
-Chaque relecteur a au plus **20 itérations**. Si cette limite est atteinte sans
-convergence, la boucle s'arrête sans fusion automatique et produit un rapport
-de désaccord pour décision humaine.
+Chaque relecteur a au plus **20 itérations par cycle explicitement numéroté**.
+Si cette limite est atteinte sans convergence, la boucle s'arrête sans fusion
+automatique et produit un rapport pour décision humaine. Seule une décision
+utilisateur peut ouvrir un nouveau cycle ; les anciens rapports et compteurs
+restent visibles. Une paire de verdicts propres appartient au même cycle et
+au même SHA. Aucun verdict d'un cycle antérieur ne remplit le nouveau compteur.
+
+Le 28 novembre 2026, après les vingt passes du premier cycle, l'utilisateur
+autorise le **cycle 2, passes 1 à 20**, avec les règles de correction ci-dessous.
+Cela correspond aux relectures cumulées 21 à 40, sans réécrire le premier
+cycle ni autoriser automatiquement un troisième. Voir la
+[décision](decisions/2026-11-28-review-corrections-and-cycles.md).
+
+## Traitement des corrections
+
+L'orchestrateur attribue un identifiant stable à chaque constat consolidé
+(par exemple `C2-P1-01`), conserve les références des doublons et leur sévérité
+maximale, puis répartit les fichiers entre agents de correction. Le profil
+[pr_finding_corrector](../.codex/agents/pr-finding-corrector.toml) et le skill
+de validation encadrent ce travail. Aucun correcteur ne remplace une revue
+indépendante.
+
+Le correcteur doit identifier la cause et l'invariant attendu, chercher les
+capacités existantes, puis examiner les cas voisins et les consommateurs
+partagés concernés par la même cause. Cette investigation reste proportionnée
+au risque : elle n'autorise ni nouveau choix produit ni réécriture étrangère
+au lot. Une correction de traduction partagée doit vérifier les autres
+langues utilisatrices ; un défaut de notation orale conduit à examiner les
+règles présentant la même ambiguïté, plutôt qu'un seul exemple.
+
+La validation démontre le cas remonté et les effets pertinents du changement,
+avec des scénarios voisins ou négatifs lorsque le risque les justifie. Les
+tests doivent atteindre les vrais chemins, données et sémantiques concernés :
+identifiants réellement en conflit, catalogue effectivement généré, route
+active, ou distinction entre ACK natif et fin de lecture. Le nombre de tests
+ou la couverture globale seuls ne prouvent pas la correction.
+
+Le registre conserve les identifiants, la cause, les cas voisins examinés et
+leur traitement, les fichiers/commit corrigés, les commandes réellement
+exécutées, leurs résultats et les limites restantes. Les agents ne déclarent
+pas un constat résolu sur la seule description de leur modification. Après
+réunion des retours des correcteurs et contrôles nécessaires, l'orchestrateur
+fait un commit commun et relance les quatre relecteurs vierges.
 
 ## Conditions de fusion
 
@@ -121,14 +171,19 @@ une CI verte et une approbation externe seules ne satisfont pas la convergence.
 
 Le corps de PR contient exactement un commentaire HTML commençant par
 `<!-- ponderin-review-evidence` et terminé par `-->`. Son objet JSON possède
-exactement `head_sha`, `base_sha` et `reviewers`. Ce dernier associe les quatre
+exactement `head_sha`, `base_sha`, `review_cycle` et `reviewers`. `review_cycle`
+est un entier strictement positif, identifiant le cycle explicitement autorisé.
+L'objet `reviewers` associe les quatre
 noms de profils `.codex/agents/` à deux rapports : `iteration` (1–20),
-`instance_id`, `verdict` (`PROPRE`), `bloquant` (0), `important` (0), et
+`cycle` (égal à `review_cycle`), `instance_id`, `verdict` (`PROPRE`),
+`bloquant` (0), `important` (0), et
 éventuellement `report_text`. Les deux itérations sont consécutives et communes
-aux quatre profils ; les huit identifiants d'instances sont distincts.
+aux quatre profils dans le même cycle ; les huit identifiants d'instances sont
+distincts. Les anciennes preuves sans cycle sont refusées ; l'identité du cycle
+fait partie de l'attestation du propriétaire.
 
 Le propriétaire atteste cette preuve avec le statut de convergence dont la
-description est `reviews-v1:` suivi du SHA-256 du JSON canonique (clés triées,
+description est `reviews-v2:` suivi du SHA-256 du JSON canonique (clés triées,
 séparateurs `,`/`:`, `ensure_ascii=True`, encodage UTF-8). Le bot refuse une
 preuve altérée, un statut d'un autre auteur, une CI périmée ou issue d'une
 autre application, un fork, un brouillon ou une nouvelle tête/base. Il relie
@@ -272,4 +327,5 @@ nécessitera une licence éligible et les réglages décrits dans la
 - [Tests et stratégie](../TESTS.md)
 - [Documentation et commits](runbooks/documentation-et-commits.md)
 - [Décision de convergence](decisions/2026-11-22-pr-validation-convergence.md)
+- [Relectures ouvertes, corrections et cycles](decisions/2026-11-28-review-corrections-and-cycles.md)
 - [Lot de correction de la revue d'intégration du 27 novembre](reviews/2026-11-27-integration.md)

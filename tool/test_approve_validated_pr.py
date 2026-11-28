@@ -25,20 +25,22 @@ PUSH_WORKFLOW = ".github/workflows/test.yml"
 WORKFLOW_PATHS = {PR_RUN: PR_WORKFLOW, PUSH_RUN: PUSH_WORKFLOW}
 
 
-def clean_evidence():
+def clean_evidence(review_cycle=1, iterations=(19, 20)):
     return {
         "head_sha": HEAD,
         "base_sha": BASE,
+        "review_cycle": review_cycle,
         "reviewers": {
             reviewer: [
                 {
+                    "cycle": review_cycle,
                     "iteration": iteration,
-                    "instance_id": f"{reviewer}:{iteration}",
+                    "instance_id": f"{reviewer}:{review_cycle}:{iteration}",
                     "verdict": "PROPRE",
                     "bloquant": 0,
                     "important": 0,
                 }
-                for iteration in (19, 20)
+                for iteration in iterations
             ]
             for reviewer in sorted(approval.REVIEWERS)
         },
@@ -63,8 +65,9 @@ def paged(path, page):
 
 
 class FakeGitHub(approval.GitHub):
-    def __init__(self):
-        evidence = clean_evidence()
+    def __init__(self, evidence=None):
+        if evidence is None:
+            evidence = clean_evidence()
         self.pull = {
             "number": PULL,
             "state": "open",
@@ -157,6 +160,11 @@ class ApprovalTest(unittest.TestCase):
         self.assertIn(api.latest_status["description"], body["body"])
         self.assertEqual(api.requests[-2:], [PULL_PATH, REVIEWS_PATH])
 
+    def test_approves_consecutive_iterations_one_and_two_of_cycle_two(self):
+        api = FakeGitHub(clean_evidence(review_cycle=2, iterations=(1, 2)))
+        self.assertTrue(self.approve(api))
+        self.assertEqual(len(api.posts), 1)
+
     def test_wrong_review_returned_by_github_fails(self):
         api = FakeGitHub()
         api.review_response = actions_review(OLD)
@@ -203,10 +211,12 @@ class ApprovalTest(unittest.TestCase):
         api.responses[paged(STATUSES_PATH, 1)] = [([], False)]
         self.assert_refused(api, "status is missing")
 
+        current_description = approval.evidence_description(clean_evidence())
         for change, reason in (
             ({"creator": {"login": "another-user"}}, "not from the repository owner"),
             ({"state": "pending"}, "status is not successful"),
-            ({"description": "reviews-v1:" + "a" * 64}, "does not attest"),
+            ({"description": "reviews-v2:" + "a" * 64}, "does not attest"),
+            ({"description": current_description.replace("reviews-v2:", "reviews-v1:", 1)}, "does not attest"),
         ):
             with self.subTest(change=change):
                 api = FakeGitHub()
@@ -339,6 +349,45 @@ class ApprovalTest(unittest.TestCase):
         api.pull["body"] = evidence_body(json.dumps(evidence))
         self.assert_refused(api, "does not attest")
 
+    def test_rejects_mixed_cycles_with_same_head_and_consecutive_iterations(self):
+        evidence = clean_evidence(review_cycle=2, iterations=(1, 2))
+        next(iter(evidence["reviewers"].values()))[0]["cycle"] = 1
+        api = FakeGitHub(evidence)
+        self.assert_refused(api, "matching the evidence review cycle")
+
+    def test_requires_cycle_in_evidence_and_each_report(self):
+        evidence = clean_evidence()
+        del evidence["review_cycle"]
+        for reports in evidence["reviewers"].values():
+            for report in reports:
+                del report["cycle"]
+        self.assert_refused(FakeGitHub(evidence), "Review evidence has unexpected fields")
+
+        evidence = clean_evidence()
+        del next(iter(evidence["reviewers"].values()))[0]["cycle"]
+        self.assert_refused(FakeGitHub(evidence), "Review report has unexpected fields")
+
+    def test_rejects_invalid_cycle_ids(self):
+        for cycle in (0, -1, True, False, 1.0, "1", None):
+            with self.subTest(location="evidence", cycle=cycle):
+                api = FakeGitHub(clean_evidence(review_cycle=cycle))
+                self.assert_refused(api, "Review cycle must be a positive integer")
+
+            with self.subTest(location="report", cycle=cycle):
+                evidence = clean_evidence()
+                next(iter(evidence["reviewers"].values()))[0]["cycle"] = cycle
+                self.assert_refused(FakeGitHub(evidence), "matching the evidence review cycle")
+
+    def test_rejects_cycle_changed_after_owner_attestation(self):
+        evidence = clean_evidence(review_cycle=2, iterations=(1, 2))
+        api = FakeGitHub(evidence)
+        evidence["review_cycle"] = 3
+        for reports in evidence["reviewers"].values():
+            for report in reports:
+                report["cycle"] = 3
+        api.pull["body"] = evidence_body(json.dumps(evidence))
+        self.assert_refused(api, "does not attest")
+
     def test_rejects_blockers_important_findings_wrong_verdict_and_bad_types(self):
         for change, reason in (
             ({"bloquant": 1}, "nonzero or invalid findings"),
@@ -390,7 +439,7 @@ class ApprovalTest(unittest.TestCase):
         for ensure_ascii in (False, True):
             payload = json.dumps(evidence, indent=2, sort_keys=ensure_ascii, ensure_ascii=ensure_ascii)
             self.assertEqual(approval.validate_evidence(evidence_body(payload), HEAD, BASE), canonical)
-        self.assertRegex(canonical, "^reviews-v1:[0-9a-f]{64}$")
+        self.assertRegex(canonical, "^reviews-v2:[0-9a-f]{64}$")
 
     def test_head_base_or_body_races_fail_closed(self):
         for race, reason in (

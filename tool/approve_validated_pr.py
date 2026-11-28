@@ -30,7 +30,7 @@ REVIEWERS = {
     "pr_correctness_tests_reviewer",
     "pr_security_delivery_reviewer",
 }
-REPORT_FIELDS = {"iteration", "instance_id", "verdict", "bloquant", "important"}
+REPORT_FIELDS = {"cycle", "iteration", "instance_id", "verdict", "bloquant", "important"}
 SHA = re.compile(r"[0-9a-f]{40}")
 
 
@@ -60,7 +60,7 @@ def evidence_description(evidence):
     canonical = json.dumps(
         evidence, sort_keys=True, separators=(",", ":"), ensure_ascii=True
     ).encode("utf-8")
-    return "reviews-v1:" + hashlib.sha256(canonical).hexdigest()
+    return "reviews-v2:" + hashlib.sha256(canonical).hexdigest()
 
 
 def validate_evidence(body, head, base):
@@ -76,11 +76,14 @@ def validate_evidence(body, head, base):
     except (ValueError, RecursionError) as exc:
         raise ApprovalError("Review evidence comment is not valid JSON.") from exc
     require(
-        isinstance(evidence, dict) and evidence.keys() == {"head_sha", "base_sha", "reviewers"},
+        isinstance(evidence, dict)
+        and evidence.keys() == {"head_sha", "base_sha", "review_cycle", "reviewers"},
         "Review evidence has unexpected fields.",
     )
     require(evidence["head_sha"] == head, "Review evidence is for a different head SHA.")
     require(evidence["base_sha"] == base, "Review evidence is for a different base SHA.")
+    review_cycle = evidence["review_cycle"]
+    require(type(review_cycle) is int and review_cycle > 0, "Review cycle must be a positive integer.")
     reviewers = evidence["reviewers"]
     require(
         isinstance(reviewers, dict) and reviewers.keys() == REVIEWERS,
@@ -97,6 +100,11 @@ def validate_evidence(body, head, base):
                 isinstance(report, dict)
                 and report.keys() in (REPORT_FIELDS, REPORT_FIELDS | {"report_text"}),
                 "Review report has unexpected fields.",
+            )
+            cycle = report["cycle"]
+            require(
+                type(cycle) is int and cycle == review_cycle,
+                "Review report cycle must be an integer matching the evidence review cycle.",
             )
             if "report_text" in report:
                 report_text = report["report_text"]
