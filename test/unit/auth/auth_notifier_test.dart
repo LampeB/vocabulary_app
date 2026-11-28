@@ -105,6 +105,20 @@ void main() {
   });
 
   test(
+    'build starts from a signed local session during a profile outage',
+    () async {
+      final local = repo.current = _user();
+      final notifier = container.read(authStateProvider.notifier);
+      expect(await container.read(authStateProvider.future), local);
+      expect(notifier.useLocalSession(), local);
+
+      final recovered = repo.profile = _user(streak: 7);
+      await notifier.reloadProfile();
+      expect(container.read(currentUserProvider), recovered);
+    },
+  );
+
+  test(
     'signIn success → AsyncData(user) and currentUserProvider set',
     () async {
       await container.read(authStateProvider.future);
@@ -165,6 +179,51 @@ void main() {
       repo.profile = null; // reload now fails → state unchanged
       await container.read(authStateProvider.notifier).reloadProfile();
       expect(container.read(authStateProvider).valueOrNull?.currentStreak, 9);
+    },
+  );
+
+  test(
+    'same-account auth events retain an enriched profile on read failure',
+    () async {
+      repo.current = _user();
+      final profile = repo.profile = _user(streak: 7).copyWith(
+        username: 'chosen',
+        displayName: 'Chosen display name',
+        subscriptionType: SubscriptionType.premium,
+      );
+      await container.read(authStateProvider.future);
+
+      repo.profile = null;
+      repo.authChanges.add(repo.current);
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(currentUserProvider), profile);
+
+      final recovered = repo.profile = profile.copyWith(currentStreak: 8);
+      repo.authChanges.add(repo.current);
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(currentUserProvider), recovered);
+    },
+  );
+
+  test(
+    'a different account falling back offline cannot reuse the old profile',
+    () async {
+      repo.current = _user(id: 'a');
+      repo.profile = _user(id: 'a', streak: 7).copyWith(
+        username: 'chosen',
+        subscriptionType: SubscriptionType.premium,
+      );
+      await container.read(authStateProvider.future);
+
+      final local = repo.current = _user(id: 'b');
+      repo.profile = null;
+      repo.authChanges.add(local);
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(currentUserProvider), local);
+      expect(
+        container.read(authStateProvider.notifier).useLocalSession(),
+        local,
+      );
     },
   );
 

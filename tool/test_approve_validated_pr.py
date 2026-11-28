@@ -165,6 +165,20 @@ class ApprovalTest(unittest.TestCase):
         self.assertTrue(self.approve(api))
         self.assertEqual(len(api.posts), 1)
 
+    def test_newer_manual_test_does_not_mask_required_push_result(self):
+        for push_conclusion in ("success", "failure"):
+            with self.subTest(push_conclusion=push_conclusion):
+                api = FakeGitHub()
+                push_check = next(check for check in api.check_runs if check["name"] == "test")
+                push_check["conclusion"] = push_conclusion
+                manual_check = copy.deepcopy(push_check)
+                manual_check.update(id=9000, name="Manual / test", conclusion="success")
+                api.check_runs.append(manual_check)
+                if push_conclusion == "success":
+                    self.assertTrue(self.approve(api))
+                else:
+                    self.assert_refused(api, "no successful latest check run")
+
     def test_wrong_review_returned_by_github_fails(self):
         api = FakeGitHub()
         api.review_response = actions_review(OLD)

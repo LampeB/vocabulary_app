@@ -7,11 +7,12 @@ import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/datasources/remote/vocabulary_remote_datasource.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
+import '../helpers/fake_remote.dart';
 
 // ---------------------------------------------------------------------------
 // Fake remote — all calls succeed with empty data (no real network needed).
 // ---------------------------------------------------------------------------
-class _FakeRemote implements VocabularyRemoteDataSource {
+class _FakeRemote extends FakeRemote {
   @override
   Future<ProvisionedAudio?> provisionAudio(
     String variantId, {

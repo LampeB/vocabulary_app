@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/services/audio/audio_player_service.dart';
 import 'package:vocab_kr/services/audio/audio_ports.dart';
 import 'package:vocab_kr/services/audio/flutter_tts_service.dart';
+import 'package:vocab_kr/services/audio/native_playback_player.dart';
 import 'package:vocab_kr/services/quiz_orchestration/audio_director.dart';
 
 class _FakeCache implements AudioAssetCache {
@@ -380,6 +381,60 @@ void main() {
     },
   );
 
+  test(
+    'native retirement joins a file stop still waiting for acknowledgement',
+    () async {
+      const global = MethodChannel('xyz.luan/audioplayers.global');
+      const globalEvents = MethodChannel('xyz.luan/audioplayers.global/events');
+      const player = MethodChannel('xyz.luan/audioplayers');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final confirmed = Completer<void>();
+      final stopSent = Completer<void>();
+      final releaseCalls = <String>[];
+      MethodChannel? events;
+      messenger.setMockMethodCallHandler(global, (_) async => null);
+      messenger.setMockMethodCallHandler(globalEvents, (_) async => null);
+      messenger.setMockMethodCallHandler(player, (call) async {
+        switch (call.method) {
+          case 'create':
+            events = MethodChannel(
+              'xyz.luan/audioplayers/events/${call.arguments['playerId']}',
+            );
+            messenger.setMockMethodCallHandler(events!, (_) async => null);
+          case 'getCurrentPosition':
+            return 0;
+          case 'stop':
+            releaseCalls.add('stop');
+            if (!stopSent.isCompleted) stopSent.complete();
+            await confirmed.future;
+          case 'release':
+            releaseCalls.add('release');
+        }
+        return null;
+      });
+      addTearDown(() {
+        for (final channel in [global, globalEvents, player, ?events]) {
+          messenger.setMockMethodCallHandler(channel, null);
+        }
+      });
+
+      final native = NativePlaybackPlayer();
+      final stopping = native.stop();
+      await stopSent.future.timeout(const Duration(seconds: 2));
+      final retiring = native.releaseForDisposal();
+      await Future<void>.delayed(Duration.zero);
+      expect(releaseCalls, ['stop']);
+      confirmed.complete();
+      await Future.wait([
+        stopping,
+        retiring,
+      ]).timeout(const Duration(seconds: 2));
+      expect(releaseCalls, ['stop', 'release']);
+      await native.dispose();
+    },
+  );
+
   test('a failed file release and rejected TTS both fail the prompt', () async {
     final file = _FakeFilePlayer()
       ..rejectClip = true
@@ -400,6 +455,7 @@ void main() {
     expect(cache.invalidated, isEmpty);
 
     file.refuseRelease = false;
+    await director.stopAll();
     expect(await prompt(), StudyPromptResult.failed);
     expect(cache.invalidated, ['mot.mp3']);
     expect(tts.spoken, ['mot|fr']);

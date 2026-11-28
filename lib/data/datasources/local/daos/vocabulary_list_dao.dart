@@ -1,6 +1,7 @@
 import 'dart:convert' show jsonDecode, jsonEncode;
 
 import 'package:drift/drift.dart';
+import '../../../sync/vocabulary_sync_ids.dart';
 import '../app_database.dart';
 import '../sync_snapshot.dart';
 import '../tables/vocabulary_lists_table.dart';
@@ -82,6 +83,7 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
   Future<List<String>> getPendingListIds({String? ownerId}) => customSelect(
     'SELECT l.id FROM vocabulary_lists l '
     'WHERE (? IS NULL OR l.owner_id = ?) AND (l.is_synced = 0 '
+    'OR EXISTS(SELECT 1 FROM shared_import_bootstrap b WHERE b.id = \'$_legacySharePrefix\' || l.id) '
     'OR EXISTS(SELECT 1 FROM concepts c WHERE c.list_id = l.id AND c.is_synced = 0) '
     'OR EXISTS(SELECT 1 FROM concepts c JOIN word_variants w ON w.concept_id = c.id '
     'WHERE c.list_id = l.id AND w.is_synced = 0))',
@@ -109,6 +111,112 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
   Future<void> forgetSharedImportBases(Iterable<String> ids) => (delete(
     db.sharedImportBootstrapTable,
   )..where((t) => t.id.isIn(ids))).go();
+
+  static const _legacySharePrefix = 'legacy-share:';
+
+  // Every legacy producer used UUIDv4. Modern import generations use UUIDv5
+  // on the wire, including when the SQLite UUID is a cross-account alias.
+  static final _version5 = RegExp(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+    caseSensitive: false,
+  );
+
+  static bool isLegacyShareWireId(String id) => !_version5.hasMatch(id);
+
+  Future<void> quarantineLegacyShares({required bool previouslyRewritten}) =>
+      transaction(() async {
+        final rows =
+            await (select(vocabularyListsTable)..where(
+                  (row) => previouslyRewritten
+                      ? row.importedFromShareToken.isNotNull()
+                      : row.visibility.equals('private') &
+                            row.shareToken.isNotNull(),
+                ))
+                .get();
+        final idsByOwner = <String, Future<VocabularySyncIds>>{};
+        for (final row in rows) {
+          if (previouslyRewritten) {
+            final ids = await idsByOwner.putIfAbsent(
+              row.ownerId,
+              () => VocabularySyncIds.load(db, row.ownerId),
+            );
+            if (!isLegacyShareWireId(
+              ids.wireId(SyncedVocabularyRow.list, row.id),
+            )) {
+              continue;
+            }
+          }
+          final token = previouslyRewritten
+              ? row.importedFromShareToken!
+              : row.shareToken!;
+          await rememberLegacyShare(row.id, (
+            token: token,
+            edited:
+                previouslyRewritten &&
+                (row.visibility != 'private' || row.shareToken != null),
+          ));
+          final normalized = previouslyRewritten
+              ? row.copyWith(importedFromShareToken: const Value(null))
+              : row.copyWith(shareToken: const Value(null));
+          await upsert(normalized.toCompanion(false));
+          if (row.isDeleted && !row.isSynced) {
+            await rememberSharedImport(
+              row.id,
+              normalized.copyWith(isDeleted: false),
+            );
+          }
+        }
+      });
+
+  Future<LegacyShare?> getLegacyShare(String listId) async {
+    final row =
+        await (select(db.sharedImportBootstrapTable)
+              ..where((t) => t.id.equals('$_legacySharePrefix$listId')))
+            .getSingleOrNull();
+    return row == null ? null : _decodeLegacyShare(row.snapshot);
+  }
+
+  LegacyShare _decodeLegacyShare(String snapshot) {
+    final data = jsonDecode(snapshot) as Map<String, dynamic>;
+    return (token: data['token'] as String, edited: data['edited'] as bool);
+  }
+
+  Future<void> rememberLegacyShare(String listId, LegacyShare share) =>
+      into(db.sharedImportBootstrapTable).insertOnConflictUpdate(
+        SharedImportBootstrapTableCompanion.insert(
+          id: '$_legacySharePrefix$listId',
+          snapshot: jsonEncode({'token': share.token, 'edited': share.edited}),
+        ),
+      );
+
+  Future<void> forgetLegacyShare(String listId) =>
+      forgetSharedImportBases(['$_legacySharePrefix$listId']);
+
+  Future<List<({VocabularyListsTableData list, LegacyShare pending})>>
+  legacyShareLists({String? ownerId, String? token}) {
+    final lists = vocabularyListsTable;
+    final bootstrap = db.sharedImportBootstrapTable;
+    final query = select(lists).join([
+      innerJoin(
+        bootstrap,
+        bootstrap.id.equalsExp(const Constant(_legacySharePrefix) + lists.id),
+      ),
+    ]);
+    if (ownerId != null) query.where(lists.ownerId.equals(ownerId));
+    return query
+        .map(
+          (row) => (
+            list: row.readTable(lists),
+            pending: _decodeLegacyShare(row.readTable(bootstrap).snapshot),
+          ),
+        )
+        .get()
+        .then(
+          (rows) => token == null
+              ? rows
+              : rows.where((row) => row.pending.token == token).toList(),
+        );
+  }
 
   static const _starterDraftPrefix = 'starter-draft:';
   static const _starterEstablishedPrefix = 'starter-established:';
@@ -322,3 +430,5 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
   Future<int> acknowledge(VocabularyListsTableData row) =>
       acknowledgeSyncSnapshot(this, vocabularyListsTable, row);
 }
+
+typedef LegacyShare = ({String token, bool edited});

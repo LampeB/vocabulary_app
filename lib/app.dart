@@ -27,6 +27,8 @@ import 'presentation/screens/settings/settings_screen.dart';
 import 'presentation/screens/settings/near_miss_session_screen.dart';
 import 'presentation/screens/settings/stt_lab_screen.dart';
 import 'presentation/screens/stats/stats_screen.dart';
+import 'presentation/providers/auth/auth_provider.dart'
+    show authRemoteDataSourceProvider;
 import 'presentation/providers/quiz/quiz_provider.dart' show QuizArgs;
 import 'presentation/providers/settings/settings_provider.dart';
 import 'presentation/navigation/dive_in_page.dart';
@@ -78,7 +80,9 @@ class _PonderinAppState extends ConsumerState<PonderinApp> {
   @override
   void initState() {
     super.initState();
-    _authNotifier = _AuthChangeNotifier(Supabase.instance.client);
+    _authNotifier = _AuthChangeNotifier(
+      ref.read(authRemoteDataSourceProvider).authStateChanges,
+    );
     _router = _buildRouter();
     _initDeepLinks();
   }
@@ -254,8 +258,8 @@ class _PonderinAppState extends ConsumerState<PonderinApp> {
 }
 
 class _AuthChangeNotifier extends ChangeNotifier {
-  _AuthChangeNotifier(SupabaseClient client) {
-    _sub = client.auth.onAuthStateChange.listen((_) => notifyListeners());
+  _AuthChangeNotifier(Stream<AuthState> authChanges) {
+    _sub = authChanges.listen((_) => notifyListeners());
   }
 
   late final StreamSubscription<AuthState> _sub;

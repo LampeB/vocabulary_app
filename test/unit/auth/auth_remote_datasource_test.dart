@@ -10,6 +10,8 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/data/datasources/remote/auth_remote_datasource.dart';
+import 'package:vocab_kr/data/repositories/auth_repository_impl.dart';
+import 'package:vocab_kr/domain/entities/subscription_type.dart';
 
 class _AuthStorage extends sb.GotrueAsyncStorage {
   final _values = <String, String>{};
@@ -41,6 +43,163 @@ Future<void> _setIdentity(sb.SupabaseClient client, String id) =>
 
 void main() {
   setUpAll(tzdata.initializeTimeZones);
+
+  for (final (status, body, exception) in [
+    (200, '[]', null),
+    (
+      403,
+      '{"code":"42501","message":"Permission denied"}',
+      isA<PermissionException>(),
+    ),
+    (
+      500,
+      '{"code":"XX000","message":"Database unavailable"}',
+      isA<UnknownException>(),
+    ),
+    (
+      406,
+      '{"code":"PGRST116","details":"The result contains 0 rows","message":"Unexpected error"}',
+      isA<UnknownException>(),
+    ),
+  ]) {
+    test(
+      'profile read distinguishes HTTP $status from an empty result',
+      () async {
+        final client = sb.SupabaseClient(
+          'https://fixture.supabase.co',
+          'fixture-anon-key',
+          httpClient: MockClient((request) async {
+            expect(request.method, 'GET');
+            expect(request.url.path, '/rest/v1/profiles');
+            expect(request.url.queryParameters['id'], 'eq.u');
+            return http.Response(
+              body,
+              status,
+              request: request,
+              headers: {'content-type': 'application/json'},
+            );
+          }),
+        );
+        addTearDown(client.dispose);
+        await _setIdentity(client, 'u');
+
+        final result = await AuthRemoteDataSource(client).getProfile('u');
+
+        if (exception == null) {
+          expect(result.isSuccess, isTrue);
+          expect(result.valueOrNull, isNull);
+        } else {
+          expect(result.exceptionOrNull, exception);
+        }
+      },
+    );
+  }
+
+  test('profile transport errors never attempt a repair', () async {
+    final client = sb.SupabaseClient(
+      'https://fixture.supabase.co',
+      'fixture-anon-key',
+      httpClient: MockClient((request) async {
+        expect(request.method, 'GET');
+        throw http.ClientException('offline');
+      }),
+    );
+    addTearDown(client.dispose);
+    await _setIdentity(client, 'u');
+
+    final repository = AuthRepositoryImpl(AuthRemoteDataSource(client));
+    final result = await repository.reloadProfile();
+    expect(result.exceptionOrNull, isA<NetworkException>());
+  });
+
+  test(
+    'missing-profile repair reads a concurrent winner without merging',
+    () async {
+      final requests = <String>[];
+      final client = sb.SupabaseClient(
+        'https://fixture.supabase.co',
+        'fixture-anon-key',
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/rest/v1/profiles');
+          requests.add(request.method);
+          if (request.method == 'GET') {
+            expect(request.url.queryParameters['id'], 'eq.u');
+            return http.Response(
+              requests.length == 1
+                  ? '[]'
+                  : jsonEncode([
+                      {
+                        'id': 'u',
+                        'username': 'learner_choice',
+                        'display_name': 'Chosen display name',
+                        'current_streak': 19,
+                        'subscription_type': 'premium',
+                      },
+                    ]),
+              200,
+              request: request,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+
+          expect(request.method, 'POST');
+          expect(request.url.queryParameters['on_conflict'], 'id');
+          expect(
+            request.headers['prefer'],
+            contains('resolution=ignore-duplicates'),
+          );
+          expect(request.headers['prefer'], contains('return=representation'));
+          expect(jsonDecode(request.body), {
+            'id': 'u',
+            'username': 'user',
+            'display_name': 'user',
+          });
+          // PostgREST returns no inserted row when ON CONFLICT skips the write.
+          return http.Response(
+            '[]',
+            201,
+            request: request,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      );
+      addTearDown(client.dispose);
+      await _setIdentity(client, 'u');
+
+      final repository = AuthRepositoryImpl(AuthRemoteDataSource(client));
+      final profile = (await repository.reloadProfile()).valueOrNull!;
+      expect(requests, ['GET', 'POST', 'GET']);
+      expect(profile.username, 'learner_choice');
+      expect(profile.displayName, 'Chosen display name');
+      expect(profile.currentStreak, 19);
+      expect(profile.subscriptionType, SubscriptionType.premium);
+    },
+  );
+
+  test('a unique username conflict remains a failed repair', () async {
+    final requests = <String>[];
+    final client = sb.SupabaseClient(
+      'https://fixture.supabase.co',
+      'fixture-anon-key',
+      httpClient: MockClient((request) async {
+        requests.add(request.method);
+        final read = request.method == 'GET';
+        return http.Response(
+          read ? '[]' : '{"code":"23505","message":"username already exists"}',
+          read ? 200 : 409,
+          request: request,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+    addTearDown(client.dispose);
+    await _setIdentity(client, 'u');
+
+    final repository = AuthRepositoryImpl(AuthRemoteDataSource(client));
+    final result = await repository.reloadProfile();
+    expect(result.exceptionOrNull, isA<UnknownException>());
+    expect(requests, ['GET', 'POST']);
+  });
 
   for (final reverse in [false, true]) {
     test(

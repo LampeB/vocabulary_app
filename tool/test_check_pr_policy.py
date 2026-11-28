@@ -51,10 +51,10 @@ class PolicyTest(unittest.TestCase):
     def pwsh(self, script, *args, check=True):
         return self.invoke('pwsh', '-NoProfile', '-File', script, *args, check=check)
 
-    def stage_fixture(self, path):
+    def stage_fixture(self, path, data=b'synthetic path test fixture\n'):
         # Stage bytes directly into this disposable index. This also tests LF
         # paths on hosts that cannot create such a pathname in the worktree.
-        blob = self.git('hash-object', '-w', '--stdin', input=b'synthetic path test fixture\n')
+        blob = self.git('hash-object', '-w', '--stdin', input=data)
         self.git('update-index', '-z', '--index-info', input=f'100644 {blob}\t{path}\0'.encode())
         tracked = self.invoke('git', 'ls-files', '-z').stdout.split(b'\0')
         self.assertIn(path.encode(), tracked)
@@ -129,6 +129,89 @@ class PolicyTest(unittest.TestCase):
         self.stage_fixture('README.md')
         base = self.make_fixture_revision()
         self.pwsh(POLICY, '-BaseRef', base)
+
+    def test_deletions_require_docs_in_staged_and_pr_modes(self):
+        for number, path in enumerate(('lib/old.dart', 'test/old_test.dart', '.github/workflows/old.yml')):
+            with self.subTest(path=path):
+                self.stage_fixture(path)
+                self.make_fixture_revision()
+                self.git('update-index', '--force-remove', '--', path)
+                staged = self.pwsh(POLICY, '-Staged', check=False)
+                base = self.make_fixture_revision()
+                committed = self.pwsh(POLICY, '-BaseRef', base, check=False)
+                for result in (staged, committed):
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn(b'Documentation update required', result.stdout)
+                self.stage_fixture(f'docs/deletion-{number}.md')
+                self.make_fixture_revision()
+                self.pwsh(POLICY, '-BaseRef', base)
+
+    def test_removing_private_base_path_is_allowed(self):
+        path = 'tool/stt_corpus/old-private-fixture.wav'
+        self.stage_fixture(path)
+        self.make_fixture_revision()
+        self.git('update-index', '--force-remove', '--', path)
+        self.pwsh(POLICY, '-Staged')
+        self.pwsh(POLICY, '-BaseRef', self.make_fixture_revision())
+
+    def test_staged_markdown_uses_blob_not_worktree(self):
+        self.stage_fixture('README.md')
+        doc = self.root / 'docs/check.md'
+        doc.parent.mkdir()
+        doc.write_text('[good](../README.md)\n', encoding='utf-8')
+        self.stage_fixture('docs/check.md', b'[bad](missing.md)\n')
+        result = self.pwsh(POLICY, '-Staged', check=False)
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn(b'Broken local Markdown links', result.stdout)
+        doc.write_text('[bad](missing.md)\n', encoding='utf-8')
+        self.stage_fixture('docs/check.md', b'[good](../README.md)\n')
+        self.pwsh(POLICY, '-Staged')
+
+    def test_link_targets_follow_index_including_deletions_and_case(self):
+        target = 'docs/target.md'
+        self.stage_fixture(target)
+        self.make_fixture_revision()
+        copy = self.root / target
+        copy.parent.mkdir()
+        copy.write_text('Still on disk\n', encoding='utf-8')
+        self.git('update-index', '--force-remove', '--', target)
+        self.stage_fixture('docs/check.md', b'[target](target.md)\n')
+        result = self.pwsh(POLICY, '-Staged', check=False)
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.stage_fixture(target)
+        copy.unlink()
+        self.pwsh(POLICY, '-Staged')
+        self.stage_fixture('docs/check.md', b'[wrong case](Target.md)\n')
+        result = self.pwsh(POLICY, '-Staged', check=False)
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+
+    def test_deleted_markdown_is_not_read_from_remaining_worktree_copy(self):
+        self.stage_fixture('docs/deleted.md')
+        self.make_fixture_revision()
+        doc = self.root / 'docs/deleted.md'
+        doc.parent.mkdir()
+        doc.write_text('[broken](missing.md)\n', encoding='utf-8')
+        self.git('update-index', '--force-remove', '--', 'docs/deleted.md')
+        self.pwsh(POLICY, '-Staged')
+
+    def test_links_inside_gitlink_use_pinned_tree(self):
+        module = self.root / 'vendor'
+        module.mkdir()
+        self.invoke('git', 'init', '-q', root=module)
+        for key, value in (('user.name', 'Fixture'), ('user.email', 'fixture@example.invalid'), ('commit.gpgsign', 'false')):
+            self.invoke('git', 'config', key, value, root=module)
+        (module / 'LICENSE').write_text('Fixture license\n', encoding='utf-8')
+        self.invoke('git', 'add', 'LICENSE', root=module)
+        self.invoke('git', '-c', 'core.hooksPath=.git/fixture-no-hooks', 'commit', '-qm', 'Pinned content', root=module)
+        sha = self.invoke('git', 'rev-parse', 'HEAD', root=module).stdout.decode().strip()
+        self.git('update-index', '--add', '--cacheinfo', f'160000,{sha},vendor')
+        (module / 'LICENSE').unlink()
+        (module / 'untracked.md').write_text('Not in the pinned commit\n', encoding='utf-8')
+        self.stage_fixture('docs/check.md', b'[pinned](../vendor/LICENSE)\n')
+        self.pwsh(POLICY, '-Staged')
+        self.stage_fixture('docs/check.md', b'[untracked](../vendor/untracked.md)\n')
+        result = self.pwsh(POLICY, '-Staged', check=False)
+        self.assertNotEqual(result.returncode, 0, result.stdout)
 
     def test_installed_hook_rejects_a_real_commit(self):
         mode = self.invoke('git', 'ls-files', '--stage', HOOK, root=ROOT).stdout.split()[0]

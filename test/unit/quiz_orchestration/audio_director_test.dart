@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/services/audio/audio_player_service.dart';
@@ -22,11 +24,15 @@ class _FakeSfx implements SoundEffectsService {
   @override
   void dispose() {}
   @override
-  Future<void> waitForDisposal({bool retry = false}) async {}
+  Future<void> waitForRelease({bool retry = false}) async {}
+  @override
+  Future<void>? get stopRequest => null;
 }
 
 class _FakeAudio implements AudioPlayerService {
   bool speaking = false;
+  Future<void>? stopReply;
+  int stops = 0;
   final spoken = <String>[];
   final spokenPaths = <String?>[];
   final prefetched = <String>[];
@@ -61,6 +67,8 @@ class _FakeAudio implements AudioPlayerService {
   Future<void> retryDisposal() => stop();
   @override
   Future<void> stop() async {
+    stops++;
+    await stopReply;
     speaking = false;
   }
 
@@ -144,6 +152,43 @@ void main() {
   });
 
   group('handOffToMic / listenCue (step 2)', () {
+    test(
+      'refusal blocks optional playback, and retry skips a stale replay',
+      () async {
+        final audio = _FakeAudio();
+        final sfx = _FakeSfx();
+        final director = AudioDirector(audio, sfx: sfx);
+        final refused = Completer<void>();
+        audio.stopReply = refused.future;
+        final stopping = expectLater(director.stopAll(), throwsStateError);
+        refused.completeError(StateError('Native stop refused'));
+        await stopping;
+
+        await director.speak('premier', 'fr');
+        await director.playCorrect();
+        expect(audio.spoken, isEmpty);
+        expect(sfx.played, ['stop']);
+        expect(audio.stops, 1);
+
+        final confirmed = Completer<void>();
+        audio.stopReply = confirmed.future;
+        final retry = director.stopAll();
+        var stillVisible = true;
+        final oldReplay = director.speak(
+          'ancien',
+          'fr',
+          keepGoing: () => stillVisible,
+        );
+        stillVisible = false;
+        final newReplay = director.speak('actuel', 'fr');
+        expect(audio.spoken, isEmpty);
+        confirmed.complete();
+        await Future.wait([retry, oldReplay, newReplay]);
+        expect(audio.stops, 2);
+        expect(audio.spoken, ['actuel|fr']);
+      },
+    );
+
     test('stopAll stops both speech and an in-flight earcon', () async {
       final audio = _FakeAudio()..speaking = true;
       final sfx = _FakeSfx();

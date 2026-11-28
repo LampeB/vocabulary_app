@@ -63,6 +63,7 @@ class StarterDraftReconciliation {
     VocabularyListsTableData draft,
     VocabularyListsTableData canonical,
   ) async {
+    if (await _db.vocabularyListDao.getLegacyShare(draft.id) != null) return;
     final base = await _db.vocabularyListDao.getSharedImportBase(draft.id);
     // Previous versions did not track a draft's baseline, so a second copy
     // cannot be reconciled without guessing which of its fields were edited.

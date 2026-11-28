@@ -582,10 +582,14 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
       final first = quizCards.first;
       final firstLang = first.progress.direction.questionLang;
       unawaited(
-        _audio?.speak(
+        _director?.speak(
           first.questionWord,
           firstLang,
           audioPath: first.questionAudioPath,
+          keepGoing: () =>
+              _isCurrentSession(epoch) &&
+              _canPlay &&
+              identical(state.currentCard, first),
         ),
       );
     }
@@ -715,11 +719,18 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
       final card = state.currentCard;
       if (card != null && card.answerWords.isNotEmpty) {
         final answerLang = card.progress.direction.answerLang;
+        final epoch = _lifecycleEpoch;
         unawaited(
-          _audio?.speak(
+          _director?.speak(
             card.answerWords.first,
             answerLang,
             audioPath: card.answerAudioPath,
+            keepGoing: () =>
+                _alive &&
+                _canPlay &&
+                _lifecycleEpoch == epoch &&
+                state.isFlipped &&
+                identical(state.currentCard, card),
           ),
         );
       }

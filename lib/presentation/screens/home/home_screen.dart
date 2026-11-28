@@ -44,7 +44,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final user = ref.watch(currentUserProvider);
     final listsAsync = ref.watch(myListsProvider);
     final pair = ref.watch(defaultPairProvider);
-    final dueCount = ref.watch(dueCountForPairProvider(pair)).valueOrNull ?? 0;
+    final due = ref.watch(dueCountForPairProvider(pair));
     final streak = user?.currentStreak ?? 0;
 
     // Preload gate (user decision 2026-07-21): the home page never renders
@@ -68,7 +68,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
 
-    return _buildHome(context, user, listsAsync, pair, dueCount, streak);
+    return _buildHome(context, user, listsAsync, pair, due, streak);
   }
 
   void _showPairPicker(BuildContext context, (String, String) activePair) {
@@ -104,8 +104,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     style: const TextStyle(fontSize: 19),
                   ),
                   title: Text(
-                    '${Languages.displayName(pair.$1)} → '
-                    '${Languages.displayName(pair.$2)}',
+                    '${Languages.autonym(pair.$1)} → '
+                    '${Languages.autonym(pair.$2)}',
                   ),
                   trailing: pair == activePair
                       ? const Icon(Icons.check_rounded)
@@ -129,7 +129,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     dynamic user,
     AsyncValue<List<VocabularyList>> listsAsync,
     (String, String) pair,
-    int dueCount,
+    AsyncValue<int> due,
     int streak,
   ) {
     // Schedule streak warning once user data is available.
@@ -177,9 +177,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 // enters a dedicated, optional daily-plan screen; free
                 // practice remains independently available from the Lists tab.
                 _DailyPathCard(
-                  dueCount: dueCount,
+                  due: due,
                   onOpen: () => context.push('/daily-path'),
                 ),
+                if (!due.isLoading && due.hasError)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TextButton(
+                      key: const ValueKey(WidgetKeys.reviewDueRetry),
+                      onPressed: () =>
+                          ref.invalidate(dueCountForPairProvider(pair)),
+                      child: Text('common.retry'.tr()),
+                    ),
+                  ),
                 const SizedBox(height: 24),
                 // ── Grammaire (its own flow — never mixed into vocab setup) ─
                 _GrammarCard(onOpen: () => context.push('/grammar')),
@@ -556,12 +566,13 @@ class _GrammarCard extends ConsumerWidget {
 }
 
 class _DailyPathCard extends StatelessWidget {
-  const _DailyPathCard({required this.dueCount, required this.onOpen});
-  final int dueCount;
+  const _DailyPathCard({required this.due, required this.onOpen});
+  final AsyncValue<int> due;
   final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
+    final dueCount = due.isLoading ? null : due.asData?.value;
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: Container(
@@ -586,13 +597,19 @@ class _DailyPathCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    dueCount > 0
-                        ? 'home.daily_path_due'.tr(
-                            namedArgs: {'count': '$dueCount'},
-                          )
-                        : 'home.daily_path_clear'.tr(),
+                    switch (dueCount) {
+                      null =>
+                        (due.isLoading
+                                ? 'v3.review_due_loading'
+                                : 'v3.review_due_error')
+                            .tr(),
+                      0 => 'home.daily_path_clear'.tr(),
+                      _ => 'home.daily_path_due'.tr(
+                        namedArgs: {'count': '$dueCount'},
+                      ),
+                    },
                     style: AppTextStyles.grotesk(
-                      dueCount > 0 ? 28 : 19,
+                      dueCount != null && dueCount > 0 ? 28 : 19,
                       FontWeight.w700,
                     ).copyWith(color: AppColors.onDark),
                   ),

@@ -321,3 +321,191 @@ Le commit commun rassemble les quatre Important et la Suggestion de contraste
 traitée. Aucun compteur propre n'est acquis : la prochaine passe est **3/20**
 du cycle 2, relecture cumulée 23. Les quatre nouvelles instances examineront
 le même commit, avant toute nouvelle modification.
+
+## Passe 3 — `f19d6b0` — relecture cumulée 23
+
+Les quatre verdicts portent sur
+`f19d6b006c48368e188aa8de736767406e5992b5`, contre la même base
+`179f9ae0b34fe7c469b73d59ee4d25ef61515f9e`. Les quatre rapports finaux sont
+archivés avant toute correction. Les huit checks CI de ce SHA passent ; leur
+provenance réelle est vérifiée. Les **huit Important sont distincts**, sans
+Bloquant. La convergence reste **0/2**.
+
+| Profil / instance | Verdict | Important | Suggestion |
+| --- | --- | --- | --- |
+| Produit — `/root/c2p3_product` | BLOQUÉ | 3 | 0 |
+| Qualité — `/root/c2p3_quality` | BLOQUÉ | 2 | 1 |
+| Correction — `/root/c2p3_correctness` | BLOQUÉ | 1 | 1 |
+| Sécurité — `/root/c2p3_security` | BLOQUÉ | 2 | 1 |
+
+| Identifiant | Type | Constat |
+| --- | --- | --- |
+| C2-P3-01 | Important | La leçon sujet/objet applique seulement la finale sans enseigner 저→제가, pourtant exigé par son vrai catalogue |
+| C2-P3-02 | Important | Une panne du compteur devient zéro sur le chemin et le plateau, avec faux état vide et sans relance |
+| C2-P3-03 | Important | Le sélecteur de paire utilise les exonymes au lieu des autonymes décidés |
+| C2-P3-04 | Important | Un arrêt audio actif refusé ou expiré est absorbé, permettant à Répéter de démarrer un autre lecteur |
+| C2-P3-05 | Important | Tout échec de lecture du profil est interprété comme absence, puis écrase le profil par upsert |
+| C2-P3-06 | Important | La migration 11 confond anciens liens publiés et imports dans l'état privé+jeton de SQLite v2 |
+| C2-P3-07 | Important | Le filtre Git exclut les suppressions du contrat documentaire, dans l'index et la PR |
+| C2-P3-08 | Important | Un check manuel homonyme plus récent masque le vrai check de push `test` pour le bot |
+| C2-P3-S01 | Suggestion | Un drainage vide parcourt toutes les listes : 0,35 / 3,86 / 21,07 ms pour 1k / 10k / 50k entrées mesurées |
+| C2-P3-S02 | Suggestion | Une erreur tardive d'un clip facultatif, après ACK de démarrage, ne déclenche pas le secours |
+| C2-P3-S03 | Suggestion | Les liens Markdown préparés sont vérifiés dans la copie de travail au lieu de l'index |
+
+S01 est une Suggestion dans le rapport final, après mesure du coût par le
+relecteur, et reste conservée sans refonte de la synchronisation. S02 reste
+aussi une Suggestion : les événements du lecteur facultatif identifient un
+lecteur natif réutilisé, pas une requête de lecture. Un secours tardif fiable
+exigerait une identité par lecture ; cette limite est conservée dans le
+contrat audio. S03 est traitée avec le garde documentaire sans changer son type.
+
+### C2-P3-01 — contrat enseigné et vrai catalogue
+
+La copie de secours du lecteur présentait la finale comme règle exhaustive,
+alors que le module générait la contraction. La leçon FR/EN explique désormais
+`저→제가`, avec l'exemple `제가 할게요.`, et distingue `저를` et `저는`.
+Le test utilise l'asset, l'éligibilité du catalogue et le générateur réels,
+accepte `제가`, refuse `저가`, et vérifie objet et thème. Il échoue sur la copie
+initiale avant correction. Les contractions `나`, `너`, `누구` sont déjà
+couvertes par le module mais absentes du starter KO ; aucun mot, identifiant,
+minimum ou prérequis n'est ajouté pour elles. La relecture native de cette
+copie et de l'exemple reste à faire, conformément au contrat de contenu.
+
+Le gate seed, le générateur, le lecteur et la régression passent **73 tests** ;
+le JSON, l'analyse ciblée et le diff sont propres. Aucun essai appareil ni
+relecture native n'est revendiqué.
+
+### C2-P3-02 et C2-P3-03 — compteur partagé et sélecteurs
+
+La valeur absente d'un `AsyncValue` était remplacée par zéro. Les quatre
+consommateurs du compteur sont examinés : plateau V3, chemin du jour,
+configurateur actif et ancien accueil non routé. Les états de chargement ou
+d'erreur ne doivent ni annoncer un compteur connu ni déduire une absence de
+révisions. La relance invalide le compteur de la paire concernée ; les listes
+et leçons ne dépendent pas de sa disponibilité.
+
+Les autres sélecteurs sont aussi examinés : options et résumé de langue du
+configurateur, puis choix des langues du formulaire de liste. Ils réutilisent
+`Languages.autonym`. Les textes de direction et consignes rédigés en langue
+d'interface conservent `displayName` ; l'ordre des options et le contexte
+guidé sont préservés.
+
+Les **78 tests widget ciblés** passent. Les régressions FR/EN/KO parcourent le
+vrai provider avec erreurs contrôlées à sa frontière DAO, relance sur plateau
+et chemin, ancien zéro suivi d'erreur, puis navigation indépendante vers listes
+et leçons. Les trois paires sont vérifiées sous les trois locales à 568 × 320
+et texte doublé. Le configurateur, l'ancien accueil et la création de liste
+sont aussi exercés. Une attente de fermeture du faux stream bloquait le premier
+lancement ; sa fermeture non bloquante après démontage corrige la fixture,
+puis le périmètre complet repasse. Le diff est propre. La panne du lecteur
+SQLite et le rendu sur appareil ne sont pas injectés ou revendiqués.
+
+### C2-P3-04 — arrêt actif et lecteurs voisins
+
+La couche de cycle de vie absorbait les refus et délais d'arrêt du directeur
+actif, tandis que seule la libération des anciens directeurs barrait la lecture
+suivante. Le directeur conserve désormais l'accusé natif brut de l'arrêt actif
+et le joint à ceux des anciens lecteurs avant prompt, signal ou microphone.
+Un nouvel arrêt rejoint une confirmation pendante ou retente un refus.
+La retraite d'un lecteur de fichier rejoint son arrêt en cours, sans deuxième
+ACK permettant de contourner le premier. Les deux lectures initiale/flip du
+provider et la relecture du verdict passent aussi par le directeur existant.
+
+Les deux sens clip↔synthèse, Pause/Reprendre, premier prompt, flip, verdict,
+prompt suivant, remplacement de réglage/route et réponses anciennes sont
+examinés. **208 tests ciblés** passent, dont deux régressions utilisant les
+canaux de méthode réels du lecteur et de la synthèse avec réponses simulées.
+L'analyse ciblée, le formatage et le diff sont propres. Ces preuves ne sont
+pas des essais physiques.
+
+### C2-P3-05 — absence de profil et concurrence
+
+L'absence et l'échec de lecture étaient confondus. Désormais, seule une requête
+réussie sans ligne déclenche une création `ON CONFLICT(id) DO NOTHING`, puis
+le profil gagnant est relu. Une indisponibilité conserve l'authentification
+locale et le dernier profil enrichi du même compte. Les changements de compte,
+la fermeture puis reconnexion au même identifiant et les réponses tardives
+sont examinés sans réutiliser le profil d'une autre session.
+
+**128 tests ciblés** passent, dont de vraies requêtes du client Supabase Dart
+avec HTTP simulé : réponse vide, refus, panne réseau, conflit de pseudo et
+création concurrente. Les chemins inscription, connexion, import froid,
+rappels, splash et historique de séance font partie du périmètre ; ces nombres
+ne s'additionnent pas aux autres suites. L'analyse ciblée et le diff sont
+propres, sans mutation de Supabase hébergé.
+
+Le consommateur voisin du flux GoTrue recevait aussi une erreur asynchrone
+non traitée lors d'un renouvellement temporairement indisponible. Avant le
+correctif, le vrai widget d'application capte deux erreurs après les retries
+HTTP 503 du SDK malgré l'attente explicite de la Future. Les deux abonnés
+utilisent maintenant la même frontière, qui traite uniquement
+`AuthRetryableFetchException`. Le scénario conserve route, profil enrichi et
+session pendant le 503 sans lecture du profil, enrichit après HTTP 200, puis
+applique la vraie déconnexion `refresh_token_not_found` après HTTP 400.
+
+### C2-P3-06 — migrations réelles et preuve du partage
+
+Les deux producteurs de SQLite v2 utilisaient le même état privé+jeton pour
+publication et import ; les heuristiques de SQLite 11 et PostgreSQL 011 ne
+constituaient donc pas une preuve. SQLite 13 conserve l'ambiguïté dans la table
+de bootstrap existante, sans rendre artificiellement la ligne à envoyer.
+Une source publique active dont propriétaire, UUID distant et jeton concordent
+confirme une publication ; une source distincte vérifiée établit la provenance
+d'une copie privée. Sans preuve ou hors ligne, la branche reste étudiable et
+retenue. Une action explicite de partage ou suppression conserve son effet.
+
+Les migrations depuis le vrai DDL v2 et les versions 10/11/12 sont exercées,
+avec redémarrage, ancienne provenance distante erronée, alias local d'un UUIDv5,
+copie du même propriétaire, source publique déjà en cache, révocation distante
+et édition concurrente protégée par comparaison transactionnelle. La base de
+partage étant aussi consommée par l'adoption starter, celle-ci n'est pas
+autorisée par une simple modification explicite d'un jeton encore ambigu.
+Les identités et historiques FSRS, les autres comptes et visibilités sont
+examinés. Un lien déjà écrasé dont la source a disparu reste indéterminé :
+aucune ancienne URL n'est recréée sans preuve.
+
+Les **120 tests ciblés** migration, partage, pull, push, namespace, repository,
+seeding et reprise réseau passent. L'analyse des onze fichiers Dart concernés
+et le diff sont propres. Aucun Supabase hébergé ni appareil n'est utilisé.
+
+### C2-P3-07, C2-P3-08 et C2-P3-S03 — index et provenance CI
+
+Le filtre de chemins est désormais distinct selon le contrôle : les suppressions
+comptent dans le contrat documentaire ; formatage et détection des introductions
+privées conservent les fichiers ajoutés/modifiés. Les blobs Markdown et cibles
+préparés viennent de l'index, avec la casse Git, y compris l'arbre épinglé d'un
+sous-module. Les tests opposent index et copie de travail, suppression préparée
+avec copie restante, cible non préparée, casse incorrecte et contenu de gitlink.
+Les **13 tests du garde** passent, après correction de l'ordre d'une fixture
+du nouveau test de suppression ; aucune règle de production n'est relâchée.
+
+Le workflow réserve le nom `test` au push et nomme le lancement manuel
+`Manual / test`. Les **27 tests du bot** passent ; le cas ajouté vérifie qu'un
+manuel plus récent ne masque ni un push vert ni un push rouge. Le contrôle
+d'événement, workflow, suite et SHA du bot reste strict. `test.yml` n'existe pas
+encore sur la branche par défaut de cette première intégration ; une preuve
+manuelle GitHub ne doit pas être confondue avec les tests locaux.
+L'analyse syntaxique de tous les workflows par actionlint passe aussi.
+
+### Validation commune après la passe 3
+
+Les **1 320 tests hôte** passent, avec douze diagnostics positifs exclus sans
+opt-in et **76,7 %** de couverture (15 122 / 19 717 lignes). L'analyse Flutter
+complète est propre. Elle avait signalé une option de style de complétion
+devenue inutilisée dans le chemin ; cette option est retirée, les 23 tests
+widget concernés repassent, puis la suite complète et sa couverture sont
+réexécutées sur la source figée. Les 25 diagnostics ciblés passent avec opt-in,
+avec le test de refus de l'autre configuration exclu. Le garde de licence
+Whisper passe aussi.
+
+Commandes communes : `flutter test --no-pub --coverage --reporter expanded`,
+`flutter analyze --no-pub`, `tool/check-coverage.ps1`, puis les quatre fichiers
+de diagnostic avec `--dart-define=STT_DIAGNOSTICS=true`. Les tests ciblés se
+recouvrent et ne sont pas additionnés. Les sources natives et les migrations
+PostgreSQL sont inchangées ; la CI propre au nouveau SHA reste exigée, dont
+Android et iOS. Aucun déploiement, essai physique ou publication n'est effectué.
+
+Le commit commun rassemble les huit Important et S03, avec tous les contrats
+associés. La convergence repart à **0/2** et la prochaine passe est **4/20**
+du cycle 2, relecture cumulée 24. Les quatre nouvelles instances examinent
+le même commit avant toute nouvelle modification.

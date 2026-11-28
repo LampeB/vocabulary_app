@@ -11,7 +11,7 @@ final class NativePlaybackPlayer extends AudioPlayer {
   final _native = AudioplayersPlatformInterface.instance;
   Completer<void>? _completion;
   bool _closing = false;
-  Future<void>? _stoppedForDisposal;
+  Future<void>? _stopping;
   Future<void>? _releasedForDisposal;
   Future<void>? _cleanup;
 
@@ -51,14 +51,15 @@ final class NativePlaybackPlayer extends AudioPlayer {
   @override
   Future<void> stop() {
     _cancelPlayback();
-    if (!_closing) return super.stop();
-    return _stoppedForDisposal ??= super.stop().onError((
-      Object error,
-      StackTrace stack,
-    ) {
-      _stoppedForDisposal = null;
-      Error.throwWithStackTrace(error, stack);
-    });
+    return _stopping ??= super.stop().then<void>(
+      (_) {
+        if (!_closing) _stopping = null;
+      },
+      onError: (Object error, StackTrace stack) {
+        _stopping = null;
+        Error.throwWithStackTrace(error, stack);
+      },
+    );
   }
 
   Future<void> releaseForDisposal() {

@@ -23,7 +23,8 @@ class DailyPathScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pair = ref.watch(defaultPairProvider);
-    final due = ref.watch(dueCountForPairProvider(pair));
+    final dueProvider = dueCountForPairProvider(pair);
+    final due = ref.watch(dueProvider);
     final lists =
         ref.watch(myListsProvider).valueOrNull ?? const <VocabularyList>[];
     final matching = lists.where(
@@ -41,20 +42,11 @@ class DailyPathScreen extends ConsumerWidget {
         children: [
           const Positioned.fill(child: V3Pond(animate: false)),
           SafeArea(
-            child: due.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(color: V3Colors.amber),
-              ),
-              error: (_, _) => _DailyTrail(
-                pair: pair,
-                dueCount: 0,
-                prerequisite: prerequisite,
-              ),
-              data: (count) => _DailyTrail(
-                pair: pair,
-                dueCount: count,
-                prerequisite: prerequisite,
-              ),
+            child: _DailyTrail(
+              pair: pair,
+              due: due,
+              prerequisite: prerequisite,
+              onRetryDue: () => ref.invalidate(dueProvider),
             ),
           ),
         ],
@@ -66,29 +58,22 @@ class DailyPathScreen extends ConsumerWidget {
 class _DailyTrail extends StatelessWidget {
   const _DailyTrail({
     required this.pair,
-    required this.dueCount,
+    required this.due,
     required this.prerequisite,
+    required this.onRetryDue,
   });
 
   final (String, String) pair;
-  final int dueCount;
+  final AsyncValue<int> due;
   final VocabularyList? prerequisite;
+  final VoidCallback onRetryDue;
 
   @override
   Widget build(BuildContext context) {
-    final reviewDone = dueCount == 0;
-    final activeTitle = reviewDone
-        ? prerequisite == null
-              ? 'v3.prepare_list'.tr()
-              : prerequisite!.wordCount == 0
-              ? 'v3.add_words'.tr()
-              : prerequisite!.name
-        : 'v3.words_due'.tr(namedArgs: {'count': '$dueCount'});
-    final activeSubtitle = reviewDone
-        ? prerequisite == null
-              ? 'v3.few_words'.tr()
-              : 'v3.list_duration'.tr(namedArgs: {'name': prerequisite!.name})
-        : 'v3.resume_waiting'.tr();
+    final dueCount = due.isLoading ? null : due.asData?.value;
+    final noReviewsDue = dueCount == 0;
+    final hasReviewsDue = dueCount != null && dueCount > 0;
+    final list = prerequisite;
 
     return ScrollAffordance(
       hint: 'v3.scroll_hint'.tr(),
@@ -116,49 +101,81 @@ class _DailyTrail extends StatelessWidget {
           const SizedBox(height: 24),
           _TrailCard(
             key: const ValueKey(WidgetKeys.dailyPathReview),
-            label: reviewDone
-                ? 'v3.nothing_due_label'.tr()
-                : 'v3.your_review'.tr(),
-            title: reviewDone
-                ? 'v3.no_reviews_due'.tr()
-                : 'v3.words_due'.tr(namedArgs: {'count': '$dueCount'}),
-            active: !reviewDone,
-            done: false,
-            onTap: reviewDone ? null : () => _showModes(context),
+            label: switch (dueCount) {
+              null => 'v3.words_due_title'.tr(),
+              0 => 'v3.nothing_due_label'.tr(),
+              _ => 'v3.your_review'.tr(),
+            },
+            title: switch (dueCount) {
+              null =>
+                (due.isLoading
+                        ? 'v3.review_due_loading'
+                        : 'v3.review_due_error')
+                    .tr(),
+              0 => 'v3.no_reviews_due'.tr(),
+              _ => 'v3.words_due'.tr(namedArgs: {'count': '$dueCount'}),
+            },
+            active: hasReviewsDue,
+            onTap: hasReviewsDue ? () => _showModes(context) : null,
           ),
-          const SizedBox(height: 20),
-          _ActiveCard(
-            label: reviewDone
-                ? 'v3.your_discovery'.tr()
-                : 'v3.your_review'.tr(),
-            title: activeTitle,
-            subtitle: activeSubtitle,
-            cta: reviewDone ? 'v3.take_card'.tr() : 'v3.choose_mode'.tr(),
-            onTap: reviewDone
-                ? () => prerequisite == null
-                      ? context.push('/lists')
-                      : context.push('/lists/${prerequisite!.id}')
-                : () => _showModes(context),
-          ),
+          if (!due.isLoading && due.hasError)
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton(
+                key: const ValueKey(WidgetKeys.reviewDueRetry),
+                style: TextButton.styleFrom(foregroundColor: V3Colors.amber),
+                onPressed: onRetryDue,
+                child: Text('common.retry'.tr()),
+              ),
+            ),
+          if (dueCount != null) ...[
+            const SizedBox(height: 20),
+            _ActiveCard(
+              label: noReviewsDue
+                  ? 'v3.your_discovery'.tr()
+                  : 'v3.your_review'.tr(),
+              title: noReviewsDue
+                  ? switch (list) {
+                      null => 'v3.prepare_list'.tr(),
+                      VocabularyList(wordCount: 0) => 'v3.add_words'.tr(),
+                      VocabularyList(:final name) => name,
+                    }
+                  : 'v3.words_due'.tr(namedArgs: {'count': '$dueCount'}),
+              subtitle: noReviewsDue
+                  ? list == null
+                        ? 'v3.few_words'.tr()
+                        : 'v3.list_duration'.tr(namedArgs: {'name': list.name})
+                  : 'v3.resume_waiting'.tr(),
+              cta: noReviewsDue ? 'v3.take_card'.tr() : 'v3.choose_mode'.tr(),
+              onTap: noReviewsDue
+                  ? () => _openList(context)
+                  : () => _showModes(context),
+            ),
+          ],
           const SizedBox(height: 20),
           _TrailCard(
             key: const ValueKey(WidgetKeys.dailyPathPractice),
-            label: reviewDone
-                ? 'v3.your_discovery'.tr()
-                : 'v3.next_discovery'.tr(),
-            title: prerequisite?.name ?? 'v3.first_list'.tr(),
-            active: reviewDone,
-            onTap: reviewDone
-                ? () => prerequisite == null
-                      ? context.push('/lists')
-                      : context.push('/lists/${prerequisite!.id}')
+            label: switch (dueCount) {
+              null => 'v3.see_words'.tr(),
+              0 => 'v3.your_discovery'.tr(),
+              _ => 'v3.next_discovery'.tr(),
+            },
+            title: dueCount == null
+                ? 'v3.my_lists'.tr()
+                : list?.name ?? 'v3.first_list'.tr(),
+            active: noReviewsDue,
+            onTap: dueCount == null
+                ? () => context.push('/lists')
+                : noReviewsDue
+                ? () => _openList(context)
                 : null,
           ),
           const SizedBox(height: 20),
           _TrailCard(
             key: const ValueKey(WidgetKeys.dailyPathLessons),
-            label: 'v3.next_read'.tr(),
-            title: 'v3.lesson_discover'.tr(),
+            label: (dueCount == null ? 'v3.outside_path' : 'v3.next_read').tr(),
+            title: (dueCount == null ? 'v3.see_lessons' : 'v3.lesson_discover')
+                .tr(),
             onTap: () => context.push('/grammar'),
           ),
           const SizedBox(height: 24),
@@ -166,6 +183,11 @@ class _DailyTrail extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _openList(BuildContext context) {
+    final list = prerequisite;
+    context.push(list == null ? '/lists' : '/lists/${list.id}');
   }
 
   void _showModes(BuildContext context) {
@@ -303,16 +325,15 @@ class _TrailCard extends StatelessWidget {
     required this.label,
     required this.title,
     this.active = false,
-    this.done = false,
     this.onTap,
   });
   final String label, title;
-  final bool active, done;
+  final bool active;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => Transform.rotate(
-    angle: done ? -.05 : .035,
+    angle: .035,
     child: Material(
       color: active ? V3Colors.chip2 : Colors.transparent,
       borderRadius: BorderRadius.circular(13),
@@ -338,7 +359,7 @@ class _TrailCard extends StatelessWidget {
                   10.5,
                   FontWeight.w400,
                   letterSpacing: .7,
-                  color: done ? V3Colors.light60 : V3Colors.light70,
+                  color: V3Colors.light70,
                 ),
               ),
               const SizedBox(height: 3),

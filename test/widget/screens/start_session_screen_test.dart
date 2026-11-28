@@ -99,6 +99,7 @@ void main() {
     WidgetTester tester, {
     List<VocabularyList>? lists,
     Set<String> studied = const {},
+    Stream<int> Function()? dueQuery,
     bool grammar = false,
     String? initialRuleId,
     String? langA,
@@ -122,7 +123,9 @@ void main() {
           (ref) => Stream.value(lists ?? [_list('l1', 'Animaux')]),
         ),
         dueCountProvider.overrideWith((ref) => Stream.value(4)),
-        dueCountForPairProvider.overrideWith((ref, pair) => Stream.value(4)),
+        dueCountForPairProvider.overrideWith(
+          (ref, pair) => dueQuery?.call() ?? Stream.value(4),
+        ),
         quizAvailabilityProvider.overrideWith(
           (ref, q) => Stream.value(q.source == QuizSource.allDue ? 4 : 0),
         ),
@@ -226,6 +229,39 @@ void main() {
     await tester.tap(byKey(key), warnIfMissed: false);
     await tester.pumpAndSettle();
   }
+
+  testWidgets('a failed due count keeps other vocabulary sources available', (
+    tester,
+  ) async {
+    var subscriptions = 0;
+    await pump(
+      tester,
+      dueQuery: () => ++subscriptions == 1
+          ? Stream.error(StateError('test read failure'))
+          : Stream.value(4),
+    );
+    await tapKey(tester, WidgetKeys.startSection(0));
+    final pair = byKey(WidgetKeys.startLanguagePair('fr', 'ko'));
+    expect(
+      find.descendant(of: pair, matching: find.textContaining('한국어')),
+      findsOneWidget,
+    );
+    await tapKey(tester, WidgetKeys.startLanguagePair('fr', 'ko'));
+    final due = byKey(WidgetKeys.startSmart('due'));
+    final dueButton = find.descendant(
+      of: due,
+      matching: find.byType(OutlinedButton),
+    );
+    expect(tester.widget<OutlinedButton>(dueButton).onPressed, isNull);
+    expect(find.descendant(of: due, matching: find.text('0')), findsNothing);
+    expect(find.text('v3.review_due_error'.tr()), findsOneWidget);
+    expect(find.text('Animaux'), findsOneWidget);
+    expect(byKey(WidgetKeys.startSmart('inprogress')), findsOneWidget);
+    await tapKey(tester, WidgetKeys.reviewDueRetry);
+    expect(subscriptions, 2);
+    expect(tester.widget<OutlinedButton>(dueButton).onPressed, isNotNull);
+    expect(find.descendant(of: due, matching: find.text('4')), findsOneWidget);
+  });
 
   Future<void> activateByKeyboard(WidgetTester tester, String key) async {
     final element = tester.element(byKey(key));

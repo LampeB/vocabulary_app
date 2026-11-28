@@ -67,6 +67,7 @@ void main() {
     AppUser? user,
     List<VocabularyList> lists = const [],
     int dueCount = 0,
+    Stream<int> Function()? dueQuery,
     bool settle = true,
   }) {
     navigatedTo = null;
@@ -91,7 +92,7 @@ void main() {
         myListsProvider.overrideWith((ref) => Stream.value(lists)),
         dueCountProvider.overrideWith((ref) => Stream.value(dueCount)),
         dueCountForPairProvider.overrideWith(
-          (ref, pair) => Stream.value(dueCount),
+          (ref, pair) => dueQuery?.call() ?? Stream.value(dueCount),
         ),
         notificationSettingsProvider.overrideWith(_FakeNotifSettings.new),
       ],
@@ -187,6 +188,29 @@ void main() {
     expect(navigatedTo, '/daily-path');
   });
 
+  testWidgets('an unreadable due count does not imply a clear day', (
+    tester,
+  ) async {
+    var subscriptions = 0;
+    await pump(
+      tester,
+      dueQuery: () => ++subscriptions == 1
+          ? Stream.error(StateError('test read failure'))
+          : Stream.value(0),
+    );
+    expect(find.text('v3.review_due_error'.tr()), findsOneWidget);
+    expect(find.text('home.daily_path_clear'.tr()), findsNothing);
+
+    final retry = find.byKey(const ValueKey(WidgetKeys.reviewDueRetry));
+    await tester.ensureVisible(retry);
+    await tester.tap(retry);
+    await tester.pumpAndSettle();
+
+    expect(subscriptions, 2);
+    expect(find.text('home.daily_path_clear'.tr()), findsOneWidget);
+    expect(retry, findsNothing);
+  });
+
   testWidgets('the active V0 pair can be changed from the home header', (
     tester,
   ) async {
@@ -196,7 +220,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('home.pair_picker_title'.tr()), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('home.pair.en-ko')));
+    final row = find.byKey(ValueKey(WidgetKeys.homePair('en', 'ko')));
+    expect(
+      find.descendant(of: row, matching: find.text('English → 한국어')),
+      findsOneWidget,
+    );
+    await tester.tap(row);
     await tester.pumpAndSettle();
 
     final container = ProviderScope.containerOf(

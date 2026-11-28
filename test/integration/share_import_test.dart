@@ -518,8 +518,16 @@ void main() {
     test(
       'reimport can find an existing copy after restoring legacy duplicates',
       () async {
-        final remote = _SharedListRemote(_sharedPayload());
         const date = '2026-11-01T10:00:00Z';
+        final remote = _SharedListRemote({
+          ..._sharedPayload(),
+          'id': 'source-list',
+          'owner_id': 'source-owner',
+          'visibility': 'public',
+          'share_token': 'legacy-token',
+          'created_at': date,
+          'updated_at': date,
+        });
         for (final (id, name) in [
           ('legacy-b', 'Edited on device B'),
           ('legacy-a', 'Edited on device A'),

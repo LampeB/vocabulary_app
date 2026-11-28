@@ -165,7 +165,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                   label: 'start_session.section_language'.tr(),
                   value: _langChosen
                       ? '${Languages.flagFor(_langA)} → ${Languages.flagFor(_langB)}  '
-                            '${_cap(Languages.displayName(_langB))}'
+                            '${Languages.autonym(_langB)}'
                       : '',
                   onHeaderTap: () => _select(0),
                   child: listsAsync.when(
@@ -382,7 +382,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
             key: ValueKey(WidgetKeys.startLanguagePair(p.$1, p.$2)),
             label:
                 '${Languages.flagFor(p.$1)} → ${Languages.flagFor(p.$2)}'
-                '   ${_cap(Languages.displayName(p.$2))}',
+                '   ${Languages.autonym(p.$2)}',
             selected: _langChosen && _langA == p.$1 && _langB == p.$2,
             onTap: () {
               setState(() {
@@ -420,17 +420,38 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
 
     // Scoped to the chosen pair so "to study now" counts THIS language's due
     // cards, not every language's (the session itself is already pair-scoped).
-    final dueCount =
-        ref.watch(dueCountForPairProvider((_langA, _langB))).valueOrNull ?? 0;
+    final dueProvider = dueCountForPairProvider((_langA, _langB));
+    final due = ref.watch(dueProvider);
+    final dueCount = due.isLoading ? null : due.asData?.value;
     final smartTiles = [
       _OptionTile(
         key: ValueKey(WidgetKeys.startSmart('due')),
         label: 'start_session.smart_due'.tr(),
-        trailing: '$dueCount',
+        trailing: dueCount?.toString(),
+        disabled: dueCount == null,
         selected: _source == QuizSource.allDue,
         onTap: () =>
             _selectSmart(QuizSource.allDue, 'start_session.smart_due'.tr()),
       ),
+      if (dueCount == null) ...[
+        const SizedBox(height: 8),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: Text(
+            (due.isLoading ? 'v3.review_due_loading' : 'v3.review_due_error')
+                .tr(),
+          ),
+        ),
+        if (!due.isLoading && due.hasError)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
+              key: const ValueKey(WidgetKeys.reviewDueRetry),
+              onPressed: () => ref.invalidate(dueProvider),
+              child: Text('common.retry'.tr()),
+            ),
+          ),
+      ],
       const SizedBox(height: 8),
       _OptionTile(
         key: ValueKey(WidgetKeys.startSmart('inprogress')),

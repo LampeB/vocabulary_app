@@ -342,6 +342,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         if (director != null) Future.sync(director.stopAll),
       ]);
     } catch (error) {
+      // Leaving the route can proceed. The audio director and capture
+      // services still retain native release until it is confirmed.
       sttLog('[QUIZ] audio or microphone stop failed: $error');
     }
   }
@@ -398,12 +400,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       final director = ref.read(audioDirectorProvider);
       final replaced = _replacedPromptDirector;
       try {
-        await director.waitForReplacedAudio(retry: retryRelease);
+        await director.waitForAudioRelease(retryReplaced: retryRelease);
         await replaced
             ?.waitForPlayerRelease(retry: retryRelease)
             .timeout(AudioDirector.releaseTimeout);
       } catch (error) {
-        sttLog('[QUIZ] replaced player release failed: $error');
+        sttLog('[QUIZ] player release failed before prompt: $error');
         if (!stale()) _showReleaseFailure(audio: true);
         return false;
       }
@@ -836,7 +838,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       // A voice-mode preparation can also outlive the director that handed
       // off the channel. Revalidate its replacement before opening the mic.
       try {
-        await _withCurrentDirector(stale, (d) => d.waitForReplacedAudio());
+        await _withCurrentDirector(stale, (d) => d.waitForAudioRelease());
       } catch (error) {
         sttLog('[QUIZ] replaced audio release failed before listening: $error');
         if (!stale()) _showReleaseFailure(audio: true);
@@ -1087,6 +1089,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   answerLang,
                   audioPath: card.answerAudioPath,
                   requirePlayback: handsFree,
+                  keepGoing: () =>
+                      mounted &&
+                      _canInteract &&
+                      !_quitting &&
+                      identical(ref.read(_quiz).currentCard, card),
                 )
                 .catchError((Object error) {
                   sttLog('[QUIZ] correction playback failed: $error');
@@ -1826,11 +1833,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             ? null
             : () => unawaited(
                 ref
-                    .read(audioPlayerServiceProvider)
+                    .read(audioDirectorProvider)
                     .speak(
                       card.answerWords.first,
                       card.progress.direction.answerLang,
                       audioPath: card.answerAudioPath,
+                      keepGoing: () =>
+                          mounted &&
+                          _canInteract &&
+                          !_quitting &&
+                          identical(ref.read(_quiz).currentCard, card),
                     ),
               ),
         label: correct

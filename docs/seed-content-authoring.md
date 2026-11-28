@@ -106,6 +106,16 @@ FR/EN/KO UI prompt leaves the rule's prerequisites, minimum known words,
 and authored vocabulary senses intact. The Korean copy remains pending
 native review.
 
+## Korean A1 subject and object particles
+
+Check the subject, object and topic forms when an eligible pronoun
+appears in a particle lesson. The subject/object lesson uses `저` from
+`starter-greetings`. The drills expect `제가` for the subject and `저를`
+for the object. The topic lesson uses `저는`.
+
+The revised French and English explanations and the Korean worked
+example “제가 할게요.” are pending native review.
+
 ## Grammar lesson pages (P3)
 
 Grammar rules may carry an optional `lesson_pages` array. It is authored

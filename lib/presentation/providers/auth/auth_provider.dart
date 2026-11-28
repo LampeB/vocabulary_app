@@ -47,14 +47,11 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
     final repo = _repo = ref.watch(authRepositoryProvider);
     _active = true;
     final revision = ++_revision;
-    // Always reload the full profile on every auth state change so that
-    // the basic _mapUser (auth-only) never overwrites _mapUserWithProfile.
+    // Establish the local identity before refreshing its profile.
     final subscription = repo.authStateChanges.listen((user) async {
-      if (!_active ||
-          !identical(repo, _repo) ||
-          repo.currentUser?.id != user?.id) {
-        return;
-      }
+      if (!_active || !identical(repo, _repo)) return;
+      final local = repo.currentUser;
+      if (local?.id != user?.id) return;
       final eventRevision = ++_revision;
       if (user == null) {
         state = const AsyncData(null);
@@ -63,11 +60,11 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
       }
       // Isolate local reads as soon as the session changes, even if fetching
       // the new account's profile is slow. Keep an enriched same-user profile.
-      if (state.valueOrNull?.id != user.id) state = AsyncData(user);
+      if (state.valueOrNull?.id != user.id) state = AsyncData(local ?? user);
       final result = await repo.reloadProfile();
       if (!_isCurrent(eventRevision, repo, user.id)) return;
       final profile = result.valueOrNull;
-      state = AsyncData(profile?.id == user.id ? profile : user);
+      if (profile?.id == user.id) state = AsyncData(profile);
       if (!_kTestMode) unawaited(PurchaseService.instance.logIn(user.id));
     });
     ref.onDispose(() {

@@ -528,6 +528,8 @@
   "v3.create_list": "첫 목록 만들기",
   "v3.see_lessons": "수업 보기",
   "v3.words_due_title": "복습할 카드",
+  "v3.review_due_loading": "복습할 카드를 확인하는 중이에요…",
+  "v3.review_due_error": "복습할 카드를 확인하지 못했어요.",
   "v3.resume_label": "복습 필요",
   "v3.nothing_due_label": "복습 없음",
   "v3.lessons_read": "익힌 수업",

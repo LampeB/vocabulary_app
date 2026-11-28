@@ -195,6 +195,12 @@ de la suite associée à l'exécution GitHub Actions correspondante. Le titre
 de l'exécution PR conserve les valeurs de l'événement d'origine, même si
 GitHub affiche ensuite les références courantes dans `pull_requests`.
 
+Dans `test.yml`, le nom requis `test` est réservé à l'événement `push`.
+Une exécution manuelle publie `Manual / test` : son résultat ne remplace pas
+celui du push pour la protection de branche ou l'approbation, même si elle
+est plus récente et porte sur le même SHA. Les vérifications de provenance
+du bot restent obligatoires.
+
 Le workflow manuel [d'approbation](../.github/workflows/approve-validated-pr.yml)
 s'exécute sur `main` à la demande du propriétaire et charge le script de ce
 même commit.

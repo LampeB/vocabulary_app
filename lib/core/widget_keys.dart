@@ -35,6 +35,7 @@ abstract final class WidgetKeys {
   static const homePairPicker = 'home.pair_picker';
   static const homeDailyPath = 'home.daily_path';
   static const dailyPathReview = 'daily_path.review';
+  static const reviewDueRetry = 'review.due.retry';
   static const dailyPathLessons = 'daily_path.lessons';
   static const dailyPathPractice = 'daily_path.practice';
   static String homePair(String langA, String langB) =>

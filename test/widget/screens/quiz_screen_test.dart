@@ -3,6 +3,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
+import 'package:audioplayers_platform_interface/audioplayers_platform_interface.dart'
+    show GlobalAudioEvent, GlobalAudioplayersPlatformInterface;
 import 'package:drift/native.dart';
 import 'package:easy_localization/easy_localization.dart';
 // ignore: implementation_imports
@@ -76,6 +78,17 @@ import '../../helpers/rendered_text_contrast.dart';
 
 final _now = DateTime(2026, 7, 3);
 
+class _WidgetAudioGlobal extends GlobalAudioplayersPlatformInterface {
+  @override
+  Future<void> init() async {}
+
+  @override
+  Stream<GlobalAudioEvent> getGlobalEventStream() => const Stream.empty();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 class _NoopAudio implements AudioPlayerService {
   final spoken = <String>[];
 
@@ -114,6 +127,7 @@ class _TestDirector extends AudioDirector {
   int cues = 0;
   int endCues = 0;
   int stops = 0;
+  bool verifyNativeStop = false;
   Completer<void>? pendingStop;
   Completer<void>? pendingCue;
 
@@ -150,6 +164,7 @@ class _TestDirector extends AudioDirector {
   Future<void> stopAll() async {
     stops++;
     await pendingStop?.future;
+    if (verifyNativeStop || verifyAudioHandoff) await super.stopAll();
   }
 }
 
@@ -590,6 +605,15 @@ class _CachedPrompt implements AudioAssetCache {
 
   @override
   void scheduleIdleCacheCleanup() {}
+}
+
+class _DelayedPromptCache extends _CachedPrompt {
+  _DelayedPromptCache(this.lookup);
+
+  Future<String?> lookup;
+
+  @override
+  Future<String?> downloadAndCache(String audioPath) => lookup;
 }
 
 class _PendingDeviceSpeech implements DeviceSpeech {
@@ -2767,6 +2791,160 @@ void main() {
     await unmountScreen(tester);
     await tester.pump(const Duration(seconds: 8));
   });
+
+  for (final startsWithClip in [false, true]) {
+    testWidgets('Repeat joins current native stop before switching playback '
+        '(starts with clip: $startsWithClip)', (tester) async {
+      const clipPath = '/cache/prompt.mp3';
+      const tts = MethodChannel('vocab_kr/device_speech');
+      const player = MethodChannel('xyz.luan/audioplayers');
+      final messenger = tester.binding.defaultBinaryMessenger;
+      // The package caches a global Future. Give each widget's fake clock its
+      // own initialization while using the real per-player method channels.
+      final global = GlobalAudioplayersPlatformInterface.instance;
+      GlobalAudioplayersPlatformInterface.instance = _WidgetAudioGlobal();
+      final events = <String, MethodChannel>{};
+      final clipStarts = <String>[];
+      final ttsStarts = <Completer<int>>[];
+      final firstStop = Completer<bool>();
+      final confirmedStop = Completer<bool>();
+      var stops = 0;
+      Future<bool> stopOriginalPlayer() => switch (++stops) {
+        1 => firstStop.future,
+        2 => confirmedStop.future,
+        _ => Future.value(true),
+      };
+      Future<void> audioEvent(String id, String event, [Object? value]) =>
+          messenger.handlePlatformMessage(
+            events[id]!.name,
+            const StandardMethodCodec().encodeSuccessEnvelope({
+              'event': event,
+              'value': value,
+            }),
+            null,
+          );
+      messenger.setMockMethodCallHandler(tts, (call) async {
+        switch (call.method) {
+          case 'speak':
+            final playback = Completer<int>();
+            ttsStarts.add(playback);
+            return playback.future;
+          case 'stop' when !startsWithClip:
+            return await stopOriginalPlayer() ? 1 : 0;
+        }
+        return 1;
+      });
+      messenger.setMockMethodCallHandler(player, (call) async {
+        final id = call.arguments['playerId'] as String;
+        switch (call.method) {
+          case 'create':
+            final channel = events[id] = MethodChannel(
+              'xyz.luan/audioplayers/events/$id',
+            );
+            messenger.setMockMethodCallHandler(channel, (_) async => null);
+          case 'setSourceUrl':
+            expect(call.arguments['url'], clipPath);
+            await audioEvent(id, 'audio.onPrepared', true);
+          case 'resume':
+            clipStarts.add(id);
+          case 'getCurrentPosition':
+            return 0;
+          case 'stop' when startsWithClip && clipStarts.contains(id):
+            if (!await stopOriginalPlayer()) {
+              throw PlatformException(code: 'StopRefused');
+            }
+        }
+        return null;
+      });
+      addTearDown(() {
+        GlobalAudioplayersPlatformInterface.instance = global;
+        for (final channel in [tts, player, ...events.values]) {
+          messenger.setMockMethodCallHandler(channel, null);
+        }
+      });
+
+      final fetch = Completer<String?>();
+      final cache = _DelayedPromptCache(fetch.future);
+      if (startsWithClip) fetch.complete(clipPath);
+      final audio = AudioPlayerService(
+        usePremium: true,
+        tts: FlutterTtsService(mobileChannel: tts),
+        assetCache: cache,
+      );
+      final voice = _VoiceHarness(promptAudio: audio);
+      voice.director.verifyNativeStop = true;
+      await pump(
+        tester,
+        mode: QuizMode.handsFree,
+        words: [('chat', '고양이')],
+        voice: voice,
+        questionAudioPath: 'seed/v1/fr/chat.mp3',
+      );
+      await tick(tester, times: 4);
+      expect(ttsStarts, hasLength(startsWithClip ? 0 : 1));
+      expect(clipStarts, hasLength(startsWithClip ? 1 : 0));
+      if (startsWithClip) {
+        cache.lookup = Future.value(null);
+      } else {
+        fetch.complete(clipPath);
+      }
+
+      final repeat = find.byKey(const ValueKey(WidgetKeys.hfRepeat));
+      await tester.tap(repeat);
+      await tick(tester, times: 2);
+      if (startsWithClip) {
+        await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfPause)));
+        await tester.pump();
+        await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfResume)));
+      } else {
+        await tester.tap(repeat);
+      }
+      await tick(tester, times: 9);
+      expect(stops, 1);
+      expect(ttsStarts, hasLength(startsWithClip ? 0 : 1));
+      expect(clipStarts, hasLength(startsWithClip ? 1 : 0));
+      expect(voice.director.cues, 0);
+      expect(voice.capture.opens, 0);
+      expect(find.text('quiz.audio_release_failed_hf'.tr()), findsOneWidget);
+
+      firstStop.complete(false);
+      await tester.pump();
+      await tester.tap(repeat);
+      await tick(tester, times: 2);
+      expect(stops, 2);
+      expect(ttsStarts, hasLength(startsWithClip ? 0 : 1));
+      expect(clipStarts, hasLength(startsWithClip ? 1 : 0));
+      expect(voice.capture.opens, 0);
+
+      confirmedStop.complete(true);
+      await tick(tester, times: 3);
+      expect(ttsStarts, hasLength(1));
+      expect(clipStarts, hasLength(1));
+      expect(voice.director.cues, 0);
+      if (startsWithClip) {
+        await audioEvent(clipStarts.single, 'audio.onComplete');
+      } else {
+        ttsStarts.single.complete(0);
+      }
+      await tester.pump();
+      expect(voice.director.cues, 0);
+      expect(voice.capture.opens, 0);
+
+      if (startsWithClip) {
+        ttsStarts.single.complete(1);
+      } else {
+        await audioEvent(clipStarts.single, 'audio.onComplete');
+      }
+      await tick(tester, times: 10);
+      expect(voice.director.cues, 1);
+      expect(voice.capture.opens, 1);
+      expect(cache.invalidated, isEmpty);
+      expect(tester.takeException(), isNull);
+      await unmountScreen(tester);
+      audio.dispose();
+      await tester.pump(const Duration(seconds: 8));
+    }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+  }
 
   testWidgets('daily review shortcut rates its one due card once', (
     tester,

@@ -1,3 +1,4 @@
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/errors/app_exception.dart' as app_ex;
 import '../../../core/errors/failure.dart';
@@ -15,7 +16,14 @@ abstract interface class AuthRemote {
   Future<Result<void>> signOut();
   Future<Result<void>> sendPasswordReset(String email);
   Future<bool> checkUsernameExists(String username);
-  Future<Result<Map<String, dynamic>>> getProfile(String userId);
+
+  /// A successful null means the query returned no row.
+  Future<Result<Map<String, dynamic>?>> getProfile(String userId);
+
+  /// Returns the inserted row, or null when another row already has this ID.
+  Future<Result<Map<String, dynamic>?>> createProfileIfMissing(
+    Map<String, dynamic> data,
+  );
   Future<Result<Map<String, dynamic>>> upsertProfile(Map<String, dynamic> data);
   Future<Result<void>> updateStreak({
     required String userId,
@@ -28,7 +36,13 @@ class AuthRemoteDataSource implements AuthRemote {
   final SupabaseClient _client;
 
   @override
-  Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
+  Stream<AuthState> get authStateChanges =>
+      _client.auth.onAuthStateChange.handleError(
+        // GoTrue keeps the local session after a retryable fetch error.
+        // Session loss is reported separately as a signedOut event.
+        (Object _) {},
+        test: (error) => error is AuthRetryableFetchException,
+      );
   @override
   User? get currentUser => _client.auth.currentUser;
 
@@ -110,16 +124,27 @@ class AuthRemoteDataSource implements AuthRemote {
   }
 
   @override
-  Future<Result<Map<String, dynamic>>> getProfile(String userId) async {
+  Future<Result<Map<String, dynamic>?>> getProfile(String userId) async {
     try {
-      final data = await _client
-          .from('profiles')
-          .select()
-          .eq('id', userId)
-          .single();
-      return Success(data);
+      final rows = await _client.from('profiles').select().eq('id', userId);
+      return Success(rows.isEmpty ? null : rows.single);
     } catch (e) {
-      return Failure(app_ex.UnknownException(e.toString()));
+      return Failure(_profileFailure(e));
+    }
+  }
+
+  @override
+  Future<Result<Map<String, dynamic>?>> createProfileIfMissing(
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final rows = await _client
+          .from('profiles')
+          .upsert(data, onConflict: 'id', ignoreDuplicates: true)
+          .select();
+      return Success(rows.isEmpty ? null : rows.single);
+    } catch (e) {
+      return Failure(_profileFailure(e));
     }
   }
 
@@ -164,6 +189,12 @@ class AuthRemoteDataSource implements AuthRemote {
     }
   }
 }
+
+app_ex.AppException _profileFailure(Object error) => switch (error) {
+  http.ClientException() => const app_ex.NetworkException(),
+  PostgrestException(code: '42501') => const app_ex.PermissionException(),
+  _ => app_ex.UnknownException(error.toString()),
+};
 
 app_ex.AppException _authFailure(AuthException error) {
   if (error is AuthRetryableFetchException) {

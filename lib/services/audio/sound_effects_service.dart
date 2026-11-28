@@ -83,6 +83,9 @@ class SoundEffectsService {
   int? _cueGeneration;
   bool _disposed = false;
 
+  /// Native stop state for playback gates, including an unretired refusal.
+  Future<void>? get stopRequest => _stopping;
+
   SoundEffectPlayer get _player =>
       _playerInstance ??= _injectedPlayer ?? _AudioPlayersSoundEffectPlayer();
 
@@ -310,15 +313,15 @@ class SoundEffectsService {
     _disposed = true;
     _invalidatePlayback();
     unawaited(
-      waitForDisposal(retry: true).catchError((Object error) {
+      waitForRelease(retry: true).catchError((Object error) {
         sttLog('[SFX] disposal could not release playback: $error');
       }),
     );
   }
 
-  /// A replacement must wait even after this service has cancelled its
-  /// Dart cue. Reissue only a refused stop, retaining pending/confirmed stops.
-  Future<void> waitForDisposal({bool retry = false}) async {
+  /// Joins the native stop even after the Dart cue has been cancelled.
+  /// Retirement starts a stop or retries a refusal through the same future.
+  Future<void> waitForRelease({bool retry = false}) async {
     await (retry ? _stopCurrentPlayer() : _stopping);
     if (!_disposed) return;
     final player = _playerInstance;

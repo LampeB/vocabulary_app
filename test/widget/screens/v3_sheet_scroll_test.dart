@@ -10,7 +10,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:vocab_kr/core/languages.dart';
 import 'package:vocab_kr/core/theme/app_theme.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
@@ -110,10 +109,23 @@ void main() {
               .first;
           expect(tester.widget<AnimatedOpacity>(opacity).opacity, 1);
           // Only after observing the cue, scroll to an initially hidden option.
+          if (pairSheet) {
+            for (final (base, target, label) in [
+              ('fr', 'ko', 'Français → 한국어'),
+              ('en', 'ko', 'English → 한국어'),
+              ('ko', 'fr', '한국어 → Français'),
+            ]) {
+              expect(
+                find.descendant(
+                  of: find.byKey(ValueKey(WidgetKeys.homePair(base, target))),
+                  matching: find.textContaining(label),
+                ),
+                findsOneWidget,
+              );
+            }
+          }
           final option = pairSheet
-              ? find.textContaining(
-                  '${Languages.displayName('ko')} → ${Languages.displayName('fr')}',
-                )
+              ? find.byKey(ValueKey(WidgetKeys.homePair('ko', 'fr')))
               : find.byKey(ValueKey(WidgetKeys.homeReviewMode('flashcard')));
           await tester.ensureVisible(option);
           await tester.pumpAndSettle();

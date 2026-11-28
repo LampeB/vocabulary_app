@@ -17,6 +17,7 @@ import '../models/vocabulary_list_dto.dart';
 import '../models/word_variant_dto.dart';
 import '../seed/starter_draft_reconciliation.dart';
 import '../seed/starter_identity.dart';
+import '../sync/legacy_share_reconciliation.dart';
 import '../sync/vocabulary_sync_ids.dart';
 import '../../services/audio/audio_asset_path.dart';
 import 'package:drift/drift.dart' show Value, Variable, innerJoin;
@@ -85,6 +86,10 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   Future<Result<VocabularyList>> updateList(VocabularyList list) =>
       _write(() async {
         final current = await _requireList(list.id);
+        if (current.visibility != list.visibility.name ||
+            current.shareToken != list.shareToken) {
+          await LegacyShareReconciliation(_database).beforeSharingEdit(current);
+        }
         return _updateList(
           list.copyWith(
             id: current.id,
@@ -92,6 +97,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
             wordCount: current.wordCount,
             origin: current.origin,
             seedId: current.seedId,
+            importedFromShareToken: current.importedFromShareToken,
             createdAt: current.createdAt,
             isDeleted: false,
           ),
@@ -114,6 +120,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   @override
   Future<Result<void>> deleteList(String listId) => _write(() async {
     final list = await _requireList(listId);
+    await LegacyShareReconciliation(_database).beforeSharingEdit(list);
     // Deleting a list frees a quota slot but the user LOSES its mastery
     // (product decision 2026-07-04): soft-delete the words so they vanish
     // from smart lists, and delete their progress rows outright.
@@ -728,6 +735,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   Future<Result<String>> generateShareLink(String listId) async {
     return _write(() async {
       final list = await _requireList(listId);
+      await LegacyShareReconciliation(_database).beforeSharingEdit(list);
       final token = _uuid.v4().replaceAll('-', '');
       await _listDao.setShareToken(list.id, token, publish: true);
       return 'vocabkr://import?token=$token';
@@ -738,10 +746,16 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   Future<Result<VocabularyList>> importFromShareToken(String token) async {
     if (_userId.isEmpty) return const Failure(_accountRequired);
     // Return existing local copy if already imported (dedup by share token).
-    final existing =
-        await _listDao.getImportedCopy(token, _userId) ??
-        await _listDao.getByShareToken(token, ownerId: _userId);
+    final existing = await _listDao.getImportedCopy(token, _userId);
     if (existing != null) return Success(existing.toDomain());
+    final candidates = (await _listDao.legacyShareLists(
+      ownerId: _userId,
+      token: token,
+    )).where((candidate) => !candidate.list.isDeleted).toList();
+    if (candidates.isEmpty) {
+      final published = await _listDao.getByShareToken(token, ownerId: _userId);
+      if (published != null) return Success(published.toDomain());
+    }
 
     final remoteResult = await _remote.fetchPublicListByToken(token);
     if (remoteResult case Failure(:final exception)) return Failure(exception);
@@ -749,6 +763,43 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     if (data == null) {
       return const Failure(NotFoundException('Shared list not found'));
     }
+
+    final legacy = LegacyShareReconciliation(_database);
+    final ids = await VocabularySyncIds.load(_database, _userId);
+    String? recoveredPublication;
+    for (final (list: row, :pending) in candidates) {
+      final wireId = ids.wireId(SyncedVocabularyRow.list, row.id);
+      final result = await legacy.reconcileByToken(
+        row,
+        pending,
+        wireId,
+        _remote,
+        publicMetadata: data,
+      );
+      if (result case Failure(:final exception)) return Failure(exception);
+      if (result.valueOrNull != true) {
+        // The copy changed during evidence collection. Leave that edit and
+        // the hold intact rather than inserting a second copy.
+        if (await _listDao.getLegacyShare(row.id) != null) {
+          return const Failure(
+            StorageException('Shared list needs another import attempt'),
+          );
+        }
+      } else {
+        if (data['owner_id'] == _userId && data['id'] == wireId) {
+          recoveredPublication = row.id;
+        }
+        _database.notifyOutboundMutation(_userId);
+      }
+    }
+
+    final reconciled =
+        await _listDao.getImportedCopy(token, _userId) ??
+        await _listDao.getByShareToken(token, ownerId: _userId) ??
+        (recoveredPublication == null
+            ? null
+            : await _findList(recoveredPublication));
+    if (reconciled != null) return Success(reconciled.toDomain());
 
     final remoteConcepts =
         (data['concepts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
@@ -951,6 +1002,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
       final current = await _snapshotForPull();
       final changed = _PullChanges(before, current);
       final ids = await VocabularySyncIds.load(_database, _userId);
+      final legacy = LegacyShareReconciliation(_database);
       for (final wireListId in touchedLists) {
         final remoteList = traversal.lists[wireListId]!;
         final list = remoteList.copyWith(
@@ -974,18 +1026,70 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
           traversal.deletionDeferred = true;
           continue;
         }
-        if (receivedLists.contains(wireListId) && !keepLocalList) {
+        final pending = localList == null
+            ? null
+            : await _listDao.getLegacyShare(list.id);
+        final confirmsLegacyPublication =
+            receivedLists.contains(wireListId) &&
+            localList != null &&
+            !localList.isDeleted &&
+            pending != null &&
+            localList == before.lists[list.id] &&
+            legacy.confirmsPublication(
+              localList,
+              pending,
+              remoteList,
+              wireListId,
+            );
+        if (receivedLists.contains(wireListId)) {
           final missingContents =
               !list.isDeleted && !completeContents.contains(remoteList.id);
           final metadata = missingContents && localList != null
               ? list.copyWith(wordCount: localList.wordCount)
               : list;
-          await _listDao.upsert(metadata.toLocalCompanion());
+          if (confirmsLegacyPublication) {
+            await legacy.applyEvidence(
+              localList,
+              pending,
+              metadata,
+              imported: false,
+            );
+          } else if (!keepLocalList) {
+            // Older server migrations may also have guessed this provenance.
+            var restored = pending != null && !list.isDeleted
+                ? metadata.copyWith(
+                    importedFromShareToken: localList!.importedFromShareToken,
+                    shareToken: localList.shareToken,
+                    visibility: localList.toDomain().visibility,
+                  )
+                : metadata;
+            final inboundToken = restored.importedFromShareToken;
+            if (!list.isDeleted &&
+                pending == null &&
+                VocabularyListDao.isLegacyShareWireId(wireListId)) {
+              final establishedToken = localList?.importedFromShareToken;
+              if (establishedToken == null && inboundToken != null) {
+                await _listDao.rememberLegacyShare(list.id, (
+                  token: inboundToken,
+                  edited:
+                      list.visibility != ListVisibility.private ||
+                      list.shareToken != null,
+                ));
+              }
+              restored = restored.copyWith(
+                importedFromShareToken: establishedToken,
+              );
+            }
+            await _listDao.upsert(restored.toLocalCompanion());
+          } else if (localList == null || localList.isDeleted) {
+            continue;
+          }
         } else if (localList == null || localList.isDeleted) {
           continue;
         }
         if (list.isDeleted) {
           await _listDao.forgetSharedImportBases([list.id]);
+          await _listDao.forgetLegacyShare(list.id);
           await _conceptDao.tombstoneListContents(list.id, _userId);
           continue;
         }

@@ -198,13 +198,13 @@ void main() {
 
       await expectLater(service.stop(), throwsStateError);
       service.dispose();
-      await expectLater(service.waitForDisposal(), throwsStateError);
+      await expectLater(service.waitForRelease(), throwsStateError);
 
       expect(player.stopped, 2);
       expect(player.disposed, 0);
       player.failStop = false;
-      await service.waitForDisposal(retry: true);
-      await service.waitForDisposal(retry: true);
+      await service.waitForRelease(retry: true);
+      await service.waitForRelease(retry: true);
       expect(player.stopped, 3);
       expect(player.disposed, 1);
     },

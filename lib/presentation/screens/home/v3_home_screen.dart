@@ -35,7 +35,8 @@ class V3HomeScreen extends ConsumerWidget {
     final pair = ref.watch(defaultPairProvider);
     final user = ref.watch(currentUserProvider);
     final lists = ref.watch(myListsProvider);
-    final due = ref.watch(dueCountForPairProvider(pair)).valueOrNull ?? 0;
+    final dueProvider = dueCountForPairProvider(pair);
+    final due = ref.watch(dueProvider);
     final rules =
         ref.watch(ruleStatusesProvider(pair.$2)).valueOrNull ?? const [];
 
@@ -54,7 +55,8 @@ class V3HomeScreen extends ConsumerWidget {
                 pair: pair,
                 userInitial: _initial(user?.displayName ?? user?.username),
                 streak: user?.currentStreak ?? 0,
-                dueCount: due,
+                due: due,
+                onRetryDue: () => ref.invalidate(dueProvider),
                 lists: const [],
                 rules: rules,
                 onPairTap: () => _showPairPicker(context, ref, pair),
@@ -63,7 +65,8 @@ class V3HomeScreen extends ConsumerWidget {
                 pair: pair,
                 userInitial: _initial(user?.displayName ?? user?.username),
                 streak: user?.currentStreak ?? 0,
-                dueCount: due,
+                due: due,
+                onRetryDue: () => ref.invalidate(dueProvider),
                 lists: items,
                 rules: rules,
                 onPairTap: () => _showPairPicker(context, ref, pair),
@@ -136,7 +139,8 @@ class _V3HomeBody extends StatelessWidget {
     required this.pair,
     required this.userInitial,
     required this.streak,
-    required this.dueCount,
+    required this.due,
+    required this.onRetryDue,
     required this.lists,
     required this.rules,
     required this.onPairTap,
@@ -145,7 +149,8 @@ class _V3HomeBody extends StatelessWidget {
   final (String, String) pair;
   final String userInitial;
   final int streak;
-  final int dueCount;
+  final AsyncValue<int> due;
+  final VoidCallback onRetryDue;
   final List<VocabularyList> lists;
   final List<RuleStatus> rules;
   final VoidCallback onPairTap;
@@ -164,18 +169,26 @@ class _V3HomeBody extends StatelessWidget {
         .where((status) => status.availability == RuleAvailability.mastered)
         .length;
     final lessonsRemaining = math.max(0, rules.length - lessonsRead);
-    final nextTitle = dueCount > 0
-        ? 'v3.words_due'.tr(namedArgs: {'count': '$dueCount'})
-        : firstList == null
-        ? 'v3.prepare_list'.tr()
-        : firstList.wordCount == 0
-        ? 'v3.add_words'.tr()
-        : firstList.name;
-    final nextSubtitle = dueCount > 0
-        ? 'v3.resume_known'.tr()
-        : firstList == null
-        ? 'v3.few_words'.tr()
-        : 'v3.list_duration'.tr(namedArgs: {'name': firstList.name});
+    final dueCount = due.isLoading ? null : due.asData?.value;
+    final hasDue = dueCount != null && dueCount > 0;
+    final nextTitle = switch (dueCount) {
+      null =>
+        (due.isLoading ? 'v3.review_due_loading' : 'v3.review_due_error').tr(),
+      0 => switch (firstList) {
+        null => 'v3.prepare_list'.tr(),
+        VocabularyList(wordCount: 0) => 'v3.add_words'.tr(),
+        VocabularyList(:final name) => name,
+      },
+      _ => 'v3.words_due'.tr(namedArgs: {'count': '$dueCount'}),
+    };
+    final nextSubtitle = switch (dueCount) {
+      null => null,
+      0 =>
+        firstList == null
+            ? 'v3.few_words'.tr()
+            : 'v3.list_duration'.tr(namedArgs: {'name': firstList.name}),
+      _ => 'v3.resume_known'.tr(),
+    };
 
     return ScrollAffordance(
       hint: 'v3.scroll_hint'.tr(),
@@ -191,13 +204,26 @@ class _V3HomeBody extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _DailyEntry(
-            countLabel: dueCount > 0
-                ? 'v3.words_due'.tr(namedArgs: {'count': '$dueCount'})
-                : 'v3.one_activity'.tr(),
+            countLabel: switch (dueCount) {
+              null => null,
+              0 => 'v3.one_activity'.tr(),
+              _ => 'v3.words_due'.tr(namedArgs: {'count': '$dueCount'}),
+            },
             title: nextTitle,
             subtitle: nextSubtitle,
+            cta: (dueCount == null ? 'home.daily_path_open' : 'v3.start').tr(),
             onTap: () => context.push('/daily-path'),
           ),
+          if (!due.isLoading && due.hasError)
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton(
+                key: const ValueKey(WidgetKeys.reviewDueRetry),
+                style: TextButton.styleFrom(foregroundColor: V3Colors.amber),
+                onPressed: onRetryDue,
+                child: Text('common.retry'.tr()),
+              ),
+            ),
           const SizedBox(height: 14),
           _PathEntry(
             remainingLessons: lessonsRemaining,
@@ -233,17 +259,19 @@ class _V3HomeBody extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          Text(
-            dueCount > 0 ? 'v3.resume_anytime'.tr() : 'v3.nothing_due'.tr(),
-            textAlign: TextAlign.center,
-            style: AppTextStyles.mono(
-              11,
-              FontWeight.w400,
-              letterSpacing: 1.1,
-              color: V3Colors.light60,
+          if (dueCount != null) ...[
+            const SizedBox(height: 18),
+            Text(
+              (hasDue ? 'v3.resume_anytime' : 'v3.nothing_due').tr(),
+              textAlign: TextAlign.center,
+              style: AppTextStyles.mono(
+                11,
+                FontWeight.w400,
+                letterSpacing: 1.1,
+                color: V3Colors.light60,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -328,11 +356,13 @@ class _DailyEntry extends StatelessWidget {
     required this.countLabel,
     required this.title,
     required this.subtitle,
+    required this.cta,
     required this.onTap,
   });
-  final String countLabel;
+  final String? countLabel;
   final String title;
-  final String subtitle;
+  final String? subtitle;
+  final String cta;
   final VoidCallback onTap;
 
   @override
@@ -360,14 +390,15 @@ class _DailyEntry extends StatelessWidget {
                     color: V3Colors.terraInk,
                   ),
                 ),
-                Text(
-                  countLabel,
-                  style: AppTextStyles.mono(
-                    11,
-                    FontWeight.w400,
-                    color: V3Colors.ink60,
+                if (countLabel case final label?)
+                  Text(
+                    label,
+                    style: AppTextStyles.mono(
+                      11,
+                      FontWeight.w400,
+                      color: V3Colors.ink60,
+                    ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -379,15 +410,17 @@ class _DailyEntry extends StatelessWidget {
                 color: V3Colors.ink,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: AppTextStyles.fig(
-                14.5,
-                FontWeight.w400,
-                color: V3Colors.ink60,
+            if (subtitle case final detail?) ...[
+              const SizedBox(height: 4),
+              Text(
+                detail,
+                style: AppTextStyles.fig(
+                  14.5,
+                  FontWeight.w400,
+                  color: V3Colors.ink60,
+                ),
               ),
-            ),
+            ],
             const SizedBox(height: 13),
             Container(
               width: double.infinity,
@@ -397,7 +430,7 @@ class _DailyEntry extends StatelessWidget {
                 borderRadius: BorderRadius.circular(11),
               ),
               child: Text(
-                'v3.start'.tr(),
+                cta,
                 textAlign: TextAlign.center,
                 style: AppTextStyles.fig(
                   15.5,
@@ -579,7 +612,7 @@ class _MetricGrid extends StatelessWidget {
     required this.totalWords,
     required this.listCount,
   });
-  final int due;
+  final int? due;
   final int readLessons;
   final int remainingLessons;
   final int totalWords;
@@ -592,12 +625,17 @@ class _MetricGrid extends StatelessWidget {
       final width = largeText
           ? constraints.maxWidth
           : (constraints.maxWidth - 9) / 2;
+      final count = due;
       final metrics = [
         _Metric(
-          value: '$due',
+          value: count?.toString() ?? '—',
           title: 'v3.words_due_title'.tr(),
-          meta: due > 0 ? 'v3.resume_label'.tr() : 'v3.nothing_due_label'.tr(),
-          amber: due > 0,
+          meta: switch (count) {
+            null => null,
+            0 => 'v3.nothing_due_label'.tr(),
+            _ => 'v3.resume_label'.tr(),
+          },
+          amber: count != null && count > 0,
         ),
         _Metric(
           value: '$readLessons',
@@ -635,7 +673,7 @@ class _Metric extends StatelessWidget {
   });
   final String value;
   final String title;
-  final String meta;
+  final String? meta;
   final bool amber;
 
   @override
@@ -667,16 +705,18 @@ class _Metric extends StatelessWidget {
               color: V3Colors.light,
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            meta,
-            style: AppTextStyles.mono(
-              10.5,
-              FontWeight.w400,
-              letterSpacing: .5,
-              color: amber ? V3Colors.amber : V3Colors.light60,
+          if (meta case final detail?) ...[
+            const SizedBox(height: 2),
+            Text(
+              detail,
+              style: AppTextStyles.mono(
+                10.5,
+                FontWeight.w400,
+                letterSpacing: .5,
+                color: amber ? V3Colors.amber : V3Colors.light60,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     ),
@@ -804,8 +844,9 @@ class _PairOption extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => _SheetChoice(
+    key: ValueKey(WidgetKeys.homePair(pair.$1, pair.$2)),
     label:
-        '${Languages.flagFor(pair.$1)}  ${Languages.displayName(pair.$1)} → ${Languages.displayName(pair.$2)}',
+        '${Languages.flagFor(pair.$1)}  ${Languages.autonym(pair.$1)} → ${Languages.autonym(pair.$2)}',
     selected: selected,
     onTap: onTap,
   );
@@ -813,6 +854,7 @@ class _PairOption extends StatelessWidget {
 
 class _SheetChoice extends StatelessWidget {
   const _SheetChoice({
+    super.key,
     required this.label,
     required this.onTap,
     this.selected = false,

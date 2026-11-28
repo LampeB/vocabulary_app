@@ -55,8 +55,11 @@ audio du prompt → vérification des moteurs → compte à rebours → signal d
 
 `AudioDirector` doit terminer ou annuler l'audio précédent avant l'écoute.
 Un échec ou une attente trop longue de l'arrêt affiche une reprise du tour.
-Le signal d'ouverture et la capture attendent l'arrêt confirmé du lecteur,
-y compris si l'apprenant réessaie pendant une demande d'arrêt déjà en cours.
+Une nouvelle lecture, le signal d'ouverture et la capture attendent l'arrêt
+confirmé des lecteurs du directeur courant, même si le prompt passe de la
+synthèse locale à un clip devenu disponible, ou du clip à la synthèse.
+Une expiration de l'attente laisse l'arrêt natif en cours. Répéter le rejoint
+tant qu'il reste en cours et renouvelle un arrêt refusé.
 Les remplacements du directeur audio dus à la vitesse ou à la hauteur
 conservent les libérations non confirmées de la voix et des signaux, même à
 travers plusieurs changements de réglage ou de route. Un nouveau prompt
@@ -89,6 +92,10 @@ déjà confirmée conserve son résultat. Seule la fin de la lecture confirme qu
 le prompt a été joué. Pour un clip, la libération native de l'audio suffit
 au nouveau lecteur. Le nettoyage final de l'ancien lecteur continue en
 arrière-plan et réessaie une fois la seule opération native refusée.
+Les lectures facultatives conservent leur retour à l'acquittement de démarrage.
+Un refus de démarrage déclenche la même récupération du clip. Une erreur
+native reçue après cet acquittement reste dans le flux d'événements du lecteur
+facultatif et ne déclenche pas de secours vocal.
 Un arrêt TTS confirmé permet de rejouer la consigne quand une réponse de
 configuration de langue est perdue. La réponse tardive d'un ancien tour
 ne remet pas sa voix en service.

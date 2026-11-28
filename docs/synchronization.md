@@ -91,11 +91,27 @@ L'application utilise SQLite comme source de lecture et les colonnes
   déduplication par compte. Les nouveaux imports utilisent un UUIDv5 dérivé
   du compte et du token. Les UUIDv5 des enfants dérivent de leurs identifiants
   source et de leur parent importé. Si l'utilisateur réimporte après une
-  suppression locale, il obtient une nouvelle génération. La migration 11
-  répare la provenance des anciennes copies. Si plusieurs copies existent
-  déjà, la recherche retrouve la plus ancienne encore active et départage
-  les dates identiques par identifiant. Chaque copie et ses éditions restent
-  disponibles.
+  suppression locale, il obtient une nouvelle génération. Si plusieurs copies
+  existent déjà, la recherche retrouve la plus ancienne encore active et
+  départage les dates identiques par identifiant. Chaque copie et ses éditions
+  restent disponibles.
+- SQLite 13 conserve les jetons historiques ambigus dans une retenue durable.
+  Il reprend aussi les jetons que SQLite 11 ou le serveur avaient rangés en
+  provenance sur des listes historiques. Les imports modernes conservent leur
+  provenance, y compris avec un alias SQLite pour leur UUIDv5 distant. Une
+  publication historique est reconnue sur une liste publique active si le
+  propriétaire, l'identifiant distant et le jeton correspondent. La même
+  preuve sur une autre identité établit la provenance de la copie, y compris
+  pour deux listes du même compte. Le pull peut confirmer une publication et
+  la file ou l'ouverture du lien peut compléter le rapprochement.
+  Les changements locaux restent prioritaires, notamment les changements de
+  visibilité et les nouvelles publications explicites. Après rapprochement,
+  une édition en attente est appliquée par champ pour protéger les autres
+  métadonnées distantes. Hors ligne, sur erreur ou sans preuve, le jeton reste
+  en retenue et la branche reste disponible localement. Une modification
+  explicite du partage ou une suppression peut être envoyée. Si le lien a
+  déjà été écrasé sur le serveur et que sa source a disparu, sa nature reste
+  indéterminée.
 - La migration locale 12 conserve une base durable pour chaque création issue
   d'un lien. Si la ligne existe déjà sur le serveur, l'envoi applique
   uniquement les champs modifiés par l'utilisateur. L'accusé reprend la

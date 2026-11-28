@@ -28,8 +28,11 @@ class AudioDirector {
   final AudioPlayerService _audio;
   final SoundEffectsService _sfx;
   final DateTime Function() _clock;
-  final Future<void> Function({required bool retry})? _waitForReplacedAudio;
+  final Future<void>? Function({required bool retry})? _waitForReplacedAudio;
   Future<void>? _stopping;
+  bool _stopRefused = false;
+  bool _disposed = false;
+  int _playbackGeneration = 0;
   int _cueGeneration = 0;
 
   /// Poll cadence for the quiet checks — 100ms mirrors the historical loops.
@@ -44,11 +47,16 @@ class AudioDirector {
     String langCode, {
     String? audioPath,
     bool requirePlayback = false,
-  }) => _audio.speak(
-    text,
-    langCode,
-    audioPath: audioPath,
+    bool Function()? keepGoing,
+  }) => _playWhenReleased(
+    () => _audio.speak(
+      text,
+      langCode,
+      audioPath: audioPath,
+      requirePlayback: requirePlayback,
+    ),
     requirePlayback: requirePlayback,
+    keepGoing: keepGoing,
   );
 
   Future<void> prefetch(String text, String langCode, {String? audioPath}) =>
@@ -56,19 +64,63 @@ class AudioDirector {
 
   Future<void> warmUp(String langCode) => _audio.warmUp(langCode);
 
-  Future<void> stop() => _stopping ??= Future<void>.sync(
-    _audio.stop,
-  ).whenComplete(() => _stopping = null);
+  Future<void> stop() {
+    _playbackGeneration++;
+    if (!_stopRefused && _stopping != null) return _stopping!;
+    _stopRefused = false;
+    return _stopping = Future<void>.sync(_audio.stop).then<void>(
+      (_) => _stopping = null,
+      onError: (Object error, StackTrace stack) {
+        _stopRefused = true;
+        Error.throwWithStackTrace(error, stack);
+      },
+    );
+  }
 
   /// Waits for a retired director's separate native players. Keep the raw
   /// futures so a caller timing out cannot retire an unconfirmed release.
   Future<void> waitForPlayerRelease({bool retry = false}) => Future.wait<void>([
-    retry ? _audio.retryDisposal() : stop(),
-    _sfx.waitForDisposal(retry: retry),
+    retry ? _audio.retryDisposal() : _audio.stop(),
+    _sfx.waitForRelease(retry: retry),
   ], eagerError: true);
 
-  Future<void> waitForReplacedAudio({bool retry = false}) async {
-    await _waitForReplacedAudio?.call(retry: retry).timeout(releaseTimeout);
+  /// Joins release of both current and retired players. The caller's deadline
+  /// never discards the native stop, and a refusal stays visible until an
+  /// explicit stop retries it.
+  Future<void> waitForAudioRelease({bool retryReplaced = false}) =>
+      _releaseBarrier(retryReplaced: retryReplaced) ?? Future.value();
+
+  Future<void>? _releaseBarrier({bool retryReplaced = false}) {
+    final stops = [
+      ?_stopping,
+      ?_sfx.stopRequest,
+      ?_waitForReplacedAudio?.call(retry: retryReplaced),
+    ];
+    if (stops.isEmpty) return null;
+    return Future.wait<void>(stops, eagerError: true).timeout(releaseTimeout);
+  }
+
+  Future<void> _playWhenReleased(
+    Future<void> Function() play, {
+    bool requirePlayback = false,
+    bool Function()? keepGoing,
+  }) async {
+    final generation = _playbackGeneration;
+    try {
+      final stopping = _releaseBarrier();
+      if (stopping != null) await stopping;
+    } catch (error) {
+      if (requirePlayback) rethrow;
+      sttLog('[AUDIO] playback skipped after release failure: $error');
+      return;
+    }
+    if (_disposed ||
+        generation != _playbackGeneration ||
+        !(keepGoing?.call() ?? true)) {
+      if (requirePlayback) throw const AudioPlaybackCancelled();
+      return;
+    }
+    await play();
   }
 
   /// Stops both speech and the separate earcon player. Unlike [stop], this is
@@ -103,11 +155,12 @@ class AudioDirector {
     if (!(keepGoing?.call() ?? true)) return;
     await quiet(timeout: timeout);
     if (!(keepGoing?.call() ?? true)) return;
-    await _audio.speak(
+    await speak(
       text,
       langCode,
       audioPath: audioPath,
       requirePlayback: requirePlayback,
+      keepGoing: keepGoing,
     );
   }
 
@@ -149,9 +202,13 @@ class AudioDirector {
       await previousSpeech?.timeout(deadline);
       for (final (text, language, audioPath) in lines) {
         if (!keepGoing()) return StudyPromptResult.cancelled;
-        await _audio
-            .speak(text, language, audioPath: audioPath, requirePlayback: true)
-            .timeout(deadline);
+        await speak(
+          text,
+          language,
+          audioPath: audioPath,
+          requirePlayback: true,
+          keepGoing: keepGoing,
+        ).timeout(deadline);
       }
       return keepGoing()
           ? StudyPromptResult.completed
@@ -207,10 +264,11 @@ class AudioDirector {
 
   // ── Earcons / verdict sounds (step 2: SFX ownership) ───────────────────────
 
-  Future<void> playCorrect() => _sfx.playCorrect();
-  Future<void> playIncorrect() => _sfx.playIncorrect();
-  Future<void> playListenCue() => _sfx.playListenCue();
-  Future<void> playListenDone() => _sfx.playListenDone();
+  Future<void> playCorrect() => _playWhenReleased(_sfx.playCorrect);
+  Future<void> playIncorrect() => _playWhenReleased(_sfx.playIncorrect);
+  Future<void> playListenCue() =>
+      _playWhenReleased(_sfx.playListenCue, requirePlayback: true);
+  Future<void> playListenDone() => _playWhenReleased(_sfx.playListenDone);
 
   /// Releases the audio channel to the microphone.
   ///
@@ -222,8 +280,10 @@ class AudioDirector {
   Future<void> handOffToMic({
     Duration focusBeat = const Duration(milliseconds: 450),
   }) async {
-    await waitForReplacedAudio(retry: true);
-    await _stopSpeechAndEarcons();
+    await Future.wait([
+      _stopSpeechAndEarcons(),
+      waitForAudioRelease(retryReplaced: true),
+    ], eagerError: true);
     await Future.delayed(focusBeat);
   }
 
@@ -234,8 +294,10 @@ class AudioDirector {
     Duration clearance = const Duration(milliseconds: 100),
   }) async {
     final generation = ++_cueGeneration;
-    await waitForReplacedAudio();
-    if (generation != _cueGeneration) throw const AudioPlaybackCancelled();
+    await waitForAudioRelease();
+    if (_disposed || generation != _cueGeneration) {
+      throw const AudioPlaybackCancelled();
+    }
     await _sfx.playListenCue().timeout(
       _openingCueTimeout,
       onTimeout: () {
@@ -260,6 +322,8 @@ class AudioDirector {
   /// Frees the director-owned SFX player. The [AudioPlayerService] belongs to
   /// its own provider and is NOT disposed here.
   void dispose() {
+    _disposed = true;
+    _playbackGeneration++;
     _cueGeneration++;
     _sfx.dispose();
   }

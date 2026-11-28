@@ -138,11 +138,11 @@ void main() {
       await tester.enterText(byKey(WidgetKeys.listNameField), 'Espagnol libre');
       await tester.tap(find.byType(DropdownButton<String>).at(0));
       await tester.pumpAndSettle();
-      await tester.tap(find.text(Languages.displayName('fr')).last);
+      await tester.tap(find.text(Languages.autonym('fr')).last);
       await tester.pumpAndSettle();
       await tester.tap(find.byType(DropdownButton<String>).at(1));
       await tester.pumpAndSettle();
-      await tester.tap(find.text(Languages.displayName('es')).last);
+      await tester.tap(find.text(Languages.autonym('es')).last);
       await tester.pumpAndSettle();
       await tester.tap(byKey(WidgetKeys.listNameConfirm));
       await tester.pumpAndSettle();

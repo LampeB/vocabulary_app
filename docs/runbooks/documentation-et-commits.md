@@ -32,6 +32,14 @@ La CI Ubuntu installe le hook dans un dépôt jetable et vérifie qu'un vrai
    configuration privée et exige le formatage des fichiers Dart préparés.
    Les chemins Git sont lus avec leur séparateur NUL. Les accents et les sauts
    de ligne restent attachés à leur nom de fichier pendant le contrôle.
+   Les suppressions applicatives, de tests et de workflows exigent aussi une
+   mise à jour documentaire, dans l'index comme dans le diff de PR. Les fichiers
+   supprimés ne sont pas soumis au formatage ; supprimer une ancienne donnée
+   privée de la base n'est pas une nouvelle introduction de cette donnée.
+   Le contrôle des liens préparés lit les blobs Markdown et les cibles de
+   l'index, avec leur casse Git. Une copie de travail différente ne remplace
+   pas le contenu qui sera committé ; les liens dans un sous-module sont
+   vérifiés dans l'arbre du commit épinglé.
    En PR, le garde inspecte les chemins de chaque commit absent de la branche
    de base. Supprimer un fichier interdit dans un commit suivant laisse
    le premier commit refusé.

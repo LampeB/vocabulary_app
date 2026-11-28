@@ -528,6 +528,8 @@
   "v3.create_list": "Create your first list",
   "v3.see_lessons": "See lessons",
   "v3.words_due_title": "Cards to review",
+  "v3.review_due_loading": "Checking for cards to review…",
+  "v3.review_due_error": "Couldn’t check for cards to review.",
   "v3.resume_label": "TO REVIEW",
   "v3.nothing_due_label": "NOTHING DUE",
   "v3.lessons_read": "Lessons mastered",

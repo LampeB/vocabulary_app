@@ -464,8 +464,39 @@ class VocabularyRemoteDataSource {
     }
   }
 
-  // Fetches a public list (with its concepts and variants) by share token.
-  // Requires vocabulary_lists to have visibility='public' and a matching RLS policy.
+  Future<Result<Map<String, dynamic>?>> fetchPublicShareMetadata(
+    String token,
+  ) => _fetchShareMetadata(
+    _client
+        .from('vocabulary_lists')
+        .select()
+        .eq('share_token', token)
+        .eq('visibility', 'public')
+        .eq('is_deleted', false),
+  );
+
+  Future<Result<Map<String, dynamic>?>> fetchOwnedListMetadata(
+    String ownerId,
+    String listId,
+  ) => _fetchShareMetadata(
+    _client
+        .from('vocabulary_lists')
+        .select()
+        .eq('owner_id', ownerId)
+        .eq('id', listId),
+  );
+
+  Future<Result<Map<String, dynamic>?>> _fetchShareMetadata(
+    PostgrestFilterBuilder<List<Map<String, dynamic>>> query,
+  ) async {
+    try {
+      return Success(await query.maybeSingle().timeout(_pageTimeout));
+    } catch (e) {
+      return Failure(NetworkException(e.toString()));
+    }
+  }
+
+  // Fetches a public list with its active concepts and variants by share token.
   Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(
     String token,
   ) async {

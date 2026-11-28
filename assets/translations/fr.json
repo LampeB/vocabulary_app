@@ -528,6 +528,8 @@
   "v3.create_list": "Créer une première liste",
   "v3.see_lessons": "Voir les leçons",
   "v3.words_due_title": "Cartes à revoir",
+  "v3.review_due_loading": "Vérification des cartes à revoir…",
+  "v3.review_due_error": "Impossible de vérifier les cartes à revoir.",
   "v3.resume_label": "À REPRENDRE",
   "v3.nothing_due_label": "RIEN À REVOIR",
   "v3.lessons_read": "Leçons maîtrisées",

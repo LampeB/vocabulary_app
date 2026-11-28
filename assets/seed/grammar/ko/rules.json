@@ -138,12 +138,12 @@
           "en": "The subject particles 이/가 and object particles 을/를"
         },
         "description": {
-          "fr": "Marquer le sujet grammatical avec 이/가 et l'objet direct avec 을/를 selon la finale du mot.",
-          "en": "Mark the grammatical subject with 이/가 and the direct object with 을/를 according to the word ending."
+          "fr": "Marquer le sujet avec 이/가 et l’objet direct avec 을/를. Apprendre la forme de sujet 제가.",
+          "en": "Mark the subject with 이/가 and the direct object with 을/를. Learn the subject form 제가."
         },
         "explanation": {
-          "fr": "La particule 이/가 marque le sujet grammatical (qui fait l'action ou ce qui est décrit) ; la particule 을/를 marque l'objet direct (ce qui subit l'action). Le choix dépend uniquement du son final du mot : après une consonne finale (batchim), on utilise 이 pour le sujet et 을 pour l'objet ; après une voyelle, on utilise 가 et 를. Exemples : 물이 (sujet), 친구가 (sujet), 밥을 (objet), 우유를 (objet). Contrairement à 은/는 qui présente un thème, 이/가 met en avant une information nouvelle ou une réponse à « qui ? / quoi ? ».",
-          "en": "The particle 이/가 marks the grammatical subject (who does the action, or what is being described); the particle 을/를 marks the direct object (what undergoes the action). The choice depends only on the final sound of the word: after a final consonant (batchim), use 이 for the subject and 을 for the object; after a vowel, use 가 and 를. Examples: 물이 (subject), 친구가 (subject), 밥을 (object), 우유를 (object). Unlike 은/는, which presents a topic, 이/가 highlights new information or an answer to \"who? / what?\"."
+          "fr": "La particule 이/가 marque le sujet grammatical. Elle peut mettre en avant une information nouvelle, par exemple en réponse à « qui ? » ou « quoi ? ». La particule 을/를 marque l’objet direct et 은/는 indique de quoi on parle.\n\nPour la plupart des mots, on utilise 이 pour le sujet et 을 pour l’objet après une consonne finale (batchim), comme dans 물이 et 밥을. Après une voyelle, on utilise 가 et 를, comme dans 친구가 et 우유를.\n\nLe pronom humble 저 (« je / moi ») se contracte en 제가 avec la particule de sujet. Il donne 저를 avec la particule d’objet et 저는 avec la particule de thème.",
+          "en": "The particle 이/가 marks the grammatical subject. It can highlight new information, as when answering a “who?” or “what?” question. The particle 을/를 marks the direct object and 은/는 marks the topic.\n\nFor most words, use 이 for the subject and 을 for the object after a final consonant (batchim), as in 물이 and 밥을. After a vowel, use 가 and 를, as in 친구가 and 우유를.\n\nThe humble pronoun 저 (“I / me”) contracts to 제가 with the subject particle. It takes the form 저를 with the object particle and 저는 with the topic particle."
         },
         "prerequisite_lists": [
           "starter-greetings",
@@ -186,6 +186,13 @@
             }
           },
           {
+            "target": "제가 할게요.",
+            "translations": {
+              "fr": "Je m’en occupe.",
+              "en": "I’ll do it."
+            }
+          },
+          {
             "target": "저는 밥을 먹어요.",
             "translations": {
               "fr": "Je mange du riz.",
@@ -201,6 +208,11 @@
           }
         ],
         "test_vectors": [
+          {
+            "input": "저",
+            "context": "particule de sujet",
+            "expected": "제가"
+          },
           {
             "input": "물",
             "context": "particule de sujet",

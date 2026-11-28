@@ -616,7 +616,7 @@ class _CreateListDialogState extends State<_CreateListDialog> {
             for (final code in Languages.supported)
               DropdownMenuItem(
                 value: code,
-                child: Text(Languages.displayName(code)),
+                child: Text(Languages.autonym(code)),
               ),
           ],
         ),

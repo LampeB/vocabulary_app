@@ -14,6 +14,7 @@ import '../models/concept_dto.dart';
 import '../models/variant_progress_dto.dart';
 import '../models/vocabulary_list_dto.dart';
 import '../models/word_variant_dto.dart';
+import 'legacy_share_reconciliation.dart';
 import 'vocabulary_sync_ids.dart';
 import 'vocabulary_write_order.dart';
 
@@ -180,6 +181,11 @@ class PushSync {
     final heldLists = (await _listDao.heldStarterDrafts(
       ownerId: _userId,
     )).map((list) => list.id).toSet();
+    for (final candidate in await _listDao.legacyShareLists(ownerId: _userId)) {
+      if (!candidate.pending.edited) {
+        heldLists.add(candidate.list.id);
+      }
+    }
     final heldVariants = await _conceptDao.getVariantIdsByLists(heldLists);
     final progress = await _progressDao.getUnsyncedProgress(userId: _userId);
     final events = await _reviewEventDao.getUnsynced(userId: _userId);
@@ -233,6 +239,28 @@ class PushSync {
         _listDao.attachedDatabase,
         list.ownerId,
       );
+      final pending = await _listDao.getLegacyShare(listId);
+      if (pending != null) {
+        final legacy = LegacyShareReconciliation(_listDao.attachedDatabase);
+        if (!list.isDeleted) {
+          final result = await legacy.reconcileByToken(
+            list,
+            pending,
+            ids.wireId(SyncedVocabularyRow.list, listId),
+            _remote,
+          );
+          if (result.exceptionOrNull is NetworkException && !pending.edited) {
+            run.transportUnavailable = true;
+            break;
+          }
+          if (await _listDao.getById(listId) != list ||
+              await _listDao.getLegacyShare(listId) != pending) {
+            retry();
+            continue;
+          }
+          if (!pending.edited) break;
+        }
+      }
 
       if (!list.isSynced) {
         await _drain(
@@ -244,18 +272,23 @@ class PushSync {
             kind: SyncedVocabularyRow.list,
             id: r.id,
             fromLocalJson: VocabularyListsTableData.fromJson,
-            toRemote: (row) => row.toDomain().toRemoteMap(),
+            toRemote: (row) =>
+                row.toDomain().toRemoteMap()
+                  ..removeIfPendingProvenance(pending),
             push: _remote.upsertList,
             acknowledge: _listDao.acknowledge,
             load: _listDao.getById,
             save: (row, synced) => _listDao.upsert(
-              row
+              ({...row}..removeIfPendingProvenance(pending))
                   .toVocabularyListDomain()
                   .copyWith(isSynced: synced)
                   .toLocalCompanion(),
             ),
-            onTombstone: () =>
-                _conceptDao.tombstoneListContents(r.id, r.ownerId),
+            onTombstone: () async {
+              await _listDao.forgetLegacyShare(r.id);
+              await _conceptDao.tombstoneListContents(r.id, r.ownerId);
+            },
+            onAuthoredTombstone: () => _listDao.forgetLegacyShare(r.id),
             afterAck: (_) async {
               if (r.origin == 'starter' && r.seedId != null) {
                 await _listDao.transaction(
@@ -441,6 +474,7 @@ class PushSync {
       final list = listRow.toVocabularyListDomain();
       await _listDao.upsert(list.toLocalCompanion());
       await _listDao.forgetSharedImportBases([list.id]);
+      await _listDao.forgetLegacyShare(list.id);
       await _conceptDao.tombstoneListContents(list.id, list.ownerId);
       return;
     }
@@ -470,7 +504,6 @@ class PushSync {
       'concept_id',
       'created_at',
       'updated_at',
-      'imported_from_share_token',
     };
     final changes = {
       for (final entry in edited.entries)
@@ -543,6 +576,12 @@ class PushSync {
         // Row stays unsynced; the next drain retries it.
       }
     }
+  }
+}
+
+extension on Map<String, dynamic> {
+  void removeIfPendingProvenance(LegacyShare? pending) {
+    if (pending != null) remove('imported_from_share_token');
   }
 }
 

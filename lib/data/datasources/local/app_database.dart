@@ -64,7 +64,7 @@ class AppDatabase extends _$AppDatabase {
       });
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -157,9 +157,6 @@ class AppDatabase extends _$AppDatabase {
           vocabularyListsTable,
           vocabularyListsTable.importedFromShareToken,
         );
-        await customStatement(
-          "UPDATE vocabulary_lists SET imported_from_share_token = share_token, share_token = NULL, is_synced = 0 WHERE visibility = 'private' AND share_token IS NOT NULL",
-        );
         // Keep the latest pending local version of a business key. Older
         // duplicate UUIDs arose when two devices first reviewed offline.
         await customStatement('''DELETE FROM variant_progress WHERE id NOT IN (
@@ -172,6 +169,11 @@ class AppDatabase extends _$AppDatabase {
         );
       }
       if (from < 12) await m.createTable(sharedImportBootstrapTable);
+      if (from < 13) {
+        await vocabularyListDao.quarantineLegacyShares(
+          previouslyRewritten: from >= 11,
+        );
+      }
     },
   );
 

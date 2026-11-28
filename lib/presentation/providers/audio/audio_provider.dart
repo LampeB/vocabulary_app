@@ -61,8 +61,9 @@ class _RetiredAudioDirectors {
     );
   }
 
-  Future<void> wait({required bool retry}) async {
-    await Future.wait(
+  Future<void>? wait({required bool retry}) {
+    if (_pending.isEmpty) return null;
+    return Future.wait<void>(
       _pending.toList().map((director) => _release(director, retry: retry)),
       eagerError: true,
     );

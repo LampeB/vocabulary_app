@@ -10,8 +10,11 @@ if (-not $Staged -and -not $BaseRef) {
 }
 
 . "$PSScriptRoot/git-changed-paths.ps1"
-$files = @(Get-GitChangedPaths -Staged:$Staged -BaseRef $BaseRef)
-$privacyFiles = $files
+$files = @(Get-GitChangedPaths -Staged:$Staged -BaseRef $BaseRef -IncludeDeletions)
+# Deletions affect the contract, but deleting a private path is allowed and
+# deleted Dart files must not be formatted even if a worktree copy remains.
+$introducedFiles = @(Get-GitChangedPaths -Staged:$Staged -BaseRef $BaseRef)
+$privacyFiles = $introducedFiles
 if (-not $Staged) {
   $privacyFiles += @(Get-GitHistoryPaths -BaseRef $BaseRef)
 }
@@ -43,7 +46,7 @@ if ($Staged) {
 }
 
 $dartFiles = @(
-  $files | Where-Object {
+  $introducedFiles | Where-Object {
     $_ -match '\.dart$' -and (Test-Path -LiteralPath $_) -and
     ($_ -notmatch '^packages/' -or $_ -match '^packages/ponderin_whisper/lib/')
   }

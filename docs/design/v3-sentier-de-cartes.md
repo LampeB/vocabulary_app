@@ -70,6 +70,12 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
 - Le plateau distingue mots/listes disponibles et acquis. L'absence de cartes
   dues ne prouve aucune activité terminée : le chemin montre une recommandation
   sans faux compteur de complétion ni estimation de mots inédits.
+  Un chargement ou un échec du compteur ne vaut pas zéro : le plateau, le chemin
+  et le configurateur distinguent ces états, proposent une relance locale en
+  cas d'échec, et conservent les entrées indépendantes vers listes et leçons.
+  Les options des sélecteurs de langues utilisent les autonymes du helper
+  commun, y compris dans le formulaire de création d'une liste ; les consignes
+  rédigées dans la langue de l'interface conservent leurs noms traduits.
 - Les feuilles papier du plateau utilisent une encre explicite dans les deux
   thèmes. Les ondulations s'arrêtent avec la réduction des animations ou un
   sous-arbre inactif ; le prototype de parcours sans route est retiré.
@@ -81,6 +87,14 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
 - Le bootstrap reste observé au-dessus du routeur : un import froid et un
   changement de paire d'en-tête déclenchent aussi le seeding local. L'import
   peut avancer dès que l'identité locale est connue, avant le profil distant.
+- La connexion et la restauration peuvent utiliser l'identité locale lorsque
+  le profil distant est indisponible. Un rafraîchissement échoué conserve le
+  dernier profil enrichi du compte actif, dont le nom choisi, la série et
+  l'abonnement. Seule une lecture réussie sans ligne déclenche une création
+  conditionnelle. Une création concurrente est relue et conservée ; une ancienne
+  réponse ne peut enrichir un autre compte ni une session fermée.
+  Un échec temporaire du renouvellement du jeton conserve la session locale ;
+  un événement de déconnexion du SDK reste appliqué normalement.
 - Le lien initial et sa première répétition dans le stream ne sont traités
   qu'une fois ; les liens ouverts ensuite restent disponibles.
 - Après un import froid, Retour depuis la liste mène à la bibliothèque.

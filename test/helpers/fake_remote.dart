@@ -65,6 +65,24 @@ class FakeRemote implements VocabularyRemoteDataSource {
       const Success(null);
 
   @override
+  Future<Result<Map<String, dynamic>?>> fetchPublicShareMetadata(
+    String token,
+  ) => fetchPublicListByToken(token);
+
+  @override
+  Future<Result<Map<String, dynamic>?>> fetchOwnedListMetadata(
+    String ownerId,
+    String listId,
+  ) async {
+    final result = await fetchLists(ownerId);
+    return result.fold(
+      onSuccess: (rows) =>
+          Success(rows.where((row) => row['id'] == listId).firstOrNull),
+      onFailure: Failure.new,
+    );
+  }
+
+  @override
   Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(
     String token,
   ) async => const Success(null);
