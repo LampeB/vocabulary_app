@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/network/connectivity_status.dart';
 import '../providers/auth/auth_provider.dart';
 import '../providers/lists/vocabulary_provider.dart';
+import '../providers/quiz/study_day_sync_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widget_keys.dart';
@@ -67,6 +68,9 @@ final pushOnReconnectProvider = Provider<void>((ref) {
     } finally {
       restoring = false;
       reconnectPending = false;
+    }
+    if (active && online()) {
+      unawaited(ref.read(studyDaySyncProvider).pushPending(userId));
     }
     drain();
   }

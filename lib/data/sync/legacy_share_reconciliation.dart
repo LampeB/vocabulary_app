@@ -1,3 +1,5 @@
+import 'dart:convert' show jsonEncode;
+
 import '../datasources/local/app_database.dart';
 import '../datasources/local/daos/vocabulary_list_dao.dart';
 import '../datasources/remote/vocabulary_remote_datasource.dart';
@@ -17,11 +19,9 @@ class LegacyShareReconciliation {
   /// Protect a deliberate publication, visibility change or deletion while the
   /// earlier token's meaning is unknown. Call in the local edit transaction.
   Future<void> beforeSharingEdit(VocabularyListsTableData row) async {
+    await _lists.captureLegacyListBase(row);
     final held = await _lists.getLegacyShare(row.id);
     if (held == null) return;
-    if (await _lists.getSharedImportBase(row.id) == null) {
-      await _lists.rememberSharedImport(row.id, row);
-    }
     await _lists.rememberLegacyShare(row.id, (token: held.token, edited: true));
   }
 
@@ -96,8 +96,18 @@ class LegacyShareReconciliation {
 
     final local = row.toDomain();
     final server = canonical?.copyWith(id: row.id);
-    final preserveSharing =
-        (pending.edited && !row.isSynced) || row.isDeleted || server == null;
+    final beforeEdit = (await _lists.captureLegacyListBase(
+      row,
+    ))!.toDomain().toRemoteMap();
+    final localFields = local.toRemoteMap();
+    final authored = vocabularyMetadataEdits(beforeEdit, localFields);
+    if (authored.containsKey('visibility') &&
+        local.visibility != ListVisibility.public &&
+        local.shareToken == null) {
+      // Restricting visibility with no local token also revokes a historical
+      // token which was hidden in the local hold when the edit was made.
+      authored['share_token'] = null;
+    }
     final provenance = imported ? pending.token : local.importedFromShareToken;
     final serverProvenance = server?.importedFromShareToken;
     // A distinct historical token on the server can still be ambiguous even
@@ -108,20 +118,25 @@ class LegacyShareReconciliation {
             serverProvenance != provenance
         ? serverProvenance
         : null;
-    final restored = (row.isSynced && server != null ? server : local).copyWith(
-      importedFromShareToken: provenance,
-      shareToken: preserveSharing ? local.shareToken : server.shareToken,
-      visibility: preserveSharing ? local.visibility : server.visibility,
+    final rebase = await _lists.retainLegacyMetadata(
+      row.id,
+      server?.toRemoteMap() ?? beforeEdit,
+      localFields,
+      edited: authored.keys,
+      canonicalExists: server != null,
     );
+    final restored = {
+      ...rebase,
+      ...authored,
+      'imported_from_share_token': provenance,
+    }.toVocabularyListDomain();
     final needsUpload =
         !row.isSynced ||
         server == null ||
-        restored.shareToken != server.shareToken ||
-        restored.visibility != server.visibility ||
+        authored.isNotEmpty ||
         (remainingToken == null && provenance != serverProvenance);
     if (needsUpload) {
-      final base = server ?? local;
-      await _lists.upsert(base.toLocalCompanion());
+      await _lists.upsert(rebase.toVocabularyListDomain().toLocalCompanion());
       await _lists.rememberSharedImport(
         row.id,
         (await _lists.getById(row.id))!,
@@ -142,4 +157,26 @@ class LegacyShareReconciliation {
     }
     return true;
   });
+}
+
+Map<String, dynamic> vocabularyMetadataEdits(
+  Map<String, dynamic> base,
+  Map<String, dynamic> edited,
+) {
+  const identity = {
+    'id',
+    'owner_id',
+    'list_id',
+    'concept_id',
+    'created_at',
+    'updated_at',
+  };
+  final changes = {
+    for (final entry in edited.entries)
+      if (!identity.contains(entry.key) &&
+          jsonEncode(base[entry.key]) != jsonEncode(entry.value))
+        entry.key: entry.value,
+  };
+  if (changes.isNotEmpty) changes['updated_at'] = edited['updated_at'];
+  return changes;
 }

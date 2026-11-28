@@ -113,6 +113,7 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
   )..where((t) => t.id.isIn(ids))).go();
 
   static const _legacySharePrefix = 'legacy-share:';
+  static const _legacyMetadataPrefix = 'legacy-share-metadata:';
 
   // Every legacy producer used UUIDv4. Modern import generations use UUIDv5
   // on the wire, including when the SQLite UUID is a cross-account alias.
@@ -159,7 +160,9 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
               ? row.copyWith(importedFromShareToken: const Value(null))
               : row.copyWith(shareToken: const Value(null));
           await upsert(normalized.toCompanion(false));
-          if (row.isDeleted && !row.isSynced) {
+          if (row.isDeleted &&
+              !row.isSynced &&
+              await getSharedImportBase(row.id) == null) {
             await rememberSharedImport(
               row.id,
               normalized.copyWith(isDeleted: false),
@@ -191,6 +194,116 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
 
   Future<void> forgetLegacyShare(String listId) =>
       forgetSharedImportBases(['$_legacySharePrefix$listId']);
+
+  /// The first edit uses the local pre-edit row, even when its old differences
+  /// were never acknowledged. The hold distinguishes those unverified fields
+  /// from changes made after this base was captured.
+  Future<VocabularyListsTableData?> captureLegacyListBase(
+    VocabularyListsTableData row, {
+    String? wireId,
+  }) async {
+    final bootstrap = db.sharedImportBootstrapTable;
+    final holdId = '$_legacyMetadataPrefix${row.id}';
+    final tokenId = '$_legacySharePrefix${row.id}';
+    final snapshots = {
+      for (final stored in await (select(
+        bootstrap,
+      )..where((t) => t.id.isIn([row.id, holdId, tokenId]))).get())
+        stored.id: stored.snapshot,
+    };
+    final tracked = snapshots.containsKey(holdId);
+    final token = snapshots[tokenId];
+    final pending = token == null ? null : _decodeLegacyShare(token);
+    final storedBase = snapshots[row.id];
+    if (!tracked && pending == null) {
+      if (storedBase == null || !isLegacyShareWireId(wireId ?? row.id)) {
+        return null;
+      }
+      wireId ??= (await VocabularySyncIds.load(
+        db,
+        row.ownerId,
+      )).wireId(SyncedVocabularyRow.list, row.id);
+      if (!isLegacyShareWireId(wireId)) return null;
+    }
+    final base = storedBase == null
+        ? null
+        : VocabularyListsTableData.fromJson(
+            jsonDecode(storedBase) as Map<String, dynamic>,
+          );
+
+    // An older v13 reconciliation stored the server row as an apparent edit
+    // base, even when there was no local edit history to justify that delta.
+    final inferredBase =
+        !tracked &&
+        base != null &&
+        (pending == null || base.importedFromShareToken == pending.token);
+    if (!tracked) {
+      final unknownHistory = inferredBase || !(base ?? row).isSynced;
+      await _rememberHeldLegacyMetadata(row.id, {
+        if (unknownHistory) ...{
+          'name',
+          'description',
+          'word_count',
+          'lang_a',
+          'lang_b',
+          'origin',
+          'seed_id',
+          if (pending?.edited != false) ...{'visibility', 'share_token'},
+        },
+      });
+    }
+    if (base != null && !inferredBase) return base;
+    final captured = row.copyWith(
+      isDeleted: false,
+      // A resolved v13 row already had separate evidence for provenance.
+      importedFromShareToken: pending == null && inferredBase
+          ? Value(base.importedFromShareToken)
+          : const Value.absent(),
+    );
+    await rememberSharedImport(row.id, captured);
+    return captured;
+  }
+
+  Future<Set<String>?> _heldLegacyMetadata(String listId) async {
+    final row =
+        await (select(db.sharedImportBootstrapTable)
+              ..where((t) => t.id.equals('$_legacyMetadataPrefix$listId')))
+            .getSingleOrNull();
+    if (row == null) return null;
+    return (jsonDecode(row.snapshot) as List).cast<String>().toSet();
+  }
+
+  Future<void> _rememberHeldLegacyMetadata(String listId, Set<String> fields) =>
+      into(db.sharedImportBootstrapTable).insertOnConflictUpdate(
+        SharedImportBootstrapTableCompanion.insert(
+          id: '$_legacyMetadataPrefix$listId',
+          snapshot: jsonEncode(fields.toList()),
+        ),
+      );
+
+  Future<void> forgetLegacyMetadata(String listId) =>
+      forgetSharedImportBases(['$_legacyMetadataPrefix$listId']);
+
+  /// Keep unresolved local values visible through pull and acknowledgement.
+  /// Confirmed edits leave the hold only when they are explicitly applied.
+  Future<Map<String, dynamic>> retainLegacyMetadata(
+    String listId,
+    Map<String, dynamic> canonical,
+    Map<String, dynamic> local, {
+    Iterable<String> edited = const [],
+    bool canonicalExists = true,
+  }) async {
+    final held = await _heldLegacyMetadata(listId);
+    if (held == null || held.isEmpty) return canonical;
+    final keep = held.difference(edited.toSet());
+    if (canonicalExists) {
+      keep.removeWhere((key) => local[key] == canonical[key]);
+    }
+    if (keep.length != held.length) {
+      await _rememberHeldLegacyMetadata(listId, keep);
+    }
+    return {...canonical, for (final key in keep) key: local[key]};
+  }
 
   Future<List<({VocabularyListsTableData list, LegacyShare pending})>>
   legacyShareLists({String? ownerId, String? token}) {
@@ -365,13 +478,20 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
           .get();
 
   Future<int> updateWordCount(String listId, int newCount) =>
-      (update(vocabularyListsTable)..where((t) => t.id.equals(listId))).write(
-        VocabularyListsTableCompanion(
-          wordCount: Value(newCount),
-          updatedAt: Value(DateTime.now()),
-          isSynced: const Value(false),
-        ),
-      );
+      transaction(() async {
+        final row = await getById(listId);
+        if (row == null) return 0;
+        await captureLegacyListBase(row);
+        return (update(
+          vocabularyListsTable,
+        )..where((t) => t.id.equals(listId))).write(
+          VocabularyListsTableCompanion(
+            wordCount: Value(newCount),
+            updatedAt: Value(DateTime.now()),
+            isSynced: const Value(false),
+          ),
+        );
+      });
 
   Future<int> setShareToken(
     String listId,
@@ -400,10 +520,18 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
 
   /// Refresh a derived count after pull without manufacturing a local edit.
   Future<int> refreshWordCount(String listId, int count) =>
-      (update(vocabularyListsTable)..where(
-            (t) => t.id.equals(listId) & t.wordCount.equals(count).not(),
-          ))
-          .write(VocabularyListsTableCompanion(wordCount: Value(count)));
+      transaction(() async {
+        final row = await getById(listId);
+        if (row == null || row.wordCount == count) return 0;
+        if (!row.isSynced) {
+          final base = await captureLegacyListBase(row);
+          if (base != null && base.wordCount == row.wordCount) {
+            await rememberSharedImport(listId, base.copyWith(wordCount: count));
+          }
+        }
+        return (update(vocabularyListsTable)..where((t) => t.id.equals(listId)))
+            .write(VocabularyListsTableCompanion(wordCount: Value(count)));
+      });
 
   /// Retro-tags a pre-catalog starter list with its stable seed identity
   /// (legacy adoption — see StarterSeeder).
@@ -412,15 +540,22 @@ class VocabularyListDao extends DatabaseAccessor<AppDatabase>
     String seedId,
     String langA,
     String langB,
-  ) => (update(vocabularyListsTable)..where((t) => t.id.equals(listId))).write(
-    VocabularyListsTableCompanion(
-      seedId: Value(seedId),
-      langA: Value(langA),
-      langB: Value(langB),
-      isSynced: const Value(false),
-      updatedAt: Value(DateTime.now()),
-    ),
-  );
+  ) => transaction(() async {
+    final row = await getById(listId);
+    if (row == null) return 0;
+    await captureLegacyListBase(row);
+    return (update(
+      vocabularyListsTable,
+    )..where((t) => t.id.equals(listId))).write(
+      VocabularyListsTableCompanion(
+        seedId: Value(seedId),
+        langA: Value(langA),
+        langB: Value(langB),
+        isSynced: const Value(false),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  });
 
   Future<int> markListsSynced(List<String> ids) =>
       (update(vocabularyListsTable)..where((t) => t.id.isIn(ids))).write(

@@ -199,14 +199,19 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
   }
 
   @override
-  Future<void> speak(String text, String langCode, {String? voiceId}) async {
+  Future<void> speak(
+    String text,
+    String langCode, {
+    String? voiceId,
+    bool Function()? keepGoing,
+  }) async {
     if (_disposed) return;
     final generation = _playbackGeneration;
     final interrupted = Completer<void>();
     _pendingSpeaks.add(interrupted);
     try {
       await _serialized(
-        () => _speak(text, langCode, generation, interrupted),
+        () => _speak(text, langCode, generation, interrupted, keepGoing),
         interruption: interrupted.future.then<void>(
           (_) => throw const AudioPlaybackCancelled(),
         ),
@@ -221,13 +226,16 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
     String langCode,
     int generation,
     Completer<void> request,
+    bool Function()? keepGoing,
   ) async {
+    if (!(keepGoing?.call() ?? true)) throw const AudioPlaybackCancelled();
     final mobile = _mobileChannel != null;
     final tts = mobile ? null : await _configure(langCode, generation);
     if ((!mobile && tts == null) || !_current(generation)) {
       await (_nativeDisposal ?? _stopping);
       throw const AudioPlaybackCancelled();
     }
+    if (!(keepGoing?.call() ?? true)) throw const AudioPlaybackCancelled();
     _activeSpeak = request;
     sttLog('[TTS] ▶ speak start lang=$langCode "$text"');
     try {

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/languages.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/v3_colors.dart';
+import '../../core/widget_keys.dart';
 import '../../domain/entities/vocabulary_list.dart';
 import '../../domain/usecases/quiz/get_due_cards_usecase.dart' show QuizSource;
 import '../providers/lists/vocabulary_provider.dart';
@@ -48,18 +49,14 @@ class _FreePracticeSheetState extends ConsumerState<FreePracticeSheet> {
   @override
   Widget build(BuildContext context) {
     final listState = ref.watch(myListsProvider);
-    final due =
-        ref
-            .watch(
-              quizAvailabilityProvider((
-                pair: widget.pair,
-                source: QuizSource.allDue,
-                direction: _direction,
-                listId: null,
-              )),
-            )
-            .valueOrNull ??
-        0;
+    final dueProvider = quizAvailabilityProvider((
+      pair: widget.pair,
+      source: QuizSource.allDue,
+      direction: _direction,
+      listId: null,
+    ));
+    final due = ref.watch(dueProvider);
+    final dueCount = due.isLoading ? null : due.asData?.value;
     final studied =
         ref.watch(studiedListIdsProvider).valueOrNull ?? const <String>{};
     final lists =
@@ -75,17 +72,16 @@ class _FreePracticeSheetState extends ConsumerState<FreePracticeSheet> {
             (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
           );
     final selected = lists.where((list) => list.id == _listId).firstOrNull;
-    final query = (
+    final selectedDue = _source == QuizSource.allDue;
+    final selectedProvider = quizAvailabilityProvider((
       pair: widget.pair,
       source: _source,
       direction: _direction,
       listId: _source == QuizSource.list ? selected?.id : null,
-    );
-    final availability = ref.watch(quizAvailabilityProvider(query));
-    final count = availability.valueOrNull ?? 0;
-    final canStart =
-        !availability.isLoading && !availability.hasError && count > 0;
-    final limit = math.min(count, _sessionLimit);
+    ));
+    final availability = selectedDue ? due : ref.watch(selectedProvider);
+    final count = availability.isLoading ? null : availability.asData?.value;
+    final limit = count == null ? null : math.min(count, _sessionLimit);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final ink = dark ? V3Colors.light : V3Colors.ink;
     final pairLabel =
@@ -160,8 +156,12 @@ class _FreePracticeSheetState extends ConsumerState<FreePracticeSheet> {
                 children: [
                   ChoiceChip(
                     key: const ValueKey('free-practice-due'),
-                    label: Text('${'start_session.smart_due'.tr()} · $due'),
-                    selected: _source == QuizSource.allDue,
+                    label: Text(
+                      dueCount == null
+                          ? 'start_session.smart_due'.tr()
+                          : '${'start_session.smart_due'.tr()} · $dueCount',
+                    ),
+                    selected: selectedDue,
                     onSelected: (_) => setState(() {
                       _source = QuizSource.allDue;
                       _listId = null;
@@ -178,6 +178,27 @@ class _FreePracticeSheetState extends ConsumerState<FreePracticeSheet> {
                   ),
                 ],
               ),
+              if (dueCount == null) ...[
+                const SizedBox(height: 8),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    (due.isLoading
+                            ? 'v3.review_due_loading'
+                            : 'v3.review_due_error')
+                        .tr(),
+                  ),
+                ),
+                if (!due.isLoading && due.hasError)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TextButton(
+                      key: const ValueKey(WidgetKeys.reviewDueRetry),
+                      onPressed: () => ref.invalidate(dueProvider),
+                      child: Text('common.retry'.tr()),
+                    ),
+                  ),
+              ],
               if (listState.isLoading) const LinearProgressIndicator(),
               if (listState.hasError) Text('common.error'.tr()),
               for (final group in [true, false])
@@ -236,19 +257,21 @@ class _FreePracticeSheetState extends ConsumerState<FreePracticeSheet> {
                 ],
               ),
               const SizedBox(height: 20),
-              if (availability.isLoading) const LinearProgressIndicator(),
-              if (availability.hasError) ...[
+              if (!selectedDue && availability.isLoading)
+                const LinearProgressIndicator(),
+              if (!selectedDue &&
+                  !availability.isLoading &&
+                  availability.hasError) ...[
                 Text('common.error'.tr()),
                 TextButton(
-                  onPressed: () =>
-                      ref.invalidate(quizAvailabilityProvider(query)),
+                  onPressed: () => ref.invalidate(selectedProvider),
                   child: Text('common.retry'.tr()),
                 ),
-              ] else if (!availability.isLoading && count == 0)
-                Text('quiz.no_cards_available'.tr()),
+              ],
+              if (count == 0) Text('quiz.no_cards_available'.tr()),
               FilledButton(
                 key: const ValueKey('free-practice-start'),
-                onPressed: !canStart
+                onPressed: limit == null || limit == 0
                     ? null
                     : () => Navigator.pop(
                         context,
@@ -266,9 +289,11 @@ class _FreePracticeSheetState extends ConsumerState<FreePracticeSheet> {
                         ),
                       ),
                 child: Text(
-                  'start_session.start_with_count'.tr(
-                    namedArgs: {'count': '$limit'},
-                  ),
+                  limit == null
+                      ? 'start_session.start'.tr()
+                      : 'start_session.start_with_count'.tr(
+                          namedArgs: {'count': '$limit'},
+                        ),
                 ),
               ),
             ],

@@ -37,7 +37,7 @@ class AudioDirector {
 
   /// Poll cadence for the quiet checks — 100ms mirrors the historical loops.
   static const _poll = Duration(milliseconds: 100);
-  static const releaseTimeout = Duration(milliseconds: 900);
+  static const releaseTimeout = audioReleaseTimeout;
   static const _openingCueTimeout = Duration(seconds: 2);
 
   bool get isSpeaking => _audio.isSpeaking;
@@ -49,11 +49,12 @@ class AudioDirector {
     bool requirePlayback = false,
     bool Function()? keepGoing,
   }) => _playWhenReleased(
-    () => _audio.speak(
+    (isCurrent) => _audio.speak(
       text,
       langCode,
       audioPath: audioPath,
       requirePlayback: requirePlayback,
+      keepGoing: isCurrent,
     ),
     requirePlayback: requirePlayback,
     keepGoing: keepGoing,
@@ -101,11 +102,15 @@ class AudioDirector {
   }
 
   Future<void> _playWhenReleased(
-    Future<void> Function() play, {
+    Future<void> Function(bool Function()) play, {
     bool requirePlayback = false,
     bool Function()? keepGoing,
   }) async {
     final generation = _playbackGeneration;
+    bool isCurrent() =>
+        !_disposed &&
+        generation == _playbackGeneration &&
+        (keepGoing?.call() ?? true);
     try {
       final stopping = _releaseBarrier();
       if (stopping != null) await stopping;
@@ -114,13 +119,11 @@ class AudioDirector {
       sttLog('[AUDIO] playback skipped after release failure: $error');
       return;
     }
-    if (_disposed ||
-        generation != _playbackGeneration ||
-        !(keepGoing?.call() ?? true)) {
+    if (!isCurrent()) {
       if (requirePlayback) throw const AudioPlaybackCancelled();
       return;
     }
-    await play();
+    await play(isCurrent);
   }
 
   /// Stops both speech and the separate earcon player. Unlike [stop], this is
@@ -264,11 +267,13 @@ class AudioDirector {
 
   // ── Earcons / verdict sounds (step 2: SFX ownership) ───────────────────────
 
-  Future<void> playCorrect() => _playWhenReleased(_sfx.playCorrect);
-  Future<void> playIncorrect() => _playWhenReleased(_sfx.playIncorrect);
+  Future<void> playCorrect() => _playWhenReleased((_) => _sfx.playCorrect());
+  Future<void> playIncorrect() =>
+      _playWhenReleased((_) => _sfx.playIncorrect());
   Future<void> playListenCue() =>
-      _playWhenReleased(_sfx.playListenCue, requirePlayback: true);
-  Future<void> playListenDone() => _playWhenReleased(_sfx.playListenDone);
+      _playWhenReleased((_) => _sfx.playListenCue(), requirePlayback: true);
+  Future<void> playListenDone() =>
+      _playWhenReleased((_) => _sfx.playListenDone());
 
   /// Releases the audio channel to the microphone.
   ///

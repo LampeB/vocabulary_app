@@ -25,6 +25,7 @@ import '../audio/audio_provider.dart';
 import '../../../services/quiz_orchestration/audio_director.dart';
 import '../lists/vocabulary_provider.dart';
 import '../auth/auth_provider.dart';
+import 'study_day_sync_provider.dart';
 import '../../../services/audio/audio_player_service.dart';
 import '../grammar/grammar_provider.dart';
 import '../notifications/notification_provider.dart';
@@ -407,6 +408,7 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
 
     // Fetch progress entries — one or two calls depending on direction choice.
     List<VariantProgress> progressList;
+    AppException? directionFailure;
     if (args.direction == QuizDirectionChoice.both) {
       final limit = distinctCardsOnly
           ? args.cardLimit
@@ -433,10 +435,7 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
         includeScheduled: args.distinctCardsOnly,
       );
       if (!_isCurrentSession(epoch)) return;
-      if (frResult.isFailure && koResult.isFailure) {
-        _failCardLoad(epoch, frResult.exceptionOrNull);
-        return;
-      }
+      directionFailure = frResult.exceptionOrNull ?? koResult.exceptionOrNull;
       // Distinct-card sessions can fill unused places from either direction.
       progressList = interleaveAndCap(
         frResult.valueOrNull ?? [],
@@ -466,7 +465,11 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
     }
 
     if (progressList.isEmpty) {
-      state = state.copyWith(isLoading: false, isEmpty: true);
+      if (directionFailure != null) {
+        _failCardLoad(epoch, directionFailure);
+      } else {
+        state = state.copyWith(isLoading: false, isEmpty: true);
+      }
       return;
     }
 
@@ -548,6 +551,13 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
       quizCards = quizCards.take(args.cardLimit).toList();
     }
 
+    // A successful query alone does not establish that the pool was empty.
+    // Its candidates may all have been dropped while resolving word variants.
+    if (quizCards.isEmpty && directionFailure != null) {
+      _failCardLoad(epoch, directionFailure);
+      return;
+    }
+
     // Same concept, languages swapped, back-to-back ("morning" → "matin")
     // reads as an echo, not a test — keep ≥2 other cards between the two
     // directions of one concept (user report 2026-07-21).
@@ -581,6 +591,7 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
         !_kTestMode) {
       final first = quizCards.first;
       final firstLang = first.progress.direction.questionLang;
+      final faceRevision = _flashcardFaceRevision;
       unawaited(
         _director?.speak(
           first.questionWord,
@@ -589,6 +600,8 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
           keepGoing: () =>
               _isCurrentSession(epoch) &&
               _canPlay &&
+              _flashcardFaceRevision == faceRevision &&
+              state.answerState == QuizAnswerState.idle &&
               identical(state.currentCard, first),
         ),
       );
@@ -710,9 +723,12 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
     );
   }
 
+  int _flashcardFaceRevision = 0;
+
   void flipCard() {
     if (!_ownsSession) return;
     final flipped = !state.isFlipped;
+    final faceRevision = ++_flashcardFaceRevision;
     state = state.copyWith(isFlipped: flipped);
     // TTS muted in TEST_MODE — emulator audio destabilizes the E2E runner.
     if (flipped && !_kTestMode) {
@@ -729,6 +745,7 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
                 _alive &&
                 _canPlay &&
                 _lifecycleEpoch == epoch &&
+                _flashcardFaceRevision == faceRevision &&
                 state.isFlipped &&
                 identical(state.currentCard, card),
           ),
@@ -948,7 +965,7 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
   }
 
   Future<void> _onSessionComplete(QuizState completed) async {
-    if (_kTestMode || !_ownsSession) return;
+    if (_kTestMode || !_ownsSession || completed.displayTotal == 0) return;
     // A completed quiz belongs to the captured account after the screen closes.
     final args = _lastArgs!;
     final epoch = _sessionEpoch;
@@ -983,33 +1000,43 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
     final vocabulary = args.source == QuizSource.list
         ? ref.read(vocabularyRepositoryProvider)
         : null;
-    final auth = ref.read(authRepositoryProvider);
-    final profile = ref.read(authStateProvider.notifier);
+    final studySync = ref.read(studyDaySyncProvider);
+    final localStudyDay = ref.read(localStudyDayProvider(userId).notifier);
     final reminders = ref.read(notificationServiceProvider);
 
-    ref.read(localStudyDayProvider(userId).notifier).state = completedAt;
-    unawaited(
-      reminders.cancelStreakWarning().catchError((Object error) {
-        sttLog('[QUIZ] streak warning cancellation failed: $error');
-      }),
+    final recorded = await _recordSession(
+      snapshot,
+      studyDate,
+      dao,
+      progress,
+      vocabulary,
     );
-    await _recordSession(snapshot, dao, progress, vocabulary);
-    final updated = await auth.updateStreak(
-      userId: userId,
-      studyDate: studyDate,
-    );
-    if (updated.isSuccess && auth.currentUser?.id == userId) {
-      await profile.reloadProfile();
+    if (!recorded) return;
+    if (studySync.isActiveAccount(userId)) {
+      final previousDay = localStudyDay.state;
+      if (previousDay == null || studyDate.isAfter(previousDay)) {
+        localStudyDay.state = studyDate;
+      }
+      if (studyDate == civilDate(DateTime.now())) {
+        unawaited(
+          reminders.cancelStreakWarning().catchError((Object error) {
+            sttLog('[QUIZ] streak warning cancellation failed: $error');
+          }),
+        );
+      }
+      unawaited(studySync.pushPending(userId));
     }
     if (_isCurrentSession(epoch)) unawaited(_maybeRequestReview(epoch));
   }
 
-  static Future<void> _recordSession(
+  static Future<bool> _recordSession(
     QuizSessionsTableCompanion snapshot,
+    DateTime studyDate,
     QuizSessionDao dao,
     ProgressRepository progress,
     VocabularyRepository? vocabulary,
   ) async {
+    var session = snapshot;
     try {
       final list = (await vocabulary?.getListById(
         snapshot.listId.value!,
@@ -1017,15 +1044,20 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
       final mastered = await progress.getMasteredVariants(
         snapshot.userId.value,
       );
-      await dao.insertSession(
-        snapshot.copyWith(
-          listId: list == null ? null : Value(list.id),
-          listName: list == null ? null : Value(list.name),
-          masteredWordCount: Value(mastered.valueOrNull?.length ?? 0),
-        ),
+      session = snapshot.copyWith(
+        listId: list == null ? null : Value(list.id),
+        listName: list == null ? null : Value(list.name),
+        masteredWordCount: Value(mastered.valueOrNull?.length ?? 0),
       );
-    } catch (_) {
-      // Session recording is best-effort; never crash the quiz.
+    } catch (error) {
+      sttLog('[QUIZ] history metadata unavailable: $error');
+    }
+    try {
+      await dao.insertSession(session, studyDate: studyDate);
+      return true;
+    } catch (error) {
+      sttLog('[QUIZ] history and study day recording failed: $error');
+      return false;
     }
   }
 
@@ -1188,6 +1220,7 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
   }) async {
     final epoch = _lifecycleEpoch;
     final index = state.currentIndex;
+    final faceRevision = _flashcardFaceRevision;
     // Wait/speak semantics owned by AudioDirector (refactor step 1).
     await _director?.speakWhenQuiet(
       text,
@@ -1197,6 +1230,8 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
           _alive &&
           _canPlay &&
           epoch == _lifecycleEpoch &&
+          faceRevision == _flashcardFaceRevision &&
+          state.answerState == QuizAnswerState.idle &&
           state.currentIndex == index,
     );
   }

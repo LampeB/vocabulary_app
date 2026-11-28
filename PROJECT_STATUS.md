@@ -101,19 +101,19 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **1 320 tests hôte passent**, avec **76,7 %**
+- L'analyse Flutter est propre ; les **1 347 tests hôte passent**, avec **76,7 %**
   de couverture sur le dernier lot du 28 novembre. Douze tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 25 tests ciblés. La sonde compilée en mode produit confirme le
   refus des diagnostics, même avec l'option fournie.
-- Sur `f19d6b0`, les huit checks CI, dont les tests hôte, le wrapper SQL,
+- Sur `5e60e52`, les huit checks CI, dont les tests hôte, le wrapper SQL,
   Android et le simulateur iOS, sont verts. Le pont utilise le NDK 28.2 de
   l'application. Le premier cycle a atteint son plafond de vingt passes sans
   convergence. Le 28 novembre, l'utilisateur autorise le cycle 2, avec vingt
   nouvelles passes au maximum,
   des relecteurs libres d'explorer et des correcteurs chargés de chercher la
-  cause, les cas voisins et les effets de leurs changements. Les trois premières
-  passes y relèvent huit, quatre puis huit Important distincts, traités ensemble
+  cause, les cas voisins et les effets de leurs changements. Les quatre premières
+  passes y relèvent huit, quatre, huit puis dix Important distincts, traités ensemble
   après chaque collecte des quatre verdicts. Les ponts TTS mobiles ont compilé
   sur Android/iOS ; le cache partagé publie atomiquement des clips vérifiés et
   se replie sur l'appareil après libération du lecteur défaillant. Les anciens
@@ -129,18 +129,29 @@ de contenu avant bêta pédagogique.
   Les lectures de quiz attendent aussi l'arrêt actif. La leçon coréenne
   enseigne `저→제가` ; les sélecteurs utilisent les autonymes. Le garde couvre
   les suppressions et l'index Markdown ; le check manuel est distinct du push.
+  La quatrième passe étend la distinction inconnu/zéro aux pools de pratique
+  libre et aux séances partielles, et signale le défilement du configurateur.
+  Les lectures facultatives arbitrent réellement clip/synthèse et suivent la
+  face courante. SQLite 14 conserve les jours à rejouer jusqu'à ACK et les
+  éditions historiques incertaines restent visibles sans écraser le distant.
+  `app_links` possède seul les liens natifs. La migration 024 ouvre aux amis
+  confirmés la lecture des mots de leur liste ; le publieur audio exige une
+  absence Storage confirmée avant rendu payant. Les outils et règles de
+  validation sont aussi couverts par le garde documentaire.
   Le sas exige deux revues propres sur le commit final ; les verdicts et les
   checks du candidat courant sont consignés dans la PR d'intégration.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **1 320** tests hôte réussis lors de la dernière validation locale
+- La suite compte **1 347** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - Les dix-sept suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations
   réelles, dont la protection des tombstones et le test intermédiaire de fermeture
   Storage avant activation de la politique finale. Deux connexions ont
-  vérifié le verrou du reset et le refus de l'écriture concurrente. Le contrat
+  vérifié trois scénarios concurrents : reset, purge et jour étudié. La migration
+  024 et les lectures des amis sont aussi exercées après activation générée et
+  mise à niveau d'un ancien 017. Le contrat
   Patrol exige 022 et 023 et se ferme si une garde de référence ou d'écriture est
   désactivée, ou si un droit client de suppression physique est réintroduit.
   Les dix tests Python E2E, le test Node de redirection TLS, trente-et-un tests Deno, vingt-six tests du bot,

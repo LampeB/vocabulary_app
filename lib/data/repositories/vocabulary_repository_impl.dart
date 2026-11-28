@@ -89,6 +89,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         if (current.visibility != list.visibility.name ||
             current.shareToken != list.shareToken) {
           await LegacyShareReconciliation(_database).beforeSharingEdit(current);
+        } else {
+          await _listDao.captureLegacyListBase(current);
         }
         return _updateList(
           list.copyWith(
@@ -108,6 +110,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   Future<Result<VocabularyList>> renameList(String listId, String name) =>
       _write(() async {
         final list = await _requireList(listId);
+        await _listDao.captureLegacyListBase(list);
         return _updateList(list.toDomain().copyWith(name: name));
       });
 
@@ -1080,7 +1083,16 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
                 importedFromShareToken: establishedToken,
               );
             }
-            await _listDao.upsert(restored.toLocalCompanion());
+            final fields = localList == null || list.isDeleted
+                ? restored.toRemoteMap()
+                : await _listDao.retainLegacyMetadata(
+                    list.id,
+                    restored.toRemoteMap(),
+                    localList.toDomain().toRemoteMap(),
+                  );
+            await _listDao.upsert(
+              fields.toVocabularyListDomain().toLocalCompanion(),
+            );
           } else if (localList == null || localList.isDeleted) {
             continue;
           }
@@ -1090,6 +1102,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         if (list.isDeleted) {
           await _listDao.forgetSharedImportBases([list.id]);
           await _listDao.forgetLegacyShare(list.id);
+          await _listDao.forgetLegacyMetadata(list.id);
           await _conceptDao.tombstoneListContents(list.id, _userId);
           continue;
         }

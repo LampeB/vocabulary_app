@@ -36,6 +36,11 @@ La CI Ubuntu installe le hook dans un dépôt jetable et vérifie qu'un vrai
    mise à jour documentaire, dans l'index comme dans le diff de PR. Les fichiers
    supprimés ne sont pas soumis au formatage ; supprimer une ancienne donnée
    privée de la base n'est pas une nouvelle introduction de cette donnée.
+   Le même contrat couvre les outils `tool/` (approbation, déploiement et
+   validations), le pont applicatif `packages/ponderin_whisper/`, les hooks,
+   profils et skills versionnés, toute la configuration GitHub, ainsi que
+   les fichiers racine de dépendances, build, Patrol et configuration Git.
+   Une modification isolée de ces contrôles ne peut pas éviter la documentation.
    Le contrôle des liens préparés lit les blobs Markdown et les cibles de
    l'index, avec leur casse Git. Une copie de travail différente ne remplace
    pas le contenu qui sera committé ; les liens dans un sous-module sont

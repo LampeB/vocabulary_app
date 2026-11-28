@@ -13,6 +13,16 @@ L'application utilise SQLite comme source de lecture et les colonnes
   la série existante à partir de sa dernière date et de sa longueur.
   La suppression du profil, y compris lors d'un reset Patrol, efface ces
   intervalles.
+  Le bilan écrit dans une même transaction SQLite l'historique et le jour civil
+  capturé pour le compte. La fin du quiz, la connexion et le retour du réseau
+  relancent les jours en attente. Seul l'accusé de `record_study_day` clôt une
+  date ; une réponse perdue est rejouable et plusieurs quiz du même jour
+  partagent une seule entrée. Les lignes confirmées restent dédupliquées.
+  La migration SQLite 14 conserve l'historique ancien sans déduire un jour civil
+  d'un timestamp dont le fuseau d'origine n'a pas été conservé.
+  Un échec de transaction locale conserve le bilan affiché mais ne marque pas
+  le jour étudié, ne supprime pas son rappel et n'envoie pas de RPC pour une
+  persistance non confirmée. La réponse distante n'enrichit que le compte actif.
 
 - Les repositories écrivent localement. `PushSync` est le seul responsable
   des envois de listes, concepts, variantes, progression et événements.
@@ -112,6 +122,14 @@ L'application utilise SQLite comme source de lecture et les colonnes
   explicite du partage ou une suppression peut être envoyée. Si le lien a
   déjà été écrasé sur le serveur et que sa source a disparu, sa nature reste
   indéterminée.
+  La confirmation du jeton identifie la liste ; elle n'établit pas l'origine
+  de tous ses écarts de métadonnées. Avant une édition, SQLite conserve la
+  version locale de référence et calcule le patch depuis les champs modifiés.
+  Les écarts historiques sans base fiable restent visibles et conservés sur
+  l'appareil, y compris après accusé, récupération ou redémarrage, sans être
+  envoyés comme des modifications certaines. Une édition ultérieure de ces
+  champs peut être envoyée. Une base d'édition déjà connue n'est pas remplacée
+  par la dernière réponse réseau lors de la confirmation du jeton.
 - La migration locale 12 conserve une base durable pour chaque création issue
   d'un lien. Si la ligne existe déjà sur le serveur, l'envoi applique
   uniquement les champs modifiés par l'utilisateur. L'accusé reprend la
@@ -131,6 +149,11 @@ L'application utilise SQLite comme source de lecture et les colonnes
   restent permises lorsque les participants et la référence sont inchangés.
 - Une liste visible aux amis exige une amitié confirmée. Le serveur enregistre
   l'expéditeur de la demande, puis seul son destinataire peut l'accepter.
+  La migration 024 fait hériter les concepts et variantes actifs de la visibilité
+  de leur liste, avec la clé propriétaire dans chaque relation. Le retrait du
+  consentement ferme les lectures suivantes. Aucun tombstone de la branche
+  n'est visible aux tiers ; le propriétaire conserve ses lectures de
+  synchronisation. Ce partage de lecture n'accorde pas de droit d'écriture.
   L'acceptation et l'ajout de l'amitié se font dans une même transaction.
   Les amitiés historiques restent visibles dans la liste sociale. Une nouvelle
   demande acceptée est nécessaire pour leur donner accès aux listes d'amis.

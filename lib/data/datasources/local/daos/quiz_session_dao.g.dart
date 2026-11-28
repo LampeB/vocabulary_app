@@ -6,4 +6,6 @@ part of 'quiz_session_dao.dart';
 mixin _$QuizSessionDaoMixin on DatabaseAccessor<AppDatabase> {
   $QuizSessionsTableTable get quizSessionsTable =>
       attachedDatabase.quizSessionsTable;
+  $QuizStudyDaysTableTable get quizStudyDaysTable =>
+      attachedDatabase.quizStudyDaysTable;
 }

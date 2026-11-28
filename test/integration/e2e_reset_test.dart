@@ -26,8 +26,20 @@ void main() {
     await db.customStatement(
       "INSERT INTO grammar_progress (id,user_id,rule_id,created_at,updated_at) VALUES ('grammar','test','rule',0,0)",
     );
-    await db.customStatement(
-      "INSERT INTO quiz_sessions (id,user_id,list_name,mode,direction,card_count,correct_count,duration_seconds,mastered_word_count,completed_at) VALUES ('session','test','fixture','typing','frToKo',1,1,1,1,0)",
+    await db.quizSessionDao.insertSession(
+      QuizSessionsTableCompanion.insert(
+        id: 'session',
+        userId: 'test',
+        listName: 'fixture',
+        mode: 'typing',
+        direction: 'frToKo',
+        cardCount: 1,
+        correctCount: 1,
+        durationSeconds: 1,
+        masteredWordCount: 1,
+        completedAt: DateTime.utc(2026, 11, 27, 8),
+      ),
+      studyDate: DateTime.utc(2026, 11, 27),
     );
     await db.customStatement(
       "INSERT INTO review_events (id,user_id,variant_id,direction,mode,correct,rating,created_at) VALUES ('event','test','variant','fr>ko','typing',1,'good',0)",
@@ -46,6 +58,7 @@ void main() {
   test(
     'reset empties vocabulary, progress and local history with FK checks',
     () async {
+      expect(await db.quizSessionDao.pendingStudyDays('test'), ['2026-11-27']);
       await resetLocalDatabase(db);
       await resetLocalDatabase(db);
       for (final table in db.allTables) {
@@ -70,5 +83,6 @@ void main() {
         reason: table.actualTableName,
       );
     }
+    expect(await db.quizSessionDao.pendingStudyDays('test'), ['2026-11-27']);
   });
 }

@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/core/errors/app_exception.dart';
@@ -58,6 +59,7 @@ class _NoopAudio implements AudioPlayerService {
     String langCode, {
     String? audioPath,
     bool requirePlayback = false,
+    bool Function()? keepGoing,
   }) async {
     spokenPaths.add(audioPath);
     spokenWords.add(text);
@@ -78,7 +80,8 @@ class _NoopAudio implements AudioPlayerService {
 /// Serves canned due-card lists (or failures) per direction, honoring `limit`
 /// the way the real repository would.
 class _FakeProgressRepo implements ProgressRepository {
-  _FakeProgressRepo(this.responses, {this.delayed});
+  _FakeProgressRepo(this.responses, {this.delayed, this.delayedDirection});
+  final QuizDirection? delayedDirection;
   final Map<QuizDirection, Result<List<VariantProgress>>> responses;
   final Completer<void>? delayed;
 
@@ -90,10 +93,36 @@ class _FakeProgressRepo implements ProgressRepository {
     int limit = 20,
     bool includeScheduled = false,
   }) async {
-    if (listId == 'slow') await delayed?.future;
-    final r = responses[direction] ?? const Success([]);
-    if (r.isFailure) return r;
-    return Success(r.valueOrNull!.take(limit).toList());
+    final response = _response(direction, limit);
+    if (listId == 'slow' &&
+        (delayedDirection == null || delayedDirection == direction)) {
+      await delayed?.future;
+    }
+    return response;
+  }
+
+  @override
+  Future<Result<List<VariantProgress>>> getAllDueCards({
+    required String userId,
+    required QuizDirection direction,
+    String? langA,
+    String? langB,
+    int limit = 20,
+  }) async => _response(direction, limit);
+
+  @override
+  Future<Result<List<VariantProgress>>> getInProgressCards({
+    required String userId,
+    required QuizDirection direction,
+    String? langA,
+    String? langB,
+    int limit = 20,
+  }) async => _response(direction, limit);
+
+  Result<List<VariantProgress>> _response(QuizDirection direction, int limit) {
+    final result = responses[direction] ?? const Success([]);
+    if (result.isFailure) return result;
+    return Success(result.valueOrNull!.take(limit).toList());
   }
 
   @override
@@ -149,11 +178,18 @@ void main() {
   (ProviderContainer, ProviderSubscription<QuizState>) harness(
     Map<QuizDirection, Result<List<VariantProgress>>> responses, {
     Completer<void>? delayed,
+    QuizDirection? delayedDirection,
   }) {
     final container = ProviderContainer(
       overrides: [
         getDueCardsUseCaseProvider.overrideWithValue(
-          GetDueCardsUseCase(_FakeProgressRepo(responses, delayed: delayed)),
+          GetDueCardsUseCase(
+            _FakeProgressRepo(
+              responses,
+              delayed: delayed,
+              delayedDirection: delayedDirection,
+            ),
+          ),
         ),
         appDatabaseProvider.overrideWithValue(db),
         vocabularyRemoteProvider.overrideWithValue(FakeRemote()),
@@ -496,6 +532,91 @@ void main() {
       );
     },
   );
+
+  for (final source in [
+    QuizSource.list,
+    QuizSource.allDue,
+    QuizSource.inProgress,
+  ]) {
+    test(
+      'a ${source.name} direction failure leaves an otherwise empty pool unknown',
+      () async {
+        final (container, sub) = harness({
+          QuizDirection.frToKo: const Failure(StorageException('read failed')),
+          QuizDirection.koToFr: const Success([]),
+        });
+        await container
+            .read(_quiz.notifier)
+            .loadCards(
+              QuizArgs(
+                mode: QuizMode.flashcard,
+                source: source,
+                listId: source == QuizSource.list ? 'fixture' : null,
+                direction: QuizDirectionChoice.both,
+                cardLimit: 4,
+              ),
+            );
+
+        final state = sub.read();
+        expect(state.errorMessage, 'quiz.load_failed'.tr());
+        expect(state.isLoading, isFalse);
+        expect(state.isEmpty, isFalse);
+        expect(state.cards, isEmpty);
+      },
+    );
+  }
+
+  test(
+    'a direction failure still surfaces if the healthy card loses its answer',
+    () async {
+      await db.conceptDao.softDeleteVariant(frVariantId['chat']!);
+      final (container, sub) = harness({
+        QuizDirection.frToKo: const Failure(StorageException('read failed')),
+        QuizDirection.koToFr: Success([
+          _due(koVariantId['고양이']!, QuizDirection.koToFr),
+        ]),
+      });
+      await container
+          .read(_quiz.notifier)
+          .loadCards(args(direction: QuizDirectionChoice.both, cardLimit: 4));
+
+      final state = sub.read();
+      expect(state.errorMessage, 'quiz.load_failed'.tr());
+      expect(state.isEmpty, isFalse);
+      expect(state.cards, isEmpty);
+    },
+  );
+
+  test('a late partial failure cannot override a newer quiz', () async {
+    final delayed = Completer<void>();
+    final responses = <QuizDirection, Result<List<VariantProgress>>>{
+      QuizDirection.frToKo: const Failure(StorageException('read failed')),
+      QuizDirection.koToFr: const Success([]),
+    };
+    final (container, sub) = harness(
+      responses,
+      delayed: delayed,
+      delayedDirection: QuizDirection.koToFr,
+    );
+    final quiz = container.read(_quiz.notifier);
+    final oldLoad = quiz.loadCards(
+      args(direction: QuizDirectionChoice.both, listId: 'slow', cardLimit: 4),
+    );
+    await Future<void>.delayed(Duration.zero);
+    responses[QuizDirection.koToFr] = Success([
+      _due(koVariantId['고양이']!, QuizDirection.koToFr),
+    ]);
+    await quiz.loadCards(
+      args(direction: QuizDirectionChoice.koToFr, cardLimit: 1),
+    );
+    final active = sub.read();
+    expect(active.currentCard?.questionWord, '고양이');
+    delayed.complete();
+    await oldLoad;
+
+    expect(sub.read(), same(active));
+    expect(sub.read().errorMessage, isNull);
+  });
 
   test('both mode: both sides failing → error state, no session', () async {
     final (container, sub) = harness({

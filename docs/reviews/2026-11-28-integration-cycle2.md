@@ -509,3 +509,234 @@ Le commit commun rassemble les huit Important et S03, avec tous les contrats
 associés. La convergence repart à **0/2** et la prochaine passe est **4/20**
 du cycle 2, relecture cumulée 24. Les quatre nouvelles instances examinent
 le même commit avant toute nouvelle modification.
+
+## Passe 4 — `5e60e52` — relecture cumulée 24
+
+Les quatre rapports finaux portent sur
+`5e60e52ab3ada67ebc6a22bcb9e9d96b6ccb9e1a`, contre la base inchangée
+`179f9ae0b34fe7c469b73d59ee4d25ef61515f9e`. Ils sont réunis et archivés avant
+correction. Les **dix Important sont distincts**, sans Bloquant ni Suggestion.
+La convergence reste **0/2**.
+
+| Profil / instance | Verdict | Important | Suggestion |
+| --- | --- | --- | --- |
+| Produit — `/root/c2p4_product` | BLOQUÉ | 3 | 0 |
+| Qualité — `/root/c2p4_quality` | BLOQUÉ | 2 | 0 |
+| Correction — `/root/c2p4_correctness` | BLOQUÉ | 2 | 0 |
+| Sécurité — `/root/c2p4_security` | BLOQUÉ | 3 | 0 |
+
+Les huit checks de ce SHA sont verts, dont Android, iOS et le harnais JVM.
+La provenance workflow/événement/PR/tête/base est vérifiée par le validateur
+du bot. Le cas réel de C2-P3-08 est aussi exercé : push `46140638173` et
+manuel `46140639276`, tous deux verts sur ce SHA, avec un ID de check manuel
+plus récent. `Manual / test` ne masque pas `test` et le validateur retient les
+huit bons checks. La preuve factuelle est archivée avec les rapports locaux.
+Le workflow `test.yml` est enregistré dans GitHub Actions bien qu'absent du
+`main` courant ; sa dispatch réelle a réussi. La procédure du premier bot
+d'approbation reste distincte : son workflow permanent exige le ref `main`
+et son script n'y est pas encore présent.
+
+| Identifiant | Type | Constat |
+| --- | --- | --- |
+| C2-P4-01 | Important | La pratique libre transforme encore un échec du pool dû en zéro et masque sa relance si une autre source est sélectionnée |
+| C2-P4-02 | Important | Une lecture de sens échouée et l'autre vide donnent un faux état « aucune carte » |
+| C2-P4-03 | Important | Le configurateur de leçon déborde sans signal de défilement à texte doublé |
+| C2-P4-04 | Important | Un jour étudié hors ligne n'est pas rejoué après échec de sa RPC malgré l'historique SQLite conservé |
+| C2-P4-05 | Important | Une lecture facultative acquittée peut chevaucher l'autre lecteur ; sa préparation peut survivre à une carte périmée |
+| C2-P4-06 | Important | La preuve d'une publication historique est utilisée comme nouvelle base d'édition et transforme des écarts distants en modifications locales |
+| C2-P4-07 | Important | L'embedding Android et app_links délivrent tous deux l'URI à chaud, remplaçant l'import par une route inconnue |
+| C2-P4-08 | Important | Les outils d'approbation/déploiement et le pont natif échappent au garde documentaire |
+| C2-P4-09 | Important | Un ami confirmé peut lire la liste réservée aux amis, mais pas ses concepts et variantes |
+| C2-P4-10 | Important | Le publieur de seed traite une panne Storage comme absence et lance un rendu facturé |
+
+### C2-P4-01 à C2-P4-03 — même invariant au-delà d'un provider
+
+La pratique libre consomme un snapshot de pools différent du compteur des
+quatre écrans corrigés précédemment. Le badge et la quantité de départ
+distinguent maintenant échec, chargement et zéro confirmé ; une relance reste
+près de la source en échec sans rendre l'autre source indisponible.
+
+Le chargeur conserve les cartes du sens sain. Si aucune carte jouable ne
+subsiste après enrichissement et qu'une lecture a échoué, il rend l'erreur
+localisée. Les cas liste, dû et apprentissage, cartes retirées pendant
+l'enrichissement Drift, deux échecs, un seul échec, vrai vide et ancienne
+séance périmée sont exercés. L'ordre des lectures d'enrichissement existant
+est conservé après la détection d'un effet voisin par les tests du quiz.
+
+Le configurateur utilise le signal commun de défilement. Le vrai lecteur de
+la règle `fr-present-er` ouvre le configurateur à 568 × 320, texte doublé,
+avec signal visible à l'offset zéro ; le test défile jusqu'à la quantité et
+lance le quiz avec les bons arguments. Les trois locales sont vérifiées.
+Le vrai asset est parsé avant le montage pour éviter une attente d'I/O sous
+l'horloge simulée. Les **196 tests ciblés** passent avec analyse des six
+fichiers concernés propre. Aucun nouveau minimum ou prérequis n'est ajouté.
+
+### C2-P4-04 — jour civil durable et reprise
+
+La tentative de RPC isolée est remplacée par une file SQLite v14 par compte
+et jour civil capturé. Historique et jour sont validés dans la même transaction.
+La complétion, le démarrage connecté et la reconnexion partagent le drainage.
+Seul le succès de la RPC idempotente confirme la ligne, conservée pour éviter
+qu'un second quiz du même jour ne la recrée. Une réponse perdue est rejouable.
+Le profil est rafraîchi séparément et seulement pour le compte actif.
+
+La date textuelle ne dépend pas du fuseau au moment de la reprise. L'ancien
+historique est conservé sans inventer son jour civil d'origine. Si la transaction
+locale échoue, le score valide reste affiché mais aucun marqueur local, retrait
+de rappel ou envoi distant n'annonce une persistance réussie. Aucun nouveau
+parcours de résolution d'erreur n'est introduit.
+Les **209 tests ciblés** passent : vraie réouverture SQLite v13→v14, reprise
+initiale et reconnexion du shell de production, rollback SQL, vocabulaire et
+grammaire, minuit/DST, déduplication avant/pendant/après ACK, réponse perdue
+suivie d'une nouvelle journée, changement de compte et échec du profil après
+ACK. Deux anciennes fixtures de reconnexion injectent désormais leur base
+mémoire pour cette nouvelle dépendance au stockage. L'analyse des douze
+fichiers et le diff sont propres. Les transports sont simulés ; aucune
+validation hébergée ni chronométrie native n'est revendiquée.
+La première suite globale révèle une fixture de reset sans ligne dans la
+nouvelle table. Elle crée désormais historique et jour via le DAO de production.
+Les **onze tests** reset/scénarios/jours passent : double reset vide toutes les
+tables ; un refus tardif restaure toutes les lignes et la date exacte en
+attente. Le reset applicatif parcourt déjà chaque table dans une transaction
+et ne nécessite pas de réécriture. L'analyse ciblée et le diff repassent.
+
+### C2-P4-05 — possession réelle de la sortie et face courante
+
+Une lecture facultative déjà acquittée ne représentait plus une opération
+pendante pour le directeur, mais son clip jouait encore. Le service attribue
+une seule possession de la sortie jusqu'à confirmation de l'arrêt. La lecture
+valide suivante la reprend, y compris clip↔synthèse. Un refus peut être retenté
+et une attente expirée conserve la même confirmation native pendante.
+
+La validité traverse cache, débit de parole, préparation et lancement natif.
+Une ancienne réponse de cache ne retire pas le lecteur plus récent. Une
+révision de face complète les gardes de carte, séance et compte : elle annule
+aussi une question attendant le silence quand la même carte est retournée.
+L'ACK de démarrage facultatif et l'attente complète du prompt requis restent
+distincts. La Suggestion historique S02 sur l'erreur tardive après ACK reste
+conservée avec son type.
+
+Les **245 tests ciblés** passent, dont canaux de méthode avec suivi indépendant
+des deux lecteurs actifs, refus d'arrêt, attente expirée puis confirmation,
+préparation périmée avec ou sans propriétaire plus récent, et attente de
+silence suivie d'un flip. L'analyse des treize fichiers et le diff sont propres.
+Ces preuves sont sur hôte avec canaux simulés, sans lecture sur appareil.
+
+### C2-P4-06 — identité du lien et provenance des éditions
+
+La confirmation propriétaire/UUID/jeton identifie une publication mais
+n'établit pas quels champs ont été modifiés localement. Le rapprochement
+conserve la base d'édition connue et capture l'état précédant les éditions
+suivantes. Les patches reprennent ces seules modifications. Un écart historique
+sans base fiable reste visible dans la ligne locale et retenu durablement ;
+les accusés et pulls ne l'effacent pas et il n'est pas envoyé spontanément.
+
+La sonde initiale changeait l'UUID après migration et orphelinait son marqueur
+de retenue. Elle reste archivée intacte. La sonde corrigée place le vrai UUIDv4
+dans le DDL v2 avant migration, vérifie son marqueur puis la requête PATCH.
+Elle reproduit l'écrasement sur `5e60e52`, puis passe après correction : seuls
+nom et date d'édition sont envoyés, la nouvelle description distante reste
+intacte, l'ancienne description incertaine reste visible localement et le
+jeton public est restauré. Les mêmes attentes distantes sont conservées ;
+aucun type de constat n'est rétrogradé pour compenser la fixture.
+
+Les cas de base v13 non fiable après redémarrage disque, vraie base avant
+édition d'une copie du même propriétaire, modification pendant l'accusé,
+changement de confidentialité et remplacement de partage sont exercés.
+Les **119 tests ciblés** passent sur sept suites, dont quatorze cas de
+migration, puis la sonde corrigée passe aussi. La batterie examine aussi les
+comptes/namespace, FSRS, starters, le rafraîchissement du cache de nombre de mots,
+la révocation, la nouvelle publication et la suppression. L'analyse des cinq
+fichiers et le diff sont propres. Les métadonnées distantes déjà écrasées par
+un ancien build restent irrécupérables sans source ; les tests n'utilisent ni
+Supabase hébergé ni appareil.
+
+### C2-P4-07 — entrée native unique
+
+Les deux embeddings mobiles désactivent leur navigation automatique pour les
+liens confiés à `app_links`, conformément aux exemples de la version 6.4.1
+verrouillée. Les réglages originaux Android et iOS échouent chacun au contrôle
+structurel, puis les sources corrigées passent. La CI vérifie aussi les vrais
+manifests fusionnés Debug/Profile et l'Info.plist compilé ; cette nouvelle
+preuve de compilation appartient au prochain SHA, pas aux builds verts du
+parent.
+
+Le test du vrai `PonderinApp` délivre l'enveloppe EventChannel native au plateau,
+attend le détail importé, puis utilise son bouton Retour vers le plateau.
+Les **dix tests** application/auth/import et **quatre tests** de dispatch
+passent, avec analyse ciblée propre. Un premier lancement mentionnait un
+chemin de test inexistant ; les commandes corrigées passent. Le contrôle
+structurel et cette simulation ne sont pas présentés comme un essai natif.
+Les tâches Gradle `processDebugMainManifest`, `processDebugManifestForPackage`
+et `processProfileMainManifest` réussissent localement. Le contrôle des vrais
+manifests Debug/Profile fusionnés et empaquetés passe. L'Info.plist iOS source
+est vérifié ; son artefact compilé reste à vérifier dans la CI du prochain SHA.
+
+### C2-P4-08 — périmètre des outils de livraison
+
+Le garde couvre désormais `tool/`, le pont `packages/ponderin_whisper/`, les
+hooks, les profils et skills versionnés, toute la configuration GitHub et les
+fichiers racine de dépendances, build, Patrol et configuration Git. Les tests
+modifient des chemins existants, vérifient leur refus sans documentation dans
+l'index et la PR, puis leur acceptation avec documentation. Les **14 tests**
+passent. La fixture de suppression d'un ancien corpus ajoute aussi un document
+puisque `tool/` est couvert ; l'interdiction des nouvelles introductions de
+données privées reste inchangée.
+
+### C2-P4-09 — visibilité héritée et vraie base PostgreSQL
+
+La migration additive 024 fait hériter la lecture des concepts et variantes
+actifs de celle du parent, via les clés qualifiées par propriétaire et les
+politiques RLS existantes. Les droits d'écriture ne changent pas. Le
+propriétaire conserve les tombstones nécessaires à sa synchronisation.
+
+Le cas avant migration échoue réellement sous PostgreSQL 16.11 : l'ami
+confirmé attend les mots `friend` et `public` mais ne reçoit que `public`.
+Après migration, les **17 suites SQL**, **trois scénarios concurrents à deux
+connexions**, l'activation générée et la mise à niveau d'un ancien 017 passent.
+La fixture couvre comptes anonyme/tiers, demandes pendantes ou refusées,
+retrait du consentement, listes privées, suppressions et collision d'UUID
+entre propriétaires. Les lectures partagées sont vérifiées aussi après
+l'activation générée et l'ancienne mise à niveau.
+
+La CI et le générateur d'activation incluent 024. Les **dix tests Python E2E**,
+actionlint et le diff passent. Le contrat de reset demeure celui de 023.
+La base jetable locale est arrêtée proprement après les essais ; aucun
+Supabase hébergé n'est modifié.
+
+### C2-P4-10 — présence confirmée avant dépense
+
+Le publieur et le provisionnement utilisateur partagent le même contrôle de
+métadonnées Storage. Seul un `NoSuchKey` qualifié autorise un rendu. Un 503,
+un 404 sans ce code, un autre refus ou une panne de transport marque l'entrée
+en échec sans TTS, upload ou manifeste. Une autre entrée dont l'absence est
+confirmée avance normalement. Un objet présent retrouve son manifeste sans
+régénération ; les uploads restent immuables.
+
+Les **27 tests ciblés** avec le vrai SDK et HTTP simulé passent, puis les
+**39 tests Edge** complets et la préparation des **sept bundles gelés** avec
+sonde hors réseau passent. Aucun nouvel import de dépendance ni changement de
+verrou n'est nécessaire. Aucun appel fournisseur réel ni déploiement n'est fait.
+
+### Validation commune après la passe 4
+
+Les **1 347 tests hôte** passent, avec douze diagnostics positifs exclus sans
+opt-in et **76,7 %** de couverture (15 428 / 20 122 lignes). L'analyse Flutter
+complète est propre ; les 25 diagnostics ciblés passent avec opt-in, avec le
+test de refus de l'autre configuration exclu. La suite complète et l'analyse
+sont réexécutées après correction de la fixture de reset mentionnée ci-dessus.
+Les fichiers Dart partagés ont été formatés après gel de tous les correcteurs.
+
+Les quatorze tests du garde, les 39 tests et sept bundles Edge, les 17 suites
+SQL et trois scénarios concurrents, les dix tests Python E2E, actionlint, le
+garde de licence et le contrôle des manifests Android fusionnés/empaquetés
+passent. Les suites ciblées se recouvrent et ne sont pas additionnées.
+La nouvelle vérification de l'Info.plist iOS compilé appartient à la CI du
+nouveau SHA. Aucun test physique, déploiement Supabase ou appel fournisseur
+réel n'est revendiqué.
+
+Le commit commun rassemble les dix Important et les contrats associés.
+La convergence repart à **0/2** et la prochaine passe est **5/20** du cycle 2,
+relecture cumulée 25. Les quatre nouvelles instances relisent le même commit
+avant toute nouvelle modification. Le cycle 3 reste soumis à une décision
+explicite ; le plafond du cycle courant reste vingt passes.

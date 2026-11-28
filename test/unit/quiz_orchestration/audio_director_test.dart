@@ -46,6 +46,7 @@ class _FakeAudio implements AudioPlayerService {
     String langCode, {
     String? audioPath,
     bool requirePlayback = false,
+    bool Function()? keepGoing,
   }) async {
     spoken.add('$text|$langCode');
     spokenPaths.add(audioPath);

@@ -46,7 +46,11 @@ class _FakeTts implements DeviceSpeech {
   Completer<void>? disposalGate;
 
   @override
-  Future<void> speak(String text, String langCode) async {
+  Future<void> speak(
+    String text,
+    String langCode, {
+    bool Function()? keepGoing,
+  }) async {
     spoken.add('$text|$langCode');
     if (refuseSpeech) throw TtsRejected('speak', langCode);
   }
@@ -88,7 +92,11 @@ class _FakeFilePlayer implements FileAudioPlayer {
   }
 
   @override
-  Future<void> playFile(String path, {bool waitForCompletion = false}) async {
+  Future<void> playFile(
+    String path, {
+    bool waitForCompletion = false,
+    bool Function()? keepGoing,
+  }) async {
     played.add(path);
     playing = true;
     if (rejectClip) throw PlatformException(code: 'UnreadableClip');
@@ -246,6 +254,202 @@ void main() {
     await speaking;
     expect(returned, isTrue);
   });
+
+  test(
+    'optional clips and speech share one acknowledged native owner',
+    () async {
+      const codec = StandardMethodCodec();
+      const global = MethodChannel('xyz.luan/audioplayers.global');
+      const globalEvents = MethodChannel('xyz.luan/audioplayers.global/events');
+      const player = MethodChannel('xyz.luan/audioplayers');
+      const tts = MethodChannel('vocab_kr/device_speech');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final events = <String, MethodChannel>{};
+      final clips = <String, String>{};
+      final starts = <String>[];
+      final stoppedPlayers = <String>[];
+      final fileStop = Completer<void>();
+      final fileStopSent = Completer<void>();
+      final ttsStarted = Completer<void>();
+      final ttsStopSent = Completer<void>();
+      final ttsStop = Completer<int>();
+      final ttsCompleted = Completer<int>();
+      final prepareSent = Completer<void>();
+      final prepare = Completer<void>();
+      String? playingClip;
+      var ttsPlaying = false;
+      var refuseFileStop = true;
+      Future<void> prepared(String id) => messenger.handlePlatformMessage(
+        events[id]!.name,
+        codec.encodeSuccessEnvelope({
+          'event': 'audio.onPrepared',
+          'value': true,
+        }),
+        null,
+      );
+      messenger.setMockMethodCallHandler(global, (_) async => null);
+      messenger.setMockMethodCallHandler(globalEvents, (_) async => null);
+      messenger.setMockMethodCallHandler(player, (call) async {
+        final id = call.arguments['playerId'] as String;
+        switch (call.method) {
+          case 'create':
+            final channel = events[id] = MethodChannel(
+              'xyz.luan/audioplayers/events/$id',
+            );
+            messenger.setMockMethodCallHandler(channel, (_) async => null);
+          case 'setSourceUrl':
+            final path = clips[id] = call.arguments['url'] as String;
+            if (path == '/cache/preparing.mp3') {
+              prepareSent.complete();
+              await prepare.future;
+            }
+            await prepared(id);
+          case 'getCurrentPosition':
+            return 0;
+          case 'resume':
+            expect(ttsPlaying, isFalse);
+            expect(playingClip, isNull);
+            playingClip = id;
+            starts.add(clips[id]!);
+          case 'stop':
+            stoppedPlayers.add(id);
+            if (id == playingClip && clips[id] == '/cache/question.mp3') {
+              if (refuseFileStop) throw PlatformException(code: 'StopRefused');
+              fileStopSent.complete();
+              await fileStop.future;
+            }
+            if (id == playingClip) playingClip = null;
+        }
+        return null;
+      });
+      messenger.setMockMethodCallHandler(tts, (call) async {
+        if (call.method == 'speak') {
+          expect(playingClip, isNull);
+          ttsPlaying = true;
+          starts.add(call.arguments['text'] as String);
+          ttsStarted.complete();
+          return ttsCompleted.future;
+        }
+        if (call.method == 'stop' && ttsPlaying) {
+          ttsStopSent.complete();
+          final accepted = await ttsStop.future;
+          if (accepted == 1) ttsPlaying = false;
+          return accepted;
+        }
+        return 1;
+      });
+      addTearDown(() {
+        for (final channel in [
+          global,
+          globalEvents,
+          player,
+          tts,
+          ...events.values,
+        ]) {
+          messenger.setMockMethodCallHandler(channel, null);
+        }
+      });
+
+      const deadline = Duration(seconds: 2);
+      final cache = _FakeCache(path: '/cache/question.mp3');
+      final audio = AudioPlayerService(
+        usePremium: true,
+        assetCache: cache,
+        tts: FlutterTtsService(mobileChannel: tts),
+      );
+      final director = AudioDirector(audio);
+      await director
+          .speak('question', 'fr', audioPath: 'question.mp3')
+          .timeout(deadline);
+      final oldPlayer = playingClip!;
+      expect(audio.isSpeaking, isTrue);
+      cache.path = null;
+      await director
+          .speak('refused', 'ko', audioPath: 'answer.mp3')
+          .timeout(deadline);
+      expect(starts, ['/cache/question.mp3']);
+      expect(playingClip, oldPlayer);
+
+      refuseFileStop = false;
+      final expired = director.speak('expired', 'ko', audioPath: 'answer.mp3');
+      await fileStopSent.future.timeout(deadline);
+      await expired.timeout(deadline);
+      final speech = director.speak('answer', 'ko', audioPath: 'answer.mp3');
+      await Future<void>.delayed(Duration.zero);
+      expect(ttsStarted.isCompleted, isFalse);
+      expect(stoppedPlayers, [oldPlayer, oldPlayer]);
+      fileStop.complete();
+      await ttsStarted.future.timeout(deadline);
+      expect(starts, ['/cache/question.mp3', 'answer']);
+
+      cache.path = '/cache/next.mp3';
+      final next = director.speak('next', 'fr', audioPath: 'next.mp3');
+      await ttsStopSent.future.timeout(deadline);
+      expect(playingClip, isNull);
+      ttsStop.complete(1);
+      await next.timeout(deadline);
+      await speech.timeout(deadline);
+      final currentPlayer = playingClip!;
+      expect(currentPlayer, isNot(oldPlayer));
+      ttsCompleted.complete(0);
+      expect(starts, ['/cache/question.mp3', 'answer', '/cache/next.mp3']);
+
+      cache.path = '/cache/preparing.mp3';
+      var cardCurrent = true;
+      final preparing = director.speak(
+        'preparing',
+        'fr',
+        audioPath: 'preparing.mp3',
+        keepGoing: () => cardCurrent,
+      );
+      await prepareSent.future.timeout(deadline);
+      cardCurrent = false;
+      prepare.complete();
+      await preparing.timeout(deadline);
+      expect(starts, ['/cache/question.mp3', 'answer', '/cache/next.mp3']);
+      expect(stoppedPlayers.where((id) => id == currentPlayer), hasLength(1));
+      director.dispose();
+      audio.dispose();
+      await audio.stop().timeout(deadline);
+    },
+  );
+
+  for (final newerOwner in [false, true]) {
+    test(
+      'optional cache reply respects card invalidation (new owner: $newerOwner)',
+      () async {
+        final download = Completer<String?>();
+        final cache = _FakeCache()..pendingDownload = download;
+        final file = _FakeFilePlayer();
+        final director = AudioDirector(
+          service(premium: true, cache: cache, player: file),
+        );
+        var current = true;
+        final old = director.speak(
+          'ancien',
+          'fr',
+          audioPath: 'ancien.mp3',
+          keepGoing: () => current,
+        );
+        expect(cache.requested, ['ancien.mp3']);
+        current = false;
+        if (newerOwner) {
+          cache
+            ..pendingDownload = null
+            ..path = '/cache/actuel.mp3';
+          await director.speak('actuel', 'fr', audioPath: 'actuel.mp3');
+        }
+
+        download.complete('/cache/ancien.mp3');
+        await old;
+        expect(file.played, newerOwner ? ['/cache/actuel.mp3'] : isEmpty);
+        expect(file.isPlaying, newerOwner);
+        expect(file.stopped + file.releases, 0);
+        director.dispose();
+      },
+    );
+  }
 
   test(
     'a cached player releases audio before retrying final native cleanup',

@@ -25,6 +25,7 @@ for name in (
     '021_friendship_consent.sql',
     '022_study_days.sql',
     '023_purge_catalog_identity.sql',
+    '024_vocabulary_content_visibility.sql',
 ):
     print(f'\n-- {name}')
     for line in (root / 'supabase/migrations' / name).read_text(encoding='utf-8').splitlines():

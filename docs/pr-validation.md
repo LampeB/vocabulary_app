@@ -207,11 +207,13 @@ même commit.
 
 ### Première activation
 
-Avant la première fusion, `approve-validated-pr.yml` est absent de la branche
-par défaut. GitHub exige un fichier déjà présent sur cette branche pour recevoir
-`workflow_dispatch`. Pour ce premier passage uniquement, utiliser le chemin
-du [workflow E2E existant](../.github/workflows/e2e.yml) sur une branche
-d'exploitation temporaire. Voir la [condition de déclenchement GitHub](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch).
+Avant la première fusion, le workflow permanent et son script revu sont absents
+de `main`. Ce workflow exige `refs/heads/main` et charge le script de son propre
+commit ; le lancer depuis l'intégration ne satisfait pas ce garde. Pour ce premier
+passage uniquement, utiliser le chemin du
+[workflow E2E existant](../.github/workflows/e2e.yml), déjà enregistré dans
+GitHub Actions, sur une branche d'exploitation temporaire. Les étapes ci-dessous
+bornent cette exception au commit d'exploitation explicitement vérifié.
 
 1. Créer `ops/bootstrap-pr-approval` depuis le SHA exact de `main` attesté dans
    la preuve. Ce commit d'exploitation contient uniquement le script
@@ -260,6 +262,8 @@ exige :
 - un audit `zizmor` de tous les workflows, avec actions épinglées par SHA ;
 - une compilation Android intégrant le moteur natif Whisper épinglé et la
   résolution du manifeste Profile, dont le libellé est défini par défaut ;
+  le contrôle des manifests fusionnés Debug/Profile confirme que seul
+  `app_links` traite les URI personnalisées, avec le schéma existant préservé ;
 - cinq scénarios JVM du vrai pont TTS Android, avec SDK/canal contrôlés :
   refus d'arrêt, absence de confirmation, relance, événements périmés,
   initialisation et propriétaire/moteur. Le lanceur
@@ -267,6 +271,7 @@ exige :
   compilateur de la distribution Gradle épinglée après le build Android ;
 - une compilation debug pour le simulateur iOS sur macOS, sans signature, sans
   secrets de projet et sans publication de binaire ;
+  l'Info.plist compilé confirme la même propriété exclusive des liens ;
 - un contrôle de la frontière de licence Whisper et des tests des fonctions
   cloud/quota sur une base PostgreSQL jetable.
 Ce dernier contrôle applique aussi les migrations de production de sécurité.

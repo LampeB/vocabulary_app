@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/native.dart';
@@ -10,11 +11,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vocab_kr/core/languages.dart';
+import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
+import 'package:vocab_kr/data/datasources/local/daos/progress_dao.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
 import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
+import 'package:vocab_kr/domain/entities/variant_progress.dart';
 import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart'
     show QuizSource;
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
@@ -26,6 +30,34 @@ import 'package:vocab_kr/domain/entities/word_variant.dart';
 import 'package:vocab_kr/presentation/widgets/free_practice_sheet.dart';
 import '../../helpers/pump_screen.dart';
 import '../../helpers/fake_remote.dart';
+
+class _AvailabilityDao implements ProgressDao {
+  final dueRequests = <(String, String, String, List<QuizDirection>)>[];
+  final dueStreams = <StreamController<int>>[];
+  var inProgressRequests = 0;
+
+  @override
+  Stream<int> watchSmartQuizCardCount({
+    required String userId,
+    required List<QuizDirection> directions,
+    required SmartQuizPool pool,
+    required String langA,
+    required String langB,
+    Duration refreshEvery = const Duration(minutes: 1),
+  }) {
+    if (pool == SmartQuizPool.inProgress) {
+      inProgressRequests++;
+      return Stream.value(3);
+    }
+    dueRequests.add((userId, langA, langB, directions));
+    final stream = StreamController<int>();
+    dueStreams.add(stream);
+    return stream.stream;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   final copies = <String, Map<String, dynamic>>{};
@@ -134,6 +166,142 @@ void main() {
         expect(args!.listId, listId);
         expect(tester.takeException(), isNull);
         await unmountScreen(tester);
+      },
+    );
+  }
+
+  for (final locale in ['fr', 'en', 'ko']) {
+    testWidgets(
+      'a failed due count can be retried with another source selected in $locale',
+      (tester) async {
+        final copy = copies[locale]!;
+        final translations = Translations(copy);
+        Localization.load(
+          Locale(locale),
+          translations: translations,
+          fallbackTranslations: translations,
+        );
+        addTearDown(initTestLocalization);
+        final dao = _AvailabilityDao();
+        QuizArgs? args;
+        await pumpScreen(
+          tester,
+          screen: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () =>
+                    showFreePracticeSheet(context, pair: ('en', 'ko')),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+          overrides: [
+            myListsProvider.overrideWith((ref) => Stream.value([])),
+            studiedListIdsProvider.overrideWith((ref) => Stream.value({})),
+            currentUserProvider.overrideWithValue(
+              AppUser(
+                id: 'u',
+                email: 'u@example.test',
+                username: 'u',
+                createdAt: DateTime(2026),
+              ),
+            ),
+            progressDaoProvider.overrideWithValue(dao),
+          ],
+          routes: [
+            GoRoute(
+              path: '/quiz',
+              builder: (_, state) {
+                args = state.extra! as QuizArgs;
+                return const Scaffold();
+              },
+            ),
+          ],
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        final due = find.byKey(const ValueKey('free-practice-due'));
+        final start = find.byKey(const ValueKey('free-practice-start'));
+        final retry = find.byKey(const ValueKey(WidgetKeys.reviewDueRetry));
+        final empty = find.text(copy['quiz.no_cards_available'] as String);
+        final loading = find.text(copy['v3.review_due_loading'] as String);
+        final error = find.text(copy['v3.review_due_error'] as String);
+        final dueTitle = copy['start_session.smart_due'] as String;
+        String? label() => (tester.widget<ChoiceChip>(due).label as Text).data;
+        bool canStart() => tester.widget<FilledButton>(start).onPressed != null;
+        expect(label(), dueTitle);
+        expect(loading, findsOneWidget);
+        expect(empty, findsNothing);
+        expect(retry, findsNothing);
+        expect(canStart(), isFalse);
+        expect(
+          find.descendant(
+            of: start,
+            matching: find.text(copy['start_session.start'] as String),
+          ),
+          findsOneWidget,
+        );
+
+        dao.dueStreams.single.add(0);
+        await tester.pumpAndSettle();
+        expect(label(), '$dueTitle · 0');
+        expect(empty, findsOneWidget);
+        expect(canStart(), isFalse);
+
+        dao.dueStreams.single.addError(
+          StateError('controlled due read failure'),
+        );
+        await tester.pumpAndSettle();
+        expect(label(), dueTitle);
+        expect(error, findsOneWidget);
+        expect(empty, findsNothing);
+        expect(canStart(), isFalse);
+
+        final other = find.byKey(const ValueKey('free-practice-in-progress'));
+        await tester.ensureVisible(other);
+        await tester.tap(other);
+        await tester.pumpAndSettle();
+        expect(error, findsOneWidget);
+        expect(label(), dueTitle);
+        expect(canStart(), isTrue);
+        expect(
+          find.descendant(
+            of: retry,
+            matching: find.text(copy['common.retry'] as String),
+          ),
+          findsOneWidget,
+        );
+
+        await tester.ensureVisible(retry);
+        await tester.tap(retry);
+        await tester.pumpAndSettle();
+        expect(dao.dueRequests, hasLength(2));
+        for (final (user, base, target, directions) in dao.dueRequests) {
+          expect((user, base, target), ('u', 'en', 'ko'));
+          expect(directions, [
+            const QuizDirection(questionLang: 'en', answerLang: 'ko'),
+            const QuizDirection(questionLang: 'ko', answerLang: 'en'),
+          ]);
+        }
+        expect(dao.inProgressRequests, 1);
+        expect(label(), dueTitle);
+        expect(loading, findsOneWidget);
+        expect(canStart(), isTrue);
+
+        dao.dueStreams.last.add(2);
+        await tester.pumpAndSettle();
+        expect(label(), '$dueTitle · 2');
+        expect(retry, findsNothing);
+        await tester.ensureVisible(start);
+        await tester.tap(start);
+        await tester.pumpAndSettle();
+        expect(args?.source, QuizSource.inProgress);
+        expect(args?.cardLimit, 3);
+        await unmountScreen(tester);
+        for (final stream in dao.dueStreams) {
+          unawaited(stream.close());
+        }
       },
     );
   }

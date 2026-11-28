@@ -1,5 +1,7 @@
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
 
+const audioReleaseTimeout = Duration(milliseconds: 900);
+
 /// An interrupted required playback cannot confirm that the learner heard it.
 class AudioPlaybackCancelled implements Exception {
   const AudioPlaybackCancelled();
@@ -17,7 +19,11 @@ abstract interface class AudioAssetCache {
 
 /// Device text-to-speech surface used when a rendered clip is unavailable.
 abstract interface class DeviceSpeech {
-  Future<void> speak(String text, String langCode);
+  Future<void> speak(
+    String text,
+    String langCode, {
+    bool Function()? keepGoing,
+  });
   Future<void> warmUp(String langCode);
   Future<void> stop();
   bool get isSpeaking;
@@ -27,7 +33,11 @@ abstract interface class DeviceSpeech {
 /// Local file player surface for pre-rendered audio assets.
 abstract interface class FileAudioPlayer {
   Future<void> setPlaybackRate(double rate);
-  Future<void> playFile(String path, {bool waitForCompletion = false});
+  Future<void> playFile(
+    String path, {
+    bool waitForCompletion = false,
+    bool Function()? keepGoing,
+  });
   Future<void> stop();
   Future<PlayerState> get state;
   bool get isPlaying;

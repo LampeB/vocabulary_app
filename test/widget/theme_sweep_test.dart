@@ -78,6 +78,7 @@ class _NoopAudio implements AudioPlayerService {
     String langCode, {
     String? audioPath,
     bool requirePlayback = false,
+    bool Function()? keepGoing,
   }) async {}
   @override
   Future<void> retryDisposal() => stop();

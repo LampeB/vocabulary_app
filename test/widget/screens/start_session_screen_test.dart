@@ -882,6 +882,136 @@ void main() {
     expect(capturedArgs?.langB, 'fr');
   });
 
+  for (final locale in ['fr', 'en', 'ko']) {
+    testWidgets(
+      'the lesson configurator signals overflow and can launch in $locale',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({
+          'settings_default_lang_a': 'ko',
+          'settings_default_lang_b': 'fr',
+        });
+        final raw = (await tester.runAsync(
+          () => rootBundle.loadString('assets/translations/$locale.json'),
+        ))!;
+        final translations = Translations(
+          jsonDecode(raw) as Map<String, dynamic>,
+        );
+        Localization.load(
+          Locale(locale),
+          translations: translations,
+          fallbackTranslations: translations,
+        );
+        addTearDown(initTestLocalization);
+        tester.platformDispatcher.textScaleFactorTestValue = 2;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        const ruleId = 'fr-present-er';
+        final asset = (await tester.runAsync(
+          () => rootBundle.loadString('assets/seed/grammar/fr/rules.json'),
+        ))!;
+        final entries =
+            (jsonDecode(asset) as Map<String, dynamic>)['rules'] as List;
+        final rule = entries
+            .map((entry) => GrammarRule.fromJson(entry as Map<String, dynamic>))
+            .singleWhere((entry) => entry.id == ruleId);
+        QuizArgs? directArgs;
+        await pumpScreen(
+          tester,
+          screen: const GrammarLessonScreen(ruleId: ruleId),
+          overrides: [
+            myListsProvider.overrideWith((ref) => Stream.value([])),
+            grammarRulesProvider.overrideWith(
+              (ref, language) async => language == 'fr' ? [rule] : [],
+            ),
+            ruleStatusesProvider.overrideWith(
+              (ref, language) async => [
+                if (language == 'fr')
+                  RuleStatus(
+                    rule: rule,
+                    availability: RuleAvailability.unlocked,
+                    missingLists: const [],
+                    enoughWords: true,
+                    correct: 0,
+                  ),
+              ],
+            ),
+          ],
+          routes: [
+            GoRoute(
+              path: '/start-session-grammar',
+              builder: (_, state) => StartSessionScreen(
+                grammar: true,
+                initialRuleId: state.uri.queryParameters['rule'],
+                initialLangA: state.uri.queryParameters['langA'],
+                initialLangB: state.uri.queryParameters['langB'],
+              ),
+            ),
+            GoRoute(
+              path: '/quiz',
+              builder: (_, state) {
+                directArgs = state.extra as QuizArgs;
+                return const Scaffold();
+              },
+            ),
+          ],
+        );
+        tester.view.physicalSize = const Size(568, 320);
+        tester.view.devicePixelRatio = 1;
+        await tester.pumpAndSettle();
+        await tapKey(tester, WidgetKeys.grammarLessonPractice);
+
+        final setup = byKey(WidgetKeys.screenStartSession);
+        final cue = find.descendant(
+          of: setup,
+          matching: find.text('v3.scroll_hint'.tr()),
+        );
+        expect(cue, findsOneWidget);
+        expect(
+          tester
+              .widget<AnimatedOpacity>(
+                find
+                    .ancestor(of: cue, matching: find.byType(AnimatedOpacity))
+                    .first,
+              )
+              .opacity,
+          1,
+        );
+        final scrollable = find.descendant(
+          of: setup,
+          matching: find.byType(Scrollable),
+        );
+        final position = tester.state<ScrollableState>(scrollable).position;
+        expect(position.pixels, 0);
+        expect(position.maxScrollExtent, greaterThan(0));
+        final quantityHeader = byKey(WidgetKeys.startSection(3));
+        expect(quantityHeader.hitTestable(), findsNothing);
+        final start = byKey(WidgetKeys.startSessionStart);
+        expect(tester.widget<ElevatedButton>(start).onPressed, isNull);
+
+        Future<void> scrollTo(String key) async {
+          final target = byKey(key).hitTestable();
+          await tester.scrollUntilVisible(target, 72, scrollable: scrollable);
+          await tester.pumpAndSettle();
+          expect(target, findsOneWidget);
+          await tester.tap(target);
+          await tester.pumpAndSettle();
+        }
+
+        await scrollTo(WidgetKeys.startQuizType('typing'));
+        await scrollTo(WidgetKeys.startCount(10));
+        expect(start.hitTestable(), findsOneWidget);
+        await tester.tap(start);
+        await tester.pumpAndSettle();
+        expect(directArgs?.ruleId, ruleId);
+        expect(directArgs?.langA, 'ko');
+        expect(directArgs?.langB, 'fr');
+        expect(directArgs?.mode, QuizMode.typing);
+        expect(directArgs?.cardLimit, 10);
+        expect(tester.takeException(), isNull);
+        await unmountScreen(tester);
+      },
+    );
+  }
+
   testWidgets(
     'real French lesson preview and 100-card CTA fit at 320x568 with double text',
     (tester) async {
@@ -915,7 +1045,7 @@ void main() {
             control,
             64,
             scrollable: find.descendant(
-              of: find.byType(ListView),
+              of: find.byType(CustomScrollView),
               matching: find.byType(Scrollable),
             ),
           );
@@ -957,7 +1087,7 @@ void main() {
         expect(bounds.bottom, lessThanOrEqualTo(buttonBounds.bottom));
       }
       expect(
-        tester.getRect(find.byType(ListView)).bottom,
+        tester.getRect(find.byType(CustomScrollView)).bottom,
         lessThanOrEqualTo(buttonBounds.top),
       );
       expect(buttonBounds.bottom, lessThanOrEqualTo(568));

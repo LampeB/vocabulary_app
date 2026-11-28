@@ -4279,6 +4279,279 @@ class QuizSessionsTableCompanion
   }
 }
 
+class $QuizStudyDaysTableTable extends QuizStudyDaysTable
+    with TableInfo<$QuizStudyDaysTableTable, QuizStudyDaysTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $QuizStudyDaysTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _studyDateMeta = const VerificationMeta(
+    'studyDate',
+  );
+  @override
+  late final GeneratedColumn<String> studyDate = GeneratedColumn<String>(
+    'study_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [userId, studyDate, isSynced];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'quiz_study_days';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<QuizStudyDaysTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('study_date')) {
+      context.handle(
+        _studyDateMeta,
+        studyDate.isAcceptableOrUnknown(data['study_date']!, _studyDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_studyDateMeta);
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {userId, studyDate};
+  @override
+  QuizStudyDaysTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return QuizStudyDaysTableData(
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      studyDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}study_date'],
+      )!,
+      isSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_synced'],
+      )!,
+    );
+  }
+
+  @override
+  $QuizStudyDaysTableTable createAlias(String alias) {
+    return $QuizStudyDaysTableTable(attachedDatabase, alias);
+  }
+}
+
+class QuizStudyDaysTableData extends DataClass
+    implements Insertable<QuizStudyDaysTableData> {
+  final String userId;
+
+  /// The civil date captured at completion, in YYYY-MM-DD form. Replays
+  /// must never reinterpret the history timestamp in the device's new zone.
+  final String studyDate;
+  final bool isSynced;
+  const QuizStudyDaysTableData({
+    required this.userId,
+    required this.studyDate,
+    required this.isSynced,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['user_id'] = Variable<String>(userId);
+    map['study_date'] = Variable<String>(studyDate);
+    map['is_synced'] = Variable<bool>(isSynced);
+    return map;
+  }
+
+  QuizStudyDaysTableCompanion toCompanion(bool nullToAbsent) {
+    return QuizStudyDaysTableCompanion(
+      userId: Value(userId),
+      studyDate: Value(studyDate),
+      isSynced: Value(isSynced),
+    );
+  }
+
+  factory QuizStudyDaysTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return QuizStudyDaysTableData(
+      userId: serializer.fromJson<String>(json['userId']),
+      studyDate: serializer.fromJson<String>(json['studyDate']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'userId': serializer.toJson<String>(userId),
+      'studyDate': serializer.toJson<String>(studyDate),
+      'isSynced': serializer.toJson<bool>(isSynced),
+    };
+  }
+
+  QuizStudyDaysTableData copyWith({
+    String? userId,
+    String? studyDate,
+    bool? isSynced,
+  }) => QuizStudyDaysTableData(
+    userId: userId ?? this.userId,
+    studyDate: studyDate ?? this.studyDate,
+    isSynced: isSynced ?? this.isSynced,
+  );
+  QuizStudyDaysTableData copyWithCompanion(QuizStudyDaysTableCompanion data) {
+    return QuizStudyDaysTableData(
+      userId: data.userId.present ? data.userId.value : this.userId,
+      studyDate: data.studyDate.present ? data.studyDate.value : this.studyDate,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuizStudyDaysTableData(')
+          ..write('userId: $userId, ')
+          ..write('studyDate: $studyDate, ')
+          ..write('isSynced: $isSynced')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(userId, studyDate, isSynced);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is QuizStudyDaysTableData &&
+          other.userId == this.userId &&
+          other.studyDate == this.studyDate &&
+          other.isSynced == this.isSynced);
+}
+
+class QuizStudyDaysTableCompanion
+    extends UpdateCompanion<QuizStudyDaysTableData> {
+  final Value<String> userId;
+  final Value<String> studyDate;
+  final Value<bool> isSynced;
+  final Value<int> rowid;
+  const QuizStudyDaysTableCompanion({
+    this.userId = const Value.absent(),
+    this.studyDate = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  QuizStudyDaysTableCompanion.insert({
+    required String userId,
+    required String studyDate,
+    this.isSynced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : userId = Value(userId),
+       studyDate = Value(studyDate);
+  static Insertable<QuizStudyDaysTableData> custom({
+    Expression<String>? userId,
+    Expression<String>? studyDate,
+    Expression<bool>? isSynced,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (userId != null) 'user_id': userId,
+      if (studyDate != null) 'study_date': studyDate,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  QuizStudyDaysTableCompanion copyWith({
+    Value<String>? userId,
+    Value<String>? studyDate,
+    Value<bool>? isSynced,
+    Value<int>? rowid,
+  }) {
+    return QuizStudyDaysTableCompanion(
+      userId: userId ?? this.userId,
+      studyDate: studyDate ?? this.studyDate,
+      isSynced: isSynced ?? this.isSynced,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (studyDate.present) {
+      map['study_date'] = Variable<String>(studyDate.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuizStudyDaysTableCompanion(')
+          ..write('userId: $userId, ')
+          ..write('studyDate: $studyDate, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $GrammarProgressTableTable extends GrammarProgressTable
     with TableInfo<$GrammarProgressTableTable, GrammarProgressTableData> {
   @override
@@ -5793,6 +6066,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $VariantProgressTableTable(this);
   late final $QuizSessionsTableTable quizSessionsTable =
       $QuizSessionsTableTable(this);
+  late final $QuizStudyDaysTableTable quizStudyDaysTable =
+      $QuizStudyDaysTableTable(this);
   late final $GrammarProgressTableTable grammarProgressTable =
       $GrammarProgressTableTable(this);
   late final $ReviewEventsTableTable reviewEventsTable =
@@ -5823,6 +6098,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     wordVariantsTable,
     variantProgressTable,
     quizSessionsTable,
+    quizStudyDaysTable,
     grammarProgressTable,
     reviewEventsTable,
     sharedImportBootstrapTable,
@@ -8555,6 +8831,181 @@ typedef $$QuizSessionsTableTableProcessedTableManager =
       QuizSessionsTableData,
       PrefetchHooks Function()
     >;
+typedef $$QuizStudyDaysTableTableCreateCompanionBuilder =
+    QuizStudyDaysTableCompanion Function({
+      required String userId,
+      required String studyDate,
+      Value<bool> isSynced,
+      Value<int> rowid,
+    });
+typedef $$QuizStudyDaysTableTableUpdateCompanionBuilder =
+    QuizStudyDaysTableCompanion Function({
+      Value<String> userId,
+      Value<String> studyDate,
+      Value<bool> isSynced,
+      Value<int> rowid,
+    });
+
+class $$QuizStudyDaysTableTableFilterComposer
+    extends Composer<_$AppDatabase, $QuizStudyDaysTableTable> {
+  $$QuizStudyDaysTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get studyDate => $composableBuilder(
+    column: $table.studyDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$QuizStudyDaysTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $QuizStudyDaysTableTable> {
+  $$QuizStudyDaysTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get studyDate => $composableBuilder(
+    column: $table.studyDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$QuizStudyDaysTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $QuizStudyDaysTableTable> {
+  $$QuizStudyDaysTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get studyDate =>
+      $composableBuilder(column: $table.studyDate, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+}
+
+class $$QuizStudyDaysTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $QuizStudyDaysTableTable,
+          QuizStudyDaysTableData,
+          $$QuizStudyDaysTableTableFilterComposer,
+          $$QuizStudyDaysTableTableOrderingComposer,
+          $$QuizStudyDaysTableTableAnnotationComposer,
+          $$QuizStudyDaysTableTableCreateCompanionBuilder,
+          $$QuizStudyDaysTableTableUpdateCompanionBuilder,
+          (
+            QuizStudyDaysTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $QuizStudyDaysTableTable,
+              QuizStudyDaysTableData
+            >,
+          ),
+          QuizStudyDaysTableData,
+          PrefetchHooks Function()
+        > {
+  $$QuizStudyDaysTableTableTableManager(
+    _$AppDatabase db,
+    $QuizStudyDaysTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$QuizStudyDaysTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$QuizStudyDaysTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$QuizStudyDaysTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> userId = const Value.absent(),
+                Value<String> studyDate = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => QuizStudyDaysTableCompanion(
+                userId: userId,
+                studyDate: studyDate,
+                isSynced: isSynced,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String userId,
+                required String studyDate,
+                Value<bool> isSynced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => QuizStudyDaysTableCompanion.insert(
+                userId: userId,
+                studyDate: studyDate,
+                isSynced: isSynced,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$QuizStudyDaysTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $QuizStudyDaysTableTable,
+      QuizStudyDaysTableData,
+      $$QuizStudyDaysTableTableFilterComposer,
+      $$QuizStudyDaysTableTableOrderingComposer,
+      $$QuizStudyDaysTableTableAnnotationComposer,
+      $$QuizStudyDaysTableTableCreateCompanionBuilder,
+      $$QuizStudyDaysTableTableUpdateCompanionBuilder,
+      (
+        QuizStudyDaysTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $QuizStudyDaysTableTable,
+          QuizStudyDaysTableData
+        >,
+      ),
+      QuizStudyDaysTableData,
+      PrefetchHooks Function()
+    >;
 typedef $$GrammarProgressTableTableCreateCompanionBuilder =
     GrammarProgressTableCompanion Function({
       required String id,
@@ -9375,6 +9826,8 @@ class $AppDatabaseManager {
       $$VariantProgressTableTableTableManager(_db, _db.variantProgressTable);
   $$QuizSessionsTableTableTableManager get quizSessionsTable =>
       $$QuizSessionsTableTableTableManager(_db, _db.quizSessionsTable);
+  $$QuizStudyDaysTableTableTableManager get quizStudyDaysTable =>
+      $$QuizStudyDaysTableTableTableManager(_db, _db.quizStudyDaysTable);
   $$GrammarProgressTableTableTableManager get grammarProgressTable =>
       $$GrammarProgressTableTableTableManager(_db, _db.grammarProgressTable);
   $$ReviewEventsTableTableTableManager get reviewEventsTable =>

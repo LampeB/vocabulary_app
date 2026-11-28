@@ -15,7 +15,7 @@ final class NativePlaybackPlayer extends AudioPlayer {
   Future<void>? _releasedForDisposal;
   Future<void>? _cleanup;
 
-  Future<void> playToEnd(Source source) async {
+  Future<void> playToEnd(Source source, {bool Function()? keepGoing}) async {
     final completion = _completion = Completer<void>();
     final events = onPlayerComplete.listen(
       (_) {
@@ -28,7 +28,7 @@ final class NativePlaybackPlayer extends AudioPlayer {
     );
     try {
       await Future.wait<void>([
-        play(source),
+        keepGoing == null ? play(source) : playWhenCurrent(source, keepGoing),
         completion.future,
       ], eagerError: true);
     } finally {
@@ -39,6 +39,17 @@ final class NativePlaybackPlayer extends AudioPlayer {
         }),
       );
     }
+  }
+
+  /// A quiz source may finish preparing after the card changed. Check the
+  /// intent right before dispatching native resume, including after a delayed
+  /// source ACK. Quiz clips do not use the package's position polling.
+  Future<void> playWhenCurrent(Source source, bool Function() keepGoing) async {
+    await setSource(source);
+    if (_closing || !keepGoing()) throw const AudioPlaybackCancelled();
+    await _native.resume(playerId);
+    if (_closing || !keepGoing()) throw const AudioPlaybackCancelled();
+    if (state != PlayerState.completed) state = PlayerState.playing;
   }
 
   void _cancelPlayback() {

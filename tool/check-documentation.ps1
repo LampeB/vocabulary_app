@@ -12,7 +12,7 @@ if ($files.Count -eq 0) {
 }
 
 $documentationPattern = '^(PROJECT_STATUS\.md|README\.md|TESTS\.md|docs/)'
-$contractPattern = '^(lib/|assets/|supabase/|test/|patrol_test/|\.github/workflows/|pubspec\.yaml$|analysis_options\.yaml$|android/|ios/)'
+$contractPattern = '^(lib/|assets/|supabase/|test/|patrol_test/|tool/|packages/ponderin_whisper/|\.github/|\.githooks/|\.codex/|\.agents/|android/|ios/|pubspec\.(yaml|lock)$|analysis_options\.yaml$|patrol\.toml$|build_release\.ps1$|run_tests\.ps1$|\.git(ignore|attributes|modules)$|\.metadata$)'
 $hasDocumentation = @($files | Where-Object { $_ -match $documentationPattern }).Count -gt 0
 $contractFiles = @($files | Where-Object { $_ -match $contractPattern })
 

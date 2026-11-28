@@ -76,6 +76,13 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   Les options des sélecteurs de langues utilisent les autonymes du helper
   commun, y compris dans le formulaire de création d'une liste ; les consignes
   rédigées dans la langue de l'interface conservent leurs noms traduits.
+  La feuille de pratique libre garde aussi le compteur dû en chargement ou
+  en erreur distinct d'un zéro confirmé. La relance reste à côté de la source
+  en échec même si une autre source jouable est choisie. Les cartes de cette
+  autre source peuvent toujours être lancées.
+- Le configurateur de leçon signale le défilement dès l'ouverture lorsque son
+  contenu déborde, y compris en paysage avec texte doublé. Le choix de quantité
+  et le lancement restent accessibles dans les trois locales V0.
 - Les feuilles papier du plateau utilisent une encre explicite dans les deux
   thèmes. Les ondulations s'arrêtent avec la réduction des animations ou un
   sous-arbre inactif ; le prototype de parcours sans route est retiré.
@@ -97,6 +104,11 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   un événement de déconnexion du SDK reste appliqué normalement.
 - Le lien initial et sa première répétition dans le stream ne sont traités
   qu'une fois ; les liens ouverts ensuite restent disponibles.
+  `app_links` est l'unique propriétaire de la livraison native des liens
+  personnalisés sur Android et iOS. Le traitement concurrent de l'embedding
+  Flutter est désactivé afin qu'une URI brute ne remplace pas la route d'import.
+  La CI vérifie ce réglage dans les manifests Android fusionnés Debug/Profile
+  et dans l'Info.plist de l'application iOS compilée.
 - Après un import froid, Retour depuis la liste mène à la bibliothèque.
   Après un lien ouvert dans l'application, il retrouve l'écran d'entrée.
 - Les deux entrées de préparation d'une liste depuis le chemin quotidien
@@ -138,6 +150,10 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   Cette frontière couvre aussi les exceptions après sélection des cartes,
   pendant leur enrichissement SQLite ou le chargement de grammaire. Un
   ancien chargement qui échoue ne peut pas remplacer une séance plus récente.
+  En session dans les deux sens, les cartes jouables du sens sain restent
+  disponibles si l'autre lecture échoue. Si aucune carte ne subsiste après
+  enrichissement et qu'une lecture a échoué, le quiz affiche l'erreur de
+  chargement plutôt qu'un état vide affirmé.
 - Les aides de détail de leçon et les traductions d'aperçu du configurateur
   atteignent au moins 4,5:1 sur leur surface effectivement rendue, dans les
   deux thèmes ; le contraste tient compte de l'encre et du fond teinté.
@@ -151,6 +167,12 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   thèmes. Ces corrections ne déclarent pas la migration V3 du shell terminée.
 - La série compare des dates civiles, y compris lors des journées de 23 ou
   25 heures. La fin de quiz et le suivi social utilisent le même calcul.
+  Le jour capturé est enregistré avec l'historique dans une transaction locale,
+  puis rejoué au démarrage et à la reconnexion jusqu'à l'accusé serveur. Un
+  second quiz du même jour partage cette entrée. Si l'écriture locale échoue,
+  le score reste affiché mais la journée et son rappel ne sont pas marqués
+  comme persistés. L'historique antérieur à SQLite 14 reste conservé sans
+  déduction de son ancien fuseau.
 - Au bilan, le quiz capture le compte, les résultats et le jour civil. Son
   historique SQLite reste enregistré quand l'utilisateur quitte le bilan ou
   relance un quiz pendant la lecture du nom de la liste ou de la maîtrise.

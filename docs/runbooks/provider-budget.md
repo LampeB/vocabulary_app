@@ -119,6 +119,12 @@ Relire le diff du verrou et repasser le script sans projet avant de commiter.
   écrite uniquement par ce publieur. Après migration, republier le catalogue
   pour établir ce manifeste : les anciens objets sous `seed/` non attestés
   cessent d'être publics, y compris ceux qui auraient contenu un texte privé.
+  Le publieur utilise le même contrôle de présence Storage que le
+  provisionnement utilisateur. Une absence explicitement confirmée par
+  `NoSuchKey` permet le rendu ; une panne, un refus ou un `404` non qualifié
+  marque l'entrée du lot en échec, sans rendu payant ni publication de manifeste.
+  Les autres entrées du lot peuvent avancer. Un objet présent est attesté
+  dans le manifeste sans être régénéré.
 - Storage vérifie le propriétaire dans le chemin privé généré côté serveur,
   indépendamment du champ `audio_path` modifiable dans une variante. Les
   audios publiés du catalogue restent lisibles aux utilisateurs authentifiés.

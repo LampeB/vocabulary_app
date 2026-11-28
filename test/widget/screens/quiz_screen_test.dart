@@ -106,6 +106,7 @@ class _NoopAudio implements AudioPlayerService {
     String langCode, {
     String? audioPath,
     bool requirePlayback = false,
+    bool Function()? keepGoing,
   }) async => spoken.add(text);
   @override
   Future<void> retryDisposal() => stop();
@@ -178,6 +179,7 @@ class _BlockingPromptAudio extends _NoopAudio {
     String langCode, {
     String? audioPath,
     bool requirePlayback = false,
+    bool Function()? keepGoing,
   }) {
     final done = Completer<void>();
     utterances.add((text, langCode, done));
@@ -186,6 +188,19 @@ class _BlockingPromptAudio extends _NoopAudio {
 
   @override
   Future<void> stop() async => stops++;
+}
+
+class _DelayedQuietDirector extends _TestDirector {
+  _DelayedQuietDirector(super.audio);
+
+  final waiting = Completer<void>();
+  final ready = Completer<void>();
+
+  @override
+  Future<void> quiet({Duration timeout = const Duration(seconds: 5)}) {
+    waiting.complete();
+    return ready.future;
+  }
 }
 
 class _AudioAwaitingRelease extends _NoopAudio {
@@ -404,7 +419,11 @@ class _SilentFilePlayer implements FileAudioPlayer {
   @override
   Future<void> setPlaybackRate(double rate) async {}
   @override
-  Future<void> playFile(String path, {bool waitForCompletion = false}) async {}
+  Future<void> playFile(
+    String path, {
+    bool waitForCompletion = false,
+    bool Function()? keepGoing,
+  }) async {}
   @override
   Future<void> stop() async {}
   @override
@@ -423,7 +442,11 @@ class _RejectingFilePlayer extends _SilentFilePlayer {
   final released = Completer<void>();
 
   @override
-  Future<void> playFile(String path, {bool waitForCompletion = false}) {
+  Future<void> playFile(
+    String path, {
+    bool waitForCompletion = false,
+    bool Function()? keepGoing,
+  }) {
     starts++;
     return Future.error(PlatformException(code: 'AndroidAudioError'));
   }
@@ -623,7 +646,11 @@ class _PendingDeviceSpeech implements DeviceSpeech {
   int disposals = 0;
 
   @override
-  Future<void> speak(String text, String langCode) {
+  Future<void> speak(
+    String text,
+    String langCode, {
+    bool Function()? keepGoing,
+  }) {
     speaks++;
     return playback.future;
   }
@@ -2945,6 +2972,35 @@ void main() {
       await tester.pump(const Duration(seconds: 8));
     }, variant: TargetPlatformVariant.only(TargetPlatform.android));
   }
+
+  testWidgets('flipping a card cancels its question while waiting for quiet', (
+    tester,
+  ) async {
+    final audio = _NoopAudio();
+    final director = _DelayedQuietDirector(audio);
+    await pump(
+      tester,
+      mode: QuizMode.flashcard,
+      words: [('chat', '고양이'), ('chien', '개')],
+      director: director,
+    );
+    expect(audio.spoken, ['chat']);
+    final face = find.byKey(const ValueKey(WidgetKeys.cartesCard));
+    await tester.tap(face);
+    await tick(tester, times: 2);
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.gradeKnew)));
+    await tick(tester, times: 5);
+    expect(director.waiting.isCompleted, isTrue);
+    expect(find.text('chien'), findsOneWidget);
+
+    await tester.tap(face);
+    await tick(tester, times: 2);
+    expect(audio.spoken, ['chat', '고양이', '개']);
+    director.ready.complete();
+    await tick(tester, times: 2);
+    expect(audio.spoken, ['chat', '고양이', '개']);
+    await unmountScreen(tester);
+  });
 
   testWidgets('daily review shortcut rates its one due card once', (
     tester,

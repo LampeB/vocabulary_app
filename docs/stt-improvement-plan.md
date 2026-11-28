@@ -60,6 +60,13 @@ confirmé des lecteurs du directeur courant, même si le prompt passe de la
 synthèse locale à un clip devenu disponible, ou du clip à la synthèse.
 Une expiration de l'attente laisse l'arrêt natif en cours. Répéter le rejoint
 tant qu'il reste en cours et renouvelle un arrêt refusé.
+Toute nouvelle lecture de mot valide prend la place de la précédente, y
+compris entre la voix de l'appareil et un clip. Le lecteur précédent reste
+propriétaire jusqu'à confirmation de son arrêt natif. Une carte, une face ou
+un compte devenu périmé annule la demande en attente jusque dans la préparation
+du lecteur, sans arrêter une lecture plus récente. Une question en attente de
+silence est aussi invalidée par le retournement de sa carte. Un clip facultatif
+continue d'acquitter le démarrage ; seul un prompt requis attend sa fin.
 Les remplacements du directeur audio dus à la vitesse ou à la hauteur
 conservent les libérations non confirmées de la voix et des signaux, même à
 travers plusieurs changements de réglage ou de route. Un nouveau prompt

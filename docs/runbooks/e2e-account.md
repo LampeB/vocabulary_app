@@ -9,7 +9,7 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
 
 1. Réactiver le projet si nécessaire. Appliquer les migrations manquantes dans
    l'ordre de [la CI PostgreSQL](../../.github/workflows/pr-validation.yml),
-   jusqu'à [023](../../supabase/migrations/023_purge_catalog_identity.sql).
+   jusqu'à [024](../../supabase/migrations/024_vocabulary_content_visibility.sql).
    Patrol exige les gardes de [013](../../supabase/migrations/013_e2e_isolation.sql),
    les suppressions persistantes de [014](../../supabase/migrations/014_vocabulary_tombstones.sql),
    les identifiants qualifiés par propriétaire de [015](../../supabase/migrations/015_vocabulary_owner_namespace.sql),
@@ -20,7 +20,10 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
    la convergence après purge physique de [020](../../supabase/migrations/020_vocabulary_physical_purges.sql)
    l'autorisation d'amitié de [021](../../supabase/migrations/021_friendship_consent.sql),
    les jours d'étude de [022](../../supabase/migrations/022_study_days.sql)
-   et l'identité catalogue des tombstones de 023. La version actuelle de
+   et l'identité catalogue des tombstones de 023. La migration 024 étend aux
+   concepts et variantes la visibilité de leur liste pour les amis confirmés.
+   Elle ne change pas les prérequis du reset ni son contrat `study-catalog-v1`.
+   La version actuelle de
    [007](../../supabase/migrations/007_audio_storage.sql) ferme les lectures
    client de `vocab-audio` jusqu'aux règles définitives de
    [012](../../supabase/migrations/012_security_boundaries.sql).
@@ -28,16 +31,18 @@ y compris les anciens tests. Aucun compte personnel ne doit être inscrit.
    012, rejouer la version actuelle de 007 avant les autres étapes. Si la
    version actuelle de 012 est déjà appliquée, passer aux migrations manquantes.
 
-   Si 008, 009 et 012 à 023 restent à appliquer et que les migrations 000,
+   Si 008, 009 et 012 à 024 restent à appliquer et que les migrations 000,
    004 à 007, 010, 011 et `add_subscription_type.sql` sont déjà présentes,
    le générateur
    `python3 tool/e2e/build_activation.py > /tmp/activer-vocab-e2e.sql` regroupe
-   008, 009 et 012 à 023 dans une transaction. Si une ancienne version de 015
+   008, 009 et 012 à 024 dans une transaction. Si une ancienne version de 015
    à 021 est déjà présente, fermer d'abord la RPC de reset aux rôles client
    avec `REVOKE EXECUTE ON FUNCTION public.reset_e2e_account(text) FROM PUBLIC, anon, authenticated;`.
    Appliquer les migrations manquantes. La migration 020 met à jour un ancien
    017 sans rejouer les migrations appliquées. Seule 023 rouvre le reset avec
    le contrat complet.
+   Si 023 est déjà installée, appliquer uniquement la migration 024 manquante,
+   sans rejouer les migrations précédentes.
 2. Avant toute publication du secret CI, créer l'environnement GitHub Actions
    `patrol-e2e`. Dans *Deployment branches and tags*, sélectionner les branches
    et tags explicitement autorisés et ajouter uniquement la branche `main`.

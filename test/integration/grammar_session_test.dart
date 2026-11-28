@@ -59,6 +59,7 @@ class _NoopAudio implements AudioPlayerService {
     String langCode, {
     String? audioPath,
     bool requirePlayback = false,
+    bool Function()? keepGoing,
   }) async {}
   @override
   Future<void> retryDisposal() => stop();
@@ -1027,6 +1028,15 @@ void main() {
         notifier.advance();
       }
       expect(await db.reviewEventDao.getUnsynced(userId: 'u'), hasLength(3));
+      final studyDays = await db
+          .select(db.quizStudyDaysTable)
+          .watch()
+          .firstWhere((rows) => rows.isNotEmpty)
+          .timeout(const Duration(seconds: 2));
+      expect(studyDays.single.userId, 'u');
+      final history = (await db.quizSessionDao.getSessionsByUser('u')).single;
+      expect(history.cardCount, 3);
+      expect(history.listId, isNull);
       const debounce = Duration(milliseconds: 350);
       await Future<void>.delayed(debounce);
       expect(push.drains, 0);

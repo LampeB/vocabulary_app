@@ -6,6 +6,7 @@ import 'tables/word_variants_table.dart';
 import 'tables/variant_progress_table.dart';
 import 'tables/grammar_progress_table.dart';
 import 'tables/quiz_sessions_table.dart';
+import 'tables/quiz_study_days_table.dart';
 import 'tables/shared_import_bootstrap_table.dart';
 import 'daos/vocabulary_list_dao.dart';
 import 'daos/concept_dao.dart';
@@ -24,6 +25,7 @@ part 'app_database.g.dart';
     WordVariantsTable,
     VariantProgressTable,
     QuizSessionsTable,
+    QuizStudyDaysTable,
     GrammarProgressTable,
     ReviewEventsTable,
     SharedImportBootstrapTable,
@@ -64,7 +66,7 @@ class AppDatabase extends _$AppDatabase {
       });
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -174,6 +176,8 @@ class AppDatabase extends _$AppDatabase {
           previouslyRewritten: from >= 11,
         );
       }
+      // Older histories only have an instant, without the original civil day.
+      if (from < 14) await m.createTable(quizStudyDaysTable);
     },
   );
 

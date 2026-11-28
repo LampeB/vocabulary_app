@@ -286,9 +286,13 @@ class PushSync {
             ),
             onTombstone: () async {
               await _listDao.forgetLegacyShare(r.id);
+              await _listDao.forgetLegacyMetadata(r.id);
               await _conceptDao.tombstoneListContents(r.id, r.ownerId);
             },
-            onAuthoredTombstone: () => _listDao.forgetLegacyShare(r.id),
+            onAuthoredTombstone: () async {
+              await _listDao.forgetLegacyShare(r.id);
+              await _listDao.forgetLegacyMetadata(r.id);
+            },
             afterAck: (_) async {
               if (r.origin == 'starter' && r.seedId != null) {
                 await _listDao.transaction(
@@ -390,6 +394,12 @@ class PushSync {
     final payload = wire(submitted);
     final prepared = await _listDao.transaction(() async {
       if (await load(id) != submitted) return null;
+      if (submitted is VocabularyListsTableData) {
+        await _listDao.captureLegacyListBase(
+          submitted,
+          wireId: ids.wireId(SyncedVocabularyRow.list, id),
+        );
+      }
       final base = await _listDao.getSharedImportBase(id);
       final stamp = await VocabularyWriteStamp.allocate(
         _listDao.attachedDatabase,
@@ -399,13 +409,12 @@ class PushSync {
     });
     if (prepared == null) return const Success(0);
     final (base, stamp) = prepared;
+    final patch = base == null
+        ? null
+        : vocabularyMetadataEdits(wire(fromLocalJson(base)), payload);
     final response = base == null
         ? await push(stamp.apply(payload))
-        : await push(
-            stamp.apply(payload),
-            insertOnly: true,
-            changes: _changedFields(wire(fromLocalJson(base)), payload),
-          );
+        : await push(stamp.apply(payload), insertOnly: true, changes: patch);
     if (response case Failure(:final exception)) return Failure(exception);
     final server = ids.decode(kind, response.valueOrNull!);
     final deleted = server['is_deleted'] == true;
@@ -449,8 +458,17 @@ class PushSync {
         return 0;
       }
 
-      final remaining = _changedFields(payload, wire(current));
-      await save(server, true);
+      final currentWire = wire(current);
+      final remaining = vocabularyMetadataEdits(payload, currentWire);
+      final restored = kind == SyncedVocabularyRow.list
+          ? await _listDao.retainLegacyMetadata(
+              id,
+              server,
+              currentWire,
+              edited: {...?patch?.keys, ...remaining.keys},
+            )
+          : server;
+      await save(restored, true);
       if (remaining.isEmpty) {
         await _listDao.forgetSharedImportBases([id]);
         return 1;
@@ -459,7 +477,7 @@ class PushSync {
       // Rebase edits made in flight on the acknowledged canonical row. The
       // next pass applies a field patch even when it runs after a restart.
       await _listDao.rememberSharedImport(id, (await load(id))!);
-      await save({...server, ...remaining}, false);
+      await save({...restored, ...remaining}, false);
       return 0;
     });
     if (acknowledgement == 1) await afterAck?.call(server);
@@ -475,6 +493,7 @@ class PushSync {
       await _listDao.upsert(list.toLocalCompanion());
       await _listDao.forgetSharedImportBases([list.id]);
       await _listDao.forgetLegacyShare(list.id);
+      await _listDao.forgetLegacyMetadata(list.id);
       await _conceptDao.tombstoneListContents(list.id, list.ownerId);
       return;
     }
@@ -491,28 +510,6 @@ class PushSync {
       concept.id.value,
     ], list.ownerId);
     await _conceptDao.refreshListWordCount(list.id);
-  }
-
-  static Map<String, dynamic> _changedFields(
-    Map<String, dynamic> base,
-    Map<String, dynamic> edited,
-  ) {
-    const metadata = {
-      'id',
-      'owner_id',
-      'list_id',
-      'concept_id',
-      'created_at',
-      'updated_at',
-    };
-    final changes = {
-      for (final entry in edited.entries)
-        if (!metadata.contains(entry.key) &&
-            jsonEncode(base[entry.key]) != jsonEncode(entry.value))
-          entry.key: entry.value,
-    };
-    if (changes.isNotEmpty) changes['updated_at'] = edited['updated_at'];
-    return changes;
   }
 
   Future<Result<int>> _sendThenAcknowledge(

@@ -1,3 +1,5 @@
+import 'dart:async' show TimeoutException;
+
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/errors/app_exception.dart' as app_ex;
@@ -129,7 +131,7 @@ class AuthRemoteDataSource implements AuthRemote {
       final rows = await _client.from('profiles').select().eq('id', userId);
       return Success(rows.isEmpty ? null : rows.single);
     } catch (e) {
-      return Failure(_profileFailure(e));
+      return Failure(_postgrestFailure(e));
     }
   }
 
@@ -144,7 +146,7 @@ class AuthRemoteDataSource implements AuthRemote {
           .select();
       return Success(rows.isEmpty ? null : rows.single);
     } catch (e) {
-      return Failure(_profileFailure(e));
+      return Failure(_postgrestFailure(e));
     }
   }
 
@@ -175,23 +177,36 @@ class AuthRemoteDataSource implements AuthRemote {
     if (currentUser?.id != userId) return inactiveAccount;
     final studyDay = civilDate(studyDate);
     try {
-      await _client.rpc(
-        'record_study_day',
-        params: {
-          'p_user_id': userId,
-          'p_study_date': studyDay.toIso8601String().split('T').first,
-        },
-      );
+      await _client
+          .rpc(
+            'record_study_day',
+            params: {
+              'p_user_id': userId,
+              'p_study_date': studyDay.toIso8601String().split('T').first,
+            },
+          )
+          .timeout(const Duration(seconds: 15));
       if (currentUser?.id != userId) return inactiveAccount;
       return const Success(null);
     } catch (e) {
-      return Failure(app_ex.UnknownException(e.toString()));
+      return Failure(_postgrestFailure(e));
     }
   }
 }
 
-app_ex.AppException _profileFailure(Object error) => switch (error) {
-  http.ClientException() => const app_ex.NetworkException(),
+app_ex.AppException _postgrestFailure(Object error) => switch (error) {
+  http.ClientException() ||
+  TimeoutException() ||
+  AuthRetryableFetchException() ||
+  PostgrestException(
+    code: 'PGRST000' ||
+        'PGRST001' ||
+        'PGRST002' ||
+        'PGRST003' ||
+        '502' ||
+        '503' ||
+        '504',
+  ) => const app_ex.NetworkException(),
   PostgrestException(code: '42501') => const app_ex.PermissionException(),
   _ => app_ex.UnknownException(error.toString()),
 };

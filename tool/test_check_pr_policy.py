@@ -151,8 +151,35 @@ class PolicyTest(unittest.TestCase):
         self.stage_fixture(path)
         self.make_fixture_revision()
         self.git('update-index', '--force-remove', '--', path)
+        self.stage_fixture('README.md', b'Record removal of private base fixture\n')
         self.pwsh(POLICY, '-Staged')
         self.pwsh(POLICY, '-BaseRef', self.make_fixture_revision())
+
+    def test_delivery_and_first_party_bridge_require_docs(self):
+        paths = (
+            'tool/approve_validated_pr.py', 'tool/deploy-edge-functions.py',
+            'packages/ponderin_whisper/android/src/main/kotlin/Bridge.kt',
+            '.github/dependabot.yml', '.githooks/pre-push',
+            '.codex/agents/reviewer.toml', '.agents/skills/review/SKILL.md',
+            'pubspec.lock', 'patrol.toml', 'build_release.ps1', '.gitignore',
+        )
+        for number, path in enumerate(paths):
+            with self.subTest(path=path):
+                # Make this a modification of an existing path, not only an
+                # introduction. Each later base already includes prior docs.
+                self.stage_fixture(path)
+                self.make_fixture_revision()
+                self.stage_fixture(path, b'changed delivery contract\n')
+                staged = self.pwsh(POLICY, '-Staged', check=False)
+                base = self.make_fixture_revision()
+                committed = self.pwsh(POLICY, '-BaseRef', base, check=False)
+                for result in (staged, committed):
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn(b'Documentation update required', result.stdout)
+                self.stage_fixture(f'docs/delivery-{number}.md')
+                self.pwsh(POLICY, '-Staged')
+                self.make_fixture_revision()
+                self.pwsh(POLICY, '-BaseRef', base)
 
     def test_staged_markdown_uses_blob_not_worktree(self):
         self.stage_fixture('README.md')

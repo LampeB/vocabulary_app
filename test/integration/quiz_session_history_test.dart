@@ -3,6 +3,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:drift/drift.dart'
+    show ApplyInterceptor, QueryInterceptor, TransactionExecutor;
 import 'package:drift/native.dart';
 import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,6 +34,7 @@ import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/notifications/notification_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_history_provider.dart';
 import 'package:vocab_kr/presentation/providers/quiz/quiz_provider.dart';
+import 'package:vocab_kr/presentation/widgets/app_shell.dart';
 import 'package:vocab_kr/services/audio/audio_player_service.dart';
 import 'package:vocab_kr/services/notifications/notification_service.dart';
 import '../helpers/fake_remote.dart';
@@ -59,6 +63,7 @@ class _NoopAudio implements AudioPlayerService {
     String langCode, {
     String? audioPath,
     bool requirePlayback = false,
+    bool Function()? keepGoing,
   }) async {}
   @override
   Future<void> retryDisposal() => stop();
@@ -91,15 +96,34 @@ class _PausedMasteryDao extends ProgressDao {
   }
 }
 
+class _WriteRollback extends QueryInterceptor {
+  final done = Completer<void>();
+
+  @override
+  Future<void> rollbackTransaction(TransactionExecutor inner) async {
+    await super.rollbackTransaction(inner);
+    if (!done.isCompleted) done.complete();
+  }
+}
+
 class _FakeAuthRepo implements AuthRepository {
   final streakRequested = Completer<(String, DateTime)>();
+  final attempts = <(String, DateTime)>[];
+  bool online = false;
+
+  @override
+  AppUser? currentUser;
+
   @override
   Future<Result<void>> updateStreak({
     required String userId,
     required DateTime studyDate,
   }) async {
-    streakRequested.complete((userId, studyDate));
-    return const Failure(NetworkException('offline'));
+    attempts.add((userId, studyDate));
+    if (!streakRequested.isCompleted) {
+      streakRequested.complete((userId, studyDate));
+    }
+    return online ? const Success(null) : const Failure(NetworkException());
   }
 
   @override
@@ -298,7 +322,7 @@ void main() {
 
   for (final leaveQuiz in [false, true]) {
     test(
-      'completed quiz persists after ${leaveQuiz ? 'leaving' : 'restart'}',
+      'completed quiz survives ${leaveQuiz ? 'leaving' : 'replacing the quiz'} and replays on ${leaveQuiz ? 'reconnect' : 'startup'}',
       () async {
         SharedPreferences.setMockInitialValues({});
         final dir = await Directory.systemTemp.createTemp('ponderin-history-');
@@ -351,7 +375,7 @@ void main() {
         );
 
         final progressDao = _PausedMasteryDao(db);
-        final auth = _FakeAuthRepo();
+        final auth = _FakeAuthRepo()..currentUser = user;
         final container = ProviderContainer(
           overrides: [
             appDatabaseProvider.overrideWithValue(db),
@@ -408,15 +432,23 @@ void main() {
           const Duration(seconds: 2),
         );
         expect(account, user.id);
+        final dateKey = studyDay.toIso8601String().split('T').first;
+        expect(await db.quizSessionDao.pendingStudyDays(user.id), [dateKey]);
         await db.close();
 
         db = AppDatabase.forTesting(NativeDatabase(file));
         final reminders = _FakeNotifService();
+        final network = StreamController<List<ConnectivityResult>>.broadcast();
+        addTearDown(network.close);
         final reopened = ProviderContainer(
           overrides: [
             appDatabaseProvider.overrideWithValue(db),
             currentUserProvider.overrideWithValue(user),
             notificationServiceProvider.overrideWithValue(reminders),
+            authRepositoryProvider.overrideWithValue(auth),
+            authStateProvider.overrideWith(_FakeAuthNotifier.new),
+            vocabularyRemoteProvider.overrideWithValue(FakeRemote()),
+            connectivityStreamProvider.overrideWith((_) => network.stream),
           ],
         );
         addTearDown(reopened.dispose);
@@ -437,7 +469,107 @@ void main() {
         );
         expect(reminders.cancelledStreaks, 1);
         expect(reminders.scheduledStreaks, isEmpty);
+
+        final acknowledged = db
+            .select(db.quizStudyDaysTable)
+            .watch()
+            .firstWhere((rows) => rows.any((row) => row.isSynced));
+        if (!leaveQuiz) {
+          // The connectivity provider may already have a value when login
+          // mounts the signed-in shell.
+          final initialNetwork = reopened.read(
+            connectivityStreamProvider.future,
+          );
+          network.add([ConnectivityResult.wifi]);
+          await initialNetwork;
+          auth.online = true;
+        }
+        reopened.read(pushOnReconnectProvider);
+        if (leaveQuiz) {
+          network.add([ConnectivityResult.none]);
+          await reopened.read(connectivityStreamProvider.future);
+          expect(auth.attempts, [(user.id, studyDay)]);
+          auth.online = true;
+          network.add([ConnectivityResult.wifi]);
+        }
+        final rows = await acknowledged.timeout(const Duration(seconds: 5));
+        expect(rows.single.studyDate, dateKey);
+        expect(auth.attempts, [(user.id, studyDay), (user.id, studyDay)]);
+        expect(await db.quizSessionDao.pendingStudyDays(user.id), isEmpty);
       },
     );
   }
+
+  test(
+    'failed history transaction never reports a completed study day',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final rollback = _WriteRollback();
+      final db = AppDatabase.forTesting(
+        NativeDatabase.memory().interceptWith(rollback),
+      );
+      addTearDown(db.close);
+      await db.customStatement('''
+      CREATE TRIGGER deny_study_day BEFORE INSERT ON quiz_study_days
+      BEGIN SELECT RAISE(ABORT, 'injected local storage error'); END
+    ''');
+      final remote = FakeRemote();
+      final repository = VocabularyRepositoryImpl(
+        db.vocabularyListDao,
+        db.conceptDao,
+        remote,
+        'u',
+        db,
+      );
+      final list = (await repository.createList(name: 'Animaux')).valueOrNull!;
+      await repository.addConceptWithVariants(
+        listId: list.id,
+        wordA: 'chat',
+        wordB: '고양이',
+      );
+      final user = AppUser(
+        id: 'u',
+        email: 'u@example.com',
+        username: 'learner',
+        createdAt: _now,
+      );
+      final reminders = _FakeNotifService();
+      final auth = _FakeAuthRepo()..currentUser = user;
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          vocabularyRemoteProvider.overrideWithValue(remote),
+          currentUserProvider.overrideWithValue(user),
+          audioPlayerServiceProvider.overrideWithValue(_NoopAudio()),
+          authRepositoryProvider.overrideWithValue(auth),
+          authStateProvider.overrideWith(_FakeAuthNotifier.new),
+          notificationServiceProvider.overrideWithValue(reminders),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final session = container.listen(_quiz, (_, _) {});
+      final quiz = container.read(_quiz.notifier);
+      await quiz.loadCards(
+        QuizArgs(
+          listId: list.id,
+          mode: QuizMode.flashcard,
+          direction: QuizDirectionChoice.frToKo,
+          cardLimit: 1,
+        ),
+      );
+      quiz.flipCard();
+      quiz.gradeFlashcard(FsrsRating.good);
+      quiz.advance();
+      expect(session.read().isComplete, isTrue);
+      expect(session.read().accuracy, 1);
+      await rollback.done.future.timeout(const Duration(seconds: 2));
+
+      expect(await db.quizSessionDao.getSessionsByUser(user.id), isEmpty);
+      expect(await db.quizSessionDao.pendingStudyDays(user.id), isEmpty);
+      expect(container.read(localStudyDayProvider(user.id)), isNull);
+      expect(reminders.cancelledStreaks, 0);
+      expect(auth.attempts, isEmpty);
+    },
+  );
 }

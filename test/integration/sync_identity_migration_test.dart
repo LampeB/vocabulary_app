@@ -25,11 +25,13 @@ Map<String, dynamic> _list(
   String? token,
   String? provenance,
   String? name,
+  String? description,
   String visibility = 'private',
 }) => {
   'id': id,
   'owner_id': owner,
   'name': name ?? id,
+  'description': description,
   'visibility': visibility,
   'word_count': 1,
   'share_token': token,
@@ -46,6 +48,7 @@ class _Remote extends FakeRemote {
   bool shareLookupOffline = false;
   Future<void> Function(String token)? beforePublicResponse;
   Future<void> Function()? beforeListsResponse;
+  Future<void> Function(String id)? beforeListWriteResponse;
 
   @override
   Future<Result<List<Map<String, dynamic>>>> fetchLists(
@@ -83,6 +86,7 @@ class _Remote extends FakeRemote {
         ? {...existing, ...?changes}
         : {...?existing, ...data};
     lists[id] = row;
+    await beforeListWriteResponse?.call(id);
     return Success(row);
   }
 
@@ -116,7 +120,10 @@ PushSync _push(AppDatabase db, _Remote remote) => PushSync(
 // Frozen Drift v2 tables from the integration base. Its two sharing paths set
 // identical private/local metadata and only its publication path wrote public
 // visibility to the server. The quiz table is untouched by all later migrations.
-AppDatabase _version2() => AppDatabase.forTesting(
+AppDatabase _version2({
+  String ownId = 'own',
+  String? ownDescription,
+}) => AppDatabase.forTesting(
   NativeDatabase.memory(
     setup: (sqlite) {
       sqlite.execute('''
@@ -180,11 +187,220 @@ AppDatabase _version2() => AppDatabase.forTesting(
                ('friend-review', 'owner', 'card-friends', 'koToFr', 8, 0, 1, 2);
       PRAGMA user_version = 2;
     ''');
+      sqlite.execute(
+        "UPDATE vocabulary_lists SET id = ?, description = ? WHERE id = 'own'",
+        [ownId, ownDescription],
+      );
     },
   ),
 );
 
 void main() {
+  test(
+    'v2 recovery sends the deliberate rename and holds the old description locally',
+    () async {
+      const id = '5c974835-a0f2-4d83-aafb-02543fbbb350';
+      final db = _version2(ownId: id, ownDescription: 'old description');
+      addTearDown(db.close);
+      final dao = db.vocabularyListDao;
+      expect((await dao.getLegacyShare(id))?.token, 'owned-link');
+      final published = _list(
+        id,
+        token: 'owned-link',
+        visibility: 'public',
+        description: 'new description on other device',
+      );
+      final remote = _Remote()
+        ..lists[id] = published
+        ..public['owned-link'] = published;
+      final repo = _repo(db, remote);
+      await repo.renameList(id, 'Renamed offline');
+      await _push(db, remote).pushList(id);
+
+      expect(remote.lists[id]?['name'], 'Renamed offline');
+      expect(
+        remote.lists[id]?['description'],
+        'new description on other device',
+      );
+      expect(
+        remote.patches.single.$2?.keys,
+        unorderedEquals(['name', 'updated_at']),
+      );
+      expect((await dao.getById(id))?.shareToken, 'owned-link');
+      expect(await dao.getLegacyShare(id), isNull);
+
+      await repo.syncFromRemote();
+      final local = (await repo.getListById(id)).valueOrNull!;
+      expect(local.description, 'old description');
+      expect(local.isSynced, isTrue);
+    },
+  );
+
+  test(
+    'a v13 inferred edit base cannot upload old differences after restart',
+    () async {
+      final dir = await Directory.systemTemp.createTemp(
+        'ponderin-legacy-metadata',
+      );
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/v13.sqlite');
+      const id = '5c974835-a0f2-4d83-aafb-02543fbbb350';
+      final previous = AppDatabase.forTesting(NativeDatabase(file));
+      await previous.customStatement(
+        '''
+      INSERT INTO vocabulary_lists
+        (id, owner_id, name, description, visibility, share_token, is_synced, created_at, updated_at)
+      VALUES (?, 'owner', 'Own list', 'first remote description', 'public', 'owned-link', 1, 1, 2)
+    ''',
+        [id],
+      );
+      final previousDao = previous.vocabularyListDao;
+      await previousDao.rememberSharedImport(
+        id,
+        (await previousDao.getById(id))!,
+      );
+      await previous.customStatement(
+        "UPDATE vocabulary_lists SET description = 'older local description', is_synced = 0 WHERE id = ?",
+        [id],
+      );
+      await previous.customStatement('DROP TABLE IF EXISTS quiz_study_days');
+      await previous.customStatement('PRAGMA user_version = 13');
+      await previous.close();
+
+      final remote = _Remote()
+        ..lists[id] = _list(
+          id,
+          name: 'Own list',
+          token: 'owned-link',
+          visibility: 'public',
+          description: 'latest remote description',
+        );
+      final db = AppDatabase.forTesting(NativeDatabase(file));
+      await _repo(db, remote).renameList(id, 'Known local rename');
+      await _push(db, remote).pushList(id);
+      expect(
+        remote.patches.single.$2?.keys,
+        unorderedEquals(['name', 'updated_at']),
+      );
+      expect(remote.lists[id]?['description'], 'latest remote description');
+      await db.close();
+
+      final reopened = AppDatabase.forTesting(NativeDatabase(file));
+      addTearDown(reopened.close);
+      final repo = _repo(reopened, remote);
+      await repo.syncFromRemote();
+      final visible = (await repo.getListById(id)).valueOrNull!;
+      expect(visible.description, 'older local description');
+      expect(visible.name, 'Known local rename');
+      await repo.updateList(
+        visible.copyWith(description: 'Deliberately edited description'),
+      );
+      await _push(reopened, remote).pushList(id);
+      expect(
+        remote.patches.last.$2?.keys,
+        unorderedEquals(['description', 'updated_at']),
+      );
+      expect(
+        remote.lists[id]?['description'],
+        'Deliberately edited description',
+      );
+    },
+  );
+
+  test(
+    'a recovered import keeps edits proved by its existing pre-edit base',
+    () async {
+      final db = _version2();
+      addTearDown(db.close);
+      final dao = db.vocabularyListDao;
+      // Model the durable base left by an older v13 sharing edit.
+      await dao.rememberSharedImport('copy', (await dao.getById('copy'))!);
+      await db.customStatement(
+        "UPDATE vocabulary_lists SET description = 'known edit' WHERE id = 'copy'",
+      );
+      final remote = _Remote()
+        ..lists['copy'] = _list(
+          'copy',
+          name: 'Other device renamed its copy',
+          description: 'remote desc',
+        )
+        ..public['friend-link'] = _list(
+          'source',
+          token: 'friend-link',
+          visibility: 'public',
+        );
+      await _push(db, remote).pushList('copy');
+
+      final patch = remote.patches.single.$2!;
+      expect(
+        patch.keys,
+        unorderedEquals([
+          'description',
+          'imported_from_share_token',
+          'updated_at',
+        ]),
+      );
+      expect(remote.lists['copy']?['name'], 'Other device renamed its copy');
+      expect(remote.lists['copy']?['description'], 'known edit');
+      expect(
+        (await dao.getById('copy'))?.importedFromShareToken,
+        'friend-link',
+      );
+      expect((await dao.getById('copy'))?.visibility, 'private');
+    },
+  );
+
+  test(
+    'an edit during acknowledgement replaces a held value and sends only that field',
+    () async {
+      final db = _version2(ownDescription: 'older local description');
+      addTearDown(db.close);
+      final entered = Completer<void>();
+      final proceed = Completer<void>();
+      final published = _list(
+        'own',
+        name: 'Own list',
+        token: 'owned-link',
+        visibility: 'public',
+        description: 'other device description',
+      );
+      final remote = _Remote()
+        ..lists['own'] = published
+        ..public['owned-link'] = published
+        ..beforeListWriteResponse = (id) async {
+          if (id != 'own' || entered.isCompleted) return;
+          entered.complete();
+          await proceed.future;
+        };
+      final repo = _repo(db, remote);
+      await repo.renameList('own', 'Known rename');
+      final pushing = _push(db, remote).pushList('own');
+      await entered.future;
+      final local = (await repo.getListById('own')).valueOrNull!;
+      expect(local.description, 'older local description');
+      await repo.updateList(
+        local.copyWith(description: 'Written during acknowledgement'),
+      );
+      proceed.complete();
+      await pushing;
+
+      expect(
+        remote.patches.first.$2?.keys,
+        unorderedEquals(['name', 'updated_at']),
+      );
+      expect(
+        remote.patches.last.$2?.keys,
+        unorderedEquals(['description', 'updated_at']),
+      );
+      expect(remote.lists['own']?['name'], 'Known rename');
+      expect(
+        remote.lists['own']?['description'],
+        'Written during acknowledgement',
+      );
+      expect((await repo.getListById('own')).valueOrNull?.isSynced, isTrue);
+    },
+  );
+
   test(
     'v2 recovers the own link, establishes the real copy and preserves FSRS identity',
     () async {
@@ -281,7 +497,8 @@ void main() {
         addTearDown(() => dir.delete(recursive: true));
         final file = File('${dir.path}/history.sqlite');
         final earlier = AppDatabase.forTesting(NativeDatabase(file));
-        // v13 changes no DDL. Reverse only the v11 and v12 DDL for earlier fixtures.
+        // Reverse newer DDL to build the format actually opened at this version.
+        await earlier.customStatement('DROP TABLE IF EXISTS quiz_study_days');
         await earlier.customStatement('''
         INSERT INTO vocabulary_lists(id,owner_id,name,share_token,imported_from_share_token,is_synced,created_at,updated_at)
         VALUES ('historical','owner','History',${version < 11 ? "'token',NULL" : "NULL,'token'"},1,1,2)
@@ -529,6 +746,32 @@ void main() {
         (await repo.getListById('source')).valueOrNull?.visibility,
         ListVisibility.public,
       );
+    },
+  );
+
+  test(
+    'explicit deletion sends its tombstone without replaying old fields',
+    () async {
+      final db = _version2(ownDescription: 'older description');
+      addTearDown(db.close);
+      final remote = _Remote()
+        ..lists['own'] = _list(
+          'own',
+          name: 'Edited on another device',
+          description: 'remote description',
+        );
+      final repo = _repo(db, remote);
+      expect((await repo.deleteList('own')).isSuccess, isTrue);
+      await _push(db, remote).pushList('own');
+
+      expect(
+        remote.patches.single.$2?.keys,
+        unorderedEquals(['is_deleted', 'updated_at']),
+      );
+      expect(remote.lists['own']?['is_deleted'], isTrue);
+      expect(remote.lists['own']?['description'], 'remote description');
+      expect((await repo.getListById('own')).isFailure, isTrue);
+      expect(await db.vocabularyListDao.getLegacyShare('own'), isNull);
     },
   );
 

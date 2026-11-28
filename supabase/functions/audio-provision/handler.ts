@@ -1,7 +1,5 @@
-import {
-  createClient,
-  StorageApiError,
-} from "npm:@supabase/supabase-js@2.119.2";
+import { createClient } from "npm:@supabase/supabase-js@2.119.2";
+import { storageObjectExists } from "../_shared/storage_presence.ts";
 import {
   audioPathForUser,
   boundedJson,
@@ -107,20 +105,8 @@ export async function handleAudioProvision(
   }
   const textHash = await hash(text, lang);
   const voice = voiceByLanguage[lang] ?? voiceByLanguage.fr;
-  const objectExists = async (db: typeof admin, path: string) => {
-    // Read metadata with the error body. An unqualified HTTP 404 could
-    // originate from the gateway; only Storage's NoSuchKey permits generation.
-    const { error } = await db.storage.from(bucket).info(path);
-    if (!error) return true;
-    if (
-      error instanceof StorageApiError && error.code === "NoSuchKey" &&
-      (error.status === 404 ||
-        (error.status === 400 && error.statusCode === "404"))
-    ) {
-      return false;
-    }
-    return null;
-  };
+  const objectExists = (db: typeof admin, path: string) =>
+    storageObjectExists(db, bucket, path);
   const unavailable = () => response({ error: "Audio unavailable" }, 503);
   const attach = async (db: typeof admin, path: string) => {
     const { data, error } = await db.from("word_variants")

@@ -14,6 +14,8 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import 'package:vocab_kr/app.dart';
+import 'package:vocab_kr/core/errors/failure.dart';
+import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/domain/entities/app_user.dart';
 import 'package:vocab_kr/domain/entities/subscription_type.dart';
@@ -21,12 +23,14 @@ import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/grammar/grammar_provider.dart';
 import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/providers/notifications/notification_provider.dart';
+import 'package:vocab_kr/presentation/providers/purchases/purchase_provider.dart';
 import 'package:vocab_kr/presentation/screens/home/v3_home_screen.dart';
 import 'package:vocab_kr/presentation/screens/onboarding/welcome_screen.dart';
 import 'package:vocab_kr/presentation/widgets/app_shell.dart';
 import 'package:vocab_kr/services/notifications/notification_service.dart';
 
 import '../../helpers/pump_screen.dart';
+import '../../helpers/fake_remote.dart';
 
 class _BundledTranslations extends AssetLoader {
   const _BundledTranslations(this.translations);
@@ -89,6 +93,8 @@ Future<void> _pumpApp(
   required _Reminders reminders,
   _Profile? profile,
   http.Client? httpClient,
+  FakeRemote? vocabularyRemote,
+  bool? premium,
 }) async {
   tester.view.devicePixelRatio = 3;
   tester.view.physicalSize = const Size(1080, 2340);
@@ -147,6 +153,9 @@ Future<void> _pumpApp(
       child: ProviderScope(
         overrides: [
           appDatabaseProvider.overrideWithValue(db),
+          if (vocabularyRemote != null)
+            vocabularyRemoteProvider.overrideWithValue(vocabularyRemote),
+          if (premium != null) isPremiumProvider.overrideWithValue(premium),
           if (profile != null) authStateProvider.overrideWith(() => profile),
           notificationServiceProvider.overrideWithValue(reminders),
           seedStarterListsProvider.overrideWith((ref) async {}),
@@ -176,7 +185,68 @@ Future<Finder> _expectHome(WidgetTester tester) async {
   return home;
 }
 
+class _SharedLink extends FakeRemote {
+  @override
+  Future<Result<Map<String, dynamic>?>> fetchPublicListByToken(
+    String token,
+  ) async => Success({
+    'id': '80000000-0000-4000-8000-000000000001',
+    'owner_id': 'publisher',
+    'share_token': token,
+    'visibility': 'public',
+    'name': 'Shared link',
+    'lang_a': 'fr',
+    'lang_b': 'ko',
+    'concepts': <Map<String, dynamic>>[],
+  });
+}
+
 void main() {
+  testWidgets('native app_links delivery opens detail and returns to home', (
+    tester,
+  ) async {
+    final profile = _Profile();
+    await _pumpApp(
+      tester,
+      reminders: _Reminders(),
+      profile: profile,
+      vocabularyRemote: _SharedLink(),
+      premium: true,
+    );
+    profile.ready.complete(
+      AppUser(
+        id: 'learner',
+        email: 'learner@example.test',
+        username: 'Learner',
+        createdAt: DateTime(2026),
+      ),
+    );
+    await _expectHome(tester);
+    // The native artifact gate verifies that the embedding is disabled;
+    // app_links is the single platform delivery path under that configuration.
+    await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+      'com.llfbandit.app_links/events',
+      const StandardMethodCodec().encodeSuccessEnvelope(
+        'vocabkr://import?token=4d279315af664fb8ad9247fe81bee698',
+      ),
+      (_) {},
+    );
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(
+      find.byKey(const ValueKey(WidgetKeys.screenListDetail)),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Page not found'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.listDetailBack)));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await _expectHome(tester);
+    expect(tester.takeException(), isNull);
+    await unmountScreen(tester);
+  });
+
   testWidgets(
     'signed-in /home restores the daily reminder and streak warning',
     (tester) async {

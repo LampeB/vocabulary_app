@@ -31,12 +31,16 @@ class _AudioplayersFilePlayer implements FileAudioPlayer {
   Future<void> setPlaybackRate(double rate) async => _rate = rate;
 
   @override
-  Future<void> playFile(String path, {bool waitForCompletion = false}) async {
+  Future<void> playFile(
+    String path, {
+    bool waitForCompletion = false,
+    bool Function()? keepGoing,
+  }) async {
     if (_waitingForCompletion && !waitForCompletion) return;
     final generation = ++_generation;
     _waitingForCompletion = waitForCompletion;
     bool stillCurrent() {
-      if (generation == _generation) return true;
+      if (generation == _generation && (keepGoing?.call() ?? true)) return true;
       if (waitForCompletion) throw const AudioPlaybackCancelled();
       return false;
     }
@@ -55,9 +59,9 @@ class _AudioplayersFilePlayer implements FileAudioPlayer {
       if (!stillCurrent()) return;
       final source = DeviceFileSource(path);
       if (waitForCompletion) {
-        await player.playToEnd(source);
+        await player.playToEnd(source, keepGoing: stillCurrent);
       } else {
-        await player.play(source);
+        await player.playWhenCurrent(source, stillCurrent);
       }
     } finally {
       if (generation == _generation) _waitingForCompletion = false;
@@ -113,6 +117,8 @@ void _logFileCleanupError(Object error) {
   sttLog('[TTS] released file player cleanup failed: $error');
 }
 
+enum _PlaybackBackend { file, device }
+
 class AudioPlayerService {
   AudioPlayerService({
     required bool usePremium,
@@ -135,11 +141,11 @@ class AudioPlayerService {
   final double _speechRate;
   final bool _usePremium;
   final FileAudioPlayer _player;
-  int _playbackEpoch = 0;
+  int _playbackGeneration = 0;
   Completer<void> _interrupted = Completer<void>();
-  int _requiredPromptGeneration = 0;
   bool _requiredPromptInProgress = false;
-  int _filePlaybackGeneration = 0;
+  _PlaybackBackend? _owner;
+  Future<void>? _ownerStop;
   bool _fileNeedsRelease = false;
   String? _failedAudioPath;
   Future<void>? _recoveringFile;
@@ -158,21 +164,18 @@ class AudioPlayerService {
     String langCode, {
     String? audioPath,
     bool requirePlayback = false,
+    bool Function()? keepGoing,
   }) async {
-    if (_disposal != null) {
+    if (_disposal != null || !(keepGoing?.call() ?? true)) {
       if (requirePlayback) throw const AudioPlaybackCancelled();
       return;
     }
     if (!requirePlayback && _requiredPromptInProgress) return;
-    if (requirePlayback) {
-      _requiredPromptGeneration++;
-      _requiredPromptInProgress = true;
-    }
-    final epoch = _playbackEpoch;
-    final promptGeneration = _requiredPromptGeneration;
+    _invalidatePlayback();
+    _requiredPromptInProgress = requirePlayback;
+    final generation = _playbackGeneration;
     bool isCurrent() =>
-        epoch == _playbackEpoch &&
-        promptGeneration == _requiredPromptGeneration;
+        generation == _playbackGeneration && (keepGoing?.call() ?? true);
     final interrupted = _interrupted.future;
     final playing = _play(
       text,
@@ -189,7 +192,7 @@ class AudioPlayerService {
       ]);
       if (!isCurrent()) throw const AudioPlaybackCancelled();
     } finally {
-      if (isCurrent()) _requiredPromptInProgress = false;
+      if (generation == _playbackGeneration) _requiredPromptInProgress = false;
     }
   }
 
@@ -200,17 +203,18 @@ class AudioPlayerService {
     bool requirePlayback,
     bool Function() isCurrent,
   ) async {
-    if (_fileNeedsRelease) {
-      await _recoverFilePlayer();
-      if (!isCurrent()) return;
-    }
-    if (!_usePremium || audioPath == null) {
-      await _speakOnDevice(text, langCode, requirePlayback);
+    // Take the channel before looking up a clip. A stale cache reply cannot
+    // stop a newer owner or start either backend after the card changed.
+    final stopping = _releaseOwner();
+    if (stopping != null && !await _confirmRelease(stopping, requirePlayback)) {
       return;
     }
-    final path = await _assetCache
-        .downloadAndCache(audioPath)
-        .timeout(_premiumStartBudget, onTimeout: () => null);
+    if (!isCurrent()) return;
+    final path = _usePremium && audioPath != null
+        ? await _assetCache
+              .downloadAndCache(audioPath)
+              .timeout(_premiumStartBudget, onTimeout: () => null)
+        : null;
     if (!isCurrent()) return;
     if (path != null) {
       // The speech-speed setting used to apply only to device TTS. Most
@@ -218,17 +222,19 @@ class AudioPlayerService {
       // at 1.0× even when the learner chose a slower pedagogical pace.
       await _player.setPlaybackRate(_premiumRateFor(langCode));
       if (!isCurrent()) return;
-      if (_fileNeedsRelease) await _recoverFilePlayer();
-      if (!isCurrent()) return;
-      final generation = ++_filePlaybackGeneration;
+      _owner = _PlaybackBackend.file;
       try {
-        await _player.playFile(path, waitForCompletion: requirePlayback);
+        await _player.playFile(
+          path,
+          waitForCompletion: requirePlayback,
+          keepGoing: isCurrent,
+        );
         return;
       } on AudioPlaybackCancelled {
         if (requirePlayback) rethrow;
         return;
       } catch (error) {
-        if (!isCurrent() || generation != _filePlaybackGeneration) return;
+        if (!isCurrent()) return;
         _fileNeedsRelease = true;
         // Failure to free a previous player did not test this clip.
         if (error is _FilePlayerRetirementFailed) rethrow;
@@ -236,9 +242,40 @@ class AudioPlayerService {
         _failedAudioPath = audioPath;
       }
     }
-    if (_fileNeedsRelease) await _recoverFilePlayer();
+    if (_fileNeedsRelease) await _releaseOwner();
     if (!isCurrent()) return;
-    await _speakOnDevice(text, langCode, requirePlayback);
+    await _speakOnDevice(text, langCode, requirePlayback, isCurrent);
+  }
+
+  Future<void>? _releaseOwner() {
+    final owner = _owner;
+    if (owner == null) return null;
+    final stop = switch (owner) {
+      _PlaybackBackend.file =>
+        _fileNeedsRelease ? _recoverFilePlayer : _player.release,
+      _PlaybackBackend.device => _tts.stop,
+    };
+    return _ownerStop ??= Future<void>.sync(stop).then<void>(
+      (_) {
+        _owner = null;
+        _ownerStop = null;
+      },
+      onError: (Object error, StackTrace stack) {
+        _ownerStop = null;
+        Error.throwWithStackTrace(error, stack);
+      },
+    );
+  }
+
+  Future<bool> _confirmRelease(Future<void> stopping, bool required) async {
+    try {
+      await stopping.timeout(audioReleaseTimeout);
+      return true;
+    } catch (error) {
+      if (required) rethrow;
+      sttLog('[AUDIO] optional playback blocked by previous owner: $error');
+      return false;
+    }
   }
 
   Future<void> _recoverFilePlayer() =>
@@ -261,9 +298,15 @@ class AudioPlayerService {
     String text,
     String langCode,
     bool requirePlayback,
+    bool Function() isCurrent,
   ) async {
+    _owner = _PlaybackBackend.device;
+    final generation = _playbackGeneration;
     try {
-      await _tts.speak(text, langCode);
+      await _tts.speak(text, langCode, keepGoing: isCurrent);
+      // Device speech resolves at terminal audio, while an optional clip
+      // resolves at its start ACK and keeps ownership until the next release.
+      if (generation == _playbackGeneration) _owner = null;
     } on AudioPlaybackCancelled {
       if (requirePlayback) rethrow;
     } on TtsRejected catch (error) {
@@ -292,9 +335,12 @@ class AudioPlayerService {
     final disposal = _disposal;
     if (disposal != null) return disposal;
     _invalidatePlayback();
+    final owner = _owner;
     await Future.wait([
-      _fileNeedsRelease ? _recoverFilePlayer() : _player.stop(),
-      _tts.stop(),
+      ?_releaseOwner(),
+      if (owner != _PlaybackBackend.file)
+        _fileNeedsRelease ? _recoverFilePlayer() : _player.stop(),
+      if (owner != _PlaybackBackend.device) _tts.stop(),
     ]);
   }
 
@@ -341,7 +387,7 @@ class AudioPlayerService {
   }
 
   void _invalidatePlayback() {
-    _playbackEpoch++;
+    _playbackGeneration++;
     _requiredPromptInProgress = false;
     _interrupted.complete();
     _interrupted = Completer<void>();

@@ -67,11 +67,14 @@ void main() {
   testWidgets('offline writes wait for reconnect and cancel a queued drain', (
     tester,
   ) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
     final network = StreamController<List<ConnectivityResult>>.broadcast();
     final writes = StreamController<void>.broadcast();
     final sync = _CountingPushSync();
     final container = ProviderContainer(
       overrides: [
+        appDatabaseProvider.overrideWithValue(db),
         currentUserProvider.overrideWithValue(
           AppUser(
             id: 'u',
@@ -288,6 +291,8 @@ void main() {
   test(
     'a reconnect during a failed pull queues one retry before push',
     () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
       final network = StreamController<List<ConnectivityResult>>.broadcast();
       final firstStarted = Completer<void>();
       final firstReply = Completer<void>();
@@ -298,6 +303,7 @@ void main() {
       var restores = 0;
       final container = ProviderContainer(
         overrides: [
+          appDatabaseProvider.overrideWithValue(db),
           currentUserProvider.overrideWithValue(_user('u')),
           connectivityStreamProvider.overrideWith((ref) => network.stream),
           outboundMutationsProvider.overrideWith((ref) => writes.stream),

@@ -135,146 +135,152 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
       body: Stack(
         children: [
           const Positioned.fill(child: V3Pond(animate: false)),
-          ListView(
+          ScrollAffordance.slivers(
+            hint: 'v3.scroll_hint'.tr(),
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-            children: [
-              Text(
-                'v3.configure'.tr(),
-                style: AppTextStyles.mono(
-                  10,
-                  FontWeight.w700,
-                ).copyWith(letterSpacing: 1.2, color: muted),
-              ),
-              Text(
-                (_grammar
-                        ? 'start_session.title_grammar'
-                        : 'start_session.title')
-                    .tr(),
-                style: AppTextStyles.serif(
-                  24,
-                  FontWeight.w400,
-                ).copyWith(color: foreground),
-              ),
-              const SizedBox(height: 16),
-              // 0 — Langue (vocab only). Pick the pair; the list section then
-              // shows only that language's lists.
-              if (!_grammar) ...[
-                _Section(
-                  index: 0,
-                  isOpen: _open == 0,
-                  label: 'start_session.section_language'.tr(),
-                  value: _langChosen
-                      ? '${Languages.flagFor(_langA)} → ${Languages.flagFor(_langB)}  '
-                            '${Languages.autonym(_langB)}'
-                      : '',
-                  onHeaderTap: () => _select(0),
-                  child: listsAsync.when(
-                    loading: () => _loadingBox(),
-                    error: (_, _) => _errorBox(),
-                    data: (lists) => _languageOptions(lists),
+            slivers: [
+              SliverList.list(
+                children: [
+                  Text(
+                    'v3.configure'.tr(),
+                    style: AppTextStyles.mono(
+                      10,
+                      FontWeight.w700,
+                    ).copyWith(letterSpacing: 1.2, color: muted),
                   ),
-                ),
-                const SizedBox(height: 10),
-              ],
-              // iList — Liste (vocab) | Règle (grammar).
-              _Section(
-                index: iList,
-                isOpen: _open == iList,
-                label:
+                  Text(
                     (_grammar
-                            ? 'start_session.section_rule'
-                            : 'start_session.section_list')
+                            ? 'start_session.title_grammar'
+                            : 'start_session.title')
                         .tr(),
-                value: _grammar ? _ruleTitle : _listName,
-                onHeaderTap: () => _select(iList),
-                child: _grammar
-                    ? _ruleOptions()
-                    : listsAsync.when(
+                    style: AppTextStyles.serif(
+                      24,
+                      FontWeight.w400,
+                    ).copyWith(color: foreground),
+                  ),
+                  const SizedBox(height: 16),
+                  // 0 — Langue (vocab only). Pick the pair; the list section then
+                  // shows only that language's lists.
+                  if (!_grammar) ...[
+                    _Section(
+                      index: 0,
+                      isOpen: _open == 0,
+                      label: 'start_session.section_language'.tr(),
+                      value: _langChosen
+                          ? '${Languages.flagFor(_langA)} → ${Languages.flagFor(_langB)}  '
+                                '${Languages.autonym(_langB)}'
+                          : '',
+                      onHeaderTap: () => _select(0),
+                      child: listsAsync.when(
                         loading: () => _loadingBox(),
                         error: (_, _) => _errorBox(),
-                        data: (lists) => _listOptions(lists),
+                        data: (lists) => _languageOptions(lists),
                       ),
-              ),
-              const SizedBox(height: 10),
-              // iMode — Type de quiz.
-              _Section(
-                index: iMode,
-                isOpen: _open == iMode,
-                label: 'quiz_setup.section_mode'.tr(),
-                value: _mode == null ? '' : _modeLabel(_mode!),
-                onHeaderTap: () => _select(iMode),
-                child: Column(
-                  children: [
-                    for (final m in QuizMode.values) ...[
-                      if (m != QuizMode.values.first) const SizedBox(height: 8),
-                      _OptionTile(
-                        key: ValueKey(WidgetKeys.startQuizType(m.name)),
-                        label: _modeLabel(m),
-                        selected: _mode == m,
-                        disabled: !_modeAllowed(m),
-                        trailing: _modeAllowed(m)
-                            ? null
-                            : 'grammar.written_only'.tr(),
-                        onTap: () {
-                          setState(() => _mode = m);
-                          _select(_grammar ? iCount : iDir);
-                        },
-                      ),
-                    ],
+                    ),
+                    const SizedBox(height: 10),
                   ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              // iDir — Sens (vocab only: grammar drills are FR → KR by nature).
-              if (!_grammar)
-                _Section(
-                  index: iDir,
-                  isOpen: _open == iDir,
-                  label: 'quiz_setup.section_direction'.tr(),
-                  value: _dir == null ? '' : _dirLabel(_dir!),
-                  onHeaderTap: () => _select(iDir),
-                  child: Column(
-                    children: [
-                      for (final d in QuizDirectionChoice.values) ...[
-                        if (d != QuizDirectionChoice.values.first)
-                          const SizedBox(height: 8),
-                        _OptionTile(
-                          key: ValueKey(WidgetKeys.startDirection(d.name)),
-                          label: _dirLabel(d),
-                          selected: _dir == d,
-                          onTap: () {
-                            setState(() => _dir = d);
-                            _select(iCount);
-                          },
-                        ),
-                      ],
-                    ],
+                  // iList — Liste (vocab) | Règle (grammar).
+                  _Section(
+                    index: iList,
+                    isOpen: _open == iList,
+                    label:
+                        (_grammar
+                                ? 'start_session.section_rule'
+                                : 'start_session.section_list')
+                            .tr(),
+                    value: _grammar ? _ruleTitle : _listName,
+                    onHeaderTap: () => _select(iList),
+                    child: _grammar
+                        ? _ruleOptions()
+                        : listsAsync.when(
+                            loading: () => _loadingBox(),
+                            error: (_, _) => _errorBox(),
+                            data: (lists) => _listOptions(lists),
+                          ),
                   ),
-                ),
-              const SizedBox(height: 10),
-              // iCount — Nombre de mots.
-              _Section(
-                index: iCount,
-                isOpen: _open == iCount,
-                label: 'quiz_setup.section_card_count'.tr(),
-                value: _count == null ? '' : '$_count',
-                onHeaderTap: () => _select(iCount),
-                child: Wrap(
-                  spacing: 8,
-                  children: [
-                    for (final n in _limits)
-                      _CountChip(
-                        key: ValueKey(WidgetKeys.startCount(n)),
-                        n: n,
-                        selected: _count == n,
-                        // Last choice: picking the count folds the accordion.
-                        onTap: () {
-                          setState(() => _count = n);
-                          _select(-1);
-                        },
+                  const SizedBox(height: 10),
+                  // iMode — Type de quiz.
+                  _Section(
+                    index: iMode,
+                    isOpen: _open == iMode,
+                    label: 'quiz_setup.section_mode'.tr(),
+                    value: _mode == null ? '' : _modeLabel(_mode!),
+                    onHeaderTap: () => _select(iMode),
+                    child: Column(
+                      children: [
+                        for (final m in QuizMode.values) ...[
+                          if (m != QuizMode.values.first)
+                            const SizedBox(height: 8),
+                          _OptionTile(
+                            key: ValueKey(WidgetKeys.startQuizType(m.name)),
+                            label: _modeLabel(m),
+                            selected: _mode == m,
+                            disabled: !_modeAllowed(m),
+                            trailing: _modeAllowed(m)
+                                ? null
+                                : 'grammar.written_only'.tr(),
+                            onTap: () {
+                              setState(() => _mode = m);
+                              _select(_grammar ? iCount : iDir);
+                            },
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // iDir — Sens (vocab only: grammar drills are FR → KR by nature).
+                  if (!_grammar)
+                    _Section(
+                      index: iDir,
+                      isOpen: _open == iDir,
+                      label: 'quiz_setup.section_direction'.tr(),
+                      value: _dir == null ? '' : _dirLabel(_dir!),
+                      onHeaderTap: () => _select(iDir),
+                      child: Column(
+                        children: [
+                          for (final d in QuizDirectionChoice.values) ...[
+                            if (d != QuizDirectionChoice.values.first)
+                              const SizedBox(height: 8),
+                            _OptionTile(
+                              key: ValueKey(WidgetKeys.startDirection(d.name)),
+                              label: _dirLabel(d),
+                              selected: _dir == d,
+                              onTap: () {
+                                setState(() => _dir = d);
+                                _select(iCount);
+                              },
+                            ),
+                          ],
+                        ],
                       ),
-                  ],
-                ),
+                    ),
+                  const SizedBox(height: 10),
+                  // iCount — Nombre de mots.
+                  _Section(
+                    index: iCount,
+                    isOpen: _open == iCount,
+                    label: 'quiz_setup.section_card_count'.tr(),
+                    value: _count == null ? '' : '$_count',
+                    onHeaderTap: () => _select(iCount),
+                    child: Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final n in _limits)
+                          _CountChip(
+                            key: ValueKey(WidgetKeys.startCount(n)),
+                            n: n,
+                            selected: _count == n,
+                            // Last choice: picking the count folds the accordion.
+                            onTap: () {
+                              setState(() => _count = n);
+                              _select(-1);
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
