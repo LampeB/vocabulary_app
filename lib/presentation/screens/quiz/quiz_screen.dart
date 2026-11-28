@@ -19,6 +19,7 @@ import '../../../core/utils/fsrs_algorithm.dart';
 import '../../../core/widget_keys.dart';
 import '../../../domain/usecases/quiz/get_due_cards_usecase.dart'
     show QuizSource;
+import '../../../services/audio/audio_ports.dart';
 import '../../../services/speech/speech_recognition_service.dart';
 import '../../../services/speech/whisper_speech_service.dart';
 import '../../../services/speech/elevenlabs_speech_service.dart';
@@ -211,29 +212,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       vsync: this,
       duration: const Duration(seconds: 10),
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      await _loadSession();
-      if (!mounted || _quitting) return;
-      if (_usesRealStt && _canInteract && ref.read(_quiz).currentCard != null) {
-        final ok = await _stt.initialize();
-        if (!mounted || _quitting) return;
-        if (!ok && _canInteract) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('quiz.stt_unavailable'.tr()),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_loadSession());
     });
   }
 
   Future<void> _loadSession() {
     _sessionStarted = true;
     _listenToken++;
-    _cancelActiveRace();
+    _stopPreviousCardCapture();
     _turnMachine = null;
     _answerCtrl.clear();
     _hfPaused = false;
@@ -261,8 +248,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     _listenToken++;
     _listenBarCtrl.dispose();
     _activeRace?.cancel();
-    if (_sessionStarted && _foregroundApplied && !_quitting) {
-      unawaited(_stopTurnResources(_sessionDirector));
+    if (_sessionStarted && !_quitting) {
+      unawaited(
+        _stopTurnResources(
+          _foregroundApplied ? _sessionDirector : null,
+          releaseMic: _activeRace != null,
+        ),
+      );
     }
     _answerCtrl.dispose();
     super.dispose();
@@ -308,7 +300,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   Future<void> _interruptTurn() {
     _listenToken++; // every in-flight STT completion is now stale
     _hfCorrection = null;
-    _cancelActiveRace();
+    final releaseMic = _cancelActiveRace();
     _listenBarCtrl.stop();
     setState(() {
       _hfAnalyzing = false;
@@ -319,6 +311,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     ref.read(_quiz.notifier).setListening(false);
     return _interruption = _stopTurnResources(
       ref.read(audioDirectorProvider),
+      releaseMic: releaseMic,
       pending: _interruption,
     );
   }
@@ -339,16 +332,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// Can run during disposal using cached services only.
   Future<void> _stopTurnResources(
     AudioDirector? director, {
+    required bool releaseMic,
     Future<void>? pending,
   }) async {
     try {
       await Future.wait<void>([
         ?pending,
-        _releaseTurnMicrophone(),
-        if (_usesRealStt) ...[
-          Future.sync(_whisper.stopListening),
-          Future.sync(_elevenLabs.stopListening),
-        ],
+        if (releaseMic) _releaseTurnMicrophone(),
         if (director != null) Future.sync(director.stopAll),
       ]);
     } catch (error) {
@@ -356,13 +346,20 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
   }
 
+  void _stopPreviousCardCapture() {
+    // A loading or covered route can see another quiz's app-scoped services
+    // listening. Only its own race gives it permission to stop a capture.
+    if (!_cancelActiveRace()) return;
+    _interruption = _stopTurnResources(
+      null,
+      releaseMic: true,
+      pending: _interruption,
+    );
+  }
+
   Future<void> _resumeHandsFree({bool retryRelease = false}) async {
     final card = ref.read(_quiz).currentCard;
     if (card == null) return;
-    final token = _listenToken;
-    final pending = _interruption;
-    if (pending != null) await pending;
-    if (_turnStale(token, card)) return;
     await _readPromptAndListen(card, retryRelease: retryRelease);
   }
 
@@ -374,6 +371,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }) async {
     final token = _listenToken;
     bool stale() => _turnStale(token, card);
+    if (stale()) return;
+    await _interruption;
     if (stale()) return;
     if (!_kTestMode) {
       if (!await _playCurrentPrompt(card, stale, retryRelease: retryRelease)) {
@@ -396,21 +395,23 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     var previousSpeech = _hfCorrection;
     _hfCorrection = null;
     while (!stale()) {
+      final director = ref.read(audioDirectorProvider);
       final replaced = _replacedPromptDirector;
-      if (replaced != null) {
-        try {
-          await replaced.waitForPlayerRelease(retry: retryRelease);
-        } catch (error) {
-          sttLog('[QUIZ] replaced prompt player release failed: $error');
-          if (!stale()) _showReleaseFailure(audio: true);
-          return false;
-        }
-        if (stale()) return false;
-        _replacedPromptDirector = null;
+      try {
+        await director.waitForReplacedAudio(retry: retryRelease);
+        await replaced
+            ?.waitForPlayerRelease(retry: retryRelease)
+            .timeout(AudioDirector.releaseTimeout);
+      } catch (error) {
+        sttLog('[QUIZ] replaced player release failed: $error');
+        if (!stale()) _showReleaseFailure(audio: true);
+        return false;
       }
+      if (stale()) return false;
+      _replacedPromptDirector = null;
+      if (!identical(director, ref.read(audioDirectorProvider))) continue;
       retryRelease = false;
 
-      final director = ref.read(audioDirectorProvider);
       final grammarPrompt = card.grammarAudioPrompt;
       final result = await (grammarPrompt == null
           ? director.speakVocabularyPrompt(
@@ -493,20 +494,28 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
     final token = ++_listenToken;
     _listenStartInFlight = token;
+    final userId = ref.read(currentUserProvider)?.id;
+    bool stale() =>
+        _turnStale(token, card) || ref.read(currentUserProvider)?.id != userId;
     try {
       final pending = _interruption;
       if (pending != null) await pending;
-      await _startListeningInner(card, token);
+      if (stale()) return;
+      await _startListeningInner(card, token, stale);
+    } catch (error) {
+      await _handleVoiceAttemptFailure(error, stale);
     } finally {
       if (_listenStartInFlight == token) _listenStartInFlight = null;
     }
   }
 
   /// Abandons the listen attempt in progress (see [_activeRace]).
-  void _cancelActiveRace() {
-    _activeRace?.cancel();
+  bool _cancelActiveRace() {
+    final race = _activeRace;
+    race?.cancel();
     _activeRace = null;
     if (_sttStatus != null && mounted) setState(() => _sttStatus = null);
+    return race != null;
   }
 
   /// Local-first pipeline: the registry prefers the ready phone recognizer
@@ -527,6 +536,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     String langCode,
     int sessionToken,
     SttEngineMode mode,
+    bool Function() stale,
   ) async {
     _raceSystemEngine ??= SystemSttEngine(_stt, onDevice: true);
     _systemModeEngine ??= SystemSttEngine(_stt, onDevice: false);
@@ -544,10 +554,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       ..register(_raceWhisperEngine!);
     final courseMode = mode == SttEngineMode.race;
     await (courseMode ? _raceSystemEngine! : _systemModeEngine!).prepare();
-    if (_turnStale(sessionToken, card)) return;
+    if (stale()) return;
     if (courseMode) {
       await _racePhoneEngine!.prepare();
-      if (_turnStale(sessionToken, card)) return;
+      if (stale()) return;
     }
     // Whisper becomes available for local decoding once its model is ready;
     // kick the download in the background on first use. This is enabled
@@ -707,12 +717,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     try {
       await _runRaceAttempt(card, langCode, m, stale, rescue: rescue);
     } catch (error) {
-      sttLog('[QUIZ] voice attempt failed: $error');
-      if (stale()) return;
-      // The detached attempt may have reached native mic startup. Join
-      // release before any retry can start, including a retry during cleanup.
-      await (_interruption = _recoverRaceAttempt(stale));
+      await _handleVoiceAttemptFailure(error, stale);
     }
+  }
+
+  Future<void> _handleVoiceAttemptFailure(
+    Object error,
+    bool Function() stale,
+  ) async {
+    sttLog('[QUIZ] voice attempt failed: $error');
+    if (stale()) return;
+    // A detached attempt may have reached native mic startup. Join release
+    // before any retry can start, including a retry during cleanup.
+    await (_interruption = _recoverRaceAttempt(stale));
   }
 
   Future<bool> _raceNetworkAvailable() async {
@@ -725,10 +742,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   Future<void> _recoverRaceAttempt(bool Function() stale) async {
-    _cancelActiveRace();
+    final releaseMic = _cancelActiveRace();
     _listenBarCtrl.stop();
     try {
-      await _releaseTurnMicrophone();
+      if (releaseMic) await _releaseTurnMicrophone();
     } catch (error) {
       sttLog('[QUIZ] failed attempt could not release the microphone: $error');
       if (!stale()) _showReleaseFailure();
@@ -802,12 +819,27 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       if (stale()) return;
       HapticFeedback.selectionClick();
       try {
-        await ref.read(audioDirectorProvider).listenCue();
+        final director = ref.read(audioDirectorProvider);
+        await director.listenCue();
+        if (!stale() && !identical(director, ref.read(audioDirectorProvider))) {
+          throw const AudioPlaybackCancelled();
+        }
       } catch (error) {
         sttLog('[QUIZ] opening cue failed: $error');
         if (!stale()) {
           setState(() => _hfFailureKey = 'quiz.listen_cue_failed');
         }
+        return;
+      }
+      if (stale()) return;
+    } else {
+      // A voice-mode preparation can also outlive the director that handed
+      // off the channel. Revalidate its replacement before opening the mic.
+      try {
+        await _withCurrentDirector(stale, (d) => d.waitForReplacedAudio());
+      } catch (error) {
+        sttLog('[QUIZ] replaced audio release failed before listening: $error');
+        if (!stale()) _showReleaseFailure(audio: true);
         return;
       }
       if (stale()) return;
@@ -904,16 +936,20 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     await _runTurnCommands(m.on(verdictEvent), card, langCode);
   }
 
-  Future<void> _startListeningInner(QuizCard card, int token) async {
-    bool stale() => _turnStale(token, card);
-    if (stale()) return;
+  Future<void> _startListeningInner(
+    QuizCard card,
+    int token,
+    bool Function() stale,
+  ) async {
     if (_hfNotHeard || _hfAnalyzing) {
       setState(() {
         _hfNotHeard = false;
         _hfAnalyzing = false;
       });
     }
-    _cancelActiveRace(); // the previous attempt's timers must not touch this one
+    _stopPreviousCardCapture();
+    await _interruption;
+    if (stale()) return;
     sttLog(
       '[HF] _startListening  token=$token  question="${card.questionWord}"  answerWords=${card.answerWords}',
     );
@@ -945,7 +981,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // buffers overlap the first recognition frames on Samsung.
     sttLog('[HF] Triggering audio stop + verified focus-handover wait');
     try {
-      await ref.read(audioDirectorProvider).handOffToMic();
+      await _withCurrentDirector(stale, (d) => d.handOffToMic());
     } catch (error) {
       sttLog('[HF] audio release failed: $error');
       if (!stale()) _showReleaseFailure(audio: true);
@@ -957,7 +993,26 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // VoiceTurnMachine. Système is a system-only lane, Course adds the
     // offline Whisper lane. The legacy streaming path is gone; grammar's
     // short generated answers grade exactly like vocab through the race.
-    await _startRaceListening(card, card.direction.answerLang, token, mode);
+    await _startRaceListening(
+      card,
+      card.direction.answerLang,
+      token,
+      mode,
+      stale,
+    );
+  }
+
+  Future<void> _withCurrentDirector(
+    bool Function() stale,
+    Future<void> Function(AudioDirector) action,
+  ) async {
+    while (!stale()) {
+      final director = ref.read(audioDirectorProvider);
+      await action(director);
+      if (stale() || identical(director, ref.read(audioDirectorProvider))) {
+        return;
+      }
+    }
   }
 
   /// Warm the following voice and cache its clips while the learner answers.
@@ -1064,14 +1119,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           // grades it against the old card (field log 2026-07-06 — "mouton"
           // spoken by the app's own voice failed the 양 card).
           _listenToken++;
-          _cancelActiveRace();
-          if (_usesRealStt &&
-              (_stt.isListening ||
-                  _whisper.isListening ||
-                  _elevenLabs.isListening)) {
-            sttLog('[HF] stopping stale listen session from previous card');
-            unawaited(_stopTurnResources(null));
-          }
+          _stopPreviousCardCapture();
           // Clean slate at the card boundary (field report 2026-07-20): the
           // countdown bar kept the PREVIOUS card's frozen value all through
           // the new card's reading phase (it only reset when the next mic

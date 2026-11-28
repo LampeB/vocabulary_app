@@ -160,6 +160,9 @@ jobs:
       # No credentials or deployment: exercise Dart, Gradle, CMake and native
       # linking on every proposed merge, including the pinned Whisper engine.
       - run: flutter build apk --debug
+      - name: Verify device speech stop confirmation
+        shell: pwsh
+        run: ./tool/test-device-speech.ps1
       - name: Validate the profile manifest label
         working-directory: android
         run: ./gradlew :app:processProfileMainManifest --console=plain

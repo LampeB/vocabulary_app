@@ -7,6 +7,7 @@ import 'package:vocab_kr/services/audio/audio_ports.dart';
 import 'package:vocab_kr/services/audio/flutter_tts_service.dart';
 
 const _channel = MethodChannel('flutter_tts');
+const _mobileChannel = MethodChannel('vocab_kr/device_speech');
 
 class _NativeSpeechSlot {
   final spoken = <(String, String)>[];
@@ -78,9 +79,114 @@ void main() {
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_channel, null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_mobileChannel, null);
   });
 
   List<String> names() => calls.map((call) => call.method).toList();
+
+  test(
+    'mobile release keeps queued requests fenced through refusal and retry',
+    () async {
+      final calls = <MethodCall>[];
+      final firstReply = Completer<int>();
+      final freshReply = Completer<int>();
+      final stopReply = Completer<int>();
+      var stops = 0;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(_mobileChannel, (call) async {
+            calls.add(call);
+            if (call.method == 'stop') {
+              return ++stops == 1 ? 0 : stopReply.future;
+            }
+            final args = call.arguments as Map;
+            return args['text'] == 'ancien'
+                ? firstReply.future
+                : freshReply.future;
+          });
+      final tts = FlutterTtsService(
+        mobileChannel: _mobileChannel,
+        speechRate: .7,
+        pitch: 1.1,
+      );
+      final cancelled = Future.wait([
+        expectLater(
+          tts.speak('ancien', 'fr'),
+          throwsA(isA<AudioPlaybackCancelled>()),
+        ),
+        expectLater(
+          tts.speak('en attente', 'ko'),
+          throwsA(isA<AudioPlaybackCancelled>()),
+        ),
+      ]);
+      await Future<void>.delayed(Duration.zero);
+      final request = calls.single.arguments as Map;
+      final client = request['client'];
+      expect(request, {
+        'client': client,
+        'locale': 'fr-FR',
+        'engines': ['com.google.android.tts', 'com.samsung.SMT'],
+        'rate': .7,
+        'pitch': 1.1,
+        'text': 'ancien',
+      });
+
+      await expectLater(tts.stop(), throwsA(isA<TtsRejected>()));
+      expect(tts.isSpeaking, isTrue);
+      expect(calls.length, 2);
+      expect(calls.last.arguments, client);
+      final retry = tts.stop();
+      final fresh = tts.speak('새로운', 'ko');
+      await Future<void>.delayed(Duration.zero);
+      expect(calls.map((call) => call.method), ['speak', 'stop', 'stop']);
+      expect(tts.isSpeaking, isTrue);
+
+      // A matched terminal event can retire both method calls. Even a late
+      // response from the retired request has no effect on its replacement.
+      stopReply.complete(1);
+      await retry;
+      await cancelled;
+      await Future<void>.delayed(Duration.zero);
+      expect((calls.last.arguments as Map)['text'], '새로운');
+      expect((calls.last.arguments as Map)['locale'], 'ko-KR');
+      firstReply.complete(0);
+      await Future<void>.delayed(Duration.zero);
+      expect(tts.isSpeaking, isTrue);
+      freshReply.complete(1);
+      await fresh;
+      expect(tts.isSpeaking, isFalse);
+    },
+  );
+
+  test(
+    'mobile stop cancels any speech queued behind voice preparation',
+    () async {
+      final calls = <MethodCall>[];
+      final preparing = Completer<int>();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(_mobileChannel, (call) async {
+            calls.add(call);
+            if (call.method == 'warmUp') return preparing.future;
+            return 1;
+          });
+      final tts = FlutterTtsService(mobileChannel: _mobileChannel);
+      final warm = tts.warmUp('fr');
+      final cancelled = expectLater(
+        tts.speak('ancien', 'fr'),
+        throwsA(isA<AudioPlaybackCancelled>()),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(calls.map((call) => call.method), ['warmUp']);
+
+      await tts.stop();
+      await cancelled;
+      await tts.speak('새로운', 'ko');
+      preparing.complete(0);
+      await warm;
+      expect(calls.map((call) => call.method), ['warmUp', 'stop', 'speak']);
+      expect((calls.last.arguments as Map)['text'], '새로운');
+    },
+  );
 
   test(
     'native speech keeps its voice and reply until the utterance ends',

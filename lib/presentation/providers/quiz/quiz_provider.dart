@@ -662,6 +662,8 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
       };
       final forms = promptArgs['forms'];
       final word = promptArgs['word']!;
+      final namedParticle = forms != null && promptArgs.containsKey('hint');
+      final prompt = exercise.promptKey.tr(namedArgs: promptArgs);
       return QuizCard(
         progress: VariantProgress(
           id: 'grammar|${exercise.ruleId}',
@@ -671,9 +673,9 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
           createdAt: now,
           updatedAt: now,
         ),
-        questionWord: exercise.promptKey.tr(namedArgs: promptArgs),
+        questionWord: namedParticle ? '$prompt ($forms)' : prompt,
         grammarAudioPrompt: (
-          instruction: forms == null
+          instruction: forms == null || namedParticle
               ? exercise.promptKey.tr(
                   namedArgs: {
                     ...promptArgs,

@@ -6,6 +6,7 @@ import UIKit
 @main
 @objc class AppDelegate: FlutterAppDelegate {
   private var systemSpeech: SystemSpeechCapture?
+  private var deviceSpeech: DeviceSpeech?
 
   override func application(
     _ application: UIApplication,
@@ -14,6 +15,7 @@ import UIKit
     GeneratedPluginRegistrant.register(with: self)
     if let registrar = registrar(forPlugin: "VocabKrNativeBridge") {
       systemSpeech = SystemSpeechCapture(messenger: registrar.messenger())
+      deviceSpeech = DeviceSpeech(messenger: registrar.messenger())
       SttDiagnosticStorage.register(messenger: registrar.messenger())
       FlutterMethodChannel(
         name: "vocab_kr/device_time_zone",

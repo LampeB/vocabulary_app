@@ -81,6 +81,12 @@ include the subject and may use either `don't` or `do not` with the base
 verb. The exercise also accepts `am not busy`, `I am not busy` and
 `I'm not busy` for `to be busy`. The prompt is available in FR, EN and KO.
 
+The English present and negation drills include a mastered word from the
+prerequisite lists outside their usual categories when that rule defines its
+form explicitly. For the present, the rule must supply a form for every
+person it drills. `To be busy` keeps its catalog category `adjectif`, so it
+does not count toward either rule's minimum of five known verbs.
+
 The plural drill uses the same serving sense of coffee as the article
 drill. Keep the `coffee` → `coffees` override and the ordering example
 “Two coffees, please.” aligned with the catalog example “A coffee, please.”

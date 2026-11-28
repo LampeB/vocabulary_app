@@ -1,5 +1,8 @@
 import 'dart:async' show Completer;
+import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'audio_service.dart';
 import 'audio_ports.dart';
@@ -29,14 +32,24 @@ class TtsRejected implements Exception {
 }
 
 class FlutterTtsService implements AudioService, DeviceSpeech {
-  FlutterTtsService({this.speechRate = 0.85, this.pitch = 1.0});
+  FlutterTtsService({
+    this.speechRate = 0.85,
+    this.pitch = 1.0,
+    @visibleForTesting MethodChannel? mobileChannel,
+  }) : _mobileChannel =
+           mobileChannel ??
+           (!kIsWeb && (Platform.isAndroid || Platform.isIOS)
+               ? const MethodChannel('vocab_kr/device_speech')
+               : null);
 
   final double speechRate;
   final double pitch;
+  final MethodChannel? _mobileChannel;
+  static int _nextMobileClient = 0;
+  late final int _mobileClient = ++_nextMobileClient;
+  bool _mobileUsed = false;
 
-  // One instance per language, created lazily — never pay the cost of
-  // switching engines mid-session, and any langCode works (generic-language-
-  // pairs epic; was two hardcoded fr/ko instances).
+  // The desktop and web fallback still uses the Flutter TTS plugin.
   final _ttsByLang = <String, FlutterTts>{};
   FlutterTts? _lastNativeVoice;
   Future<dynamic>? _engineSwitch;
@@ -146,6 +159,22 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
     return tts;
   }
 
+  Future<int?> _requestMobileSpeech(
+    String method,
+    String langCode, {
+    String? text,
+  }) {
+    _mobileUsed = true;
+    return _mobileChannel!.invokeMethod<int>(method, {
+      'client': _mobileClient,
+      'locale': Languages.speechLocaleFor(langCode),
+      'engines': _enginePreferences[langCode] ?? _defaultEnginePreference,
+      'rate': speechRate,
+      'pitch': pitch,
+      'text': ?text,
+    });
+  }
+
   /// Pre-loads [langCode]'s voice on the shared engine so the next speak()
   /// in that language starts instantly. Call during idle windows (e.g. while
   /// the hands-free mic is listening); it produces no audio.
@@ -153,7 +182,17 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
   Future<void> warmUp(String langCode) async {
     final generation = _playbackGeneration;
     try {
-      await _serialized(() => _configure(langCode, generation));
+      await _serialized(() async {
+        if (!_current(generation)) return;
+        if (_mobileChannel == null) {
+          await _configure(langCode, generation);
+        } else {
+          final result = await _requestMobileSpeech('warmUp', langCode);
+          if (_current(generation) && result != 1) {
+            throw TtsRejected('warmUp', langCode);
+          }
+        }
+      });
     } on TtsRejected catch (error) {
       sttLog('[TTS] optional warm-up failed: $error');
     }
@@ -183,22 +222,27 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
     int generation,
     Completer<void> request,
   ) async {
-    final tts = await _configure(langCode, generation);
-    if (tts == null || !_current(generation)) {
+    final mobile = _mobileChannel != null;
+    final tts = mobile ? null : await _configure(langCode, generation);
+    if ((!mobile && tts == null) || !_current(generation)) {
       await (_nativeDisposal ?? _stopping);
       throw const AudioPlaybackCancelled();
     }
     _activeSpeak = request;
     sttLog('[TTS] ▶ speak start lang=$langCode "$text"');
     try {
-      final result = await tts.speak(text);
+      final result = mobile
+          ? await _requestMobileSpeech('speak', langCode, text: text)
+          : await tts!.speak(text);
       if (!_current(generation)) {
         await (_nativeDisposal ?? _stopping);
         throw const AudioPlaybackCancelled();
       }
       // The pinned native plugin reports rejection with 0. Other backends
       // may complete successfully without a numeric acknowledgement.
-      if (result == 0) throw TtsRejected('speak', langCode);
+      if (mobile ? result != 1 : result == 0) {
+        throw TtsRejected('speak', langCode);
+      }
     } finally {
       if (identical(_activeSpeak, request)) _activeSpeak = null;
       sttLog('[TTS] ■ speak done lang=$langCode "$text"');
@@ -234,8 +278,8 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
   Future<void> _stopSpeechRequests() async {
     final interrupted = _pendingSpeaks.toList(growable: false);
     await _stopVoices();
-    // iOS acknowledges stop but can leave the interrupted speak reply open.
-    // Retire only these utterances once native stop is confirmed.
+    // Retire these requests on confirmed stop even if their old method
+    // replies are still in flight.
     for (final speech in interrupted) {
       if (_pendingSpeaks.remove(speech)) {
         if (identical(_activeSpeak, speech)) _activeSpeak = null;
@@ -245,6 +289,14 @@ class FlutterTtsService implements AudioService, DeviceSpeech {
   }
 
   Future<void> _stopVoices() async {
+    final mobile = _mobileChannel;
+    if (mobile != null) {
+      if (_mobileUsed &&
+          await mobile.invokeMethod<int>('stop', _mobileClient) != 1) {
+        throw const TtsRejected('stop', '');
+      }
+      return;
+    }
     final voices = [
       ..._ttsByLang.values,
       if (_ttsByLang.isEmpty && _lastNativeVoice != null) _lastNativeVoice!,

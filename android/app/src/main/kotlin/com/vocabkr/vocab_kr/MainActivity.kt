@@ -7,9 +7,11 @@ import java.util.TimeZone
 
 class MainActivity : FlutterActivity() {
     private var systemSpeech: SystemSpeechCapture? = null
+    private var deviceSpeech: DeviceSpeech? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        deviceSpeech = DeviceSpeech(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
         val systemChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "vocab_kr/system_speech")
         val system = SystemSpeechCapture(applicationContext) { method, payload ->
             systemChannel.invokeMethod(method, payload)
@@ -82,6 +84,8 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        deviceSpeech?.dispose()
+        deviceSpeech = null
         try {
             systemSpeech?.dispose()
         } catch (error: Exception) {

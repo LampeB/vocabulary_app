@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../services/audio/audio_player_service.dart';
 import '../../../services/quiz_orchestration/audio_director.dart';
@@ -25,7 +27,44 @@ final audioPlayerServiceProvider = Provider.autoDispose<AudioPlayerService>((
 /// Wraps the shared [AudioPlayerService], so director waits and direct
 /// speak() calls observe the same channel.
 final audioDirectorProvider = Provider.autoDispose<AudioDirector>((ref) {
-  final director = AudioDirector(ref.watch(audioPlayerServiceProvider));
-  ref.onDispose(director.dispose); // frees the director-owned SFX player
+  final retired = ref.watch(_retiredAudioDirectorsProvider);
+  final director = AudioDirector(
+    ref.watch(audioPlayerServiceProvider),
+    waitForReplacedAudio: retired.wait,
+  );
+  ref.onDispose(() => retired.retire(director));
   return director;
 });
+
+// Scope the barrier to the audio channel, which survives route and settings
+// changes. A replacement can itself be replaced while an earlier stop waits.
+final _retiredAudioDirectorsProvider = Provider(
+  (ref) => _RetiredAudioDirectors(),
+);
+
+class _RetiredAudioDirectors {
+  final _pending = <AudioDirector>{};
+
+  void retire(AudioDirector director) {
+    _pending.add(director);
+    director.dispose();
+    // Let the speech player's own provider begin disposal before joining it.
+    unawaited(
+      Future<void>.microtask(
+        () => _release(director, retry: false),
+      ).catchError((Object _) {}),
+    );
+  }
+
+  Future<void> wait({required bool retry}) async {
+    await Future.wait(
+      _pending.toList().map((director) => _release(director, retry: retry)),
+      eagerError: true,
+    );
+  }
+
+  Future<void> _release(AudioDirector director, {required bool retry}) async {
+    await director.waitForPlayerRelease(retry: retry);
+    _pending.remove(director);
+  }
+}

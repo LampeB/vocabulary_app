@@ -38,6 +38,10 @@ langues.
 
 - `VoiceTurnMachine` pilote les tours mains-libres ; `AudioDirector` séquence
   les prompts, réponses et signaux.
+- La synthèse de l'appareil sur Android/iOS utilise des ponts de l'application
+  qui attendent l'arrêt natif identifié avant de permettre une autre lecture
+  ou le microphone. Le protocole et les limites de validation sont dans
+  [le contrat voix](docs/stt-improvement-plan.md).
 - `SttRace` valide une hypothèse contre la réponse attendue et coordonne les
   moteurs système, Whisper et ElevenLabs selon leur disponibilité ; depuis
   2026-10-02 les décodeurs PCM (Whisper, téléphone via le pont et ElevenLabs)
@@ -97,17 +101,21 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **1 249 tests hôte passent**, avec **76,0 %**
-  de couverture sur le dernier lot du 27 novembre. Douze tests positifs du
+- L'analyse Flutter est propre ; les **1 264 tests hôte passent**, avec **76,1 %**
+  de couverture sur le dernier lot du 28 novembre. Douze tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 25 tests ciblés. La sonde compilée en mode produit confirme le
   refus des diagnostics, même avec l'option fournie.
-- Sur `48b12ee`, les huit checks CI, dont les tests hôte, le wrapper SQL,
+- Sur `116c01d`, les huit checks CI, dont les tests hôte, le wrapper SQL,
   Android et le simulateur iOS, sont verts. Le pont utilise le NDK 28.2 de
-  l'application. Les vingt itérations autorisées n'ont pas convergé ;
+  l'application. Les vingt itérations du premier cycle n'ont pas convergé ;
   le profil sécurité est propre de la dix-septième à la vingtième sur quatre
   commits différents. Les quatre Important de la dernière passe sont corrigés,
-  mais ce candidat n'a pas reçu de nouvelle revue indépendante. Le 28 novembre,
+  puis relus à la passe 1 du cycle 2. Cette passe relève huit Important distincts,
+  corrigés ensemble avec recherche des cas voisins et preuves ciblées. La
+  synthèse mobile est désormais contrôlée à sa frontière native ; l'APK Android
+  et les sondes Kotlin passent, la compilation iOS attend la CI du candidat.
+  Le 28 novembre,
   l'utilisateur autorise le cycle 2, avec vingt nouvelles passes au maximum,
   des relecteurs libres d'explorer et des correcteurs chargés de chercher la
   cause, les cas voisins et les effets de leurs changements. Les anciens
@@ -122,7 +130,7 @@ de contenu avant bêta pédagogique.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **1 249** tests hôte réussis lors de la dernière validation locale
+- La suite compte **1 264** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - Les dix-sept suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations

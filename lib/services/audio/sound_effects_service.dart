@@ -271,11 +271,7 @@ class SoundEffectsService {
   Future<void> stop() async {
     _invalidatePlayback();
     if (_disposed) return;
-    try {
-      await _stopCurrentPlayer();
-    } catch (error) {
-      sttLog('[SFX] stop failed: $error');
-    }
+    await _stopCurrentPlayer();
   }
 
   void _invalidatePlayback() {
@@ -311,8 +307,22 @@ class SoundEffectsService {
 
   void dispose() {
     if (_disposed) return;
-    final stopping = stop();
     _disposed = true;
-    unawaited(stopping.then((_) => _playerInstance?.dispose()));
+    _invalidatePlayback();
+    unawaited(
+      waitForDisposal(retry: true).catchError((Object error) {
+        sttLog('[SFX] disposal could not release playback: $error');
+      }),
+    );
+  }
+
+  /// A replacement must wait even after this service has cancelled its
+  /// Dart cue. Reissue only a refused stop, retaining pending/confirmed stops.
+  Future<void> waitForDisposal({bool retry = false}) async {
+    await (retry ? _stopCurrentPlayer() : _stopping);
+    if (!_disposed) return;
+    final player = _playerInstance;
+    _playerInstance = null;
+    player?.dispose();
   }
 }

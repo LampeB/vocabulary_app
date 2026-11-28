@@ -142,18 +142,4 @@ abstract final class KoreanMorphology {
     }
     return '안 ${presentPolite(dictionaryForm, irregulars: conjugationIrregulars)}';
   }
-
-  /// The strictly mechanical negation (안 + conjugated form), ignoring
-  /// pedagogical overrides — used as an ACCEPTED alternative when a rule's
-  /// irregulars map prefers an antonym (맛있다 → 맛없어요 vs 안 맛있어요).
-  static String mechanicalNegation(
-    String dictionaryForm, {
-    Map<String, String> conjugationIrregulars = const {},
-  }) {
-    if (dictionaryForm.endsWith('하다') && dictionaryForm.length > 2) {
-      final noun = dictionaryForm.substring(0, dictionaryForm.length - 2);
-      return '$noun 안 해요';
-    }
-    return '안 ${presentPolite(dictionaryForm, irregulars: conjugationIrregulars)}';
-  }
 }

@@ -90,6 +90,18 @@ The streak HTTP tests carry its civil date through midnight and preserve a
 newer remote profile. Successive imports retain each result in its own route.
 Compact pair/mode sheets expose the scroll cue before a gesture in FR/EN/KO.
 
+### Native device-speech stop confirmation
+
+After an Android build has initialized the pinned Gradle distribution, run
+`pwsh -File tool/test-device-speech.ps1`. The Android CI check runs this too.
+Five JVM scenarios compile the production `DeviceSpeech.kt` with controlled
+Android/Flutter doubles and exercise rejection, missing terminal events,
+retry, stale callbacks, initialization, client ownership and engine reuse.
+The harness lives in `tool/native-tests/device-speech/`; it uses Gradle's
+bundled Kotlin compiler and adds no runtime or test dependency. These checks
+do not exercise an OEM speech engine or physical audio. Dart channel/widget
+tests and the Android/iOS builds remain separate checks.
+
 ### `test/unit/fsrs_algorithm_test.dart` (21 tests)
 Spaced-repetition scheduling (FSRS algorithm).
 

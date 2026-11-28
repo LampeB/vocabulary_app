@@ -190,17 +190,22 @@ void main() {
   });
 
   test(
-    'stops and disposes safely, including a platform stop failure',
+    'refused stop prevents disposal until the same player confirms release',
     () async {
       final player = _FakePlayer()..failStop = true;
       final service = SoundEffectsService(player: player);
       await service.playListenCue();
 
-      await service.stop();
+      await expectLater(service.stop(), throwsStateError);
       service.dispose();
-      await Future<void>.delayed(Duration.zero);
+      await expectLater(service.waitForDisposal(), throwsStateError);
 
       expect(player.stopped, 2);
+      expect(player.disposed, 0);
+      player.failStop = false;
+      await service.waitForDisposal(retry: true);
+      await service.waitForDisposal(retry: true);
+      expect(player.stopped, 3);
       expect(player.disposed, 1);
     },
   );

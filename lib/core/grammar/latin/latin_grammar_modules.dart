@@ -266,6 +266,20 @@ class EnglishGrammarModule extends LatinGrammarModule {
   String get pluralPromptKey => 'grammar.drill.plural_en_uncountable';
 
   @override
+  bool hasDrillException(GrammarRule rule, String word) =>
+      switch (rule.mechanics) {
+        ConjugationMechanics(:final irregulars, :final persons) =>
+          irregulars.containsKey(word) ||
+              (persons.isEmpty ? const ['p1sg'] : persons).every(
+                (person) => irregulars.containsKey('$word|$person'),
+              ),
+        NegationMechanics(:final irregulars) =>
+          irregulars.containsKey(word) ||
+              irregulars.containsKey('$word|$negationPerson'),
+        _ => false,
+      };
+
+  @override
   String articlePhrase(String article, String word) =>
       article == 'a' && LatinGrammarModule.startsWithVowel(word)
       ? 'an $word'

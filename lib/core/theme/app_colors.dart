@@ -27,6 +27,9 @@ abstract final class AppColors {
   /// Destructive — delete, sign-out, error states only.
   static const rose = Color(0xFFB0556B);
 
+  /// Error text on light surfaces, including the tinted V3 ground.
+  static const roseText = Color(0xFFA3485D);
+
   /// Filled-button variants — darkened so white text meets WCAG AA on the fill
   /// (clay 2.97:1 → ~4.5:1, teal 3.89:1 → ~4.5:1). Use these for solid CTAs;
   /// keep [clay]/[teal] for accents, fills, progress, and icons (no white text).
@@ -43,6 +46,7 @@ abstract final class AppColors {
   static const cardDark = Color(0xFF2E2823);
   static const tealDark = Color(0xFF5FB0A8); // slightly brighter on dark bg
   static const clayDark = Color(0xFFFF8A55); // slightly brighter on dark bg
+  static const roseDark = Color(0xFFE39AAE); // error text on dark surfaces
 
   // ── List accent palette (user picks one per list) ─────────────────────────
   static const paletteClay = Color(0xFFD08358);

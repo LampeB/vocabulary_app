@@ -21,6 +21,8 @@ class _FakeSfx implements SoundEffectsService {
   Future<void> stop() async => played.add('stop');
   @override
   void dispose() {}
+  @override
+  Future<void> waitForDisposal({bool retry = false}) async {}
 }
 
 class _FakeAudio implements AudioPlayerService {

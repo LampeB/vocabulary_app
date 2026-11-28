@@ -5,6 +5,7 @@ import 'dart:ui' show Locale;
 
 import 'package:audioplayers/audioplayers.dart' show PlayerState;
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:easy_localization/easy_localization.dart';
 // ignore: implementation_imports
@@ -114,7 +115,7 @@ class _CountingPushSync implements PushSync {
 void main() {
   late DrillWord catalogKimchi;
   late DrillWord catalogFrenchWater;
-  final pluralCopies = <String, Map<String, dynamic>>{};
+  final localeCopies = <String, Map<String, dynamic>>{};
   setUpAll(() async {
     await initTestLocalization();
     final layer =
@@ -163,8 +164,8 @@ void main() {
       word: waterPrimary['word'] as String,
       category: waterMetadata['category'] as String,
     );
-    for (final locale in ['fr', 'ko']) {
-      pluralCopies[locale] =
+    for (final locale in ['fr', 'en', 'ko']) {
+      localeCopies[locale] =
           jsonDecode(
                 await rootBundle.loadString('assets/translations/$locale.json'),
               )
@@ -186,38 +187,40 @@ void main() {
   ProviderContainer makeContainer({
     List<Override> overrides = const [],
     StateProvider<AppUser?>? account,
+    bool useCatalog = false,
   }) {
     final c = ProviderContainer(
       overrides: [
         appDatabaseProvider.overrideWithValue(db),
         vocabularyRemoteProvider.overrideWithValue(FakeRemote()),
-        ruleDrillWordsProvider.overrideWith(
-          (ref, key) async => switch (key) {
-            (ruleId: 'fr-articles-le-la', targetLang: 'fr') => const [
-              DrillWord(word: 'eau', category: 'nom', tags: ['f']),
-            ],
-            (ruleId: 'fr-negation-ne-pas', targetLang: 'fr') => const [
-              DrillWord(word: 'travailler', category: 'verbe'),
-            ],
-            (ruleId: 'fr-present-er', targetLang: 'fr') => const [
-              DrillWord(word: 'travailler', category: 'verbe'),
-            ],
-            (ruleId: 'en-negation-dont', targetLang: 'en') => const [
-              DrillWord(word: 'to work', category: 'verbe'),
-            ],
-            (ruleId: 'en-plural-s-es', targetLang: 'en') => [
-              const DrillWord(word: 'water', category: 'nom'),
-              const DrillWord(word: 'coffee', category: 'nom'),
-              const DrillWord(word: 'milk', category: 'nom'),
-              const DrillWord(word: 'bread', category: 'nom'),
-              catalogKimchi,
-            ],
-            (ruleId: _, targetLang: 'fr') => const [
-              DrillWord(word: 'pomme', category: 'nom'),
-            ],
-            _ => words,
-          },
-        ),
+        if (!useCatalog)
+          ruleDrillWordsProvider.overrideWith(
+            (ref, key) async => switch (key) {
+              (ruleId: 'fr-articles-le-la', targetLang: 'fr') => const [
+                DrillWord(word: 'eau', category: 'nom', tags: ['f']),
+              ],
+              (ruleId: 'fr-negation-ne-pas', targetLang: 'fr') => const [
+                DrillWord(word: 'travailler', category: 'verbe'),
+              ],
+              (ruleId: 'fr-present-er', targetLang: 'fr') => const [
+                DrillWord(word: 'travailler', category: 'verbe'),
+              ],
+              (ruleId: 'en-negation-dont', targetLang: 'en') => const [
+                DrillWord(word: 'to work', category: 'verbe'),
+              ],
+              (ruleId: 'en-plural-s-es', targetLang: 'en') => [
+                const DrillWord(word: 'water', category: 'nom'),
+                const DrillWord(word: 'coffee', category: 'nom'),
+                const DrillWord(word: 'milk', category: 'nom'),
+                const DrillWord(word: 'bread', category: 'nom'),
+                catalogKimchi,
+              ],
+              (ruleId: _, targetLang: 'fr') => const [
+                DrillWord(word: 'pomme', category: 'nom'),
+              ],
+              _ => words,
+            },
+          ),
         if (account == null)
           currentUserProvider.overrideWithValue(
             AppUser(
@@ -257,6 +260,229 @@ void main() {
         direction: QuizDirectionChoice.frToKo,
         cardLimit: cardLimit,
       );
+
+  Future<ProviderContainer> masterCatalog(String langA, String langB) async {
+    final session = makeContainer(useCatalog: true);
+    await session.read(starterSeederProvider).ensureSeededForPair(langA, langB);
+    final lists = await session.read(myListsProvider.future);
+    final now = DateTime(2026);
+    for (final list in lists) {
+      final concepts = await db.conceptDao.getConceptsByList(list.id);
+      final variants = await db.conceptDao.getVariantsByConceptIds([
+        for (final concept in concepts) concept.id,
+      ], langB);
+      for (final variant in variants) {
+        await db.progressDao.upsert(
+          VariantProgressTableCompanion.insert(
+            id: 'progress-${variant.id}',
+            userId: 'u',
+            variantId: variant.id,
+            direction: '$langA>$langB',
+            state: const Value('review'),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+      }
+    }
+    return session;
+  }
+
+  Future<void> gradeCatalogAnswers(
+    ProviderContainer session, {
+    required String ruleId,
+    required String targetLang,
+    required Map<String, Map<String, bool>> cases,
+  }) async {
+    final sub = session.listen(_quiz, (_, _) {});
+    final notifier = session.read(_quiz.notifier);
+    var shown = 0;
+    var correct = 0;
+    for (final mode in [QuizMode.typing, QuizMode.voice]) {
+      for (final MapEntry(key: word, value: answers) in cases.entries) {
+        for (final MapEntry(key: answer, value: accepted) in answers.entries) {
+          await notifier.loadCards(
+            QuizArgs(
+              source: QuizSource.grammar,
+              ruleId: ruleId,
+              mode: mode,
+              direction: QuizDirectionChoice.frToKo,
+              cardLimit: 40,
+              langB: targetLang,
+            ),
+          );
+          final index = sub.read().cards.indexWhere(
+            (card) => card.grammarAudioPrompt?.word == word,
+          );
+          expect(index, isNonNegative, reason: '$ruleId must exercise $word');
+          for (var i = 0; i < index; i++) {
+            notifier.skipCurrentCard();
+          }
+          if (mode == QuizMode.voice) {
+            notifier.submitVoiceAnswer('$answer.', isDrivingMode: true);
+          } else {
+            notifier.submitTextAnswer(answer);
+          }
+          expect(
+            sub.read().answerState,
+            accepted ? QuizAnswerState.correct : QuizAnswerState.incorrect,
+            reason: '$mode, $word: $answer',
+          );
+          shown++;
+          if (accepted) correct++;
+        }
+      }
+    }
+    final progress = await db.grammarProgressDao
+        .watchByUser('u')
+        .expand((rows) => rows)
+        .firstWhere((row) => row.ruleId == ruleId && row.shown == shown)
+        .timeout(const Duration(seconds: 2));
+    expect(progress.correct, correct);
+  }
+
+  test('real Korean negation grades lexical exceptions and antonyms', () async {
+    final session = await masterCatalog('fr', 'ko');
+    await gradeCatalogAnswers(
+      session,
+      ruleId: 'negation-an',
+      targetLang: 'ko',
+      cases: const {
+        '좋아하다': {'안 좋아해요': true, '좋아 안 해요': false},
+        '맛있다': {'맛없어요': true, '안 맛있어요': true},
+        '공부하다': {'공부 안 해요': true, '안 공부해요': false},
+      },
+    );
+  });
+
+  test(
+    'real Korean particle cards show and speak each selected form',
+    () async {
+      final session = await masterCatalog('fr', 'ko');
+      final sub = session.listen(_quiz, (_, _) {});
+      final notifier = session.read(_quiz.notifier);
+      addTearDown(initTestLocalization);
+      for (final locale in ['fr', 'en', 'ko']) {
+        Localization.load(
+          Locale(locale),
+          translations: Translations(localeCopies[locale]!),
+          fallbackTranslations: Translations(localeCopies['fr']!),
+        );
+        for (final ruleId in [
+          'particule-theme-eun-neun',
+          'particules-sujet-objet-i-ga-eul-reul',
+          'particules-lieu-e-eseo',
+        ]) {
+          await notifier.loadCards(
+            QuizArgs(
+              source: QuizSource.grammar,
+              ruleId: ruleId,
+              mode: QuizMode.handsFree,
+              direction: QuizDirectionChoice.frToKo,
+              cardLimit: 6,
+            ),
+            promptLocale: locale,
+          );
+          final cards = sub.read().cards;
+          expect(cards, hasLength(6));
+          expect(
+            cards
+                .map((card) => card.progress.variantId.split('|').last)
+                .toSet(),
+            switch (ruleId) {
+              'particule-theme-eun-neun' => {''},
+              'particules-sujet-objet-i-ga-eul-reul' => {'subject', 'object'},
+              _ => {'destination_or_time', 'action_location'},
+            },
+          );
+          for (final card in cards) {
+            final variant = card.progress.variantId.split('|').last;
+            final spoken = card.grammarAudioPrompt!;
+            expect(card.direction.answerLang, 'ko');
+            expect(spoken.locale, locale);
+            if (variant.isNotEmpty) {
+              final hint = 'grammar.hint.$variant'.tr();
+              expect(card.questionWord, contains(hint));
+              expect(spoken.instruction, contains(hint));
+            }
+            final forms = switch (variant) {
+              'subject' => '이/가',
+              'object' => '을/를',
+              '' => '은/는',
+              _ => null,
+            };
+            if (forms != null) {
+              expect(card.questionWord, contains(forms));
+              final prefix = '${forms.split('/').join('. ')}. ';
+              expect(spoken.word, startsWith(prefix));
+              expect(
+                card.questionWord,
+                contains(spoken.word.substring(prefix.length)),
+              );
+            } else {
+              expect(spoken.word, isNot(contains('. ')));
+              expect(card.questionWord, contains(spoken.word));
+            }
+          }
+        }
+      }
+    },
+  );
+
+  test('English catalog drills admit authored forms of to be busy', () async {
+    final session = await masterCatalog('fr', 'en');
+    final sub = session.listen(_quiz, (_, _) {});
+    final notifier = session.read(_quiz.notifier);
+    final statuses = await session.read(ruleStatusesProvider('en').future);
+    final module = (await session.read(grammarModuleProvider('en').future))!;
+    final generator = GrammarDrillGenerator(module);
+
+    for (final ruleId in ['en-present-3sg-s', 'en-negation-dont']) {
+      final status = statuses.singleWhere((status) => status.rule.id == ruleId);
+      final rule = status.rule;
+      expect(status.availability, RuleAvailability.unlocked);
+      expect(status.enoughWords, isTrue);
+      final pool = await session.read(
+        ruleDrillWordsProvider((ruleId: ruleId, targetLang: 'en')).future,
+      );
+      final busy = pool.singleWhere((word) => word.word == 'to be busy');
+      expect(busy.category, 'adjectif');
+      final verbs = pool.where((word) => word.category == 'verbe');
+      expect(generator.canGenerate(rule, [...verbs.take(4), busy]), isFalse);
+      expect(generator.canGenerate(rule, verbs.take(5).toList()), isTrue);
+    }
+
+    await notifier.loadCards(
+      const QuizArgs(
+        source: QuizSource.grammar,
+        ruleId: 'en-present-3sg-s',
+        mode: QuizMode.typing,
+        direction: QuizDirectionChoice.frToKo,
+        cardLimit: 40,
+        langB: 'en',
+      ),
+    );
+    final busy = sub.read().cards.firstWhere(
+      (card) => card.grammarAudioPrompt?.word == 'to be busy',
+    );
+    expect(busy.answerWords, [
+      busy.progress.variantId.endsWith('p1sg') ? 'am busy' : 'is busy',
+    ]);
+
+    await gradeCatalogAnswers(
+      session,
+      ruleId: 'en-negation-dont',
+      targetLang: 'en',
+      cases: const {
+        'to be busy': {
+          'am not busy': true,
+          'I am not busy': true,
+          'I’m not busy': true,
+          'I don’t be busy': false,
+        },
+      },
+    );
+  });
 
   test(
     'loadCards generates localized drill cards from mastered words',
@@ -392,7 +618,7 @@ void main() {
     test(
       'French catalog water keeps the generic plural instruction in $locale',
       () async {
-        final copy = Translations(pluralCopies[locale]!);
+        final copy = Translations(localeCopies[locale]!);
         Localization.load(
           Locale(locale),
           translations: copy,
@@ -423,7 +649,7 @@ void main() {
         final card = sub.read().currentCard!;
         expect(
           card.questionWord,
-          (pluralCopies[locale]!['grammar.drill.plural'] as String).replaceAll(
+          (localeCopies[locale]!['grammar.drill.plural'] as String).replaceAll(
             '{word}',
             catalogFrenchWater.word,
           ),

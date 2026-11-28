@@ -21,18 +21,20 @@ class AudioDirector {
     this._audio, {
     SoundEffectsService? sfx,
     DateTime Function()? clock,
+    this._waitForReplacedAudio,
   }) : _sfx = sfx ?? SoundEffectsService(),
        _clock = clock ?? DateTime.now;
 
   final AudioPlayerService _audio;
   final SoundEffectsService _sfx;
   final DateTime Function() _clock;
+  final Future<void> Function({required bool retry})? _waitForReplacedAudio;
   Future<void>? _stopping;
   int _cueGeneration = 0;
 
   /// Poll cadence for the quiet checks — 100ms mirrors the historical loops.
   static const _poll = Duration(milliseconds: 100);
-  static const _releaseTimeout = Duration(milliseconds: 900);
+  static const releaseTimeout = Duration(milliseconds: 900);
   static const _openingCueTimeout = Duration(seconds: 2);
 
   bool get isSpeaking => _audio.isSpeaking;
@@ -58,16 +60,24 @@ class AudioDirector {
     _audio.stop,
   ).whenComplete(() => _stopping = null);
 
-  /// Waits for the old player to release its native resources after its
-  /// provider has been replaced. An unconfirmed release stays replayable.
-  Future<void> waitForPlayerRelease({bool retry = false}) =>
-      (retry ? _audio.retryDisposal() : _audio.stop()).timeout(_releaseTimeout);
+  /// Waits for a retired director's separate native players. Keep the raw
+  /// futures so a caller timing out cannot retire an unconfirmed release.
+  Future<void> waitForPlayerRelease({bool retry = false}) => Future.wait<void>([
+    retry ? _audio.retryDisposal() : stop(),
+    _sfx.waitForDisposal(retry: retry),
+  ], eagerError: true);
+
+  Future<void> waitForReplacedAudio({bool retry = false}) async {
+    await _waitForReplacedAudio?.call(retry: retry).timeout(releaseTimeout);
+  }
 
   /// Stops both speech and the separate earcon player. Unlike [stop], this is
   /// for a lifecycle interruption, where no sound may survive in background.
-  Future<void> stopAll() async {
+  Future<void> stopAll() => _stopSpeechAndEarcons();
+
+  Future<void> _stopSpeechAndEarcons() async {
     _cueGeneration++;
-    await Future.wait([stop(), _sfx.stop()]).timeout(_releaseTimeout);
+    await Future.wait([stop(), _sfx.stop()]).timeout(releaseTimeout);
   }
 
   /// Resolves once nothing is playing, or after [timeout] — a stuck
@@ -152,7 +162,7 @@ class AudioDirector {
       sttLog('[TTS] study prompt failed: $error');
       if (keepGoing()) {
         try {
-          await stop().timeout(_releaseTimeout);
+          await stop().timeout(releaseTimeout);
         } catch (error) {
           sttLog('[TTS] study prompt stop failed: $error');
         }
@@ -204,15 +214,16 @@ class AudioDirector {
 
   /// Releases the audio channel to the microphone.
   ///
-  /// This is deliberately a strict hand-off: awaiting [stop] tells us the
-  /// app's player has actually released its track before the settling beat.
+  /// This is deliberately a strict hand-off: the speech and earcon players
+  /// confirm release of their tracks before the settling beat.
   /// Merely firing `stop()` and waiting a fixed delay let a late audio buffer
   /// (or a slow Samsung focus release) overlap the first STT frames, so some
   /// cards appeared to reject speech before the learner could answer.
   Future<void> handOffToMic({
     Duration focusBeat = const Duration(milliseconds: 450),
   }) async {
-    await stop().timeout(_releaseTimeout);
+    await waitForReplacedAudio(retry: true);
+    await _stopSpeechAndEarcons();
     await Future.delayed(focusBeat);
   }
 
@@ -223,6 +234,8 @@ class AudioDirector {
     Duration clearance = const Duration(milliseconds: 100),
   }) async {
     final generation = ++_cueGeneration;
+    await waitForReplacedAudio();
+    if (generation != _cueGeneration) throw const AudioPlaybackCancelled();
     await _sfx.playListenCue().timeout(
       _openingCueTimeout,
       onTimeout: () {

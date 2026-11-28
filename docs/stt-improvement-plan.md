@@ -50,6 +50,11 @@ audio du prompt → vérification des moteurs → compte à rebours → signal d
 Un échec ou une attente trop longue de l'arrêt affiche une reprise du tour.
 Le signal d'ouverture et la capture attendent l'arrêt confirmé du lecteur,
 y compris si l'apprenant réessaie pendant une demande d'arrêt déjà en cours.
+Les remplacements du directeur audio dus à la vitesse ou à la hauteur
+conservent les libérations non confirmées de la voix et des signaux, même à
+travers plusieurs changements de réglage ou de route. Un nouveau prompt
+mains-libres, le signal d'ouverture et le microphone attendent leur
+confirmation. Répéter rejoint l'arrêt en cours ou redemande un arrêt refusé.
 Le microphone attend l'événement natif de fin du signal d'ouverture. Une
 erreur native pendant la lecture ou une attente de plus de deux secondes
 rend Répéter disponible sur la carte. L'arrêt invalide le signal en cours.
@@ -79,6 +84,14 @@ L'arrêt confirmé termine aussi l'attente Dart d'une synthèse interrompue,
 même si le moteur natif ne répond plus à la commande de lecture. Une réponse
 tardive de cette synthèse laisse l'activité de la lecture suivante intacte.
 Un refus d'arrêt conserve l'activité des lectures encore en cours.
+Sur Android et iOS, le canal `vocab_kr/device_speech` vérifie le résultat de
+l'arrêt auprès de `TextToSpeech` ou `AVSpeechSynthesizer`. Le lecteur n'est
+libéré qu'en l'absence de lecture active ou après un arrêt accepté et un
+événement terminal de la synthèse concernée. Un refus ou un événement
+terminal manquant conserve la possession native jusqu'à confirmation. Une
+réponse terminale tardive identifiée peut établir la libération au nouvel
+essai. Un arrêt pendant la configuration invalide la demande Dart avant
+qu'elle puisse lancer une lecture tardive.
 La synthèse de l'appareil traite une seule demande à la fois, de la
 configuration de sa voix jusqu'à la fin du son. Un arrêt confirmé peut
 interrompre cette demande immédiatement et annule les demandes déjà en file.
@@ -104,8 +117,11 @@ sélection des moteurs disponibles et la vérification du microphone avant
 le compte à rebours et le signal d'ouverture.
 Un échec de lecture de la connectivité conserve les moteurs locaux éligibles
 sans lancer de moteur cloud ; le mode Système ne dépend pas de cette lecture.
-Une exception de permission ou de préparation termine la tentative avec un
-message FR/EN/KO et attend la fermeture du microphone avant une relance.
+Une exception de permission ou de préparation, y compris pendant la première
+initialisation du recognizer système ou la détection du pont PCM du téléphone,
+termine la tentative avec un message FR/EN/KO. Si le tour a lancé une capture,
+il en attend la fermeture avant une relance. Un nouvel essai vérifie de
+nouveau les moteurs et garde le micro fermé jusqu'au signal prévu en mains-libres.
 Les résultats tardifs d'une tentative ou d'un ancien compte sont ignorés.
 La mise en arrière-plan, le recouvrement de la route du quiz et la pause
 volontaire invalident le tour, y compris le compte à rebours et les relances.
@@ -115,8 +131,10 @@ un feedback, il reprend l'avance différée et conserve la notation déjà écri
 Une pause volontaire reste active jusqu'à la reprise par l'apprenant.
 Chaque route de quiz conserve sa session, ses cartes, son score et sa pause.
 Un quiz lancé depuis un détail importé peut ainsi se terminer, puis rendre la
-main au quiz précédemment couvert. Une fermeture demandée pendant un arrêt
-audio reste attachée à sa route et se termine quand celle-ci redevient visible.
+main au quiz précédemment couvert. Le chargement ou le changement de carte
+d'un quiz arrête uniquement la capture de son propre tour. Une fermeture
+demandée pendant un arrêt audio reste attachée à sa route et se termine
+quand celle-ci redevient visible.
 Le bouton Pause et le bouton Reprendre sont accessibles au clavier. En
 pause, Reprendre reçoit le focus et les actions d'écoute sont retirées.
 Lorsque la hauteur ou le grossissement du texte réduit l'espace disponible,

@@ -24,6 +24,7 @@ import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
 import 'package:vocab_kr/presentation/screens/onboarding/auth_screen.dart';
 import 'package:vocab_kr/presentation/screens/onboarding/welcome_screen.dart';
 import '../../helpers/pump_screen.dart';
+import '../../helpers/rendered_text_contrast.dart';
 
 /// Welcome + auth screens: routing to sign-in/up, form validation, the
 /// success → /home and failure → inline-error paths, and password reset.
@@ -101,6 +102,7 @@ void main() {
     Widget screen, {
     bool settle = true,
     Future<void>? bootstrap,
+    ThemeMode themeMode = ThemeMode.light,
   }) {
     navigatedTo = null;
     _lastAuth = null;
@@ -108,6 +110,7 @@ void main() {
       tester,
       screen: screen,
       settle: settle,
+      themeMode: themeMode,
       overrides: [
         authStateProvider.overrideWith(_ScriptedAuthNotifier.new),
         seedStarterListsProvider.overrideWith(
@@ -128,6 +131,84 @@ void main() {
       ],
     );
   }
+
+  group('authentication text contrast', () {
+    for (final theme in [ThemeMode.light, ThemeMode.dark]) {
+      testWidgets('reset send is readable in ${theme.name}', (tester) async {
+        useFallbackFontsForContrast();
+        await pump(
+          tester,
+          const AuthScreen(initialMode: 'signin'),
+          themeMode: theme,
+        );
+        await tester.tap(
+          find.byKey(const ValueKey(WidgetKeys.authForgotPassword)),
+        );
+        await tester.pumpAndSettle();
+        final label = find.descendant(
+          of: find.byKey(const ValueKey(WidgetKeys.authResetSend)),
+          matching: find.byType(Text),
+        );
+        await tester.ensureVisible(label);
+        await tester.pump();
+        expect(
+          await renderedTextContrast(tester, label),
+          greaterThanOrEqualTo(4.5),
+        );
+        await unmountScreen(tester);
+      });
+
+      testWidgets('rejected sign-in stays readable in ${theme.name}', (
+        tester,
+      ) async {
+        useFallbackFontsForContrast();
+        await pump(
+          tester,
+          const AuthScreen(initialMode: 'signin'),
+          themeMode: theme,
+        );
+        _lastAuth!.failNext = true;
+        await tester.enterText(find.byKey(const Key('email_field')), 't@t.fr');
+        await tester.enterText(
+          find.byKey(const Key('password_field')),
+          'wrongpassword',
+        );
+        await tester.tap(find.byKey(const Key('auth_submit_button')));
+        await tester.pumpAndSettle();
+        final label = find.text('auth.error_credentials'.tr());
+        await tester.ensureVisible(label);
+        await tester.pump();
+        expect(
+          await renderedTextContrast(tester, label),
+          greaterThanOrEqualTo(4.5),
+        );
+        expect(navigatedTo, isNull);
+        await unmountScreen(tester);
+      });
+
+      testWidgets('form validation stays readable in ${theme.name}', (
+        tester,
+      ) async {
+        useFallbackFontsForContrast();
+        await pump(
+          tester,
+          const AuthScreen(initialMode: 'signin'),
+          themeMode: theme,
+        );
+        await tester.tap(find.byKey(const Key('auth_submit_button')));
+        await tester.pumpAndSettle();
+        final label = find.text('auth.validator_email_invalid'.tr());
+        await tester.ensureVisible(label);
+        await tester.pump();
+        expect(
+          await renderedTextContrast(tester, label),
+          greaterThanOrEqualTo(4.5),
+        );
+        expect(_lastAuth!.signedInEmail, isNull);
+        await unmountScreen(tester);
+      });
+    }
+  });
 
   group('welcome screen', () {
     for (final theme in [ThemeMode.light, ThemeMode.dark]) {

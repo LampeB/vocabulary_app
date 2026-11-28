@@ -113,6 +113,10 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   confirmation, fréquence, réseau). Un message brut du fournisseur n'est pas
   affiché. Les compteurs de révision indiquent des cartes jouables : un concept
   dû dans les deux sens représente deux cartes, pas deux mots.
+  Le texte d'erreur de connexion, les validations de formulaire et l'action
+  d'envoi du reset atteignent 4,5:1 sur leurs surfaces rendues dans les deux
+  thèmes. L'encre d'erreur et son contraste inverse sont adaptés au thème ;
+  une teinte d'accent utilisée en fond ne sert pas directement au petit texte.
 - Un échec technique de lecture des cartes affiche un message générique
   FR/EN/KO ; son détail reste réservé au diagnostic debug. Le bouton Retour
   est focalisable et retrouve l'écran d'origine avec Tab puis Entrée. Les

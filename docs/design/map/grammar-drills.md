@@ -16,8 +16,15 @@ explicitement signalée non décidée (2026-08-07).
   vivier et du minimum de l'exercice. Cela évite d'appliquer `a/an` aux
   noms indénombrables du vocabulaire étudié.
 - Une consigne pour une particule à variantes phonologiques nomme ses
-  formes, comme `은/는` pour le thème. En mains-libres, ces formes sont
-  prononcées dans la langue étudiée avant le mot à transformer.
+  formes, comme `은/는` pour le thème et `이/가` ou `을/를` selon le rôle
+  demandé. En mains-libres, les formes de la variante sélectionnée sont
+  prononcées dans la langue étudiée avant le mot à transformer. Pour `에`
+  et `에서`, la consigne indique le rôle et laisse l'apprenant retrouver
+  la particule, qui ne varie pas selon la finale.
+- Une exception coréenne qui fixe la position de `안` fournit la forme à
+  accepter, par exemple `안 좋아해요` pour `좋아하다`. Quand la leçon préfère
+  un antonyme comme `맛없어요`, les deux réponses grammaticales
+  (`맛없어요` et `안 맛있어요`) sont acceptées en saisie et en voix.
 - Le générateur actuel de pluriel français demande un mot isolé : les formes
   en `-s` muet sont donc évaluées à l'écrit. Les modes vocaux de cette règle
   restent indisponibles tant qu'un énoncé audible ne distingue pas la forme.

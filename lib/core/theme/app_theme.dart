@@ -18,6 +18,7 @@ abstract final class AppTheme {
     final lineCol = isDark ? const Color(0x1FFFFFFF) : AppColors.line;
     final tealCol = isDark ? AppColors.tealDark : AppColors.teal;
     final clayCol = isDark ? AppColors.clayDark : AppColors.clay;
+    final roseCol = isDark ? AppColors.roseDark : AppColors.roseText;
 
     final colorScheme = ColorScheme(
       brightness: brightness,
@@ -32,10 +33,10 @@ abstract final class AppTheme {
       secondaryContainer: clayCol.withValues(alpha: 0.12),
       onSecondaryContainer: clayCol,
       // Rose = destructive only.
-      error: AppColors.rose,
-      onError: Colors.white,
-      errorContainer: AppColors.rose.withValues(alpha: 0.12),
-      onErrorContainer: AppColors.rose,
+      error: roseCol,
+      onError: isDark ? AppColors.paperDark : Colors.white,
+      errorContainer: roseCol.withValues(alpha: 0.12),
+      onErrorContainer: roseCol,
       // Surfaces.
       surface: bg,
       onSurface: inkCol,
@@ -145,7 +146,7 @@ abstract final class AppTheme {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.rose, width: 1.5),
+          borderSide: BorderSide(color: roseCol, width: 1.5),
         ),
         filled: true,
         fillColor: cardCol,

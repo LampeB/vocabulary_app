@@ -75,6 +75,8 @@ import '../../helpers/pump_screen.dart';
 final _now = DateTime(2026, 7, 3);
 
 class _NoopAudio implements AudioPlayerService {
+  final spoken = <String>[];
+
   @override
   Future<void> warmUp(String langCode) async {}
   @override
@@ -89,7 +91,7 @@ class _NoopAudio implements AudioPlayerService {
     String langCode, {
     String? audioPath,
     bool requirePlayback = false,
-  }) async {}
+  }) async => spoken.add(text);
   @override
   Future<void> retryDisposal() => stop();
   @override
@@ -294,6 +296,7 @@ class _FakeScribe implements ElevenLabsSpeechService {
 class _VoiceHarness {
   _VoiceHarness({
     Completer<bool>? preparePhone,
+    FutureOr<bool> Function()? probePhone,
     AudioPlayerService? promptAudio,
     bool verifyAudioHandoff = false,
     FutureOr<List<String>> Function()? checkConnectivity,
@@ -328,7 +331,9 @@ class _VoiceHarness {
       return null;
     });
     messenger.setMockMethodCallHandler(phone, (call) async {
+      if (call.method != 'isSupported') return null;
       phonePrepares++;
+      if (probePhone != null) return await probePhone();
       return preparePhone == null ? false : await preparePhone.future;
     });
     messenger.setMockMethodCallHandler(connectivity, (_) async {
@@ -413,8 +418,10 @@ class _FakeProgressRepo implements ProgressRepository {
   final List<VariantProgress> due;
   final AppException? loadFailure;
   final saved = <VariantProgress>[];
+  final _importedCards = <VariantProgress>[];
   int? committedDays;
   Completer<void>? pendingCommit;
+  Future<void>? pendingInitialLoad;
   Future<List<VariantProgress>> Function(String, QuizDirection)? importedDue;
 
   @override
@@ -426,10 +433,12 @@ class _FakeProgressRepo implements ProgressRepository {
     bool includeScheduled = false,
   }) async {
     if (loadFailure case final failure?) return Failure(failure);
+    if (listId == 'l') await pendingInitialLoad;
     final imported = importedDue;
     final cards = imported != null && listId != 'l'
         ? await imported(listId, direction)
         : due;
+    if (!identical(cards, due)) _importedCards.addAll(cards);
     return Success(
       cards.where((p) => p.direction == direction).take(limit).toList(),
     );
@@ -460,7 +469,7 @@ class _FakeProgressRepo implements ProgressRepository {
     required QuizDirection direction,
     required VariantProgress Function(VariantProgress) mutate,
   }) async {
-    final latest = [...saved.reversed, ...due].firstWhere(
+    final latest = [...saved.reversed, ...due, ..._importedCards].firstWhere(
       (progress) =>
           progress.variantId == variantId && progress.direction == direction,
     );
@@ -679,11 +688,13 @@ void main() {
     String? questionAudioPath,
     AudioPlayerService Function(Ref)? audioFactory,
     AudioDirector Function(AudioPlayerService)? directorFactory,
+    bool useRealDirector = false,
     AudioSettingsNotifier? audioSettings,
     SttEngineModeNotifier? sttMode,
     VoiceTurnMachine Function()? machineFactory,
     ThemeMode themeMode = ThemeMode.light,
     AppException? loadFailure,
+    Future<void>? pendingInitialLoad,
     ConceptDao Function(AppDatabase)? quizConceptDao,
   }) async {
     navigatedTo = null;
@@ -719,7 +730,8 @@ void main() {
         }
       }
     });
-    progressRepo = _FakeProgressRepo(dueCards, loadFailure: loadFailure);
+    progressRepo = _FakeProgressRepo(dueCards, loadFailure: loadFailure)
+      ..pendingInitialLoad = pendingInitialLoad;
     if (importRemote != null) {
       progressRepo.importedDue = (listId, direction) async {
         final concepts = await db.conceptDao.getConceptsByList(listId);
@@ -817,7 +829,7 @@ void main() {
           audioDirectorProvider.overrideWith(
             (ref) => directorFactory(ref.watch(audioPlayerServiceProvider)),
           )
-        else
+        else if (!useRealDirector)
           audioDirectorProvider.overrideWithValue(
             director ?? voice?.director ?? _TestDirector(),
           ),
@@ -1977,6 +1989,72 @@ void main() {
     await unmountScreen(tester);
   });
 
+  for (final staleBy in ['current', 'pause', 'account']) {
+    testWidgets('native phone preparation failure is contained ($staleBy)', (
+      tester,
+    ) async {
+      final firstProbe = Completer<bool>();
+      final nextProbe = Completer<bool>();
+      var probes = 0;
+      final voice = _VoiceHarness(
+        probePhone: () => ++probes == 1 ? firstProbe.future : nextProbe.future,
+      );
+      final account = StateProvider<AppUser?>((_) => _importAccount());
+      await pump(
+        tester,
+        mode: QuizMode.handsFree,
+        words: [('chat', '고양이')],
+        voice: voice,
+        account: account,
+      );
+      await tick(tester, times: 5);
+      expect(voice.phonePrepares, 1);
+      expect(voice.director.cues, 0);
+      expect(voice.capture.opens, 0);
+
+      if (staleBy == 'pause') {
+        await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfPause)));
+      } else if (staleBy == 'account') {
+        final providers = ProviderScope.containerOf(
+          tester.element(find.byType(QuizScreen)),
+        );
+        providers.read(account.notifier).state = null;
+      }
+      await tester.pump();
+      firstProbe.completeError(PlatformException(code: 'PhoneProbeFailed'));
+      await tick(tester, times: 3);
+      final message = find.text('quiz.voice_prepare_failed'.tr());
+      expect(message, staleBy == 'current' ? findsOneWidget : findsNothing);
+      expect(voice.director.cues, 0);
+      expect(voice.capture.opens, 0);
+      expect(tester.takeException(), isNull);
+
+      if (staleBy != 'account') {
+        final cue = voice.director.pendingCue = Completer<void>();
+        await tester.tap(
+          find.byKey(
+            ValueKey(
+              staleBy == 'current' ? WidgetKeys.hfRepeat : WidgetKeys.hfResume,
+            ),
+          ),
+        );
+        await tick(tester, times: 8);
+        expect(voice.phonePrepares, 2);
+        expect(voice.director.cues, 0);
+        expect(voice.capture.opens, 0);
+        nextProbe.complete(false);
+        await tick(tester, times: 8);
+        expect(message, findsNothing);
+        expect(voice.director.cues, 1);
+        expect(voice.capture.opens, 0);
+        cue.complete();
+        await tick(tester, times: 2);
+        expect(voice.capture.opens, 1);
+      }
+      await unmountScreen(tester);
+    });
+  }
+
   testWidgets('hands-free pause during countdown prevents cue and capture', (
     tester,
   ) async {
@@ -2272,7 +2350,7 @@ void main() {
   );
 
   testWidgets(
-    'native opening cue requires completion after failures, timeout and pause',
+    'native opening cue requires completion across failures and director changes',
     (tester) async {
       const codec = StandardMethodCodec();
       const global = MethodChannel('xyz.luan/audioplayers.global');
@@ -2362,14 +2440,26 @@ void main() {
       });
 
       final voice = _VoiceHarness();
-      final director = AudioDirector(_NoopAudio());
+      final audioPlayers = <_NoopAudio>[];
       await pump(
         tester,
         mode: QuizMode.handsFree,
         words: [('chat', '고양이')],
         voice: voice,
-        director: director,
+        useRealDirector: true,
+        audioFactory: (ref) {
+          ref.watch(
+            audioSettingsProvider.select((s) => (s.speechRate, s.pitch)),
+          );
+          final audio = _NoopAudio();
+          audioPlayers.add(audio);
+          return audio;
+        },
       );
+      final providers = ProviderScope.containerOf(
+        tester.element(find.byType(QuizScreen)),
+      );
+      final director = providers.read(audioDirectorProvider);
       await tick(tester, times: 12);
       expect(preparationCalls, 1);
       expect(playbackCalls, 0);
@@ -2472,25 +2562,70 @@ void main() {
       await finishCue(current);
       await tick(tester, times: 2);
       expect(voice.capture.opens, 3);
+
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfPause)));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfResume)));
+      await until(() => successfulCues == 7);
+      final retired = stoppingPlayer = lastCuePlayer!;
+      final pendingRetirement = stopping = Completer<void>();
+      final settings = providers.read(audioSettingsProvider.notifier);
+      await settings.setSpeechRate(.7);
+      await until(() => stopRequests.contains(retired));
+      expect(providers.read(audioDirectorProvider), isNot(same(director)));
+
+      // Replacing the replacement still leaves the first native stop pending.
+      await settings.setPitch(1.1);
+      await tester.pump();
+      final repeat = find.byKey(const ValueKey(WidgetKeys.hfRepeat));
+      await tester.tap(repeat);
+      await until(
+        () => find
+            .text('quiz.audio_release_failed_hf'.tr())
+            .evaluate()
+            .isNotEmpty,
+      );
+      expect(audioPlayers.last.spoken, isEmpty);
+      expect(successfulCues, 7);
+      expect(voice.capture.opens, 3);
+      expect(stopRequests.where((id) => id == retired), hasLength(1));
+
+      pendingRetirement.completeError(PlatformException(code: 'StopRefused'));
+      await tester.pump();
+      final retryRetirement = stopping = Completer<void>();
+      await tester.tap(repeat);
+      await until(() => stopRequests.where((id) => id == retired).length == 2);
+      expect(audioPlayers.last.spoken, isEmpty);
+      expect(voice.capture.opens, 3);
+
+      retryRetirement.complete();
+      await until(() => successfulCues == 8);
+      expect(audioPlayers.last.spoken, ['chat']);
+      expect(voice.capture.opens, 3);
+      final replacementCue = lastCuePlayer!;
+      expect(replacementCue, isNot(retired));
+      await finishCue(retired);
+      await tester.pump();
+      expect(voice.capture.opens, 3);
+      await finishCue(replacementCue);
+      await tick(tester, times: 2);
+      expect(voice.capture.opens, 4);
       await unmountScreen(tester);
-      director.dispose();
       await tester.pump(const Duration(seconds: 8));
     },
     variant: TargetPlatformVariant.only(TargetPlatform.android),
   );
 
-  testWidgets('Repeat reissues a refused native TTS release before replay', (
+  testWidgets('Repeat waits for mobile TTS release after native refusal', (
     tester,
   ) async {
-    const channel = MethodChannel('flutter_tts');
+    const channel = MethodChannel('vocab_kr/device_speech');
     final messenger = tester.binding.defaultBinaryMessenger;
     final playback = <Completer<int>>[];
     final confirmed = Completer<int>();
     var stops = 0;
     messenger.setMockMethodCallHandler(channel, (call) async {
       switch (call.method) {
-        case 'getEngines':
-          return <Object>[];
         case 'speak':
           final done = Completer<int>();
           playback.add(done);
@@ -2521,7 +2656,7 @@ void main() {
         );
         final audio = AudioPlayerService(
           usePremium: false,
-          tts: FlutterTtsService(speechRate: rate),
+          tts: FlutterTtsService(speechRate: rate, mobileChannel: channel),
           filePlayer: _SilentFilePlayer(),
         );
         ref.onDispose(audio.dispose);
@@ -2544,11 +2679,11 @@ void main() {
     await tester.pump();
     expect(stops, 2);
     expect(playback, hasLength(1));
-    playback.first.complete(1);
-    await tester.pump();
+    // The retry remains pending until the old utterance actually stops.
     expect(voice.capture.opens, 0);
     expect(directors.every((director) => director.cues == 0), isTrue);
 
+    playback.first.complete(0);
     confirmed.complete(1);
     await tick(tester, times: 10);
     expect(playback, hasLength(2));
@@ -3357,6 +3492,67 @@ void main() {
     await unmountScreen(tester);
     await tester.pump(const Duration(seconds: 8));
   });
+
+  testWidgets(
+    'a covered quiz loading cards cannot stop the visible System mic',
+    (tester) async {
+      final voice = _VoiceHarness();
+      final firstLoad = Completer<void>();
+      final sharedList = _PendingImportRemote();
+      SharedPreferences.setMockInitialValues({
+        'settings_stt_engine_mode': 'system',
+      });
+      await pump(
+        tester,
+        mode: QuizMode.handsFree,
+        words: [('chat', '고양이')],
+        voice: voice,
+        account: StateProvider<AppUser?>((_) => _importAccount()),
+        importRemote: sharedList,
+        pendingInitialLoad: firstLoad.future,
+      );
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      final router = GoRouter.of(tester.element(find.byType(QuizScreen)));
+      unawaited(router.push('/import?token=warm-link'));
+      await tick(tester, times: 3);
+      sharedList.pending.complete(_sharedImport);
+      await tick(tester, times: 6);
+      await tester.tap(
+        find.byKey(const ValueKey(WidgetKeys.listDetailHandsFree)),
+      );
+      await tick(tester, times: 12);
+      expect(find.byType(QuizScreen, skipOffstage: false), findsNWidgets(2));
+      expect(voice.systemListens, 1);
+      expect(voice.systemStops, 0);
+      final answer = find.text('merci').evaluate().isNotEmpty
+          ? '감사합니다'
+          : 'merci';
+
+      firstLoad.complete();
+      await tick(tester, times: 2);
+      expect(
+        find.descendant(
+          of: find.byType(QuizScreen, skipOffstage: false),
+          matching: find.byType(CircularProgressIndicator, skipOffstage: false),
+          skipOffstage: false,
+        ),
+        findsNothing,
+      );
+      expect(voice.systemListens, 1);
+      expect(voice.systemStops, 0);
+
+      await voice.systemFinalResult(answer);
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey(WidgetKeys.feedbackCorrect)),
+        findsOneWidget,
+      );
+      expect(progressRepo.saved.single.timesCorrect, 1);
+      expect(voice.systemStops, 1);
+      await unmountScreen(tester);
+      await tester.pump(const Duration(seconds: 8));
+    },
+  );
 
   testWidgets(
     'a hands-free verdict advances once after background and resume',

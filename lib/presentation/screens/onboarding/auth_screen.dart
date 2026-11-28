@@ -125,10 +125,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         },
                         child: Text(
                           'auth.reset_send'.tr(),
-                          style: AppTextStyles.fig(
-                            14,
-                            FontWeight.w600,
-                          ).copyWith(color: AppColors.teal),
+                          style: AppTextStyles.fig(14, FontWeight.w600)
+                              .copyWith(
+                                color:
+                                    Theme.of(ctx).brightness == Brightness.dark
+                                    ? AppColors.tealDark
+                                    : AppColors.tealButton,
+                              ),
                         ),
                       ),
                     ],
@@ -388,10 +391,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           const SizedBox(height: 12),
                           Text(
                             _errorMsg!,
-                            style: AppTextStyles.fig(
-                              13,
-                              FontWeight.w500,
-                            ).copyWith(color: AppColors.rose),
+                            style: AppTextStyles.fig(13, FontWeight.w500)
+                                .copyWith(
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
                           ),
                         ],
                         const SizedBox(height: 28),

@@ -254,6 +254,11 @@ exige :
 - un audit `zizmor` de tous les workflows, avec actions épinglées par SHA ;
 - une compilation Android intégrant le moteur natif Whisper épinglé et la
   résolution du manifeste Profile, dont le libellé est défini par défaut ;
+- cinq scénarios JVM du vrai pont TTS Android, avec SDK/canal contrôlés :
+  refus d'arrêt, absence de confirmation, relance, événements périmés,
+  initialisation et propriétaire/moteur. Le lanceur
+  [test-device-speech.ps1](../tool/test-device-speech.ps1) réutilise le
+  compilateur de la distribution Gradle épinglée après le build Android ;
 - une compilation debug pour le simulateur iOS sur macOS, sans signature, sans
   secrets de projet et sans publication de binaire ;
 - un contrôle de la frontière de licence Whisper et des tests des fonctions

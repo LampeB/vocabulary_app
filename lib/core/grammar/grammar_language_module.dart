@@ -22,6 +22,10 @@ abstract class GrammarLanguageModule {
 
   String get pluralPromptKey => 'grammar.drill.plural';
 
+  /// Whether this rule supplies the forms needed to drill a word outside its
+  /// usual categories. The word retains its catalog category for minimums.
+  bool hasDrillException(GrammarRule rule, String word) => false;
+
   /// Applies [rule] to a single [word] and returns the expected answer plus
   /// accepted alternatives. [variantKey] selects among a rule's variants
   /// (particle 'subject'/'object', conjugation persons 'p1sg'…); [tags]
@@ -88,21 +92,24 @@ class KoreanGrammarModule extends GrammarLanguageModule {
         return GrammarAnswer(expected: answer, accepted: [answer]);
 
       case NegationMechanics(:final irregulars):
-        final merged = {...conjugationIrregulars};
         final answer = KoreanMorphology.negatePresent(
           word,
           irregulars: irregulars,
-          conjugationIrregulars: merged,
+          conjugationIrregulars: conjugationIrregulars,
         );
-        final mechanical = KoreanMorphology.mechanicalNegation(
-          word,
-          conjugationIrregulars: merged,
-        );
-        // A pedagogical override (맛있다 → 맛없어요, the antonym) still accepts
-        // the strictly grammatical form (안 맛있어요).
         return GrammarAnswer(
           expected: answer,
-          accepted: answer == mechanical ? [answer] : [answer, mechanical],
+          accepted: [
+            answer,
+            // An authored placement of 안 is authoritative (안 좋아해요).
+            // An antonym (맛없어요) can coexist with the ordinary 안 form.
+            if (irregulars.containsKey(word) &&
+                !answer.split(RegExp(r'\s+')).contains('안'))
+              KoreanMorphology.negatePresent(
+                word,
+                conjugationIrregulars: conjugationIrregulars,
+              ),
+          ],
         );
 
       case UnsupportedMechanics():

@@ -51,10 +51,8 @@ class GrammarDrillGenerator {
 
   final GrammarLanguageModule _module;
 
-  /// Words usable for [rule]: its categories, and — for gendered mechanics
-  /// (articles, gender-driven plurals) — only words carrying one of the
-  /// gender tags the rule's forms need. Untagged words (proper nouns) are
-  /// deliberately excluded from gendered drills.
+  /// Words usable for [rule]: its categories and explicit drill exceptions.
+  /// Gendered articles require a gender tag with a matching article form.
   List<DrillWord> eligibleWords(GrammarRule rule, List<DrillWord> mastered) {
     final requiredTags = switch (rule.mechanics) {
       ArticleMechanics(:final forms, gendered: true) => forms.keys.toSet(),
@@ -65,7 +63,11 @@ class GrammarDrillGenerator {
       _ => const <String, String>{},
     };
     return mastered
-        .where((w) => rule.appliesToCategories.contains(w.category))
+        .where(
+          (w) =>
+              rule.appliesToCategories.contains(w.category) ||
+              _module.hasDrillException(rule, w.word),
+        )
         // Compound display words ('riz / repas', 'mañana (parte del día)')
         // don't inflect as one token — keep them out of morphology drills.
         .where((w) => !w.word.contains('/') && !w.word.contains('('))
@@ -137,19 +139,10 @@ class GrammarDrillGenerator {
       );
 
       final (promptKey, params) = switch (rule.mechanics) {
-        ParticleMechanics() when variantKey != null => (
-          'grammar.drill.particle_variant',
-          {'word': word.word, 'hint': 'grammar.hint.$variantKey'},
-        ),
-        ParticleMechanics(:final variants) => (
-          'grammar.drill.particle',
-          {
-            'word': word.word,
-            'forms': {
-              variants.single.afterConsonant,
-              variants.single.afterVowel,
-            }.join('/'),
-          },
+        ParticleMechanics mechanics => _particlePrompt(
+          mechanics.variant(variantKey),
+          word.word,
+          variantKey,
         ),
         ConjugationMechanics() when variantKey != null => (
           'grammar.drill.conjugate_person',
@@ -180,5 +173,23 @@ class GrammarDrillGenerator {
       );
     }
     return exercises;
+  }
+
+  (String, Map<String, String>) _particlePrompt(
+    ParticleVariant variant,
+    String word,
+    String? variantKey,
+  ) {
+    final forms = {variant.afterConsonant, variant.afterVowel};
+    return (
+      variantKey == null
+          ? 'grammar.drill.particle'
+          : 'grammar.drill.particle_variant',
+      {
+        'word': word,
+        if (variantKey != null) 'hint': 'grammar.hint.$variantKey',
+        if (variantKey == null || forms.length > 1) 'forms': forms.join('/'),
+      },
+    );
   }
 }
