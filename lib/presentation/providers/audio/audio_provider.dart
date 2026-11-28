@@ -2,9 +2,13 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../services/audio/audio_player_service.dart';
+import '../../../services/audio/elevenlabs_service.dart';
 import '../../../services/quiz_orchestration/audio_director.dart';
 import '../../../core/config/app_config.dart';
 import '../settings/audio_settings_provider.dart';
+
+// Prefetch and playback can overlap when settings replace a player.
+final _audioAssetCacheProvider = Provider((ref) => ElevenLabsService());
 
 final audioPlayerServiceProvider = Provider.autoDispose<AudioPlayerService>((
   ref,
@@ -18,6 +22,7 @@ final audioPlayerServiceProvider = Provider.autoDispose<AudioPlayerService>((
     usePremium: AppConfig.enableElevenLabsTTS,
     speechRate: speechRate,
     pitch: pitch,
+    assetCache: ref.watch(_audioAssetCacheProvider),
   );
   ref.onDispose(service.dispose);
   return service;

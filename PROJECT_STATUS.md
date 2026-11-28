@@ -101,24 +101,22 @@ de contenu avant bêta pédagogique.
 
 - La suite hôte (unitaires, intégration Drift, widgets et seeds) est exécutée
   sur chaque push et pull request avec un seuil de couverture de **47,5 %**.
-- L'analyse Flutter est propre ; les **1 264 tests hôte passent**, avec **76,1 %**
+- L'analyse Flutter est propre ; les **1 285 tests hôte passent**, avec **76,2 %**
   de couverture sur le dernier lot du 28 novembre. Douze tests positifs du
   laboratoire sont exclus sans opt-in ; l'exécution diagnostic explicite
   réussit ses 25 tests ciblés. La sonde compilée en mode produit confirme le
   refus des diagnostics, même avec l'option fournie.
-- Sur `116c01d`, les huit checks CI, dont les tests hôte, le wrapper SQL,
+- Sur `f91b561`, les huit checks CI, dont les tests hôte, le wrapper SQL,
   Android et le simulateur iOS, sont verts. Le pont utilise le NDK 28.2 de
-  l'application. Les vingt itérations du premier cycle n'ont pas convergé ;
-  le profil sécurité est propre de la dix-septième à la vingtième sur quatre
-  commits différents. Les quatre Important de la dernière passe sont corrigés,
-  puis relus à la passe 1 du cycle 2. Cette passe relève huit Important distincts,
-  corrigés ensemble avec recherche des cas voisins et preuves ciblées. La
-  synthèse mobile est désormais contrôlée à sa frontière native ; l'APK Android
-  et les sondes Kotlin passent, la compilation iOS attend la CI du candidat.
-  Le 28 novembre,
-  l'utilisateur autorise le cycle 2, avec vingt nouvelles passes au maximum,
+  l'application. Le premier cycle a atteint son plafond de vingt passes sans
+  convergence. Le 28 novembre, l'utilisateur autorise le cycle 2, avec vingt
+  nouvelles passes au maximum,
   des relecteurs libres d'explorer et des correcteurs chargés de chercher la
-  cause, les cas voisins et les effets de leurs changements. Les anciens
+  cause, les cas voisins et les effets de leurs changements. Les deux premières
+  passes y relèvent huit puis quatre Important distincts, traités ensemble
+  après chaque collecte des quatre verdicts. Les ponts TTS mobiles ont compilé
+  sur Android/iOS ; le cache partagé publie atomiquement des clips vérifiés et
+  se replie sur l'appareil après libération du lecteur défaillant. Les anciens
   rapports restent conservés ; aucun compteur propre n'est acquis. La
   [décision et ses limites](docs/decisions/2026-11-28-review-corrections-and-cycles.md)
   s'appliquent avant toute nouvelle revue. Les corrections sont consignées dans
@@ -130,7 +128,7 @@ de contenu avant bêta pédagogique.
 - La CI de PR vérifie également la compilation native Android, les frontières
   des fonctions cloud et leurs quotas sur PostgreSQL jetable ; l'audit de
   sécurité couvre tous les workflows et leurs actions épinglées par SHA.
-- La suite compte **1 264** tests hôte réussis lors de la dernière validation locale
+- La suite compte **1 285** tests hôte réussis lors de la dernière validation locale
   complète ; le nombre exact n'est pas un contrat et doit être vérifié par
   `flutter test`.
 - Les dix-sept suites SQL passent sous PostgreSQL 16.11 jetable avec les migrations

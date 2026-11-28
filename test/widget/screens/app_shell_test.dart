@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:vocab_kr/core/widget_keys.dart';
 import 'package:vocab_kr/presentation/widgets/app_shell.dart';
 import '../../helpers/pump_screen.dart';
+import '../../helpers/rendered_text_contrast.dart';
 
 /// App shell: the offline banner appears/disappears with connectivity, nav
 /// tabs route to their destinations, with five equally sized V0 slots.
@@ -19,6 +20,31 @@ void main() {
   setUpAll(initTestLocalization);
 
   for (final mode in [ThemeMode.light, ThemeMode.dark]) {
+    testWidgets('offline banner contrast is readable in ${mode.name}', (
+      tester,
+    ) async {
+      useFallbackFontsForContrast();
+      await pumpScreen(
+        tester,
+        screen: const AppShell(child: Text('Content')),
+        themeMode: mode,
+        overrides: [
+          connectivityStreamProvider.overrideWith(
+            (ref) => Stream.value([ConnectivityResult.none]),
+          ),
+          pushOnReconnectProvider.overrideWith((ref) {}),
+        ],
+      );
+      expect(
+        await renderedTextContrast(
+          tester,
+          find.text('shell.offline_banner'.tr()),
+        ),
+        greaterThanOrEqualTo(4.5),
+      );
+      await unmountScreen(tester);
+    });
+
     testWidgets('all nav labels meet small-text contrast in $mode', (
       tester,
     ) async {

@@ -11,6 +11,7 @@ class AudioPlaybackCancelled implements Exception {
 /// playback policy be tested without network or disk plugins.
 abstract interface class AudioAssetCache {
   Future<String?> downloadAndCache(String audioPath);
+  Future<void> invalidate(String audioPath);
   void scheduleIdleCacheCleanup();
 }
 
@@ -31,7 +32,7 @@ abstract interface class FileAudioPlayer {
   Future<PlayerState> get state;
   bool get isPlaying;
 
-  /// Confirms the audible resources are released before final cleanup.
+  /// Retires the current native player after confirming audible release.
   Future<void> release();
   Future<void> dispose();
 }

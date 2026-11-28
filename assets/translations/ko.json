@@ -454,6 +454,7 @@
   "grammar.drill.plural": "복수형으로 바꾸세요: {word}",
   "grammar.drill.plural_en_uncountable": "복수형이 있으면 복수형을 쓰고, 셀 수 없는 명사는 그대로 쓰세요: {word}",
   "grammar.drill.conjugate_person": "현재형으로 활용하세요 ({hint}): {word}",
+  "grammar.drill.conjugate_fr_person": "현재형으로 활용하세요 ({hint}). 주어는 써도 되고 생략해도 됩니다: {word}",
   "grammar.hint.p1sg": "1인칭 단수",
   "grammar.hint.p2sg": "2인칭 단수",
   "grammar.hint.p3sg": "3인칭 단수",

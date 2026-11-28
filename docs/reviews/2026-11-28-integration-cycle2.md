@@ -192,3 +192,132 @@ iOS macOS, avant la passe 2. Les tests hôte et l'APK Android ne prouvent pas
 cette compilation. Aucun déploiement hébergé ni essai physique n'est effectué.
 Le commit commun repart à **0/2** ; seule une nouvelle revue indépendante
 peut fournir un verdict propre.
+
+## Passe 2 — `f91b561` — relecture cumulée 22
+
+Les quatre verdicts portent sur
+`f91b5611278cfd8fc5aa8ea6508c1ee82ea48091`, contre la même base
+`179f9ae0b34fe7c469b73d59ee4d25ef61515f9e`. Les huit checks sont verts,
+y compris le simulateur iOS et les cinq scénarios JVM sous Ubuntu ; la
+provenance des exécutions a été vérifiée avant les lectures. Tous les
+rapports finaux sont archivés avant correction. Les **quatre Important sont
+distincts**, sans Bloquant. La convergence reste **0/2**.
+
+| Profil / instance | Verdict | Important | Suggestion |
+| --- | --- | --- | --- |
+| Produit — `/root/c2p2_product` | BLOQUÉ | 2 | 1 |
+| Qualité — `/root/c2p2_quality` | BLOQUÉ | 1 | 0 |
+| Correction — `/root/c2p2_correctness` | BLOQUÉ | 1 | 0 |
+| Sécurité — `/root/c2p2_security` | PROPRE | 0 | 1 |
+
+| Identifiant | Type | Constat |
+| --- | --- | --- |
+| C2-P2-01 | Important | Présent français enseigné avec sujet, mais accepté seulement sous forme courte |
+| C2-P2-02 | Important | Identité de maîtrise partagée utilisée pour dédupliquer des exercices distincts dans la file |
+| C2-P2-03 | Important | Consignes de langue Écrit/Voix sous 4,5:1 sur le papier clair |
+| C2-P2-04 | Important | Cache audio partagé sur disque mais écrit directement et dédupliqué par instance, puis absence de secours après erreur du lecteur |
+| C2-P2-S01 | Suggestion | Texte blanc de la bannière hors ligne sur orange, contraste 2,16:1 |
+| C2-P2-S02 | Suggestion | Verrou CocoaPods absent, Suggestion déjà conservée aux passes précédentes |
+
+### C2-P2-02 — cas voisin dans l'animation
+
+La recherche des consommateurs de l'identité a aussi trouvé la clé du
+`V3CardStack`. Le même `variantId` gardait l'animation de sortie entre deux
+exercices d'une règle. L'identité de séance est utilisée dans cette clé,
+avec maintien de la clé métier pour le vocabulaire. Le test de rendu montre
+avant correction une nouvelle carte à l'offset `(1,2 ; 0,1)`, puis après
+correction une entrée centrée dès sa première image. Aucune identité
+FSRS ou de synchronisation n'est changée par cette correction d'animation.
+
+### C2-P2-03 et C2-P2-S01 — cause, voisinage et validation
+
+La teinte `clayDeep` était décrite comme adaptée au petit texte mais n'offrait
+que 3,26:1 sur le papier. Ses autres consommateurs, dont des marques d'avatar,
+sont examinés sans assombrir leurs contextes existants. Une encre de petit
+texte distincte est utilisée par les deux consignes de langue en clair ; leur
+encre en thème sombre reste inchangée. Les quatre mesures de rendu testent Écrit et
+Voix sous les deux thèmes, avec le fond texturé de production.
+
+La Suggestion hors ligne est traitée dans le même lot : texte et icône foncés
+sur le fond orange conservé, avec deux mesures de rendu dans le vrai shell.
+Son type reste Suggestion. Les six tests de contraste passent, sans prétendre
+à une validation sur appareil. La Suggestion CocoaPods reste conservée.
+
+### C2-P2-01 et C2-P2-02 — cause, voisinage et validation
+
+Le présent Latin produisait uniquement la forme courte. Le français accepte
+aussi les pronoms enseignés de la personne demandée, avec élision et pronom
+réfléchi ; la forme courte reste prioritaire. Le vrai seeder KO→FR et SQLite
+vérifient `travaille`/`je travaille`, `achète`/`j'achète`,
+`me lève`/`je me lève`, en refusant personne, terminaison, élision et pronom
+incorrects. Une clé de consigne FR spécifique indique le sujet facultatif
+dans les trois locales V0, sans changer les autres consignes partagées.
+
+L'examen des autres consommateurs du module confirme le même défaut dans les
+leçons anglaises et allemandes, atteignables via les paires restaurées et le
+provider générique. Leurs formes enseignées comme `I work`, `she studies`,
+`I am busy`, `ich stehe auf`, `du arbeitest` et `er/sie/es geht` sont aussi
+acceptées, avec conservation des réponses courtes et de la personne demandée.
+L'espagnol et l'italien enseignent les formes sans sujet dans ces exercices :
+ils ne sont pas élargis sur la base d'exemples contextualisés avec un groupe
+nominal entier. Le présent français reste à l'écrit et les minima, dont cinq
+noms pour sept éligibles dans `a/an`, sont inchangés.
+
+La file dédupliquait la progression de règle, commune à plusieurs questions,
+au lieu de l'exercice de séance. Chaque carte de grammaire porte désormais
+son index d'origine, conservé sur sa copie. Deux cartes de thème et trois de
+sujet/objet du vrai catalogue reviennent exactement une fois dans l'ordre,
+puis leurs copies sautées terminent au bilan SQLite sans nouvelle reprise,
+maîtrise, note FSRS ou événement de réponse. Les identités métier et la
+remise en file du vocabulaire sont préservées ; reprise notée, métadonnées
+audio et historique de vocabulaire sont examinés aussi.
+
+Les **172 tests ciblés** de grammaire, chargement/historique de séance,
+quiz et seeds passent, avec analyse ciblée propre. Aucun seed n'est modifié.
+Les transcriptions sont simulées et les contrôles ne constituent pas un
+essai de microphone ou de rendu physique.
+
+### C2-P2-04 — cause, voisinage et validation
+
+La déduplication et la mémoire du cache vivaient avec chaque lecteur, alors
+que le dossier disque survivait aux changements de vitesse/hauteur. Les
+lecteurs successifs utilisent désormais un cache de provider commun et les
+instances qui se chevauchent partagent une tâche par destination. Les clips
+sont écrits complètement, flushés, publiés par renommage atomique et vérifiés
+par SHA-256 à la lecture. Les anciennes entrées sans preuve de complétude sont
+écartées à la demande, sans nouvelle génération audio payante pendant le quiz.
+
+Une erreur du décodeur invalide le clip et attend la libération du lecteur
+avant la synthèse de l'appareil. Le signal et le microphone attendent la fin
+réelle de ce secours. Un refus de libération ou de synthèse reste récupérable
+comme échec du prompt ; un arrêt ou remplacement invalide un ancien secours.
+Le widget de production retient la libération puis la lecture de l'appareil
+et vérifie les deux barrières avant le signal et la capture.
+
+Le cas voisin d'une invalidation pendant téléchargement rend d'abord périmée
+la génération. L'exclusion porte sur la phase disque et ne fait pas attendre
+le réseau au secours local. Un test publie la nouvelle entrée pendant que
+l'ancienne requête Storage est suspendue ; la réponse tardive n'est ni rendue
+au lecteur ni autorisée à remplacer ou supprimer la nouvelle publication.
+Les gardes de propriétaire et de génération sont revérifiées après renommage.
+
+Les **162 tests ciblés** audio/directeur/quiz passent, avec analyse ciblée et
+formatage propres. Les preuves utilisent le système de fichiers hôte et des
+canaux natifs simulés, sans Storage hébergé ni lecture physique. Les nombres
+de tests ciblés ne sont pas additionnés, car leurs périmètres se recouvrent.
+
+### Validation commune après la passe 2
+
+Les **1 285 tests hôte** passent, avec douze diagnostics positifs exclus
+sans opt-in et **76,2 %** de couverture (14 756 / 19 365 lignes). L'analyse
+Flutter complète est propre ; les 25 diagnostics ciblés passent avec opt-in,
+avec le refus de l'autre configuration exclu. Le code natif et le harnais
+JVM sont inchangés depuis les huit checks verts de `f91b561`, incluant la
+compilation iOS et les cinq scénarios sous Ubuntu. Le nouveau SHA doit obtenir
+sa propre CI ; les relectures peuvent continuer pendant ces contrôles sans
+autoriser l'approbation ou la fusion avant leur réussite.
+
+Le commit commun rassemble les quatre Important et la Suggestion de contraste
+traitée. Aucun compteur propre n'est acquis : la prochaine passe est **3/20**
+du cycle 2, relecture cumulée 23. Les quatre nouvelles instances examineront
+le même commit, avant toute nouvelle modification.

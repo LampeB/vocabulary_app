@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vocab_kr/services/audio/audio_player_service.dart';
 import 'package:vocab_kr/services/audio/audio_ports.dart';
+import 'package:vocab_kr/services/audio/flutter_tts_service.dart';
+import 'package:vocab_kr/services/quiz_orchestration/audio_director.dart';
 
 class _FakeCache implements AudioAssetCache {
   _FakeCache({this.path});
@@ -12,6 +14,7 @@ class _FakeCache implements AudioAssetCache {
   String? path;
   Completer<String?>? pendingDownload;
   final requested = <String>[];
+  final invalidated = <String>[];
   var cleanupScheduled = 0;
 
   @override
@@ -19,6 +22,12 @@ class _FakeCache implements AudioAssetCache {
     requested.add(audioPath);
     if (pendingDownload != null) return pendingDownload!.future;
     return path;
+  }
+
+  @override
+  Future<void> invalidate(String audioPath) async {
+    invalidated.add(audioPath);
+    path = null;
   }
 
   @override
@@ -32,11 +41,13 @@ class _FakeTts implements DeviceSpeech {
   var disposed = 0;
   bool speaking = false;
   bool refuseDisposal = false;
+  bool refuseSpeech = false;
   Completer<void>? disposalGate;
 
   @override
   Future<void> speak(String text, String langCode) async {
     spoken.add('$text|$langCode');
+    if (refuseSpeech) throw TtsRejected('speak', langCode);
   }
 
   @override
@@ -61,7 +72,11 @@ class _FakeFilePlayer implements FileAudioPlayer {
   final rates = <double>[];
   var stopped = 0;
   var disposed = 0;
+  var releases = 0;
   bool playing = false;
+  bool rejectClip = false;
+  bool refuseRelease = false;
+  Completer<void>? releaseGate;
   Completer<void>? pendingRate;
   Completer<void>? playbackEnded;
 
@@ -75,6 +90,7 @@ class _FakeFilePlayer implements FileAudioPlayer {
   Future<void> playFile(String path, {bool waitForCompletion = false}) async {
     played.add(path);
     playing = true;
+    if (rejectClip) throw PlatformException(code: 'UnreadableClip');
     if (waitForCompletion) await playbackEnded?.future;
   }
 
@@ -92,7 +108,12 @@ class _FakeFilePlayer implements FileAudioPlayer {
   bool get isPlaying => playing;
 
   @override
-  Future<void> release() async {}
+  Future<void> release() async {
+    releases++;
+    if (refuseRelease) throw PlatformException(code: 'ReleaseRefused');
+    await releaseGate?.future;
+    playing = false;
+  }
 
   @override
   Future<void> dispose() async => disposed++;
@@ -239,6 +260,8 @@ void main() {
       final firstCleanup = Completer<void>();
       final allowRefusal = Completer<void>();
       final cleanedUp = Completer<void>();
+      final waitingForRelease = Completer<void>();
+      Completer<void>? releaseGate;
       final releaseCalls = <(String, String)>[];
       var cleanupCalls = 0;
       String? promptPlayer;
@@ -273,8 +296,13 @@ void main() {
               optionalResumed.complete(id);
             }
           case 'stop':
+            releaseCalls.add((id, call.method));
           case 'release':
             releaseCalls.add((id, call.method));
+            if (id == promptPlayer) {
+              waitingForRelease.complete();
+              await releaseGate!.future;
+            }
           case 'dispose':
             releaseCalls.add((id, call.method));
             if (id != promptPlayer) return null;
@@ -295,10 +323,12 @@ void main() {
           messenger.setMockMethodCallHandler(channel, null);
         }
       });
+      final tts = _FakeTts();
+      final cache = _FakeCache(path: '/cache/prompt.mp3');
       final audio = AudioPlayerService(
         usePremium: true,
-        assetCache: _FakeCache(path: '/cache/prompt.mp3'),
-        tts: _FakeTts(),
+        assetCache: cache,
+        tts: tts,
       );
       await audio.speak('ancien', 'fr', audioPath: 'ancien.mp3');
       final old = await optionalResumed.future.timeout(
@@ -325,20 +355,18 @@ void main() {
       ]);
       expect(completedEarly, isFalse);
 
-      final failure = expectLater(
-        playback,
-        throwsA(
-          isA<PlatformException>().having(
-            (error) => error.code,
-            'code',
-            'AndroidAudioError',
-          ),
-        ),
-      );
+      final released = Completer<void>();
+      releaseGate = released;
       await emit(prompt, codec.encodeErrorEnvelope(code: 'AndroidAudioError'));
-      await failure.timeout(const Duration(seconds: 2));
-      audio.dispose();
+      await waitingForRelease.future.timeout(const Duration(seconds: 2));
+      expect(tts.spoken, isEmpty);
+      expect(cache.invalidated, isEmpty);
+      released.complete();
+      await playback.timeout(const Duration(seconds: 2));
+      expect(cache.invalidated, ['mot.mp3']);
+      expect(tts.spoken, ['mot|fr']);
       await firstCleanup.future.timeout(const Duration(seconds: 2));
+      audio.dispose();
       await audio.stop().timeout(const Duration(seconds: 2));
       Iterable<String> promptReleaseCalls() => releaseCalls
           .where((call) => call.$1 == prompt)
@@ -352,7 +380,88 @@ void main() {
     },
   );
 
+  test('a failed file release and rejected TTS both fail the prompt', () async {
+    final file = _FakeFilePlayer()
+      ..rejectClip = true
+      ..refuseRelease = true;
+    final cache = _FakeCache(path: '/cache/mot.mp3');
+    final tts = _FakeTts()..refuseSpeech = true;
+    final audio = service(premium: true, player: file, cache: cache, tts: tts);
+    final director = AudioDirector(audio);
+    addTearDown(director.dispose);
+    Future<StudyPromptResult> prompt() => director.speakVocabularyPrompt(
+      word: 'mot',
+      wordLang: 'fr',
+      audioPath: 'mot.mp3',
+      keepGoing: () => true,
+    );
+    expect(await prompt(), StudyPromptResult.failed);
+    expect(tts.spoken, isEmpty);
+    expect(cache.invalidated, isEmpty);
+
+    file.refuseRelease = false;
+    expect(await prompt(), StudyPromptResult.failed);
+    expect(cache.invalidated, ['mot.mp3']);
+    expect(tts.spoken, ['mot|fr']);
+    expect(file.played, ['/cache/mot.mp3']);
+
+    tts.refuseSpeech = false;
+    expect(await prompt(), StudyPromptResult.completed);
+    expect(tts.spoken, ['mot|fr', 'mot|fr']);
+    expect(file.played, ['/cache/mot.mp3']);
+  });
+
   for (final dispose in [false, true]) {
+    test(
+      '${dispose ? 'disposal' : 'stop'} joins file release and cancels its fallback',
+      () async {
+        final released = Completer<void>();
+        final file = _FakeFilePlayer()
+          ..rejectClip = true
+          ..releaseGate = released;
+        final cache = _FakeCache(path: '/cache/mot.mp3');
+        final tts = _FakeTts();
+        final audio = service(
+          premium: true,
+          player: file,
+          cache: cache,
+          tts: tts,
+        );
+        final speaking = audio.speak(
+          'mot',
+          'fr',
+          audioPath: 'mot.mp3',
+          requirePlayback: true,
+        );
+        final cancelled = expectLater(
+          speaking,
+          throwsA(isA<AudioPlaybackCancelled>()),
+        );
+        await Future<void>.delayed(Duration.zero);
+        expect(file.releases, 1);
+        if (dispose) audio.dispose();
+        final stopped = audio.stop();
+        await cancelled;
+        expect(file.releases, 1);
+        expect(tts.spoken, isEmpty);
+
+        released.complete();
+        await stopped;
+        expect(tts.spoken, isEmpty);
+        expect(cache.invalidated, ['mot.mp3']);
+        final next = dispose
+            ? service(premium: true, cache: cache, tts: tts)
+            : audio;
+        await next.speak(
+          'new word',
+          'en',
+          audioPath: 'mot.mp3',
+          requirePlayback: true,
+        );
+        expect(tts.spoken, ['new word|en']);
+      },
+    );
+
     for (final cacheHit in [false, true]) {
       test('${dispose ? 'dispose' : 'stop'} cancels a pending cache lookup '
           '(${cacheHit ? 'hit' : 'miss'})', () async {

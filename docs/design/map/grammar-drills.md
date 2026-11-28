@@ -31,7 +31,16 @@ explicitement signalée non décidée (2026-08-07).
   La même protection s'applique à `fr-present-er` : des réponses comme
   `travaille` et `travailles` sont homophones. Le configurateur désactive voix
   et mains-libres et le provider refuse aussi leur lancement direct. La saisie
-  conserve la distinction orthographique et la notation stricte.
+  conserve la distinction orthographique et la notation stricte. La consigne
+  FR/EN/KO indique que le sujet est facultatif. La forme conjuguée seule est
+  acceptée, ainsi que celle avec le sujet demandé (`je`, `tu`, `il`, `elle`),
+  avec élision et pronom réfléchi quand la forme les exige.
+- Les exercices de présent en anglais et en allemand acceptent aussi le
+  pronom sujet de la personne enseignée. L'apprenant peut écrire ou dire
+  `work` ou `I work`, `studies` ou `she studies`, `stehe auf` ou `ich stehe auf`.
+- En mains-libres, Passer reporte chaque exercice de grammaire une fois à
+  la fin de la séance. Passer un exercice reporté avance la séance. Ces passages
+  ne notent pas de réponse et le bilan conserve le nombre de cartes prévu.
 - L'exercice de négation française demande la première personne du singulier
   au présent. La forme verbale attendue (`ne travaille pas`) et la phrase
   avec sujet (`je ne travaille pas`) sont toutes deux valides. Les deux

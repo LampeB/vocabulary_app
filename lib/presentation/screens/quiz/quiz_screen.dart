@@ -1741,7 +1741,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                             s.displayTotal,
                           ),
                           total: s.displayTotal,
-                          cardId: card.progress.variantId,
+                          cardId: card.grammarCardIndex == null
+                              ? card.progress.variantId
+                              : 'grammar:${card.grammarCardIndex}',
                           isExiting: _flashcardExiting,
                           exitDirection: _flashcardExitDirection,
                           dragProgress: _flashcardDragProgress,
@@ -1847,7 +1849,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final cue = 'quiz.write_in_lang'.tr(
       namedArgs: {'lang': 'lang.${_answerLangCode(card)}'.tr()},
     );
-    final cueColor = isDark ? AppColors.clayLight : AppColors.clayDeep;
+    final cueColor = isDark ? AppColors.clayLight : AppColors.clayText;
 
     void submit() {
       ref.read(_quiz.notifier).submitTextAnswer(_answerCtrl.text);
@@ -1943,7 +1945,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final cue = 'quiz.say_in_lang'.tr(
       namedArgs: {'lang': 'lang.${_answerLangCode(card)}'.tr()},
     );
-    final cueColor = isDark ? AppColors.clayLight : AppColors.clayDeep;
+    final cueColor = isDark ? AppColors.clayLight : AppColors.clayText;
     final kbOn = _voiceKbIndex == s.currentIndex;
     final prompt = WordInWave(
       word: card.questionWord,

@@ -52,17 +52,23 @@ void main() {
     () async {
       var downloads = 0;
       const asset = 'seed/v1/ko/a.mp3';
-      final service = serviceWith((path) async {
+      final started = Completer<void>();
+      final content = Completer<Uint8List>();
+      Future<Uint8List> download(String path) async {
         expect(path, asset);
         downloads++;
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        return Uint8List.fromList([1, 2, 3]);
-      });
+        if (!started.isCompleted) started.complete();
+        return content.future;
+      }
 
-      final results = await Future.wait([
-        service.downloadAndCache(asset),
-        service.downloadAndCache(asset),
-      ]);
+      final prefetched = serviceWith(download).downloadAndCache(asset);
+      await started.future;
+      final played = serviceWith(download).downloadAndCache(asset);
+      await Future<void>.delayed(Duration.zero);
+      expect(await cacheDir.list().toList(), isEmpty);
+
+      content.complete(Uint8List.fromList([1, 2, 3]));
+      final results = await Future.wait([prefetched, played]);
 
       expect(downloads, 1);
       expect(results[0], results[1]);
@@ -74,7 +80,7 @@ void main() {
   );
 
   test(
-    'an in-memory cache hit does not download the asset a second time',
+    'a verified cache hit does not download the asset a second time',
     () async {
       var downloads = 0;
       final service = serviceWith((_) async {
@@ -138,6 +144,8 @@ void main() {
     );
     account = null;
     expect(await newService.downloadAndCache(asset), isNull);
+    await newService.invalidate(asset);
+    expect(await File(cached).exists(), isTrue);
     expect(cacheReads, 1);
     expect(downloads, 1);
 
@@ -175,7 +183,12 @@ void main() {
       oldDownload.complete(Uint8List.fromList([1, 2, 3]));
       expect(await pending, isNull);
       expect(await File(ownPath).readAsBytes(), [4]);
-      expect(await service.cacheSize(), 1);
+      final clips = await cacheDir
+          .list()
+          .where((file) => file.path.endsWith('.mp3'))
+          .map((file) => file.path)
+          .toList();
+      expect(clips, [ownPath]);
     },
   );
 
@@ -207,6 +220,96 @@ void main() {
 
       expect(path, isNull);
       expect(await service.cacheSize(), 0);
+    },
+  );
+
+  for (final bytes in [
+    <int>[],
+    [73, 68, 51, 4],
+  ]) {
+    test(
+      'an unverified legacy MP3 (${bytes.length} bytes) is discarded',
+      () async {
+        const asset = 'seed/v1/fr/legacy.mp3';
+        final key = sha256.convert('v2\u0000\u0000$asset'.codeUnits);
+        final legacy = File('${cacheDir.path}/$key.mp3');
+        await legacy.writeAsBytes(bytes);
+
+        final offline = serviceWith(
+          (_) async => throw const SocketException('offline'),
+        );
+        expect(await offline.downloadAndCache(asset), isNull);
+        expect(await legacy.exists(), isFalse);
+
+        final recovered = serviceWith((_) async => Uint8List.fromList([7, 8]));
+        final path = (await recovered.downloadAndCache(asset))!;
+        expect(await File(path).readAsBytes(), [7, 8]);
+      },
+    );
+  }
+
+  test(
+    'same-length corruption and decoder eviction are visible to every reader',
+    () async {
+      const asset = 'seed/v1/fr/verified.mp3';
+      final service = serviceWith((_) async => Uint8List.fromList([1, 2]));
+      final path = (await service.downloadAndCache(asset))!;
+      await File(path).writeAsBytes([2, 1]);
+
+      final replacement = serviceWith((_) async => Uint8List.fromList([1, 2]));
+      expect(await replacement.downloadAndCache(asset), path);
+      expect(await File(path).readAsBytes(), [1, 2]);
+      await replacement.invalidate(asset);
+      expect(await File(path).exists(), isFalse);
+      expect(await service.cacheSize(), 0);
+    },
+  );
+
+  test(
+    'eviction and a new reader do not wait for an obsolete download',
+    () async {
+      const asset = 'seed/v1/fr/evicted.mp3';
+      final started = Completer<void>();
+      final late = Completer<Uint8List>();
+      final previous = serviceWith((_) async {
+        started.complete();
+        return late.future;
+      });
+      final pending = previous.downloadAndCache(asset);
+      await started.future;
+
+      final replacement = serviceWith((_) async => Uint8List.fromList([9]));
+      await replacement.invalidate(asset).timeout(const Duration(seconds: 1));
+      final published = (await replacement.downloadAndCache(asset))!;
+      expect(await File(published).readAsBytes(), [9]);
+
+      late.complete(Uint8List.fromList([1, 2]));
+      expect(await pending, isNull);
+      expect(await previous.downloadAndCache(asset), published);
+      expect(await File(published).readAsBytes(), [9]);
+    },
+  );
+
+  test(
+    'an empty download or refused rename cannot publish a cache entry',
+    () async {
+      const asset = 'seed/v1/fr/write.mp3';
+      final empty = serviceWith((_) async => Uint8List(0));
+      expect(await empty.downloadAndCache(asset), isNull);
+      expect(await cacheDir.list().toList(), isEmpty);
+
+      final key = sha256.convert('v2\u0000\u0000$asset'.codeUnits);
+      final blocker = await Directory('${cacheDir.path}/$key.mp3').create();
+      final service = serviceWith((_) async => Uint8List.fromList([3]));
+      expect(await service.downloadAndCache(asset), isNull);
+      expect(
+        await cacheDir.list().where((file) => file is File).toList(),
+        isEmpty,
+      );
+
+      await blocker.delete();
+      final path = (await service.downloadAndCache(asset))!;
+      expect(await File(path).readAsBytes(), [3]);
     },
   );
 
@@ -278,22 +381,25 @@ void main() {
     },
   );
 
-  test('cache can be cleared, including its in-memory index', () async {
-    var downloads = 0;
-    final service = serviceWith((_) async {
-      downloads++;
-      return Uint8List.fromList([7]);
-    });
-    const asset = 'seed/v1/en/clear.mp3';
+  test(
+    'clearing the cache removes the clip and its verification data',
+    () async {
+      var downloads = 0;
+      final service = serviceWith((_) async {
+        downloads++;
+        return Uint8List.fromList([7]);
+      });
+      const asset = 'seed/v1/en/clear.mp3';
 
-    await service.downloadAndCache(asset);
-    await service.clearCache();
+      await service.downloadAndCache(asset);
+      await service.clearCache();
 
-    expect(await cacheDir.exists(), isFalse);
-    await cacheDir.create();
-    expect(await service.downloadAndCache(asset), isNotNull);
-    expect(downloads, 2);
-  });
+      expect(await cacheDir.exists(), isFalse);
+      await cacheDir.create();
+      expect(await service.downloadAndCache(asset), isNotNull);
+      expect(downloads, 2);
+    },
+  );
 
   test('service compatibility methods remain available', () async {
     final service = serviceWith((_) async => Uint8List(0));

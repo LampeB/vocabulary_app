@@ -46,7 +46,10 @@ abstract class LatinGrammarModule extends GrammarLanguageModule {
           person,
           orElse: () => conjugate(word, person),
         );
-        return GrammarAnswer(expected: form, accepted: [form]);
+        return GrammarAnswer(
+          expected: form,
+          accepted: [form, ..._conjugationWithSubject(form, person)],
+        );
 
       case NegationMechanics(:final irregulars, :final pattern):
         // The negation rule's own irregulars are FULL negated phrases —
@@ -94,6 +97,8 @@ abstract class LatinGrammarModule extends GrammarLanguageModule {
 
   /// Regular present-tense form of [infinitive] for [person] (p1sg/p2sg/…).
   String conjugate(String infinitive, String person);
+
+  List<String> _conjugationWithSubject(String form, String person) => const [];
 
   /// Which person the negation drill wraps (usually p1sg).
   String get negationPerson => 'p1sg';
@@ -212,6 +217,9 @@ class FrenchGrammarModule extends LatinGrammarModule {
   String get langCode => 'fr';
 
   @override
+  String get conjugationPersonPromptKey => 'grammar.drill.conjugate_fr_person';
+
+  @override
   String get negationPromptKey => 'grammar.drill.negate_fr_first_person';
 
   @override
@@ -233,6 +241,17 @@ class FrenchGrammarModule extends LatinGrammarModule {
       _ => '${stem}e', // p1sg and p3sg share the -e form
     };
   }
+
+  @override
+  List<String> _conjugationWithSubject(String form, String person) =>
+      switch (person) {
+        'p1sg' => [
+          LatinGrammarModule.startsWithVowel(form) ? "j'$form" : 'je $form',
+        ],
+        'p2sg' => ['tu $form'],
+        'p3sg' => ['il $form', 'elle $form'],
+        _ => const [],
+      };
 
   @override
   String negatePhrase(String phrase, String base) =>
@@ -308,6 +327,14 @@ class EnglishGrammarModule extends LatinGrammarModule {
   }
 
   @override
+  List<String> _conjugationWithSubject(String form, String person) =>
+      switch (person) {
+        'p1sg' => ['I $form'],
+        'p3sg' => ['he $form', 'she $form', 'it $form'],
+        _ => const [],
+      };
+
+  @override
   String negationBase(String infinitive) => _bare(infinitive); // don't + bare form
 
   @override
@@ -355,4 +382,13 @@ class GermanGrammarModule extends LatinGrammarModule {
       _ => '$stem${linking}t',
     };
   }
+
+  @override
+  List<String> _conjugationWithSubject(String form, String person) =>
+      switch (person) {
+        'p1sg' => ['ich $form'],
+        'p2sg' => ['du $form'],
+        'p3sg' => ['er $form', 'sie $form', 'es $form'],
+        _ => const [],
+      };
 }

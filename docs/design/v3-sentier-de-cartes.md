@@ -130,6 +130,11 @@ signifie pas que la définition de sortie de la boucle V0 complète est atteinte
   Les titres de groupes de listes respectent le même seuil. L'explication
   d'une règle limitée à l'écrit reste lisible sans subir l'opacité de son
   option vocale désactivée.
+  Les consignes de langue des modes Écrit et Voix utilisent aussi une encre
+  de petit texte adaptée au papier texturé en clair, et une encre claire en
+  sombre. Le statut hors ligne du shell conserve son fond orange avec texte
+  et icône foncés ; les mesures de texte rendu atteignent 4,5:1 dans les deux
+  thèmes. Ces corrections ne déclarent pas la migration V3 du shell terminée.
 - La série compare des dates civiles, y compris lors des journées de 23 ou
   25 heures. La fin de quiz et le suivi social utilisent le même calcul.
 - Au bilan, le quiz capture le compte, les résultats et le jour civil. Son

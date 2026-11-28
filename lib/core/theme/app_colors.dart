@@ -23,7 +23,8 @@ abstract final class AppColors {
   /// Korean / warm accent — mic, live/voice state, primary CTA, streak energy.
   static const clay = Color(0xFFD08358);
   static const clayLight = Color(0xFFE0A079); // waveform warm bars
-  static const clayDeep = Color(0xFFC4703F); // clay text on light (AA contrast)
+  static const clayDeep = Color(0xFFC4703F); // warm marks and large accents
+  static const clayText = Color(0xFF9B4C27); // small warm text on light paper
   /// Destructive — delete, sign-out, error states only.
   static const rose = Color(0xFFB0556B);
 

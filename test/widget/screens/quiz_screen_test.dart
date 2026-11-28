@@ -31,6 +31,7 @@ import 'package:vocab_kr/domain/repositories/auth_repository.dart';
 import 'package:vocab_kr/domain/repositories/progress_repository.dart';
 import 'package:vocab_kr/domain/usecases/quiz/get_due_cards_usecase.dart';
 import 'package:vocab_kr/presentation/design/v3/v3_tokens.dart';
+import 'package:vocab_kr/presentation/design/v3/v3_card_stack.dart';
 import 'package:vocab_kr/presentation/providers/audio/audio_provider.dart';
 import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
 import 'package:vocab_kr/presentation/providers/grammar/grammar_provider.dart';
@@ -63,6 +64,7 @@ import 'package:vocab_kr/services/speech/stt_engine.dart';
 import 'package:vocab_kr/services/speech/whisper_speech_service.dart';
 import '../../helpers/fake_remote.dart';
 import '../../helpers/pump_screen.dart';
+import '../../helpers/rendered_text_contrast.dart';
 
 /// Quiz screen end-to-end at the widget level: flashcard flip + self-grade
 /// through to the summary, and the typing mode verdict flow. Runs against a
@@ -400,16 +402,21 @@ class _SilentFilePlayer implements FileAudioPlayer {
   Future<void> dispose() async {}
 }
 
-class _RetryFilePlayer extends _SilentFilePlayer {
+class _RejectingFilePlayer extends _SilentFilePlayer {
   int starts = 0;
-  final finished = Completer<void>();
+  int releases = 0;
+  final released = Completer<void>();
 
   @override
   Future<void> playFile(String path, {bool waitForCompletion = false}) {
-    if (++starts == 1) {
-      return Future.error(PlatformException(code: 'AndroidAudioError'));
-    }
-    return finished.future;
+    starts++;
+    return Future.error(PlatformException(code: 'AndroidAudioError'));
+  }
+
+  @override
+  Future<void> release() {
+    releases++;
+    return released.future;
   }
 }
 
@@ -572,9 +579,14 @@ AppUser _importAccount() =>
     AppUser(id: 'u', email: 'u@example.test', username: 'u', createdAt: _now);
 
 class _CachedPrompt implements AudioAssetCache {
+  final invalidated = <String>[];
+
   @override
   Future<String?> downloadAndCache(String audioPath) async =>
       '/cache/prompt.mp3';
+
+  @override
+  Future<void> invalidate(String audioPath) async => invalidated.add(audioPath);
 
   @override
   void scheduleIdleCacheCleanup() {}
@@ -986,6 +998,33 @@ void main() {
     expect(navigatedTo, '/home');
   });
 
+  testWidgets('next grammar card enters centered after the previous exit', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      mode: QuizMode.flashcard,
+      words: [],
+      grammar: true,
+      cardLimit: 2,
+    );
+    final stack = find.byType(V3CardStack);
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.cartesCard)));
+    await tick(tester, times: 4);
+    await tester.tap(find.byKey(const ValueKey(WidgetKeys.gradeKnew)));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 460));
+    await tester.pump();
+    expect(find.byKey(const ValueKey(WidgetKeys.summary)), findsNothing);
+    final slide = find.descendant(
+      of: stack,
+      matching: find.byType(SlideTransition),
+    );
+    expect(tester.widget<SlideTransition>(slide).position.value, Offset.zero);
+    expect(progressRepo.saved, isEmpty);
+    await unmountScreen(tester);
+  });
+
   testWidgets('flashcard grades are available as focusable buttons', (
     tester,
   ) async {
@@ -1077,6 +1116,31 @@ void main() {
       await unmountScreen(tester);
     },
   );
+
+  for (final theme in [ThemeMode.light, ThemeMode.dark]) {
+    for (final mode in [QuizMode.typing, QuizMode.voice]) {
+      testWidgets('answer-language contrast in ${mode.name}/${theme.name}', (
+        tester,
+      ) async {
+        useFallbackFontsForContrast();
+        await pump(
+          tester,
+          mode: mode,
+          words: [('chat', '고양이')],
+          themeMode: theme,
+        );
+        final key = mode == QuizMode.typing
+            ? 'quiz.write_in_lang'
+            : 'quiz.say_in_lang';
+        final cue = key.tr(namedArgs: {'lang': 'lang.ko'.tr()}).toUpperCase();
+        expect(
+          await renderedTextContrast(tester, find.text(cue)),
+          greaterThanOrEqualTo(4.5),
+        );
+        await unmountScreen(tester);
+      });
+    }
+  }
 
   for (final theme in [ThemeMode.light, ThemeMode.dark]) {
     testWidgets('flashcard review grade has readable ${theme.name} contrast', (
@@ -2251,16 +2315,19 @@ void main() {
     );
   }
 
-  testWidgets('file playback error offers an immediate prompt retry', (
+  testWidgets('file error releases before device fallback and listening', (
     tester,
   ) async {
-    final file = _RetryFilePlayer();
+    final file = _RejectingFilePlayer();
+    final cache = _CachedPrompt();
+    final speech = _PendingDeviceSpeech();
     final audio = AudioPlayerService(
       usePremium: true,
-      assetCache: _CachedPrompt(),
+      assetCache: cache,
       filePlayer: file,
+      tts: speech,
     );
-    final voice = _VoiceHarness(promptAudio: audio);
+    final voice = _VoiceHarness(promptAudio: audio, verifyAudioHandoff: true);
     await pump(
       tester,
       mode: QuizMode.handsFree,
@@ -2269,19 +2336,23 @@ void main() {
       questionAudioPath: 'seed/v1/fr/chat.mp3',
     );
     expect(file.starts, 1);
-    expect(find.text('quiz.grammar_prompt_failed'.tr()), findsOneWidget);
+    expect(file.releases, 1);
+    expect(speech.speaks, 0);
     expect(voice.director.cues, 0);
     expect(voice.capture.opens, 0);
     expect(tester.takeException(), isNull);
 
-    await tester.tap(find.byKey(const ValueKey(WidgetKeys.hfRepeat)));
-    await tester.pump();
-    expect(file.starts, 2);
+    file.released.complete();
+    await tick(tester, times: 8);
+    expect(cache.invalidated, ['seed/v1/fr/chat.mp3']);
+    expect(speech.speaks, 1);
+    expect(voice.director.cues, 0);
     expect(voice.capture.opens, 0);
-    file.finished.complete();
+    speech.playback.complete();
     await tick(tester, times: 8);
     expect(voice.director.cues, 1);
     expect(voice.capture.opens, 1);
+    speech.released.complete();
     await unmountScreen(tester);
     audio.dispose();
     await audio.stop();

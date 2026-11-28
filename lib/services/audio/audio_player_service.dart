@@ -7,6 +7,15 @@ import 'flutter_tts_service.dart';
 import 'audio_ports.dart';
 import 'native_playback_player.dart';
 
+class _FilePlayerRetirementFailed implements Exception {
+  const _FilePlayerRetirementFailed(this.cause);
+
+  final Object cause;
+
+  @override
+  String toString() => 'Could not release the previous file player: $cause';
+}
+
 // coverage:ignore-start
 // Thin third-party adapter; behavior is exercised through [FileAudioPlayer]
 // fakes in AudioPlayerService tests. Native plugin calls need device coverage.
@@ -33,7 +42,13 @@ class _AudioplayersFilePlayer implements FileAudioPlayer {
     }
 
     try {
-      if (waitForCompletion || _needsReplacement) await _replacePlayer();
+      if (waitForCompletion || _needsReplacement) {
+        try {
+          await _replacePlayer();
+        } catch (error) {
+          throw _FilePlayerRetirementFailed(error);
+        }
+      }
       if (!stillCurrent()) return;
       final player = _player ??= NativePlaybackPlayer();
       await player.setPlaybackRate(_rate);
@@ -69,8 +84,8 @@ class _AudioplayersFilePlayer implements FileAudioPlayer {
   @override
   Future<void> release() async {
     _generation++;
-    await _retiring;
-    await _player?.releaseForDisposal();
+    _waitingForCompletion = false;
+    await _replacePlayer();
   }
 
   @override
@@ -107,23 +122,27 @@ class AudioPlayerService {
     AudioAssetCache? assetCache,
     DeviceSpeech? tts,
     FileAudioPlayer? filePlayer,
-  }) : _elevenlabs = ElevenLabsService(voiceIds: voiceIds),
+  }) : _assetCache = assetCache ?? ElevenLabsService(voiceIds: voiceIds),
        _tts = tts ?? FlutterTtsService(speechRate: speechRate, pitch: pitch),
        _player = filePlayer ?? _AudioplayersFilePlayer(),
        _speechRate = speechRate,
        _usePremium = usePremium {
-    _assetCache = assetCache ?? _elevenlabs;
     if (usePremium) _assetCache.scheduleIdleCacheCleanup();
   }
 
-  final ElevenLabsService _elevenlabs;
-  late final AudioAssetCache _assetCache;
+  final AudioAssetCache _assetCache;
   final DeviceSpeech _tts;
   final double _speechRate;
   final bool _usePremium;
   final FileAudioPlayer _player;
   int _playbackEpoch = 0;
   Completer<void> _interrupted = Completer<void>();
+  int _requiredPromptGeneration = 0;
+  bool _requiredPromptInProgress = false;
+  int _filePlaybackGeneration = 0;
+  bool _fileNeedsRelease = false;
+  String? _failedAudioPath;
+  Future<void>? _recoveringFile;
   Future<void>? _disposal;
   Future<void>? _fileRelease;
   Future<void>? _speechDisposal;
@@ -144,14 +163,34 @@ class AudioPlayerService {
       if (requirePlayback) throw const AudioPlaybackCancelled();
       return;
     }
+    if (!requirePlayback && _requiredPromptInProgress) return;
+    if (requirePlayback) {
+      _requiredPromptGeneration++;
+      _requiredPromptInProgress = true;
+    }
     final epoch = _playbackEpoch;
+    final promptGeneration = _requiredPromptGeneration;
+    bool isCurrent() =>
+        epoch == _playbackEpoch &&
+        promptGeneration == _requiredPromptGeneration;
     final interrupted = _interrupted.future;
-    final playing = _play(text, langCode, audioPath, requirePlayback, epoch);
+    final playing = _play(
+      text,
+      langCode,
+      audioPath,
+      requirePlayback,
+      isCurrent,
+    );
     if (!requirePlayback) return playing;
-    return Future.any<void>([
-      playing,
-      interrupted.then<void>((_) => throw const AudioPlaybackCancelled()),
-    ]);
+    try {
+      await Future.any<void>([
+        playing,
+        interrupted.then<void>((_) => throw const AudioPlaybackCancelled()),
+      ]);
+      if (!isCurrent()) throw const AudioPlaybackCancelled();
+    } finally {
+      if (isCurrent()) _requiredPromptInProgress = false;
+    }
   }
 
   Future<void> _play(
@@ -159,8 +198,12 @@ class AudioPlayerService {
     String langCode,
     String? audioPath,
     bool requirePlayback,
-    int epoch,
+    bool Function() isCurrent,
   ) async {
+    if (_fileNeedsRelease) {
+      await _recoverFilePlayer();
+      if (!isCurrent()) return;
+    }
     if (!_usePremium || audioPath == null) {
       await _speakOnDevice(text, langCode, requirePlayback);
       return;
@@ -168,18 +211,51 @@ class AudioPlayerService {
     final path = await _assetCache
         .downloadAndCache(audioPath)
         .timeout(_premiumStartBudget, onTimeout: () => null);
-    if (epoch != _playbackEpoch) return;
+    if (!isCurrent()) return;
     if (path != null) {
       // The speech-speed setting used to apply only to device TTS. Most
       // production playback comes from ElevenLabs, so it was always played
       // at 1.0× even when the learner chose a slower pedagogical pace.
       await _player.setPlaybackRate(_premiumRateFor(langCode));
-      if (epoch != _playbackEpoch) return;
-      await _player.playFile(path, waitForCompletion: requirePlayback);
-    } else {
-      await _speakOnDevice(text, langCode, requirePlayback);
+      if (!isCurrent()) return;
+      if (_fileNeedsRelease) await _recoverFilePlayer();
+      if (!isCurrent()) return;
+      final generation = ++_filePlaybackGeneration;
+      try {
+        await _player.playFile(path, waitForCompletion: requirePlayback);
+        return;
+      } on AudioPlaybackCancelled {
+        if (requirePlayback) rethrow;
+        return;
+      } catch (error) {
+        if (!isCurrent() || generation != _filePlaybackGeneration) return;
+        _fileNeedsRelease = true;
+        // Failure to free a previous player did not test this clip.
+        if (error is _FilePlayerRetirementFailed) rethrow;
+        sttLog('[TTS] cached playback failed: $error');
+        _failedAudioPath = audioPath;
+      }
     }
+    if (_fileNeedsRelease) await _recoverFilePlayer();
+    if (!isCurrent()) return;
+    await _speakOnDevice(text, langCode, requirePlayback);
   }
+
+  Future<void> _recoverFilePlayer() =>
+      _recoveringFile ??= Future<void>.sync(_player.release)
+          .then((_) async {
+            final path = _failedAudioPath;
+            if (path != null) {
+              try {
+                await _assetCache.invalidate(path);
+              } catch (error) {
+                sttLog('[TTS] cache eviction failed: $error');
+              }
+            }
+            _failedAudioPath = null;
+            _fileNeedsRelease = false;
+          })
+          .whenComplete(() => _recoveringFile = null);
 
   Future<void> _speakOnDevice(
     String text,
@@ -216,7 +292,10 @@ class AudioPlayerService {
     final disposal = _disposal;
     if (disposal != null) return disposal;
     _invalidatePlayback();
-    await Future.wait([_player.stop(), _tts.stop()]);
+    await Future.wait([
+      _fileNeedsRelease ? _recoverFilePlayer() : _player.stop(),
+      _tts.stop(),
+    ]);
   }
 
   /// A learner retry reissues only native release calls that were refused.
@@ -251,7 +330,11 @@ class AudioPlayerService {
   }
 
   Future<void> _releaseFilePlayer() async {
-    await _player.release();
+    if (_fileNeedsRelease) {
+      await _recoverFilePlayer();
+    } else {
+      await _player.release();
+    }
     unawaited(
       Future<void>.sync(_player.dispose).catchError(_logFileCleanupError),
     );
@@ -259,6 +342,7 @@ class AudioPlayerService {
 
   void _invalidatePlayback() {
     _playbackEpoch++;
+    _requiredPromptInProgress = false;
     _interrupted.complete();
     _interrupted = Completer<void>();
   }

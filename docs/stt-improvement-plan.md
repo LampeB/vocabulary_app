@@ -21,6 +21,13 @@ livraison et les validations qui manquent sont dans
 - Les clips de vocabulaire sont générés/provisionnés une fois, puis téléchargés
   et mis en cache localement. Un quiz ne crée pas une synthèse ElevenLabs à
   chaque carte.
+- Le cache de clips est partagé entre le préchargement et tous les lecteurs
+  successifs. Les demandes simultanées d'un même clip partagent un téléchargement.
+  Le cache publie le MP3 complet par renommage local et vérifie son empreinte
+  SHA-256 à la lecture. Une entrée ancienne sans empreinte ou devenue illisible
+  est retirée. Le cache récupère au besoin le même clip dans Storage, dans la
+  limite du compte propriétaire. L'invalidation attend les écritures disque
+  en cours et écarte les réponses réseau tardives.
 - Les écrans ne font jamais d'appel audio ou STT ad hoc.
 
 ## Composants responsables
@@ -70,7 +77,12 @@ Si la lecture échoue ou dépasse son délai, le tour reste disponible via le
 bouton Répéter. Le microphone reste fermé. Un refus explicite du moteur
 vocal de l'appareil, lors du réglage de la langue ou du lancement de la
 lecture, suit le même chemin. Une erreur native de lecture d'un clip
-interrompt l'attente dès sa réception. Si le lecteur est remplacé pendant
+déclenche la libération du lecteur. Après confirmation de cette libération,
+le cache écarte le clip et l'appareil lit le mot avec sa propre voix.
+Le signal et le microphone attendent la fin confirmée de cette synthèse.
+Un refus de libération ou de la synthèse laisse le tour disponible via
+Répéter. Un arrêt du tour ou le remplacement du lecteur annule la reprise
+sonore en attente. Si le lecteur est remplacé pendant
 un prompt, le tour attend sa libération puis rejoue le prompt sur le nouveau
 lecteur. Répéter redemande une libération refusée. Une libération en cours ou
 déjà confirmée conserve son résultat. Seule la fin de la lecture confirme que

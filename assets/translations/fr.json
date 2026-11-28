@@ -454,6 +454,7 @@
   "grammar.drill.plural": "Mets au pluriel : {word}",
   "grammar.drill.plural_en_uncountable": "Donne le pluriel si possible ; garde un nom indénombrable inchangé : {word}",
   "grammar.drill.conjugate_person": "Conjugue au présent ({hint}) : {word}",
+  "grammar.drill.conjugate_fr_person": "Conjugue au présent, avec ou sans le sujet ({hint}) : {word}",
   "grammar.hint.p1sg": "je",
   "grammar.hint.p2sg": "tu",
   "grammar.hint.p3sg": "il / elle",

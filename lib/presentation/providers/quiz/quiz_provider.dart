@@ -46,10 +46,15 @@ class QuizCard {
     this.questionAudioPath,
     this.answerAudioPath,
     this.grammarAudioPrompt,
+    this.grammarCardIndex,
     this.isRequeue = false,
   });
 
   final VariantProgress progress;
+
+  /// Original position of a generated grammar exercise in this session.
+  /// A replay keeps this position even as it moves to the end of the queue.
+  final int? grammarCardIndex;
 
   /// True for the queue-tail copy created by skipCurrentCard — excluded
   /// from user-facing counts so skips don't inflate the session size.
@@ -655,7 +660,8 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
       return;
     }
     final now = DateTime.now();
-    final cards = exercises.map((exercise) {
+    final cards = exercises.indexed.map((entry) {
+      final (index, exercise) = entry;
       final promptArgs = {
         for (final entry in exercise.promptParams.entries)
           entry.key: entry.key == 'hint' ? entry.value.tr() : entry.value,
@@ -665,6 +671,7 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
       final namedParticle = forms != null && promptArgs.containsKey('hint');
       final prompt = exercise.promptKey.tr(namedArgs: promptArgs);
       return QuizCard(
+        grammarCardIndex: index,
         progress: VariantProgress(
           id: 'grammar|${exercise.ruleId}',
           userId: userId,
@@ -1071,10 +1078,9 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
     }
   }
 
-  /// Variant ids already requeued once by [skipCurrentCard] — a card comes
-  /// back at most once, so a persistently silent environment can't loop a
-  /// session forever.
-  final _requeuedOnce = <String>{};
+  /// Session positions for grammar exercises, variant ids for vocabulary.
+  /// Each can return once, so silence cannot loop a session forever.
+  final _requeuedOnce = <Object>{};
 
   /// Skips the current card WITHOUT grading: nothing is persisted (no FSRS
   /// rating, no grammar progress), and the card is requeued at the end of
@@ -1091,7 +1097,9 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
         state.answerState != QuizAnswerState.idle) {
       return;
     }
-    final requeue = _requeuedOnce.add(card.progress.variantId);
+    final requeue = _requeuedOnce.add(
+      card.grammarCardIndex ?? card.progress.variantId,
+    );
     if (requeue) {
       // The copy is flagged: it replays (cards.length grows) but does not
       // inflate the user-facing displayTotal.
@@ -1100,6 +1108,7 @@ class QuizNotifier extends AutoDisposeFamilyNotifier<QuizState, Object> {
           ...state.cards,
           QuizCard(
             progress: card.progress,
+            grammarCardIndex: card.grammarCardIndex,
             questionWord: card.questionWord,
             answerWords: card.answerWords,
             questionAudioPath: card.questionAudioPath,

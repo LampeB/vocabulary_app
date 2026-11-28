@@ -145,7 +145,7 @@ class GrammarDrillGenerator {
           variantKey,
         ),
         ConjugationMechanics() when variantKey != null => (
-          'grammar.drill.conjugate_person',
+          _module.conjugationPersonPromptKey,
           {'word': word.word, 'hint': 'grammar.hint.$variantKey'},
         ),
         ConjugationMechanics() => (

@@ -293,13 +293,17 @@ void main() {
     required String ruleId,
     required String targetLang,
     required Map<String, Map<String, bool>> cases,
+    String sourceLang = 'fr',
+    Map<String, String> persons = const {},
+    List<QuizMode> modes = const [QuizMode.typing, QuizMode.voice],
   }) async {
     final sub = session.listen(_quiz, (_, _) {});
     final notifier = session.read(_quiz.notifier);
     var shown = 0;
     var correct = 0;
-    for (final mode in [QuizMode.typing, QuizMode.voice]) {
+    for (final mode in modes) {
       for (final MapEntry(key: word, value: answers) in cases.entries) {
+        final person = persons[word];
         for (final MapEntry(key: answer, value: accepted) in answers.entries) {
           await notifier.loadCards(
             QuizArgs(
@@ -308,11 +312,15 @@ void main() {
               mode: mode,
               direction: QuizDirectionChoice.frToKo,
               cardLimit: 40,
+              langA: sourceLang,
               langB: targetLang,
             ),
           );
           final index = sub.read().cards.indexWhere(
-            (card) => card.grammarAudioPrompt?.word == word,
+            (card) =>
+                card.grammarAudioPrompt?.word == word &&
+                (person == null ||
+                    card.progress.variantId.endsWith('|$person')),
           );
           expect(index, isNonNegative, reason: '$ruleId must exercise $word');
           for (var i = 0; i < index; i++) {
@@ -340,6 +348,70 @@ void main() {
         .timeout(const Duration(seconds: 2));
     expect(progress.correct, correct);
   }
+
+  test(
+    'KO to FR present cards grade the lesson forms from the catalog',
+    () async {
+      const ruleId = 'fr-present-er';
+      final session = await masterCatalog('ko', 'fr');
+      final sub = session.listen(_quiz, (_, _) {});
+      final notifier = session.read(_quiz.notifier);
+      addTearDown(initTestLocalization);
+      for (final (locale, hint) in [
+        ('fr', 'avec ou sans le sujet'),
+        ('en', 'with or without the subject'),
+        ('ko', '주어는 써도 되고 생략해도 됩니다'),
+      ]) {
+        Localization.load(
+          Locale(locale),
+          translations: Translations(localeCopies[locale]!),
+          fallbackTranslations: Translations(localeCopies['fr']!),
+        );
+        await notifier.loadCards(
+          const QuizArgs(
+            source: QuizSource.grammar,
+            ruleId: ruleId,
+            mode: QuizMode.typing,
+            direction: QuizDirectionChoice.frToKo,
+            cardLimit: 3,
+            langA: 'ko',
+            langB: 'fr',
+          ),
+          promptLocale: locale,
+        );
+        expect(sub.read().cards, hasLength(3));
+        for (final card in sub.read().cards) {
+          expect(card.questionWord, contains(hint));
+        }
+      }
+      await gradeCatalogAnswers(
+        session,
+        ruleId: ruleId,
+        targetLang: 'fr',
+        sourceLang: 'ko',
+        persons: const {
+          'travailler': 'p1sg',
+          'acheter': 'p1sg',
+          'se lever': 'p1sg',
+        },
+        modes: const [QuizMode.typing],
+        cases: const {
+          'travailler': {
+            'travaille': true,
+            'je travaille': true,
+            'il travaille': false,
+            'je travailles': false,
+          },
+          'acheter': {'achète': true, 'j’achète': true, 'je achète': false},
+          'se lever': {
+            'me lève': true,
+            'je me lève': true,
+            'je se lève': false,
+          },
+        },
+      );
+    },
+  );
 
   test('real Korean negation grades lexical exceptions and antonyms', () async {
     final session = await masterCatalog('fr', 'ko');
@@ -465,9 +537,31 @@ void main() {
     final busy = sub.read().cards.firstWhere(
       (card) => card.grammarAudioPrompt?.word == 'to be busy',
     );
-    expect(busy.answerWords, [
+    expect(
+      busy.answerWords.first,
       busy.progress.variantId.endsWith('p1sg') ? 'am busy' : 'is busy',
-    ]);
+    );
+
+    await gradeCatalogAnswers(
+      session,
+      ruleId: 'en-present-3sg-s',
+      targetLang: 'en',
+      persons: const {
+        'to work': 'p1sg',
+        'to study': 'p3sg',
+        'to be busy': 'p1sg',
+      },
+      cases: const {
+        'to work': {'work': true, 'I work': true, 'he work': false},
+        'to study': {
+          'studies': true,
+          'she studies': true,
+          'I studies': false,
+          'she study': false,
+        },
+        'to be busy': {'I am busy': true, 'I is busy': false},
+      },
+    );
 
     await gradeCatalogAnswers(
       session,
@@ -483,6 +577,41 @@ void main() {
       },
     );
   });
+
+  test(
+    'German catalog present grades the taught subject and verb order',
+    () async {
+      final session = await masterCatalog('fr', 'de');
+      await gradeCatalogAnswers(
+        session,
+        ruleId: 'de-present-regular',
+        targetLang: 'de',
+        persons: const {
+          'aufstehen': 'p1sg',
+          'arbeiten': 'p2sg',
+          'gehen': 'p3sg',
+        },
+        cases: const {
+          'aufstehen': {
+            'stehe auf': true,
+            'ich stehe auf': true,
+            'ich aufstehe': false,
+          },
+          'arbeiten': {
+            'du arbeitest': true,
+            'du arbeitet': false,
+            'ich arbeitest': false,
+          },
+          'gehen': {
+            'er geht': true,
+            'sie geht': true,
+            'es geht': true,
+            'du geht': false,
+          },
+        },
+      );
+    },
+  );
 
   test(
     'loadCards generates localized drill cards from mastered words',
@@ -544,7 +673,13 @@ void main() {
     );
   }
 
-  for (final answer in ['travaille', 'travailles']) {
+  for (final (answer, accepted) in [
+    ('travaille', false),
+    ('travailles', true),
+    ('tu travailles', true),
+    ('tu travaille', false),
+    ('il travailles', false),
+  ]) {
     test(
       'French present evaluates the written second-person ending in $answer',
       () async {
@@ -557,29 +692,35 @@ void main() {
             ruleId: ruleId,
             mode: QuizMode.typing,
             direction: QuizDirectionChoice.frToKo,
-            cardLimit: 2,
+            cardLimit: 3,
             langA: 'ko',
             langB: 'fr',
           ),
         );
-        expect(sub.read().currentCard!.answerWords, ['travaille']);
+        expect(sub.read().currentCard!.answerWords.first, 'travaille');
         notifier.submitTextAnswer('travaille');
         expect(sub.read().answerState, QuizAnswerState.correct);
         notifier.advance();
-        expect(sub.read().currentCard!.answerWords, ['travailles']);
+        expect(sub.read().currentCard!.answerWords.first, 'travailles');
         notifier.submitTextAnswer(answer);
         expect(
           sub.read().answerState,
-          answer == 'travailles'
-              ? QuizAnswerState.correct
-              : QuizAnswerState.incorrect,
+          accepted ? QuizAnswerState.correct : QuizAnswerState.incorrect,
         );
+        notifier.advance();
+        expect(sub.read().currentCard!.answerWords, [
+          'travaille',
+          'il travaille',
+          'elle travaille',
+        ]);
+        notifier.submitTextAnswer('elle travaille');
+        expect(sub.read().answerState, QuizAnswerState.correct);
         final progress = await db.grammarProgressDao
             .watchByUser('u')
             .expand((rows) => rows)
-            .firstWhere((row) => row.ruleId == ruleId && row.shown == 2)
+            .firstWhere((row) => row.ruleId == ruleId && row.shown == 3)
             .timeout(const Duration(seconds: 2));
-        expect(progress.correct, answer == 'travailles' ? 2 : 1);
+        expect(progress.correct, accepted ? 3 : 2);
       },
     );
   }
@@ -1043,45 +1184,73 @@ void main() {
     },
   );
 
-  test('skipCurrentCard grades NOTHING and requeues the card once — silence '
-      'is never a wrong answer', () async {
-    final sub = container.listen(_quiz, (_, _) {});
-    final notifier = container.read(_quiz.notifier);
-    await notifier.loadCards(args());
-    final initialTotal = sub.read().total;
-    final skipped = sub.read().currentCard!;
+  for (final (ruleId, count, variantCount) in [
+    ('particule-theme-eun-neun', 2, 1),
+    ('particules-sujet-objet-i-ga-eul-reul', 3, 2),
+  ]) {
+    test(
+      'skipped $ruleId exercises each replay once without grading',
+      () async {
+        final session = await masterCatalog('fr', 'ko');
+        final sub = session.listen(_quiz, (_, _) {});
+        final notifier = session.read(_quiz.notifier);
+        final originalProgress = await db.progressDao.getUnsyncedProgress();
+        await notifier.loadCards(
+          QuizArgs(
+            source: QuizSource.grammar,
+            ruleId: ruleId,
+            mode: QuizMode.handsFree,
+            direction: QuizDirectionChoice.frToKo,
+            cardLimit: count,
+          ),
+        );
 
-    notifier.skipCurrentCard();
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-
-    // No grammar progress, no FSRS write — the user never answered.
-    expect(
-      await db.grammarProgressDao.get('u', 'particule-theme-eun-neun'),
-      isNull,
+        final original = sub.read().cards;
+        expect(
+          original.map((card) => card.questionWord).toSet(),
+          hasLength(count),
+        );
+        expect(
+          original.map((card) => card.progress.variantId).toSet(),
+          hasLength(variantCount),
+        );
+        for (final card in original) {
+          expect(sub.read().currentCard, same(card));
+          notifier.skipCurrentCard();
+        }
+        expect(sub.read().total, count * 2);
+        expect(sub.read().displayTotal, count);
+        expect(sub.read().inReviewTail, isTrue);
+        for (final card in original) {
+          final replay = sub.read().currentCard!;
+          expect(replay.isRequeue, isTrue);
+          expect(replay.grammarCardIndex, card.grammarCardIndex);
+          expect(replay.progress.variantId, card.progress.variantId);
+          expect(replay.questionWord, card.questionWord);
+          expect(replay.grammarAudioPrompt, card.grammarAudioPrompt);
+          expect(replay.answerWords, card.answerWords);
+          notifier.skipCurrentCard();
+          expect(sub.read().total, count * 2);
+          expect(sub.read().answerState, QuizAnswerState.idle);
+        }
+        expect(sub.read().isComplete, isTrue);
+        expect(sub.read().correctCount, 0);
+        final history = await db
+            .select(db.quizSessionsTable)
+            .watch()
+            .firstWhere((rows) => rows.isNotEmpty)
+            .timeout(const Duration(seconds: 2));
+        expect(history.single.cardCount, count);
+        expect(history.single.correctCount, 0);
+        expect(await db.grammarProgressDao.get('u', ruleId), isNull);
+        expect(await db.reviewEventDao.getByUser('u'), isEmpty);
+        expect(
+          await db.progressDao.getUnsyncedProgress(),
+          unorderedEquals(originalProgress),
+        );
+      },
     );
-    expect(await db.progressDao.getUnsyncedProgress(), isEmpty);
-    // The card went to the back of the queue (internal total grew by one
-    // slot so it replays) — but the USER-FACING displayTotal must not grow
-    // ("I chose 10 words but ended up with 12", field report 2026-07-09).
-    expect(sub.read().total, initialTotal + 1);
-    expect(sub.read().displayTotal, initialTotal);
-    expect(
-      sub.read().cards.last.progress.variantId,
-      skipped.progress.variantId,
-    );
-    expect(sub.read().cards.last.isRequeue, isTrue);
-    expect(sub.read().currentIndex, 1);
-
-    // A second skip of the SAME card does not requeue again (no infinite
-    // session in a persistently silent room).
-    while (sub.read().currentCard?.progress.variantId !=
-        skipped.progress.variantId) {
-      notifier.skipCurrentCard();
-    }
-    final totalBefore = sub.read().total;
-    notifier.skipCurrentCard();
-    expect(sub.read().total, totalBefore);
-  });
+  }
 
   test('the mastery target sets masteredAt exactly once', () async {
     for (var i = 0; i < kRuleMasteryTarget; i++) {

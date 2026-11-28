@@ -143,7 +143,7 @@ class AppShell extends ConsumerWidget {
                         const Icon(
                           Icons.wifi_off,
                           size: 16,
-                          color: Colors.white,
+                          color: AppColors.ink,
                         ),
                         const SizedBox(width: 8),
                         // Expanded: the banner message is wider than any
@@ -152,7 +152,7 @@ class AppShell extends ConsumerWidget {
                           child: Text(
                             'shell.offline_banner'.tr(),
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: AppColors.ink,
                               fontSize: 12,
                             ),
                           ),

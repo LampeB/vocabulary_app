@@ -22,6 +22,8 @@ abstract class GrammarLanguageModule {
 
   String get pluralPromptKey => 'grammar.drill.plural';
 
+  String get conjugationPersonPromptKey => 'grammar.drill.conjugate_person';
+
   /// Whether this rule supplies the forms needed to drill a word outside its
   /// usual categories. The word retains its catalog category for minimums.
   bool hasDrillException(GrammarRule rule, String word) => false;
