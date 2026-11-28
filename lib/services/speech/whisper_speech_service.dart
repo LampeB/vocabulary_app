@@ -1,0 +1,488 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:path_provider/path_provider.dart';
+import 'package:ponderin_whisper/ponderin_whisper.dart';
+
+import '../../core/utils/answer_validator.dart';
+import '../../core/utils/pcm_segmenter.dart';
+import '../../core/utils/stt_debug_log.dart';
+import '../../core/utils/wav_writer.dart';
+import 'pcm_microphone.dart';
+
+/// The Whisper capabilities used by the hybrid STT coordinator.
+///
+/// Native model loading and microphone capture stay behind this interface so
+/// the coordinator adapter can be verified without a phone or a 142 MB model.
+abstract interface class WhisperSpeechCapture {
+  bool get isReady;
+  Future<void> ensureModel();
+  Future<bool> startListening({
+    required String langCode,
+    required void Function(String text, int segmentMs) onFinal,
+    void Function()? onSpeechStart,
+    void Function()? onSegment,
+    List<String> promptHints,
+  });
+  Future<void> stopListening({bool keepPendingTranscripts});
+
+  /// Transcribes one utterance captured by someone else's microphone (the
+  /// race's shared capture). Returns the cleaned transcript, or null when
+  /// nothing usable was heard (silence, known hallucination).
+  Future<String?> transcribeSegment({
+    required Uint8List pcm16,
+    required String langCode,
+    required List<String> promptHints,
+  });
+
+  /// Invalidates shared segments while allowing active native inference to
+  /// finish and clean up its own file.
+  void cancelSharedTranscriptions();
+  void dispose();
+}
+
+typedef WhisperSegmentTranscriber =
+    Future<String> Function({
+      required Uint8List pcm16,
+      required String langCode,
+      required String prompt,
+    });
+
+/// Device-independent recognition: OUR mic capture + OUR endpointing
+/// ([PcmSegmenter]) + on-device Whisper inference (whisper.cpp, ggml-base
+/// multilingual). No vendor recognizer anywhere in the loop — the same
+/// model makes the same decision on any phone (user decision 2026-07-09
+/// after Samsung's engine dropped short words and Vosk's grammar mode
+/// couldn't tell right from wrong).
+///
+/// One model serves ALL languages (no fr↔ko engine switching), it is
+/// open-vocabulary (wrong answers are real transcripts, so they can be
+/// graded), and the segmenter's pre-roll means the first syllable of a
+/// short word is never lost.
+class WhisperSpeechService implements WhisperSpeechCapture {
+  WhisperSpeechService({
+    PcmMicrophone? microphone,
+    this._segmentTranscriber,
+    this._whisper,
+    this._modelReady = false,
+  }) : _microphone = microphone ?? RecordPcmMicrophone();
+
+  /// ggml-base multilingual (~142MB): tiny's French on short words was
+  /// garbage ("pomme" → "Bonne", field log 2026-07-10); base was accurate
+  /// but slow — until the vendored audio_ctx patch, which cuts the fixed
+  /// 30s encoder window down to the actual clip length.
+  static const _model = PonderinWhisperModel.base;
+  static const _sampleRate = 16000;
+  static int _captureId = 0;
+
+  PonderinWhisper? _whisper;
+  bool _modelReady;
+  Future<void>? _preparing;
+  bool _disposed = false;
+
+  final PcmMicrophone _microphone;
+  final WhisperSegmentTranscriber? _segmentTranscriber;
+  StreamSubscription<dynamic>? _micSub;
+  PcmSegmenter? _segmenter;
+  bool _isListening = false;
+  DateTime? _listenStart;
+  int _inferenceSerial = 0;
+  int _pendingInferences = 0;
+  Future<void> _inferenceChain = Future.value();
+
+  // Active per-window callbacks (swapped on every startListening).
+  void Function(String text, int segmentMs)? _onFinal;
+  void Function()? _onSpeechStart;
+  void Function()? _onSegment;
+  String _promptHints = '';
+
+  @override
+  bool get isReady => _modelReady;
+  bool get isListening => _isListening;
+
+  int get listenElapsedMs => _listenStart == null
+      ? 0
+      : DateTime.now().difference(_listenStart!).inMilliseconds;
+
+  /// Transcribes an existing WAV capture without opening the microphone.
+  ///
+  /// This is used by the debug corpus lab to measure the exact model and
+  /// decoder configuration that hands-free quizzes use on a real speaker.
+  /// It deliberately stays on-device: [path] is given directly to whisper.cpp.
+  // The actual model/file boundary is exercised by the device corpus lab.
+  // coverage:ignore-start
+  Future<WhisperFileResult?> transcribeFile({
+    required String path,
+    required String langCode,
+    List<String> promptHints = const [],
+  }) async {
+    await ensureModel();
+    if (!_modelReady || _whisper == null) return null;
+    final prompt = {
+      for (final hint in promptHints)
+        ...hint.split('/').map(AnswerValidator.stripAnnotations),
+    }.where((hint) => hint.isNotEmpty).join(', ');
+    try {
+      final stopwatch = Stopwatch()..start();
+      final response = await _whisper!.transcribe(
+        audioPath: path,
+        language: langCode,
+        initialPrompt: prompt,
+      );
+      stopwatch.stop();
+      final cleaned = cleanTranscript(response);
+      sttLog(
+        '[WSP][CORPUS] $langCode ${stopwatch.elapsedMilliseconds}ms '
+        'raw="$response" cleaned="${cleaned ?? '<discarded>'}"',
+      );
+      return WhisperFileResult(
+        rawText: response,
+        cleanedText: cleaned,
+        elapsedMs: stopwatch.elapsedMilliseconds,
+      );
+    } catch (error) {
+      sttLog('[WSP][CORPUS] inference failed: $error');
+      return null;
+    }
+  }
+
+  /// Downloads (first run) and loads the model, then warms the native
+  /// context with a 200ms silent clip so the first real inference isn't
+  /// paying initialization costs. Fire-and-forget; gate on [isReady].
+  @override
+  Future<void> ensureModel() {
+    if (_modelReady || _disposed) return Future.value();
+    if (_whisper == null && !PonderinWhisper.isSupported) return Future.value();
+    return _preparing ??= _prepareModel().whenComplete(() => _preparing = null);
+  }
+
+  Future<void> _prepareModel() async {
+    try {
+      _whisper ??= PonderinWhisper(model: _model);
+      sttLog(
+        '[WSP] ensureModel — ${_model.fileName} (downloads ~142MB on first run)',
+      );
+      final sw = Stopwatch()..start();
+      final silence = pcm16ToWav(
+        // 200ms of silence.
+        Uint8List(_sampleRate ~/ 5 * 2),
+        sampleRate: _sampleRate,
+      );
+      final dir = await getTemporaryDirectory();
+      final warmup = File('${dir.path}/wsp_warmup_${_captureId++}.wav');
+      await warmup.writeAsBytes(silence, flush: true);
+      try {
+        await _whisper!.transcribe(audioPath: warmup.path, language: 'fr');
+      } finally {
+        await warmup.delete().catchError((_) => warmup);
+      }
+      if (_disposed) return;
+      _modelReady = true;
+      sttLog('[WSP] ✅ model ready in ${sw.elapsed.inSeconds}s');
+    } catch (e) {
+      sttLog('[WSP] 💥 ensureModel failed: $e');
+    }
+  }
+  // coverage:ignore-end
+
+  /// Whisper hallucinates boilerplate on noise/near-silence (training-data
+  /// artifacts: subtitle credits, "thanks for watching", …). Any transcript
+  /// containing one of these is discarded, never graded.
+  static const _hallucinationMarkers = [
+    // fr
+    'sous-titr', // sous-titre(s), sous-titrage
+    'sous titrage',
+    'amara.org',
+    'merci d\'avoir regardé',
+    "merci d'avoir regardé",
+    'abonnez-vous',
+    // en
+    'thank you for watching',
+    'thanks for watching',
+    'subscribe',
+    'subtitles',
+    'see you in the next video',
+    // ko
+    '자막',
+    '시청해',
+    '구독',
+    // de/it/es — generic-language-pairs epic: every studyable language gets
+    // its whisper training-data boilerplate filtered (2026-07-22).
+    'untertitel', // Untertitel(ung) im/des ZDF…
+    'danke fürs zuschauen',
+    'vielen dank für',
+    'abonniert',
+    'sottotitoli',
+    'grazie per la visione',
+    'iscrivetevi',
+    'subtítulos',
+    'gracias por ver',
+    'suscríbete',
+    'subtitulado por',
+  ];
+
+  /// Cleans a raw Whisper transcript for validation: trims, strips
+  /// bracketed/parenthesized event tags ("[Musique]", "(rires)") and edge
+  /// punctuation. Returns null when nothing usable remains or the text
+  /// looks like a known hallucination.
+  static String? cleanTranscript(String raw) {
+    var t = raw
+        .replaceAll(RegExp(r'\[[^\]]*\]'), ' ')
+        .replaceAll(RegExp(r'\([^)]*\)'), ' ')
+        .replaceAll(RegExp(r'\*[^*]*\*'), ' ') // *musique d'outro*
+        .replaceAll(RegExp(r'[.,!?;:…"«»*]'), ' ')
+        .replaceAll(RegExp(r'(^|\s)-+|-+(?=\s|\$)'), ' ') // caption dashes
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (t.isEmpty) return null;
+    final lower = t.toLowerCase();
+    for (final marker in _hallucinationMarkers) {
+      if (lower.contains(marker)) return null;
+    }
+    return t;
+  }
+
+  /// Opens the mic and transcribes each detected utterance in [langCode].
+  /// [onFinal] receives cleaned non-empty transcripts; [onSpeechStart]
+  /// fires when the segmenter detects speech onset (UI feedback).
+  /// [promptHints]: expected answers used as decoder-bias context —
+  /// dramatically improves short-word transcription ("thé" → "T" without
+  /// it, field 2026-07-10). Annotations/slashes are cleaned here.
+  @override
+  Future<bool> startListening({
+    required String langCode,
+    required void Function(String text, int segmentMs) onFinal,
+    void Function()? onSpeechStart,
+    void Function()? onSegment,
+    List<String> promptHints = const [],
+  }) async {
+    if (!_modelReady) {
+      sttLog('[WSP] startListening skipped — model not ready');
+      return false;
+    }
+    if (_isListening) await stopListening();
+
+    _onFinal = onFinal;
+    _onSpeechStart = onSpeechStart;
+    _onSegment = onSegment;
+    _promptHints = {
+      for (final h in promptHints)
+        ...h.split('/').map(AnswerValidator.stripAnnotations),
+    }.where((h) => h.isNotEmpty).join(', ');
+    final windowSerial = ++_inferenceSerial;
+
+    try {
+      if (!await _microphone.hasPermission()) {
+        sttLog('[WSP] ❌ mic permission denied');
+        return false;
+      }
+      // maxUtterance 3s: an answer is a word or two. Longer capture is
+      // ambient conversation — two people testing together produced 5-6s
+      // blobs whisper described as '*bruit de la chanson*' (2026-07-13).
+      _segmenter = PcmSegmenter(sampleRate: _sampleRate, maxUtteranceMs: 3000);
+      final stream = await _microphone.startVoiceStream();
+      var wasInSpeech = false;
+      var lastLevelLog = DateTime.now();
+      _micSub = stream.listen((chunk) {
+        final seg = _segmenter!;
+        final segments = seg.feed(chunk);
+        if (seg.inSpeech && !wasInSpeech) {
+          sttLog(
+            '[WSP] 🗣 speech onset  floor=${seg.noiseFloor.toStringAsFixed(0)}',
+          );
+          _onSpeechStart?.call();
+        }
+        wasInSpeech = seg.inSpeech;
+        final now = DateTime.now();
+        if (now.difference(lastLevelLog).inMilliseconds >= 1000) {
+          lastLevelLog = now;
+          sttLog(
+            '[WSP] 🎚 floor=${seg.noiseFloor.toStringAsFixed(0)}  inSpeech=${seg.inSpeech}  elapsed=${listenElapsedMs}ms',
+          );
+        }
+        for (final s in segments) {
+          sttLog(
+            '[WSP] segment complete: ${s.durationMs}ms  peak=${s.peakRms.toStringAsFixed(0)}',
+          );
+          _onSegment?.call(); // utterance captured — inference starting
+          _enqueueInference(s, langCode, windowSerial);
+        }
+      });
+      _isListening = true;
+      _listenStart = DateTime.now();
+      sttLog(
+        '[WSP] 🎙️ startListening lang=$langCode (own capture, base model)',
+      );
+      return true;
+    } catch (e) {
+      sttLog('[WSP] 💥 startListening failed: $e');
+      _isListening = false;
+      return false;
+    }
+  }
+
+  void _enqueueInference(PcmSegment segment, String langCode, int serial) {
+    // Backpressure: a conversation-heavy room can produce segments faster
+    // than inference clears them; an unbounded queue is how the 2026-07-13
+    // session snowballed. Newest segments matter least (the answer usually
+    // comes first) — drop them when the queue is deep.
+    if (_pendingInferences >= 3) {
+      sttLog(
+        '[WSP] inference queue full ($_pendingInferences) — dropping ${segment.durationMs}ms segment',
+      );
+      return;
+    }
+    _pendingInferences++;
+    _inferenceChain = _inferenceChain.then((_) async {
+      _pendingInferences--;
+      if (serial != _inferenceSerial) return; // window closed meanwhile
+      try {
+        final sw = Stopwatch()..start();
+        final raw = await _transcribeSegment(
+          pcm16: segment.bytes,
+          langCode: langCode,
+          prompt: _promptHints,
+        );
+        final cleaned = cleanTranscript(raw);
+        sttLog(
+          '[WSP] 📝 transcribed ${segment.durationMs}ms in ${sw.elapsedMilliseconds}ms: raw="$raw" cleaned="${cleaned ?? "<discarded>"}"',
+        );
+        if (cleaned == null) return;
+        if (serial != _inferenceSerial) {
+          sttLog('[WSP] transcript arrived after window closed — dropped');
+          return;
+        }
+        _onFinal?.call(cleaned, segment.durationMs);
+      } catch (e) {
+        sttLog('[WSP] 💥 inference failed: $e');
+      }
+    });
+  }
+
+  /// One native inference at a time: whisper.cpp contexts are not
+  /// re-entrant, and two parallel calls only make both slower.
+  Future<void> _sharedChain = Future.value();
+  int _sharedEpoch = 0;
+
+  @override
+  void cancelSharedTranscriptions() {
+    _sharedEpoch++;
+  }
+
+  @override
+  Future<String?> transcribeSegment({
+    required Uint8List pcm16,
+    required String langCode,
+    required List<String> promptHints,
+  }) {
+    if (!_modelReady) {
+      return Future.error(StateError('whisper model not ready'));
+    }
+    final prompt = {
+      for (final h in promptHints)
+        ...h.split('/').map(AnswerValidator.stripAnnotations),
+    }.where((h) => h.isNotEmpty).join(', ');
+    final epoch = _sharedEpoch;
+    final result = _sharedChain.then((_) async {
+      if (_disposed || epoch != _sharedEpoch) return null;
+      final sw = Stopwatch()..start();
+      final raw = await _transcribeSegment(
+        pcm16: pcm16,
+        langCode: langCode,
+        prompt: prompt,
+      );
+      if (_disposed || epoch != _sharedEpoch) return null;
+      final cleaned = cleanTranscript(raw);
+      sttLog(
+        '[WSP] 📝 shared ${pcm16.length ~/ 32}ms in '
+        '${sw.elapsedMilliseconds}ms: raw="$raw" '
+        'cleaned="${cleaned ?? "<discarded>"}"',
+      );
+      return cleaned;
+    });
+    _sharedChain = result.then((_) {}, onError: (_) {});
+    return result;
+  }
+
+  Future<String> _transcribeSegment({
+    required Uint8List pcm16,
+    required String langCode,
+    required String prompt,
+  }) {
+    final override = _segmentTranscriber;
+    if (override != null) {
+      return override(pcm16: pcm16, langCode: langCode, prompt: prompt);
+    }
+    return _transcribeNativeSegment(
+      pcm16: pcm16,
+      langCode: langCode,
+      prompt: prompt,
+    );
+  }
+
+  // Temp files and the native plugin are validated by corpus/device tests.
+  // coverage:ignore-start
+  Future<String> _transcribeNativeSegment({
+    required Uint8List pcm16,
+    required String langCode,
+    required String prompt,
+  }) async {
+    final dir = await getTemporaryDirectory();
+    final file = File(
+      '${dir.path}/wsp_seg_${DateTime.now().microsecondsSinceEpoch}_${_captureId++}.wav',
+    );
+    await file.writeAsBytes(pcm16ToWav(pcm16), flush: true);
+    try {
+      return await _whisper!.transcribe(
+        audioPath: file.path,
+        language: langCode,
+        initialPrompt: prompt,
+      );
+    } finally {
+      await file.delete().catchError((_) => file);
+    }
+  }
+  // coverage:ignore-end
+
+  /// Stops the mic. By default queued/in-flight transcripts are dropped
+  /// (card changed, quiz quit). [keepPendingTranscripts] lets the window-
+  /// expiry path close the mic while a segment captured near the deadline
+  /// finishes inference and can still grade.
+  @override
+  Future<void> stopListening({bool keepPendingTranscripts = false}) async {
+    if (!_isListening) return;
+    _isListening = false;
+    if (!keepPendingTranscripts) {
+      _inferenceSerial++; // drop queued/in-flight transcripts
+    }
+    sttLog('[WSP] stopListening(keepPending=$keepPendingTranscripts)');
+    try {
+      await _micSub?.cancel();
+      _micSub = null;
+      await _microphone.stop();
+    } catch (e) {
+      sttLog('[WSP] stop failed: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _modelReady = false;
+    unawaited(stopListening());
+    _microphone.dispose();
+  }
+}
+
+class WhisperFileResult {
+  const WhisperFileResult({
+    required this.rawText,
+    required this.cleanedText,
+    required this.elapsedMs,
+  });
+
+  final String rawText;
+  final String? cleanedText;
+  final int elapsedMs;
+}

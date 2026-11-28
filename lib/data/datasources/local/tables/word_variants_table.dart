@@ -6,17 +6,28 @@ class WordVariantsTable extends Table {
   String get tableName => 'word_variants';
 
   TextColumn get id => text()();
-  TextColumn get conceptId => text().named('concept_id').references(ConceptsTable, #id)();
+  TextColumn get conceptId =>
+      text().named('concept_id').references(ConceptsTable, #id)();
   TextColumn get word => text()();
   TextColumn get langCode => text().named('lang_code')();
-  TextColumn get registerTag => text().named('register_tag').withDefault(const Constant('neutral'))();
-  TextColumn get contextTags => text().named('context_tags').withDefault(const Constant('[]'))();
-  BoolColumn get isPrimary => boolean().named('is_primary').withDefault(const Constant(false))();
+  TextColumn get registerTag =>
+      text().named('register_tag').withDefault(const Constant('neutral'))();
+  TextColumn get contextTags =>
+      text().named('context_tags').withDefault(const Constant('[]'))();
+  BoolColumn get isPrimary =>
+      boolean().named('is_primary').withDefault(const Constant(false))();
   TextColumn get audioHash => text().named('audio_hash').nullable()();
   TextColumn get audioVoiceId => text().named('audio_voice_id').nullable()();
+  TextColumn get audioPath => text().named('audio_path').nullable()();
   IntColumn get position => integer().withDefault(const Constant(0))();
-  BoolColumn get isSynced => boolean().named('is_synced').withDefault(const Constant(false))();
-  BoolColumn get isDeleted => boolean().named('is_deleted').withDefault(const Constant(false))();
+  // Example sentence in THIS variant's language (multi-language seed epic).
+  // Replaces the fr/ko-specific concepts.example_fr/example_ko pair, which
+  // remain as read-only legacy until dropped.
+  TextColumn get example => text().nullable()();
+  BoolColumn get isSynced =>
+      boolean().named('is_synced').withDefault(const Constant(false))();
+  BoolColumn get isDeleted =>
+      boolean().named('is_deleted').withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().named('created_at')();
   DateTimeColumn get updatedAt => dateTime().named('updated_at')();
 

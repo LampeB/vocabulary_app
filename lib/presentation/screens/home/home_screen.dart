@@ -3,42 +3,135 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth/auth_provider.dart';
+import '../../providers/grammar/grammar_provider.dart';
 import '../../providers/lists/vocabulary_provider.dart';
 import '../../providers/notifications/notification_provider.dart';
+import '../../providers/settings/default_pair_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/languages.dart';
+import '../../../core/widget_keys.dart';
 import '../../../domain/entities/vocabulary_list.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
 import '../../widgets/vk_waveform.dart';
 
-// ── French date helpers (no intl dependency) ──────────────────────────────────
-
-const _kFrDays = [
-  'LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI', 'SAMEDI', 'DIMANCHE'
-];
-const _kFrMonths = [
-  'JAN', 'FÉV', 'MAR', 'AVR', 'MAI', 'JUIN',
-  'JUIL', 'AOÛT', 'SEP', 'OCT', 'NOV', 'DÉC',
-];
-
-String _frDate(DateTime d) =>
-    '${_kFrDays[d.weekday - 1]} ${d.day} ${_kFrMonths[d.month - 1]}';
-
 // ── Screen ────────────────────────────────────────────────────────────────────
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(syncOnLoginProvider); // pulls remote data on login
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
 
-    final user      = ref.watch(currentUserProvider);
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  static const _v0Pairs = <(String, String)>[
+    ('fr', 'ko'),
+    ('en', 'ko'),
+    ('ko', 'fr'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final syncAsync = ref.watch(
+      syncOnLoginProvider,
+    ); // pulls remote data on login
+    final seedAsync = ref.watch(
+      seedStarterListsProvider,
+    ); // first-ever login: starter content
+
+    final user = ref.watch(currentUserProvider);
     final listsAsync = ref.watch(myListsProvider);
-    final dueCount  = ref.watch(dueCountProvider).valueOrNull ?? 0;
-    final streak    = user?.currentStreak ?? 0;
+    final pair = ref.watch(defaultPairProvider);
+    final due = ref.watch(dueCountForPairProvider(pair));
+    final streak = user?.currentStreak ?? 0;
 
+    // Preload gate (user decision 2026-07-21): the home page never renders
+    // partially. EVERY app open holds the loading screen until the local DB,
+    // the login sync and the starter seeding are all done — classic
+    // spinner-then-full-page. Sync errors (offline) end the loading state, so
+    // the gate lifts and cached local data shows.
+    if (syncAsync.isLoading || seedAsync.isLoading || listsAsync.isLoading) {
+      return const Scaffold(
+        key: ValueKey(WidgetKeys.screenHome),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: AppColors.clay, strokeWidth: 2),
+              SizedBox(height: 16),
+              _SyncingLabel(),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return _buildHome(context, user, listsAsync, pair, due, streak);
+  }
+
+  void _showPairPicker(BuildContext context, (String, String) activePair) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'home.pair_picker_title'.tr(),
+                style: AppTextStyles.grotesk(18, FontWeight.w700),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'home.pair_picker_subtitle'.tr(),
+                style: AppTextStyles.caption,
+              ),
+              const SizedBox(height: 8),
+              for (final pair in _v0Pairs)
+                ListTile(
+                  key: ValueKey(WidgetKeys.homePair(pair.$1, pair.$2)),
+                  selected: pair == activePair,
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Text(
+                    '${Languages.flagFor(pair.$1)} → ${Languages.flagFor(pair.$2)}',
+                    style: const TextStyle(fontSize: 19),
+                  ),
+                  title: Text(
+                    '${Languages.autonym(pair.$1)} → '
+                    '${Languages.autonym(pair.$2)}',
+                  ),
+                  trailing: pair == activePair
+                      ? const Icon(Icons.check_rounded)
+                      : null,
+                  onTap: () {
+                    ref
+                        .read(defaultPairProvider.notifier)
+                        .set(pair.$1, pair.$2);
+                    Navigator.pop(ctx);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHome(
+    BuildContext context,
+    dynamic user,
+    AsyncValue<List<VocabularyList>> listsAsync,
+    (String, String) pair,
+    AsyncValue<int> due,
+    int streak,
+  ) {
     // Schedule streak warning once user data is available.
     if (streak > 0) {
       ref
@@ -49,9 +142,10 @@ class HomeScreen extends ConsumerWidget {
     final name = user?.displayName ?? user?.username ?? '';
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenHome),
       body: RefreshIndicator(
         color: AppColors.clay,
-        backgroundColor: AppColors.card,
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         onRefresh: () async {
           ref.invalidate(myListsProvider);
           ref.invalidate(syncOnLoginProvider);
@@ -68,56 +162,82 @@ class HomeScreen extends ConsumerWidget {
               ),
               children: [
                 // ── Header ─────────────────────────────────────────────────
-                _Header(name: name, avatarUrl: user?.avatarUrl),
+                _Header(
+                  name: name,
+                  avatarUrl: user?.avatarUrl,
+                  pair: pair,
+                  onPairTap: () => _showPairPicker(context, pair),
+                ),
                 const SizedBox(height: 24),
                 // ── Streak block ────────────────────────────────────────────
                 _StreakCard(streak: streak),
                 const SizedBox(height: 12),
-                // ── À réviser ───────────────────────────────────────────────
-                if (dueCount > 0) ...[
-                  _ReviewCard(
-                    dueCount: dueCount,
-                    onStart: () => context.go('/lists'),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-                // ── Tes listes ──────────────────────────────────────────────
-                Builder(builder: (ctx) {
-                  final isDark = Theme.of(ctx).brightness == Brightness.dark;
-                  return Text(
-                    'home.section_lists'.tr(),
-                    style: AppTextStyles.eyebrow.copyWith(
-                      color: isDark ? AppColors.onDarkMuted : AppColors.muted,
+                // ── Chemin du jour ──────────────────────────────────────────
+                // Its count is scoped to the active ordered pair. The card
+                // enters a dedicated, optional daily-plan screen; free
+                // practice remains independently available from the Lists tab.
+                _DailyPathCard(
+                  due: due,
+                  onOpen: () => context.push('/daily-path'),
+                ),
+                if (!due.isLoading && due.hasError)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TextButton(
+                      key: const ValueKey(WidgetKeys.reviewDueRetry),
+                      onPressed: () =>
+                          ref.invalidate(dueCountForPairProvider(pair)),
+                      child: Text('common.retry'.tr()),
                     ),
-                  );
-                }),
+                  ),
+                const SizedBox(height: 24),
+                // ── Grammaire (its own flow — never mixed into vocab setup) ─
+                _GrammarCard(onOpen: () => context.push('/grammar')),
+                const SizedBox(height: 24),
+                // ── Tes listes ──────────────────────────────────────────────
+                Builder(
+                  builder: (ctx) {
+                    final isDark = Theme.of(ctx).brightness == Brightness.dark;
+                    return Text(
+                      'home.section_lists'.tr(),
+                      style: AppTextStyles.eyebrow.copyWith(
+                        color: isDark ? AppColors.onDarkMuted : AppColors.muted,
+                      ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 12),
                 listsAsync.when(
                   loading: () => const Center(
                     child: Padding(
                       padding: EdgeInsets.symmetric(vertical: 32),
                       child: CircularProgressIndicator(
-                          color: AppColors.clay, strokeWidth: 2),
+                        color: AppColors.clay,
+                        strokeWidth: 2,
+                      ),
                     ),
                   ),
                   error: (e, _) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24),
                     child: Text(
-                        'home.error_loading'.tr(namedArgs: {'error': e.toString()}),
-                        style: AppTextStyles.caption
-                            .copyWith(color: AppColors.rose)),
+                      'home.error_loading'.tr(
+                        namedArgs: {'error': e.toString()},
+                      ),
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.rose,
+                      ),
+                    ),
                   ),
                   data: (lists) => lists.isEmpty
                       ? _EmptyLists(onTap: () => context.go('/lists'))
                       : Column(
                           children: [
-                            for (int i = 0;
-                                i < lists.length && i < 5;
-                                i++) ...[
+                            for (int i = 0; i < lists.length && i < 5; i++) ...[
                               _ListCard(
                                 list: lists[i],
-                                accentColor: AppColors.listPalette[
-                                    i % AppColors.listPalette.length],
+                                accentColor:
+                                    AppColors.listPalette[i %
+                                        AppColors.listPalette.length],
                                 onTap: () =>
                                     context.go('/lists/${lists[i].id}'),
                               ),
@@ -126,8 +246,7 @@ class HomeScreen extends ConsumerWidget {
                             ],
                             if (lists.length > 5) ...[
                               const SizedBox(height: 8),
-                              _SeeAllButton(
-                                  onTap: () => context.go('/lists')),
+                              _SeeAllButton(onTap: () => context.go('/lists')),
                             ],
                           ],
                         ),
@@ -144,33 +263,34 @@ class HomeScreen extends ConsumerWidget {
 // ── Header ────────────────────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
-  const _Header({required this.name, this.avatarUrl});
+  const _Header({
+    required this.name,
+    required this.pair,
+    required this.onPairTap,
+    this.avatarUrl,
+  });
   final String name;
+  final (String, String) pair;
+  final VoidCallback onPairTap;
   final String? avatarUrl;
 
   @override
   Widget build(BuildContext context) {
-    final today = DateTime.now();
     final firstName = name.split(' ').first;
     final cs = Theme.of(context).colorScheme;
     final isDark = cs.brightness == Brightness.dark;
-    final faint = isDark ? AppColors.onDarkFaint : AppColors.faint;
     final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Date eyebrow + notification bell
+        // Notification bell
         Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Text(
-              _frDate(today),
-              style: AppTextStyles.eyebrow.copyWith(color: faint),
-            ),
-            const Spacer(),
             IconButton(
-              icon: Icon(Icons.notifications_outlined,
-                  color: muted, size: 22),
+              key: const ValueKey(WidgetKeys.homeBell),
+              icon: Icon(Icons.notifications_outlined, color: muted, size: 22),
               tooltip: 'home.header_notification_tooltip'.tr(),
               onPressed: () => context.push('/notifications'),
               padding: EdgeInsets.zero,
@@ -185,14 +305,52 @@ class _Header extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                '${'home.greeting'.tr()}${ firstName.isNotEmpty ? ', $firstName' : '' } !',
-                style: AppTextStyles.grotesk(28, FontWeight.w700)
-                    .copyWith(color: cs.onSurface),
+                '${'home.greeting'.tr()}${firstName.isNotEmpty ? ', $firstName' : ''} !',
+                style: AppTextStyles.grotesk(
+                  28,
+                  FontWeight.w700,
+                ).copyWith(color: cs.onSurface),
               ),
             ),
             const SizedBox(width: 12),
             _Avatar(avatarUrl: avatarUrl, name: name),
           ],
+        ),
+        const SizedBox(height: 10),
+        Semantics(
+          button: true,
+          label: 'home.pair_picker_title'.tr(),
+          child: InkWell(
+            key: const ValueKey(WidgetKeys.homePairPicker),
+            onTap: onPairTap,
+            borderRadius: BorderRadius.circular(999),
+            child: Ink(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest.withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: cs.outline),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${Languages.flagFor(pair.$1)} → ${Languages.flagFor(pair.$2)}',
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${pair.$1.toUpperCase()} → ${pair.$2.toUpperCase()}',
+                    style: AppTextStyles.fig(
+                      13,
+                      FontWeight.w600,
+                    ).copyWith(color: cs.onSurface),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.expand_more_rounded, size: 18, color: muted),
+                ],
+              ),
+            ),
+          ),
         ),
       ],
     );
@@ -214,23 +372,29 @@ class _Avatar extends StatelessWidget {
         color: AppColors.clay.withValues(alpha: 0.15),
         shape: BoxShape.circle,
         border: Border.all(
-            color: AppColors.clay.withValues(alpha: 0.3), width: 1.5),
+          color: AppColors.clay.withValues(alpha: 0.3),
+          width: 1.5,
+        ),
       ),
       child: avatarUrl != null && avatarUrl!.isNotEmpty
           ? ClipOval(
-              child: Image.network(avatarUrl!, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) =>
-                      Center(child: _initial(initials))),
+              child: Image.network(
+                avatarUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => Center(child: _initial(initials)),
+              ),
             )
           : Center(child: _initial(initials)),
     );
   }
 
   Widget _initial(String letter) => Text(
-        letter,
-        style: AppTextStyles.grotesk(18, FontWeight.w700)
-            .copyWith(color: AppColors.clayDeep),
-      );
+    letter,
+    style: AppTextStyles.grotesk(
+      18,
+      FontWeight.w700,
+    ).copyWith(color: AppColors.clayDeep),
+  );
 }
 
 // ── Streak card ───────────────────────────────────────────────────────────────
@@ -246,7 +410,11 @@ class _StreakCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(24),
       child: Container(
         height: 120,
-        color: AppColors.inkDark,
+        decoration: BoxDecoration(
+          color: AppColors.inkDark,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Theme.of(context).colorScheme.outline),
+        ),
         child: Stack(
           children: [
             // Waveform watermark
@@ -267,41 +435,51 @@ class _StreakCard extends StatelessWidget {
             // Streak content
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(
-                        '$streak',
-                        style: AppTextStyles.heroNumber.copyWith(
-                          color: isActive
-                              ? AppColors.clayDark
-                              : AppColors.onDarkFaint,
+              // FittedBox: the card height is fixed (120) but the text is not —
+              // large accessibility text scales (and the test font) overflow it
+              // otherwise; shrink the block instead.
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          '$streak',
+                          style: AppTextStyles.heroNumber.copyWith(
+                            color: isActive
+                                ? AppColors.clayDark
+                                : AppColors.onDarkFaint,
+                          ),
                         ),
+                        const SizedBox(width: 8),
+                        Text(
+                          streak == 1
+                              ? 'home.streak_days_one'.tr()
+                              : 'home.streak_days_other'.tr(),
+                          style: AppTextStyles.grotesk(
+                            22,
+                            FontWeight.w600,
+                          ).copyWith(color: AppColors.onDarkMuted),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isActive
+                          ? 'home.streak_active'.tr()
+                          : 'home.streak_inactive'.tr(),
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.onDarkFaint,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        streak == 1
-                            ? 'home.streak_days_one'.tr()
-                            : 'home.streak_days_other'.tr(),
-                        style: AppTextStyles.grotesk(22, FontWeight.w600)
-                            .copyWith(color: AppColors.onDarkMuted),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    isActive
-                        ? 'home.streak_active'.tr()
-                        : 'home.streak_inactive'.tr(),
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.onDarkFaint),
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -313,17 +491,37 @@ class _StreakCard extends StatelessWidget {
 
 // ── Review card ───────────────────────────────────────────────────────────────
 
-class _ReviewCard extends StatelessWidget {
-  const _ReviewCard({required this.dueCount, required this.onStart});
-  final int dueCount;
-  final VoidCallback onStart;
+/// Entry to the grammar flow: shows how many rules are unlocked and opens
+/// the grammar session setup. Grammar never appears inside the vocab setup.
+class _GrammarCard extends ConsumerWidget {
+  const _GrammarCard({required this.onOpen});
+  final VoidCallback onOpen;
 
   @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final statuses = ref
+        .watch(ruleStatusesProvider(ref.watch(defaultPairProvider).$2))
+        .valueOrNull;
+    final unlocked =
+        statuses
+            ?.where((s) => s.availability != RuleAvailability.locked)
+            .length ??
+        0;
+    final total = statuses?.length ?? 0;
+
+    return GestureDetector(
+      key: const ValueKey(WidgetKeys.homeGrammar),
+      onTap: onOpen,
       child: Container(
-        color: AppColors.ink,
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest.withValues(
+            alpha: isDark ? 0.4 : 0.6,
+          ),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: cs.outline),
+        ),
         padding: const EdgeInsets.all(20),
         child: Row(
           children: [
@@ -332,32 +530,109 @@ class _ReviewCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'home.review_label'.tr(),
-                    style: AppTextStyles.eyebrow
-                        .copyWith(color: AppColors.onDarkFaint),
+                    'home.grammar_label'.tr(),
+                    style: AppTextStyles.eyebrow.copyWith(
+                      color: isDark ? AppColors.onDarkMuted : AppColors.muted,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '$dueCount ${dueCount == 1 ? 'home.review_word_one'.tr() : 'home.review_word_other'.tr()}',
-                    style: AppTextStyles.grotesk(32, FontWeight.w700)
-                        .copyWith(color: AppColors.onDark),
+                    statuses == null
+                        ? 'home.grammar_subtitle'.tr()
+                        : 'home.grammar_unlocked'.tr(
+                            namedArgs: {
+                              'unlocked': '$unlocked',
+                              'total': '$total',
+                            },
+                          ),
+                    style: AppTextStyles.fig(
+                      15,
+                      FontWeight.w600,
+                    ).copyWith(color: cs.onSurface),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 16,
+              color: isDark ? AppColors.onDarkMuted : AppColors.muted,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DailyPathCard extends StatelessWidget {
+  const _DailyPathCard({required this.due, required this.onOpen});
+  final AsyncValue<int> due;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final dueCount = due.isLoading ? null : due.asData?.value;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        key: const ValueKey(WidgetKeys.homeDailyPath),
+        decoration: BoxDecoration(
+          color: AppColors.ink,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Theme.of(context).colorScheme.outline),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'home.daily_path_label'.tr(),
+                    style: AppTextStyles.eyebrow.copyWith(
+                      color: AppColors.onDarkFaint,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    switch (dueCount) {
+                      null =>
+                        (due.isLoading
+                                ? 'v3.review_due_loading'
+                                : 'v3.review_due_error')
+                            .tr(),
+                      0 => 'home.daily_path_clear'.tr(),
+                      _ => 'home.daily_path_due'.tr(
+                        namedArgs: {'count': '$dueCount'},
+                      ),
+                    },
+                    style: AppTextStyles.grotesk(
+                      dueCount != null && dueCount > 0 ? 28 : 19,
+                      FontWeight.w700,
+                    ).copyWith(color: AppColors.onDark),
                   ),
                 ],
               ),
             ),
             GestureDetector(
-              onTap: onStart,
+              onTap: onOpen,
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 12),
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.clay,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  'home.review_start'.tr(),
-                  style: AppTextStyles.fig(14, FontWeight.w700)
-                      .copyWith(color: Colors.white),
+                  'home.daily_path_open'.tr(),
+                  style: AppTextStyles.fig(
+                    14,
+                    FontWeight.w700,
+                  ).copyWith(color: Colors.white),
                 ),
               ),
             ),
@@ -411,8 +686,10 @@ class _ListCard extends StatelessWidget {
                 children: [
                   Text(
                     list.name,
-                    style: AppTextStyles.fig(15, FontWeight.w600)
-                        .copyWith(color: cs.onSurface),
+                    style: AppTextStyles.fig(
+                      15,
+                      FontWeight.w600,
+                    ).copyWith(color: cs.onSurface),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -454,8 +731,10 @@ class _EmptyLists extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'home.empty_title'.tr(),
-              style: AppTextStyles.fig(15, FontWeight.w600)
-                  .copyWith(color: muted),
+              style: AppTextStyles.fig(
+                15,
+                FontWeight.w600,
+              ).copyWith(color: muted),
             ),
             const SizedBox(height: 4),
             Text(
@@ -484,6 +763,22 @@ class _SeeAllButton extends StatelessWidget {
           'home.see_all'.tr(),
           style: AppTextStyles.eyebrow.copyWith(color: AppColors.teal),
         ),
+      ),
+    );
+  }
+}
+
+// ── First-sync loading label ──────────────────────────────────────────────────
+
+class _SyncingLabel extends StatelessWidget {
+  const _SyncingLabel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'home.syncing'.tr(),
+      style: AppTextStyles.caption.copyWith(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
       ),
     );
   }

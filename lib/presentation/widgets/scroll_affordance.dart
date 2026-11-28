@@ -1,0 +1,165 @@
+import 'package:flutter/material.dart';
+
+import '../../core/theme/app_text_styles.dart';
+
+/// A readable scroll surface that makes further content explicit.
+///
+/// The cue disappears after reaching the end, so it never covers an action
+/// that is already visible. It is intentionally independent of lesson UI and
+/// can be reused by settings or rich list-detail screens later.
+class ScrollAffordance extends StatefulWidget {
+  const ScrollAffordance({
+    required this.child,
+    required this.hint,
+    super.key,
+    this.padding = EdgeInsets.zero,
+    this.fillViewport = false,
+  }) : slivers = null;
+
+  const ScrollAffordance.slivers({
+    required this.slivers,
+    required this.hint,
+    super.key,
+    this.padding = EdgeInsets.zero,
+  }) : child = null,
+       fillViewport = false;
+
+  final Widget? child;
+  final List<Widget>? slivers;
+  final String hint;
+  final EdgeInsetsGeometry padding;
+
+  /// Keeps short content spread across the viewport while long content scrolls.
+  final bool fillViewport;
+
+  @override
+  State<ScrollAffordance> createState() => _ScrollAffordanceState();
+}
+
+class _ScrollAffordanceState extends State<ScrollAffordance> {
+  final _controller = ScrollController();
+  var _showCue = false;
+  var _cueScheduled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_syncCue);
+    _queueSyncCue();
+  }
+
+  @override
+  void dispose() {
+    _controller
+      ..removeListener(_syncCue)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _syncCue() {
+    if (!_controller.hasClients || !mounted) return;
+    final position = _controller.position;
+    final show =
+        position.maxScrollExtent > 0 &&
+        position.pixels < position.maxScrollExtent - 2;
+    if (show != _showCue) setState(() => _showCue = show);
+  }
+
+  void _queueSyncCue() {
+    if (_cueScheduled || !mounted) return;
+    _cueScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _cueScheduled = false;
+      _syncCue();
+    });
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final padding = widget.padding.resolve(Directionality.of(context));
+      final child = widget.fillViewport
+          ? ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: (constraints.maxHeight - padding.vertical).clamp(
+                  0.0,
+                  double.infinity,
+                ),
+              ),
+              child: IntrinsicHeight(child: widget.child!),
+            )
+          : widget.child;
+      return NotificationListener<ScrollMetricsNotification>(
+        onNotification: (_) {
+          _queueSyncCue();
+          return false;
+        },
+        child: Stack(
+          children: [
+            Scrollbar(
+              controller: _controller,
+              thumbVisibility: true,
+              child: widget.slivers == null
+                  ? SingleChildScrollView(
+                      controller: _controller,
+                      padding: widget.padding,
+                      child: child,
+                    )
+                  : CustomScrollView(
+                      controller: _controller,
+                      slivers: [
+                        SliverPadding(
+                          padding: widget.padding,
+                          sliver: SliverMainAxisGroup(slivers: widget.slivers!),
+                        ),
+                      ],
+                    ),
+            ),
+            Positioned(
+              right: 16,
+              bottom: 12,
+              child: IgnorePointer(
+                child: AnimatedOpacity(
+                  opacity: _showCue ? 1 : 0,
+                  duration: const Duration(milliseconds: 120),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(999),
+                      boxShadow: const [
+                        BoxShadow(color: Color(0x1F000000), blurRadius: 10),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            widget.hint,
+                            style: AppTextStyles.caption.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 17,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}

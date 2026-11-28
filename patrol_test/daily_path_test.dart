@@ -1,0 +1,56 @@
+import 'package:flutter_test/flutter_test.dart';
+
+import 'helpers/steps.dart';
+import 'helpers/test_helpers.dart';
+
+// Daily Path is guidance, not a gate: a learner can enter it, follow its
+// suggested vocabulary list, or jump to the lessons hub from the same screen.
+
+const _list = 'E2E Daily Path List';
+
+void main() {
+  isolatedPatrolTest(
+    'Daily path — suggested vocabulary opens its seeded list',
+    scenarioId:
+        'daily_path.daily_path_suggested_vocabulary_opens_its_seeded_list',
+    timeout: const Timeout(Duration(minutes: 3)),
+    config: kFastSettle,
+    ($) async {
+      final app = Steps($);
+      addTearDown(() => cleanupAfterTest($));
+
+      await app.given.signedIn();
+      await app.given.aCleanSlate();
+      await app.given.aListWithOneWord(
+        name: _list,
+        french: 'bonjour',
+        korean: '안녕',
+      );
+
+      await app.when.opensDailyPath();
+      await app.then.onScreen(Screen.dailyPath);
+      await app.when.opensDailyPractice();
+      await app.then.onScreen(Screen.listDetail);
+      await app.then.seesText(_list);
+    },
+  );
+
+  isolatedPatrolTest(
+    'Daily path — lessons entry opens the grammar hub',
+    scenarioId: 'daily_path.daily_path_lessons_entry_opens_the_grammar_hub',
+    timeout: const Timeout(Duration(minutes: 3)),
+    config: kFastSettle,
+    ($) async {
+      final app = Steps($);
+      addTearDown(() => cleanupAfterTest($));
+
+      await app.given.signedIn();
+      await app.given.aCleanSlate();
+
+      await app.when.opensDailyPath();
+      await app.then.onScreen(Screen.dailyPath);
+      await app.when.opensDailyLessons();
+      await app.then.onScreen(Screen.grammar);
+    },
+  );
+}

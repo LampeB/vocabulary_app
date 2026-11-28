@@ -1,0 +1,215 @@
+{
+  "lang": "es",
+  "rules": [
+    {
+      "rule": {
+        "id": "es-articles-el-la",
+        "title": {
+          "en": "The definite articles el / la",
+          "fr": "Les articles définis el / la"
+        },
+        "description": {
+          "en": "Put el before masculine nouns and la before feminine nouns.",
+          "fr": "Mettre el devant les noms masculins et la devant les noms féminins."
+        },
+        "explanation": {
+          "en": "Every Spanish noun has a grammatical gender. The definite article agrees with it: el amigo, el libro (masculine) but la casa, la leche (feminine). The gender is not always guessable from the meaning — learn each noun with its article. One famous exception: feminine nouns starting with a stressed a- take el in the singular for sound reasons: el agua (still feminine!).",
+          "fr": "Chaque nom espagnol a un genre grammatical. L'article défini s'accorde avec lui : el amigo, el libro (masculin) mais la casa, la leche (féminin). Le genre ne se devine pas toujours au sens — apprends chaque nom avec son article. Exception célèbre : les noms féminins commençant par un a- accentué prennent el au singulier pour des raisons d'euphonie : el agua (toujours féminin !)."
+        },
+        "prerequisite_lists": ["starter-food"],
+        "min_known_words": { "nom": 5 },
+        "applies_to_categories": ["nom", "lieu"],
+        "mechanics": {
+          "type": "article",
+          "article": {
+            "forms": { "m": "el", "f": "la" },
+            "overrides": { "agua": "el agua" }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "el café",
+            "translations": { "en": "the coffee", "fr": "le café" }
+          },
+          {
+            "target": "la escuela",
+            "translations": { "en": "the school", "fr": "l'école" }
+          },
+          {
+            "target": "el agua",
+            "translations": { "en": "the water", "fr": "l'eau" }
+          }
+        ],
+        "test_vectors": [
+          { "input": "café", "context": "m", "expected": "el café" },
+          { "input": "libro", "context": "m", "expected": "el libro" },
+          { "input": "tren", "context": "m", "expected": "el tren" },
+          { "input": "casa", "context": "f", "expected": "la casa" },
+          { "input": "leche", "context": "f", "expected": "la leche" },
+          { "input": "estación", "context": "f", "expected": "la estación" },
+          { "input": "agua", "context": "f override", "expected": "el agua" },
+          { "input": "manzana", "context": "f", "expected": "la manzana" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "es-present-indicative",
+        "title": {
+          "en": "The present tense (-ar / -er / -ir)",
+          "fr": "Le présent de l'indicatif (-ar / -er / -ir)"
+        },
+        "description": {
+          "en": "Conjugate regular verbs in the present: drop the infinitive ending, add -o / -as / -a (-ar) or -o / -es / -e (-er, -ir).",
+          "fr": "Conjuguer les verbes réguliers au présent : retirer la terminaison de l'infinitif, ajouter -o / -as / -a (-ar) ou -o / -es / -e (-er, -ir)."
+        },
+        "explanation": {
+          "en": "Take the infinitive, drop -ar / -er / -ir to get the stem, then add the ending for the person: -ar verbs take -o, -as, -a (trabajo, trabajas, trabaja); -er and -ir verbs take -o, -es, -e (como, comes, come; vivo, vives, vive). Frequent verbs are irregular and must be memorized: ir → voy/vas/va, hacer → hago/haces/hace, venir → vengo/vienes/viene, dormir → duermo/duermes/duerme. Reflexive verbs add the pronoun: levantarse → me levanto.",
+          "fr": "Prends l'infinitif, retire -ar / -er / -ir pour obtenir le radical, puis ajoute la terminaison de la personne : les verbes en -ar prennent -o, -as, -a (trabajo, trabajas, trabaja) ; les verbes en -er et -ir prennent -o, -es, -e (como, comes, come ; vivo, vives, vive). Les verbes fréquents sont irréguliers et s'apprennent par cœur : ir → voy/vas/va, hacer → hago/haces/hace, venir → vengo/vienes/viene, dormir → duermo/duermes/duerme. Les verbes pronominaux ajoutent le pronom : levantarse → me levanto."
+        },
+        "prerequisite_lists": ["starter-daily-life"],
+        "min_known_words": { "verbe": 5 },
+        "applies_to_categories": ["verbe"],
+        "mechanics": {
+          "type": "conjugation",
+          "conjugation": {
+            "persons": ["p1sg", "p2sg", "p3sg"],
+            "irregulars": {
+              "ir|p1sg": "voy", "ir|p2sg": "vas", "ir|p3sg": "va",
+              "venir|p1sg": "vengo", "venir|p2sg": "vienes", "venir|p3sg": "viene",
+              "hacer|p1sg": "hago", "hacer|p2sg": "haces", "hacer|p3sg": "hace",
+              "dormir|p1sg": "duermo", "dormir|p2sg": "duermes", "dormir|p3sg": "duerme",
+              "levantarse|p1sg": "me levanto", "levantarse|p2sg": "te levantas", "levantarse|p3sg": "se levanta",
+              "bajarse|p1sg": "me bajo", "bajarse|p2sg": "te bajas", "bajarse|p3sg": "se baja"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "Trabajo por la mañana.",
+            "translations": { "en": "I work in the morning.", "fr": "Je travaille le matin." }
+          },
+          {
+            "target": "Mi amigo come pan.",
+            "translations": { "en": "My friend eats bread.", "fr": "Mon ami mange du pain." }
+          },
+          {
+            "target": "Voy a la escuela.",
+            "translations": { "en": "I go to school.", "fr": "Je vais à l'école." }
+          }
+        ],
+        "test_vectors": [
+          { "input": "trabajar", "context": "p1sg", "expected": "trabajo" },
+          { "input": "trabajar", "context": "p2sg", "expected": "trabajas" },
+          { "input": "trabajar", "context": "p3sg", "expected": "trabaja" },
+          { "input": "comer", "context": "p1sg", "expected": "como" },
+          { "input": "comer", "context": "p2sg", "expected": "comes" },
+          { "input": "comer", "context": "p3sg", "expected": "come" },
+          { "input": "vivir", "context": "p1sg", "expected": "vivo" },
+          { "input": "vivir", "context": "p3sg", "expected": "vive" },
+          { "input": "ir", "context": "p1sg", "expected": "voy" },
+          { "input": "hacer", "context": "p1sg", "expected": "hago" },
+          { "input": "venir", "context": "p3sg", "expected": "viene" },
+          { "input": "dormir", "context": "p1sg", "expected": "duermo" },
+          { "input": "levantarse", "context": "p1sg", "expected": "me levanto" },
+          { "input": "estudiar", "context": "p3sg", "expected": "estudia" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "es-negation-no",
+        "title": {
+          "en": "Negation with no",
+          "fr": "La négation avec no"
+        },
+        "description": {
+          "en": "Negate a verb by placing no right before it.",
+          "fr": "Nier un verbe en plaçant no juste devant lui."
+        },
+        "explanation": {
+          "en": "Spanish negation is simple: put no immediately before the conjugated verb: trabajo → no trabajo, como → no como. With reflexive verbs, no comes before the pronoun: me levanto → no me levanto. Nothing else changes in the sentence.",
+          "fr": "La négation espagnole est simple : place no immédiatement devant le verbe conjugué : trabajo → no trabajo, como → no como. Avec les verbes pronominaux, no se place avant le pronom : me levanto → no me levanto. Rien d'autre ne change dans la phrase."
+        },
+        "prerequisite_lists": ["starter-daily-life"],
+        "min_known_words": { "verbe": 5 },
+        "applies_to_categories": ["verbe"],
+        "mechanics": {
+          "type": "negation",
+          "negation": {
+            "pattern_template": "no {verb}"
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "Hoy no trabajo.",
+            "translations": { "en": "Today I'm not working.", "fr": "Aujourd'hui je ne travaille pas." }
+          },
+          {
+            "target": "No bebo café.",
+            "translations": { "en": "I don't drink coffee.", "fr": "Je ne bois pas de café." }
+          }
+        ],
+        "test_vectors": [
+          { "input": "trabajar", "context": "p1sg", "expected": "no trabajo" },
+          { "input": "comer", "context": "p1sg", "expected": "no como" },
+          { "input": "beber", "context": "p1sg", "expected": "no bebo" },
+          { "input": "ir", "context": "p1sg irregular", "expected": "no voy" },
+          { "input": "dormir", "context": "p1sg irregular", "expected": "no duermo" },
+          { "input": "levantarse", "context": "reflexive", "expected": "no me levanto" },
+          { "input": "estudiar", "context": "p1sg", "expected": "no estudio" },
+          { "input": "caminar", "context": "p1sg", "expected": "no camino" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "es-plural-s-es",
+        "title": {
+          "en": "The plural in -s / -es",
+          "fr": "Le pluriel en -s / -es"
+        },
+        "description": {
+          "en": "Add -s after a vowel and -es after a consonant.",
+          "fr": "Ajouter -s après une voyelle et -es après une consonne."
+        },
+        "explanation": {
+          "en": "Nouns ending in a vowel add -s: casa → casas, café → cafés. Nouns ending in a consonant add -es: tren → trenes. Nouns ending in -z change to -ces. Watch the written accent: nouns ending in -ión lose it in the plural (estación → estaciones), and autobús → autobuses.",
+          "fr": "Les noms terminés par une voyelle ajoutent -s : casa → casas, café → cafés. Les noms terminés par une consonne ajoutent -es : tren → trenes. Les noms en -z passent à -ces. Attention à l'accent écrit : les noms en -ión le perdent au pluriel (estación → estaciones), et autobús → autobuses."
+        },
+        "prerequisite_lists": ["starter-food"],
+        "min_known_words": { "nom": 5 },
+        "applies_to_categories": ["nom"],
+        "mechanics": {
+          "type": "plural",
+          "plural": {
+            "irregulars": {
+              "estación": "estaciones",
+              "autobús": "autobuses"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "dos manzanas",
+            "translations": { "en": "two apples", "fr": "deux pommes" }
+          },
+          {
+            "target": "tres trenes",
+            "translations": { "en": "three trains", "fr": "trois trains" }
+          }
+        ],
+        "test_vectors": [
+          { "input": "casa", "context": "vowel", "expected": "casas" },
+          { "input": "manzana", "context": "vowel", "expected": "manzanas" },
+          { "input": "café", "context": "accented vowel", "expected": "cafés" },
+          { "input": "tren", "context": "consonant", "expected": "trenes" },
+          { "input": "profesor", "context": "consonant", "expected": "profesores" },
+          { "input": "estación", "context": "accent drop", "expected": "estaciones" },
+          { "input": "autobús", "context": "accent drop", "expected": "autobuses" },
+          { "input": "libro", "context": "vowel", "expected": "libros" }
+        ]
+      }
+    }
+  ]
+}

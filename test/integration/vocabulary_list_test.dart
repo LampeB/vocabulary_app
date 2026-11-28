@@ -31,13 +31,16 @@ void main() {
   // ── createList ────────────────────────────────────────────────────────────
 
   group('createList', () {
-    test('list appears in watchMyLists with correct name and ownerId', () async {
-      await repo.createList(name: 'My List', description: null);
-      final lists = await repo.watchMyLists().first;
-      expect(lists.length, 1);
-      expect(lists.first.name, 'My List');
-      expect(lists.first.ownerId, _kUserId);
-    });
+    test(
+      'list appears in watchMyLists with correct name and ownerId',
+      () async {
+        await repo.createList(name: 'My List', description: null);
+        final lists = await repo.watchMyLists().first;
+        expect(lists.length, 1);
+        expect(lists.first.name, 'My List');
+        expect(lists.first.ownerId, _kUserId);
+      },
+    );
 
     test('wordCount starts at 0', () async {
       await repo.createList(name: 'Empty', description: null);
@@ -67,9 +70,10 @@ void main() {
     late VocabularyList created;
 
     setUp(() async {
-      created = ((await repo.createList(name: 'Original', description: null))
-              as Success<VocabularyList>)
-          .value;
+      created =
+          ((await repo.createList(name: 'Original', description: null))
+                  as Success<VocabularyList>)
+              .value;
     });
 
     test('updated name is visible in watchMyLists', () async {
@@ -110,9 +114,10 @@ void main() {
     late VocabularyList created;
 
     setUp(() async {
-      created = ((await repo.createList(name: 'ToDelete', description: null))
-              as Success<VocabularyList>)
-          .value;
+      created =
+          ((await repo.createList(name: 'ToDelete', description: null))
+                  as Success<VocabularyList>)
+              .value;
     });
 
     test('list disappears from watchMyLists after soft-delete', () async {
@@ -128,13 +133,19 @@ void main() {
       expect(row!.isDeleted, isTrue);
     });
 
-    test('concepts belonging to the list are NOT cascade-deleted', () async {
+    test('deleting a list cascades: its concepts are soft-deleted too '
+        '(mastery-loss decision 2026-07-04)', () async {
       await repo.createConcept(listId: created.id);
       await repo.createConcept(listId: created.id);
       await repo.deleteList(created.id);
       final concepts = await db.conceptDao.getConceptsByList(created.id);
-      expect(concepts.length, 2,
-          reason: 'Soft-delete on list must not delete child concepts');
+      expect(
+        concepts,
+        isEmpty,
+        reason:
+            'deleting a list must take its words (and their mastery) '
+            'with it',
+      );
     });
   });
 

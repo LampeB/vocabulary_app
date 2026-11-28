@@ -7,6 +7,7 @@ import '../../providers/purchases/purchase_provider.dart';
 import '../../../services/purchases/purchase_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
 import '../../widgets/vk_waveform.dart';
@@ -34,25 +35,31 @@ class PaywallScreen extends ConsumerWidget {
 
     ref.listen<AsyncValue<void>>(purchaseNotifierProvider, (prev, next) {
       if (next.hasError && prev?.hasError != true && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('paywall.error_purchase'.tr()),
-          behavior: SnackBarBehavior.floating,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('paywall.error_purchase'.tr()),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     });
 
     final isLoading = purchaseState.isLoading;
-    final offering  = offeringsAsync.valueOrNull?.current;
-    final monthly   = offering?.monthly;
-    final annual    = offering?.annual;
+    final offering = offeringsAsync.valueOrNull?.current;
+    final monthly = offering?.monthly;
+    final annual = offering?.annual;
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenPaywall),
       // Background from AppTheme.scaffoldBackgroundColor.
       appBar: AppBar(
         // AppBarTheme provides transparent bg; override icon to semi-muted.
         leading: IconButton(
-          icon: Icon(Icons.close_rounded,
-              color: cs.onSurface.withValues(alpha: 0.5), size: 22),
+          icon: Icon(
+            Icons.close_rounded,
+            color: cs.onSurface.withValues(alpha: 0.5),
+            size: 22,
+          ),
           onPressed: () => context.pop(),
         ),
       ),
@@ -82,53 +89,71 @@ class PaywallScreen extends ConsumerWidget {
                     color: AppColors.clay.withValues(alpha: 0.18),
                     shape: BoxShape.circle,
                     border: Border.all(
-                        color: AppColors.clay.withValues(alpha: 0.4),
-                        width: 1.5),
+                      color: AppColors.clay.withValues(alpha: 0.4),
+                      width: 1.5,
+                    ),
                   ),
-                  child: const Icon(Icons.workspace_premium_outlined,
-                      color: AppColors.clay, size: 36),
+                  child: const Icon(
+                    Icons.workspace_premium_outlined,
+                    color: AppColors.clay,
+                    size: 36,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
-              Text('paywall.title'.tr(),
-                  style: AppTextStyles.grotesk(32, FontWeight.w700)
-                      .copyWith(color: cs.onSurface),
-                  textAlign: TextAlign.center),
+              Text(
+                'paywall.title'.tr(),
+                style: AppTextStyles.grotesk(
+                  32,
+                  FontWeight.w700,
+                ).copyWith(color: cs.onSurface),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 8),
               Text(
                 'paywall.subtitle'.tr(),
-                style: AppTextStyles.fig(15, FontWeight.w400)
-                    .copyWith(color: muted),
+                style: AppTextStyles.fig(
+                  15,
+                  FontWeight.w400,
+                ).copyWith(color: muted),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
               // ── Feature list ───────────────────────────────────────────────
-              ..._featureKeys.map((f) => Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            color: AppColors.clay.withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(f.$2,
-                              color: AppColors.clay, size: 17),
+              ..._featureKeys.map(
+                (f) => Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: AppColors.clay.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        const SizedBox(width: 14),
-                        Text(f.$1.tr(),
-                            style: AppTextStyles.fig(15, FontWeight.w500)
-                                .copyWith(color: cs.onSurface)),
-                      ],
-                    ),
-                  )),
+                        child: Icon(f.$2, color: AppColors.clay, size: 17),
+                      ),
+                      const SizedBox(width: 14),
+                      // Expanded: long FR labels overflow 360dp screens otherwise.
+                      Expanded(
+                        child: Text(
+                          f.$1.tr(),
+                          style: AppTextStyles.fig(
+                            15,
+                            FontWeight.w500,
+                          ).copyWith(color: cs.onSurface),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 36),
               // ── Purchase buttons ───────────────────────────────────────────
               offeringsAsync.when(
                 loading: () => const _ButtonSkeleton(),
-                error: (_, __) => _FallbackMessage(muted: muted),
+                error: (_, _) => _FallbackMessage(muted: muted),
                 data: (offerings) {
                   if (offerings == null ||
                       (monthly == null && annual == null)) {
@@ -159,9 +184,13 @@ class PaywallScreen extends ConsumerWidget {
               Center(
                 child: TextButton(
                   onPressed: isLoading ? null : () => _restore(context, ref),
-                  child: Text('paywall.restore'.tr(),
-                      style: AppTextStyles.fig(13, FontWeight.w500)
-                          .copyWith(color: faint)),
+                  child: Text(
+                    'paywall.restore'.tr(),
+                    style: AppTextStyles.fig(
+                      13,
+                      FontWeight.w500,
+                    ).copyWith(color: faint),
+                  ),
                 ),
               ),
               const SizedBox(height: 4),
@@ -174,10 +203,10 @@ class PaywallScreen extends ConsumerWidget {
           ),
           // Modal loading overlay
           if (isLoading) ...[
-            const ModalBarrier(
-                color: Color(0x88000000), dismissible: false),
+            const ModalBarrier(color: Color(0x88000000), dismissible: false),
             const Center(
-                child: CircularProgressIndicator(color: AppColors.clay)),
+              child: CircularProgressIndicator(color: AppColors.clay),
+            ),
           ],
         ],
       ),
@@ -185,29 +214,34 @@ class PaywallScreen extends ConsumerWidget {
   }
 
   Future<void> _purchase(
-      BuildContext context, WidgetRef ref, Package package) async {
-    final ok =
-        await ref.read(purchaseNotifierProvider.notifier).purchase(package);
+    BuildContext context,
+    WidgetRef ref,
+    Package package,
+  ) async {
+    final ok = await ref
+        .read(purchaseNotifierProvider.notifier)
+        .purchase(package);
     if (ok && context.mounted) context.pop();
   }
 
   Future<void> _restore(BuildContext context, WidgetRef ref) async {
-    final info =
-        await ref.read(purchaseNotifierProvider.notifier).restore();
+    final info = await ref.read(purchaseNotifierProvider.notifier).restore();
     if (!context.mounted) return;
     if (info == null) return;
     if (PurchaseService.hasPremium(info)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('paywall.restore_success'.tr()),
-            behavior: SnackBarBehavior.floating),
+          content: Text('paywall.restore_success'.tr()),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
       context.pop();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('paywall.restore_none'.tr()),
-            behavior: SnackBarBehavior.floating),
+          content: Text('paywall.restore_none'.tr()),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
@@ -243,13 +277,14 @@ class _AnnualButton extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.stars_rounded,
-                    color: Colors.white, size: 18),
+                const Icon(Icons.stars_rounded, color: Colors.white, size: 18),
                 const SizedBox(width: 8),
                 Text(
                   'paywall.annual_button'.tr(namedArgs: {'price': price}),
-                  style: AppTextStyles.fig(14, FontWeight.w700)
-                      .copyWith(color: Colors.white),
+                  style: AppTextStyles.fig(
+                    14,
+                    FontWeight.w700,
+                  ).copyWith(color: Colors.white),
                 ),
               ],
             ),
@@ -265,9 +300,13 @@ class _AnnualButton extends StatelessWidget {
               color: AppColors.teal,
               borderRadius: BorderRadius.circular(999),
             ),
-            child: Text('paywall.annual_badge'.tr(),
-                style: AppTextStyles.eyebrow
-                    .copyWith(color: Colors.white, fontSize: 9)),
+            child: Text(
+              'paywall.annual_badge'.tr(),
+              style: AppTextStyles.eyebrow.copyWith(
+                color: Colors.white,
+                fontSize: 9,
+              ),
+            ),
           ),
         ),
       ],
@@ -302,8 +341,10 @@ class _MonthlyButton extends StatelessWidget {
         child: Center(
           child: Text(
             'paywall.monthly_button'.tr(namedArgs: {'price': price}),
-            style: AppTextStyles.fig(14, FontWeight.w500)
-                .copyWith(color: muted),
+            style: AppTextStyles.fig(
+              14,
+              FontWeight.w500,
+            ).copyWith(color: muted),
           ),
         ),
       ),
@@ -320,8 +361,7 @@ class _ButtonSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return const SizedBox(
       height: 56,
-      child: Center(
-          child: CircularProgressIndicator(color: AppColors.clay)),
+      child: Center(child: CircularProgressIndicator(color: AppColors.clay)),
     );
   }
 }

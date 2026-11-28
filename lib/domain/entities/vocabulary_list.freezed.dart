@@ -12,7 +12,8 @@ part of 'vocabulary_list.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
+  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
+);
 
 VocabularyList _$VocabularyListFromJson(Map<String, dynamic> json) {
   return _VocabularyList.fromJson(json);
@@ -27,6 +28,15 @@ mixin _$VocabularyList {
   ListVisibility get visibility => throw _privateConstructorUsedError;
   int get wordCount => throw _privateConstructorUsedError;
   String? get shareToken => throw _privateConstructorUsedError;
+
+  /// Token of the source list, never republished as this copy's public token.
+  String? get importedFromShareToken => throw _privateConstructorUsedError;
+  String get langA => throw _privateConstructorUsedError;
+  String get langB => throw _privateConstructorUsedError;
+  String get origin => throw _privateConstructorUsedError;
+
+  /// `<curriculumListId>:<langA>><langB>` when seeded from the catalog.
+  String? get seedId => throw _privateConstructorUsedError;
   bool get isSynced => throw _privateConstructorUsedError;
   bool get isDeleted => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
@@ -45,21 +55,28 @@ mixin _$VocabularyList {
 /// @nodoc
 abstract class $VocabularyListCopyWith<$Res> {
   factory $VocabularyListCopyWith(
-          VocabularyList value, $Res Function(VocabularyList) then) =
-      _$VocabularyListCopyWithImpl<$Res, VocabularyList>;
+    VocabularyList value,
+    $Res Function(VocabularyList) then,
+  ) = _$VocabularyListCopyWithImpl<$Res, VocabularyList>;
   @useResult
-  $Res call(
-      {String id,
-      String ownerId,
-      String name,
-      String? description,
-      ListVisibility visibility,
-      int wordCount,
-      String? shareToken,
-      bool isSynced,
-      bool isDeleted,
-      DateTime createdAt,
-      DateTime updatedAt});
+  $Res call({
+    String id,
+    String ownerId,
+    String name,
+    String? description,
+    ListVisibility visibility,
+    int wordCount,
+    String? shareToken,
+    String? importedFromShareToken,
+    String langA,
+    String langB,
+    String origin,
+    String? seedId,
+    bool isSynced,
+    bool isDeleted,
+    DateTime createdAt,
+    DateTime updatedAt,
+  });
 }
 
 /// @nodoc
@@ -84,80 +101,115 @@ class _$VocabularyListCopyWithImpl<$Res, $Val extends VocabularyList>
     Object? visibility = null,
     Object? wordCount = null,
     Object? shareToken = freezed,
+    Object? importedFromShareToken = freezed,
+    Object? langA = null,
+    Object? langB = null,
+    Object? origin = null,
+    Object? seedId = freezed,
     Object? isSynced = null,
     Object? isDeleted = null,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
-    return _then(_value.copyWith(
-      id: null == id
-          ? _value.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      ownerId: null == ownerId
-          ? _value.ownerId
-          : ownerId // ignore: cast_nullable_to_non_nullable
-              as String,
-      name: null == name
-          ? _value.name
-          : name // ignore: cast_nullable_to_non_nullable
-              as String,
-      description: freezed == description
-          ? _value.description
-          : description // ignore: cast_nullable_to_non_nullable
-              as String?,
-      visibility: null == visibility
-          ? _value.visibility
-          : visibility // ignore: cast_nullable_to_non_nullable
-              as ListVisibility,
-      wordCount: null == wordCount
-          ? _value.wordCount
-          : wordCount // ignore: cast_nullable_to_non_nullable
-              as int,
-      shareToken: freezed == shareToken
-          ? _value.shareToken
-          : shareToken // ignore: cast_nullable_to_non_nullable
-              as String?,
-      isSynced: null == isSynced
-          ? _value.isSynced
-          : isSynced // ignore: cast_nullable_to_non_nullable
-              as bool,
-      isDeleted: null == isDeleted
-          ? _value.isDeleted
-          : isDeleted // ignore: cast_nullable_to_non_nullable
-              as bool,
-      createdAt: null == createdAt
-          ? _value.createdAt
-          : createdAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-      updatedAt: null == updatedAt
-          ? _value.updatedAt
-          : updatedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-    ) as $Val);
+    return _then(
+      _value.copyWith(
+            id: null == id
+                ? _value.id
+                : id // ignore: cast_nullable_to_non_nullable
+                      as String,
+            ownerId: null == ownerId
+                ? _value.ownerId
+                : ownerId // ignore: cast_nullable_to_non_nullable
+                      as String,
+            name: null == name
+                ? _value.name
+                : name // ignore: cast_nullable_to_non_nullable
+                      as String,
+            description: freezed == description
+                ? _value.description
+                : description // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            visibility: null == visibility
+                ? _value.visibility
+                : visibility // ignore: cast_nullable_to_non_nullable
+                      as ListVisibility,
+            wordCount: null == wordCount
+                ? _value.wordCount
+                : wordCount // ignore: cast_nullable_to_non_nullable
+                      as int,
+            shareToken: freezed == shareToken
+                ? _value.shareToken
+                : shareToken // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            importedFromShareToken: freezed == importedFromShareToken
+                ? _value.importedFromShareToken
+                : importedFromShareToken // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            langA: null == langA
+                ? _value.langA
+                : langA // ignore: cast_nullable_to_non_nullable
+                      as String,
+            langB: null == langB
+                ? _value.langB
+                : langB // ignore: cast_nullable_to_non_nullable
+                      as String,
+            origin: null == origin
+                ? _value.origin
+                : origin // ignore: cast_nullable_to_non_nullable
+                      as String,
+            seedId: freezed == seedId
+                ? _value.seedId
+                : seedId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            isSynced: null == isSynced
+                ? _value.isSynced
+                : isSynced // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            isDeleted: null == isDeleted
+                ? _value.isDeleted
+                : isDeleted // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            createdAt: null == createdAt
+                ? _value.createdAt
+                : createdAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime,
+            updatedAt: null == updatedAt
+                ? _value.updatedAt
+                : updatedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime,
+          )
+          as $Val,
+    );
   }
 }
 
 /// @nodoc
 abstract class _$$VocabularyListImplCopyWith<$Res>
     implements $VocabularyListCopyWith<$Res> {
-  factory _$$VocabularyListImplCopyWith(_$VocabularyListImpl value,
-          $Res Function(_$VocabularyListImpl) then) =
-      __$$VocabularyListImplCopyWithImpl<$Res>;
+  factory _$$VocabularyListImplCopyWith(
+    _$VocabularyListImpl value,
+    $Res Function(_$VocabularyListImpl) then,
+  ) = __$$VocabularyListImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call(
-      {String id,
-      String ownerId,
-      String name,
-      String? description,
-      ListVisibility visibility,
-      int wordCount,
-      String? shareToken,
-      bool isSynced,
-      bool isDeleted,
-      DateTime createdAt,
-      DateTime updatedAt});
+  $Res call({
+    String id,
+    String ownerId,
+    String name,
+    String? description,
+    ListVisibility visibility,
+    int wordCount,
+    String? shareToken,
+    String? importedFromShareToken,
+    String langA,
+    String langB,
+    String origin,
+    String? seedId,
+    bool isSynced,
+    bool isDeleted,
+    DateTime createdAt,
+    DateTime updatedAt,
+  });
 }
 
 /// @nodoc
@@ -165,8 +217,9 @@ class __$$VocabularyListImplCopyWithImpl<$Res>
     extends _$VocabularyListCopyWithImpl<$Res, _$VocabularyListImpl>
     implements _$$VocabularyListImplCopyWith<$Res> {
   __$$VocabularyListImplCopyWithImpl(
-      _$VocabularyListImpl _value, $Res Function(_$VocabularyListImpl) _then)
-      : super(_value, _then);
+    _$VocabularyListImpl _value,
+    $Res Function(_$VocabularyListImpl) _then,
+  ) : super(_value, _then);
 
   /// Create a copy of VocabularyList
   /// with the given fields replaced by the non-null parameter values.
@@ -180,75 +233,108 @@ class __$$VocabularyListImplCopyWithImpl<$Res>
     Object? visibility = null,
     Object? wordCount = null,
     Object? shareToken = freezed,
+    Object? importedFromShareToken = freezed,
+    Object? langA = null,
+    Object? langB = null,
+    Object? origin = null,
+    Object? seedId = freezed,
     Object? isSynced = null,
     Object? isDeleted = null,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
-    return _then(_$VocabularyListImpl(
-      id: null == id
-          ? _value.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      ownerId: null == ownerId
-          ? _value.ownerId
-          : ownerId // ignore: cast_nullable_to_non_nullable
-              as String,
-      name: null == name
-          ? _value.name
-          : name // ignore: cast_nullable_to_non_nullable
-              as String,
-      description: freezed == description
-          ? _value.description
-          : description // ignore: cast_nullable_to_non_nullable
-              as String?,
-      visibility: null == visibility
-          ? _value.visibility
-          : visibility // ignore: cast_nullable_to_non_nullable
-              as ListVisibility,
-      wordCount: null == wordCount
-          ? _value.wordCount
-          : wordCount // ignore: cast_nullable_to_non_nullable
-              as int,
-      shareToken: freezed == shareToken
-          ? _value.shareToken
-          : shareToken // ignore: cast_nullable_to_non_nullable
-              as String?,
-      isSynced: null == isSynced
-          ? _value.isSynced
-          : isSynced // ignore: cast_nullable_to_non_nullable
-              as bool,
-      isDeleted: null == isDeleted
-          ? _value.isDeleted
-          : isDeleted // ignore: cast_nullable_to_non_nullable
-              as bool,
-      createdAt: null == createdAt
-          ? _value.createdAt
-          : createdAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-      updatedAt: null == updatedAt
-          ? _value.updatedAt
-          : updatedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-    ));
+    return _then(
+      _$VocabularyListImpl(
+        id: null == id
+            ? _value.id
+            : id // ignore: cast_nullable_to_non_nullable
+                  as String,
+        ownerId: null == ownerId
+            ? _value.ownerId
+            : ownerId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        name: null == name
+            ? _value.name
+            : name // ignore: cast_nullable_to_non_nullable
+                  as String,
+        description: freezed == description
+            ? _value.description
+            : description // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        visibility: null == visibility
+            ? _value.visibility
+            : visibility // ignore: cast_nullable_to_non_nullable
+                  as ListVisibility,
+        wordCount: null == wordCount
+            ? _value.wordCount
+            : wordCount // ignore: cast_nullable_to_non_nullable
+                  as int,
+        shareToken: freezed == shareToken
+            ? _value.shareToken
+            : shareToken // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        importedFromShareToken: freezed == importedFromShareToken
+            ? _value.importedFromShareToken
+            : importedFromShareToken // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        langA: null == langA
+            ? _value.langA
+            : langA // ignore: cast_nullable_to_non_nullable
+                  as String,
+        langB: null == langB
+            ? _value.langB
+            : langB // ignore: cast_nullable_to_non_nullable
+                  as String,
+        origin: null == origin
+            ? _value.origin
+            : origin // ignore: cast_nullable_to_non_nullable
+                  as String,
+        seedId: freezed == seedId
+            ? _value.seedId
+            : seedId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        isSynced: null == isSynced
+            ? _value.isSynced
+            : isSynced // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        isDeleted: null == isDeleted
+            ? _value.isDeleted
+            : isDeleted // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        createdAt: null == createdAt
+            ? _value.createdAt
+            : createdAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime,
+        updatedAt: null == updatedAt
+            ? _value.updatedAt
+            : updatedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime,
+      ),
+    );
   }
 }
 
 /// @nodoc
 @JsonSerializable()
 class _$VocabularyListImpl implements _VocabularyList {
-  const _$VocabularyListImpl(
-      {required this.id,
-      required this.ownerId,
-      required this.name,
-      this.description,
-      this.visibility = ListVisibility.private,
-      this.wordCount = 0,
-      this.shareToken,
-      this.isSynced = false,
-      this.isDeleted = false,
-      required this.createdAt,
-      required this.updatedAt});
+  const _$VocabularyListImpl({
+    required this.id,
+    required this.ownerId,
+    required this.name,
+    this.description,
+    this.visibility = ListVisibility.private,
+    this.wordCount = 0,
+    this.shareToken,
+    this.importedFromShareToken,
+    this.langA = 'fr',
+    this.langB = 'ko',
+    this.origin = 'user',
+    this.seedId,
+    this.isSynced = false,
+    this.isDeleted = false,
+    required this.createdAt,
+    required this.updatedAt,
+  });
 
   factory _$VocabularyListImpl.fromJson(Map<String, dynamic> json) =>
       _$$VocabularyListImplFromJson(json);
@@ -269,6 +355,23 @@ class _$VocabularyListImpl implements _VocabularyList {
   final int wordCount;
   @override
   final String? shareToken;
+
+  /// Token of the source list, never republished as this copy's public token.
+  @override
+  final String? importedFromShareToken;
+  @override
+  @JsonKey()
+  final String langA;
+  @override
+  @JsonKey()
+  final String langB;
+  @override
+  @JsonKey()
+  final String origin;
+
+  /// `<curriculumListId>:<langA>><langB>` when seeded from the catalog.
+  @override
+  final String? seedId;
   @override
   @JsonKey()
   final bool isSynced;
@@ -282,7 +385,7 @@ class _$VocabularyListImpl implements _VocabularyList {
 
   @override
   String toString() {
-    return 'VocabularyList(id: $id, ownerId: $ownerId, name: $name, description: $description, visibility: $visibility, wordCount: $wordCount, shareToken: $shareToken, isSynced: $isSynced, isDeleted: $isDeleted, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'VocabularyList(id: $id, ownerId: $ownerId, name: $name, description: $description, visibility: $visibility, wordCount: $wordCount, shareToken: $shareToken, importedFromShareToken: $importedFromShareToken, langA: $langA, langB: $langB, origin: $origin, seedId: $seedId, isSynced: $isSynced, isDeleted: $isDeleted, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -301,6 +404,12 @@ class _$VocabularyListImpl implements _VocabularyList {
                 other.wordCount == wordCount) &&
             (identical(other.shareToken, shareToken) ||
                 other.shareToken == shareToken) &&
+            (identical(other.importedFromShareToken, importedFromShareToken) ||
+                other.importedFromShareToken == importedFromShareToken) &&
+            (identical(other.langA, langA) || other.langA == langA) &&
+            (identical(other.langB, langB) || other.langB == langB) &&
+            (identical(other.origin, origin) || other.origin == origin) &&
+            (identical(other.seedId, seedId) || other.seedId == seedId) &&
             (identical(other.isSynced, isSynced) ||
                 other.isSynced == isSynced) &&
             (identical(other.isDeleted, isDeleted) ||
@@ -314,18 +423,24 @@ class _$VocabularyListImpl implements _VocabularyList {
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
-      runtimeType,
-      id,
-      ownerId,
-      name,
-      description,
-      visibility,
-      wordCount,
-      shareToken,
-      isSynced,
-      isDeleted,
-      createdAt,
-      updatedAt);
+    runtimeType,
+    id,
+    ownerId,
+    name,
+    description,
+    visibility,
+    wordCount,
+    shareToken,
+    importedFromShareToken,
+    langA,
+    langB,
+    origin,
+    seedId,
+    isSynced,
+    isDeleted,
+    createdAt,
+    updatedAt,
+  );
 
   /// Create a copy of VocabularyList
   /// with the given fields replaced by the non-null parameter values.
@@ -334,29 +449,35 @@ class _$VocabularyListImpl implements _VocabularyList {
   @pragma('vm:prefer-inline')
   _$$VocabularyListImplCopyWith<_$VocabularyListImpl> get copyWith =>
       __$$VocabularyListImplCopyWithImpl<_$VocabularyListImpl>(
-          this, _$identity);
+        this,
+        _$identity,
+      );
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$VocabularyListImplToJson(
-      this,
-    );
+    return _$$VocabularyListImplToJson(this);
   }
 }
 
 abstract class _VocabularyList implements VocabularyList {
-  const factory _VocabularyList(
-      {required final String id,
-      required final String ownerId,
-      required final String name,
-      final String? description,
-      final ListVisibility visibility,
-      final int wordCount,
-      final String? shareToken,
-      final bool isSynced,
-      final bool isDeleted,
-      required final DateTime createdAt,
-      required final DateTime updatedAt}) = _$VocabularyListImpl;
+  const factory _VocabularyList({
+    required final String id,
+    required final String ownerId,
+    required final String name,
+    final String? description,
+    final ListVisibility visibility,
+    final int wordCount,
+    final String? shareToken,
+    final String? importedFromShareToken,
+    final String langA,
+    final String langB,
+    final String origin,
+    final String? seedId,
+    final bool isSynced,
+    final bool isDeleted,
+    required final DateTime createdAt,
+    required final DateTime updatedAt,
+  }) = _$VocabularyListImpl;
 
   factory _VocabularyList.fromJson(Map<String, dynamic> json) =
       _$VocabularyListImpl.fromJson;
@@ -375,6 +496,20 @@ abstract class _VocabularyList implements VocabularyList {
   int get wordCount;
   @override
   String? get shareToken;
+
+  /// Token of the source list, never republished as this copy's public token.
+  @override
+  String? get importedFromShareToken;
+  @override
+  String get langA;
+  @override
+  String get langB;
+  @override
+  String get origin;
+
+  /// `<curriculumListId>:<langA>><langB>` when seeded from the catalog.
+  @override
+  String? get seedId;
   @override
   bool get isSynced;
   @override

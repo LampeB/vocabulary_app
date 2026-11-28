@@ -8,19 +8,43 @@ import '../datasources/remote/auth_remote_datasource.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl(this._remote);
-  final AuthRemoteDataSource _remote;
+  final AuthRemote _remote;
+
+  String? _accountId;
+  int _accountRevision = 0;
+  AppUser? _lastProfile;
+
+  static const _inactiveAccount = Failure<AppUser>(
+    AuthException('Profile account is no longer active'),
+  );
+
+  sb.User? get _activeUser {
+    final user = _remote.currentUser;
+    if (user?.id != _accountId) {
+      _accountId = user?.id;
+      ++_accountRevision;
+      _lastProfile = null;
+    }
+    return user;
+  }
+
+  bool _isActive(sb.User user, int revision) =>
+      _activeUser?.id == user.id && _accountRevision == revision;
 
   @override
   Stream<AppUser?> get authStateChanges => _remote.authStateChanges.map(
-        (state) => state.session?.user != null
-            ? _mapUser(state.session!.user)
-            : null,
-      );
+    (state) =>
+        state.session?.user != null ? _mapUser(state.session!.user) : null,
+  );
 
   @override
   AppUser? get currentUser {
-    final user = _remote.currentUser;
-    return user != null ? _mapUser(user) : null;
+    final user = _activeUser;
+    if (user == null) return null;
+    final profile = _lastProfile;
+    final email = user.email ?? '';
+    if (profile == null) return _mapUser(user);
+    return profile.email == email ? profile : profile.copyWith(email: email);
   }
 
   @override
@@ -31,22 +55,8 @@ class AuthRepositoryImpl implements AuthRepository {
     final result = await _remote.signInWithEmail(email, password);
     return result.fold(
       onSuccess: (user) async {
-        final profile = await _remote.getProfile(user.id);
-        return profile.fold(
-          onSuccess: (p) => Success(_mapUserWithProfile(user, p)),
-          onFailure: (_) async {
-            // Profile row missing — create it now (e.g. account pre-dates trigger).
-            final username = _safeUsername(
-                user.userMetadata?['username'] as String?,
-                user.email);
-            await _remote.upsertProfile({
-              'id': user.id,
-              'username': username,
-              'display_name': username,
-            });
-            return Success(_mapUser(user));
-          },
-        );
+        if (_activeUser?.id != user.id) return _inactiveAccount;
+        return _finishAuthentication(user);
       },
       onFailure: (e) => Failure(e),
     );
@@ -61,27 +71,40 @@ class AuthRepositoryImpl implements AuthRepository {
     final normalized = username.trim().toLowerCase();
 
     if (await _remote.checkUsernameExists(normalized)) {
-      return const Failure(ValidationException('Ce pseudo est déjà utilisé.'));
+      return const Failure(
+        AuthException.forReason(AuthFailureReason.usernameTaken),
+      );
     }
 
     final result = await _remote.signUpWithEmail(email, password, normalized);
     return result.fold(
       onSuccess: (user) async {
-        await _remote.upsertProfile({
-          'id': user.id,
-          'username': normalized,
-          'display_name': normalized,
-        });
-        return Success(_mapUser(user));
-      },
-      onFailure: (e) {
-        if (e is AuthException &&
-            e.message.toLowerCase().contains('already registered')) {
-          return const Failure(
-            AuthException('Cette adresse e-mail est déjà utilisée.'));
+        // With email confirmation enabled, signup can return a user without
+        // a signed-in session. The database trigger creates its profile.
+        final active = _activeUser;
+        if (active == null) {
+          return Success(_mapUser(user, fallbackUsername: normalized));
         }
-        return Failure(e);
+        if (active.id != user.id) return _inactiveAccount;
+        return _finishAuthentication(user, fallbackUsername: normalized);
       },
+      onFailure: (e) => Failure(e),
+    );
+  }
+
+  Future<Result<AppUser>> _finishAuthentication(
+    sb.User user, {
+    String? fallbackUsername,
+  }) async {
+    final revision = _accountRevision;
+    final result = await _loadProfile(user, fallbackUsername: fallbackUsername);
+    if (!_isActive(user, revision)) return _inactiveAccount;
+    // Valid credentials establish a local session even if the profile is
+    // temporarily unavailable. Prefer any profile already read for it.
+    return Success(
+      result.valueOrNull ??
+          _lastProfile ??
+          _mapUser(user, fallbackUsername: fallbackUsername),
     );
   }
 
@@ -97,7 +120,11 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Result<void>> signOut() => _remote.signOut();
+  Future<Result<void>> signOut() {
+    ++_accountRevision;
+    _lastProfile = null;
+    return _remote.signOut();
+  }
 
   @override
   Future<Result<void>> sendPasswordResetEmail(String email) =>
@@ -109,42 +136,63 @@ class AuthRepositoryImpl implements AuthRepository {
     String? avatarUrl,
     String? bio,
   }) async {
-    final user = _remote.currentUser;
+    final user = _activeUser;
     if (user == null) return const Failure(AuthException('Not signed in'));
+    final revision = _accountRevision;
     final data = {
       'id': user.id,
-      if (displayName != null) 'display_name': displayName,
-      if (avatarUrl != null) 'avatar_url': avatarUrl,
-      if (bio != null) 'bio': bio,
+      'display_name': ?displayName,
+      'avatar_url': ?avatarUrl,
+      'bio': ?bio,
       'updated_at': DateTime.now().toIso8601String(),
     };
     final result = await _remote.upsertProfile(data);
+    if (!_isActive(user, revision)) return _inactiveAccount;
     return result.fold(
-      onSuccess: (p) => Success(_mapUserWithProfile(user, p)),
+      onSuccess: (p) => Success(_lastProfile = _mapUserWithProfile(user, p)),
       onFailure: (e) => Failure(e),
     );
   }
 
   @override
   Future<Result<AppUser>> reloadProfile() async {
-    final user = _remote.currentUser;
+    final user = _activeUser;
     if (user == null) return const Failure(AuthException('Not signed in'));
-    final profile = await _remote.getProfile(user.id);
-    return profile.fold(
-      onSuccess: (p) => Success(_mapUserWithProfile(user, p)),
-      onFailure: (_) async {
-        // Auto-create missing profile row.
-        final username = _safeUsername(
-            user.userMetadata?['username'] as String?,
-            user.email);
-        await _remote.upsertProfile({
-          'id': user.id,
-          'username': username,
-          'display_name': username,
-        });
-        return Success(_mapUser(user));
-      },
-    );
+    return _loadProfile(user);
+  }
+
+  Future<Result<AppUser>> _loadProfile(
+    sb.User user, {
+    String? fallbackUsername,
+  }) async {
+    final revision = _accountRevision;
+    final fetched = await _remote.getProfile(user.id);
+    if (!_isActive(user, revision)) return _inactiveAccount;
+    if (fetched.exceptionOrNull case final error?) return Failure(error);
+    var profile = fetched.valueOrNull;
+    if (profile == null) {
+      final username = _safeUsername(
+        user.userMetadata?['username'] as String? ?? fallbackUsername,
+        user.email,
+      );
+      final created = await _remote.createProfileIfMissing({
+        'id': user.id,
+        'username': username,
+        'display_name': username,
+      });
+      if (!_isActive(user, revision)) return _inactiveAccount;
+      if (created.exceptionOrNull case final error?) return Failure(error);
+      profile = created.valueOrNull;
+      if (profile == null) {
+        // A concurrent writer won the insert. Read its profile as-is.
+        final winner = await _remote.getProfile(user.id);
+        if (!_isActive(user, revision)) return _inactiveAccount;
+        if (winner.exceptionOrNull case final error?) return Failure(error);
+        profile = winner.valueOrNull;
+      }
+    }
+    if (profile == null) return const Failure(NotFoundException());
+    return Success(_lastProfile = _mapUserWithProfile(user, profile));
   }
 
   // Ensures username meets DB minimum length of 3 chars.
@@ -154,24 +202,31 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Result<void>> updateStreak() async {
-    final user = _remote.currentUser;
-    if (user == null) return const Failure(AuthException('Not signed in'));
-    return _remote.updateStreak(user.id);
+  Future<Result<void>> updateStreak({
+    required String userId,
+    required DateTime studyDate,
+  }) async {
+    if (_remote.currentUser?.id != userId) {
+      return const Failure(AuthException('Study account is no longer active'));
+    }
+    return _remote.updateStreak(userId: userId, studyDate: studyDate);
   }
 
   @override
   Future<Result<void>> deleteAccount() async {
     // Requires Supabase admin call — implement via Edge Function
-    return const Failure(UnknownException('Account deletion not yet implemented'));
+    return const Failure(
+      UnknownException('Account deletion not yet implemented'),
+    );
   }
 
-  AppUser _mapUser(sb.User user) => AppUser(
-        id: user.id,
-        email: user.email ?? '',
-        username: user.userMetadata?['username'] as String? ?? '',
-        createdAt: DateTime.tryParse(user.createdAt) ?? DateTime.now(),
-      );
+  AppUser _mapUser(sb.User user, {String? fallbackUsername}) => AppUser(
+    id: user.id,
+    email: user.email ?? '',
+    username:
+        user.userMetadata?['username'] as String? ?? fallbackUsername ?? '',
+    createdAt: DateTime.tryParse(user.createdAt) ?? DateTime.now(),
+  );
 
   AppUser _mapUserWithProfile(sb.User user, Map<String, dynamic> profile) =>
       AppUser(
@@ -184,8 +239,12 @@ class AuthRepositoryImpl implements AuthRepository {
         totalWordsMastered: profile['total_words_mastered'] as int? ?? 0,
         currentStreak: profile['current_streak'] as int? ?? 0,
         longestStreak: profile['longest_streak'] as int? ?? 0,
+        lastStudyDate: DateTime.tryParse(
+          profile['last_study_date'] as String? ?? '',
+        ),
         subscriptionType: SubscriptionType.fromString(
-            profile['subscription_type'] as String?),
+          profile['subscription_type'] as String?,
+        ),
         createdAt: DateTime.tryParse(user.createdAt) ?? DateTime.now(),
       );
 }

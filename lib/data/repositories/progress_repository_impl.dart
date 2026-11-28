@@ -1,4 +1,3 @@
-import 'dart:async' show unawaited;
 import 'package:uuid/uuid.dart';
 import '../../domain/entities/variant_progress.dart';
 import '../../domain/repositories/progress_repository.dart';
@@ -6,8 +5,10 @@ import '../../core/errors/failure.dart';
 import '../../core/errors/app_exception.dart';
 import '../datasources/local/daos/progress_dao.dart';
 import '../datasources/local/daos/concept_dao.dart';
+import '../datasources/local/daos/vocabulary_list_dao.dart';
 import '../datasources/remote/vocabulary_remote_datasource.dart';
 import '../models/variant_progress_dto.dart';
+import '../sync/vocabulary_sync_ids.dart';
 
 const _uuid = Uuid();
 
@@ -15,14 +16,16 @@ class ProgressRepositoryImpl implements ProgressRepository {
   ProgressRepositoryImpl(
     this._progressDao,
     this._conceptDao,
-    this._remote,
+    VocabularyRemoteDataSource remote,
     this._userId,
   );
 
   final ProgressDao _progressDao;
   final ConceptDao _conceptDao;
-  final VocabularyRemoteDataSource _remote;
   final String _userId;
+
+  VocabularyListDao get _listDao =>
+      _progressDao.attachedDatabase.vocabularyListDao;
 
   @override
   Future<Result<List<VariantProgress>>> getDueCards({
@@ -30,19 +33,15 @@ class ProgressRepositoryImpl implements ProgressRepository {
     required String listId,
     required QuizDirection direction,
     int limit = 20,
+    bool includeScheduled = false,
   }) async {
     try {
-      final questionLang = direction == QuizDirection.frToKo ? 'fr' : 'ko';
-
-      final concepts = await _conceptDao.getConceptsByList(listId);
-      if (concepts.isEmpty) return const Success([]);
-
-      final conceptIds = concepts.map((c) => c.id).toList();
-      final questionVariants = await _conceptDao.getVariantsByConceptIds(
-          conceptIds, questionLang);
-      if (questionVariants.isEmpty) return const Success([]);
-
-      final allVariantIds = questionVariants.map((v) => v.id).toList();
+      final allVariantIds = await _progressDao.getPlayableListVariantIds(
+        userId: userId,
+        listId: listId,
+        direction: direction,
+      );
+      if (allVariantIds.isEmpty) return const Success([]);
 
       // Existing due/learning cards
       final dueRows = await _progressDao.getDue(
@@ -68,29 +67,83 @@ class ProgressRepositoryImpl implements ProgressRepository {
       final now = DateTime.now();
       final dueCards = dueRows.map((r) => r.toDomain()).toList();
       final newCards = newVariantIds
-          .map((variantId) => VariantProgress(
-                id: _uuid.v4(),
-                userId: userId,
-                variantId: variantId,
-                direction: direction,
-                createdAt: now,
-                updatedAt: now,
-              ))
+          .map(
+            (variantId) => VariantProgress(
+              id: _uuid.v5(
+                Namespace.url.value,
+                'ponderin:progress:$userId:$variantId:${direction.name}',
+              ),
+              userId: userId,
+              variantId: variantId,
+              direction: direction,
+              createdAt: now,
+              updatedAt: now,
+            ),
+          )
           .toList();
 
       final combined = [...dueCards, ...newCards];
-      if (combined.isNotEmpty) {
+      if (combined.isNotEmpty &&
+          (!includeScheduled || combined.length >= limit)) {
         return Success(combined.take(limit).toList());
       }
 
-      // No due or new cards — fall back to all scheduled cards so the quiz
-      // is never empty for a list the user explicitly opened (early review).
+      // The practice sheet offers every playable card once. Its unused
+      // places may use scheduled cards after due and new cards.
+      final selected = {for (final card in combined) card.variantId};
       final scheduled = await _progressDao.getScheduledByVariants(
         userId: userId,
         direction: direction.name,
-        variantIds: allVariantIds,
+        variantIds: allVariantIds
+            .where((id) => !selected.contains(id))
+            .toList(),
+        limit: limit - combined.length,
       );
-      return Success(scheduled.map((r) => r.toDomain()).take(limit).toList());
+      return Success([...combined, ...scheduled.map((r) => r.toDomain())]);
+    } catch (e) {
+      return Failure(StorageException(e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<List<VariantProgress>>> getAllDueCards({
+    required String userId,
+    required QuizDirection direction,
+    String? langA,
+    String? langB,
+    int limit = 20,
+  }) async {
+    try {
+      final rows = await _progressDao.getDueAcrossLists(
+        userId: userId,
+        direction: direction,
+        limit: limit,
+        langA: langA,
+        langB: langB,
+      );
+      return Success(rows.map((r) => r.toDomain()).toList());
+    } catch (e) {
+      return Failure(StorageException(e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<List<VariantProgress>>> getInProgressCards({
+    required String userId,
+    required QuizDirection direction,
+    String? langA,
+    String? langB,
+    int limit = 20,
+  }) async {
+    try {
+      final rows = await _progressDao.getInProgressAcrossLists(
+        userId: userId,
+        direction: direction,
+        limit: limit,
+        langA: langA,
+        langB: langB,
+      );
+      return Success(rows.map((r) => r.toDomain()).toList());
     } catch (e) {
       return Failure(StorageException(e.toString()));
     }
@@ -102,31 +155,99 @@ class ProgressRepositoryImpl implements ProgressRepository {
     required QuizDirection direction,
   }) async {
     try {
-      final row = await _progressDao.getByVariantAndDirection(
-          variantId, direction.name);
-      if (row == null) {
-        final now = DateTime.now();
-        return Success(VariantProgress(
-          id: _uuid.v4(),
+      return Success(
+        await _progressDao.transaction(() async {
+          final canonicalId = await _listDao.resolveStarterId(
+            StarterAliasKind.variant,
+            _userId,
+            variantId,
+          );
+          return _currentProgress(canonicalId, direction);
+        }),
+      );
+    } catch (e) {
+      return Failure(StorageException(e.toString()));
+    }
+  }
+
+  Future<VariantProgress> _currentProgress(
+    String variantId,
+    QuizDirection direction, {
+    bool forUpdate = false,
+  }) async {
+    final row = await _progressDao.getByVariantAndDirection(
+      variantId,
+      direction.name,
+      userId: _userId,
+    );
+    if (row != null) return row.toDomain();
+    final now = DateTime.now();
+    final ids = await VocabularySyncIds.load(
+      _progressDao.attachedDatabase,
+      _userId,
+    );
+    final wireVariantId = ids.wireId(SyncedVocabularyRow.variant, variantId);
+    final wireProgressId = _uuid.v5(
+      Namespace.url.value,
+      'ponderin:progress:$_userId:$wireVariantId:${direction.name}',
+    );
+    final id = forUpdate
+        ? await ids.reserveProgress(wireProgressId)
+        : ids.localId(SyncedVocabularyRow.progress, wireProgressId);
+    if (forUpdate) await ids.save();
+    return VariantProgress(
+      id: id,
+      userId: _userId,
+      variantId: variantId,
+      direction: direction,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
+  @override
+  Future<Result<VariantProgress>> mutateProgress({
+    required String variantId,
+    required QuizDirection direction,
+    required VariantProgress Function(VariantProgress) mutate,
+  }) async {
+    try {
+      return await _progressDao.transaction(() async {
+        final canonicalId = await _listDao.resolveStarterId(
+          StarterAliasKind.variant,
+          _userId,
+          variantId,
+        );
+        if (!await _progressDao.isLiveVariant(_userId, canonicalId)) {
+          return const Failure(NotFoundException('Card not found'));
+        }
+        final current = await _currentProgress(
+          canonicalId,
+          direction,
+          forUpdate: true,
+        );
+        final local = mutate(current).copyWith(
+          id: current.id,
           userId: _userId,
-          variantId: variantId,
+          variantId: canonicalId,
           direction: direction,
-          createdAt: now,
-          updatedAt: now,
-        ));
-      }
-      return Success(row.toDomain());
+          isSynced: false,
+        );
+        await _progressDao.upsertLocal(local.toLocalCompanion());
+        return Success(local);
+      });
     } catch (e) {
       return Failure(StorageException(e.toString()));
     }
   }
 
   @override
-  Future<Result<VariantProgress>> updateProgress(VariantProgress progress) async {
+  Future<Result<VariantProgress>> updateProgress(
+    VariantProgress progress,
+  ) async {
     final local = progress.copyWith(isSynced: false, updatedAt: DateTime.now());
     try {
-      await _progressDao.upsert(local.toLocalCompanion());
-      unawaited(_remote.upsertProgress(local.toRemoteMap()));
+      await _progressDao.upsertLocal(local.toLocalCompanion());
       return Success(local);
     } catch (e) {
       return Failure(StorageException(e.toString()));
@@ -135,12 +256,53 @@ class ProgressRepositoryImpl implements ProgressRepository {
 
   @override
   Future<Result<Map<String, int>>> getListStats(String listId) async {
-    return const Success({'total': 0, 'mastered': 0, 'due': 0});
+    try {
+      final concepts = await _conceptDao.getConceptsByList(listId);
+      if (concepts.isEmpty) {
+        return const Success({'total': 0, 'mastered': 0, 'known': 0, 'due': 0});
+      }
+      final conceptIds = concepts.map((c) => c.id).toList();
+      final rows = await _progressDao.getProgressForConcepts(
+        userId: _userId,
+        conceptIds: conceptIds,
+      );
+
+      // A WORD (concept) is mastered/known/due when any of its
+      // variant-direction progress rows is — the list is small, aggregate in
+      // Dart. 'mastered' is the long-retention bar (review ≥ 21d) shown in
+      // stats; 'known' is the graduated bar (left the learning phase) that
+      // gates grammar rules.
+      final now = DateTime.now();
+      final mastered = <String>{};
+      final known = <String>{};
+      final due = <String>{};
+      for (final r in rows) {
+        final p = r.progress;
+        if (p.state == 'review' && p.scheduledDays >= kMasteryThresholdDays) {
+          mastered.add(r.conceptId);
+        }
+        if (p.state != 'learning') {
+          known.add(r.conceptId);
+        }
+        if (p.nextReview == null || !p.nextReview!.isAfter(now)) {
+          due.add(r.conceptId);
+        }
+      }
+      return Success({
+        'total': concepts.length,
+        'mastered': mastered.length,
+        'known': known.length,
+        'due': due.length,
+      });
+    } catch (e) {
+      return Failure(StorageException(e.toString()));
+    }
   }
 
   @override
   Future<Result<List<VariantProgress>>> getMasteredVariants(
-      String userId) async {
+    String userId,
+  ) async {
     try {
       final rows = await _progressDao.getMasteredProgress(userId: userId);
       return Success(rows.map((r) => r.toDomain()).toList());
@@ -151,7 +313,22 @@ class ProgressRepositoryImpl implements ProgressRepository {
 
   @override
   Future<Result<void>> resetProgress(String listId) async {
-    return const Success(null);
+    try {
+      final concepts = await _conceptDao.getConceptsByList(listId);
+      if (concepts.isEmpty) return const Success(null);
+      final variantIds = await _progressDao.getVariantIdsForConcepts(
+        concepts.map((c) => c.id).toList(),
+      );
+      // Rows are deleted (not zeroed) so the words become genuinely NEW cards
+      // again for the due/new quiz logic.
+      await _progressDao.deleteProgressForVariants(
+        userId: _userId,
+        variantIds: variantIds,
+      );
+      return const Success(null);
+    } catch (e) {
+      return Failure(StorageException(e.toString()));
+    }
   }
 
   @override

@@ -1,7 +1,13 @@
-import 'package:flutter/services.dart' show PlatformException;
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/services.dart'
+    show MethodChannel, MissingPluginException, PlatformException;
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
+import 'notification_schedule.dart';
+
+typedef _ReminderText = ({String title, String body});
 
 class NotificationService {
   NotificationService._();
@@ -17,6 +23,52 @@ class NotificationService {
 
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+  final _scheduleGenerations = <int, int>{};
+  final _platformOperations = <int, Future<void>>{};
+  final _notificationLocales = <String, Map<String, dynamic>>{};
+
+  Future<_ReminderText> _reminderText(Locale? locale, {int? streakDays}) async {
+    final language = switch (locale?.languageCode) {
+      'en' => 'en',
+      'ko' => 'ko',
+      _ => 'fr',
+    };
+    final strings = _notificationLocales[language] ??=
+        await const RootBundleAssetLoader().load(
+          'assets/translations',
+          Locale(language),
+        ) ??
+        (throw StateError('Missing notification copy for $language'));
+    if (streakDays == null) {
+      return (
+        title: strings['notifications.daily_title'] as String,
+        body: strings['notifications.daily_body'] as String,
+      );
+    }
+    return (
+      title: strings['notifications.streak_title'] as String,
+      body: (strings['notifications.streak_body'] as String).replaceAll(
+        '{days}',
+        '$streakDays',
+      ),
+    );
+  }
+
+  Future<tz.TZDateTime> _nowForScheduling() async {
+    const channel = MethodChannel('vocab_kr/device_time_zone');
+    var location = tz.local;
+    try {
+      final name = await channel.invokeMethod<String>('get');
+      if (name != null) location = tz.getLocation(name);
+    } on MissingPluginException {
+      // Hosts without mobile scheduling use the configured fallback.
+    } on PlatformException {
+      // The configured fallback remains available.
+    } on tz.LocationNotFoundException {
+      // The bundled zone database may lag a newly added platform zone.
+    }
+    return tz.TZDateTime.now(location);
+  }
 
   Future<void> init() async {
     if (_initialized) return;
@@ -40,8 +92,10 @@ class NotificationService {
   Future<bool> requestPermissions() async {
     var granted = false;
 
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (android != null) {
       final ok = await android.requestNotificationsPermission();
       // Request exact alarms separately (Android 12+).
@@ -49,11 +103,16 @@ class NotificationService {
       granted = ok ?? false;
     }
 
-    final ios = _plugin.resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>();
+    final ios = _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
     if (ios != null) {
       final ok = await ios.requestPermissions(
-          alert: true, badge: true, sound: true);
+        alert: true,
+        badge: true,
+        sound: true,
+      );
       granted = ok ?? false;
     }
 
@@ -62,19 +121,26 @@ class NotificationService {
 
   // ─── Daily study reminder ─────────────────────────────────────────────────
 
-  Future<void> scheduleDailyReminder({int hour = 9, int minute = 0}) async {
-    await cancelDailyReminder();
+  Future<void> scheduleDailyReminder({
+    int hour = 9,
+    int minute = 0,
+    Locale? locale,
+  }) => _schedule(
+    _dailyReminderId,
+    (now) => nextDailyReminder(now, hour, minute),
+    () => _reminderText(locale),
+    _scheduleDailyReminder,
+  );
 
-    final now = tz.TZDateTime.now(tz.local);
-    var next = tz.TZDateTime(
-        tz.local, now.year, now.month, now.day, hour, minute);
-    if (next.isBefore(now)) next = next.add(const Duration(days: 1));
-
+  Future<void> _scheduleDailyReminder(
+    tz.TZDateTime next,
+    _ReminderText text,
+  ) async {
     try {
       await _plugin.zonedSchedule(
         _dailyReminderId,
-        'Time to study! 🇫🇷🇰🇷',
-        'Your vocabulary is waiting — keep the streak alive!',
+        text.title,
+        text.body,
         next,
         NotificationDetails(
           android: AndroidNotificationDetails(
@@ -104,20 +170,23 @@ class NotificationService {
 
   // Schedules a one-off warning for today at 20:00 if the user has a streak
   // and hasn't studied yet. Call after app launch / profile load.
-  Future<void> scheduleStreakWarning(int streakDays) async {
-    await cancelStreakWarning();
-    if (streakDays == 0) return;
+  Future<void> scheduleStreakWarning(int streakDays, {Locale? locale}) =>
+      _schedule(
+        _streakWarningId,
+        (now) => streakWarningSlot(now, streakDays),
+        () => _reminderText(locale, streakDays: streakDays),
+        _scheduleStreakWarning,
+      );
 
-    final now = tz.TZDateTime.now(tz.local);
-    final warning =
-        tz.TZDateTime(tz.local, now.year, now.month, now.day, 20, 0);
-    if (warning.isBefore(now)) return; // already past 8 PM — skip today
-
+  Future<void> _scheduleStreakWarning(
+    tz.TZDateTime warning,
+    _ReminderText text,
+  ) async {
     try {
       await _plugin.zonedSchedule(
         _streakWarningId,
-        'Don\'t break your streak! 🔥',
-        '$streakDays-day streak at risk — study before midnight.',
+        text.title,
+        text.body,
         warning,
         NotificationDetails(
           android: AndroidNotificationDetails(
@@ -142,9 +211,85 @@ class NotificationService {
     }
   }
 
-  Future<void> cancelDailyReminder() => _plugin.cancel(_dailyReminderId);
-  Future<void> cancelStreakWarning() => _plugin.cancel(_streakWarningId);
-  Future<void> cancelAll() => _plugin.cancelAll();
+  int _invalidate(int id) => _scheduleGenerations.update(
+    id,
+    (generation) => generation + 1,
+    ifAbsent: () => 1,
+  );
+
+  Future<void> _schedule(
+    int id,
+    tz.TZDateTime? Function(tz.TZDateTime) nextSlot,
+    Future<_ReminderText> Function() loadText,
+    Future<void> Function(tz.TZDateTime, _ReminderText) write,
+  ) async {
+    final generation = _invalidate(id);
+    bool current() => _scheduleGenerations[id] == generation;
+    await _orderPlatformOperation(id, () async {
+      if (current()) await _plugin.cancel(id);
+    });
+    if (!current()) return;
+
+    // Resolve the zone outside the platform queue. Cancel and subsequent
+    // requests remain usable if this reply is slow or never arrives.
+    final now = await _nowForScheduling();
+    if (!current()) return;
+    final slot = nextSlot(now);
+    if (slot == null) return;
+    final text = await loadText();
+    if (!current()) return;
+    await _orderPlatformOperation(id, () async {
+      if (current()) await write(slot, text);
+    });
+  }
+
+  Future<void> _orderPlatformOperation(int id, Future<void> Function() action) {
+    final operation = (_platformOperations[id] ?? Future<void>.value()).then(
+      (_) => action(),
+    );
+    _trackPlatformOperation(operation, [id]);
+    return operation;
+  }
+
+  void _trackPlatformOperation(Future<void> operation, List<int> ids) {
+    late final Future<void> settled;
+    void release() {
+      for (final id in ids) {
+        if (identical(_platformOperations[id], settled)) {
+          _platformOperations.remove(id);
+        }
+      }
+    }
+
+    settled = operation.then<void>(
+      (_) => release(),
+      onError: (Object _, StackTrace _) => release(),
+    );
+    for (final id in ids) {
+      _platformOperations[id] = settled;
+    }
+  }
+
+  Future<void> _cancel(int id) {
+    _invalidate(id);
+    return _orderPlatformOperation(id, () => _plugin.cancel(id));
+  }
+
+  Future<void> cancelDailyReminder() => _cancel(_dailyReminderId);
+  Future<void> cancelStreakWarning() => _cancel(_streakWarningId);
+
+  Future<void> cancelAll() {
+    _invalidate(_dailyReminderId);
+    _invalidate(_streakWarningId);
+    final operation = Future.wait(
+      _platformOperations.values,
+    ).then((_) => _plugin.cancelAll());
+    _trackPlatformOperation(operation, const [
+      _dailyReminderId,
+      _streakWarningId,
+    ]);
+    return operation;
+  }
 
   void _onTapped(NotificationResponse response) {
     // Navigation is handled by the app shell listening to this stream.

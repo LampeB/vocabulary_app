@@ -1,0 +1,150 @@
+/// Stable widget-key strings shared between the app and the E2E (Patrol) tests.
+///
+/// Selecting by key (not localized text) keeps the test steps robust against
+/// copy/translation changes. Both sides reference these constants, so a rename
+/// is caught by the compiler instead of silently breaking a test.
+///
+/// Plain strings only (no layer imports) so this stays usable from anywhere.
+abstract final class WidgetKeys {
+  // ── Bottom nav ─────────────────────────────────────────────────────────────
+  /// Bottom-nav tab by destination name: `home` | `lists` | `grammar` |
+  /// `stats` | `profile`.
+  static String navTab(String name) => 'nav.tab.$name';
+
+  // ── Screen roots ───────────────────────────────────────────────────────────
+  // One per destination, on the screen's top-level Scaffold, so a test can
+  // assert *which* screen is showing without matching localized text.
+  static const screenHome = 'screen.home';
+  static const screenDailyPath = 'screen.daily_path';
+  static const screenLists = 'screen.lists';
+  static const screenListDetail = 'screen.list_detail';
+  static const screenStartSession = 'screen.start_session';
+  static const screenSocial = 'screen.social';
+  static const screenProfile = 'screen.profile';
+  static const screenStats = 'screen.stats';
+  static const screenSettings = 'screen.settings';
+  static const screenNotifications = 'screen.notifications';
+  // Retained for the legacy Home screen, which remains covered by widget tests.
+  // The active Parcours home does not render this control; notifications are
+  // reached from Profile and exercised there by Patrol.
+  static const homeBell = 'home.bell';
+  static const screenPaywall = 'screen.paywall';
+  static const screenImport = 'screen.import';
+
+  // ── Home ───────────────────────────────────────────────────────────────────
+  static const homePairPicker = 'home.pair_picker';
+  static const homeDailyPath = 'home.daily_path';
+  static const dailyPathReview = 'daily_path.review';
+  static const reviewDueRetry = 'review.due.retry';
+  static const homeListsRetry = 'home.lists.retry';
+  static const dailyPathLessons = 'daily_path.lessons';
+  static const dailyPathPractice = 'daily_path.practice';
+  static String homePair(String langA, String langB) =>
+      'home.pair.$langA-$langB';
+
+  // ── Profile nav tiles ──────────────────────────────────────────────────────
+  static const profileTileStats = 'profile.tile.stats';
+  static const profileTileSettings = 'profile.tile.settings';
+  static const profileTileNotifications = 'profile.tile.notifications';
+  static const profileSignOut = 'profile.tile.sign_out';
+
+  // ── Start-a-session accordion ──────────────────────────────────────────────
+  static const startSessionStart = 'ss.start';
+  static String startQuizType(String modeName) => 'ss.quiz.$modeName';
+  static String startDirection(String dirName) => 'ss.dir.$dirName';
+  static String startCount(int n) => 'ss.count.$n';
+
+  // ── Study modes ────────────────────────────────────────────────────────────
+  static const micButton = 'mic_button'; // pre-existing; kept for compatibility
+  static const voiceReveal = 'study.voice.reveal';
+  static const voiceKeyboard = 'study.voice.keyboard';
+  static const voiceInput = 'study.voice.input';
+  static const voiceValidate = 'study.voice.validate';
+  static const cartesCard = 'study.cartes.card';
+  static const gradeAgain = 'study.grade.again';
+  static const gradeKnew = 'study.grade.knew';
+  static const ecrireInput = 'study.ecrire.input';
+  static const ecrireValidate = 'study.ecrire.validate';
+  static const quizPrompt = 'study.prompt';
+
+  // ── Full-screen feedback flood ─────────────────────────────────────────────
+  static const feedbackCorrect = 'study.feedback.correct';
+  static const feedbackWrong = 'study.feedback.wrong';
+  static const feedbackPlayAudio = 'feedback.play_audio';
+  static const feedbackContinue = 'study.feedback.continue';
+
+  // ── Hands-free controls ────────────────────────────────────────────────────
+  static const hfRepeat = 'study.hf.repeat';
+  static const hfSkip = 'study.hf.skip';
+  static const hfPause = 'study.hf.pause';
+  static const hfResume = 'study.hf.resume';
+
+  // ── Summary ────────────────────────────────────────────────────────────────
+  static const summary = 'summary';
+  static const summaryRestart = 'summary.restart';
+  static const summaryDone = 'summary.done';
+
+  // ── Lists screen + create/rename dialog ────────────────────────────────────
+  static const listsFab = 'lists.fab'; // "Nouvelle liste"
+  static const listNameField = 'lists.name_field'; // create/rename text field
+  static const listNameConfirm = 'lists.name_confirm'; // create/rename confirm
+
+  // ── List detail: word management ───────────────────────────────────────────
+  static const listDetailBack = 'list_detail.back';
+  static const listDetailAddWord = 'list_detail.add_word'; // bottom add bar
+  static const listDetailHandsFree = 'list_detail.hands_free';
+  static const listDetailMenu = 'list_detail.menu'; // ⋮ menu
+  static const listDetailEditItem = 'list_detail.menu.edit'; // → edit mode
+  static const listDetailAiSuggestItem = 'list_detail.menu.ai_suggest';
+  static const listDetailAiAddSelected = 'list_detail.ai.add_selected';
+  static const addWordFr = 'word.add.fr';
+  static const addWordKo = 'word.add.ko';
+  static const addWordConfirm = 'word.add.confirm';
+  static const addWordAiSuggest = 'word.add.ai_suggest';
+  static const editWordFr = 'word.edit.fr';
+  static const editWordKo = 'word.edit.ko';
+  static const editWordConfirm = 'word.edit.confirm';
+  static const deleteWordConfirm = 'word.delete.confirm';
+
+  /// Per-tile edit / delete icons (visible only in edit mode), keyed by the
+  /// tile's current French word so a step can target a specific word.
+  static String conceptEditIcon(String frWord) => 'word.tile.edit.$frWord';
+  static String conceptDeleteIcon(String frWord) => 'word.tile.delete.$frWord';
+
+  // ── Start-session accordion sections ────────────────────────────────────────
+  static String startSection(int index) => 'ss.section.$index'; // header
+  static String startSmart(String name) =>
+      'ss.smart.$name'; // 'due' | 'inprogress'
+  /// A study-pair option in the first session-setup section. The source is
+  /// part of the identity: French → Korean and English → Korean are distinct
+  /// choices even though they share a target language.
+  static String startLanguagePair(String langA, String langB) =>
+      'ss.lang.$langA.$langB';
+
+  /// Legacy shorthand for the original French → target flow.
+  static String startLanguage(String langB) => startLanguagePair('fr', langB);
+  static String homeReviewMode(String mode) => 'home.review.$mode';
+  static const screenGrammar = 'screen.grammar';
+  static const screenGrammarLesson = 'screen.grammar_lesson';
+  static String grammarRuleCard(String id) => 'grammar.rule.$id';
+  static String grammarRuleStart(String id) => 'grammar.rule.start.$id';
+  static String grammarRuleOpenLesson(String id) => 'grammar.rule.lesson.$id';
+
+  /// Tappable prerequisite row on a locked grammar lesson. [token] is the
+  /// stable curriculum-list id, not its localized display name.
+  static String grammarPrerequisiteList(String token) =>
+      'grammar.prerequisite.$token';
+  static String startRule(String ruleId) => 'ss.rule.$ruleId';
+  static const grammarLessonStart = 'grammar.lesson.start';
+  static const grammarLessonPractice = 'grammar.lesson.practice';
+  static const homeGrammar = 'home.grammar'; // Home card → grammar setup
+
+  // ── Auth flows (sign-out, password reset) ──────────────────────────────────
+  static const screenWelcome = 'screen.welcome';
+  static const signOutConfirm = 'profile.signout.confirm';
+  static const authForgotPassword = 'auth.forgot_password';
+  static const authResetEmail = 'auth.reset.email';
+  static const authResetSend = 'auth.reset.send';
+  static const authResetSuccess = 'auth.reset.success';
+  static const authResetError = 'auth.reset.error';
+}

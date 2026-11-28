@@ -1,7 +1,8 @@
-import 'package:flutter/foundation.dart';
+import 'stt_debug_log.dart';
 import 'package:string_similarity/string_similarity.dart';
 import '../constants/app_constants.dart';
 import '../extensions/string_ext.dart';
+import 'french_phonetics.dart';
 import 'hangul_decomposer.dart';
 
 enum ValidationResultType { exact, acceptable, typo, incorrect }
@@ -23,15 +24,75 @@ class ValidationResult {
 }
 
 abstract final class AnswerValidator {
+  /// Spoken-answer acceptance threshold. Mutable: user-tunable in settings
+  /// ("tolérance vocale") — accents, environments and patience differ.
+  /// Typed answers keep the fixed [AppConstants.fuzzyThresholdTyping].
+  static double drivingThreshold = AppConstants.fuzzyThresholdDriving;
+
+  /// The first recognizer candidate that validates as correct, or null.
+  /// Speech engines frequently rank a near-homophone above the user's
+  /// actual word (field log 2026-07-06: primary "병환이" 0.87 with
+  /// alternate "병아리" 1.00 — the answer); grading must consider every
+  /// candidate, not just the top transcript.
+  static String? firstCorrect({
+    required List<String> candidates,
+    required List<String> acceptedAnswers,
+    String? langCode,
+    bool isDrivingMode = false,
+    bool preserveGrammar = false,
+  }) {
+    for (final candidate in candidates) {
+      final v = validate(
+        userAnswer: candidate,
+        acceptedAnswers: acceptedAnswers,
+        langCode: langCode,
+        isDrivingMode: isDrivingMode,
+        preserveGrammar: preserveGrammar,
+      );
+      if (v.isCorrect) return candidate;
+    }
+    return null;
+  }
+
+  /// Removes disambiguation annotations from an accepted answer:
+  /// "café (boisson)" → "café". Spoken/typed answers never contain the
+  /// parenthetical, so scoring against the raw string only rejected
+  /// correct answers over and over (field log 2026-07-09: "café" vs
+  /// "café (boisson)" failed dozens of times in one session).
+  static String stripAnnotations(String s) => s
+      .replaceAll(RegExp(r'\([^)]*\)'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
   static ValidationResult validate({
     required String userAnswer,
     required List<String> acceptedAnswers,
+    String? langCode,
     bool isDrivingMode = false,
+    bool preserveGrammar = false,
   }) {
-    debugPrint('[VAL] validate: transcript="$userAnswer"  accepted=$acceptedAnswers  isDrivingMode=$isDrivingMode');
+    if (preserveGrammar) {
+      return _validateGrammar(
+        userAnswer,
+        acceptedAnswers,
+        spoken: isDrivingMode,
+      );
+    }
+    // Expand the accepted answers before scoring; matching ANY form counts:
+    //  - annotation-stripped: "café (boisson)" → "café"
+    //  - slash-alternatives:  "riz / repas"    → "riz", "repas"
+    acceptedAnswers = <String>{
+      ...acceptedAnswers,
+      for (final a in acceptedAnswers) stripAnnotations(a),
+      for (final a in acceptedAnswers)
+        ...a.split('/').map((p) => stripAnnotations(p)),
+    }.where((a) => a.trim().isNotEmpty).toList();
+    sttLog(
+      '[VAL] validate: transcript="$userAnswer"  accepted=$acceptedAnswers  isDrivingMode=$isDrivingMode',
+    );
 
     if (userAnswer.trim().isEmpty) {
-      debugPrint('[VAL] → empty transcript → incorrect');
+      sttLog('[VAL] → empty transcript → incorrect');
       return const ValidationResult(
         isCorrect: false,
         score: 0,
@@ -40,30 +101,43 @@ abstract final class AnswerValidator {
     }
 
     final threshold = isDrivingMode
-        ? AppConstants.fuzzyThresholdDriving
+        ? drivingThreshold
         : AppConstants.fuzzyThresholdTyping;
 
-    final normalizedUser = _normalize(userAnswer);
-    debugPrint('[VAL] normalized: "$normalizedUser"  threshold=$threshold');
+    final french = langCode == 'fr';
+    final normalizedUser = _normalize(userAnswer, french: french);
+    sttLog('[VAL] normalized: "$normalizedUser"  threshold=$threshold');
 
     double bestScore = 0;
     String? bestMatch;
 
     for (final answer in acceptedAnswers) {
-      final score = _scoreAgainst(normalizedUser, _normalize(answer));
-      debugPrint('[VAL]   vs "$answer" → score=${score.toStringAsFixed(3)}');
+      final score = _scoreAgainst(
+        normalizedUser,
+        _normalize(answer, french: french),
+        spoken: isDrivingMode,
+        french: french,
+      );
+      sttLog('[VAL]   vs "$answer" → score=${score.toStringAsFixed(3)}');
       if (score > bestScore) {
         bestScore = score;
         bestMatch = answer;
       }
     }
-    debugPrint('[VAL] After main loop: bestScore=${bestScore.toStringAsFixed(3)}  bestMatch="$bestMatch"');
+    sttLog(
+      '[VAL] After main loop: bestScore=${bestScore.toStringAsFixed(3)}  bestMatch="$bestMatch"',
+    );
 
     if (bestScore < threshold && normalizedUser.contains(' ')) {
       for (final word in normalizedUser.split(RegExp(r'\s+'))) {
         if (word.isEmpty) continue;
         for (final answer in acceptedAnswers) {
-          final score = _scoreAgainst(word, _normalize(answer));
+          final score = _scoreAgainst(
+            word,
+            _normalize(answer, french: french),
+            spoken: isDrivingMode,
+            french: french,
+          );
           if (score > bestScore) {
             bestScore = score;
             bestMatch = answer;
@@ -80,34 +154,49 @@ abstract final class AnswerValidator {
     //     which catches single-character particles that skew the similarity.
     if (bestScore < threshold &&
         HangulDecomposer.containsHangul(normalizedUser)) {
-      debugPrint('[VAL] Below threshold — running Korean particle-strip pass');
+      sttLog('[VAL] Below threshold — running Korean particle-strip pass');
       outer:
       for (final answer in acceptedAnswers) {
-        final normAnswer = _normalize(answer);
+        final normAnswer = _normalize(answer, french: french);
         if (normAnswer.length >= 2 && normalizedUser.startsWith(normAnswer)) {
-          debugPrint('[VAL]   prefix match: "$normalizedUser" starts with "$normAnswer" → score=1.0');
+          sttLog(
+            '[VAL]   prefix match: "$normalizedUser" starts with "$normAnswer" → score=1.0',
+          );
           bestScore = 1.0;
           bestMatch = answer;
           break outer;
         }
-        for (int strip = 1;
-            strip <= 2 && strip < normalizedUser.length;
-            strip++) {
-          final stripped =
-              normalizedUser.substring(0, normalizedUser.length - strip);
-          final score = _scoreAgainst(stripped, normAnswer);
-          debugPrint('[VAL]   strip=$strip → "$stripped" vs "$normAnswer" = ${score.toStringAsFixed(3)}');
+        for (
+          int strip = 1;
+          strip <= 2 && strip < normalizedUser.length;
+          strip++
+        ) {
+          final stripped = normalizedUser.substring(
+            0,
+            normalizedUser.length - strip,
+          );
+          final score = _scoreAgainst(
+            stripped,
+            normAnswer,
+            spoken: isDrivingMode,
+            french: french,
+          );
+          sttLog(
+            '[VAL]   strip=$strip → "$stripped" vs "$normAnswer" = ${score.toStringAsFixed(3)}',
+          );
           if (score > bestScore) {
             bestScore = score;
             bestMatch = answer;
           }
         }
       }
-      debugPrint('[VAL] After particle-strip pass: bestScore=${bestScore.toStringAsFixed(3)}  bestMatch="$bestMatch"');
+      sttLog(
+        '[VAL] After particle-strip pass: bestScore=${bestScore.toStringAsFixed(3)}  bestMatch="$bestMatch"',
+      );
     }
 
     if (bestScore >= 0.98) {
-      debugPrint('[VAL] ✅ EXACT  score=${bestScore.toStringAsFixed(3)}');
+      sttLog('[VAL] ✅ EXACT  score=${bestScore.toStringAsFixed(3)}');
       return ValidationResult(
         isCorrect: true,
         score: bestScore,
@@ -116,7 +205,7 @@ abstract final class AnswerValidator {
       );
     }
     if (bestScore >= threshold) {
-      debugPrint('[VAL] ✅ ACCEPTABLE  score=${bestScore.toStringAsFixed(3)}');
+      sttLog('[VAL] ✅ ACCEPTABLE  score=${bestScore.toStringAsFixed(3)}');
       return ValidationResult(
         isCorrect: true,
         score: bestScore,
@@ -126,7 +215,9 @@ abstract final class AnswerValidator {
         matchedWord: bestMatch,
       );
     }
-    debugPrint('[VAL] ❌ INCORRECT  score=${bestScore.toStringAsFixed(3)}  threshold=$threshold');
+    sttLog(
+      '[VAL] ❌ INCORRECT  score=${bestScore.toStringAsFixed(3)}  threshold=$threshold',
+    );
     return ValidationResult(
       isCorrect: false,
       score: bestScore,
@@ -135,23 +226,115 @@ abstract final class AnswerValidator {
     );
   }
 
-  static double _scoreAgainst(String a, String b) {
+  /// Grammar drills test the form itself, including articles, elisions,
+  /// endings and particles. Speech recognition may add sentence punctuation.
+  static ValidationResult _validateGrammar(
+    String userAnswer,
+    List<String> acceptedAnswers, {
+    required bool spoken,
+  }) {
+    String normalize(String text) {
+      if (spoken) {
+        text = text.trimRight().replaceFirst(RegExp(r'[.!?…]+$'), '');
+      }
+      return text
+          .trim()
+          .toLowerCase()
+          .replaceAll('’', "'")
+          .replaceAll(RegExp(r'\s+'), ' ');
+    }
+
+    final input = normalize(userAnswer);
+    if (input.isNotEmpty) {
+      for (final answer in acceptedAnswers) {
+        if (normalize(answer) == input) {
+          return ValidationResult(
+            isCorrect: true,
+            score: 1,
+            type: ValidationResultType.exact,
+            matchedWord: answer,
+          );
+        }
+      }
+    }
+    return const ValidationResult(
+      isCorrect: false,
+      score: 0,
+      type: ValidationResultType.incorrect,
+    );
+  }
+
+  /// Korean initial lenis/aspirated/tense consonants are near-homophonous
+  /// word-initially (밥 is pronounced with a voiceless ㅂ ≈ 팝) — NATIVE
+  /// speakers produce these; STT picks either spelling (field 2026-07-13:
+  /// a native speaker's 밥 transcribed 팝, scored 0.50). Spoken mode
+  /// collapses the classes before jamo similarity; typed mode never does —
+  /// spelling distinctions are the point when typing.
+  static const _laxJamo = {
+    'ㅍ': 'ㅂ',
+    'ㅃ': 'ㅂ',
+    'ㅌ': 'ㄷ',
+    'ㄸ': 'ㄷ',
+    'ㅋ': 'ㄱ',
+    'ㄲ': 'ㄱ',
+    'ㅊ': 'ㅈ',
+    'ㅉ': 'ㅈ',
+    'ㅆ': 'ㅅ',
+  };
+
+  // Jamo are single BMP code units — split('') is safe here.
+  static String _laxKorean(String jamo) =>
+      jamo.split('').map((c) => _laxJamo[c] ?? c).join();
+
+  static double _scoreAgainst(
+    String a,
+    String b, {
+    required bool spoken,
+    required bool french,
+  }) {
     if (a == b) return 1.0;
 
-    final isKorean = HangulDecomposer.containsHangul(a) ||
+    final isKorean =
+        HangulDecomposer.containsHangul(a) ||
         HangulDecomposer.containsHangul(b);
 
     final directScore = a.similarityTo(b);
 
-    if (!isKorean) return directScore;
+    if (isKorean) {
+      final jamoA = HangulDecomposer.decompose(a);
+      final jamoB = HangulDecomposer.decompose(b);
+      var best = directScore;
+      final jamoScore = jamoA.similarityTo(jamoB);
+      if (jamoScore > best) best = jamoScore;
+      if (spoken) {
+        // Capped below 1.0 so phonetic equivalence can't claim EXACT.
+        final laxScore = _laxKorean(
+          jamoA,
+        ).similarityTo(_laxKorean(jamoB)).clamp(0.0, 0.95);
+        if (laxScore > best) best = laxScore;
+      }
+      return best;
+    }
 
-    final jamoScore = HangulDecomposer.decompose(a)
-        .similarityTo(HangulDecomposer.decompose(b));
+    if (!french) return directScore;
 
-    return directScore > jamoScore ? directScore : jamoScore;
+    // French: also score in sound-space — STT errors are phonetic
+    // ("Mauvi" for "mauvais" shares no bigrams but the same sounds).
+    // Capped at 0.97 so only orthographic identity reaches the EXACT tier.
+    final phoneticScore = FrenchPhonetics.encode(
+      a,
+    ).similarityTo(FrenchPhonetics.encode(b)).clamp(0.0, 0.97);
+    return directScore > phoneticScore ? directScore : phoneticScore;
   }
 
-  static String _normalize(String text) {
-    return text.trim().toLowerCase().removeAccents();
+  static String _normalize(String text, {required bool french}) {
+    // French elisions collapse the article into the word — "l'eau", "d'eau",
+    // "j'aime". STT (and users) answer with the article glued on, which
+    // scored "l'eau" vs "eau" at 0.67 and failed the card over and over
+    // (field log 2026-07-19: the water card was unanswerable). Stripping the
+    // elided prefix makes the word-split pass see the bare word.
+    final normalized = text.trim().toLowerCase().removeAccents();
+    if (!french) return normalized;
+    return normalized.replaceAll(RegExp(r"\b(?:l|d|j|m|n|s|t|c|qu)['’]"), '');
   }
 }

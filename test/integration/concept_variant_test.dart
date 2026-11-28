@@ -1,12 +1,16 @@
 // ignore_for_file: invalid_use_of_internal_member
 
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vocab_kr/core/errors/app_exception.dart';
 import 'package:vocab_kr/core/errors/failure.dart';
 import 'package:vocab_kr/data/datasources/local/app_database.dart';
 import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
 import 'package:vocab_kr/domain/entities/concept.dart';
 import 'package:vocab_kr/domain/entities/vocabulary_list.dart';
+import 'package:vocab_kr/services/audio/audio_asset_path.dart';
 
 import '../helpers/fake_remote.dart';
 
@@ -26,9 +30,10 @@ void main() {
       _kUserId,
       db,
     );
-    list = ((await repo.createList(name: 'Test List', description: null))
-            as Success<VocabularyList>)
-        .value;
+    list =
+        ((await repo.createList(name: 'Test List', description: null))
+                as Success<VocabularyList>)
+            .value;
   });
 
   tearDown(() => db.close());
@@ -39,8 +44,8 @@ void main() {
     test('concept and both variants are inserted atomically', () async {
       final result = await repo.addConceptWithVariants(
         listId: list.id,
-        frWord: 'Bonjour',
-        koWord: '안녕하세요',
+        wordA: 'Bonjour',
+        wordB: '안녕하세요',
       );
       expect(result.isSuccess, isTrue);
       final conceptId = (result as Success<Concept>).value.id;
@@ -50,25 +55,40 @@ void main() {
 
     test('wordCount on the list increments to 1', () async {
       await repo.addConceptWithVariants(
-          listId: list.id, frWord: 'Bonjour', koWord: '안녕하세요');
+        listId: list.id,
+        wordA: 'Bonjour',
+        wordB: '안녕하세요',
+      );
       final lists = await repo.watchMyLists().first;
       expect(lists.first.wordCount, 1);
     });
 
     test('wordCount increments correctly for multiple adds', () async {
       await repo.addConceptWithVariants(
-          listId: list.id, frWord: 'Bonjour', koWord: '안녕하세요');
+        listId: list.id,
+        wordA: 'Bonjour',
+        wordB: '안녕하세요',
+      );
       await repo.addConceptWithVariants(
-          listId: list.id, frWord: 'Merci', koWord: '감사합니다');
+        listId: list.id,
+        wordA: 'Merci',
+        wordB: '감사합니다',
+      );
       await repo.addConceptWithVariants(
-          listId: list.id, frWord: 'Au revoir', koWord: '안녕히 가세요');
+        listId: list.id,
+        wordA: 'Au revoir',
+        wordB: '안녕히 가세요',
+      );
       final lists = await repo.watchMyLists().first;
       expect(lists.first.wordCount, 3);
     });
 
     test('fr variant has langCode=fr and isPrimary=true', () async {
       final result = await repo.addConceptWithVariants(
-          listId: list.id, frWord: 'Bonjour', koWord: '안녕하세요');
+        listId: list.id,
+        wordA: 'Bonjour',
+        wordB: '안녕하세요',
+      );
       final conceptId = (result as Success<Concept>).value.id;
       final variants = await db.conceptDao.getVariantsByConcept(conceptId);
       final fr = variants.firstWhere((v) => v.word == 'Bonjour');
@@ -78,12 +98,106 @@ void main() {
 
     test('ko variant has langCode=ko and isPrimary=true', () async {
       final result = await repo.addConceptWithVariants(
-          listId: list.id, frWord: 'Bonjour', koWord: '안녕하세요');
+        listId: list.id,
+        wordA: 'Bonjour',
+        wordB: '안녕하세요',
+      );
       final conceptId = (result as Success<Concept>).value.id;
       final variants = await db.conceptDao.getVariantsByConcept(conceptId);
       final ko = variants.firstWhere((v) => v.word == '안녕하세요');
       expect(ko.langCode, 'ko');
       expect(ko.isPrimary, isTrue);
+    });
+
+    test('custom variants receive immutable private audio paths', () async {
+      final result = await repo.addConceptWithVariants(
+        listId: list.id,
+        wordA: 'Bonjour',
+        wordB: '안녕하세요',
+      );
+      final variants = await db.conceptDao.getVariantsByConcept(
+        (result as Success<Concept>).value.id,
+      );
+      final fr = variants.firstWhere((v) => v.langCode == 'fr');
+      final ko = variants.firstWhere((v) => v.langCode == 'ko');
+
+      expect(
+        fr.audioPath,
+        AudioAssetPath.user(
+          userId: _kUserId,
+          variantId: fr.id,
+          text: 'Bonjour',
+          langCode: 'fr',
+        ),
+      );
+      expect(
+        ko.audioPath,
+        AudioAssetPath.user(
+          userId: _kUserId,
+          variantId: ko.id,
+          text: '안녕하세요',
+          langCode: 'ko',
+        ),
+      );
+    });
+
+    test(
+      'a pending pair update is checked inside the Add transaction',
+      () async {
+        final entered = Completer<void>();
+        final release = Completer<void>();
+        final update = db.transaction(() async {
+          final row = (await db.vocabularyListDao.getById(list.id))!;
+          await db.vocabularyListDao.upsert(
+            row.copyWith(langA: 'ko', langB: 'fr').toCompanion(false),
+          );
+          entered.complete();
+          await release.future;
+        });
+        await entered.future;
+        final staleAdd = repo.addConceptWithVariants(
+          listId: list.id,
+          wordA: 'pomme',
+          wordB: '사과',
+          langA: 'fr',
+          langB: 'ko',
+        );
+        release.complete();
+        await update;
+
+        expect((await staleAdd).exceptionOrNull, isA<ValidationException>());
+        expect(await db.conceptDao.getConceptsByList(list.id), isEmpty);
+        final latest = (await repo.getListById(list.id)).valueOrNull!;
+        expect((latest.langA, latest.langB, latest.wordCount), ('ko', 'fr', 0));
+      },
+    );
+
+    test('a non-FR/KO list tags each variant with the list pair', () async {
+      // Generic-language-pairs epic: createList persists the chosen pair, and
+      // addConceptWithVariants stamps the variants with those codes (not fr/ko).
+      final enIt =
+          ((await repo.createList(
+                    name: 'EN↔IT',
+                    description: null,
+                    langA: 'en',
+                    langB: 'it',
+                  ))
+                  as Success<VocabularyList>)
+              .value;
+      expect(enIt.langA, 'en');
+      expect(enIt.langB, 'it');
+
+      final result = await repo.addConceptWithVariants(
+        listId: enIt.id,
+        wordA: 'water',
+        wordB: 'acqua',
+        langA: enIt.langA,
+        langB: enIt.langB,
+      );
+      final conceptId = (result as Success<Concept>).value.id;
+      final variants = await db.conceptDao.getVariantsByConcept(conceptId);
+      expect(variants.firstWhere((v) => v.word == 'water').langCode, 'en');
+      expect(variants.firstWhere((v) => v.word == 'acqua').langCode, 'it');
     });
   });
 
@@ -93,9 +207,9 @@ void main() {
     late Concept concept;
 
     setUp(() async {
-      concept = ((await repo.createConcept(listId: list.id))
-              as Success<Concept>)
-          .value;
+      concept =
+          ((await repo.createConcept(listId: list.id)) as Success<Concept>)
+              .value;
     });
 
     test('updated notes are visible in watchConcepts', () async {
@@ -126,12 +240,14 @@ void main() {
     late Concept concept;
 
     setUp(() async {
-      concept = ((await repo.addConceptWithVariants(
-        listId: list.id,
-        frWord: 'Bonjour',
-        koWord: '안녕하세요',
-      )) as Success<Concept>)
-          .value;
+      concept =
+          ((await repo.addConceptWithVariants(
+                    listId: list.id,
+                    wordA: 'Bonjour',
+                    wordB: '안녕하세요',
+                  ))
+                  as Success<Concept>)
+              .value;
     });
 
     test('concept disappears from watchConcepts after deletion', () async {
@@ -146,21 +262,29 @@ void main() {
       expect(lists.first.wordCount, 0);
     });
 
-    test('variants are NOT cascade-deleted (remain in DB with isDeleted=false)', () async {
-      final variantsBefore =
-          await db.conceptDao.getVariantsByConcept(concept.id);
-      expect(variantsBefore.length, 2);
+    test(
+      'variants are NOT cascade-deleted (remain in DB with isDeleted=false)',
+      () async {
+        final variantsBefore = await db.conceptDao.getVariantsByConcept(
+          concept.id,
+        );
+        expect(variantsBefore.length, 2);
 
-      await repo.deleteConcept(concept.id);
+        await repo.deleteConcept(concept.id);
 
-      // getVariantsByConcept filters isDeleted=false on variants.
-      // Since we only soft-deleted the CONCEPT (not the variants), they
-      // should still appear here.
-      final variantsAfter =
-          await db.conceptDao.getVariantsByConcept(concept.id);
-      expect(variantsAfter.length, 2,
-          reason: 'Soft-delete on concept must not cascade to variants');
-    });
+        // getVariantsByConcept filters isDeleted=false on variants.
+        // Since we only soft-deleted the CONCEPT (not the variants), they
+        // should still appear here.
+        final variantsAfter = await db.conceptDao.getVariantsByConcept(
+          concept.id,
+        );
+        expect(
+          variantsAfter.length,
+          2,
+          reason: 'Soft-delete on concept must not cascade to variants',
+        );
+      },
+    );
   });
 
   // ── variant CRUD ──────────────────────────────────────────────────────────
@@ -169,9 +293,9 @@ void main() {
     late Concept concept;
 
     setUp(() async {
-      concept = ((await repo.createConcept(listId: list.id))
-              as Success<Concept>)
-          .value;
+      concept =
+          ((await repo.createConcept(listId: list.id)) as Success<Concept>)
+              .value;
     });
 
     test('createVariant appears in getVariantsByConcept', () async {
@@ -221,6 +345,27 @@ void main() {
       final row = await db.conceptDao.getVariantById(variant.id);
       expect(row!.isSynced, isFalse);
     });
+
+    test(
+      'editing a custom word invalidates its old audio object path',
+      () async {
+        final created =
+            (await repo.createVariant(
+                      conceptId: concept.id,
+                      word: 'Salut',
+                      langCode: 'fr',
+                    )
+                    as Success)
+                .value;
+        final oldPath = created.audioPath;
+
+        await repo.updateVariant(created.copyWith(word: 'Coucou'));
+        final updated = await db.conceptDao.getVariantById(created.id);
+
+        expect(updated!.audioPath, isNot(oldPath));
+        expect(updated.audioPath, contains('/${created.id}/'));
+      },
+    );
 
     test('deleteVariant disappears from getVariantsByConcept', () async {
       final createResult = await repo.createVariant(

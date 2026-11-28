@@ -20,8 +20,15 @@ abstract interface class AuthRepository {
   Future<Result<AppUser>> signInWithApple();
   Future<Result<void>> signOut();
   Future<Result<void>> sendPasswordResetEmail(String email);
-  Future<Result<AppUser>> updateProfile({String? displayName, String? avatarUrl, String? bio});
+  Future<Result<AppUser>> updateProfile({
+    String? displayName,
+    String? avatarUrl,
+    String? bio,
+  });
   Future<Result<AppUser>> reloadProfile();
-  Future<Result<void>> updateStreak();
+  Future<Result<void>> updateStreak({
+    required String userId,
+    required DateTime studyDate,
+  });
   Future<Result<void>> deleteAccount();
 }

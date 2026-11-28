@@ -1,0 +1,247 @@
+{
+  "lang": "en",
+  "rules": [
+    {
+      "rule": {
+        "id": "en-articles-a-an",
+        "title": {
+          "en": "The indefinite articles a / an",
+          "fr": "Les articles indéfinis a / an"
+        },
+        "description": {
+          "en": "With a singular countable noun, use a before a consonant sound and an before a vowel sound.",
+          "fr": "Avec un nom dénombrable au singulier, utilise a devant un son consonne et an devant un son voyelle."
+        },
+        "explanation": {
+          "en": "Use a or an with a singular countable noun. English has no grammatical gender. Use a before a consonant sound, as in a book, a train or a university (you-). Use an before a vowel sound, as in an apple, an airport or an hour (silent h). For an unspecified amount of milk or water, use the noun on its own. In a café, a coffee means one serving.",
+          "fr": "On emploie a ou an avec un nom dénombrable au singulier. En anglais, les noms n'ont pas de genre grammatical. Utilise a devant un son consonne, comme dans a book, a train ou a university (qui commence par le son « you »). Utilise an devant un son voyelle, comme dans an apple, an airport ou an hour (h muet). Pour parler d'une quantité indéterminée de lait ou d'eau, emploie milk ou water sans article. Dans un café, a coffee désigne une tasse de café."
+        },
+        "prerequisite_lists": ["starter-food", "starter-greetings"],
+        "min_known_words": { "nom": 5 },
+        "applies_to_categories": ["nom", "lieu"],
+        "mechanics": {
+          "type": "article",
+          "article": {
+            "forms": { "default": "a" },
+            "overrides": {
+              "water": "water",
+              "kimchi": "kimchi",
+              "meat": "meat",
+              "fruit": "fruit",
+              "tea": "tea",
+              "milk": "milk",
+              "bread": "bread"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "a book",
+            "translations": { "en": "a book", "fr": "un livre" }
+          },
+          {
+            "target": "an apple",
+            "translations": { "en": "an apple", "fr": "une pomme" }
+          },
+          {
+            "target": "A coffee, please.",
+            "translations": { "en": "A coffee, please.", "fr": "Un café, s'il vous plaît." }
+          }
+        ],
+        "test_vectors": [
+          { "input": "book", "context": "consonant", "expected": "a book" },
+          { "input": "train", "context": "consonant", "expected": "a train" },
+          { "input": "person", "context": "consonant", "expected": "a person" },
+          { "input": "friend", "context": "consonant", "expected": "a friend" },
+          { "input": "apple", "context": "vowel", "expected": "an apple" },
+          { "input": "airport", "context": "vowel", "expected": "an airport" },
+          { "input": "school", "context": "consonant", "expected": "a school" },
+          { "input": "teacher", "context": "consonant", "expected": "a teacher" },
+          { "input": "water", "context": "uncountable", "expected": "water" },
+          { "input": "kimchi", "context": "uncountable", "expected": "kimchi" },
+          { "input": "meat", "context": "uncountable", "expected": "meat" },
+          { "input": "fruit", "context": "uncountable", "expected": "fruit" },
+          { "input": "tea", "context": "uncountable", "expected": "tea" },
+          { "input": "milk", "context": "uncountable", "expected": "milk" },
+          { "input": "bread", "context": "uncountable", "expected": "bread" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "en-present-3sg-s",
+        "title": {
+          "en": "The present simple and the third-person -s",
+          "fr": "Le présent simple et le -s de la 3e personne"
+        },
+        "description": {
+          "en": "The verb keeps its base form, except he/she/it which adds -s (-es, -ies).",
+          "fr": "Le verbe garde sa forme de base, sauf he/she/it qui ajoute -s (-es, -ies)."
+        },
+        "explanation": {
+          "en": "In the present simple, the verb is the bare form for I/you/we/they: I work, you eat. Only the third person singular (he/she/it) changes, adding -s: he works. Spelling: verbs in -s, -sh, -ch, -x, -o add -es (he goes, she watches); verbs in consonant + y change to -ies (he studies). The verb be is fully irregular: I am, you are, he is.",
+          "fr": "Au présent simple, le verbe garde sa forme de base pour I/you/we/they : I work, you eat. Seule la troisième personne du singulier (he/she/it) change, en ajoutant -s : he works. Orthographe : les verbes en -s, -sh, -ch, -x, -o ajoutent -es (he goes, she watches) ; les verbes en consonne + y passent à -ies (he studies). Le verbe be est complètement irrégulier : I am, you are, he is."
+        },
+        "prerequisite_lists": ["starter-daily-life"],
+        "min_known_words": { "verbe": 5 },
+        "applies_to_categories": ["verbe"],
+        "mechanics": {
+          "type": "conjugation",
+          "conjugation": {
+            "persons": ["p1sg", "p3sg"],
+            "irregulars": {
+              "to be busy|p1sg": "am busy",
+              "to be busy|p3sg": "is busy"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "I work in the morning.",
+            "translations": { "en": "I work in the morning.", "fr": "Je travaille le matin." }
+          },
+          {
+            "target": "She studies in the morning.",
+            "translations": { "en": "She studies in the morning.", "fr": "Elle étudie le matin." }
+          },
+          {
+            "target": "My friend goes to school.",
+            "translations": { "en": "My friend goes to school.", "fr": "Mon ami va à l'école." }
+          }
+        ],
+        "test_vectors": [
+          { "input": "to work", "context": "p1sg", "expected": "work" },
+          { "input": "to work", "context": "p3sg", "expected": "works" },
+          { "input": "to eat", "context": "p3sg", "expected": "eats" },
+          { "input": "to go", "context": "p3sg -es", "expected": "goes" },
+          { "input": "to study", "context": "p3sg -ies", "expected": "studies" },
+          { "input": "to buy", "context": "p3sg vowel+y", "expected": "buys" },
+          { "input": "to get up", "context": "p3sg phrasal", "expected": "gets up" },
+          { "input": "to be busy", "context": "p1sg irregular", "expected": "am busy" },
+          { "input": "to be busy", "context": "p3sg irregular", "expected": "is busy" },
+          { "input": "to read", "context": "p1sg", "expected": "read" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "en-negation-dont",
+        "title": {
+          "en": "Negation with don't",
+          "fr": "La négation avec don't"
+        },
+        "description": {
+          "en": "Practise the present negative with I. Use don't or do not before the base verb.",
+          "fr": "Entraîne-toi à former la négation au présent avec I (je). Place don't ou do not devant le verbe à sa forme de base."
+        },
+        "explanation": {
+          "en": "With I, put don't or do not before the base form of the verb. In this exercise, you can answer don't work or do not work, or include the subject and say I don't work or I do not work. With be, put not after am. You can answer am not busy, I am not busy or I'm not busy. With he, she or it, use doesn't and drop the final -s from the main verb. For example, she works becomes she doesn't work.",
+          "fr": "Avec I (je), place don't ou do not devant le verbe à sa forme de base. Dans cet exercice, tu peux répondre don't work ou do not work, ou ajouter le sujet et dire I don't work ou I do not work. Avec be, place not après am. Tu peux répondre am not busy, I am not busy ou I'm not busy. Avec he, she ou it, utilise doesn't et retire le -s final du verbe principal. Par exemple, she works devient she doesn't work."
+        },
+        "prerequisite_lists": ["starter-daily-life"],
+        "min_known_words": { "verbe": 5 },
+        "applies_to_categories": ["verbe"],
+        "mechanics": {
+          "type": "negation",
+          "negation": {
+            "pattern_template": "don't {verb}",
+            "irregulars": {
+              "to be busy": "am not busy"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "I don't work today.",
+            "translations": { "en": "I don't work today.", "fr": "Je ne travaille pas aujourd'hui." }
+          },
+          {
+            "target": "I don't drink coffee.",
+            "translations": { "en": "I don't drink coffee.", "fr": "Je ne bois pas de café." }
+          },
+          {
+            "target": "I do not work on Sundays.",
+            "translations": { "en": "I do not work on Sundays.", "fr": "Je ne travaille pas le dimanche." }
+          },
+          {
+            "target": "I'm not busy right now.",
+            "translations": { "en": "I'm not busy right now.", "fr": "Je ne suis pas occupé en ce moment." }
+          }
+        ],
+        "test_vectors": [
+          { "input": "to work", "context": "base", "expected": "don't work" },
+          { "input": "to eat", "context": "base", "expected": "don't eat" },
+          { "input": "to drink", "context": "base", "expected": "don't drink" },
+          { "input": "to sleep", "context": "base", "expected": "don't sleep" },
+          { "input": "to study", "context": "base", "expected": "don't study" },
+          { "input": "to get up", "context": "phrasal", "expected": "don't get up" },
+          { "input": "to be busy", "context": "be irregular", "expected": "am not busy" },
+          { "input": "to walk", "context": "base", "expected": "don't walk" }
+        ]
+      }
+    },
+    {
+      "rule": {
+        "id": "en-plural-s-es",
+        "title": {
+          "en": "The plural in -s / -es",
+          "fr": "Le pluriel en -s / -es"
+        },
+        "description": {
+          "en": "Add -s; -es after s/sh/ch/x/o; -ies after consonant + y; some nouns are irregular or uncountable.",
+          "fr": "Ajouter -s ; -es après s/sh/ch/x/o ; -ies après consonne + y ; certains noms sont irréguliers ou indénombrables."
+        },
+        "explanation": {
+          "en": "Most nouns add -s: book → books. Nouns in -s, -sh, -ch, -x, -o add -es: bus → buses. Consonant + y becomes -ies: city → cities. Some plurals are irregular: person → people. And uncountable nouns (water, milk, bread, rice…) normally have no plural at all — they stay the same. When ordering, a coffee means one cup. To order two, say “Two coffees, please.”",
+          "fr": "La plupart des noms ajoutent -s : book → books. Les noms en -s, -sh, -ch, -x, -o ajoutent -es : bus → buses. Consonne + y devient -ies : city → cities. Certains pluriels sont irréguliers : person → people. Et les indénombrables (water, milk, bread, rice…) n'ont normalement pas de pluriel — ils restent identiques. Quand tu commandes, a coffee désigne une tasse de café. Pour en commander deux, dis « Two coffees, please. »"
+        },
+        "prerequisite_lists": ["starter-food"],
+        "min_known_words": { "nom": 5 },
+        "applies_to_categories": ["nom"],
+        "mechanics": {
+          "type": "plural",
+          "plural": {
+            "irregulars": {
+              "person": "people",
+              "water": "water",
+              "kimchi": "kimchi",
+              "milk": "milk",
+              "bread": "bread",
+              "meat": "meat",
+              "fruit": "fruit",
+              "tea": "tea",
+              "coffee": "coffees",
+              "time": "time"
+            }
+          }
+        },
+        "worked_examples": [
+          {
+            "target": "two apples",
+            "translations": { "en": "two apples", "fr": "deux pommes" }
+          },
+          {
+            "target": "three people",
+            "translations": { "en": "three people", "fr": "trois personnes" }
+          },
+          {
+            "target": "Two coffees, please.",
+            "translations": { "en": "Two coffees, please.", "fr": "Deux cafés, s'il vous plaît." }
+          }
+        ],
+        "test_vectors": [
+          { "input": "book", "context": "-s", "expected": "books" },
+          { "input": "apple", "context": "-s", "expected": "apples" },
+          { "input": "bus", "context": "-es", "expected": "buses" },
+          { "input": "person", "context": "irregular", "expected": "people" },
+          { "input": "cell phone", "context": "compound", "expected": "cell phones" },
+          { "input": "water", "context": "uncountable", "expected": "water" },
+          { "input": "kimchi", "context": "uncountable food", "expected": "kimchi" },
+          { "input": "coffee", "context": "countable serving", "expected": "coffees" },
+          { "input": "subway", "context": "vowel+y", "expected": "subways" },
+          { "input": "vegetable", "context": "-s", "expected": "vegetables" }
+        ]
+      }
+    }
+  ]
+}

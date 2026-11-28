@@ -1,21 +1,70 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show FutureOr, unawaited;
+import 'dart:math' as math;
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../navigation/shell_route_visibility.dart';
 import '../../providers/quiz/quiz_provider.dart';
 import '../../providers/audio/audio_provider.dart';
-import '../../../domain/entities/variant_progress.dart' show QuizDirection;
+import '../../providers/auth/auth_provider.dart';
+import '../../../core/languages.dart';
+import '../../../core/network/connectivity_status.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/stt_simulator.dart';
+import '../../../core/utils/stt_debug_log.dart';
 import '../../../core/utils/fsrs_algorithm.dart';
+import '../../../core/widget_keys.dart';
+import '../../../domain/usecases/quiz/get_due_cards_usecase.dart'
+    show QuizSource;
+import '../../../services/audio/audio_ports.dart';
 import '../../../services/speech/speech_recognition_service.dart';
-import '../../../services/audio/sound_effects_service.dart';
-import '../../widgets/dotted_ground.dart';
+import '../../../services/speech/whisper_speech_service.dart';
+import '../../../services/speech/elevenlabs_speech_service.dart';
+import '../../../services/speech/phone_pcm_recognizer.dart';
+import '../../../services/speech/phone_stt_engine.dart';
+import '../../../services/speech/shared_pcm_capture.dart';
+import '../../../services/speech/stt_engine.dart';
+import '../../../services/speech/stt_engine_registry.dart';
+import '../../../services/speech/stt_race.dart';
+import '../../../services/speech/stt_race_status.dart';
+import '../../../services/speech/system_stt_engine.dart';
+import '../../../services/speech/whisper_stt_engine.dart';
+import '../../../services/speech/elevenlabs_stt_engine.dart';
+import '../../../services/quiz_orchestration/audio_director.dart';
+import '../../../services/quiz_orchestration/voice_turn_machine.dart';
+import '../../providers/settings/audio_settings_provider.dart';
+import '../../providers/settings/stt_engine_mode_provider.dart';
+import 'hf_cue.dart';
+import '../../providers/speech/whisper_speech_provider.dart';
+import '../../providers/speech/elevenlabs_speech_provider.dart';
+import '../../providers/speech/shared_pcm_capture_provider.dart';
+import '../../providers/speech/system_speech_recognition_provider.dart';
 import '../../widgets/vk_waveform.dart';
 import '../../widgets/mic_button.dart';
+import '../../widgets/scroll_affordance.dart';
+import '../../widgets/study/study_scaffold.dart';
+import '../../widgets/study/word_in_wave.dart';
+import '../../widgets/study/stt_status_strip.dart';
+import '../../widgets/study/study_feedback_flood.dart';
+import '../../design/v3/v3_study_scaffold.dart';
+import '../../design/v3/v3_card_stack.dart';
+import '../../design/v3/v3_pond.dart';
+import '../../design/v3/v3_tokens.dart';
 
-const _kSimulateSpeech = String.fromEnvironment('SIMULATE_SPEECH');
+// Under test, animations are frozen so Patrol's pumpAndSettle actually settles
+// (a perpetual ticker on any study screen otherwise makes every action wait out
+// the settle timeout and intermittently trips mid-layout binding assertions).
+const _kTestMode = bool.fromEnvironment('TEST_MODE');
+
+enum _TurnStopFailure { microphone, audio }
+
+final voiceTurnMachineFactoryProvider = Provider<VoiceTurnMachine Function()>(
+  (ref) => VoiceTurnMachine.new,
+);
 
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({super.key, required this.args});
@@ -26,322 +75,1168 @@ class QuizScreen extends ConsumerStatefulWidget {
 }
 
 class _QuizScreenState extends ConsumerState<QuizScreen>
-    with TickerProviderStateMixin {
-  late AnimationController _flashCtrl;
-  late Animation<Color?> _flashColor;
-  final _stt = SpeechRecognitionService();
-  final _sfx = SoundEffectsService();
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  final _quiz = quizProvider(Object());
+  late final SpeechRecognitionService _stt;
+  late final bool _usesRealStt;
+  // Whisper engine (own capture + own endpointing) — app-lifetime via
+  // provider; the model is heavy. Initialized in initState: a lazy `late`
+  // here would first resolve in dispose(), where ref is no longer usable.
+  late final WhisperSpeechService _whisper;
+  late final ElevenLabsSpeechService _elevenLabs;
   final _answerCtrl = TextEditingController();
-  // Guards against stale STT callbacks firing on a new card.
+  final _typingFieldKey = GlobalKey();
+  AudioDirector? _sessionDirector;
+  SharedPcmCapture? _sharedCapture;
+  // Race adapters, created lazily on first race use. They WRAP this screen's
+  // existing service instances — never disposed here (the services' own
+  // lifecycles are unchanged; see dispose()).
+  SystemSttEngine? _raceSystemEngine;
+  SystemSttEngine? _systemModeEngine;
+  WhisperSttEngine? _raceWhisperEngine;
+  ElevenLabsSttEngine? _raceElevenLabsEngine;
+  // The phone's recognizer fed with OUR recording (Android 13+ bridge).
+  PhoneSttEngine? _racePhoneEngine;
+
+  /// Engines ranked best-first; each attempt activates the best available
+  /// ones (see [SttEngineRegistry.select]).
+  SttEngineRegistry? _sttRegistry;
+
+  /// The listen attempt in progress. Cancelled whenever a new turn starts,
+  /// the card changes or the session pauses, so its timers can never cut
+  /// the NEXT attempt's mic (field log 2026-10-02: a stale timer closed a
+  /// fresh window 38ms after it opened).
+  SttRace? _activeRace;
+
+  /// What the current attempt is doing — drives the cue line and the engine
+  /// chips (user feedback 2026-10-02: "je sais pas si ça écoute, si ça
+  /// analyse, si ça envoie").
+  SttRaceStatus? _sttStatus;
+  bool _sttOnline = true;
+
   // Incremented every time _startListening is called; onListeningDone
   // only acts if the token still matches.
   int _listenToken = 0;
-  // Tracks successive early-termination retries to avoid infinite loops.
-  int _listenRetries = 0;
+  // Voice "Clavier" escape: when equal to the current card index, that card
+  // shows a text-input fallback instead of the mic.
+  int? _voiceKbIndex;
+  // Hands-free pause state.
+  bool _hfPaused = false;
+  late bool _appForeground;
+  ModalRoute<Object?>? _quizRoute;
+  ModalRoute<Object?>? _shellRoute;
+  bool _foregroundApplied = true;
+  bool get _canInteract =>
+      _appForeground &&
+      (_quizRoute?.isCurrent ?? true) &&
+      (_shellRoute?.isCurrent ?? true);
+  bool _quitting = false;
+  bool _quitReady = false;
+  bool _sessionStarted = false;
+  Future<bool>? _microphoneStop;
+  Future<bool>? _audioStop;
+  bool _needsMicRelease = false;
+  Future<void>? _hfCorrection;
+  AudioDirector? _replacedPromptDirector;
+  // Display-only: attempts consumed on the current card, fed by the
+  // machine's ShowNotHeard command (the "essai x/3" banner).
+  int _notHeardRetries = 0;
+  bool _hfNotHeard = false;
+  // Hands-free "analyse" phase: mic closed, answer captured, verdict pending.
+  // Marked by a low closing tick + pulsing status text so the user knows to
+  // stop talking (protocol spec, user request 2026-07-08).
+  bool _hfAnalyzing = false;
+  String? _hfFailureKey;
+  // "3 · 2 · 1" before the mic opens (null = no countdown showing).
+  int? _hfCountdown;
+  // The "analysis started" bip plays once per listen attempt.
+  bool _analysisBipPlayed = false;
+  bool _hfAutoPausedSilence = false;
+  // Flashcards are self-graded by a directional swipe. Keeping this state in
+  // the screen (rather than in the quiz provider) makes the physical exit an
+  // animation concern and leaves the stack anchored in one place.
+  bool _flashcardExiting = false;
+  int _flashcardExitDirection = 1;
+  double _flashcardDragProgress = 0;
+  // Listening-window countdown bar: fills left→right over the mic's
+  // listenFor window; a full bar means the attempt timed out. Restarted on
+  // every mic open (retries included).
+  late final AnimationController _listenBarCtrl;
 
   @override
   void initState() {
     super.initState();
-    _flashCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 300));
-    _flashColor =
-        ColorTween(begin: Colors.transparent, end: Colors.transparent)
-            .animate(_flashCtrl);
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (_kSimulateSpeech.isEmpty) {
-        final ok = await _stt.initialize();
-        if (!ok && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('quiz.stt_unavailable'.tr()),
-            behavior: SnackBarBehavior.floating,
-          ));
-        }
-      }
-      // Real hardware/network errors (not error_no_match, which is normal
-      // "no speech recognised" and is handled by onListeningDone instead).
-      _stt.onError = (msg) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('quiz.stt_error'.tr(namedArgs: {'msg': msg})),
-          duration: const Duration(seconds: 4),
-          behavior: SnackBarBehavior.floating,
-        ));
-      };
-
-      // Called exactly once per listen session (debounced in SpeechRecognitionService).
-      // answerState is still idle → no result was recognised this round.
-      _stt.onListeningDone = () {
-        if (!mounted) return;
-        final capturedToken = _listenToken;
-        final elapsed = _stt.listenElapsedMs;
-        final state = ref.read(quizProvider);
-        debugPrint('[HF] onListeningDone  capturedToken=$capturedToken  currentToken=$_listenToken  elapsed=${elapsed}ms  answerState=${state.answerState}  retries=$_listenRetries');
-        ref.read(quizProvider.notifier).setListening(false);
-
-        if (state.answerState == QuizAnswerState.idle) {
-          if (widget.args.mode == QuizMode.handsFree) {
-            // If the token changed, this callback is stale (a new listen
-            // session already started) — ignore it to avoid double-penalising.
-            if (capturedToken != _listenToken) {
-              debugPrint('[HF] ⚠️ Stale callback (token mismatch) — ignoring');
-              return;
-            }
-
-            // Samsung STT fires notListening/done BEFORE delivering the final
-            // onResult (observed 1-2s delay on Galaxy S22 Ultra).  If STT ran
-            // for a meaningful amount of time it may have heard something — wait
-            // up to 2.5 s for the late result before declaring it wrong.
-            final hadRealListen = elapsed >= 1500;
-
-            // error_client is a permanent engine error (locale unavailable,
-            // audio focus totally lost).  Retrying immediately will keep failing;
-            // fall through to the delayed empty-submission path instead.
-            final wasPermanentError = _stt.lastError == 'error_client' ||
-                _stt.lastError == 'error_audio';
-
-            if (!wasPermanentError && !hadRealListen && _listenRetries < 2) {
-              // STT stopped instantly — audio-focus race. Retry.
-              _listenRetries++;
-              debugPrint('[HF] 🔁 STT stopped too fast (${elapsed}ms) — retry #$_listenRetries in 700ms');
-              Future.delayed(const Duration(milliseconds: 700), () {
-                if (!mounted) return;
-                final card = ref.read(quizProvider).currentCard;
-                if (card != null &&
-                    ref.read(quizProvider).answerState ==
-                        QuizAnswerState.idle) {
-                  unawaited(_startListening(card, isRetry: true));
-                }
-              });
-            } else {
-              // STT ran for a real listen duration or retries exhausted.
-              // Wait up to 2.5 s for Samsung's late final-result callback;
-              // only submit wrong if no answer arrives in that window.
-              final waitMs = hadRealListen && !wasPermanentError ? 2500 : 0;
-              debugPrint('[HF] Waiting ${waitMs}ms for possible late Samsung onResult before submitting empty (elapsed=${elapsed}ms  permanentError=$wasPermanentError  retries=$_listenRetries)');
-              _listenRetries = 0;
-              Future.delayed(Duration(milliseconds: waitMs), () {
-                if (!mounted) return;
-                if (ref.read(quizProvider).answerState ==
-                    QuizAnswerState.idle) {
-                  debugPrint('[HF] ❌ No result arrived in ${waitMs}ms window — submitting empty');
-                  ref.read(quizProvider.notifier).submitVoiceAnswer(
-                    '',
-                    isDrivingMode: true,
-                  );
-                } else {
-                  debugPrint('[HF] ✅ Late onResult arrived before timeout — no action needed');
-                }
-              });
-            }
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('quiz.stt_not_recognised'.tr()),
-              duration: const Duration(seconds: 3),
-              behavior: SnackBarBehavior.floating,
-            ));
-          }
-        } else {
-          debugPrint('[HF] onListeningDone: answerState already ${state.answerState} — no action needed');
-        }
-      };
-      if (mounted) ref.read(quizProvider.notifier).loadCards(widget.args);
+    final binding = WidgetsBinding.instance;
+    final lifecycle = binding.lifecycleState;
+    _appForeground =
+        lifecycle == null || lifecycle == AppLifecycleState.resumed;
+    binding.addObserver(this);
+    _usesRealStt =
+        !SttSimulator.isOn &&
+        (widget.args.mode == QuizMode.handsFree ||
+            widget.args.mode == QuizMode.voice);
+    if (_usesRealStt) {
+      _stt = ref.read(systemSpeechRecognitionProvider);
+      _whisper = ref.read(whisperSpeechProvider);
+      _elevenLabs = ref.read(elevenLabsSpeechProvider);
+    }
+    _listenBarCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_loadSession());
     });
+  }
+
+  Future<void> _loadSession() {
+    _sessionStarted = true;
+    _listenToken++;
+    _stopPreviousCardCapture();
+    _turnMachine = null;
+    _answerCtrl.clear();
+    _hfPaused = false;
+    _hfAutoPausedSilence = false;
+    _hfNotHeard = false;
+    _hfAnalyzing = false;
+    _hfFailureKey = null;
+    _hfCountdown = null;
+    _voiceKbIndex = null;
+    _flashcardExiting = false;
+    _flashcardDragProgress = 0;
+    _foregroundApplied = _canInteract;
+    final quiz = ref.read(_quiz.notifier);
+    final loading = quiz.loadCards(
+      widget.args,
+      promptLocale: uiLocaleCode(context),
+    );
+    quiz.setForeground(_foregroundApplied);
+    return loading;
   }
 
   @override
   void dispose() {
-    _flashCtrl.dispose();
-    _stt.dispose();
-    _sfx.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    _listenToken++;
+    _listenBarCtrl.dispose();
+    _activeRace?.cancel();
+    if (_sessionStarted && !_quitting) {
+      unawaited(
+        _stopTurnResources(
+          _foregroundApplied ? _sessionDirector : null,
+          releaseMic: _activeRace != null,
+        ),
+      );
+    }
     _answerCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _triggerFlash(bool correct) async {
-    _flashColor = ColorTween(
-      begin: Colors.transparent,
-      end: correct ? AppColors.correctFlash : AppColors.incorrectFlash,
-    ).animate(_flashCtrl);
-    await _flashCtrl.forward();
-    await Future.delayed(const Duration(milliseconds: 700));
-    await _flashCtrl.reverse();
-  }
-
-  Future<void> _startListening(QuizCard card, {bool isRetry = false}) async {
-    if (!isRetry) _listenRetries = 0;
-    _listenToken++;
-    debugPrint('[HF] _startListening  token=$_listenToken  isRetry=$isRetry  question="${card.questionWord}"  answerWords=${card.answerWords}');
-    ref.read(quizProvider.notifier).setListening(true);
-
-    if (_kSimulateSpeech.isNotEmpty) {
-      await Future.delayed(const Duration(milliseconds: 800));
-      if (!mounted) return;
-      final answer = switch (_kSimulateSpeech) {
-        'correct' => card.answerWords.isNotEmpty ? card.answerWords.first : '',
-        'wrong'   => '__wrong__',
-        _         => '',
-      };
-      ref.read(quizProvider.notifier).submitVoiceAnswer(
-        answer,
-        isDrivingMode: widget.args.mode == QuizMode.handsFree ||
-                widget.args.mode == QuizMode.voice,
-      );
-      return;
-    }
-
-    // Stop audio without awaiting — let Android's audio-focus system handle the
-    // handover concurrently.  We still wait 300 ms so ExoPlayer has time to
-    // release the focus before STT grabs the mic (Samsung requirement).
-    debugPrint('[HF] Triggering audio stop + 300ms focus-handover wait');
-    unawaited(ref.read(audioPlayerServiceProvider).stop());
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;
-
-    final currentDir = ref.read(quizProvider).currentCard?.progress.direction;
-    final langCode =
-        currentDir == QuizDirection.koToFr ? 'fr' : 'ko';
-    // Capture token so late-arriving onResult from this session is ignored
-    // once a new session (next card) has started.
-    final sessionToken = _listenToken;
-    debugPrint('[HF] Calling stt.startListening  langCode=$langCode  token=$sessionToken');
-    final ok = await _stt.startListening(
-      langCode: langCode,
-      onResult: (text) {
-        // Samsung STT can fire the final onResult 1-2s AFTER notListening.
-        // Guard with the captured token so a late result from card N isn't
-        // applied to card N+1.
-        debugPrint('[HF] onResult: "$text"  sessionToken=$sessionToken  currentToken=$_listenToken  match=${sessionToken == _listenToken}');
-        if (mounted && sessionToken == _listenToken) {
-          ref.read(quizProvider.notifier).submitVoiceAnswer(
-                text,
-                isDrivingMode: widget.args.mode == QuizMode.handsFree ||
-                widget.args.mode == QuizMode.voice,
-              );
-        } else if (sessionToken != _listenToken) {
-          debugPrint('[HF] Late onResult discarded (stale token)');
-        }
-      },
-      onPartial: (text) {
-        debugPrint('[HF] partial: "$text"');
-        if (mounted && sessionToken == _listenToken) {
-          ref.read(quizProvider.notifier).setPartialTranscript(text);
-        }
-      },
-    );
-    debugPrint('[HF] stt.startListening returned ok=$ok  token=$_listenToken');
-    if (!ok && mounted) {
-      debugPrint('[HF] ❌ STT failed to start — clearing listening state');
-      ref.read(quizProvider.notifier).setListening(false);
-      return;
-    }
-
-    // Failsafe: if the STT callbacks never fire (device bug / audio focus
-    // held by another app), reset listening state after listenFor + buffer.
-    // IMPORTANT: capture sessionToken so this timer only affects THIS session.
-    // Without the token check, a stale timer from card N fires 12 s later and
-    // stops card N+1's session — the primary cause of premature termination.
-    Future.delayed(const Duration(seconds: 12), () {
-      if (mounted && _stt.isListening && sessionToken == _listenToken) {
-        debugPrint('[HF] ⏰ Failsafe timeout for token=$sessionToken — stopping STT');
-        _stt.stopListening();
-        ref.read(quizProvider.notifier).setListening(false);
-      }
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _quizRoute = ModalRoute.of(context);
+    _shellRoute = ShellRouteVisibility.routeOf(context);
+    // Apply provider changes outside build. Callbacks independently check the
+    // actual route objects so a result cannot win during the transition frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _syncForeground();
     });
   }
 
   @override
-  Widget build(BuildContext context) {
-    final quizState = ref.watch(quizProvider);
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _appForeground = state == AppLifecycleState.resumed;
+    _syncForeground();
+  }
 
-    ref.listen<QuizState>(quizProvider, (prev, next) {
-      if (prev?.answerState == QuizAnswerState.idle &&
+  void _syncForeground() {
+    if (_quitting) {
+      _finishQuitIfVisible();
+      return;
+    }
+    if (!_sessionStarted || _canInteract == _foregroundApplied) {
+      return;
+    }
+    _foregroundApplied = _canInteract;
+    ref.read(_quiz.notifier).setForeground(_foregroundApplied);
+    if (!_foregroundApplied) {
+      unawaited(_interruptTurn());
+    } else if (widget.args.mode == QuizMode.handsFree && !_hfPaused) {
+      unawaited(_resumeHandsFree());
+    }
+  }
+
+  Future<_TurnStopFailure?> _interruptTurn({bool confirmMic = false}) {
+    _listenToken++; // every in-flight STT completion is now stale
+    _hfCorrection = null;
+    final releaseMic =
+        _cancelActiveRace() ||
+        (_canInteract && (_needsMicRelease || (confirmMic && _usesRealStt)));
+    _listenBarCtrl.stop();
+    setState(() {
+      _hfAnalyzing = false;
+      _hfFailureKey = null;
+      _hfNotHeard = false;
+      _hfCountdown = null;
+    });
+    ref.read(_quiz.notifier).setListening(false);
+    if (releaseMic && confirmMic && _usesRealStt) {
+      _sharedCapture ??= ref.read(sharedPcmCaptureProvider);
+    }
+    return _stopTurnResources(
+      ref.read(audioDirectorProvider),
+      releaseMic: releaseMic,
+    );
+  }
+
+  /// Both capture modes must release before either can open on the next turn.
+  /// The app-scoped services retain any unconfirmed native stop across routes.
+  Future<void> _releaseTurnMicrophone() async {
+    _raceSystemEngine?.detachSessionEnd();
+    _systemModeEngine?.detachSessionEnd();
+    final capture = _sharedCapture;
+    await Future.wait<void>([
+      if (capture != null)
+        Future.sync(capture.stop).timeout(sttMicReleaseTimeout),
+      if (_usesRealStt) _stt.stopListening(),
+    ]);
+  }
+
+  Future<bool> _confirmStop(Future<void> Function() stop, String kind) async {
+    try {
+      await stop();
+      return true;
+    } catch (error) {
+      sttLog('[QUIZ] $kind stop failed: $error');
+      return false;
+    }
+  }
+
+  Future<bool> _confirmMicrophoneRelease() {
+    // Both capture services keep the native stop pending across timeouts.
+    // Give an explicit retry its own bounded wait for that same stop.
+    final stop = _confirmStop(_releaseTurnMicrophone, 'microphone');
+    _microphoneStop = stop;
+    unawaited(
+      stop.then((released) {
+        if (!identical(_microphoneStop, stop)) return;
+        _needsMicRelease = !released;
+        _microphoneStop = null;
+      }),
+    );
+    return stop;
+  }
+
+  /// Can run during disposal using cached services only.
+  Future<_TurnStopFailure?> _stopTurnResources(
+    AudioDirector? director, {
+    required bool releaseMic,
+  }) {
+    final microphone = releaseMic
+        ? _confirmMicrophoneRelease()
+        : _microphoneStop;
+    if (director != null) {
+      final stop = _confirmStop(director.stopAll, 'audio');
+      _audioStop = stop;
+      unawaited(
+        stop.whenComplete(() {
+          if (identical(_audioStop, stop)) _audioStop = null;
+        }),
+      );
+    }
+    return _turnStopResult(microphone, _audioStop);
+  }
+
+  Future<_TurnStopFailure?> _turnStopResult(
+    Future<bool>? microphone,
+    Future<bool>? audio,
+  ) async {
+    final micStopped = await microphone ?? true;
+    final audioStopped = await audio ?? true;
+    if (!micStopped) return _TurnStopFailure.microphone;
+    if (!audioStopped) return _TurnStopFailure.audio;
+    return null;
+  }
+
+  bool _acceptTurnStop(_TurnStopFailure? failure, bool Function() stale) {
+    if (stale()) return false;
+    if (failure == null) return true;
+    _showReleaseFailure(audio: failure == _TurnStopFailure.audio);
+    return false;
+  }
+
+  void _stopPreviousCardCapture() {
+    // A loading or covered route can see another quiz's app-scoped services
+    // listening. Only its own race gives it permission to stop a capture.
+    if (!_cancelActiveRace()) return;
+    unawaited(_confirmMicrophoneRelease());
+  }
+
+  Future<void> _resumeHandsFree() async {
+    final card = ref.read(_quiz).currentCard;
+    if (card == null) return;
+    await _readPromptAndListen(card);
+  }
+
+  /// Owns playback of the current hands-free prompt and waits for it before
+  /// recognizer preflight, countdown and microphone hand-off can begin.
+  Future<void> _readPromptAndListen(
+    QuizCard card, {
+    bool retryRelease = false,
+  }) async {
+    final token = _listenToken;
+    bool stale() => _turnStale(token, card);
+    if (stale()) return;
+    if (_usesRealStt) _sharedCapture ??= ref.read(sharedPcmCaptureProvider);
+    final stopped = await _stopTurnResources(null, releaseMic: _usesRealStt);
+    if (!_acceptTurnStop(stopped, stale)) return;
+    if (!_kTestMode) {
+      if (!await _playCurrentPrompt(card, stale, retryRelease: retryRelease)) {
+        return;
+      }
+    }
+    if (stale()) return;
+    // Echo tail: let the room go quiet before the mic opens.
+    await Future.delayed(const Duration(milliseconds: 250));
+    if (stale()) return;
+    sttLog('[HF] speech finished — calling _startListening');
+    unawaited(_startListening(card));
+  }
+
+  Future<bool> _playCurrentPrompt(
+    QuizCard card,
+    bool Function() stale, {
+    required bool retryRelease,
+  }) async {
+    var previousSpeech = _hfCorrection;
+    _hfCorrection = null;
+    while (!stale()) {
+      final director = ref.read(audioDirectorProvider);
+      final replaced = _replacedPromptDirector;
+      try {
+        await director.waitForAudioRelease(retryReplaced: retryRelease);
+        await replaced
+            ?.waitForPlayerRelease(retry: retryRelease)
+            .timeout(AudioDirector.releaseTimeout);
+      } catch (error) {
+        sttLog('[QUIZ] player release failed before prompt: $error');
+        if (!stale()) _showReleaseFailure(audio: true);
+        return false;
+      }
+      if (stale()) return false;
+      _replacedPromptDirector = null;
+      if (!identical(director, ref.read(audioDirectorProvider))) continue;
+      retryRelease = false;
+
+      final grammarPrompt = card.grammarAudioPrompt;
+      final result = await (grammarPrompt == null
+          ? director.speakVocabularyPrompt(
+              word: card.questionWord,
+              wordLang: card.direction.questionLang,
+              audioPath: card.questionAudioPath,
+              previousSpeech: previousSpeech,
+              keepGoing: () => !stale(),
+            )
+          : director.speakGrammarPrompt(
+              instruction: grammarPrompt.instruction,
+              instructionLang: grammarPrompt.locale,
+              word: grammarPrompt.word,
+              wordLang: card.direction.answerLang,
+              previousSpeech: previousSpeech,
+              keepGoing: () => !stale(),
+            ));
+      if (stale()) return false;
+      if (result == StudyPromptResult.completed) return true;
+      if (result == StudyPromptResult.cancelled &&
+          !identical(director, ref.read(audioDirectorProvider))) {
+        _replacedPromptDirector = director;
+        previousSpeech = null;
+        continue;
+      }
+      setState(() => _hfFailureKey = 'quiz.grammar_prompt_failed');
+      return false;
+    }
+    return false;
+  }
+
+  /// Serializes mic starts: multiple recovery paths (not-heard, stopped-too-
+  /// fast, noise-guard) schedule delayed retries, and two firing close
+  /// together used to start OVERLAPPING sessions — the second killed the
+  /// first, spawning death events, another retry, and another of Samsung's
+  /// own recognizer chimes ("1 to 3 bips" per card, field log 2026-07-07).
+  int? _listenStartInFlight;
+
+  /// Enters the hands-free "analyse" phase: the mic captured speech (or
+  /// closed after a real listen) and the verdict is pending. Plays the low
+  /// closing tick so the user knows to stop talking. Idempotent per phase —
+  /// reset when a new listen or card starts.
+  void _enterAnalyzing() {
+    if (_hfAnalyzing || widget.args.mode != QuizMode.handsFree) return;
+    _listenBarCtrl.stop(); // mic closed — freeze the countdown
+    _playAnalysisBip();
+    if (mounted) setState(() => _hfAnalyzing = true);
+  }
+
+  /// The bip that says "your answer is being analysed" — once per attempt,
+  /// after the mic closes with a verdict still pending.
+  void _playAnalysisBip() {
+    if (_analysisBipPlayed || widget.args.mode != QuizMode.handsFree) return;
+    _analysisBipPlayed = true;
+    if (!_kTestMode) {
+      unawaited(ref.read(audioDirectorProvider).playListenDone());
+    }
+  }
+
+  /// A quick "3 · 2 · 1" so the learner knows exactly when to speak (user
+  /// request 2026-10-02). Returns false when the turn went stale meanwhile.
+  Future<bool> _runCountdown(bool Function() stale) async {
+    if (widget.args.mode != QuizMode.handsFree || _kTestMode) return !stale();
+    for (final n in const [3, 2, 1]) {
+      if (stale()) return false;
+      if (mounted) setState(() => _hfCountdown = n);
+      HapticFeedback.selectionClick();
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    }
+    if (stale()) return false;
+    setState(() => _hfCountdown = null);
+    return true;
+  }
+
+  Future<void> _startListening(QuizCard card) async {
+    if (_turnStale(_listenToken, card)) return;
+    if (_listenStartInFlight == _listenToken) {
+      sttLog('[HF] _startListening skipped — another start is in flight');
+      return;
+    }
+    final token = ++_listenToken;
+    _listenStartInFlight = token;
+    final userId = ref.read(currentUserProvider)?.id;
+    bool stale() =>
+        _turnStale(token, card) || ref.read(currentUserProvider)?.id != userId;
+    try {
+      _stopPreviousCardCapture();
+      final stopped = await _stopTurnResources(
+        null,
+        releaseMic: _needsMicRelease,
+      );
+      if (!_acceptTurnStop(stopped, stale)) return;
+      await _startListeningInner(card, token, stale);
+    } catch (error) {
+      await _handleVoiceAttemptFailure(error, stale);
+    } finally {
+      if (_listenStartInFlight == token) _listenStartInFlight = null;
+    }
+  }
+
+  /// Abandons the listen attempt in progress (see [_activeRace]).
+  bool _cancelActiveRace() {
+    final race = _activeRace;
+    race?.cancel();
+    _activeRace = null;
+    if (_sttStatus != null && mounted) setState(() => _sttStatus = null);
+    return race != null;
+  }
+
+  /// Local-first pipeline: the registry prefers the ready phone recognizer
+  /// or local decoders. Shared decoders consume the same recorded utterance;
+  /// network decoders receive it only after local recognition fails. Every
+  /// guess is validated inside [SttRace] against the card's accepted
+  /// answers, the first match wins, and the card is graded EXACTLY once —
+  /// the race returns a single outcome (this also structurally prevents the
+  /// triple-grade >100% score bug of 2026-07-19).
+  // The per-session turn machine (race mode). Owns grade-once, the
+  // not-heard ladder, retry pacing and the consecutive-silence auto-pause —
+  // one instance per screen so the silence streak spans the whole session.
+  VoiceTurnMachine? _turnMachine;
+  late bool _turnCourseMode;
+
+  Future<void> _startRaceListening(
+    QuizCard card,
+    String langCode,
+    int sessionToken,
+    SttEngineMode mode,
+    bool Function() stale,
+  ) async {
+    _raceSystemEngine ??= SystemSttEngine(_stt, onDevice: true);
+    _systemModeEngine ??= SystemSttEngine(_stt, onDevice: false);
+    _raceWhisperEngine ??= WhisperSttEngine(_whisper);
+    _raceElevenLabsEngine ??= ElevenLabsSttEngine(_elevenLabs);
+    _racePhoneEngine ??= PhoneSttEngine(
+      const MethodChannelPhonePcmRecognizer(),
+    );
+    // Compatible shared decoders use one recording. The registry prefers that
+    // lane when a local decoder is ready and otherwise can use the system mic.
+    _sttRegistry ??= SttEngineRegistry()
+      ..register(_raceElevenLabsEngine!)
+      ..register(_racePhoneEngine!)
+      ..register(_raceSystemEngine!)
+      ..register(_raceWhisperEngine!);
+    final courseMode = mode == SttEngineMode.race;
+    await (courseMode ? _raceSystemEngine! : _systemModeEngine!).prepare();
+    if (stale()) return;
+    if (courseMode) {
+      await _racePhoneEngine!.prepare();
+      if (stale()) return;
+    }
+    // Whisper becomes available for local decoding once its model is ready;
+    // kick the download in the background on first use. This is enabled
+    // for debug APKs too: field tests must exercise the same hybrid pipeline
+    // as the version we plan to ship.
+    if (courseMode && !_whisper.isReady && !_kTestMode) {
+      unawaited(_whisper.ensureModel());
+    }
+
+    // Schedule the attempt after prompt playback and audio hand-off. The
+    // command handler preflights each lane before the actual countdown and cue.
+    final m = _turnMachine ??= ref.read(voiceTurnMachineFactoryProvider)();
+    _turnCourseMode = courseMode;
+    m.on(TurnStarted(sessionToken));
+    m.on(SlateClean(sessionToken));
+    m.on(PromptFinished(sessionToken));
+    await _runTurnCommands(m.on(CueFinished(sessionToken)), card, langCode);
+  }
+
+  void _showReleaseFailure({bool audio = false}) {
+    _listenBarCtrl.stop();
+    ref.read(_quiz.notifier).setListening(false);
+    if (widget.args.mode == QuizMode.handsFree) {
+      setState(() {
+        _hfAnalyzing = false;
+        _hfNotHeard = false;
+        _hfFailureKey = audio
+            ? 'quiz.audio_release_failed_hf'
+            : 'quiz.mic_release_failed_hf';
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            (audio ? 'quiz.audio_release_failed' : 'quiz.mic_release_failed')
+                .tr(),
+          ),
+        ),
+      );
+    }
+  }
+
+  /// True when the machine's turn no longer matches reality — unmounted, a
+  /// newer listen session, another card, or a verdict already landed. The
+  /// machine's own turn/terminal guards back this up.
+  bool _turnStale(int turn, QuizCard card) {
+    if (!mounted ||
+        !_canInteract ||
+        _hfPaused ||
+        _quitting ||
+        turn != _listenToken) {
+      return true;
+    }
+    final quiz = ref.read(_quiz);
+    return !identical(quiz.currentCard, card) ||
+        quiz.isComplete ||
+        (widget.args.mode == QuizMode.voice &&
+            _voiceKbIndex == quiz.currentIndex) ||
+        quiz.answerState != QuizAnswerState.idle;
+  }
+
+  /// Executes the machine's commands for race mode (step 4 of the
+  /// voice-orchestration refactor): policy lives in [VoiceTurnMachine], this
+  /// is pure mechanism.
+  Future<void> _runTurnCommands(
+    List<TurnCommand> cmds,
+    QuizCard card,
+    String langCode,
+  ) async {
+    final m = _turnMachine!;
+    final turn = m.turn;
+    if (_turnStale(turn, card)) return;
+    for (final cmd in cmds) {
+      switch (cmd) {
+        case CleanSlate():
+        case PlayPrompt():
+        case PlayCue():
+          // Performed by the caller flow before the machine was handed the
+          // turn; only seen on the initial hand-in.
+          break;
+        case OpenMic(:final useRescueEngine):
+          unawaited(_runRaceLanes(card, langCode, rescue: useRescueEngine));
+        case ShowAnalyzing():
+          _enterAnalyzing();
+        case ShowNotHeard(:final attempt, :final maxAttempts):
+          sttLog('[RACE][HF] 🔇 pas entendu — attempt $attempt/$maxAttempts');
+          ref.read(_quiz.notifier).setListening(false);
+          if (widget.args.mode == QuizMode.handsFree) {
+            if (mounted) {
+              setState(() {
+                _notHeardRetries = attempt; // "essai ${attempt+1}/max" banner
+                _hfNotHeard = true;
+                _hfAnalyzing = false; // retry prompt outranks "analyse"
+              });
+            }
+          } else if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('quiz.stt_not_recognised'.tr()),
+                duration: const Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        case WaitThenRetry(:final duration):
+          // Voice mode has no auto-retry protocol — the user re-taps the mic
+          // (a fresh turn supersedes this one).
+          if (widget.args.mode != QuizMode.handsFree) break;
+          Future.delayed(duration, () {
+            if (_turnStale(turn, card)) return;
+            unawaited(
+              _runTurnCommands(m.on(WaitElapsed(turn)), card, langCode),
+            );
+          });
+        case GradeCorrect(:final candidate):
+          _listenBarCtrl.stop();
+          sttLog('[RACE][HF] ✅ "$candidate" validated — grading correct');
+          ref
+              .read(_quiz.notifier)
+              .submitVoiceAnswer(candidate, isDrivingMode: true);
+        case GradeWrong(:final transcript):
+          _listenBarCtrl.stop();
+          sttLog('[RACE][HF] ❌ "$transcript" never validated — grading wrong');
+          ref
+              .read(_quiz.notifier)
+              .submitVoiceAnswer(transcript, isDrivingMode: true);
+        case SkipCard():
+          _listenBarCtrl.stop();
+          sttLog('[RACE][HF] ⏭ silence — skipping WITHOUT grading');
+          ref.read(_quiz.notifier).setListening(false);
+          ref.read(_quiz.notifier).skipCurrentCard();
+        case PauseSession():
+          sttLog('[RACE][HF] 🔇🔇 consecutive silent cards — auto-pausing');
+          setState(() {
+            _hfAutoPausedSilence = true;
+            _hfPaused = true;
+          });
+          ref.read(_quiz.notifier).setPaused(true);
+          unawaited(_interruptTurn());
+      }
+    }
+  }
+
+  /// One listen attempt. Outcomes go back to the machine for grading,
+  /// retries, skipping or pausing.
+  Future<void> _runRaceLanes(
+    QuizCard card,
+    String langCode, {
+    required bool rescue,
+  }) async {
+    final m = _turnMachine!;
+    final turn = m.turn;
+    final userId = ref.read(currentUserProvider)?.id;
+    bool stale() =>
+        _turnStale(turn, card) || ref.read(currentUserProvider)?.id != userId;
+    if (stale()) return;
+    try {
+      await _runRaceAttempt(card, langCode, m, stale, rescue: rescue);
+    } catch (error) {
+      await _handleVoiceAttemptFailure(error, stale);
+    }
+  }
+
+  Future<void> _handleVoiceAttemptFailure(
+    Object error,
+    bool Function() stale,
+  ) async {
+    sttLog('[QUIZ] voice attempt failed: $error');
+    if (stale()) return;
+    // A detached attempt may have reached native mic startup. Join release
+    // before any retry can start, including a retry during cleanup.
+    final stopped = await _stopTurnResources(
+      null,
+      releaseMic: _cancelActiveRace(),
+    );
+    if (_acceptTurnStop(stopped, stale)) {
+      _showVoiceAttemptFailure('quiz.voice_prepare_failed');
+    }
+  }
+
+  Future<bool> _raceNetworkAvailable() async {
+    try {
+      return !isOffline(await Connectivity().checkConnectivity());
+    } catch (error) {
+      sttLog('[QUIZ] connectivity unknown; using local speech engines: $error');
+      return false;
+    }
+  }
+
+  void _showVoiceAttemptFailure(String key) {
+    _listenBarCtrl.stop();
+    ref.read(_quiz.notifier).setListening(false);
+    if (widget.args.mode == QuizMode.handsFree) {
+      setState(() {
+        _hfCountdown = null;
+        _hfAnalyzing = false;
+        _hfNotHeard = false;
+        _hfFailureKey = key;
+      });
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(key.tr())));
+    }
+  }
+
+  Future<void> _runRaceAttempt(
+    QuizCard card,
+    String langCode,
+    VoiceTurnMachine m,
+    bool Function() stale, {
+    required bool rescue,
+  }) async {
+    final turn = m.turn;
+    // System mode has no external speech service to check.
+    final online = !_turnCourseMode || await _raceNetworkAvailable();
+    if (stale()) return;
+    final engines = _turnCourseMode
+        ? _sttRegistry!.select(
+            langCode: langCode,
+            online: online,
+            rescue: rescue,
+          )
+        : [if (_systemModeEngine!.isReady) _systemModeEngine!];
+    final recorder =
+        _sharedCapture ?? ref.read<SharedPcmCapture>(sharedPcmCaptureProvider);
+    _sharedCapture = recorder;
+    final released = await _confirmMicrophoneRelease();
+    final failure = released ? null : _TurnStopFailure.microphone;
+    if (!_acceptTurnStop(failure, stale)) return;
+    final shared = engines.any(
+      (engine) => engine.capture == SttCapture.sharedPcm,
+    );
+    final canOpen =
+        engines.isNotEmpty && (!shared || await recorder.ensurePermission());
+    if (stale()) return;
+    if (!canOpen) {
+      await _runTurnCommands(
+        m.on(NothingHeard(turn, hadRealWindow: false)),
+        card,
+        langCode,
+      );
+      return;
+    }
+
+    // All lanes are ready before the learner hears the opening cue. The
+    // microphone opens only after the cue has cleared.
+    if (widget.args.mode == QuizMode.handsFree && !_kTestMode) {
+      if (!await _runCountdown(stale)) return;
+      if (stale()) return;
+      HapticFeedback.selectionClick();
+      try {
+        final director = ref.read(audioDirectorProvider);
+        await director.listenCue();
+        if (!stale() && !identical(director, ref.read(audioDirectorProvider))) {
+          throw const AudioPlaybackCancelled();
+        }
+      } catch (error) {
+        sttLog('[QUIZ] opening cue failed: $error');
+        if (!stale()) {
+          setState(() => _hfFailureKey = 'quiz.listen_cue_failed');
+        }
+        return;
+      }
+      if (stale()) return;
+    } else {
+      // A voice-mode preparation can also outlive the director that handed
+      // off the channel. Revalidate its replacement before opening the mic.
+      try {
+        await _withCurrentDirector(stale, (d) => d.waitForAudioRelease());
+      } catch (error) {
+        sttLog('[QUIZ] replaced audio release failed before listening: $error');
+        if (!stale()) _showReleaseFailure(audio: true);
+        return;
+      }
+      if (stale()) return;
+    }
+
+    m.on(MicOpened(turn));
+    ref.read(_quiz.notifier).setListening(true);
+
+    if (m.attempt == 0) {
+      _prefetchFollowingCard(ref.read(_quiz).nextCard);
+    }
+    void runBar() {
+      if (!_kTestMode) {
+        _listenBarCtrl
+          ..reset()
+          ..forward();
+      }
+    }
+
+    sttLog(
+      '[RACE][HF] engines=${engines.map((e) => e.id).join("+")} '
+      'online=$online turn=$turn attempt=${m.attempt} rescue=$rescue '
+      'lang=$langCode',
+    );
+    _activeRace?.cancel(); // never two attempts alive at once
+    final race = SttRace(engines, capture: shared ? recorder : null);
+    _activeRace = race;
+    _analysisBipPlayed = false;
+    // User-tunable (Réglages → Temps d'écoute). The bar drains over exactly
+    // this window, starting when the mic is really open.
+    final listenWindow = Duration(
+      seconds: ref.read(audioSettingsProvider).listenSeconds,
+    );
+    _listenBarCtrl
+      ..stop()
+      ..reset()
+      ..duration = listenWindow;
+    var barStarted = false;
+    if (mounted) {
+      setState(() {
+        _sttOnline = online;
+        _sttStatus = null;
+      });
+    }
+    final outcome = await race.run(
+      langCode: langCode,
+      acceptedAnswers: card.answerWords,
+      preserveGrammar: widget.args.source == QuizSource.grammar,
+      promptHints: card.answerWords,
+      // Shared capture: time to START answering — the window never cuts a
+      // learner mid-word and awaits every analysis in flight. The phone
+      // recognizer ends its own session after one utterance, so its window
+      // is only an upper bound.
+      timeout: listenWindow,
+      restartOnSessionEnd: false,
+      onStatus: (status) {
+        if (!identical(_activeRace, race) || stale()) return;
+        final micOpen =
+            status.phase == SttPhase.listening ||
+            status.phase == SttPhase.speaking;
+        if (micOpen && !barStarted) {
+          barStarted = true;
+          runBar();
+        }
+        setState(() => _sttStatus = status);
+      },
+      onMicClosedPending: () {
+        if (!identical(_activeRace, race) || stale()) return;
+        unawaited(
+          _runTurnCommands(m.micClosedPendingVerdict(turn), card, langCode),
+        );
+      },
+      onPartial: (h) {
+        if (!stale()) {
+          ref.read(_quiz.notifier).setPartialTranscript(h.transcript);
+        }
+      },
+    );
+    if (identical(_activeRace, race)) _activeRace = null;
+    if (outcome.cancelled || stale()) return;
+    if (outcome.micReleaseFailed) {
+      _needsMicRelease = true;
+      _showReleaseFailure();
+      return;
+    }
+    if (outcome.captureInterrupted) {
+      _showVoiceAttemptFailure('quiz.voice_capture_interrupted');
+      return;
+    }
+    final hadReal = outcome.hadRealSession;
+
+    _listenBarCtrl.stop();
+    final heard = outcome.bestTranscript;
+    final TurnEvent verdictEvent = outcome.matched
+        ? MatchHeard(turn, outcome.matchedCandidate!)
+        : (heard != null && heard.trim().isNotEmpty)
+        ? WrongHeard(turn, heard)
+        : NothingHeard(turn, hadRealWindow: hadReal);
+    await _runTurnCommands(m.on(verdictEvent), card, langCode);
+  }
+
+  Future<void> _startListeningInner(
+    QuizCard card,
+    int token,
+    bool Function() stale,
+  ) async {
+    if (_hfNotHeard || _hfAnalyzing) {
+      setState(() {
+        _hfNotHeard = false;
+        _hfAnalyzing = false;
+      });
+    }
+    if (stale()) return;
+    sttLog(
+      '[HF] _startListening  token=$token  question="${card.questionWord}"  answerWords=${card.answerWords}',
+    );
+    if (SttSimulator.isOn) {
+      ref.read(_quiz.notifier).setListening(true);
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (stale()) return;
+      final answer = switch (SttSimulator.mode) {
+        'correct' => card.answerWords.isNotEmpty ? card.answerWords.first : '',
+        'wrong' => '__wrong__',
+        _ => '',
+      };
+      ref
+          .read(_quiz.notifier)
+          .submitVoiceAnswer(
+            answer,
+            isDrivingMode:
+                widget.args.mode == QuizMode.handsFree ||
+                widget.args.mode == QuizMode.voice,
+          );
+      return;
+    }
+
+    final mode = await ref.read(sttEngineModeProvider.notifier).restored;
+    if (stale()) return;
+
+    // Wait for the question player to stop, then let Android settle the audio
+    // route before STT grabs the mic. A fire-and-forget stop let late TTS
+    // buffers overlap the first recognition frames on Samsung.
+    sttLog('[HF] Triggering audio stop + verified focus-handover wait');
+    try {
+      await _withCurrentDirector(stale, (d) => d.handOffToMic());
+    } catch (error) {
+      sttLog('[HF] audio release failed: $error');
+      if (!stale()) _showReleaseFailure(audio: true);
+      return;
+    }
+    if (stale()) return;
+
+    // Refactor 4c: EVERY voice turn — vocab AND grammar — runs on the
+    // VoiceTurnMachine. Système is a system-only lane, Course adds the
+    // offline Whisper lane. The legacy streaming path is gone; grammar's
+    // short generated answers grade exactly like vocab through the race.
+    await _startRaceListening(
+      card,
+      card.direction.answerLang,
+      token,
+      mode,
+      stale,
+    );
+  }
+
+  Future<void> _withCurrentDirector(
+    bool Function() stale,
+    Future<void> Function(AudioDirector) action,
+  ) async {
+    while (!stale()) {
+      final director = ref.read(audioDirectorProvider);
+      await action(director);
+      if (stale() || identical(director, ref.read(audioDirectorProvider))) {
+        return;
+      }
+    }
+  }
+
+  /// Warm the following voice and cache its clips while the learner answers.
+  void _prefetchFollowingCard(QuizCard? card) {
+    if (card == null || card.grammarAudioPrompt != null || _kTestMode) return;
+    final audio = ref.read(audioPlayerServiceProvider);
+    unawaited(audio.warmUp(card.progress.direction.questionLang));
+    unawaited(
+      audio.prefetch(
+        card.questionWord,
+        card.progress.direction.questionLang,
+        audioPath: card.questionAudioPath,
+      ),
+    );
+    if (card.answerWords.isNotEmpty) {
+      unawaited(
+        audio.prefetch(
+          card.answerWords.first,
+          card.progress.direction.answerLang,
+          audioPath: card.answerAudioPath,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final quizState = ref.watch(_quiz);
+    _sessionDirector = ref.watch(audioDirectorProvider);
+
+    ref.listen(currentUserProvider.select((user) => user?.id), (_, _) {
+      if (!_quitting && _foregroundApplied) unawaited(_interruptTurn());
+    });
+    ref.listen<QuizState>(_quiz, (prev, next) {
+      if (_canInteract &&
+          prev?.answerState == QuizAnswerState.idle &&
           next.answerState != QuizAnswerState.idle) {
         final correct = next.answerState == QuizAnswerState.correct;
-        // Sound effect for every mode.
-        if (correct) { _sfx.playCorrect(); } else { _sfx.playIncorrect(); }
-        // Auto-speak the revealed answer (typing / voice modes).
-        // In hands-free mode only speak when wrong — the user just said the
-        // word correctly, no need to repeat it; but for a wrong answer they
-        // need to hear the correct pronunciation before moving on.
-        final shouldSpeak = widget.args.mode != QuizMode.flashcard &&
-            (widget.args.mode != QuizMode.handsFree || !correct);
+        // Sound effect for every mode. Muted in TEST_MODE: audio HAL calls
+        // destabilize the CI emulator (suspected cause of the silent app-spawn
+        // deaths that only ever hit the quiz E2E suites).
+        if (!_kTestMode) {
+          final director = ref.read(audioDirectorProvider);
+          if (correct) {
+            director.playCorrect();
+          } else {
+            director.playIncorrect();
+          }
+        }
+        // Hands-free is eyes-off: pair the earcon with a distinct haptic.
+        if (widget.args.mode == QuizMode.handsFree) {
+          if (correct) {
+            HapticFeedback.mediumImpact();
+          } else {
+            HapticFeedback.heavyImpact();
+          }
+        }
+        // Auto-speak the revealed answer — see shouldSpeakAnswer for the policy.
+        // (Also muted in TEST_MODE, same emulator-audio rationale as above.)
+        final shouldSpeak =
+            !_kTestMode &&
+            shouldSpeakAnswer(widget.args.mode, correct: correct);
         if (shouldSpeak) {
           final card = next.currentCard;
           if (card != null && card.answerWords.isNotEmpty) {
-            final answerLang =
-                card.progress.direction == QuizDirection.frToKo ? 'ko' : 'fr';
-            unawaited(ref
-                .read(audioPlayerServiceProvider)
-                .speak(card.answerWords.first, answerLang));
+            final answerLang = card.progress.direction.answerLang;
+            final handsFree = widget.args.mode == QuizMode.handsFree;
+            final speech = ref
+                .read(audioDirectorProvider)
+                .speak(
+                  card.answerWords.first,
+                  answerLang,
+                  audioPath: card.answerAudioPath,
+                  requirePlayback: handsFree,
+                  keepGoing: () =>
+                      mounted &&
+                      _canInteract &&
+                      !_quitting &&
+                      identical(ref.read(_quiz).currentCard, card),
+                )
+                .catchError((Object error) {
+                  sttLog('[QUIZ] correction playback failed: $error');
+                });
+            if (handsFree) _hfCorrection = speech;
+            unawaited(speech);
           }
         }
-        // Flash overlay for hands-free (no dedicated feedback screen there).
-        if (widget.args.mode == QuizMode.handsFree) {
-          unawaited(_triggerFlash(correct));
-        }
+        // Hands-free renders the full-screen StudyFeedbackFlood in build()
+        // (transient — the provider auto-advances in driving mode), so no
+        // separate flash overlay here.
       }
       if (widget.args.mode == QuizMode.handsFree) {
         final cardChanged = prev?.currentIndex != next.currentIndex;
         final justLoaded = prev?.isLoading == true && !next.isLoading;
         // Backup trigger: cards appeared without an isLoading transition.
-        final cardsJustAppeared = !justLoaded &&
-            (prev?.cards.isEmpty ?? true) && next.cards.isNotEmpty;
+        final cardsJustAppeared =
+            !justLoaded &&
+            (prev?.cards.isEmpty ?? true) &&
+            next.cards.isNotEmpty;
         final card = next.currentCard;
-        if ((cardChanged || justLoaded || cardsJustAppeared) && card != null && !next.isComplete) {
-          debugPrint('[HF] Card trigger: cardChanged=$cardChanged justLoaded=$justLoaded cardsJustAppeared=$cardsJustAppeared  idx=${next.currentIndex}  question="${card.questionWord}"  answers=${card.answerWords}');
-          debugPrint('[HF] Scheduling _startListening in 300ms...');
-          Future.delayed(const Duration(milliseconds: 300), () {
-            if (mounted && !_stt.isListening) {
-              debugPrint('[HF] 300ms elapsed — calling _startListening');
-              unawaited(_startListening(card));
-            } else {
-              debugPrint('[HF] 300ms elapsed but mounted=$mounted stt.isListening=${_stt.isListening} — skipping');
-            }
-          });
+        if ((cardChanged || justLoaded || cardsJustAppeared) &&
+            card != null &&
+            !next.isComplete) {
+          sttLog(
+            '[HF] Card trigger: cardChanged=$cardChanged justLoaded=$justLoaded cardsJustAppeared=$cardsJustAppeared  idx=${next.currentIndex}  question="${card.questionWord}"  answers=${card.answerWords}',
+          );
+          // Invalidate the previous card's session NOW: a session left open
+          // across the transition hears the new card's TTS question and
+          // grades it against the old card (field log 2026-07-06 — "mouton"
+          // spoken by the app's own voice failed the 양 card).
+          _listenToken++;
+          _stopPreviousCardCapture();
+          // Clean slate at the card boundary (field report 2026-07-20): the
+          // countdown bar kept the PREVIOUS card's frozen value all through
+          // the new card's reading phase (it only reset when the next mic
+          // opened) — zero it now.
+          _listenBarCtrl
+            ..stop()
+            ..reset();
+          // New card = back to the reading phase; don't let the previous
+          // card's "analyse" banner linger over the new word.
+          if (_hfAnalyzing ||
+              _hfFailureKey != null ||
+              _hfNotHeard ||
+              _hfCountdown != null) {
+            setState(() {
+              _hfAnalyzing = false;
+              _hfFailureKey = null;
+              _hfNotHeard = false;
+              _hfCountdown = null;
+            });
+          }
+          unawaited(_readPromptAndListen(card));
         }
       }
     });
 
-    if (quizState.isLoading) {
+    if (!_sessionStarted || quizState.isLoading) {
       return const Scaffold(
-        backgroundColor: AppColors.paper,
         body: Center(
           child: CircularProgressIndicator(
-              color: AppColors.clay, strokeWidth: 2),
+            color: AppColors.clay,
+            strokeWidth: 2,
+          ),
         ),
       );
     }
 
-    if (quizState.errorMessage != null) {
+    if (quizState.errorMessage case final error?) {
+      final key = switch (error) {
+        _ when error == 'quiz.account_changed'.tr() => 'quiz.account_changed',
+        _ when error == 'grammar.written_only'.tr() => 'grammar.written_only',
+        _ => 'quiz.load_failed',
+      };
       return Scaffold(
-        backgroundColor: AppColors.paper,
-        body: Center(
-          child: Padding(
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: AppColors.rose,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    key.tr(),
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.body.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: _quit,
+                    child: Text('common.back'.tr()),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (quizState.isEmpty) {
+      return Scaffold(
+        body: SafeArea(
+          child: ScrollAffordance(
+            hint: 'v3.scroll_hint'.tr(),
             padding: const EdgeInsets.all(32),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline,
-                    size: 48, color: AppColors.rose),
+                const Icon(Icons.inbox_outlined, size: 48),
                 const SizedBox(height: 16),
-                Text(quizState.errorMessage!,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.body.copyWith(color: AppColors.muted)),
-                const SizedBox(height: 24),
-                GestureDetector(
-                  onTap: () => context.go('/home'),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: AppColors.teal,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text('quiz.go_home_button'.tr(),
-                        style: AppTextStyles.fig(15, FontWeight.w700)
-                            .copyWith(color: Colors.white)),
-                  ),
+                Text(
+                  'quiz.no_cards_available'.tr(),
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.body,
                 ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: _loadSession,
+                  child: Text('common.retry'.tr()),
+                ),
+                TextButton(onPressed: _quit, child: Text('common.back'.tr())),
               ],
             ),
           ),
@@ -352,715 +1247,1107 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (quizState.isComplete) {
       return _SummaryScreen(
         correct: quizState.correctCount,
-        total: quizState.total,
-        onDone: () => context.go('/home'),
-        onRestart: () {
-          ref.read(quizProvider.notifier).loadCards(widget.args);
-        },
+        total: quizState.displayTotal,
+        onDone: _quit,
+        onRestart: _loadSession,
       );
     }
 
     final card = quizState.currentCard;
     if (card == null) {
       return const Scaffold(
-        backgroundColor: AppColors.paper,
         body: Center(
           child: CircularProgressIndicator(
-              color: AppColors.clay, strokeWidth: 2),
+            color: AppColors.clay,
+            strokeWidth: 2,
+          ),
         ),
       );
     }
 
-    // Dedicated feedback screen for typing / voice modes (not flashcard or hands-free).
-    if (quizState.answerState != QuizAnswerState.idle &&
-        widget.args.mode != QuizMode.flashcard &&
-        widget.args.mode != QuizMode.handsFree) {
-      return _AnswerFeedback(
-        isCorrect: quizState.answerState == QuizAnswerState.correct,
-        card: card,
-        direction: card.progress.direction,
-        scheduledDays: quizState.scheduledDays,
-        currentIndex: quizState.currentIndex + 1,
-        total: quizState.total,
-        onContinue: () => ref.read(quizProvider.notifier).advance(),
-        onClose: () {
-          _stt.stopListening();
-          ref.read(quizProvider.notifier).setListening(false);
-          context.go('/home');
-        },
-      );
-    }
-
-    return AnimatedBuilder(
-      animation: _flashCtrl,
-      builder: (ctx, child) => ColoredBox(
-        color: _flashColor.value ?? Colors.transparent,
-        child: child,
-      ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Stack(
-          children: [
-            const DottedGround(),
-            SafeArea(
-              child: Column(
-                children: [
-                  // Progress header
-                  _ProgressHeader(
-                    current: quizState.currentIndex + 1,
-                    total: quizState.total,
-                    onClose: () {
-                      _stt.stopListening();
-                      ref.read(quizProvider.notifier).setListening(false);
-                      context.go('/home');
-                    },
-                  ),
-                  // Card + input
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: _CardView(
-                              card: card,
-                              isFlipped: quizState.isFlipped,
-                              answerState: quizState.answerState,
-                              mode: widget.args.mode,
-                              onFlip: () =>
-                                  ref.read(quizProvider.notifier).flipCard(),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          _buildInputArea(quizState, card),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInputArea(QuizState quizState, QuizCard card) {
+    // Every mode renders on the unified dark/paper study canvas.
     return switch (widget.args.mode) {
-      QuizMode.flashcard => _FlashcardRating(
-          isFlipped: quizState.isFlipped,
-          onRate: (rating) {
-            final isCorrect = rating != FsrsRating.again;
-            unawaited(_triggerFlash(isCorrect));
-            if (isCorrect) { _sfx.playCorrect(); } else { _sfx.playIncorrect(); }
-            ref.read(quizProvider.notifier).rateCard(rating);
-          },
-        ),
-      QuizMode.typing => _TypingInput(
-          controller: _answerCtrl,
-          answerState: quizState.answerState,
-          correctAnswers: card.answerWords,
-          onSubmit: (answer) {
-            ref.read(quizProvider.notifier).submitTextAnswer(answer);
-            _answerCtrl.clear();
-          },
-        ),
-      QuizMode.voice || QuizMode.handsFree => _VoiceInput(
-          isListening: quizState.isListening,
-          partialTranscript: quizState.partialTranscript,
-          answerState: quizState.answerState,
-          onMicTap: () => _startListening(card),
-          isHandsFree: widget.args.mode == QuizMode.handsFree,
-        ),
+      QuizMode.voice => _buildVoiceStudy(context, quizState, card),
+      QuizMode.flashcard => _buildCartesStudy(context, quizState, card),
+      QuizMode.typing => _buildEcrireStudy(context, quizState, card),
+      QuizMode.handsFree => _buildHandsFreeStudy(context, quizState, card),
     };
   }
-}
 
-// ── Progress header ───────────────────────────────────────────────────────────
+  // ── Hands-free controls ───────────────────────────────────────────────────
+  void _toggleHfPause() {
+    setState(() {
+      _hfPaused = !_hfPaused;
+      _hfAutoPausedSilence = false;
+    });
+    ref.read(_quiz.notifier).setPaused(_hfPaused);
+    if (_hfPaused) {
+      unawaited(_interruptTurn());
+    } else {
+      // Manual resume = the user says the environment is OK again.
+      _turnMachine?.resetSilenceStreak();
+      _hfRepeat();
+    }
+  }
 
-class _ProgressHeader extends StatelessWidget {
-  const _ProgressHeader({
-    required this.current,
-    required this.total,
-    required this.onClose,
-  });
-  final int current;
-  final int total;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = total > 0 ? current / total : 0.0;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 8, 16, 0),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.close_rounded,
-                color: AppColors.muted, size: 22),
-            onPressed: onClose,
-          ),
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(
-                value: progress,
-                backgroundColor: AppColors.line,
-                valueColor:
-                    const AlwaysStoppedAnimation<Color>(AppColors.teal),
-                minHeight: 6,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            '${current.toString().padLeft(2, '0')}/${total.toString().padLeft(2, '0')}',
-            style: AppTextStyles.counter.copyWith(color: AppColors.muted),
-          ),
-        ],
+  void _hfRepeat() {
+    final card = ref.read(_quiz).currentCard;
+    if (card == null) return;
+    unawaited(
+      _afterTurnStopped(
+        card,
+        () => _readPromptAndListen(card, retryRelease: true),
       ),
     );
   }
-}
 
-// ── Card view ─────────────────────────────────────────────────────────────────
-
-class _CardView extends StatelessWidget {
-  const _CardView({
-    required this.card,
-    required this.isFlipped,
-    required this.answerState,
-    required this.mode,
-    required this.onFlip,
-  });
-
-  final QuizCard card;
-  final bool isFlipped;
-  final QuizAnswerState answerState;
-  final QuizMode mode;
-  final VoidCallback onFlip;
-
-  @override
-  Widget build(BuildContext context) {
-    final isFlashcard = mode == QuizMode.flashcard;
-    final isHandsFree = mode == QuizMode.handsFree;
-    final isFrToKo    = card.direction == QuizDirection.frToKo;
-    final qLabel      = isFrToKo ? 'list_detail.lang_fr'.tr() : 'list_detail.lang_kr'.tr();
-    final aLabel      = isFrToKo ? 'list_detail.lang_kr'.tr() : 'list_detail.lang_fr'.tr();
-    final qColor      = isFrToKo ? AppColors.tealDark : AppColors.clayDark;
-    final aColor      = isFrToKo ? AppColors.clayDark : AppColors.tealDark;
-    final answerText  = card.answerWords.join(' / ');
-    final isKrAnswer  = isFrToKo; // Korean is the answer when FR→KO
-
-    // Show the answer only after an explicit action — never both sides at once.
-    // • Flashcard: after the user taps to flip.
-    // • Hands-free: after voice answer is processed (answerState leaves idle).
-    // • Typing / voice: feedback screen takes over; card stays question-only.
-    final showAnswer = isFlipped ||
-        (isHandsFree && answerState != QuizAnswerState.idle);
-
-    return GestureDetector(
-      onTap: isFlashcard && !isFlipped ? onFlip : null,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: Container(
-          width: double.infinity,
-          color: AppColors.inkDark,
-          child: Stack(
-            children: [
-              // Dot grid on dark
-              const DottedGround(dark: true),
-              // Waveform watermark
-              Positioned.fill(
-                child: Center(
-                  child: VkWaveform(
-                    height: 120,
-                    barWidth: 10,
-                    gap: 6,
-                    opacity: 0.2,
-                    isAnimating: false,
-                  ),
-                ),
-              ),
-              // Card content
-              Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Question side
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(qLabel,
-                          style: AppTextStyles.eyebrow
-                              .copyWith(color: qColor)),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      card.questionWord,
-                      style: isFrToKo
-                          ? AppTextStyles.promptWord
-                              .copyWith(color: AppColors.onDark)
-                          : AppTextStyles.koreanPrompt
-                              .copyWith(color: AppColors.onDark),
-                      textAlign: TextAlign.center,
-                    ),
-                    // Answer side
-                    if (showAnswer) ...[
-                      const SizedBox(height: 28),
-                      const Divider(
-                          color: Color(0x33FFFFFF), thickness: 1),
-                      const SizedBox(height: 20),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(aLabel,
-                            style: AppTextStyles.eyebrow
-                                .copyWith(color: aColor)),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        answerText.isNotEmpty ? answerText : '—',
-                        style: isKrAnswer
-                            ? AppTextStyles.koreanPrompt.copyWith(
-                                fontSize: 40,
-                                color: AppColors.onDark)
-                            : AppTextStyles.grotesk(
-                                    40, FontWeight.w700)
-                                .copyWith(color: AppColors.onDark),
-                        textAlign: TextAlign.center,
-                      ),
-                    ] else if (isFlashcard) ...[
-                      const SizedBox(height: 40),
-                      Text(
-                        'quiz.card_flip_hint'.tr(),
-                        style: AppTextStyles.caption
-                            .copyWith(color: AppColors.onDarkFaint),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+  Future<void> _hfSkip() async {
+    // A deliberate skip is not a wrong answer: nothing is graded, the card
+    // returns later in the session.
+    final card = ref.read(_quiz).currentCard;
+    if (card == null) return;
+    await _afterTurnStopped(
+      card,
+      () => ref.read(_quiz.notifier).skipCurrentCard(),
     );
   }
-}
 
-// ── Flashcard rating ──────────────────────────────────────────────────────────
+  /// Hands-free (Mains libres) — eyes-off canvas: word in the wave with the
+  /// audio-I/O state machine (frozen + screen-pulse while reading vs animated
+  /// while listening), oversized Répéter/Passer, tap-centre to pause, and the
+  /// transient full-screen flood for grading.
+  Widget _buildHandsFreeStudy(
+    BuildContext context,
+    QuizState s,
+    QuizCard card,
+  ) {
+    final questionIsHangul = Languages.usesHangul(
+      card.progress.direction.questionLang,
+    );
+    final answerIsHangul = Languages.usesHangul(
+      card.progress.direction.answerLang,
+    );
 
-class _FlashcardRating extends StatelessWidget {
-  const _FlashcardRating({required this.isFlipped, required this.onRate});
-  final bool isFlipped;
-  final ValueChanged<FsrsRating> onRate;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!isFlipped) {
-      return Container(
-        height: 52,
-        decoration: BoxDecoration(
-          color: AppColors.line.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Center(
-          child: Text('quiz.flashcard_rate_hint'.tr(),
-              style: AppTextStyles.caption.copyWith(color: AppColors.faint)),
-        ),
+    if (s.answerState != QuizAnswerState.idle) {
+      final correct = s.answerState == QuizAnswerState.correct;
+      return StudyFeedbackFlood(
+        isCorrect: correct,
+        label: correct
+            ? 'quiz.feedback_correct'.tr()
+            : 'quiz.feedback_wrong'.tr(),
+        answer: correct ? null : card.answerWords.join(' / '),
+        answerIsKorean: answerIsHangul,
+        // No onContinue → transient; the provider auto-advances (driving mode).
       );
     }
 
-    return Row(
-      children: [
-        Expanded(
-          child: GestureDetector(
-            onTap: () => onRate(FsrsRating.again),
-            child: Container(
-              height: 60,
-              decoration: BoxDecoration(
-                color: AppColors.rose,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.close_rounded,
-                      color: Colors.white, size: 20),
-                  const SizedBox(width: 8),
-                  Text('quiz.rate_wrong'.tr(),
-                      style: AppTextStyles.fig(15, FontWeight.w700)
-                          .copyWith(color: Colors.white)),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: GestureDetector(
-            onTap: () => onRate(FsrsRating.good),
-            child: Container(
-              height: 60,
-              decoration: BoxDecoration(
-                color: AppColors.teal,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.check_rounded,
-                      color: Colors.white, size: 20),
-                  const SizedBox(width: 8),
-                  Text('quiz.rate_correct'.tr(),
-                      style: AppTextStyles.fig(15, FontWeight.w700)
-                          .copyWith(color: Colors.white)),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    final listening = s.isListening && !_hfPaused;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final foreground = dark ? V3Colors.inkLight : V3Colors.ink;
+    final muted = dark ? V3Colors.inkLight70 : V3Colors.ink60;
+    final rule = dark ? V3Colors.ruleDark : V3Colors.edge2;
+
+    // What to tell the learner — see hfCueFor for the sequence and its
+    // priorities (user requests 2026-10-02).
+    final phase = _sttStatus?.phase;
+    final hfCue = hfCueFor(
+      paused: _hfPaused,
+      countdown: _hfCountdown,
+      micRequested: listening,
+      phase: phase,
+      verdictPending: _hfAnalyzing,
+      notHeard: _hfNotHeard,
     );
-  }
-}
+    final micLive = hfBarVisible(
+      paused: _hfPaused,
+      countdown: _hfCountdown,
+      micRequested: listening,
+      phase: phase,
+      verdictPending: _hfAnalyzing,
+    );
+    final langName = 'lang.${_answerLangCode(card)}'.tr();
+    final cue = switch (hfCue) {
+      HfCue.none => null,
+      HfCue.reading => 'quiz.hf_reading'.tr(),
+      HfCue.countdown => 'quiz.stt_get_ready'.tr(),
+      HfCue.opening => 'quiz.stt_opening'.tr(),
+      HfCue.listening => 'quiz.stt_listening'.tr(namedArgs: {'lang': langName}),
+      HfCue.hearing => 'quiz.stt_hearing'.tr(),
+      HfCue.analyzing => 'quiz.hf_analyzing'.tr(),
+      HfCue.notHeard => 'quiz.hf_not_heard_retry'.tr(
+        namedArgs: {'attempt': '${_notHeardRetries + 1}', 'total': '3'},
+      ),
+    };
+    final accent = dark ? V3Colors.amber : V3Colors.terraInk;
+    final cueColor = micLive || hfCue == HfCue.countdown ? accent : muted;
 
-// ── Typing input ──────────────────────────────────────────────────────────────
-
-class _TypingInput extends StatelessWidget {
-  const _TypingInput({
-    required this.controller,
-    required this.answerState,
-    required this.correctAnswers,
-    required this.onSubmit,
-  });
-  final TextEditingController controller;
-  final QuizAnswerState answerState;
-  final List<String> correctAnswers;
-  final ValueChanged<String> onSubmit;
-
-  @override
-  Widget build(BuildContext context) {
-    final isAnswered = answerState != QuizAnswerState.idle;
-    final isCorrect  = answerState == QuizAnswerState.correct;
-    final feedbackColor = isCorrect ? AppColors.teal : AppColors.rose;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (isAnswered) ...[
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: feedbackColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
+    final failure = _hfFailureKey;
+    return V3StudyScaffold(
+      remaining: (s.displayTotal - s.position + 1).clamp(1, s.displayTotal),
+      onQuit: _quit,
+      child: _hfPaused
+          ? _buildPausedHandsFree(foreground)
+          : Stack(
               children: [
-                Icon(
-                  isCorrect
-                      ? Icons.check_circle_rounded
-                      : Icons.cancel_rounded,
-                  color: feedbackColor,
-                  size: 20,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    isCorrect
-                        ? 'quiz.typing_correct'.tr()
-                        : 'quiz.typing_wrong_prefix'.tr() + correctAnswers.join(' / '),
-                    style: AppTextStyles.fig(14, FontWeight.w600)
-                        .copyWith(color: feedbackColor),
+                if (hfCue == HfCue.reading && failure == null && _canInteract)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: reduceMotion || _kTestMode
+                          ? _ReadingGlow(progress: 0.5)
+                          : const _ReadingPulse(),
+                    ),
                   ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final textScale =
+                        MediaQuery.textScalerOf(context).scale(16) / 16;
+                    final short = constraints.maxHeight < 360 * textScale;
+                    final prompt = Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        GestureDetector(
+                          onTap: _toggleHfPause,
+                          excludeFromSemantics: true,
+                          child: WordInWave(
+                            word: card.questionWord,
+                            isKorean: questionIsHangul,
+                            cue: failure == null ? cue : null,
+                            wordColor: foreground,
+                            cueColor: cueColor,
+                            waveActive: micLive,
+                          ),
+                        ),
+                        if (failure != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                failure.tr(),
+                                style: V3Text.body(14, color: muted),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                    final body = Column(
+                      children: [
+                        if (short)
+                          prompt
+                        else
+                          Expanded(child: _ScrollablePrompt(child: prompt)),
+                        if (_hfCountdown != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              '$_hfCountdown',
+                              key: const ValueKey('hf_countdown'),
+                              style: AppTextStyles.grotesk(
+                                short ? 42 : 64,
+                                FontWeight.w700,
+                              ).copyWith(color: accent),
+                            ),
+                          ),
+                        if (listening || !_sttOnline)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: SttStatusStrip(
+                              status: _sttStatus,
+                              online: _sttOnline,
+                              labels: _sttLabels(),
+                            ),
+                          ),
+                        AnimatedOpacity(
+                          duration: const Duration(milliseconds: 200),
+                          opacity: micLive ? 1.0 : 0.0,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: AnimatedBuilder(
+                              animation: _listenBarCtrl,
+                              builder: (_, _) => ClipRRect(
+                                borderRadius: BorderRadius.circular(3),
+                                child: LinearProgressIndicator(
+                                  value: 1 - _listenBarCtrl.value,
+                                  minHeight: 5,
+                                  backgroundColor: rule.withValues(alpha: 0.7),
+                                  valueColor: AlwaysStoppedAnimation(accent),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _HfButton(
+                                key: const ValueKey(WidgetKeys.hfRepeat),
+                                icon: Icons.replay_rounded,
+                                label: 'quiz.hf_repeat'.tr(),
+                                onTap: _hfRepeat,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _HfButton(
+                                key: const ValueKey(WidgetKeys.hfPause),
+                                icon: Icons.pause_rounded,
+                                label: 'quiz.hf_pause'.tr(),
+                                onTap: _toggleHfPause,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _HfButton(
+                                key: const ValueKey(WidgetKeys.hfSkip),
+                                icon: Icons.skip_next_rounded,
+                                label: 'quiz.hf_skip'.tr(),
+                                onTap: _hfSkip,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                    const padding = EdgeInsets.fromLTRB(24, 8, 24, 28);
+                    if (short) {
+                      return ScrollAffordance(
+                        key: const ValueKey(WidgetKeys.quizPrompt),
+                        hint: 'v3.scroll_hint'.tr(),
+                        padding: padding,
+                        fillViewport: true,
+                        child: body,
+                      );
+                    }
+                    return Padding(padding: padding, child: body);
+                  },
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 12),
-        ],
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: controller,
-                enabled: !isAnswered,
-                autofocus: !isAnswered,
-                decoration: InputDecoration(
-                  hintText: 'quiz.typing_hint'.tr(),
-                  fillColor: isAnswered
-                      ? feedbackColor.withValues(alpha: 0.06)
-                      : null,
-                ),
-                textInputAction: TextInputAction.done,
-                onSubmitted: isAnswered ? null : onSubmit,
-              ),
-            ),
-            const SizedBox(width: 10),
-            GestureDetector(
-              onTap: isAnswered ? null : () => onSubmit(controller.text),
-              child: Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: isAnswered ? AppColors.line : AppColors.clay,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(Icons.send_rounded,
-                    color: isAnswered ? AppColors.faint : Colors.white,
-                    size: 20),
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
-}
 
-// ── Voice input ───────────────────────────────────────────────────────────────
-
-class _VoiceInput extends StatelessWidget {
-  const _VoiceInput({
-    required this.isListening,
-    required this.partialTranscript,
-    required this.answerState,
-    required this.onMicTap,
-    required this.isHandsFree,
-  });
-  final bool isListening;
-  final String partialTranscript;
-  final QuizAnswerState answerState;
-  final VoidCallback onMicTap;
-  final bool isHandsFree;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+  Widget _buildPausedHandsFree(Color foreground) => ScrollAffordance(
+    hint: 'v3.scroll_hint'.tr(),
+    padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+    fillViewport: true,
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if (partialTranscript.isNotEmpty) ...[
-          Text(partialTranscript,
-              style: AppTextStyles.fig(16, FontWeight.w500)
-                  .copyWith(color: AppColors.muted)),
-          const SizedBox(height: 12),
-        ],
-        MicButton(
-          key: const Key('mic_button'),
-          isListening: isListening,
-          answerState: answerState,
-          onTap: onMicTap,
+        Icon(
+          _hfAutoPausedSilence
+              ? Icons.hearing_disabled_rounded
+              : Icons.pause_rounded,
+          size: 56,
+          color: foreground,
         ),
-        if (isHandsFree) ...[
-          const SizedBox(height: 8),
-          Text('quiz.hands_free_label'.tr(),
-              style: AppTextStyles.eyebrowSm
-                  .copyWith(color: AppColors.faint)),
-        ],
+        const SizedBox(height: 10),
+        Text(
+          (_hfAutoPausedSilence ? 'quiz.hf_paused_silence' : 'quiz.hf_paused')
+              .tr(),
+          textAlign: TextAlign.center,
+          style: AppTextStyles.grotesk(
+            28,
+            FontWeight.w700,
+          ).copyWith(color: foreground),
+        ),
+        const SizedBox(height: 18),
+        FilledButton(
+          key: const ValueKey(WidgetKeys.hfResume),
+          autofocus: true,
+          onPressed: _toggleHfPause,
+          child: Text('quiz.hf_resume'.tr(), textAlign: TextAlign.center),
+        ),
       ],
-    );
+    ),
+  );
+
+  Future<void> _quit() async {
+    if (_quitting || !_canInteract) return;
+    _quitting = true;
+    ref.read(_quiz.notifier).setForeground(false);
+    await _interruptTurn();
+    if (!mounted) return;
+    _quitReady = true;
+    _finishQuitIfVisible();
   }
-}
 
-// ── Answer feedback screen ────────────────────────────────────────────────────
+  void _finishQuitIfVisible() {
+    if (!_quitReady || !_canInteract) return;
+    _quitReady = false;
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/home');
+    }
+  }
 
-class _AnswerFeedback extends StatelessWidget {
-  const _AnswerFeedback({
-    required this.isCorrect,
-    required this.card,
-    required this.direction,
-    required this.scheduledDays,
-    required this.currentIndex,
-    required this.total,
-    required this.onContinue,
-    required this.onClose,
-  });
+  // Answer language code for the current card. Derived from the legacy
+  // QuizDirection enum; the generic-language-pairs task replaces this with the
+  // list's target langCode.
+  String _answerLangCode(QuizCard card) => card.progress.direction.answerLang;
 
-  final bool isCorrect;
-  final QuizCard card;
-  final QuizDirection direction;
-  final int scheduledDays;
-  final int currentIndex;
-  final int total;
-  final VoidCallback onContinue;
-  final VoidCallback onClose;
+  SttStatusLabels _sttLabels() => SttStatusLabels(
+    engineName: (id) => switch (id) {
+      'elevenlabs' => 'ElevenLabs',
+      'whisper' => 'Whisper',
+      'system' || 'phone' => 'quiz.stt_engine_system'.tr(),
+      _ => id,
+    },
+    waiting: 'quiz.stt_engine_waiting'.tr(),
+    sending: 'quiz.stt_engine_sending'.tr(),
+    analyzing: 'quiz.stt_engine_analyzing'.tr(),
+    empty: 'quiz.stt_engine_empty'.tr(),
+    failed: 'quiz.stt_engine_failed'.tr(),
+    offline: 'quiz.stt_offline'.tr(),
+    noEngine: 'quiz.stt_no_engine'.tr(),
+  );
 
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = cs.brightness == Brightness.dark;
-    final accent = isCorrect
-        ? (isDark ? AppColors.tealDark : AppColors.teal)
-        : (isDark ? AppColors.clayDark : AppColors.clay);
-    final label = isCorrect ? 'quiz.feedback_correct'.tr() : 'quiz.feedback_wrong'.tr();
+  String? _nextReviewText(int? scheduledDays) => switch (scheduledDays) {
+    null => null,
+    0 => 'quiz.next_review_soon'.tr(),
+    1 => 'quiz.next_review_tomorrow'.tr(),
+    final days => 'quiz.next_review_in_days'.tr(namedArgs: {'days': '$days'}),
+  };
 
-    final nextText = isCorrect
-        ? (scheduledDays <= 1
-            ? 'quiz.next_review_tomorrow'.tr()
-            : 'quiz.next_review_in_days'.tr(namedArgs: {'days': scheduledDays.toString()}))
-        : 'quiz.next_review_soon'.tr();
+  Future<void> _dismissFlashcard({required bool knew}) async {
+    final quiz = ref.read(_quiz);
+    if (_flashcardExiting ||
+        _quitting ||
+        !quiz.isFlipped ||
+        quiz.answerState != QuizAnswerState.idle) {
+      return;
+    }
+    setState(() {
+      _flashcardExiting = true;
+      _flashcardExitDirection = knew ? 1 : -1;
+    });
+    HapticFeedback.selectionClick();
+    ref
+        .read(_quiz.notifier)
+        .gradeFlashcard(knew ? FsrsRating.good : FsrsRating.again);
+    await Future<void>.delayed(const Duration(milliseconds: 460));
+    if (!mounted || _quitting) return;
+    final current = ref.read(_quiz);
+    if (identical(current.currentCard, quiz.currentCard) &&
+        current.currentIndex == quiz.currentIndex) {
+      ref.read(_quiz.notifier).advance();
+    }
+    setState(() {
+      _flashcardExiting = false;
+      _flashcardDragProgress = 0;
+    });
+  }
 
-    final isFrToKo = direction == QuizDirection.frToKo;
-    final answerText = card.answerWords.join(' / ');
-    final isKrAnswer = isFrToKo;
-    final qLabel = isFrToKo ? 'list_detail.lang_fr'.tr() : 'list_detail.lang_kr'.tr();
-    final aLabel = isFrToKo ? 'list_detail.lang_kr'.tr() : 'list_detail.lang_fr'.tr();
-    final qColor = isFrToKo ? AppColors.tealDark : AppColors.clayDark;
-    final aColor = isFrToKo ? AppColors.clayDark : AppColors.tealDark;
+  /// Cartes — one stable physical stack: tap to turn, swipe to peel away.
+  Widget _buildCartesStudy(BuildContext context, QuizState s, QuizCard card) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final questionIsHangul = Languages.usesHangul(
+      card.progress.direction.questionLang,
+    );
+    final answerIsHangul = Languages.usesHangul(
+      card.progress.direction.answerLang,
+    );
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          // Tinted background
-          ColoredBox(
-            color: accent.withValues(alpha: isDark ? 0.12 : 0.07),
-            child: const SizedBox.expand(),
-          ),
-          const DottedGround(),
-          SafeArea(
-            child: Column(
-              children: [
-                // Progress header (reused)
-                _ProgressHeader(
-                  current: currentIndex,
-                  total: total,
-                  onClose: onClose,
-                ),
-                Expanded(
+    final showBack = s.isFlipped;
+    final dragAmount = _flashcardDragProgress.abs();
+    final tint = _flashcardDragProgress < 0
+        ? V3Colors.cardAgainTint
+        : V3Colors.cardKnownTint;
+    final paperColor = Color.lerp(V3Colors.paper, tint, dragAmount * 0.28)!;
+    Widget face({required bool back}) {
+      final word = back ? card.answerWords.join(' / ') : card.questionWord;
+      final wordIsKorean = back ? answerIsHangul : questionIsHangul;
+      return Material(
+        color: paperColor,
+        borderRadius: const BorderRadius.all(V3Radii.card),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: back || _flashcardExiting
+              ? null
+              : () => ref.read(_quiz.notifier).flipCard(),
+          borderRadius: const BorderRadius.all(V3Radii.card),
+          child: LayoutBuilder(
+            builder: (context, constraints) => Scrollbar(
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                primary: true,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                    padding: const EdgeInsets.all(24),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Icon badge
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            color: accent.withValues(alpha: 0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            isCorrect
-                                ? Icons.check_rounded
-                                : Icons.close_rounded,
-                            color: accent,
-                            size: 38,
-                          ),
+                        Text(
+                          back ? 'v3.card_answer'.tr() : 'v3.card_take'.tr(),
+                          textAlign: TextAlign.center,
+                          style: V3Text.mono(12),
                         ),
-                        const SizedBox(height: 18),
-                        Text(label,
-                            style: AppTextStyles.eyebrow
-                                .copyWith(color: accent)),
-                        const SizedBox(height: 6),
-                        Text(nextText,
-                            style: AppTextStyles.fig(14, FontWeight.w500)
-                                .copyWith(
-                                    color: isDark
-                                        ? AppColors.onDarkMuted
-                                        : AppColors.muted)),
-                        const SizedBox(height: 28),
-                        // Answer card — same dark card as the quiz
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(24),
-                          child: Container(
-                            width: double.infinity,
-                            color: AppColors.inkDark,
-                            child: Stack(
-                              children: [
-                                const DottedGround(dark: true),
-                                Padding(
-                                  padding: const EdgeInsets.all(28),
-                                  child: Column(
-                                    children: [
-                                      Align(
-                                        alignment: Alignment.centerLeft,
-                                        child: Text(qLabel,
-                                            style: AppTextStyles.eyebrow
-                                                .copyWith(color: qColor)),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        card.questionWord,
-                                        style: isFrToKo
-                                            ? AppTextStyles.promptWord.copyWith(
-                                                color: AppColors.onDark,
-                                                fontSize: 36)
-                                            : AppTextStyles.koreanPrompt
-                                                .copyWith(
-                                                    color: AppColors.onDark,
-                                                    fontSize: 38),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      const SizedBox(height: 18),
-                                      const Divider(
-                                          color: Color(0x33FFFFFF),
-                                          thickness: 1),
-                                      const SizedBox(height: 16),
-                                      Align(
-                                        alignment: Alignment.centerLeft,
-                                        child: Text(aLabel,
-                                            style: AppTextStyles.eyebrow
-                                                .copyWith(color: aColor)),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        answerText.isNotEmpty ? answerText : '—',
-                                        style: isKrAnswer
-                                            ? AppTextStyles.koreanPrompt
-                                                .copyWith(
-                                                    color: AppColors.onDark,
-                                                    fontSize: 36)
-                                            : AppTextStyles.grotesk(
-                                                    36, FontWeight.w700)
-                                                .copyWith(
-                                                    color: AppColors.onDark),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                        const SizedBox(height: 26),
+                        Text(
+                          word,
+                          textAlign: TextAlign.center,
+                          style: wordIsKorean
+                              ? V3Text.korean(40)
+                              : V3Text.title(38),
                         ),
-                        const Spacer(),
-                        // Continuer button
-                        SizedBox(
-                          width: double.infinity,
-                          child: GestureDetector(
-                            onTap: onContinue,
-                            child: Container(
-                              height: 56,
-                              decoration: BoxDecoration(
-                                color: accent,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  'quiz.continue_button'.tr(),
-                                  style: AppTextStyles.fig(16, FontWeight.w700)
-                                      .copyWith(color: Colors.white),
-                                ),
-                              ),
-                            ),
-                          ),
+                        const SizedBox(height: 24),
+                        Text(
+                          back
+                              ? 'v3.card_grade_hint'.tr()
+                              : 'quiz.card_flip_hint'.tr(),
+                          textAlign: TextAlign.center,
+                          style: V3Text.body(14, color: V3Colors.ink60),
                         ),
                       ],
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
+          ),
+        ),
+      );
+    }
+
+    return V3StudyScaffold(
+      remaining: (s.displayTotal - s.position + 1).clamp(1, s.displayTotal),
+      onQuit: _quit,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+        child: Column(
+          children: [
+            Expanded(
+              child: Center(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final cardWidth = constraints.maxWidth > 350
+                        ? 350.0
+                        : constraints.maxWidth;
+                    return SizedBox(
+                      width: cardWidth,
+                      height: math.min(380, constraints.maxHeight),
+                      child: GestureDetector(
+                        onHorizontalDragUpdate: !showBack || _flashcardExiting
+                            ? null
+                            : (details) => setState(() {
+                                _flashcardDragProgress =
+                                    (_flashcardDragProgress +
+                                            details.delta.dx / cardWidth)
+                                        .clamp(-1.0, 1.0);
+                              }),
+                        onHorizontalDragCancel: !showBack || _flashcardExiting
+                            ? null
+                            : () => setState(() => _flashcardDragProgress = 0),
+                        onHorizontalDragEnd: !showBack || _flashcardExiting
+                            ? null
+                            : (details) {
+                                final velocity = details.primaryVelocity ?? 0;
+                                final progress = _flashcardDragProgress;
+                                if (progress.abs() < 0.25 &&
+                                    velocity.abs() < 240) {
+                                  setState(() => _flashcardDragProgress = 0);
+                                  return;
+                                }
+                                unawaited(
+                                  _dismissFlashcard(
+                                    knew: progress.abs() >= 0.05
+                                        ? progress > 0
+                                        : velocity > 0,
+                                  ),
+                                );
+                              },
+                        child: V3CardStack(
+                          remaining: (s.displayTotal - s.position + 1).clamp(
+                            1,
+                            s.displayTotal,
+                          ),
+                          total: s.displayTotal,
+                          cardId: card.grammarCardIndex == null
+                              ? card.progress.variantId
+                              : 'grammar:${card.grammarCardIndex}',
+                          isExiting: _flashcardExiting,
+                          exitDirection: _flashcardExitDirection,
+                          dragProgress: _flashcardDragProgress,
+                          child: _FlashcardSurface(
+                            key: const ValueKey(WidgetKeys.cartesCard),
+                            isBack: showBack,
+                            front: face(back: false),
+                            back: face(back: true),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            if (showBack) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      key: const ValueKey(WidgetKeys.gradeAgain),
+                      onPressed: _flashcardExiting
+                          ? null
+                          : () => unawaited(_dismissFlashcard(knew: false)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: dark
+                            ? V3Colors.inkLight
+                            : V3Colors.ink,
+                        backgroundColor: dark
+                            ? V3Colors.block
+                            : V3Colors.paperPanel,
+                        side: BorderSide(
+                          color: dark ? V3Colors.ruleDark : V3Colors.edge2,
+                        ),
+                      ),
+                      child: Text(
+                        'v3.card_again'.tr(),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      key: const ValueKey(WidgetKeys.gradeKnew),
+                      onPressed: _flashcardExiting
+                          ? null
+                          : () => unawaited(_dismissFlashcard(knew: true)),
+                      child: Text(
+                        'v3.card_knew'.tr(),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Écrire — word-in-wave + native text input + Valider, with the flood.
+  Widget _buildEcrireStudy(BuildContext context, QuizState s, QuizCard card) {
+    final questionIsHangul = Languages.usesHangul(
+      card.progress.direction.questionLang,
+    );
+    final answerIsHangul = Languages.usesHangul(
+      card.progress.direction.answerLang,
+    );
+
+    if (s.answerState != QuizAnswerState.idle) {
+      final correct = s.answerState == QuizAnswerState.correct;
+      return StudyFeedbackFlood(
+        isCorrect: correct,
+        onPlayAudio: card.answerWords.isEmpty
+            ? null
+            : () => unawaited(
+                ref
+                    .read(audioDirectorProvider)
+                    .speak(
+                      card.answerWords.first,
+                      card.progress.direction.answerLang,
+                      audioPath: card.answerAudioPath,
+                      keepGoing: () =>
+                          mounted &&
+                          _canInteract &&
+                          !_quitting &&
+                          identical(ref.read(_quiz).currentCard, card),
+                    ),
+              ),
+        label: correct
+            ? 'quiz.feedback_correct'.tr()
+            : 'quiz.feedback_wrong'.tr(),
+        answer: card.answerWords.join(' / '),
+        answerIsKorean: answerIsHangul,
+        detail: _nextReviewText(s.scheduledDays),
+        continueLabel: 'quiz.continue_button'.tr(),
+        onContinue: () => ref.read(_quiz.notifier).advance(),
+      );
+    }
+
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final cue = 'quiz.write_in_lang'.tr(
+      namedArgs: {'lang': 'lang.${_answerLangCode(card)}'.tr()},
+    );
+    final cueColor = isDark ? AppColors.clayLight : AppColors.clayText;
+
+    void submit() {
+      ref.read(_quiz.notifier).submitTextAnswer(_answerCtrl.text);
+      _answerCtrl.clear();
+    }
+
+    final prompt = WordInWave(
+      word: card.questionWord,
+      isKorean: questionIsHangul,
+      cue: cue,
+      cueColor: cueColor,
+      waveActive: false,
+    );
+    // Retain the editable element and its keyboard connection when the inset
+    // switches this layout between its anchored and scrolling controls.
+    final input = KeyedSubtree(
+      key: _typingFieldKey,
+      child: TextField(
+        key: const ValueKey(WidgetKeys.ecrireInput),
+        controller: _answerCtrl,
+        autofocus: true,
+        textAlign: TextAlign.center,
+        textInputAction: TextInputAction.done,
+        cursorColor: AppColors.clay,
+        style: AppTextStyles.fig(
+          22,
+          FontWeight.w600,
+        ).copyWith(color: cs.onSurface),
+        decoration: InputDecoration(
+          filled: false,
+          hintText: 'quiz.typing_hint'.tr(),
+          border: const UnderlineInputBorder(),
+          enabledBorder: UnderlineInputBorder(
+            borderSide: BorderSide(color: cs.outline),
+          ),
+          focusedBorder: const UnderlineInputBorder(
+            borderSide: BorderSide(color: AppColors.clay, width: 2),
+          ),
+        ),
+        onSubmitted: (_) => submit(),
+      ),
+    );
+    final validate = FilledButton(
+      key: const ValueKey(WidgetKeys.ecrireValidate),
+      onPressed: submit,
+      child: Text('quiz.validate'.tr()),
+    );
+
+    return StudyScaffold(
+      current: s.position,
+      total: s.displayTotal,
+      counterOverride: s.inReviewTail
+          ? 'quiz.review_tail'.tr(
+              namedArgs: {'n': '${s.reviewPosition}', 'm': '${s.reviewTotal}'},
+            )
+          : null,
+      onQuit: _quit,
+      child: _KeyboardStudyLayout(
+        prompt: prompt,
+        input: input,
+        validate: validate,
+      ),
+    );
+  }
+
+  /// Voix — the unified dark study canvas: word-in-wave + mic + escape pills,
+  /// with the full-screen flood once answered.
+  Widget _buildVoiceStudy(BuildContext context, QuizState s, QuizCard card) {
+    final questionIsHangul = Languages.usesHangul(
+      card.progress.direction.questionLang,
+    );
+    final answerIsHangul = Languages.usesHangul(
+      card.progress.direction.answerLang,
+    );
+
+    if (s.answerState != QuizAnswerState.idle) {
+      final correct = s.answerState == QuizAnswerState.correct;
+      return StudyFeedbackFlood(
+        isCorrect: correct,
+        label: correct
+            ? 'quiz.feedback_correct'.tr()
+            : 'quiz.feedback_wrong'.tr(),
+        answer: card.answerWords.join(' / '),
+        answerIsKorean: answerIsHangul, // answer is Korean when FR→KO
+        detail: _nextReviewText(s.scheduledDays),
+        continueLabel: 'quiz.continue_button'.tr(),
+        onContinue: () => ref.read(_quiz.notifier).advance(),
+      );
+    }
+
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final cue = 'quiz.say_in_lang'.tr(
+      namedArgs: {'lang': 'lang.${_answerLangCode(card)}'.tr()},
+    );
+    final cueColor = isDark ? AppColors.clayLight : AppColors.clayText;
+    final kbOn = _voiceKbIndex == s.currentIndex;
+    final prompt = WordInWave(
+      word: card.questionWord,
+      isKorean: questionIsHangul,
+      cue: kbOn ? null : cue,
+      cueColor: cueColor,
+      waveActive: s.isListening,
+    );
+    void submit() {
+      ref.read(_quiz.notifier).submitTextAnswer(_answerCtrl.text);
+      _answerCtrl.clear();
+    }
+
+    return StudyScaffold(
+      current: s.position,
+      total: s.displayTotal,
+      counterOverride: s.inReviewTail
+          ? 'quiz.review_tail'.tr(
+              namedArgs: {'n': '${s.reviewPosition}', 'm': '${s.reviewTotal}'},
+            )
+          : null,
+      onQuit: _quit,
+      child: kbOn
+          ? _KeyboardStudyLayout(
+              prompt: prompt,
+              input: KeyedSubtree(
+                key: _typingFieldKey,
+                child: TextField(
+                  key: const ValueKey(WidgetKeys.voiceInput),
+                  controller: _answerCtrl,
+                  autofocus: true,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    hintText: 'quiz.typing_hint'.tr(),
+                  ),
+                  onSubmitted: (_) => submit(),
+                ),
+              ),
+              validate: FilledButton(
+                key: const ValueKey(WidgetKeys.voiceValidate),
+                onPressed: submit,
+                child: Text('quiz.validate'.tr()),
+              ),
+            )
+          : ScrollAffordance(
+              key: const ValueKey(WidgetKeys.quizPrompt),
+              hint: 'v3.scroll_hint'.tr(),
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+              fillViewport: true,
+              child: Column(
+                children: [
+                  Expanded(child: prompt),
+                  if (s.isListening || !_sttOnline)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: SttStatusStrip(
+                        status: _sttStatus,
+                        online: _sttOnline,
+                        labels: _sttLabels(),
+                      ),
+                    ),
+                  if (s.partialTranscript.isNotEmpty) ...[
+                    Text(
+                      s.partialTranscript,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.fig(16, FontWeight.w500).copyWith(
+                        color: isDark ? AppColors.onDarkMuted : AppColors.muted,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+                  MicButton(
+                    key: const ValueKey(WidgetKeys.micButton),
+                    label: 'quiz.voice_start_microphone'.tr(),
+                    isListening: s.isListening,
+                    answerState: s.answerState,
+                    onTap: () => _startListening(card),
+                  ),
+                  const SizedBox(height: 18),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 12,
+                    runSpacing: 8,
+                    children: [
+                      _EscapePill(
+                        key: const ValueKey(WidgetKeys.voiceReveal),
+                        icon: Icons.visibility_outlined,
+                        label: 'quiz.voice_reveal'.tr(),
+                        onTap: () => unawaited(
+                          _afterTurnStopped(
+                            card,
+                            () =>
+                                ref.read(_quiz.notifier).submitVoiceAnswer(''),
+                          ),
+                        ),
+                      ),
+                      _EscapePill(
+                        key: const ValueKey(WidgetKeys.voiceKeyboard),
+                        icon: Icons.keyboard_outlined,
+                        label: 'quiz.voice_keyboard'.tr(),
+                        onTap: () => unawaited(
+                          _afterTurnStopped(
+                            card,
+                            () =>
+                                setState(() => _voiceKbIndex = s.currentIndex),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Future<void> _afterTurnStopped(
+    QuizCard card,
+    FutureOr<void> Function() action,
+  ) async {
+    if (_turnStale(_listenToken, card)) return;
+    final stopped = _interruptTurn(confirmMic: true);
+    final token = _listenToken;
+    if (_acceptTurnStop(await stopped, () => _turnStale(token, card))) {
+      await action();
+    }
+  }
+}
+
+// ── Voice escape pill ─────────────────────────────────────────────────────────
+
+class _EscapePill extends StatelessWidget {
+  const _EscapePill({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = cs.brightness == Brightness.dark;
+    final fg = isDark ? AppColors.onDarkMuted : AppColors.muted;
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(0, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        foregroundColor: fg,
+        backgroundColor: cs.surfaceContainerHighest.withValues(
+          alpha: isDark ? 0.5 : 0.7,
+        ),
+        shape: const StadiumBorder(),
+        side: BorderSide(color: cs.outline),
+        textStyle: AppTextStyles.fig(13, FontWeight.w600),
+      ),
+      icon: Icon(icon, size: 16),
+      label: Text(label, textAlign: TextAlign.center),
+    );
+  }
+}
+
+/// A real two-sided turn: the answer stays hidden until the card passes its
+/// edge, rather than swapping text in place.
+class _FlashcardSurface extends StatelessWidget {
+  const _FlashcardSurface({
+    super.key,
+    required this.isBack,
+    required this.front,
+    required this.back,
+  });
+
+  final bool isBack;
+  final Widget front;
+  final Widget back;
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+    tween: Tween(end: isBack ? 1 : 0),
+    duration: const Duration(milliseconds: 360),
+    curve: Curves.easeInOutCubic,
+    builder: (context, value, _) {
+      final backFace = value >= 0.5;
+      final transform = Matrix4.identity()
+        ..setEntry(3, 2, 0.001)
+        ..rotateY(value * math.pi);
+      return Transform(
+        alignment: Alignment.center,
+        transform: transform,
+        child: backFace
+            ? Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.rotationY(math.pi),
+                child: back,
+              )
+            : front,
+      );
+    },
+  );
+}
+
+// ── Hands-free oversized control ──────────────────────────────────────────────
+
+/// A short prompt stays centred. The scrollbar appears when a long prompt or
+/// larger system text needs more room, leaving the answer controls in place.
+class _ScrollablePrompt extends StatelessWidget {
+  const _ScrollablePrompt({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => Scrollbar(
+      thumbVisibility: true,
+      child: SingleChildScrollView(
+        key: const ValueKey(WidgetKeys.quizPrompt),
+        primary: true,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(child: child),
+        ),
+      ),
+    ),
+  );
+}
+
+class _ReadingPulse extends StatefulWidget {
+  const _ReadingPulse();
+
+  @override
+  State<_ReadingPulse> createState() => _ReadingPulseState();
+}
+
+class _ReadingPulseState extends State<_ReadingPulse>
+    with SingleTickerProviderStateMixin {
+  late final _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1900),
+  )..repeat(reverse: true);
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _pulse,
+    builder: (_, _) => _ReadingGlow(progress: _pulse.value),
+  );
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+}
+
+class _ReadingGlow extends StatelessWidget {
+  const _ReadingGlow({required this.progress});
+
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      gradient: RadialGradient(
+        radius: 1.1,
+        colors: [
+          AppColors.clay.withValues(alpha: 0.04 + 0.10 * progress),
+          Colors.transparent,
+        ],
+      ),
+    ),
+  );
+}
+
+class _HfButton extends StatelessWidget {
+  const _HfButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final surface = dark ? V3Colors.block : V3Colors.paperPanel;
+    final foreground = dark ? V3Colors.inkLight : V3Colors.ink;
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: foreground,
+        backgroundColor: surface,
+        minimumSize: const Size(0, 104),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        side: BorderSide(color: dark ? V3Colors.ruleDark : V3Colors.edge2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 32),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.fig(15, FontWeight.w700),
           ),
         ],
       ),
     );
   }
+}
+
+/// Keeps keyboard actions anchored when they fit and scrolls the entire body
+/// when the keyboard or text scaling takes away that space.
+class _KeyboardStudyLayout extends StatelessWidget {
+  const _KeyboardStudyLayout({
+    required this.prompt,
+    required this.input,
+    required this.validate,
+  });
+  final Widget prompt;
+  final Widget input;
+  final Widget validate;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final scaledInputText = MediaQuery.textScalerOf(context).scale(22);
+      final stackedControls = [
+        input,
+        const SizedBox(height: 18),
+        SizedBox(width: double.infinity, child: validate),
+      ];
+      if (constraints.maxHeight < 148 + scaledInputText) {
+        return ScrollAffordance(
+          key: const ValueKey(WidgetKeys.quizPrompt),
+          hint: 'v3.scroll_hint'.tr(),
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+          child: Column(
+            children: [
+              prompt,
+              const SizedBox(height: 12),
+              if (constraints.maxWidth >= 420)
+                Row(
+                  children: [
+                    Expanded(flex: 2, child: input),
+                    const SizedBox(width: 12),
+                    Expanded(child: validate),
+                  ],
+                )
+              else
+                ...stackedControls,
+            ],
+          ),
+        );
+      }
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+        child: Column(
+          children: [
+            Expanded(child: _ScrollablePrompt(child: prompt)),
+            ...stackedControls,
+          ],
+        ),
+      );
+    },
+  );
 }
 
 // ── Summary screen ────────────────────────────────────────────────────────────
@@ -1079,100 +2366,117 @@ class _SummaryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pct    = total == 0 ? 0 : (correct / total * 100).round();
+    final pct = total == 0 ? 0 : (correct / total * 100).round();
     final isGreat = pct >= 80;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final foreground = dark ? V3Colors.inkLight : V3Colors.ink;
+    final muted = dark ? V3Colors.inkLight70 : V3Colors.ink60;
+    final surface = dark ? V3Colors.block : V3Colors.paperPanel;
+    final accent = dark ? V3Colors.amber : V3Colors.terraInk;
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    );
+    const padding = EdgeInsets.symmetric(vertical: 12, horizontal: 8);
+    const buttonSize = Size(0, 52);
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
-      body: Stack(
-        children: [
-          const DottedGround(),
-          SafeArea(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Waveform celebration
-                    VkWaveform(
-                      height: 72,
-                      barWidth: 8,
-                      gap: 5,
-                      isAnimating: isGreat,
-                      opacity: isGreat ? 1.0 : 0.4,
+      key: const ValueKey(WidgetKeys.summary),
+      backgroundColor: dark ? V3Colors.app : V3Colors.paper,
+      body: V3Pond(
+        child: SafeArea(
+          child: Center(
+            child: ScrollAffordance(
+              hint: 'v3.scroll_hint'.tr(),
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  VkWaveform(
+                    height: 72,
+                    barWidth: 8,
+                    gap: 5,
+                    isAnimating: isGreat,
+                    opacity: isGreat ? 1.0 : 0.4,
+                  ),
+                  const SizedBox(height: 32),
+                  Text(
+                    'quiz.summary_label'.tr(),
+                    style: V3Text.mono(12, color: muted),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '$pct %',
+                    style: V3Text.title(
+                      64,
+                      color: isGreat ? accent : foreground,
                     ),
-                    const SizedBox(height: 32),
-                    Text('quiz.summary_label'.tr(),
-                        style: AppTextStyles.eyebrow
-                            .copyWith(color: AppColors.muted)),
-                    const SizedBox(height: 12),
-                    // Big accuracy
-                    Text(
-                      '$pct %',
-                      style: AppTextStyles.heroNumber.copyWith(
-                        color: isGreat ? AppColors.clay : AppColors.muted,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'quiz.summary_correct_count'.tr(
+                      namedArgs: {
+                        'correct': correct.toString(),
+                        'total': total.toString(),
+                      },
+                    ),
+                    style: AppTextStyles.fig(
+                      16,
+                      FontWeight.w500,
+                    ).copyWith(color: muted),
+                  ),
+                  const SizedBox(height: 48),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          key: const ValueKey(WidgetKeys.summaryRestart),
+                          onPressed: onRestart,
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: buttonSize,
+                            padding: padding,
+                            shape: shape,
+                            backgroundColor: surface,
+                            foregroundColor: foreground,
+                            side: BorderSide(
+                              color: dark ? V3Colors.ruleDark : V3Colors.edge2,
+                            ),
+                          ),
+                          child: Text(
+                            'quiz.summary_restart'.tr(),
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.fig(14, FontWeight.w600),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'quiz.summary_correct_count'.tr(namedArgs: {'correct': correct.toString(), 'total': total.toString()}),
-                      style: AppTextStyles.fig(16, FontWeight.w500)
-                          .copyWith(color: AppColors.muted),
-                    ),
-                    const SizedBox(height: 48),
-                    // Buttons
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: onRestart,
-                            child: Container(
-                              height: 52,
-                              decoration: BoxDecoration(
-                                color: AppColors.line,
-                                borderRadius:
-                                    BorderRadius.circular(16),
-                              ),
-                              child: Center(
-                                child: Text('quiz.summary_restart'.tr(),
-                                    style: AppTextStyles
-                                        .fig(14, FontWeight.w600)
-                                        .copyWith(
-                                            color: AppColors.muted)),
-                              ),
-                            ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          key: const ValueKey(WidgetKeys.summaryDone),
+                          onPressed: onDone,
+                          style: FilledButton.styleFrom(
+                            minimumSize: buttonSize,
+                            padding: padding,
+                            shape: shape,
+                            backgroundColor: V3Colors.terra,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: Text(
+                            (context.canPop()
+                                    ? 'common.back'
+                                    : 'quiz.summary_home')
+                                .tr(),
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.fig(14, FontWeight.w700),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: onDone,
-                            child: Container(
-                              height: 52,
-                              decoration: BoxDecoration(
-                                color: AppColors.teal,
-                                borderRadius:
-                                    BorderRadius.circular(16),
-                              ),
-                              child: Center(
-                                child: Text('quiz.summary_home'.tr(),
-                                    style: AppTextStyles
-                                        .fig(14, FontWeight.w700)
-                                        .copyWith(
-                                            color: Colors.white)),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

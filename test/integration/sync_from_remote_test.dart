@@ -1,0 +1,757 @@
+// ignore_for_file: invalid_use_of_internal_member
+import 'dart:async';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:drift/drift.dart' show Value;
+import 'package:drift/native.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:vocab_kr/core/config/app_config.dart';
+import 'package:vocab_kr/core/errors/app_exception.dart';
+import 'package:vocab_kr/core/errors/failure.dart';
+import 'package:vocab_kr/data/datasources/local/app_database.dart';
+import 'package:vocab_kr/data/datasources/remote/vocabulary_remote_datasource.dart'
+    show VocabularyNetworkBudget;
+import 'package:vocab_kr/data/models/variant_progress_dto.dart';
+import 'package:vocab_kr/data/repositories/vocabulary_repository_impl.dart';
+import 'package:vocab_kr/data/sync/push_sync.dart';
+import 'package:vocab_kr/domain/entities/app_user.dart';
+import 'package:vocab_kr/presentation/providers/auth/auth_provider.dart';
+import 'package:vocab_kr/presentation/providers/lists/vocabulary_provider.dart';
+import 'package:vocab_kr/presentation/providers/purchases/purchase_provider.dart';
+import 'package:vocab_kr/presentation/widgets/app_shell.dart';
+import '../helpers/fake_remote.dart';
+
+const _kUserId = 'test-user-sync';
+
+Map<String, dynamic> _remoteList(String id, String name) => {
+  'id': id,
+  'owner_id': _kUserId,
+  'name': name,
+  'description': null,
+  'visibility': 'private',
+  'word_count': 1,
+  'share_token': null,
+  'lang_a': 'en',
+  'lang_b': 'es',
+  'is_deleted': false,
+  'created_at': '2026-07-01T10:00:00Z',
+  'updated_at': '2026-07-01T10:00:00Z',
+};
+
+Map<String, dynamic> _remoteConcept(
+  String id,
+  String listId, {
+  String fr = 'bonjour',
+  String ko = '안녕',
+}) => {
+  'id': id,
+  'list_id': listId,
+  'category': null,
+  'notes': null,
+  'image_url': null,
+  'example_fr': null,
+  'example_ko': null,
+  'is_deleted': false,
+  'created_at': '2026-07-01T10:00:00Z',
+  'updated_at': '2026-07-01T10:00:00Z',
+  'word_variants': [
+    {
+      'id': '$id-fr',
+      'concept_id': id,
+      'word': fr,
+      'lang_code': 'fr',
+      'is_primary': true,
+      'position': 0,
+      'is_deleted': false,
+      'created_at': '2026-07-01T10:00:00Z',
+      'updated_at': '2026-07-01T10:00:00Z',
+    },
+    {
+      'id': '$id-ko',
+      'concept_id': id,
+      'word': ko,
+      'lang_code': 'ko',
+      'is_primary': true,
+      'position': 0,
+      'is_deleted': false,
+      'created_at': '2026-07-01T10:00:00Z',
+      'updated_at': '2026-07-01T10:00:00Z',
+    },
+  ],
+};
+
+Map<String, dynamic> _remoteProgress(
+  String variantId, {
+  String direction = 'fr>ko',
+  int reps = 7,
+  double mastery = 0.8,
+}) => {
+  'id': '$_kUserId|$variantId|$direction',
+  'user_id': _kUserId,
+  'variant_id': variantId,
+  'direction': direction,
+  'stability': 12.5,
+  'difficulty': 4.2,
+  'elapsed_days': 3,
+  'scheduled_days': 10,
+  'reps': reps,
+  'lapses': 1,
+  'state': 'review',
+  'last_review': '2026-07-01T10:00:00Z',
+  'next_review': '2026-07-11T10:00:00Z',
+  'times_shown': 20,
+  'times_correct': 17,
+  'mastery_level': mastery,
+  'created_at': '2026-06-01T10:00:00Z',
+  'updated_at': '2026-07-01T10:00:00Z',
+};
+
+/// Remote with canned lists/concepts/progress, as Supabase would return them.
+class _SyncRemote extends FakeRemote {
+  _SyncRemote({
+    this.lists = const [],
+    this.conceptsByList = const {},
+    this.progress = const [],
+  });
+  final List<Map<String, dynamic>> lists;
+  final Map<String, List<Map<String, dynamic>>> conceptsByList;
+  final List<Map<String, dynamic>> progress;
+  int fetchListsCalls = 0;
+  Future<void> Function()? onLists;
+  String? unavailableList;
+
+  @override
+  Future<Result<List<Map<String, dynamic>>>> fetchLists(
+    String ownerId, {
+    VocabularyNetworkBudget? budget,
+  }) async {
+    fetchListsCalls++;
+    await onLists?.call();
+    return Success(lists);
+  }
+
+  @override
+  Future<Result<List<Map<String, dynamic>>>> fetchConcepts(
+    String listId, {
+    required String ownerId,
+    VocabularyNetworkBudget? budget,
+  }) async => listId == unavailableList
+      ? const Failure(NetworkException('unavailable list contents'))
+      : Success(conceptsByList[listId] ?? []);
+
+  @override
+  Future<Result<List<Map<String, dynamic>>>> fetchProgress(
+    String userId, {
+    VocabularyNetworkBudget? budget,
+  }) async => Success(progress);
+}
+
+void main() {
+  late AppDatabase db;
+
+  VocabularyRepositoryImpl repoWith(
+    FakeRemote remote, {
+    String userId = _kUserId,
+  }) => VocabularyRepositoryImpl(
+    db.vocabularyListDao,
+    db.conceptDao,
+    remote,
+    userId,
+    db,
+  );
+
+  setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
+  tearDown(() => db.close());
+
+  group('syncFromRemote', () {
+    test(
+      'a failed contents fetch preserves the derived quota count of an existing list',
+      () async {
+        final rows = [_remoteList('rl1', 'Old name')];
+        final remote = _SyncRemote(
+          lists: rows,
+          conceptsByList: {
+            'rl1': [_remoteConcept('card', 'rl1')],
+          },
+        );
+        final repo = repoWith(remote);
+        await repo.syncFromRemote();
+
+        rows[0] = {
+          ...rows.single,
+          'name': 'New name',
+          'word_count': AppConfig.maxFreeWordsPerList,
+        };
+        remote.unavailableList = 'rl1';
+        await expectLater(
+          repo.syncFromRemote(),
+          throwsA(isA<NetworkException>()),
+        );
+
+        final local = (await db.vocabularyListDao.getById('rl1'))!;
+        expect(local.name, 'New name');
+        expect(local.wordCount, 1);
+        expect(local.isSynced, isTrue);
+      },
+    );
+    test(
+      'partial retrieval keeps received data and reports a retryable failure',
+      () async {
+        final remote = _SyncRemote(
+          lists: [
+            _remoteList('received', 'Received'),
+            _remoteList('missing', 'Missing'),
+          ],
+          conceptsByList: {
+            'received': [_remoteConcept('card1', 'received')],
+            'missing': [_remoteConcept('card2', 'missing')],
+          },
+        )..unavailableList = 'missing';
+        final repo = repoWith(remote);
+
+        await expectLater(
+          repo.syncFromRemote(),
+          throwsA(isA<NetworkException>()),
+        );
+        expect(await db.conceptDao.getById('card1'), isNotNull);
+        expect(await db.conceptDao.getById('card2'), isNull);
+        expect((await db.vocabularyListDao.getById('missing'))!.wordCount, 1);
+
+        remote.unavailableList = null;
+        await repo.syncFromRemote();
+        expect(await db.conceptDao.getById('card2'), isNotNull);
+      },
+    );
+
+    test(
+      'a concept tombstone frees quota without overwriting a pending list rename',
+      () async {
+        final concepts = List.generate(
+          AppConfig.maxFreeWordsPerList,
+          (i) => _remoteConcept('card$i', 'rl1'),
+        );
+        final remote = _SyncRemote(
+          lists: [_remoteList('rl1', 'Remote title')],
+          conceptsByList: {'rl1': concepts},
+        );
+        final repo = repoWith(remote);
+        await repo.syncFromRemote();
+        final container = ProviderContainer(
+          overrides: [
+            vocabularyRepositoryProvider.overrideWithValue(repo),
+            isPremiumProvider.overrideWithValue(false),
+          ],
+        );
+        addTearDown(container.dispose);
+        final actions = container.read(listActionsProvider.notifier);
+        Future<Result<dynamic>> addWord() =>
+            actions.addConcept(listId: 'rl1', wordA: 'new', wordB: 'nuevo');
+        expect(
+          (await addWord()).exceptionOrNull,
+          isA<QuotaExceededException>(),
+        );
+
+        await repo.renameList('rl1', 'Local title');
+        final before = (await db.vocabularyListDao.getById('rl1'))!;
+        concepts[0] = {...concepts.first, 'is_deleted': true};
+        await repo.syncFromRemote();
+
+        final refreshed = (await db.vocabularyListDao.getById('rl1'))!;
+        expect(refreshed.name, 'Local title');
+        expect(refreshed.isSynced, isFalse);
+        expect(refreshed.updatedAt, before.updatedAt);
+        expect(refreshed.wordCount, AppConfig.maxFreeWordsPerList - 1);
+        expect((await addWord()).isSuccess, isTrue);
+      },
+    );
+    test(
+      'pulls remote lists, concepts and variants into the local DB',
+      () async {
+        final repo = repoWith(
+          _SyncRemote(
+            lists: [_remoteList('rl1', 'Remote List')],
+            conceptsByList: {
+              'rl1': [_remoteConcept('rc1', 'rl1')],
+            },
+          ),
+        );
+
+        await repo.syncFromRemote();
+
+        final list = await db.vocabularyListDao.getById('rl1');
+        expect(list, isNotNull);
+        expect(list!.name, 'Remote List');
+        expect(list.langA, 'en'); // the pair round-trips through sync
+        expect(list.langB, 'es');
+        // Recount is derived data, not a fresh outbound mutation.
+        expect(list.wordCount, 1);
+        expect(list.isSynced, isTrue);
+        final concepts = await db.conceptDao.getConceptsByList('rl1');
+        expect(concepts.length, 1);
+        final variants = await db.conceptDao.getVariantsByConcept('rc1');
+        expect(variants.map((v) => v.word), containsAll(['bonjour', '안녕']));
+        expect(variants.every((v) => v.isSynced), isTrue);
+      },
+    );
+
+    test('does not clobber a local-only (unsynced) list', () async {
+      final repo = repoWith(
+        _SyncRemote(lists: [_remoteList('rl1', 'Remote List')]),
+      );
+      final local = (await repo.createList(name: 'Local Only')).valueOrNull!;
+
+      await repo.syncFromRemote();
+
+      final still = await db.vocabularyListDao.getById(local.id);
+      expect(still, isNotNull);
+      expect(still!.name, 'Local Only');
+      expect(await db.vocabularyListDao.getById('rl1'), isNotNull);
+    });
+
+    test('server-side deletions propagate: a remotely deleted list is '
+        'tombstoned locally and disappears from the watch', () async {
+      // First sync: the list exists.
+      final live = _remoteList('rl1', 'Remote List');
+      final remote = _SyncRemote(lists: [live]);
+      final repo = repoWith(remote);
+      await repo.syncFromRemote();
+      expect(
+        (await repo.watchMyLists().first).map((l) => l.id),
+        contains('rl1'),
+      );
+
+      // Second sync: the server says it's deleted.
+      remote.lists.clear();
+      remote.lists.add({...live, 'is_deleted': true});
+      await repo.syncFromRemote();
+
+      expect(
+        (await repo.watchMyLists().first).map((l) => l.id),
+        isNot(contains('rl1')),
+      );
+    });
+
+    test('re-running is idempotent (upserts, no duplicates)', () async {
+      final remote = _SyncRemote(
+        lists: [_remoteList('rl1', 'Remote List')],
+        conceptsByList: {
+          'rl1': [_remoteConcept('rc1', 'rl1')],
+        },
+      );
+      final repo = repoWith(remote);
+
+      await repo.syncFromRemote();
+      await repo.syncFromRemote();
+
+      final concepts = await db.conceptDao.getConceptsByList('rl1');
+      expect(concepts.length, 1);
+      final variants = await db.conceptDao.getVariantsByConcept('rc1');
+      expect(variants.length, 2);
+    });
+
+    test(
+      'remote list deletion removes children and cannot restore stale progress',
+      () async {
+        final live = _remoteList('rl1', 'Remote');
+        final remote = _SyncRemote(
+          lists: [live],
+          conceptsByList: {
+            'rl1': [_remoteConcept('rc1', 'rl1')],
+          },
+          progress: [_remoteProgress('rc1-fr')],
+        );
+        final repo = repoWith(remote);
+        await repo.syncFromRemote();
+        expect(
+          await db.progressDao.getById('$_kUserId|rc1-fr|fr>ko'),
+          isNotNull,
+        );
+        remote.lists[0] = {...live, 'is_deleted': true};
+        await repo.syncFromRemote();
+        expect((await db.conceptDao.getById('rc1'))!.isDeleted, isTrue);
+        expect(
+          (await db.conceptDao.getVariantById('rc1-fr'))!.isDeleted,
+          isTrue,
+        );
+        expect(await db.progressDao.getById('$_kUserId|rc1-fr|fr>ko'), isNull);
+        expect(await db.progressDao.watchDueCount(_kUserId).first, 0);
+      },
+    );
+
+    test(
+      'pending content edits survive pull while other children are restored',
+      () async {
+        final remote = _SyncRemote(
+          lists: [_remoteList('rl1', 'Remote')],
+          conceptsByList: {
+            'rl1': [_remoteConcept('rc1', 'rl1')],
+          },
+        );
+        final repo = repoWith(remote);
+        await repo.syncFromRemote();
+        await (db.update(
+          db.vocabularyListsTable,
+        )..where((t) => t.id.equals('rl1'))).write(
+          const VocabularyListsTableCompanion(
+            name: Value('Local'),
+            isSynced: Value(false),
+          ),
+        );
+        await (db.update(
+          db.wordVariantsTable,
+        )..where((t) => t.id.equals('rc1-fr'))).write(
+          const WordVariantsTableCompanion(
+            word: Value('salut'),
+            isSynced: Value(false),
+          ),
+        );
+        remote.conceptsByList['rl1']!.add(_remoteConcept('rc2', 'rl1'));
+        await repo.syncFromRemote();
+        expect((await db.vocabularyListDao.getById('rl1'))!.name, 'Local');
+        expect((await db.conceptDao.getVariantById('rc1-fr'))!.word, 'salut');
+        expect(await db.conceptDao.getById('rc2'), isNotNull);
+      },
+    );
+
+    for (final acknowledge in [false, true]) {
+      test(
+        'a delayed pull preserves edits ${acknowledge ? 'already pushed' : 'still pending'}',
+        () async {
+          final remoteProgress = _remoteProgress('rc1-fr');
+          final remote = _SyncRemote(
+            lists: [_remoteList('rl1', 'Old')],
+            conceptsByList: {
+              'rl1': [_remoteConcept('rc1', 'rl1')],
+            },
+            progress: [remoteProgress],
+          );
+          final repo = repoWith(remote);
+          await repo.syncFromRemote();
+          final requested = Completer<void>();
+          final reply = Completer<void>();
+          remote.onLists = () {
+            requested.complete();
+            return reply.future;
+          };
+          remote.conceptsByList['rl1']!.add(_remoteConcept('fresh', 'rl1'));
+          final pull = repo.syncFromRemote();
+          try {
+            await requested.future;
+            // Keep existing timestamps to exercise edits made within the same
+            // SQLite second across metadata, content and progress.
+            await (db.update(
+              db.vocabularyListsTable,
+            )..where((t) => t.id.equals('rl1'))).write(
+              const VocabularyListsTableCompanion(
+                name: Value('Edited'),
+                isSynced: Value(false),
+              ),
+            );
+            await (db.update(
+              db.conceptsTable,
+            )..where((t) => t.id.equals('rc1'))).write(
+              const ConceptsTableCompanion(
+                notes: Value('New note'),
+                isSynced: Value(false),
+              ),
+            );
+            await (db.update(
+              db.wordVariantsTable,
+            )..where((t) => t.id.equals('rc1-fr'))).write(
+              const WordVariantsTableCompanion(
+                word: Value('salut'),
+                isSynced: Value(false),
+              ),
+            );
+            await db.progressDao.upsert(
+              variantProgressCompanionFromRemote(
+                remoteProgress,
+              ).copyWith(reps: const Value(12), isSynced: const Value(false)),
+            );
+            if (acknowledge) {
+              final push = PushSync(
+                db.vocabularyListDao,
+                db.conceptDao,
+                db.progressDao,
+                db.reviewEventDao,
+                remote,
+                userId: _kUserId,
+              );
+              expect(await push.pushAll(), 4);
+            }
+          } finally {
+            reply.complete();
+            await pull;
+          }
+
+          final list = (await db.vocabularyListDao.getById('rl1'))!;
+          final concept = (await db.conceptDao.getById('rc1'))!;
+          final variant = (await db.conceptDao.getVariantById('rc1-fr'))!;
+          final progress = (await db.progressDao.getById(
+            remoteProgress['id'] as String,
+          ))!;
+          expect(list.name, 'Edited');
+          expect(concept.notes, 'New note');
+          expect(variant.word, 'salut');
+          expect(progress.reps, 12);
+          expect([
+            list.isSynced,
+            concept.isSynced,
+            variant.isSynced,
+            progress.isSynced,
+          ], everyElement(acknowledge));
+          expect(await db.conceptDao.getById('fresh'), isNotNull);
+        },
+      );
+    }
+
+    test(
+      'a delayed list tombstone does not discard a review made during the pull',
+      () async {
+        final list = _remoteList('rl1', 'Live');
+        final remoteProgress = _remoteProgress('rc1-fr');
+        final remote = _SyncRemote(
+          lists: [list],
+          conceptsByList: {
+            'rl1': [_remoteConcept('rc1', 'rl1')],
+          },
+          progress: [remoteProgress],
+        );
+        final repo = repoWith(remote);
+        final network = StreamController<List<ConnectivityResult>>.broadcast();
+        final container = ProviderContainer(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(db),
+            vocabularyRepositoryProvider.overrideWithValue(repo),
+            vocabularyRemoteProvider.overrideWithValue(remote),
+            connectivityStreamProvider.overrideWith((ref) => network.stream),
+            currentUserProvider.overrideWithValue(
+              AppUser(
+                id: _kUserId,
+                email: 'u@test',
+                username: 'u',
+                createdAt: DateTime(2026),
+              ),
+            ),
+          ],
+        );
+        addTearDown(network.close);
+        addTearDown(container.dispose);
+        await container.read(syncOnLoginProvider.future);
+        remote.lists[0] = {...list, 'is_deleted': true};
+        final requested = Completer<void>();
+        final reply = Completer<void>();
+        remote.onLists = () {
+          requested.complete();
+          return reply.future;
+        };
+        container.invalidate(syncOnLoginProvider);
+        final pull = expectLater(
+          container.read(syncOnLoginProvider.future),
+          throwsA(isA<StorageException>()),
+        );
+        try {
+          await requested.future;
+          await db.progressDao.upsert(
+            variantProgressCompanionFromRemote(
+              remoteProgress,
+            ).copyWith(reps: const Value(12), isSynced: const Value(false)),
+          );
+        } finally {
+          reply.complete();
+          await pull;
+        }
+
+        expect((await db.vocabularyListDao.getById('rl1'))!.isDeleted, isFalse);
+        expect(
+          (await db.progressDao.getById(remoteProgress['id'] as String))!.reps,
+          12,
+        );
+        remote.onLists = null;
+        final deletion = db.vocabularyListDao
+            .watchById('rl1')
+            .firstWhere((row) => row?.isDeleted == true);
+        container.read(pushOnReconnectProvider);
+        network.add([ConnectivityResult.none]);
+        await container.read(connectivityStreamProvider.future);
+        network.add([ConnectivityResult.wifi]);
+        await deletion.timeout(const Duration(seconds: 2));
+        expect((await db.vocabularyListDao.getById('rl1'))!.isDeleted, isTrue);
+        expect(
+          await db.progressDao.getById(remoteProgress['id'] as String),
+          isNull,
+        );
+      },
+    );
+
+    test('empty userId skips the remote entirely', () async {
+      final remote = _SyncRemote(lists: [_remoteList('rl1', 'X')]);
+      final repo = repoWith(remote, userId: '');
+
+      await repo.syncFromRemote();
+
+      expect(remote.fetchListsCalls, 0);
+      expect(await db.vocabularyListDao.getById('rl1'), isNull);
+    });
+  });
+
+  group('syncFromRemote — progress restore (fresh install / new device)', () {
+    _SyncRemote remoteWithProgress(List<Map<String, dynamic>> progress) =>
+        _SyncRemote(
+          lists: [_remoteList('rl1', 'Remote List')],
+          conceptsByList: {
+            'rl1': [_remoteConcept('rc1', 'rl1')],
+          },
+          progress: progress,
+        );
+
+    test(
+      'pulls remote progress rows into the local DB, marked synced',
+      () async {
+        final repo = repoWith(
+          remoteWithProgress([
+            _remoteProgress('rc1-ko'),
+            _remoteProgress(
+              'rc1-fr',
+              direction: 'ko>fr',
+              reps: 2,
+              mastery: 0.3,
+            ),
+          ]),
+        );
+
+        await repo.syncFromRemote();
+
+        final restored = await db.progressDao.getById('$_kUserId|rc1-ko|fr>ko');
+        expect(restored, isNotNull);
+        expect(restored!.reps, 7);
+        expect(restored.masteryLevel, 0.8);
+        expect(restored.state, 'review');
+        expect(restored.direction, 'fr>ko');
+        // Drift returns local-time DateTimes; compare instants, not zones.
+        expect(
+          restored.nextReview!.isAtSameMomentAs(
+            DateTime.parse('2026-07-11T10:00:00Z'),
+          ),
+          isTrue,
+        );
+        expect(restored.isSynced, isTrue); // restored rows must not re-push
+
+        expect(
+          await db.progressDao.getById('$_kUserId|rc1-fr|ko>fr'),
+          isNotNull,
+        );
+      },
+    );
+
+    test('legacy direction spellings are normalized on the way in', () async {
+      final repo = repoWith(
+        remoteWithProgress([_remoteProgress('rc1-ko', direction: 'frToKo')]),
+      );
+
+      await repo.syncFromRemote();
+
+      // The row keeps its remote id but stores the canonical direction form.
+      final restored = await db.progressDao.getById('$_kUserId|rc1-ko|frToKo');
+      expect(restored, isNotNull);
+      expect(restored!.direction, 'fr>ko');
+    });
+
+    test('a pending local write (isSynced=false) is never clobbered', () async {
+      final repo = repoWith(remoteWithProgress([_remoteProgress('rc1-ko')]));
+      final remoteRow = _remoteProgress('rc1-ko');
+      // Simulate offline reviews: same row id, more reps, not yet pushed.
+      await db.progressDao.upsert(
+        variantProgressCompanionFromRemote(
+          remoteRow,
+        ).copyWith(reps: const Value(9), isSynced: const Value(false)),
+      );
+
+      await repo.syncFromRemote();
+
+      final kept = await db.progressDao.getById(remoteRow['id'] as String);
+      expect(kept!.reps, 9); // local pending write wins
+      expect(kept.isSynced, isFalse); // still queued for the next push
+    });
+
+    test('a malformed row is skipped without aborting the rest', () async {
+      final bad = _remoteProgress('rc1-fr')..['state'] = 'not-a-state';
+      final repo = repoWith(
+        remoteWithProgress([bad, _remoteProgress('rc1-ko')]),
+      );
+
+      await repo.syncFromRemote();
+
+      expect(await db.progressDao.getById(bad['id'] as String), isNull);
+      expect(await db.progressDao.getById('$_kUserId|rc1-ko|fr>ko'), isNotNull);
+    });
+
+    test(
+      'unchanged restored progress performs no writes, while a legacy ID converges',
+      () async {
+        final old = _remoteProgress('rc1-ko')
+          ..['updated_at'] = '2026-07-01T19:00:00.750+09:00';
+        final remote = remoteWithProgress([old]);
+        final repo = repoWith(remote);
+        await repo.syncFromRemote();
+        await db.customStatement(
+          'CREATE TABLE progress_write_audit (operation TEXT NOT NULL)',
+        );
+        for (final operation in ['insert', 'delete', 'update']) {
+          await db.customStatement(
+            'CREATE TRIGGER audit_progress_$operation AFTER $operation ON variant_progress '
+            "BEGIN INSERT INTO progress_write_audit VALUES ('$operation'); END",
+          );
+        }
+
+        await repo.syncFromRemote();
+        expect(
+          await db
+              .customSelect('SELECT operation FROM progress_write_audit')
+              .get(),
+          isEmpty,
+        );
+
+        remote.progress[0] = {...old, 'id': 'remote-legacy-id', 'reps': 13};
+        await repo.syncFromRemote();
+        final row = await db.progressDao.getByVariantAndDirection(
+          'rc1-ko',
+          'fr>ko',
+          userId: _kUserId,
+        );
+        expect(row!.id, 'remote-legacy-id');
+        expect(row.reps, 13);
+        expect(
+          (await db
+                  .customSelect('SELECT operation FROM progress_write_audit')
+                  .get())
+              .single
+              .read<String>('operation'),
+          'update',
+        );
+      },
+    );
+  });
+
+  group('getListByShareToken', () {
+    test('finds the list once a share link was generated', () async {
+      final repo = repoWith(FakeRemote());
+      final list = (await repo.createList(name: 'Shared')).valueOrNull!;
+      final link = (await repo.generateShareLink(list.id)).valueOrNull!;
+      final token = Uri.parse(link).queryParameters['token']!;
+
+      final found = await repo.getListByShareToken(token);
+
+      expect(found.isSuccess, isTrue);
+      expect(found.valueOrNull?.id, list.id);
+    });
+
+    test('unknown token → Success(null), not an error', () async {
+      final repo = repoWith(FakeRemote());
+      final found = await repo.getListByShareToken('nope');
+      expect(found.isSuccess, isTrue);
+      expect(found.valueOrNull, isNull);
+    });
+  });
+}

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../providers/notifications/notification_provider.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
@@ -16,6 +17,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
     final notifier = ref.read(notificationSettingsProvider.notifier);
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenNotifications),
       // Background from AppTheme.scaffoldBackgroundColor.
       appBar: AppBar(
         // AppBarTheme provides title style and icon colors.
@@ -43,8 +45,10 @@ class NotificationSettingsScreen extends ConsumerWidget {
                   label: 'notifications.reminder_time_label'.tr(),
                   trailing: Text(
                     settings.reminderTimeLabel,
-                    style: AppTextStyles.fig(14, FontWeight.w600)
-                        .copyWith(color: AppColors.teal),
+                    style: AppTextStyles.fig(
+                      14,
+                      FontWeight.w600,
+                    ).copyWith(color: AppColors.teal),
                   ),
                   onTap: () => _pickTime(context, ref, settings),
                 ),
@@ -70,12 +74,16 @@ class NotificationSettingsScreen extends ConsumerWidget {
                   final svc = ref.read(notificationServiceProvider);
                   final granted = await svc.requestPermissions();
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(granted
-                          ? 'notifications.permission_granted'.tr()
-                          : 'notifications.permission_denied'.tr()),
-                      behavior: SnackBarBehavior.floating,
-                    ));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          granted
+                              ? 'notifications.permission_granted'.tr()
+                              : 'notifications.permission_denied'.tr(),
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
                   }
                 },
               ),
@@ -89,12 +97,15 @@ class NotificationSettingsScreen extends ConsumerWidget {
                   await svc.scheduleDailyReminder(
                     hour: DateTime.now().hour,
                     minute: (DateTime.now().minute + 1) % 60,
+                    locale: EasyLocalization.of(context)?.locale,
                   );
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text('notifications.test_scheduled'.tr()),
-                      behavior: SnackBarBehavior.floating,
-                    ));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('notifications.test_scheduled'.tr()),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
                   }
                 },
               ),
@@ -105,16 +116,23 @@ class NotificationSettingsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _pickTime(BuildContext context, WidgetRef ref,
-      StudyNotifSettings settings) async {
+  Future<void> _pickTime(
+    BuildContext context,
+    WidgetRef ref,
+    StudyNotifSettings settings,
+  ) async {
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(
-          hour: settings.reminderHour, minute: settings.reminderMinute),
+        hour: settings.reminderHour,
+        minute: settings.reminderMinute,
+      ),
       helpText: 'notifications.time_picker_help'.tr(),
     );
     if (picked == null) return;
-    ref.read(notificationSettingsProvider.notifier).setDailyReminder(
+    ref
+        .read(notificationSettingsProvider.notifier)
+        .setDailyReminder(
           enabled: true,
           hour: picked.hour,
           minute: picked.minute,
@@ -134,8 +152,7 @@ class _Eyebrow extends StatelessWidget {
     final muted = isDark ? AppColors.onDarkMuted : AppColors.muted;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Text(label,
-          style: AppTextStyles.eyebrow.copyWith(color: muted)),
+      child: Text(label, style: AppTextStyles.eyebrow.copyWith(color: muted)),
     );
   }
 }
@@ -178,21 +195,25 @@ class _SwitchTile extends StatelessWidget {
               color: iconBg,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon,
-                color: value ? AppColors.teal : faint, size: 18),
+            child: Icon(icon, color: value ? AppColors.teal : faint, size: 18),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: AppTextStyles.fig(15, FontWeight.w500)
-                        .copyWith(color: cs.onSurface)),
+                Text(
+                  label,
+                  style: AppTextStyles.fig(
+                    15,
+                    FontWeight.w500,
+                  ).copyWith(color: cs.onSurface),
+                ),
                 if (subtitle != null)
-                  Text(subtitle!,
-                      style: AppTextStyles.caption
-                          .copyWith(color: muted)),
+                  Text(
+                    subtitle!,
+                    style: AppTextStyles.caption.copyWith(color: muted),
+                  ),
               ],
             ),
           ),
@@ -201,8 +222,7 @@ class _SwitchTile extends StatelessWidget {
             onChanged: onChanged,
             activeTrackColor: AppColors.teal,
             thumbColor: const WidgetStatePropertyAll(Colors.white),
-            trackOutlineColor:
-                const WidgetStatePropertyAll(Colors.transparent),
+            trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
           ),
         ],
       ),
@@ -254,20 +274,24 @@ class _NavTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style: AppTextStyles.fig(15, FontWeight.w500)
-                          .copyWith(color: cs.onSurface)),
+                  Text(
+                    label,
+                    style: AppTextStyles.fig(
+                      15,
+                      FontWeight.w500,
+                    ).copyWith(color: cs.onSurface),
+                  ),
                   if (subtitle != null)
-                    Text(subtitle!,
-                        style: AppTextStyles.caption
-                            .copyWith(color: muted)),
+                    Text(
+                      subtitle!,
+                      style: AppTextStyles.caption.copyWith(color: muted),
+                    ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
             trailing ??
-                Icon(Icons.chevron_right_rounded,
-                    color: faint, size: 20),
+                Icon(Icons.chevron_right_rounded, color: faint, size: 20),
           ],
         ),
       ),

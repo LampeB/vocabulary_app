@@ -26,6 +26,8 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Flutter creates profile before the application's build-type DSL.
+        manifestPlaceholders["appLabel"] = "Ponderin"
         testInstrumentationRunner = "pl.leancode.patrol.PatrolJUnitRunner"
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
     }
@@ -35,10 +37,26 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Side-by-side install with the release build (field-testing
+            // workflow 2026-07-19): distinct id + label so a bug seen on the
+            // release app can be reproduced on the debug app for its logs,
+            // without uninstalling either. Note: separate app = separate
+            // local data (fresh login); patrol.toml carries the .debug id.
+            applicationIdSuffix = ".debug"
+            manifestPlaceholders["appLabel"] = "Ponderin Dev"
+        }
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // R8 keep rules for JNA/Vosk + gson reflection (see the .pro file):
+            // without them the shrinker renames fields those libs resolve by
+            // name at runtime, crashing hands-free start (2026-07-08).
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

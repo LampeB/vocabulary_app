@@ -5,9 +5,11 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <!-- Microphone for voice quiz and hands-free mode -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- First-use download of the on-device Whisper model for hybrid STT. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
-        android:label="VocabKR"
+        android:label="${appLabel}"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -23,6 +25,11 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- app_links owns custom-link delivery; the embedding must not
+                 also replace GoRouter with the unparsed platform URI. -->
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="false" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -59,6 +66,14 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Package visibility for the phone's speech recognizer, which the
+             PCM bridge (PcmSpeechRecognizer) binds to on Android 11+. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE"/>
         </intent>
     </queries>
 </manifest>

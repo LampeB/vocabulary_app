@@ -1,0 +1,424 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+import 'package:vocab_kr/core/utils/stt_debug_log.dart';
+import 'package:vocab_kr/services/speech/stt_corpus_recorder.dart';
+
+class _FakeRecorder implements CorpusAudioRecorder {
+  bool permission = true;
+  bool writeCapture = true;
+  String? returnedPath;
+  String? startedPath;
+  var permissionCalls = 0;
+  var stopCalls = 0;
+  var disposeCalls = 0;
+
+  @override
+  Future<bool> hasPermission() async {
+    permissionCalls++;
+    return permission;
+  }
+
+  @override
+  Future<void> start(config, {required String path}) async {
+    startedPath = path;
+  }
+
+  @override
+  Future<String?> stop() async {
+    stopCalls++;
+    final path = returnedPath ?? startedPath;
+    if (writeCapture && path != null) {
+      await File(path).writeAsBytes(const [1, 2, 3]);
+    }
+    return path;
+  }
+
+  @override
+  void dispose() => disposeCalls++;
+}
+
+void main() {
+  const optedIn = bool.fromEnvironment('STT_DIAGNOSTICS');
+  const recordedAt = '2026-09-13T12:00:00.000Z';
+
+  SttCorpusSample sample() => SttCorpusSample(
+    id: 'sample_fr',
+    word: 'bonjour',
+    langCode: 'fr',
+    path: '/tmp/sample.wav',
+    recordedAt: DateTime.parse(recordedAt),
+  );
+
+  test('keeps an OpenAI result when a Whisper result is saved afterwards', () {
+    final withOpenAi = sample().withOpenAiResult(
+      transcript: 'Bonjour.',
+      durationMs: 800,
+    );
+    final withElevenLabs = withOpenAi.withElevenLabsResult(
+      transcript: 'bonjour',
+      durationMs: 600,
+    );
+    final updated = withElevenLabs.withWhisperResult(
+      transcript: 'bonjour',
+      durationMs: 2300,
+    );
+
+    expect(updated.openAiTranscript, 'Bonjour.');
+    expect(updated.openAiDurationMs, 800);
+    expect(updated.elevenLabsTranscript, 'bonjour');
+    expect(updated.elevenLabsDurationMs, 600);
+    expect(updated.whisperTranscript, 'bonjour');
+    expect(updated.whisperDurationMs, 2300);
+  });
+
+  Future<Directory> tempDirectory() =>
+      Directory.systemTemp.createTemp('stt-corpus-test-');
+
+  for (final existing in [false, true]) {
+    testWidgets(
+      'iOS corpus starts only after backup exclusion (existing: $existing)',
+      (tester) async {
+        await tester.runAsync(() async {
+          final parent = await tempDirectory();
+          addTearDown(() => parent.delete(recursive: true));
+          final corpus = Directory(p.join(parent.path, 'stt_corpus'));
+          if (existing) await corpus.create();
+          const channel = MethodChannel('vocab_kr/stt_diagnostics_storage');
+          final messenger = tester.binding.defaultBinaryMessenger;
+          final attempted = Completer<void>();
+          final confirmed = Completer<void>();
+          var requests = 0;
+          messenger.setMockMethodCallHandler(channel, (call) async {
+            expect(call.method, 'prepare');
+            expect(call.arguments, 'stt_corpus');
+            if (++requests == 1) {
+              expect(await corpus.exists(), existing);
+              attempted.complete();
+              await confirmed.future;
+              if (!existing) await corpus.create();
+            }
+            return corpus.path;
+          });
+          addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+          final native = _FakeRecorder();
+          final recorder = SttCorpusRecorder(
+            recorder: native,
+            documentsDirectory: () async => parent,
+          );
+          final started = recorder.start(word: 'bonjour', langCode: 'fr');
+          await attempted.future;
+          expect(native.startedPath, isNull);
+          confirmed.complete();
+          expect(await started, isTrue);
+          expect(p.dirname(native.startedPath!), corpus.path);
+          expect(await recorder.stop(), isNotNull);
+          expect(requests, 2, reason: 'manifest write also verifies exclusion');
+          expect(
+            await File(p.join(corpus.path, 'manifest.json')).exists(),
+            isTrue,
+          );
+          recorder.dispose();
+        });
+      },
+      skip: !optedIn,
+      variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+    );
+  }
+
+  testWidgets(
+    'iOS log creates no new file while existing folder awaits confirmation',
+    (tester) async {
+      await tester.runAsync(() async {
+        final parent = await tempDirectory();
+        addTearDown(() => parent.delete(recursive: true));
+        final logs = await Directory(p.join(parent.path, 'stt_logs')).create();
+        await File(p.join(logs.path, 'stt_old.log')).writeAsString('old');
+        const channel = MethodChannel('vocab_kr/stt_diagnostics_storage');
+        final messenger = tester.binding.defaultBinaryMessenger;
+        final attempted = Completer<void>();
+        final confirmed = Completer<String>();
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          expect(call.method, 'prepare');
+          expect(call.arguments, 'stt_logs');
+          attempted.complete();
+          return confirmed.future;
+        });
+        addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+        final opening = SttDebugLog.openFile(parent);
+        await attempted.future;
+        expect(await logs.list().length, 1);
+        confirmed.complete(logs.path);
+        final sink = (await opening)!;
+        sink.writeln('diagnostic');
+        await sink.close();
+        expect(await logs.list().length, 2);
+      });
+    },
+    skip: !optedIn,
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+  );
+
+  testWidgets(
+    'iOS leaves diagnostic files untouched when exclusion cannot be confirmed',
+    (tester) async {
+      await tester.runAsync(() async {
+        final parent = await tempDirectory();
+        addTearDown(() => parent.delete(recursive: true));
+        final corpus = await Directory(
+          p.join(parent.path, 'stt_corpus'),
+        ).create();
+        final manifest = File(p.join(corpus.path, 'manifest.json'));
+        final original = jsonEncode([sample().toJson()]);
+        await manifest.writeAsString(original);
+        const channel = MethodChannel('vocab_kr/stt_diagnostics_storage');
+        final messenger = tester.binding.defaultBinaryMessenger;
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          if (call.arguments == 'stt_logs') return null;
+          throw PlatformException(code: 'stt_backup_exclusion');
+        });
+        addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+        final native = _FakeRecorder();
+        final recorder = SttCorpusRecorder(
+          recorder: native,
+          documentsDirectory: () async => parent,
+        );
+        expect(await recorder.start(word: 'bonjour', langCode: 'fr'), isFalse);
+        expect(native.startedPath, isNull);
+        await recorder.saveWhisperResult(
+          sampleId: 'sample_fr',
+          transcript: 'do not write',
+          durationMs: 1,
+        );
+        expect(await manifest.readAsString(), original);
+        expect(await SttDebugLog.openFile(parent), isNull);
+        expect(
+          await Directory(p.join(parent.path, 'stt_logs')).exists(),
+          isFalse,
+        );
+        recorder.dispose();
+      });
+    },
+    skip: !optedIn,
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+  );
+
+  test(
+    'without opt-in the recorder touches neither microphone nor files',
+    () async {
+      final native = _FakeRecorder();
+      final recorder = SttCorpusRecorder(
+        recorder: native,
+        documentsDirectory: () => throw StateError('Corpus accessed disk'),
+      );
+      expect(await recorder.start(word: 'bonjour', langCode: 'fr'), isFalse);
+      expect(await recorder.stop(), isNull);
+      expect(await recorder.samples(), isEmpty);
+      await recorder.saveWhisperResult(
+        sampleId: 'sample',
+        transcript: 'bonjour',
+        durationMs: 900,
+      );
+      await recorder.saveOpenAiResult(
+        sampleId: 'sample',
+        transcript: 'bonjour',
+        durationMs: 800,
+      );
+      await recorder.saveElevenLabsResult(
+        sampleId: 'sample',
+        transcript: 'bonjour',
+        durationMs: 700,
+      );
+      recorder.dispose();
+      expect(native.permissionCalls, 0);
+      expect(native.startedPath, isNull);
+      expect(native.stopCalls, 0);
+      expect(native.disposeCalls, 0);
+    },
+    skip: optedIn,
+  );
+
+  test('captures a labelled WAV then persists all benchmark results', () async {
+    final directory = await tempDirectory();
+    addTearDown(() => directory.delete(recursive: true));
+    final native = _FakeRecorder();
+    final capturedAt = DateTime.utc(2026, 9, 16, 12);
+    final recorder = SttCorpusRecorder(
+      recorder: native,
+      documentsDirectory: () async => directory,
+      clock: () => capturedAt,
+    );
+
+    expect(
+      await recorder.start(
+        word: '  안녕하세요  ',
+        langCode: 'ko',
+        listId: 'food',
+        conceptId: 'hello',
+      ),
+      isTrue,
+    );
+    expect(recorder.isRecording, isTrue);
+    expect(native.startedPath, endsWith('_ko.wav'));
+
+    final saved = await recorder.stop();
+    expect(saved, isNotNull);
+    expect(saved!.word, '안녕하세요');
+    expect(saved.listId, 'food');
+    expect(saved.conceptId, 'hello');
+    expect(recorder.isRecording, isFalse);
+
+    await recorder.saveWhisperResult(
+      sampleId: saved.id,
+      transcript: '안녕하세요',
+      durationMs: 2100,
+    );
+    await recorder.saveOpenAiResult(
+      sampleId: saved.id,
+      transcript: '안녕하세요',
+      durationMs: 700,
+    );
+    await recorder.saveElevenLabsResult(
+      sampleId: saved.id,
+      transcript: '안녕하세요',
+      durationMs: 280,
+    );
+
+    final loaded = await recorder.samples();
+    expect(loaded, hasLength(1));
+    expect(loaded.single.whisperDurationMs, 2100);
+    expect(loaded.single.openAiDurationMs, 700);
+    expect(loaded.single.elevenLabsDurationMs, 280);
+    expect(loaded.single.elevenLabsTranscript, '안녕하세요');
+  }, skip: !optedIn);
+
+  test('session labels survive saving and every benchmark update', () async {
+    final directory = await tempDirectory();
+    addTearDown(() => directory.delete(recursive: true));
+    final recorder = SttCorpusRecorder(
+      recorder: _FakeRecorder(),
+      documentsDirectory: () async => directory,
+      clock: () => DateTime.utc(2026, 10, 3, 10),
+    );
+    const meta = {
+      'speaker': 'P3',
+      'expected': '딸기',
+      'kind': 'near',
+      'condition': 'calme',
+    };
+    await recorder.start(word: '달기', langCode: 'ko', meta: meta);
+    final saved = await recorder.stop();
+    expect(saved!.meta, meta);
+
+    await recorder.saveWhisperResult(
+      sampleId: saved.id,
+      transcript: '달기',
+      durationMs: 900,
+    );
+    await recorder.saveOpenAiResult(
+      sampleId: saved.id,
+      transcript: '딸기',
+      durationMs: 600,
+    );
+    await recorder.saveElevenLabsResult(
+      sampleId: saved.id,
+      transcript: '달기',
+      durationMs: 300,
+    );
+    expect((await recorder.samples()).single.meta, meta);
+  }, skip: !optedIn);
+
+  test('older manifests without labels load with empty meta', () {
+    final sample = SttCorpusSample.fromJson({
+      'id': 'x',
+      'word': '물',
+      'langCode': 'ko',
+      'path': '/x.wav',
+      'recordedAt': '2026-09-16T12:00:00.000Z',
+    });
+    expect(sample.meta, isEmpty);
+    expect(sample.toJson().containsKey('meta'), isFalse);
+  });
+
+  test(
+    'rejects empty words, denied permission, and overlapping captures',
+    () async {
+      final directory = await tempDirectory();
+      addTearDown(() => directory.delete(recursive: true));
+      final native = _FakeRecorder();
+      final recorder = SttCorpusRecorder(
+        recorder: native,
+        documentsDirectory: () async => directory,
+      );
+
+      expect(await recorder.samples(), isEmpty);
+      expect(await recorder.start(word: ' ', langCode: 'fr'), isFalse);
+      expect(native.permissionCalls, 0);
+      native.permission = false;
+      expect(await recorder.start(word: 'bonjour', langCode: 'fr'), isFalse);
+      native.permission = true;
+      expect(await recorder.start(word: 'bonjour', langCode: 'fr'), isTrue);
+      expect(await recorder.start(word: 'encore', langCode: 'fr'), isFalse);
+      expect(native.permissionCalls, 2);
+    },
+    skip: !optedIn,
+  );
+
+  test(
+    'does not add a sample when native stop returns no usable file',
+    () async {
+      final directory = await tempDirectory();
+      addTearDown(() => directory.delete(recursive: true));
+      final native = _FakeRecorder()..writeCapture = false;
+      final recorder = SttCorpusRecorder(
+        recorder: native,
+        documentsDirectory: () async => directory,
+      );
+
+      expect(await recorder.stop(), isNull);
+      await recorder.start(word: 'bonjour', langCode: 'fr');
+      expect(await recorder.stop(), isNull);
+      expect(await recorder.samples(), isEmpty);
+    },
+    skip: !optedIn,
+  );
+
+  test(
+    'returns an empty corpus for a malformed manifest and disposes native audio',
+    () async {
+      final directory = await tempDirectory();
+      addTearDown(() => directory.delete(recursive: true));
+      final corpus = Directory(
+        '${directory.path}${Platform.pathSeparator}stt_corpus',
+      );
+      await corpus.create();
+      await File(
+        '${corpus.path}${Platform.pathSeparator}manifest.json',
+      ).writeAsString('{not json');
+      final native = _FakeRecorder();
+      final recorder = SttCorpusRecorder(
+        recorder: native,
+        documentsDirectory: () async => directory,
+      );
+
+      expect(await recorder.samples(), isEmpty);
+      recorder.dispose();
+      expect(native.disposeCalls, 1);
+    },
+    skip: !optedIn,
+  );
+
+  test('serializes sample metadata with null benchmark fields', () {
+    final decoded =
+        jsonDecode(jsonEncode(sample().toJson())) as Map<String, dynamic>;
+    final restored = SttCorpusSample.fromJson(decoded);
+    expect(restored.id, 'sample_fr');
+    expect(restored.whisperTranscript, isNull);
+    expect(restored.elevenLabsTestedAt, isNull);
+  });
+}

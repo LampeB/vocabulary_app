@@ -1,0 +1,162 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'helpers/steps.dart';
+import 'helpers/test_helpers.dart';
+
+// One consolidated quiz E2E suite covering all four study modes. Voice and
+// hands-free use the runtime STT simulator (given.theLearnerWillAnswer…);
+// Cartes self-grades and Écrire types, so they don't need it.
+
+const _list = 'E2E Quiz Test List';
+const _fr = 'Bonjour';
+const _ko = '안녕하세요';
+
+void main() {
+  // (No ART-JIT warmup test: that was a physical Samsung-S22 hack. On the x86_64
+  // CI emulator there's no cold-JIT penalty, and the warmup's wait-for-welcome
+  // loop would otherwise burn the whole job budget.)
+
+  // ── Voice ───────────────────────────────────────────────────────────────────
+
+  // Voice quiz where every spoken answer is recognised correctly → 100%.
+  isolatedPatrolTest(
+    'Voice — all answers correct → 100%',
+    scenarioId: 'quiz.voice_all_answers_correct_100',
+    timeout: const Timeout(Duration(minutes: 3)),
+    config: kFastSettle,
+    ($) async {
+      final app = Steps($);
+      addTearDown(
+        () => cleanupAfterTest($),
+      ); // leave a clean slate (even on failure)
+
+      await app.given.signedIn();
+      await app.given.aCleanSlate(); // start from a clean slate
+      await app.given.aListWithOneWord(name: _list, french: _fr, korean: _ko);
+      await app.given.theLearnerWillAnswerCorrectly();
+
+      await app.when.opensStartASession();
+      await app.when.choosesLanguage('ko');
+      await app.when.choosesList(_list);
+      await app.when.choosesQuizType(Quiz.voice);
+      await app.when.startsTheSession();
+      await app.when.answersEachCardByVoice();
+
+      await app.then.sessionScoreIs(percent: 100);
+    },
+  );
+
+  // Voice quiz where every spoken answer is wrong → 0%.
+  isolatedPatrolTest(
+    'Voice — all answers wrong → 0%',
+    scenarioId: 'quiz.voice_all_answers_wrong_0',
+    timeout: const Timeout(Duration(minutes: 3)),
+    config: kFastSettle,
+    ($) async {
+      final app = Steps($);
+      addTearDown(
+        () => cleanupAfterTest($),
+      ); // leave a clean slate (even on failure)
+
+      await app.given.signedIn();
+      await app.given.aCleanSlate(); // start from a clean slate
+      await app.given.aListWithOneWord(name: _list, french: _fr, korean: _ko);
+      await app.given.theLearnerWillAnswerIncorrectly();
+
+      await app.when.opensStartASession();
+      await app.when.choosesLanguage('ko');
+      await app.when.choosesList(_list);
+      await app.when.choosesQuizType(Quiz.voice);
+      await app.when.startsTheSession();
+      await app.when.answersEachCardByVoice();
+
+      await app.then.sessionScoreIs(percent: 0);
+    },
+  );
+
+  // ── Hands-free ────────────────────────────────────────────────────────────────
+
+  // Hands-free auto-plays, auto-listens and auto-advances every card on its own;
+  // with correct recognition the summary is 100%.
+  isolatedPatrolTest(
+    'Hands-free — auto-completes at 100%',
+    scenarioId: 'quiz.hands_free_auto_completes_at_100',
+    timeout: const Timeout(Duration(minutes: 3)),
+    config: kFastSettle,
+    ($) async {
+      final app = Steps($);
+      addTearDown(
+        () => cleanupAfterTest($),
+      ); // leave a clean slate (even on failure)
+
+      await app.given.signedIn();
+      await app.given.aCleanSlate(); // start from a clean slate
+      await app.given.aListWithOneWord(name: _list, french: _fr, korean: _ko);
+      await app.given.theLearnerWillAnswerCorrectly();
+
+      await app.when.opensStartASession();
+      await app.when.choosesLanguage('ko');
+      await app.when.choosesList(_list);
+      await app.when.choosesQuizType(Quiz.handsFree);
+      await app.when.startsTheSession();
+      // No answer step — hands-free answers every card itself.
+
+      await app.then.sessionScoreIs(percent: 100);
+    },
+  );
+
+  // ── Cartes (flashcards, self-graded) ──────────────────────────────────────────
+
+  // Flip each card and self-grade "Je savais" → 100%.
+  isolatedPatrolTest(
+    'Cartes — all known → 100%',
+    scenarioId: 'quiz.cartes_all_known_100',
+    timeout: const Timeout(Duration(minutes: 3)),
+    config: kFastSettle,
+    ($) async {
+      final app = Steps($);
+      addTearDown(
+        () => cleanupAfterTest($),
+      ); // leave a clean slate (even on failure)
+
+      await app.given.signedIn();
+      await app.given.aCleanSlate(); // start from a clean slate
+      await app.given.aListWithOneWord(name: _list, french: _fr, korean: _ko);
+
+      await app.when.opensStartASession();
+      await app.when.choosesLanguage('ko');
+      await app.when.choosesList(_list);
+      await app.when.choosesQuizType(Quiz.flashcard);
+      await app.when.startsTheSession();
+      await app.when.answersEachCardAsKnown();
+
+      await app.then.sessionScoreIs(percent: 100);
+    },
+  );
+
+  // Flip each card and self-grade "À revoir" → 0%.
+  isolatedPatrolTest(
+    'Cartes — all forgotten → 0%',
+    scenarioId: 'quiz.cartes_all_forgotten_0',
+    timeout: const Timeout(Duration(minutes: 3)),
+    config: kFastSettle,
+    ($) async {
+      final app = Steps($);
+      addTearDown(
+        () => cleanupAfterTest($),
+      ); // leave a clean slate (even on failure)
+
+      await app.given.signedIn();
+      await app.given.aCleanSlate(); // start from a clean slate
+      await app.given.aListWithOneWord(name: _list, french: _fr, korean: _ko);
+
+      await app.when.opensStartASession();
+      await app.when.choosesLanguage('ko');
+      await app.when.choosesList(_list);
+      await app.when.choosesQuizType(Quiz.flashcard);
+      await app.when.startsTheSession();
+      await app.when.answersEachCardAsForgotten();
+
+      await app.then.sessionScoreIs(percent: 0);
+    },
+  );
+}

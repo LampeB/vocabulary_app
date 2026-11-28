@@ -36,15 +36,20 @@ Future<void> _launchAndGoToSignUp(PatrolIntegrationTester $) async {
 void main() {
   // ── Duplicate e-mail ───────────────────────────────────────────────────────
 
-  patrolTest(
+  isolatedPatrolTest(
     'sign-up with already-used email shows French error',
-    timeout: const Timeout(Duration(minutes: 2)),
+    scenarioId: 'sign_up.sign_up_with_already_used_email_shows_french_error',
+    timeout: const Timeout(Duration(minutes: 3)),
     ($) async {
       await _launchAndGoToSignUp($);
 
-      await $(find.byKey(const Key('username_field'))).enterText('brandnewuser99');
+      await $(
+        find.byKey(const Key('username_field')),
+      ).enterText('brandnewuser99');
       await $(find.byKey(const Key('email_field'))).enterText(kTestEmail);
-      await $(find.byKey(const Key('password_field'))).enterText('Password123!');
+      await $(
+        find.byKey(const Key('password_field')),
+      ).enterText('Password123!');
       await $(find.byKey(const Key('auth_submit_button'))).tap();
 
       // Allow time for the username pre-check + Supabase auth call.
@@ -59,24 +64,26 @@ void main() {
 
   // ── Duplicate username ─────────────────────────────────────────────────────
 
-  patrolTest(
+  isolatedPatrolTest(
     'sign-up with already-used username shows French error',
-    timeout: const Timeout(Duration(minutes: 2)),
+    scenarioId: 'sign_up.sign_up_with_already_used_username_shows_french_error',
+    timeout: const Timeout(Duration(minutes: 3)),
     ($) async {
       await _launchAndGoToSignUp($);
 
       await $(find.byKey(const Key('username_field'))).enterText(kTestUsername);
-      await $(find.byKey(const Key('email_field'))).enterText('notused_patrol@example.com');
-      await $(find.byKey(const Key('password_field'))).enterText('Password123!');
+      await $(
+        find.byKey(const Key('email_field')),
+      ).enterText('notused_patrol@example.com');
+      await $(
+        find.byKey(const Key('password_field')),
+      ).enterText('Password123!');
       await $(find.byKey(const Key('auth_submit_button'))).tap();
 
       // The username pre-check is a single SELECT — should resolve quickly.
       await $.pump(const Duration(seconds: 6));
 
-      expect(
-        $(find.text('Ce pseudo est déjà utilisé.')),
-        findsOneWidget,
-      );
+      expect($(find.text('Ce pseudo est déjà utilisé.')), findsOneWidget);
     },
   );
 }

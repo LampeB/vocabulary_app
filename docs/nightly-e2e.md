@@ -1,20 +1,23 @@
 # Nightly E2E
 
 The nightly dispatcher runs at 22:17 Asia/Seoul (13:17 UTC) from `main`.
-It dispatches `e2e.yml` on `feat/multi-language-learning`, where the maintained
-nine-suite test runner and per-scenario reset live. This keeps development
-changes separate from `main`. Update the ref when the maintained branch changes.
+After this integration is merged, it dispatches `e2e.yml` on `main`, where the
+maintained nine-suite runner and per-scenario reset now live. The dispatcher
+must validate the integrated application rather than the retired feature ref.
+The dispatch job only runs from `main`; selecting the integration branch does
+not dispatch the older runner before the merge.
 
 The child workflow defaults to all suites and serializes runs using the
 `supabase-e2e-account` concurrency group. A successful dispatch is not a
 successful E2E run: inspect the subsequent **E2E (emulator)** run for results.
-Avoid manually running the old E2E implementation on `main`; it does not share
-this isolation contract. Do not run local E2E tests while CI uses the account.
+Do not run the same scenario locally while CI uses its permanent account.
 
-Before the first run, apply migration `008_e2e_reset.sql` from the maintained
-branch and enroll the dedicated account in `e2e_private.accounts` using that
-branch's `docs/runbooks/e2e-account.md`. Existing repository secrets are used:
-`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `TEST_EMAIL`, `TEST_PASSWORD`.
+Before the first run, apply the pending production migrations and enroll the
+distinct scenario accounts using [the E2E account runbook](runbooks/e2e-account.md).
+The `patrol-e2e` environment limits its `E2E_ACCOUNTS_JSON` secret to `main`.
+Each build embeds only the credentials for its selected Patrol target.
+`SUPABASE_URL` and `SUPABASE_ANON_KEY` remain repository secrets for Android CI.
+The integration itself neither applies hosted migrations nor dispatches a run.
 No administrator credential is embedded in the app or this dispatcher.
 
 Public-repository schedules can be disabled after 60 days without repository

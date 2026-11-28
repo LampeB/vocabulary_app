@@ -27,11 +27,28 @@ migrate_working_dir/
 .env.json
 test*.env.json
 
+# Local Codex desktop configuration (machine-specific paths and connectors).
+# The project-owned reviewer profiles are intentionally versioned.
+/.codex/*
+!/.codex/agents/
+!/.codex/agents/*.toml
+
+# Obsidian keeps this layout per local machine; the shared vault settings are
+# versioned in .obsidian/app.json.
+/.obsidian/workspace.json
+/.obsidian/workspace-mobile.json
+/.obsidian/cache/
+
 # Test output
 quiz_test_out.txt
 
-# Pub packages checked out locally
-/packages/
+# Release APKs are CI artifacts, never repository source.
+/ci-apk/
+
+# Pub packages checked out locally — except our first-party native bridge.
+/packages/*
+!/packages/ponderin_whisper/
+/.tmp/
 
 # Android build artifacts (beyond the default /build/ exclusion)
 /android/build/
@@ -45,6 +62,7 @@ quiz_test_out.txt
 .pub/
 /build/
 /coverage/
+
 
 # Symbolication related
 app.*.symbols
@@ -61,3 +79,20 @@ app.*.map.json
 /playwright-report/
 /test-results/
 /test_bundle.dart
+
+# Patrol generates this per --target; never commit it
+patrol_test/test_bundle.dart
+
+# Supabase CLI version marker
+/supabase/.temp/
+/supabase/.env.deploy
+
+# native build artifacts inside the vendored plugin
+/packages/ponderin_whisper/android/.cxx/
+/packages/ponderin_whisper/build/
+
+# Private permanent E2E account credentials
+/.e2e/
+
+# Private recorded voice, transcripts and local benchmark results
+/tool/stt_corpus/

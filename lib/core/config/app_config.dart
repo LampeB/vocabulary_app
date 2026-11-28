@@ -12,8 +12,10 @@ class AppConfig {
     defaultValue: 'YOUR_REVENUECAT_KEY',
   );
 
-  static const whisperEdgeFunctionUrl = '$supabaseUrl/functions/v1/whisper-proxy';
-  static const elevenLabsEdgeFunctionUrl = '$supabaseUrl/functions/v1/elevenlabs-proxy';
+  static const whisperEdgeFunctionUrl =
+      '$supabaseUrl/functions/v1/whisper-proxy';
+  static const audioProvisionEdgeFunctionUrl =
+      '$supabaseUrl/functions/v1/audio-provision';
 
   static const enableWhisperSTT = true;
   static const enableElevenLabsTTS = true;

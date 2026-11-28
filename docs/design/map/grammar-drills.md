@@ -1,0 +1,149 @@
+# Exercices de grammaire (drills / « grammar quizzes »)
+
+**Statut : 🟢 formats validés comme base (2026-08-09) · 🟠 réglages · Mélange 🔴**
+
+Le flux (quand un drill arrive) est traité dans [[grammar-flow]] ; cette
+note couvre le CONTENU des sessions d'exercices elles-mêmes — zone
+explicitement signalée non décidée (2026-08-07).
+
+## Décidé (utilisateur)
+- v1 existait : drills écrits/parlés jugés trop durs sans leçon (2026-07-22)
+- Les exercices ne doivent utiliser que du vocab prérequis maîtrisé
+- La disponibilité et la génération utilisent le même pool, restreint aux
+  copies de listes résolues pour les prérequis de la règle. Un mot maîtrisé
+  dans une autre liste ne remplit pas leur minimum de vocabulaire utilisable.
+- Une exception d'article dont la forme est le nom seul exclut ce sens du
+  vivier et du minimum de l'exercice. Cela évite d'appliquer `a/an` aux
+  noms indénombrables du vocabulaire étudié.
+- Une consigne pour une particule à variantes phonologiques nomme ses
+  formes, comme `은/는` pour le thème et `이/가` ou `을/를` selon le rôle
+  demandé. En mains-libres, les formes de la variante sélectionnée sont
+  prononcées dans la langue étudiée avant le mot à transformer. Pour `에`
+  et `에서`, la consigne indique le rôle et laisse l'apprenant retrouver
+  la particule, qui ne varie pas selon la finale.
+- Une exception coréenne qui fixe la position de `안` fournit la forme à
+  accepter, par exemple `안 좋아해요` pour `좋아하다`. Quand la leçon préfère
+  un antonyme comme `맛없어요`, les deux réponses grammaticales
+  (`맛없어요` et `안 맛있어요`) sont acceptées en saisie et en voix.
+- Le générateur actuel de pluriel français demande un mot isolé : les formes
+  en `-s` muet sont donc évaluées à l'écrit. Les modes vocaux de cette règle
+  restent indisponibles tant qu'un énoncé audible ne distingue pas la forme.
+  La même protection s'applique à `fr-present-er` : des réponses comme
+  `travaille` et `travailles` sont homophones. Le configurateur désactive voix
+  et mains-libres et le provider refuse aussi leur lancement direct. La saisie
+  conserve la distinction orthographique et la notation stricte. La consigne
+  FR/EN/KO indique que le sujet est facultatif. La forme conjuguée seule est
+  acceptée, ainsi que celle avec le sujet demandé (`je`, `tu`, `il`, `elle`),
+  avec élision et pronom réfléchi quand la forme les exige.
+- Les exercices de présent en anglais et en allemand acceptent aussi le
+  pronom sujet de la personne enseignée. L'apprenant peut écrire ou dire
+  `work` ou `I work`, `studies` ou `she studies`, `stehe auf` ou `ich stehe auf`.
+- En mains-libres, Passer reporte chaque exercice de grammaire une fois à
+  la fin de la séance. Passer un exercice reporté avance la séance. Ces passages
+  ne notent pas de réponse et le bilan conserve le nombre de cartes prévu.
+- L'exercice de négation française demande la première personne du singulier
+  au présent. La forme verbale attendue (`ne travaille pas`) et la phrase
+  avec sujet (`je ne travaille pas`) sont toutes deux valides. Les deux
+  marques de négation restent nécessaires et les élisions s'appliquent.
+- (2026-08-09) D'où viennent les phrases : banque de GABARITS auteurés
+  par règle, slots remplis par le moteur avec le vocab que
+  l'utilisateur connaît — pas de génération LLM au runtime (voir
+  [[lesson-viewer]] : même modèle pour les exemples de leçon)
+
+## Validé (utilisateur, 2026-08-09 — esquisses acceptées comme base)
+- Reconnaître : QCM « choisis la bonne forme », ~8 items, feedback immédiat
+- Construire : phrase à assembler par chips, ~6 items — avec
+  distracteurs obligatoires (voir ci-dessous)
+- Écrire (au Mélange) : production tapée, correction IA, ~5 items
+- Parler (au Mélange) : à l'oral via le pipeline voix, ~5 items
+- Tous ~2-3 min, sur les canvases existants, thème teal (Réviser)
+
+## Décidé (utilisateur, 2026-08-09) — Construire anti-« logique de position »
+- Problème identifié (type Duolingo) : avec exactement les bonnes
+  tuiles, l'ordre sujet-verbe + l'élimination suffisent — on répond
+  juste sans appliquer la règle de grammaire
+- Donc : PLUS de chips que nécessaire, avec trois familles de
+  distracteurs :
+  1. le même verbe conjugué à d'autres personnes/temps
+  2. des variantes morphologiques des autres mots (genre, nombre,
+     article, forme fausse délibérée)
+  3. des leurres hors sujet sans rapport avec la phrase
+- But : prouver que l'utilisateur a activement appliqué la règle et la
+  conjugaison, pas déduit par position
+- Le moteur peut générer les distracteurs depuis le même gabarit (les
+  mécaniques produisent aussi les formes FAUSSES)
+
+## Décidé (utilisateur, 2026-08-13) — exercices des types prononciation & écriture
+- Type PRONONCIATION, deux formats :
+  1. **Production** — l'utilisateur prononce clairement le mot/la
+     phrase ; pipeline voix existant (VoiceTurnMachine / SttRace,
+     jamais d'appel audio ad hoc)
+  2. **Discrimination** — l'app joue X versions du mot dont UNE seule
+     est correctement prononcée ; réécoute ILLIMITÉE de chaque
+     proposition, puis l'utilisateur soumet son choix
+- Note technique (proposé) : les versions fausses = TTS sur la graphie
+  phonétique de la mauvaise prononciation (le hangul étant phonétique,
+  on écrit la forme fausse, ex. 학년 lu [학년] au lieu de [항년]) —
+  variantes portées par les DONNÉES de la leçon, pattern
+  mécanique+données habituel ; X peut suivre la rampe de difficulté
+- Type ÉCRITURE : les exercices TAPÉS existants suffisent (validation
+  par langue déjà en place — élisions, ligatures, décomposition hangul)
+- La difficulté de Construire MONTE avec la pratique :
+  1. au début : peu/pas de distracteurs — on applique, on analyse
+  2. après quelques passages réussis : de plus en plus de distracteurs
+  3. à terme : plus de chips du tout — l'utilisateur TAPE la phrase
+     lui-même
+- Construire → Écrire est donc un CONTINUUM de difficulté sur la même
+  règle, pas deux formats étanches ; conséquence sur la rampe de
+  [[grammar-flow]] (Écrire « au Mélange » seulement) à réexaminer
+- Déclencheur : COMBINAISON — la rampe avance avec les passages
+  réussis sur LA règle, et sa VITESSE est indexée sur la maturité
+  globale (nb de règles de grammaire + vocab connus) : un apprenant
+  avancé franchit les paliers plus vite, voire démarre plus haut
+- Pourquoi : sur les premières leçons on découvre à la fois le vocab,
+  le format des leçons et les règles générales de la langue → l'app
+  est plus douce ; trop assister un avancé = ennui + infantilisation
+
+## Réglages par défaut (délégué à Claude par l'utilisateur, 2026-08-09 — à ajuster aux données)
+- Paliers de Construire (on monte après N passages RÉUSSIS sur la règle) :
+  - **P0** chips exacts, zéro distracteur (appliquer, analyser) → P1 après 2
+  - **P1** +2-3 distracteurs, pointés sur la règle (conjugaisons
+    fausses, 0-1 variante morpho, pas encore de leurre) → P2 après 3
+  - **P2** +4-6 distracteurs, les 3 familles, ratio ≈ 2 conjugaisons :
+    2 variantes : 1 leurre → P3 après 3
+  - **P3** plus de chips : production tapée
+- Pourquoi ce ratio : les conjugaisons fausses testent la règle, les
+  leurres testent surtout la reconnaissance de vocab — on privilégie
+  ce qui force la grammaire
+- Vitesse selon maturité (PAR langue étudiée, règles maîtrisées) :
+  novice < 5 règles : seuils 2/3/3 · intermédiaire 5-14 : 1/2/2 ·
+  avancé ≥ 15 : démarre à P1, seuils 1/2 (ne voit plus jamais P0)
+- Échec : 2 échecs consécutifs → on redescend d'UN palier (P3→P2,
+  jamais sous P0) ; un échec isolé re-sert le même palier
+- Garde-fou UI : ≤ 12 chips affichés par item
+
+## Réglages par défaut fins (délégué à Claude, 2026-08-13 — à ajuster aux données)
+- Items : Reconnaître ~8 · Construire ~6 · session mixte du Mélange ~10
+- Feedback immédiat partout SAUF aux examens (Mélange, test de niveau)
+- Indice : au 1er échec sur un item, re-explication courte de la règle
+- Banque de gabarits : ≥ 6 par règle ; jamais deux fois le même gabarit
+  dans une session ; ton = la règle de style des exemples (phrases
+  utilisables en voyage)
+- Écrans : on réutilise les canvases existants (pas de nouveau design)
+
+## Décidé (utilisateur, 2026-08-13) — la recette du Mélange (validée avec ajustements)
+- Leçon de combinaison (4-6 pages, visionneuse S4) puis QUIZ d'AU
+  MOINS **20 questions** — « être sûr qu'ils ont compris, pas un coup
+  de chance »
+- La combinaison porte sur **minimum 4 leçons** du cluster
+- Items = les leçons **appliquées sur le vocab du cluster** — PAS
+  d'items de vocab pur (le vocab se teste via FSRS, pas ici)
+- 2-3 items parlés en fin de session · barre 80 % · échec → retenté
+  demain avec un mix plus facile (proposition adoptée)
+- Conséquence de taille : un cluster porte ≥ 4 leçons typées (+ ses
+  listes de vocab) — défaut ajusté dans [[grammar-flow]]
+
+## À trancher 🔴
+- (rien — tout est décidé ou en défauts réglables)
+
+Liens : [[grammar-flow]] · [[lesson-viewer]] · [[quiz-canvas]]

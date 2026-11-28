@@ -11,12 +11,13 @@ permissions:
 
 jobs:
   dispatch:
+    if: github.ref == 'refs/heads/main' && vars.PATROL_E2E_ACTIVATION == 'study-catalog-v2'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Run the maintained E2E branch
+      - name: Run the integrated E2E suite on main
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         # No target input: the branch workflow defaults to all nine suites.
-        run: gh workflow run e2e.yml --ref feat/multi-language-learning
+        run: gh workflow run e2e.yml --ref main

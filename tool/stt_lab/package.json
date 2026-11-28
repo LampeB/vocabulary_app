@@ -1,0 +1,9 @@
+{
+  "name": "stt-lab",
+  "private": true,
+  "description": "Acoustic test harness: injects WAV scenarios into the emulator mic (gRPC) while the app runs a real hands-free session",
+  "dependencies": {
+    "@grpc/grpc-js": "^1.10.0",
+    "@grpc/proto-loader": "^0.7.0"
+  }
+}

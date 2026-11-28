@@ -12,7 +12,8 @@ part of 'word_variant.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
+  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
+);
 
 WordVariant _$WordVariantFromJson(Map<String, dynamic> json) {
   return _WordVariant.fromJson(json);
@@ -29,7 +30,11 @@ mixin _$WordVariant {
   bool get isPrimary => throw _privateConstructorUsedError;
   String? get audioHash => throw _privateConstructorUsedError;
   String? get audioVoiceId => throw _privateConstructorUsedError;
+  String? get audioPath => throw _privateConstructorUsedError;
   int get position => throw _privateConstructorUsedError;
+
+  /// Example sentence in this variant's own language.
+  String? get example => throw _privateConstructorUsedError;
   bool get isSynced => throw _privateConstructorUsedError;
   bool get isDeleted => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
@@ -48,24 +53,28 @@ mixin _$WordVariant {
 /// @nodoc
 abstract class $WordVariantCopyWith<$Res> {
   factory $WordVariantCopyWith(
-          WordVariant value, $Res Function(WordVariant) then) =
-      _$WordVariantCopyWithImpl<$Res, WordVariant>;
+    WordVariant value,
+    $Res Function(WordVariant) then,
+  ) = _$WordVariantCopyWithImpl<$Res, WordVariant>;
   @useResult
-  $Res call(
-      {String id,
-      String conceptId,
-      String word,
-      String langCode,
-      String registerTag,
-      List<String> contextTags,
-      bool isPrimary,
-      String? audioHash,
-      String? audioVoiceId,
-      int position,
-      bool isSynced,
-      bool isDeleted,
-      DateTime createdAt,
-      DateTime updatedAt});
+  $Res call({
+    String id,
+    String conceptId,
+    String word,
+    String langCode,
+    String registerTag,
+    List<String> contextTags,
+    bool isPrimary,
+    String? audioHash,
+    String? audioVoiceId,
+    String? audioPath,
+    int position,
+    String? example,
+    bool isSynced,
+    bool isDeleted,
+    DateTime createdAt,
+    DateTime updatedAt,
+  });
 }
 
 /// @nodoc
@@ -92,70 +101,83 @@ class _$WordVariantCopyWithImpl<$Res, $Val extends WordVariant>
     Object? isPrimary = null,
     Object? audioHash = freezed,
     Object? audioVoiceId = freezed,
+    Object? audioPath = freezed,
     Object? position = null,
+    Object? example = freezed,
     Object? isSynced = null,
     Object? isDeleted = null,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
-    return _then(_value.copyWith(
-      id: null == id
-          ? _value.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      conceptId: null == conceptId
-          ? _value.conceptId
-          : conceptId // ignore: cast_nullable_to_non_nullable
-              as String,
-      word: null == word
-          ? _value.word
-          : word // ignore: cast_nullable_to_non_nullable
-              as String,
-      langCode: null == langCode
-          ? _value.langCode
-          : langCode // ignore: cast_nullable_to_non_nullable
-              as String,
-      registerTag: null == registerTag
-          ? _value.registerTag
-          : registerTag // ignore: cast_nullable_to_non_nullable
-              as String,
-      contextTags: null == contextTags
-          ? _value.contextTags
-          : contextTags // ignore: cast_nullable_to_non_nullable
-              as List<String>,
-      isPrimary: null == isPrimary
-          ? _value.isPrimary
-          : isPrimary // ignore: cast_nullable_to_non_nullable
-              as bool,
-      audioHash: freezed == audioHash
-          ? _value.audioHash
-          : audioHash // ignore: cast_nullable_to_non_nullable
-              as String?,
-      audioVoiceId: freezed == audioVoiceId
-          ? _value.audioVoiceId
-          : audioVoiceId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      position: null == position
-          ? _value.position
-          : position // ignore: cast_nullable_to_non_nullable
-              as int,
-      isSynced: null == isSynced
-          ? _value.isSynced
-          : isSynced // ignore: cast_nullable_to_non_nullable
-              as bool,
-      isDeleted: null == isDeleted
-          ? _value.isDeleted
-          : isDeleted // ignore: cast_nullable_to_non_nullable
-              as bool,
-      createdAt: null == createdAt
-          ? _value.createdAt
-          : createdAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-      updatedAt: null == updatedAt
-          ? _value.updatedAt
-          : updatedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-    ) as $Val);
+    return _then(
+      _value.copyWith(
+            id: null == id
+                ? _value.id
+                : id // ignore: cast_nullable_to_non_nullable
+                      as String,
+            conceptId: null == conceptId
+                ? _value.conceptId
+                : conceptId // ignore: cast_nullable_to_non_nullable
+                      as String,
+            word: null == word
+                ? _value.word
+                : word // ignore: cast_nullable_to_non_nullable
+                      as String,
+            langCode: null == langCode
+                ? _value.langCode
+                : langCode // ignore: cast_nullable_to_non_nullable
+                      as String,
+            registerTag: null == registerTag
+                ? _value.registerTag
+                : registerTag // ignore: cast_nullable_to_non_nullable
+                      as String,
+            contextTags: null == contextTags
+                ? _value.contextTags
+                : contextTags // ignore: cast_nullable_to_non_nullable
+                      as List<String>,
+            isPrimary: null == isPrimary
+                ? _value.isPrimary
+                : isPrimary // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            audioHash: freezed == audioHash
+                ? _value.audioHash
+                : audioHash // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            audioVoiceId: freezed == audioVoiceId
+                ? _value.audioVoiceId
+                : audioVoiceId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            audioPath: freezed == audioPath
+                ? _value.audioPath
+                : audioPath // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            position: null == position
+                ? _value.position
+                : position // ignore: cast_nullable_to_non_nullable
+                      as int,
+            example: freezed == example
+                ? _value.example
+                : example // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            isSynced: null == isSynced
+                ? _value.isSynced
+                : isSynced // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            isDeleted: null == isDeleted
+                ? _value.isDeleted
+                : isDeleted // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            createdAt: null == createdAt
+                ? _value.createdAt
+                : createdAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime,
+            updatedAt: null == updatedAt
+                ? _value.updatedAt
+                : updatedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime,
+          )
+          as $Val,
+    );
   }
 }
 
@@ -163,25 +185,29 @@ class _$WordVariantCopyWithImpl<$Res, $Val extends WordVariant>
 abstract class _$$WordVariantImplCopyWith<$Res>
     implements $WordVariantCopyWith<$Res> {
   factory _$$WordVariantImplCopyWith(
-          _$WordVariantImpl value, $Res Function(_$WordVariantImpl) then) =
-      __$$WordVariantImplCopyWithImpl<$Res>;
+    _$WordVariantImpl value,
+    $Res Function(_$WordVariantImpl) then,
+  ) = __$$WordVariantImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call(
-      {String id,
-      String conceptId,
-      String word,
-      String langCode,
-      String registerTag,
-      List<String> contextTags,
-      bool isPrimary,
-      String? audioHash,
-      String? audioVoiceId,
-      int position,
-      bool isSynced,
-      bool isDeleted,
-      DateTime createdAt,
-      DateTime updatedAt});
+  $Res call({
+    String id,
+    String conceptId,
+    String word,
+    String langCode,
+    String registerTag,
+    List<String> contextTags,
+    bool isPrimary,
+    String? audioHash,
+    String? audioVoiceId,
+    String? audioPath,
+    int position,
+    String? example,
+    bool isSynced,
+    bool isDeleted,
+    DateTime createdAt,
+    DateTime updatedAt,
+  });
 }
 
 /// @nodoc
@@ -189,8 +215,9 @@ class __$$WordVariantImplCopyWithImpl<$Res>
     extends _$WordVariantCopyWithImpl<$Res, _$WordVariantImpl>
     implements _$$WordVariantImplCopyWith<$Res> {
   __$$WordVariantImplCopyWithImpl(
-      _$WordVariantImpl _value, $Res Function(_$WordVariantImpl) _then)
-      : super(_value, _then);
+    _$WordVariantImpl _value,
+    $Res Function(_$WordVariantImpl) _then,
+  ) : super(_value, _then);
 
   /// Create a copy of WordVariant
   /// with the given fields replaced by the non-null parameter values.
@@ -206,92 +233,106 @@ class __$$WordVariantImplCopyWithImpl<$Res>
     Object? isPrimary = null,
     Object? audioHash = freezed,
     Object? audioVoiceId = freezed,
+    Object? audioPath = freezed,
     Object? position = null,
+    Object? example = freezed,
     Object? isSynced = null,
     Object? isDeleted = null,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
-    return _then(_$WordVariantImpl(
-      id: null == id
-          ? _value.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      conceptId: null == conceptId
-          ? _value.conceptId
-          : conceptId // ignore: cast_nullable_to_non_nullable
-              as String,
-      word: null == word
-          ? _value.word
-          : word // ignore: cast_nullable_to_non_nullable
-              as String,
-      langCode: null == langCode
-          ? _value.langCode
-          : langCode // ignore: cast_nullable_to_non_nullable
-              as String,
-      registerTag: null == registerTag
-          ? _value.registerTag
-          : registerTag // ignore: cast_nullable_to_non_nullable
-              as String,
-      contextTags: null == contextTags
-          ? _value._contextTags
-          : contextTags // ignore: cast_nullable_to_non_nullable
-              as List<String>,
-      isPrimary: null == isPrimary
-          ? _value.isPrimary
-          : isPrimary // ignore: cast_nullable_to_non_nullable
-              as bool,
-      audioHash: freezed == audioHash
-          ? _value.audioHash
-          : audioHash // ignore: cast_nullable_to_non_nullable
-              as String?,
-      audioVoiceId: freezed == audioVoiceId
-          ? _value.audioVoiceId
-          : audioVoiceId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      position: null == position
-          ? _value.position
-          : position // ignore: cast_nullable_to_non_nullable
-              as int,
-      isSynced: null == isSynced
-          ? _value.isSynced
-          : isSynced // ignore: cast_nullable_to_non_nullable
-              as bool,
-      isDeleted: null == isDeleted
-          ? _value.isDeleted
-          : isDeleted // ignore: cast_nullable_to_non_nullable
-              as bool,
-      createdAt: null == createdAt
-          ? _value.createdAt
-          : createdAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-      updatedAt: null == updatedAt
-          ? _value.updatedAt
-          : updatedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-    ));
+    return _then(
+      _$WordVariantImpl(
+        id: null == id
+            ? _value.id
+            : id // ignore: cast_nullable_to_non_nullable
+                  as String,
+        conceptId: null == conceptId
+            ? _value.conceptId
+            : conceptId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        word: null == word
+            ? _value.word
+            : word // ignore: cast_nullable_to_non_nullable
+                  as String,
+        langCode: null == langCode
+            ? _value.langCode
+            : langCode // ignore: cast_nullable_to_non_nullable
+                  as String,
+        registerTag: null == registerTag
+            ? _value.registerTag
+            : registerTag // ignore: cast_nullable_to_non_nullable
+                  as String,
+        contextTags: null == contextTags
+            ? _value._contextTags
+            : contextTags // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
+        isPrimary: null == isPrimary
+            ? _value.isPrimary
+            : isPrimary // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        audioHash: freezed == audioHash
+            ? _value.audioHash
+            : audioHash // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        audioVoiceId: freezed == audioVoiceId
+            ? _value.audioVoiceId
+            : audioVoiceId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        audioPath: freezed == audioPath
+            ? _value.audioPath
+            : audioPath // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        position: null == position
+            ? _value.position
+            : position // ignore: cast_nullable_to_non_nullable
+                  as int,
+        example: freezed == example
+            ? _value.example
+            : example // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        isSynced: null == isSynced
+            ? _value.isSynced
+            : isSynced // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        isDeleted: null == isDeleted
+            ? _value.isDeleted
+            : isDeleted // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        createdAt: null == createdAt
+            ? _value.createdAt
+            : createdAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime,
+        updatedAt: null == updatedAt
+            ? _value.updatedAt
+            : updatedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime,
+      ),
+    );
   }
 }
 
 /// @nodoc
 @JsonSerializable()
 class _$WordVariantImpl implements _WordVariant {
-  const _$WordVariantImpl(
-      {required this.id,
-      required this.conceptId,
-      required this.word,
-      required this.langCode,
-      this.registerTag = 'neutral',
-      final List<String> contextTags = const [],
-      this.isPrimary = false,
-      this.audioHash,
-      this.audioVoiceId,
-      this.position = 0,
-      this.isSynced = false,
-      this.isDeleted = false,
-      required this.createdAt,
-      required this.updatedAt})
-      : _contextTags = contextTags;
+  const _$WordVariantImpl({
+    required this.id,
+    required this.conceptId,
+    required this.word,
+    required this.langCode,
+    this.registerTag = 'neutral',
+    final List<String> contextTags = const [],
+    this.isPrimary = false,
+    this.audioHash,
+    this.audioVoiceId,
+    this.audioPath,
+    this.position = 0,
+    this.example,
+    this.isSynced = false,
+    this.isDeleted = false,
+    required this.createdAt,
+    required this.updatedAt,
+  }) : _contextTags = contextTags;
 
   factory _$WordVariantImpl.fromJson(Map<String, dynamic> json) =>
       _$$WordVariantImplFromJson(json);
@@ -324,8 +365,14 @@ class _$WordVariantImpl implements _WordVariant {
   @override
   final String? audioVoiceId;
   @override
+  final String? audioPath;
+  @override
   @JsonKey()
   final int position;
+
+  /// Example sentence in this variant's own language.
+  @override
+  final String? example;
   @override
   @JsonKey()
   final bool isSynced;
@@ -339,7 +386,7 @@ class _$WordVariantImpl implements _WordVariant {
 
   @override
   String toString() {
-    return 'WordVariant(id: $id, conceptId: $conceptId, word: $word, langCode: $langCode, registerTag: $registerTag, contextTags: $contextTags, isPrimary: $isPrimary, audioHash: $audioHash, audioVoiceId: $audioVoiceId, position: $position, isSynced: $isSynced, isDeleted: $isDeleted, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'WordVariant(id: $id, conceptId: $conceptId, word: $word, langCode: $langCode, registerTag: $registerTag, contextTags: $contextTags, isPrimary: $isPrimary, audioHash: $audioHash, audioVoiceId: $audioVoiceId, audioPath: $audioPath, position: $position, example: $example, isSynced: $isSynced, isDeleted: $isDeleted, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -355,16 +402,21 @@ class _$WordVariantImpl implements _WordVariant {
                 other.langCode == langCode) &&
             (identical(other.registerTag, registerTag) ||
                 other.registerTag == registerTag) &&
-            const DeepCollectionEquality()
-                .equals(other._contextTags, _contextTags) &&
+            const DeepCollectionEquality().equals(
+              other._contextTags,
+              _contextTags,
+            ) &&
             (identical(other.isPrimary, isPrimary) ||
                 other.isPrimary == isPrimary) &&
             (identical(other.audioHash, audioHash) ||
                 other.audioHash == audioHash) &&
             (identical(other.audioVoiceId, audioVoiceId) ||
                 other.audioVoiceId == audioVoiceId) &&
+            (identical(other.audioPath, audioPath) ||
+                other.audioPath == audioPath) &&
             (identical(other.position, position) ||
                 other.position == position) &&
+            (identical(other.example, example) || other.example == example) &&
             (identical(other.isSynced, isSynced) ||
                 other.isSynced == isSynced) &&
             (identical(other.isDeleted, isDeleted) ||
@@ -378,21 +430,24 @@ class _$WordVariantImpl implements _WordVariant {
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
-      runtimeType,
-      id,
-      conceptId,
-      word,
-      langCode,
-      registerTag,
-      const DeepCollectionEquality().hash(_contextTags),
-      isPrimary,
-      audioHash,
-      audioVoiceId,
-      position,
-      isSynced,
-      isDeleted,
-      createdAt,
-      updatedAt);
+    runtimeType,
+    id,
+    conceptId,
+    word,
+    langCode,
+    registerTag,
+    const DeepCollectionEquality().hash(_contextTags),
+    isPrimary,
+    audioHash,
+    audioVoiceId,
+    audioPath,
+    position,
+    example,
+    isSynced,
+    isDeleted,
+    createdAt,
+    updatedAt,
+  );
 
   /// Create a copy of WordVariant
   /// with the given fields replaced by the non-null parameter values.
@@ -404,28 +459,29 @@ class _$WordVariantImpl implements _WordVariant {
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$WordVariantImplToJson(
-      this,
-    );
+    return _$$WordVariantImplToJson(this);
   }
 }
 
 abstract class _WordVariant implements WordVariant {
-  const factory _WordVariant(
-      {required final String id,
-      required final String conceptId,
-      required final String word,
-      required final String langCode,
-      final String registerTag,
-      final List<String> contextTags,
-      final bool isPrimary,
-      final String? audioHash,
-      final String? audioVoiceId,
-      final int position,
-      final bool isSynced,
-      final bool isDeleted,
-      required final DateTime createdAt,
-      required final DateTime updatedAt}) = _$WordVariantImpl;
+  const factory _WordVariant({
+    required final String id,
+    required final String conceptId,
+    required final String word,
+    required final String langCode,
+    final String registerTag,
+    final List<String> contextTags,
+    final bool isPrimary,
+    final String? audioHash,
+    final String? audioVoiceId,
+    final String? audioPath,
+    final int position,
+    final String? example,
+    final bool isSynced,
+    final bool isDeleted,
+    required final DateTime createdAt,
+    required final DateTime updatedAt,
+  }) = _$WordVariantImpl;
 
   factory _WordVariant.fromJson(Map<String, dynamic> json) =
       _$WordVariantImpl.fromJson;
@@ -449,7 +505,13 @@ abstract class _WordVariant implements WordVariant {
   @override
   String? get audioVoiceId;
   @override
+  String? get audioPath;
+  @override
   int get position;
+
+  /// Example sentence in this variant's own language.
+  @override
+  String? get example;
   @override
   bool get isSynced;
   @override

@@ -1,10 +1,11 @@
 name: vocab_kr
 description: French ↔ Korean vocabulary learning app with spaced repetition, voice quiz, and social features.
 publish_to: none
-version: 1.0.0+1
+version: 1.2.0+4
 
 environment:
-  sdk: '>=3.4.0 <4.0.0'
+  sdk: '>=3.12.0 <4.0.0'
+  flutter: '>=3.44.0'
 
 dependencies:
   flutter:
@@ -42,8 +43,9 @@ dependencies:
 
   # Audio
   audioplayers: ^6.1.0
+  audioplayers_platform_interface: ^7.1.1
   flutter_tts: ^4.2.0
-  record: ^5.2.0
+  record: ^7.1.1
 
   # Speech
   speech_to_text: ^7.3.0
@@ -95,16 +97,17 @@ dependencies:
 
   # Fonts
   google_fonts: ^6.2.1
-
-# Note: a dependency_override pinning record_linux to a local path
-# (packages/record_linux) was removed — that folder was never committed, so it
-# broke `flutter pub get` on every fresh checkout. The published record_linux is
-# used instead. record_linux only affects the Linux build, not Windows/mobile.
+  # Ponderin-owned minimal FFI bridge over the pinned MIT whisper.cpp engine.
+  # It retains the short-clip audio-context optimisation without importing the
+  # former GPL wrapper.
+  ponderin_whisper:
+    path: packages/ponderin_whisper
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  path_provider_platform_interface: ^2.1.2
 
   # Code generation
   build_runner: '>=2.4.14 <3.0.0'
@@ -117,8 +120,19 @@ dev_dependencies:
 
 
 flutter:
+  config:
+    enable-swift-package-manager: false
   uses-material-design: true
   assets:
+    - assets/seed/
+    - assets/seed/vocab/
+    - assets/seed/vocab/lang/
+    - assets/seed/grammar/ko/
+    - assets/seed/grammar/es/
+    - assets/seed/grammar/it/
+    - assets/seed/grammar/fr/
+    - assets/seed/grammar/en/
+    - assets/seed/grammar/de/
     - assets/sounds/
     - assets/images/
     - assets/animations/

@@ -1,6 +1,12 @@
+import 'dart:async' show unawaited;
 import 'dart:convert' show jsonDecode, jsonEncode;
-import 'dart:io' show File;
+import 'dart:io' show Directory, File, FileSystemException;
 import 'package:file_picker/file_picker.dart';
+import 'dart:convert';
+
+import 'package:easy_localization/easy_localization.dart' show Intl;
+import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -8,8 +14,11 @@ import '../../../data/datasources/local/app_database.dart';
 import '../../../data/datasources/local/daos/vocabulary_list_dao.dart';
 import '../../../data/datasources/local/daos/concept_dao.dart';
 import '../../../data/datasources/local/daos/progress_dao.dart';
+import '../../../data/datasources/remote/vocab_assistant_datasource.dart';
 import '../../../data/datasources/remote/vocabulary_remote_datasource.dart';
 import '../../../data/repositories/vocabulary_repository_impl.dart';
+import '../../../data/seed/starter_seeder.dart';
+import '../../../data/sync/push_sync.dart';
 import '../../../domain/entities/vocabulary_list.dart';
 import '../../../domain/entities/concept.dart';
 import '../../../domain/entities/word_variant.dart';
@@ -18,6 +27,7 @@ import '../../../core/config/app_config.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/errors/app_exception.dart';
 import '../auth/auth_provider.dart';
+import '../settings/default_pair_provider.dart';
 import '../purchases/purchase_provider.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
@@ -43,7 +53,8 @@ final vocabularyRemoteProvider = Provider<VocabularyRemoteDataSource>(
 );
 
 final vocabularyRepositoryProvider = Provider<VocabularyRepository>((ref) {
-  final userId = ref.watch(currentUserProvider)?.id ?? '';
+  final userId =
+      ref.watch(currentUserProvider.select((user) => user?.id)) ?? '';
   return VocabularyRepositoryImpl(
     ref.watch(vocabularyListDaoProvider),
     ref.watch(conceptDaoProvider),
@@ -58,29 +69,23 @@ final myListsProvider = StreamProvider<List<VocabularyList>>((ref) {
   return ref.watch(vocabularyRepositoryProvider).watchMyLists();
 });
 
-// Fetches metadata for a single list (for AppBar titles etc.).
-final listInfoProvider =
-    FutureProvider.family<VocabularyList?, String>((ref, listId) {
-  return ref
-      .watch(vocabularyRepositoryProvider)
-      .getListById(listId)
-      .then((r) => r.valueOrNull);
-});
+// Streams metadata for an open list, including canonical sync corrections.
+final listInfoProvider = StreamProvider.autoDispose
+    .family<VocabularyList?, String>((ref, listId) {
+      return ref.watch(vocabularyRepositoryProvider).watchListById(listId);
+    });
 
 // Streams concepts for a given list.
-final listDetailProvider =
-    StreamProvider.family<List<Concept>, String>((ref, listId) {
-  return ref.watch(vocabularyRepositoryProvider).watchConcepts(listId);
-});
+final listDetailProvider = StreamProvider.autoDispose
+    .family<List<Concept>, String>((ref, listId) {
+      return ref.watch(vocabularyRepositoryProvider).watchConcepts(listId);
+    });
 
-// Fetches variants for a concept (cached per conceptId).
-final variantsProvider =
-    FutureProvider.family<List<WordVariant>, String>((ref, conceptId) {
-  return ref
-      .watch(vocabularyRepositoryProvider)
-      .getVariants(conceptId)
-      .then((r) => r.valueOrNull ?? []);
-});
+// Each mounted word observes its variants and releases the subscription on exit.
+final variantsProvider = StreamProvider.autoDispose
+    .family<List<WordVariant>, String>((ref, conceptId) {
+      return ref.watch(vocabularyRepositoryProvider).watchVariants(conceptId);
+    });
 
 // Streams the number of cards due for review today.
 final dueCountProvider = StreamProvider<int>((ref) {
@@ -88,6 +93,29 @@ final dueCountProvider = StreamProvider<int>((ref) {
   if (userId.isEmpty) return Stream.value(0);
   return ref.watch(progressDaoProvider).watchDueCount(userId);
 });
+
+/// List IDs the user has started studying (≥1 reviewed card). Drives the
+/// "currently studying" vs "not yet studied" split in the quiz setup screen.
+/// A STREAM over the local DB so the split fills in live when the login sync
+/// delivers progress rows on a fresh device (field report 2026-07-19).
+final studiedListIdsProvider = StreamProvider<Set<String>>((ref) {
+  final userId = ref.watch(currentUserProvider)?.id ?? '';
+  if (userId.isEmpty) return Stream.value(<String>{});
+  return ref.watch(progressDaoProvider).watchStudiedListIds(userId);
+});
+
+/// Due-card count for one language pair (record: (langA, langB)) — feeds the
+/// quiz setup's "to study now" badge so it reflects the chosen language, not
+/// every language's due cards. Streamed for the same fresh-device reason.
+final dueCountForPairProvider = StreamProvider.autoDispose
+    .family<int, (String, String)>((ref, pair) {
+      final userId =
+          ref.watch(currentUserProvider.select((user) => user?.id)) ?? '';
+      if (userId.isEmpty) return Stream.value(0);
+      return ref
+          .watch(progressDaoProvider)
+          .watchDueCountForPair(userId, pair.$1, pair.$2);
+    });
 
 const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
@@ -97,13 +125,78 @@ const _kTestMode = bool.fromEnvironment('TEST_MODE');
 // can queue hundreds of Drift writes that block quiz card loading.
 final syncOnLoginProvider = FutureProvider<void>((ref) async {
   if (_kTestMode) return;
-  final user = ref.watch(currentUserProvider);
-  if (user == null) return;
+  final userId = ref.watch(currentUserProvider.select((user) => user?.id));
+  if (userId == null || userId.isEmpty) return;
   await ref.watch(vocabularyRepositoryProvider).syncFromRemote();
 });
 
-final listActionsProvider =
-    NotifierProvider<ListActionsNotifier, void>(ListActionsNotifier.new);
+/// The pair-aware starter seeder (assets/seed/vocab/ catalog). Composed here
+/// so both the login path and the create-list path share one instance.
+final starterSeederProvider = Provider<StarterSeeder>(
+  (ref) => StarterSeeder(
+    bundle: rootBundle,
+    repo: ref.watch(vocabularyRepositoryProvider),
+    listDao: ref.watch(vocabularyListDaoProvider),
+    conceptDao: ref.watch(conceptDaoProvider),
+    userId: ref.watch(currentUserProvider.select((user) => user?.id)) ?? '',
+    uiLocale: Intl.defaultLocale,
+  ),
+);
+
+/// Seeds the starter curriculum for the user's current default pair. The
+/// starter lists are also the grammar lessons' prerequisites, so every
+/// studied pair must have them. Runs AFTER the pull sync so an existing
+/// account's lists arrive first; StarterSeeder itself is idempotent (per-pair
+/// flag, dedup by seed_id, per-concept top-up — see its doc comment) and
+/// adopts/heals lists seeded by the old name-keyed fr→ko pipeline.
+/// Re-runs whenever the default pair changes (ref.watch), and
+/// ListActionsNotifier.createList seeds any new pair a list is created with.
+/// Skipped in TEST_MODE — E2E owns its own data.
+final seedStarterListsProvider = FutureProvider<void>((ref) async {
+  if (_kTestMode) return;
+  final userId = ref.watch(currentUserProvider.select((user) => user?.id));
+  if (userId == null || userId.isEmpty) return;
+  ref.watch(defaultPairProvider);
+  final pairRestored = ref.read(defaultPairProvider.notifier).restored;
+  final seeder = ref.watch(starterSeederProvider);
+  var active = true;
+  ref.onDispose(() => active = false);
+  // A remote pull improves an existing account, but must not prevent a new
+  // user (or an offline user) from receiving the bundled starter curriculum.
+  try {
+    await ref.watch(syncOnLoginProvider.future);
+  } catch (_) {
+    // The local database remains usable; a later reconnect retries the pull.
+  }
+
+  await pairRestored;
+  if (!active) return;
+  final pair = ref.read(defaultPairProvider);
+  await seeder.ensureSeededForPair(pair.$1, pair.$2);
+});
+
+/// Outbound sync (the isSynced flags are the queue — see data/sync/push_sync).
+final pushSyncProvider = Provider<PushSync>(
+  (ref) => PushSync(
+    ref.watch(vocabularyListDaoProvider),
+    ref.watch(conceptDaoProvider),
+    ref.watch(progressDaoProvider),
+    ref.watch(appDatabaseProvider).reviewEventDao,
+    ref.watch(vocabularyRemoteProvider),
+    userId: ref.watch(currentUserProvider.select((user) => user?.id)) ?? '',
+  ),
+);
+
+/// Committed local edits wake the scheduler. The sync flags are the durable queue.
+final outboundMutationsProvider = StreamProvider<void>((ref) {
+  final userId = ref.watch(currentUserProvider.select((user) => user?.id));
+  if (userId == null) return const Stream.empty();
+  return ref.watch(appDatabaseProvider).watchOutboundMutations(userId);
+});
+
+final listActionsProvider = NotifierProvider<ListActionsNotifier, void>(
+  ListActionsNotifier.new,
+);
 
 class ListActionsNotifier extends Notifier<void> {
   @override
@@ -111,52 +204,131 @@ class ListActionsNotifier extends Notifier<void> {
 
   VocabularyRepository get _repo => ref.read(vocabularyRepositoryProvider);
 
-  Future<Result<VocabularyList>> createList(
-      String name, String? description) async {
-    if (!ref.read(isPremiumProvider)) {
-      final count = ref.read(myListsProvider).valueOrNull?.length ?? 0;
-      if (count >= AppConfig.maxFreeVocabLists) {
-        return const Failure(QuotaExceededException(
-          'Free plan includes ${AppConfig.maxFreeVocabLists} lists. Upgrade to create more.',
-        ));
-      }
-    }
-    return _repo.createList(name: name, description: description);
+  bool Function() _captureSession(String? userId, VocabularyRepository repo) {
+    final sessionIdentity = ref.read(authSessionIdentityProvider);
+    final token = sessionIdentity.token;
+    return () =>
+        userId != null &&
+        sessionIdentity.matches(token, userId) &&
+        ref.read(currentUserProvider)?.id == userId &&
+        identical(repo, _repo);
   }
 
-  Future<Result<VocabularyList>> renameList(
-      String listId, String newName) async {
-    final r = await _repo.getListById(listId);
-    return r.fold(
-      onSuccess: (list) => _repo.updateList(list.copyWith(name: newName)),
-      onFailure: (e) async => Failure(e),
+  Future<Result<VocabularyList>> createList(
+    String name,
+    String? description, {
+    String langA = 'fr',
+    String langB = 'ko',
+  }) async {
+    if (!ref.read(isPremiumProvider)) {
+      // Only USER-created lists count against the free quota — seeded starter
+      // lists and premium packs are exempt (product decision 2026-07-04).
+      final count =
+          ref
+              .read(myListsProvider)
+              .valueOrNull
+              ?.where((l) => l.origin == 'user')
+              .length ??
+          0;
+      if (count >= AppConfig.maxFreeVocabLists) {
+        return const Failure(
+          QuotaExceededException(
+            'Free plan includes ${AppConfig.maxFreeVocabLists} lists. Upgrade to create more.',
+          ),
+        );
+      }
+    }
+    final result = await _repo.createList(
+      name: name,
+      description: description,
+      langA: langA,
+      langB: langB,
+    );
+    if (result is Success<VocabularyList> && !_kTestMode) {
+      // First list in a new pair → that pair's starter curriculum appears
+      // alongside it (idempotent; no-op for already-seeded pairs). Fire and
+      // forget: a failure here must not break list creation — the login-path
+      // seeder retries on next app open (per-pair flag still unset).
+      unawaited(
+        Future(
+          () =>
+              ref.read(starterSeederProvider).ensureSeededForPair(langA, langB),
+        ).catchError((Object e) => debugPrint('pair seeding failed: $e')),
+      );
+    }
+    return result;
+  }
+
+  Future<Result<VocabularyList>> renameList(String listId, String newName) =>
+      _repo.renameList(listId, newName);
+
+  Future<Result<void>> deleteList(String listId) => _repo.deleteList(listId);
+
+  Future<List<WordPairSuggestion>?> getSuggestionContext(
+    String listId, {
+    required (String, String) expectedPair,
+  }) async {
+    final userId = ref.read(currentUserProvider)?.id;
+    final repo = _repo;
+    final isCurrent = _captureSession(userId, repo);
+    if (!isCurrent()) return null;
+    final sample = await repo.getWordPairSample(
+      listId,
+      limit: VocabAssistantDataSource.maxContextItems,
+      expectedPair: expectedPair,
+    );
+    if (sample == null || !isCurrent()) return null;
+    final confirmed = (await repo.getListById(listId)).valueOrNull;
+    if (!isCurrent() ||
+        confirmed?.ownerId != userId ||
+        (confirmed?.langA, confirmed?.langB) != expectedPair) {
+      return null;
+    }
+    return VocabAssistantDataSource.boundSuggestionContext(
+      sourceLang: expectedPair.$1,
+      targetLang: expectedPair.$2,
+      pairs: sample.map(
+        (pair) => WordPairSuggestion(source: pair.source, target: pair.target),
+      ),
     );
   }
 
-  Future<Result<void>> deleteList(String listId) =>
-      _repo.deleteList(listId);
-
   Future<Result<Concept>> addConcept({
     required String listId,
-    required String frWord,
-    required String koWord,
+    required String wordA,
+    required String wordB,
+    (String, String)? expectedPair,
     String? notes,
     String? category,
   }) async {
-    if (!ref.read(isPremiumProvider)) {
-      final listResult = await _repo.getListById(listId);
-      if (listResult case Success(:final value)) {
-        if (value.wordCount >= AppConfig.maxFreeWordsPerList) {
-          return const Failure(QuotaExceededException(
-            'Free plan includes ${AppConfig.maxFreeWordsPerList} words per list. Upgrade for unlimited words.',
-          ));
-        }
-      }
+    final repo = _repo;
+    final Result<VocabularyList> listResult;
+    try {
+      listResult = await repo.getListById(listId);
+    } catch (error) {
+      return Failure(StorageException(error.toString()));
     }
-    return _repo.addConceptWithVariants(
+    if (!identical(repo, _repo)) return const Failure(PermissionException());
+    if (listResult case Failure(:final exception)) return Failure(exception);
+    final list = listResult.valueOrNull!;
+    final pair = (list.langA, list.langB);
+    if (expectedPair != null && expectedPair != pair) {
+      return const Failure(ValidationException('List language pair changed'));
+    }
+    if (!ref.read(isPremiumProvider) &&
+        list.wordCount >= AppConfig.maxFreeWordsPerList) {
+      return const Failure(
+        QuotaExceededException(
+          'Free plan includes ${AppConfig.maxFreeWordsPerList} words per list. Upgrade for unlimited words.',
+        ),
+      );
+    }
+    return repo.addConceptWithVariants(
       listId: listId,
-      frWord: frWord,
-      koWord: koWord,
+      wordA: wordA,
+      wordB: wordB,
+      langA: pair.$1,
+      langB: pair.$2,
       notes: notes,
       category: category,
     );
@@ -165,35 +337,60 @@ class ListActionsNotifier extends Notifier<void> {
   Future<Result<void>> deleteConcept(String conceptId) =>
       _repo.deleteConcept(conceptId);
 
-  Future<void> updateVariants({
-    required WordVariant frVariant,
-    required String newFrWord,
-    required WordVariant koVariant,
-    required String newKoWord,
-  }) async {
-    await _repo.updateVariant(frVariant.copyWith(word: newFrWord));
-    await _repo.updateVariant(koVariant.copyWith(word: newKoWord));
-  }
+  Future<Result<void>> updateVariants({
+    required String listId,
+    required WordVariant variantA,
+    required WordVariant variantB,
+    required String wordA,
+    required String wordB,
+  }) => _repo.updateWordPair(
+    listId: listId,
+    variantA: variantA,
+    variantB: variantB,
+    wordA: wordA,
+    wordB: wordB,
+  );
 
   // Returns an error message on failure, null on success.
   Future<String?> exportList(String listId, String listName) async {
-    final result = await _repo.exportToJson(listId);
+    const cancelled = PermissionException();
+    final userId = ref.read(currentUserProvider)?.id;
+    final repo = _repo;
+    final isCurrent = _captureSession(userId, repo);
+    if (!isCurrent()) return cancelled.message;
+    final result = await repo.exportToJson(listId);
+    if (!isCurrent()) return cancelled.message;
     if (result.isFailure) {
       return result.exceptionOrNull?.message ?? 'Export failed';
     }
+    Directory? stagingDirectory;
+    var shareStarted = false;
     try {
       final jsonStr = jsonEncode(result.valueOrNull!);
       final dir = await getTemporaryDirectory();
+      if (!isCurrent()) return cancelled.message;
+      // Keep concurrent exports with the same display name in separate files.
+      stagingDirectory = await dir.createTemp('ponderin-export-');
+      if (!isCurrent()) return cancelled.message;
       final safeName = listName.replaceAll(RegExp(r'[^\w ]'), '_').trim();
-      final file = File('${dir.path}/${safeName}_vocabkr.json');
+      final file = File('${stagingDirectory.path}/${safeName}_vocabkr.json');
       await file.writeAsString(jsonStr);
-      await Share.shareXFiles(
-        [XFile(file.path, mimeType: 'application/json')],
-        subject: '$listName — VocabKR Export',
-      );
+      if (!isCurrent()) return cancelled.message;
+      shareStarted = true;
+      await Share.shareXFiles([
+        XFile(file.path, mimeType: 'application/json'),
+      ], subject: '$listName — Ponderin Export');
       return null;
     } catch (e) {
       return e.toString();
+    } finally {
+      if (!shareStarted && stagingDirectory != null) {
+        try {
+          await stagingDirectory.delete(recursive: true);
+        } on FileSystemException catch (e) {
+          debugPrint('Discarded export cleanup failed: $e');
+        }
+      }
     }
   }
 
@@ -221,10 +418,51 @@ class ListActionsNotifier extends Notifier<void> {
 
   // Generates a share token, saves it, and opens the native share sheet.
   Future<Result<String>> generateAndShareLink(
-      String listId, String listName) async {
-    final result = await _repo.generateShareLink(listId);
+    String listId,
+    String listName,
+  ) async {
+    final userId = ref.read(currentUserProvider)?.id;
+    final repo = _repo;
+    final isCurrent = _captureSession(userId, repo);
+    if (!isCurrent()) return const Failure(PermissionException());
+    final push = ref.read(pushSyncProvider);
+    final dao = ref.read(vocabularyListDaoProvider);
+    final result = await repo.generateShareLink(listId);
+    if (!isCurrent()) return const Failure(PermissionException());
     if (result.isFailure) return result;
-    await Share.share(result.valueOrNull!, subject: '$listName — VocabKR');
+    final canonical = (await repo.getListById(listId)).valueOrNull;
+    if (!isCurrent()) return const Failure(PermissionException());
+    if (canonical == null) {
+      return const Failure(NotFoundException('List not found'));
+    }
+    if (canonical.ownerId != userId) {
+      return const Failure(PermissionException());
+    }
+    // Wait for this list and its content to become remotely visible.
+    await push.pushList(canonical.id);
+    if (!isCurrent()) return const Failure(PermissionException());
+    final link = result.valueOrNull!;
+    final token = Uri.parse(link).queryParameters['token'];
+    final acknowledged = await dao.transaction(() async {
+      final list = await dao.getById(canonical.id);
+      return token != null &&
+          list != null &&
+          list.ownerId == userId &&
+          !list.isDeleted &&
+          list.isSynced &&
+          list.shareToken == token &&
+          list.visibility == 'public' &&
+          !await dao.hasPendingContents(canonical.id);
+    });
+    if (!isCurrent()) return const Failure(PermissionException());
+    if (!acknowledged) {
+      return const Failure(
+        NetworkException(
+          'The list must finish syncing before its link can be shared.',
+        ),
+      );
+    }
+    await Share.share(link, subject: '$listName — Ponderin');
     return result;
   }
 

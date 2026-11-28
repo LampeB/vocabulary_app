@@ -1,0 +1,268 @@
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../core/languages.dart' show uiLocaleCode;
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
+import '../../providers/grammar/grammar_provider.dart';
+import '../../providers/settings/default_pair_provider.dart';
+import '../../widgets/dotted_ground.dart';
+import '../../widgets/frosted_box.dart';
+import '../../widgets/grammar_prerequisite_label.dart';
+
+/// Dedicated grammar hub (user decision 2026-07-21): every lesson with its
+/// unlock/mastery progress. Locked rules show HOW to unlock them — an overall
+/// bar plus per-prerequisite-list mastery bars; unlocked rules open their
+/// reader before the learner opts into the existing practice setup.
+class GrammarScreen extends ConsumerWidget {
+  const GrammarScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // The grammar hub shows the curriculum of the default pair's studied
+    // language (seam for the future header language chip).
+    final targetLang = ref.watch(defaultPairProvider).$2;
+    final statusesAsync = ref.watch(ruleStatusesProvider(targetLang));
+    final catalogNames =
+        ref.watch(grammarPrerequisiteNameKeysProvider).valueOrNull ??
+        const <String, String>{};
+    return Scaffold(
+      key: const ValueKey(WidgetKeys.screenGrammar),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: context.canPop()
+            ? IconButton(
+                tooltip: 'common.back'.tr(),
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                onPressed: () => context.pop(),
+              )
+            : null,
+        title: Text('daily_path.lessons_title'.tr()),
+      ),
+      body: Stack(
+        children: [
+          const DottedGround(),
+          statusesAsync.when(
+            loading: () => const Center(
+              child: CircularProgressIndicator(
+                color: AppColors.clay,
+                strokeWidth: 2,
+              ),
+            ),
+            error: (_, _) => Center(child: Text('common.error'.tr())),
+            data: (statuses) => statuses.isEmpty
+                // Studyable language without a curriculum yet — lists and
+                // quizzes work, grammar arrives later (progressive delivery).
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Text(
+                        'grammar.no_curriculum'.tr(),
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.muted,
+                        ),
+                      ),
+                    ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                    children: [
+                      for (final s in statuses) ...[
+                        _RuleCard(status: s, catalogNames: catalogNames),
+                        const SizedBox(height: 12),
+                      ],
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RuleCard extends StatelessWidget {
+  const _RuleCard({required this.status, required this.catalogNames});
+  final RuleStatus status;
+  final Map<String, String> catalogNames;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final muted = cs.onSurfaceVariant;
+    final locked = status.availability == RuleAvailability.locked;
+    final mastered = status.availability == RuleAvailability.mastered;
+
+    return FrostedBox(
+      key: ValueKey(WidgetKeys.grammarRuleCard(status.rule.id)),
+      borderRadius: BorderRadius.circular(18),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                mastered
+                    ? Icons.verified_rounded
+                    : locked
+                    ? Icons.lock_outline_rounded
+                    : Icons.lock_open_rounded,
+                size: 18,
+                color: mastered
+                    ? AppColors.teal
+                    : locked
+                    ? muted
+                    : AppColors.clay,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  status.rule.title(uiLocaleCode(context)),
+                  style: AppTextStyles.fig(16, FontWeight.w700),
+                ),
+              ),
+              Text(
+                (mastered
+                        ? 'grammar.status_mastered'
+                        : locked
+                        ? 'grammar.status_locked'
+                        : 'grammar.status_unlocked')
+                    .tr(),
+                style: AppTextStyles.caption.copyWith(color: muted),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (locked) ...[
+            // Overall unlock progress, then how each prerequisite list is
+            // doing — the "what do I need to do" answer at a glance.
+            _Bar(
+              label: 'grammar.unlock_progress'.tr(),
+              fraction: status.unlockFraction,
+              color: muted,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'grammar.unlock_requirement'.tr(),
+              style: AppTextStyles.caption.copyWith(color: muted),
+            ),
+            const SizedBox(height: 10),
+            for (final name in status.rule.prerequisiteLists) ...[
+              _Bar(
+                key: ValueKey(WidgetKeys.grammarPrerequisiteList(name)),
+                label: grammarPrerequisiteLabel(
+                  name,
+                  status.prereqNames,
+                  catalogNames,
+                ),
+                fraction: (status.prereqProgress[name] ?? 0).clamp(0.0, 1.0),
+                color: AppColors.clay,
+                dense: true,
+                onTap: status.prereqListIds[name] == null
+                    ? null
+                    : () => context.push(
+                        '/lists/${status.prereqListIds[name] ?? ''}',
+                      ),
+              ),
+              const SizedBox(height: 6),
+            ],
+          ] else ...[
+            _Bar(
+              label: 'grammar.mastery_progress'.tr(
+                namedArgs: {
+                  'correct': status.correct.toString(),
+                  'target': ruleMasteryTarget.toString(),
+                },
+              ),
+              fraction: (status.correct / ruleMasteryTarget).clamp(0.0, 1.0),
+              color: mastered ? AppColors.teal : AppColors.clay,
+            ),
+            if (!mastered) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.icon(
+                  key: ValueKey(
+                    WidgetKeys.grammarRuleOpenLesson(status.rule.id),
+                  ),
+                  onPressed: () => context.push('/grammar/${status.rule.id}'),
+                  icon: const Icon(Icons.menu_book_rounded, size: 18),
+                  label: Text('grammar.open_lesson'.tr()),
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Bar extends StatelessWidget {
+  const _Bar({
+    super.key,
+    required this.label,
+    required this.fraction,
+    required this.color,
+    this.dense = false,
+    this.onTap,
+  });
+  final String label;
+  final double fraction;
+  final Color color;
+  final bool dense;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final pct = (fraction * 100).round();
+    final child = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: dense
+                    ? AppTextStyles.caption.copyWith(color: cs.onSurfaceVariant)
+                    : AppTextStyles.fig(13, FontWeight.w600),
+              ),
+            ),
+            Text(
+              '$pct%',
+              style: AppTextStyles.caption.copyWith(color: cs.onSurfaceVariant),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: LinearProgressIndicator(
+            value: fraction,
+            minHeight: dense ? 4 : 6,
+            backgroundColor: cs.outline.withValues(alpha: 0.25),
+            valueColor: AlwaysStoppedAnimation(color),
+          ),
+        ),
+      ],
+    );
+    return onTap == null
+        ? child
+        : InkWell(
+            key: key,
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: child,
+            ),
+          );
+  }
+}

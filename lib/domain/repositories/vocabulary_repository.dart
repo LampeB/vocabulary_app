@@ -6,8 +6,18 @@ import '../../core/errors/failure.dart';
 abstract interface class VocabularyRepository {
   // Lists
   Stream<List<VocabularyList>> watchMyLists();
-  Future<Result<VocabularyList>> createList({required String name, String? description});
+  Stream<VocabularyList?> watchListById(String listId);
+
+  /// [langA]/[langB] are the list's learning-language pair (generic-language-
+  /// pairs epic). Defaults keep pre-multi-language callers on FR↔KO.
+  Future<Result<VocabularyList>> createList({
+    required String name,
+    String? description,
+    String langA = 'fr',
+    String langB = 'ko',
+  });
   Future<Result<VocabularyList>> updateList(VocabularyList list);
+  Future<Result<VocabularyList>> renameList(String listId, String name);
   Future<Result<void>> deleteList(String listId);
   Future<Result<VocabularyList>> getListById(String listId);
   Future<Result<VocabularyList?>> getListByShareToken(String token);
@@ -21,10 +31,16 @@ abstract interface class VocabularyRepository {
     String? exampleFr,
     String? exampleKo,
   });
+
+  /// Creates a concept with one variant per side of the list's language pair.
+  /// [wordA] is stored in [langA] and [wordB] in [langB]. The write is rejected
+  /// if those languages no longer match the owning list in that order.
   Future<Result<Concept>> addConceptWithVariants({
     required String listId,
-    required String frWord,
-    required String koWord,
+    required String wordA,
+    required String wordB,
+    String langA = 'fr',
+    String langB = 'ko',
     String? notes,
     String? category,
   });
@@ -33,6 +49,14 @@ abstract interface class VocabularyRepository {
 
   // Variants
   Future<Result<List<WordVariant>>> getVariants(String conceptId);
+  Stream<List<WordVariant>> watchVariants(String conceptId);
+
+  /// Returns no context when the list is unavailable or its pair has changed.
+  Future<List<({String source, String target})>?> getWordPairSample(
+    String listId, {
+    required int limit,
+    required (String, String) expectedPair,
+  });
   Future<Result<WordVariant>> createVariant({
     required String conceptId,
     required String word,
@@ -41,10 +65,26 @@ abstract interface class VocabularyRepository {
     bool isPrimary = false,
   });
   Future<Result<WordVariant>> updateVariant(WordVariant variant);
+  Future<Result<WordVariant>> updateVariantWord(String variantId, String word);
+
+  /// Changes the edited sides of a concept together, provided the list and
+  /// both variants still match the pair shown when the form was opened.
+  Future<Result<void>> updateWordPair({
+    required String listId,
+    required WordVariant variantA,
+    required WordVariant variantB,
+    required String wordA,
+    required String wordB,
+  });
   Future<Result<void>> deleteVariant(String variantId);
 
   // Import / Export
-  Future<Result<VocabularyList>> importFromJson(Map<String, dynamic> json);
+  /// [origin] tags the created list: 'user' (default, counts against the
+  /// free quota), 'starter' or 'premium' (quota-exempt content).
+  Future<Result<VocabularyList>> importFromJson(
+    Map<String, dynamic> json, {
+    String origin = 'user',
+  });
   Future<Result<Map<String, dynamic>>> exportToJson(String listId);
   Future<Result<String>> generateShareLink(String listId);
   Future<Result<VocabularyList>> importFromShareToken(String token);

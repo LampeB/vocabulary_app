@@ -5,19 +5,20 @@ import 'app_text_styles.dart';
 
 abstract final class AppTheme {
   static ThemeData get light => _build(Brightness.light);
-  static ThemeData get dark  => _build(Brightness.dark);
+  static ThemeData get dark => _build(Brightness.dark);
 
   static ThemeData _build(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
 
     // Resolve brightness-aware tokens.
-    final bg      = isDark ? AppColors.paperDark   : AppColors.paper;
-    final cardCol = isDark ? AppColors.cardDark    : AppColors.card;
-    final inkCol  = isDark ? AppColors.onDark      : AppColors.ink;
+    final bg = isDark ? AppColors.paperDark : AppColors.paper;
+    final cardCol = isDark ? AppColors.cardDark : AppColors.card;
+    final inkCol = isDark ? AppColors.onDark : AppColors.ink;
     final mutedCol = isDark ? AppColors.onDarkMuted : AppColors.muted;
-    final lineCol  = isDark ? const Color(0x1FFFFFFF) : AppColors.line;
-    final tealCol  = isDark ? AppColors.tealDark   : AppColors.teal;
-    final clayCol  = isDark ? AppColors.clayDark   : AppColors.clay;
+    final lineCol = isDark ? const Color(0x1FFFFFFF) : AppColors.line;
+    final tealCol = isDark ? AppColors.tealDark : AppColors.teal;
+    final clayCol = isDark ? AppColors.clayDark : AppColors.clay;
+    final roseCol = isDark ? AppColors.roseDark : AppColors.roseText;
 
     final colorScheme = ColorScheme(
       brightness: brightness,
@@ -32,10 +33,10 @@ abstract final class AppTheme {
       secondaryContainer: clayCol.withValues(alpha: 0.12),
       onSecondaryContainer: clayCol,
       // Rose = destructive only.
-      error: AppColors.rose,
-      onError: Colors.white,
-      errorContainer: AppColors.rose.withValues(alpha: 0.12),
-      onErrorContainer: AppColors.rose,
+      error: roseCol,
+      onError: isDark ? AppColors.paperDark : Colors.white,
+      errorContainer: roseCol.withValues(alpha: 0.12),
+      onErrorContainer: roseCol,
       // Surfaces.
       surface: bg,
       onSurface: inkCol,
@@ -53,25 +54,29 @@ abstract final class AppTheme {
     final textTheme = baseTextTheme
         .copyWith(
           // Display = Space Grotesk — prompt word, hero numbers.
-          displayLarge:  AppTextStyles.grotesk(56, FontWeight.w700),
+          displayLarge: AppTextStyles.grotesk(56, FontWeight.w700),
           displayMedium: AppTextStyles.grotesk(48, FontWeight.w700),
-          displaySmall:  AppTextStyles.grotesk(36, FontWeight.w700),
+          displaySmall: AppTextStyles.grotesk(36, FontWeight.w700),
           // Headline = Space Grotesk — screen titles.
-          headlineLarge:  AppTextStyles.grotesk(28, FontWeight.w700),
+          headlineLarge: AppTextStyles.grotesk(28, FontWeight.w700),
           headlineMedium: AppTextStyles.grotesk(24, FontWeight.w700),
-          headlineSmall:  AppTextStyles.grotesk(20, FontWeight.w700),
+          headlineSmall: AppTextStyles.grotesk(20, FontWeight.w700),
           // Title = Figtree — card/section titles.
-          titleLarge:  AppTextStyles.fig(18, FontWeight.w700),
+          titleLarge: AppTextStyles.fig(18, FontWeight.w700),
           titleMedium: AppTextStyles.fig(16, FontWeight.w600),
-          titleSmall:  AppTextStyles.fig(14, FontWeight.w600),
+          titleSmall: AppTextStyles.fig(14, FontWeight.w600),
           // Body = Figtree.
-          bodyLarge:  AppTextStyles.fig(16, FontWeight.w400, height: 1.55),
+          bodyLarge: AppTextStyles.fig(16, FontWeight.w400, height: 1.55),
           bodyMedium: AppTextStyles.fig(15, FontWeight.w400, height: 1.55),
-          bodySmall:  AppTextStyles.fig(13, FontWeight.w400, height: 1.5),
+          bodySmall: AppTextStyles.fig(13, FontWeight.w400, height: 1.5),
           // Labels: large = Figtree buttons; small = Space Mono eyebrows.
-          labelLarge:  AppTextStyles.fig(14, FontWeight.w600),
+          labelLarge: AppTextStyles.fig(14, FontWeight.w600),
           labelMedium: AppTextStyles.fig(12, FontWeight.w600),
-          labelSmall:  AppTextStyles.mono(11, FontWeight.w700, letterSpacing: 1.8),
+          labelSmall: AppTextStyles.mono(
+            11,
+            FontWeight.w700,
+            letterSpacing: 1.8,
+          ),
         )
         .apply(bodyColor: inkCol, displayColor: inkCol);
 
@@ -89,8 +94,10 @@ abstract final class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
-        titleTextStyle: AppTextStyles.grotesk(22, FontWeight.w700)
-            .copyWith(color: inkCol),
+        titleTextStyle: AppTextStyles.grotesk(
+          22,
+          FontWeight.w700,
+        ).copyWith(color: inkCol),
         iconTheme: IconThemeData(color: inkCol, size: 22),
       ),
 
@@ -139,27 +146,34 @@ abstract final class AppTheme {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.rose, width: 1.5),
+          borderSide: BorderSide(color: roseCol, width: 1.5),
         ),
         filled: true,
         fillColor: cardCol,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        labelStyle: AppTextStyles.fig(14, FontWeight.w500)
-            .copyWith(color: mutedCol),
-        hintStyle: AppTextStyles.fig(14, FontWeight.w400)
-            .copyWith(color: AppColors.faint),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 16,
+        ),
+        labelStyle: AppTextStyles.fig(
+          14,
+          FontWeight.w500,
+        ).copyWith(color: mutedCol),
+        hintStyle: AppTextStyles.fig(
+          14,
+          FontWeight.w400,
+        ).copyWith(color: AppColors.faint),
       ),
 
       // ── Buttons ─────────────────────────────────────────────────────────
       // FilledButton = teal — commit / continue / correct.
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: tealCol,
+          backgroundColor: AppColors.tealButton,
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
+            borderRadius: BorderRadius.circular(16),
+          ),
           elevation: 0,
           textStyle: AppTextStyles.fig(15, FontWeight.w700),
         ),
@@ -167,11 +181,12 @@ abstract final class AppTheme {
       // ElevatedButton = clay — primary CTA / mic / live action.
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: clayCol,
+          backgroundColor: AppColors.clayButton,
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
+            borderRadius: BorderRadius.circular(16),
+          ),
           elevation: 0,
           textStyle: AppTextStyles.fig(15, FontWeight.w700),
         ),
@@ -184,7 +199,8 @@ abstract final class AppTheme {
           backgroundColor: Colors.white.withValues(alpha: 0.5),
           minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
+            borderRadius: BorderRadius.circular(16),
+          ),
           textStyle: AppTextStyles.fig(14, FontWeight.w600),
         ),
       ),
@@ -197,17 +213,16 @@ abstract final class AppTheme {
       ),
 
       // ── Misc ────────────────────────────────────────────────────────────
-      dividerTheme: DividerThemeData(
-          color: lineCol, thickness: 1, space: 1),
+      dividerTheme: DividerThemeData(color: lineCol, thickness: 1, space: 1),
 
       snackBarTheme: SnackBarThemeData(
         backgroundColor: isDark ? AppColors.card : AppColors.ink,
-        contentTextStyle: AppTextStyles.fig(14, FontWeight.w500).copyWith(
-          color: isDark ? AppColors.ink : AppColors.onDark,
-        ),
+        contentTextStyle: AppTextStyles.fig(
+          14,
+          FontWeight.w500,
+        ).copyWith(color: isDark ? AppColors.ink : AppColors.onDark),
         behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
 
       chipTheme: ChipThemeData(
@@ -222,12 +237,15 @@ abstract final class AppTheme {
 
       dialogTheme: DialogThemeData(
         backgroundColor: isDark ? AppColors.cardDark : AppColors.card,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(28)),
-        titleTextStyle: AppTextStyles.grotesk(20, FontWeight.w700)
-            .copyWith(color: inkCol),
-        contentTextStyle: AppTextStyles.fig(15, FontWeight.w400)
-            .copyWith(color: mutedCol),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        titleTextStyle: AppTextStyles.grotesk(
+          20,
+          FontWeight.w700,
+        ).copyWith(color: inkCol),
+        contentTextStyle: AppTextStyles.fig(
+          15,
+          FontWeight.w400,
+        ).copyWith(color: mutedCol),
         elevation: 0,
       ),
 

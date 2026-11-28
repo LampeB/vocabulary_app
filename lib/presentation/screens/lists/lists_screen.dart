@@ -1,16 +1,26 @@
+import 'dart:async' show unawaited;
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../providers/lists/vocabulary_provider.dart';
+import '../../providers/settings/default_pair_provider.dart';
+import '../../providers/settings/create_list_pair_provider.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/failure.dart';
+import '../../../core/languages.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widget_keys.dart';
 import '../../../domain/entities/vocabulary_list.dart';
 import '../../widgets/dotted_ground.dart';
 import '../../widgets/frosted_box.dart';
+
+// Freeze the loading shimmer under test — it animates forever and would keep the
+// widget tree from ever settling.
+const _kTestMode = bool.fromEnvironment('TEST_MODE');
 
 class ListsScreen extends ConsumerWidget {
   const ListsScreen({super.key});
@@ -20,6 +30,7 @@ class ListsScreen extends ConsumerWidget {
     final listsAsync = ref.watch(myListsProvider);
 
     return Scaffold(
+      key: const ValueKey(WidgetKeys.screenLists),
       // Background from AppTheme.scaffoldBackgroundColor.
       appBar: AppBar(
         // AppBarTheme provides title style and icon colors.
@@ -28,15 +39,18 @@ class ListsScreen extends ConsumerWidget {
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16)),
+              borderRadius: BorderRadius.circular(16),
+            ),
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'import',
-                child: Row(children: [
-                  const Icon(Icons.file_download_outlined, size: 18),
-                  const SizedBox(width: 10),
-                  Text('lists.menu_import'.tr()),
-                ]),
+                child: Row(
+                  children: [
+                    const Icon(Icons.file_download_outlined, size: 18),
+                    const SizedBox(width: 10),
+                    Text('lists.menu_import'.tr()),
+                  ],
+                ),
               ),
             ],
             onSelected: (v) async {
@@ -52,30 +66,37 @@ class ListsScreen extends ConsumerWidget {
             loading: () => const _ListsShimmer(),
             error: (e, _) => Center(
               child: Text(
-                  'lists.error_loading'.tr(namedArgs: {'error': e.toString()}),
-                  style: AppTextStyles.caption
-                      .copyWith(color: AppColors.rose)),
+                'lists.error_loading'.tr(namedArgs: {'error': e.toString()}),
+                style: AppTextStyles.caption.copyWith(color: AppColors.rose),
+              ),
             ),
             data: (lists) => lists.isEmpty
                 ? _EmptyState(
-                    onCreateTap: () => _showCreateDialog(context, ref))
+                    onCreateTap: () => _showCreateDialog(context, ref),
+                  )
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                     itemCount: lists.length,
-                    separatorBuilder: (_, __) =>
-                        const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (ctx, i) => _ListCard(
                       list: lists[i],
-                      accentColor: AppColors.listPalette[
-                          i % AppColors.listPalette.length],
-                      onTap: () =>
-                          context.push('/lists/${lists[i].id}'),
+                      accentColor: AppColors
+                          .listPalette[i % AppColors.listPalette.length],
+                      onTap: () => context.push('/lists/${lists[i].id}'),
                       onRename: () => _showRenameDialog(
-                          ctx, ref, lists[i].id, lists[i].name),
-                      onExport: () => _exportList(
-                          ctx, ref, lists[i].id, lists[i].name),
+                        ctx,
+                        ref,
+                        lists[i].id,
+                        lists[i].name,
+                      ),
+                      onExport: () =>
+                          _exportList(ctx, ref, lists[i].id, lists[i].name),
                       onShare: () => _generateAndShareLink(
-                          ctx, ref, lists[i].id, lists[i].name),
+                        ctx,
+                        ref,
+                        lists[i].id,
+                        lists[i].name,
+                      ),
                       onDelete: () =>
                           _confirmDelete(ctx, ref, lists[i].id, lists[i].name),
                     ),
@@ -84,15 +105,17 @@ class ListsScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        key: const ValueKey(WidgetKeys.listsFab),
         onPressed: () => _showCreateDialog(context, ref),
         backgroundColor: AppColors.clay,
         foregroundColor: Colors.white,
         elevation: 0,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(999)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
         icon: const Icon(Icons.add, size: 20),
-        label: Text('lists.fab_new'.tr(),
-            style: AppTextStyles.fig(14, FontWeight.w700)),
+        label: Text(
+          'lists.fab_new'.tr(),
+          style: AppTextStyles.fig(14, FontWeight.w700),
+        ),
       ),
     );
   }
@@ -104,22 +127,32 @@ class ListsScreen extends ConsumerWidget {
     final result = await ref.read(listActionsProvider.notifier).importList();
     if (result == null) return;
     if (result.isFailure) {
-      messenger.showSnackBar(SnackBar(
-        content: Text(result.exceptionOrNull?.message ??
-            'lists.import_snackbar_error_fallback'.tr()),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            result.exceptionOrNull?.message ??
+                'lists.import_snackbar_error_fallback'.tr(),
+          ),
+        ),
+      );
     } else {
       final list = result.valueOrNull!;
-      messenger.showSnackBar(SnackBar(
-        content: Text(
-            '"${list.name}" ${'lists.import_snackbar_success'.tr(namedArgs: {'wordCount': list.wordCount.toString()})}'),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            '"${list.name}" ${'lists.import_snackbar_success'.tr(namedArgs: {'wordCount': list.wordCount.toString()})}',
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _exportList(
-      BuildContext context, WidgetRef ref, String listId,
-      String listName) async {
+    BuildContext context,
+    WidgetRef ref,
+    String listId,
+    String listName,
+  ) async {
     final messenger = ScaffoldMessenger.of(context);
     final error = await ref
         .read(listActionsProvider.notifier)
@@ -129,18 +162,25 @@ class ListsScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _generateAndShareLink(BuildContext context, WidgetRef ref,
-      String listId, String listName) async {
+  Future<void> _generateAndShareLink(
+    BuildContext context,
+    WidgetRef ref,
+    String listId,
+    String listName,
+  ) async {
     final messenger = ScaffoldMessenger.of(context);
     final result = await ref
         .read(listActionsProvider.notifier)
         .generateAndShareLink(listId, listName);
     if (result.isFailure) {
-      messenger.showSnackBar(SnackBar(
-        content: Text(
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
             result.exceptionOrNull?.message ??
-                'lists.share_link_error_fallback'.tr()),
-      ));
+                'lists.share_link_error_fallback'.tr(),
+          ),
+        ),
+      );
     }
   }
 
@@ -148,27 +188,45 @@ class ListsScreen extends ConsumerWidget {
     final nameCtrl = TextEditingController();
     var quotaExceeded = false;
 
+    final (String, String) defaultPair =
+        ref.read(createListPairProvider) ??
+        ref.read<(String, String)>(defaultPairProvider);
     await showDialog<void>(
       context: context,
-      builder: (ctx) => _ListNameDialog(
-        title: 'lists.create_dialog_title'.tr(),
+      builder: (ctx) => _CreateListDialog(
         controller: nameCtrl,
-        confirmLabel: 'lists.create_dialog_confirm'.tr(),
-        onConfirm: () async {
+        initialLangA: defaultPair.$1,
+        initialLangB: defaultPair.$2,
+        onConfirm: (langA, langB) async {
           if (nameCtrl.text.trim().isEmpty) return;
           final result = await ref
               .read(listActionsProvider.notifier)
-              .createList(nameCtrl.text.trim(), null);
-          if (!ctx.mounted) return;
+              .createList(
+                nameCtrl.text.trim(),
+                null,
+                langA: langA,
+                langB: langB,
+              );
+          if (!context.mounted || !ctx.mounted) return;
+          // Remember only the free-list form; the header owns the active pair.
+          if (result.isSuccess) {
+            unawaited(
+              ref.read(createListPairProvider.notifier).set(langA, langB),
+            );
+          }
           if (result.isFailure) {
             if (result.exceptionOrNull is QuotaExceededException) {
               quotaExceeded = true;
               Navigator.pop(ctx);
             } else {
-              ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                content: Text(result.exceptionOrNull?.message ??
-                    'lists.create_error_fallback'.tr()),
-              ));
+              ScaffoldMessenger.of(ctx).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    result.exceptionOrNull?.message ??
+                        'lists.create_error_fallback'.tr(),
+                  ),
+                ),
+              );
             }
           } else {
             Navigator.pop(ctx);
@@ -180,8 +238,12 @@ class ListsScreen extends ConsumerWidget {
     if (quotaExceeded && context.mounted) context.push('/paywall');
   }
 
-  Future<void> _showRenameDialog(BuildContext context, WidgetRef ref,
-      String listId, String current) async {
+  Future<void> _showRenameDialog(
+    BuildContext context,
+    WidgetRef ref,
+    String listId,
+    String current,
+  ) async {
     final nameCtrl = TextEditingController(text: current);
     await showDialog<void>(
       context: context,
@@ -201,8 +263,12 @@ class ListsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context, WidgetRef ref,
-      String listId, String name) async {
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    String listId,
+    String name,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -211,14 +277,19 @@ class ListsScreen extends ConsumerWidget {
         content: Text('lists.delete_dialog_body'.tr(namedArgs: {'name': name})),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('common.cancel'.tr())),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('common.cancel'.tr()),
+          ),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: AppColors.rose),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('lists.delete_confirm'.tr(),
-                style: AppTextStyles.fig(14, FontWeight.w600)
-                    .copyWith(color: AppColors.rose)),
+            child: Text(
+              'lists.delete_confirm'.tr(),
+              style: AppTextStyles.fig(
+                14,
+                FontWeight.w600,
+              ).copyWith(color: AppColors.rose),
+            ),
           ),
         ],
       ),
@@ -281,8 +352,10 @@ class _ListCard extends StatelessWidget {
                 children: [
                   Text(
                     list.name,
-                    style: AppTextStyles.fig(15, FontWeight.w600)
-                        .copyWith(color: cs.onSurface),
+                    style: AppTextStyles.fig(
+                      15,
+                      FontWeight.w600,
+                    ).copyWith(color: cs.onSurface),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -298,17 +371,34 @@ class _ListCard extends StatelessWidget {
             PopupMenuButton<String>(
               icon: Icon(Icons.more_vert, color: faint, size: 20),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
+                borderRadius: BorderRadius.circular(16),
+              ),
               itemBuilder: (ctx) => [
-                _menuItem(ctx, 'rename', Icons.edit_outlined,
-                    'lists.menu_rename'.tr()),
-                _menuItem(ctx, 'export', Icons.ios_share_outlined,
-                    'lists.menu_export'.tr()),
-                _menuItem(ctx, 'share', Icons.link_outlined,
-                    'lists.menu_share_link'.tr()),
-                _menuItem(ctx, 'delete', Icons.delete_outline,
-                    'lists.menu_delete'.tr(),
-                    isDestructive: true),
+                _menuItem(
+                  ctx,
+                  'rename',
+                  Icons.edit_outlined,
+                  'lists.menu_rename'.tr(),
+                ),
+                _menuItem(
+                  ctx,
+                  'export',
+                  Icons.ios_share_outlined,
+                  'lists.menu_export'.tr(),
+                ),
+                _menuItem(
+                  ctx,
+                  'share',
+                  Icons.link_outlined,
+                  'lists.menu_share_link'.tr(),
+                ),
+                _menuItem(
+                  ctx,
+                  'delete',
+                  Icons.delete_outline,
+                  'lists.menu_delete'.tr(),
+                  isDestructive: true,
+                ),
               ],
               onSelected: (v) {
                 if (v == 'rename') onRename();
@@ -324,20 +414,30 @@ class _ListCard extends StatelessWidget {
   }
 
   PopupMenuItem<String> _menuItem(
-      BuildContext context, String value, IconData icon, String label,
-      {bool isDestructive = false}) {
+    BuildContext context,
+    String value,
+    IconData icon,
+    String label, {
+    bool isDestructive = false,
+  }) {
     final color = isDestructive
         ? AppColors.rose
         : Theme.of(context).colorScheme.onSurface;
     return PopupMenuItem(
       value: value,
-      child: Row(children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 10),
-        Text(label,
-            style: AppTextStyles.fig(14, FontWeight.w500)
-                .copyWith(color: color)),
-      ]),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: AppTextStyles.fig(
+              14,
+              FontWeight.w500,
+            ).copyWith(color: color),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -350,13 +450,14 @@ class _ListsShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
+      enabled: !_kTestMode,
       baseColor: const Color(0xFFE8E0D4),
       highlightColor: const Color(0xFFF4EFE8),
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
         itemCount: 5,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (_, __) => Container(
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (_, _) => Container(
           height: 64,
           decoration: BoxDecoration(
             color: Colors.white,
@@ -389,9 +490,13 @@ class _EmptyState extends StatelessWidget {
           children: [
             Icon(Icons.bookmark_border, size: 56, color: faint),
             const SizedBox(height: 16),
-            Text('lists.empty_title'.tr(),
-                style: AppTextStyles.grotesk(20, FontWeight.w700)
-                    .copyWith(color: cs.onSurface)),
+            Text(
+              'lists.empty_title'.tr(),
+              style: AppTextStyles.grotesk(
+                20,
+                FontWeight.w700,
+              ).copyWith(color: cs.onSurface),
+            ),
             const SizedBox(height: 8),
             Text(
               'lists.empty_subtitle'.tr(),
@@ -403,14 +508,20 @@ class _EmptyState extends StatelessWidget {
               onTap: onCreateTap,
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 14),
+                  horizontal: 24,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.clay,
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: Text('lists.empty_button'.tr(),
-                    style: AppTextStyles.fig(15, FontWeight.w700)
-                        .copyWith(color: Colors.white)),
+                child: Text(
+                  'lists.empty_button'.tr(),
+                  style: AppTextStyles.fig(
+                    15,
+                    FontWeight.w700,
+                  ).copyWith(color: Colors.white),
+                ),
               ),
             ),
           ],
@@ -439,6 +550,7 @@ class _ListNameDialog extends StatelessWidget {
     return AlertDialog(
       title: Text(title),
       content: TextField(
+        key: const ValueKey(WidgetKeys.listNameField),
         controller: controller,
         autofocus: true,
         decoration: InputDecoration(labelText: 'lists.name_field_label'.tr()),
@@ -447,10 +559,123 @@ class _ListNameDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('common.cancel'.tr())),
+          onPressed: () => Navigator.pop(context),
+          child: Text('common.cancel'.tr()),
+        ),
         FilledButton(
-            onPressed: onConfirm, child: Text(confirmLabel)),
+          key: const ValueKey(WidgetKeys.listNameConfirm),
+          onPressed: onConfirm,
+          child: Text(confirmLabel),
+        ),
+      ],
+    );
+  }
+}
+
+/// Create-list dialog with a language-pair picker: a name plus "I speak"
+/// (langA) → "I'm learning" (langB). The chosen pair is stored on the list and
+/// drives quiz directions, voices and fonts (generic-language-pairs epic).
+class _CreateListDialog extends StatefulWidget {
+  const _CreateListDialog({
+    required this.controller,
+    required this.onConfirm,
+    required this.initialLangA,
+    required this.initialLangB,
+  });
+  final TextEditingController controller;
+  final Future<void> Function(String langA, String langB) onConfirm;
+
+  /// Last free-list pair, falling back to the active header pair.
+  final String initialLangA;
+  final String initialLangB;
+
+  @override
+  State<_CreateListDialog> createState() => _CreateListDialogState();
+}
+
+class _CreateListDialogState extends State<_CreateListDialog> {
+  late String _langA = widget.initialLangA;
+  late String _langB = widget.initialLangB;
+
+  Widget _langColumn(
+    String label,
+    String value,
+    ValueChanged<String> onChanged,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTextStyles.eyebrowSm),
+        DropdownButton<String>(
+          value: value,
+          isExpanded: true,
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
+          items: [
+            for (final code in Languages.supported)
+              DropdownMenuItem(
+                value: code,
+                child: Text(Languages.autonym(code)),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('lists.create_dialog_title'.tr()),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            key: const ValueKey(WidgetKeys.listNameField),
+            controller: widget.controller,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: 'lists.name_field_label'.tr(),
+            ),
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: _langColumn(
+                  'lists.create_lang_source'.tr(),
+                  _langA,
+                  (v) => setState(() => _langA = v),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: Icon(Icons.arrow_forward, size: 18),
+              ),
+              Expanded(
+                child: _langColumn(
+                  'lists.create_lang_target'.tr(),
+                  _langB,
+                  (v) => setState(() => _langB = v),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('common.cancel'.tr()),
+        ),
+        FilledButton(
+          key: const ValueKey(WidgetKeys.listNameConfirm),
+          onPressed: () => widget.onConfirm(_langA, _langB),
+          child: Text('lists.create_dialog_confirm'.tr()),
+        ),
       ],
     );
   }

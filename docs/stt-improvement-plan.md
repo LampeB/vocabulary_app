@@ -1,281 +1,319 @@
-# Speech Recognition Improvement Plan
+---
+tags:
+  - architecture
+  - voice
+  - audio
+status: active
+---
 
-> Status: **proposed / not yet implemented**. This is a design doc, not a record of
-> shipped work. Author: planning session 2026-06-26.
+# Architecture voix, STT et audio
 
-## 1. Problem
+Cette note décrit le contrat actuel du mode voix et mains-libres. L'état de
+livraison et les validations qui manquent sont dans
+[`../PROJECT_STATUS.md`](../PROJECT_STATUS.md).
 
-Voice recognition is the core interaction of the app ("say the vocab word"), and
-it is the weakest part of the experience. Real-world symptoms:
+## Principes
 
-- Slight ambient noise throws recognition "all over the place".
-- It mishears short single words, especially Korean spoken by a non-native.
-- It frequently marks a correct spoken answer as wrong.
+- Une réponse de quiz est une reconnaissance **contrainte** : l'application
+  connaît le mot attendu et ses variantes, elle n'effectue pas une dictée libre.
+- L'expérience doit enchaîner prompt, signal, écoute, validation et carte
+  suivante sans chevauchement audio ni callback tardif.
+- Les clips de vocabulaire sont générés/provisionnés une fois, puis téléchargés
+  et mis en cache localement. Un quiz ne crée pas une synthèse ElevenLabs à
+  chaque carte.
+- Le cache de clips est partagé entre le préchargement et tous les lecteurs
+  successifs. Les demandes simultanées d'un même clip partagent un téléchargement.
+  Le cache publie le MP3 complet par renommage local et vérifie son empreinte
+  SHA-256 à la lecture. Une entrée ancienne sans empreinte ou devenue illisible
+  est retirée. Le cache récupère au besoin le même clip dans Storage, dans la
+  limite du compte propriétaire. L'invalidation attend les écritures disque
+  en cours et écarte les réponses réseau tardives.
+- Les écrans ne font jamais d'appel audio ou STT ad hoc.
 
-### Root cause: wrong *kind* of recognition
+## Composants responsables
 
-The quiz already knows the expected answer and a small set of accepted variants
-(`QuizCard.answerWords`). The task is therefore **constrained recognition**
-("did they say *this* word, or one of these few?") — not open-vocabulary
-dictation.
+| Composant | Responsabilité |
+| --- | --- |
+| `VoiceTurnMachine` | Politique d'un tour mains-libres : retries, pause silencieuse, validation unique et transition. |
+| `AudioDirector` | Sérialise TTS, clips, earcons et remise du microphone. |
+| `SttRace` | Coordonne les hypothèses des moteurs, rejette les callbacks périmés et accepte la première réponse validée. Expose l'état en direct (`SttRaceStatus`). |
+| `SharedPcmCapture` | Les décodeurs PCM transcrivent la même capture (décision utilisateur 2026-10-02). Le reconnaisseur système exclusif ouvre son propre micro lorsqu'il est sélectionné. |
+| `PhoneSttEngine` / `PcmSpeechRecognizer.kt` | Reconnaissance du téléphone appliquée à NOTRE enregistrement (Android 13+ `EXTRA_AUDIO_SOURCE`, canal `vocab_kr/pcm_speech`). |
+| `SttStatusStrip` | Montre à l'apprenant s'il est écouté, entendu, ou si chaque moteur envoie/analyse/échoue. |
+| `hf_cue.dart` | Séquence mains-libres visible : lecture → 3·2·1 → bip « Écoute en cours » + barre qui se vide (durée réglable dans les paramètres). |
+| `answer_validator.dart` | Compare l'hypothèse au mot attendu et à ses variantes, y compris les normalisations coréennes. |
+| Adaptateurs STT | STT système, Whisper local Android quand disponible et ElevenLabs Scribe selon disponibilité. |
+| `SttLabScreen` / `SttCorpusRecorder` | Outils de diagnostic sur appareil : corpus étiqueté et comparaison des moteurs. |
+| `NearMissSessionScreen` (`/stt-lab/near-miss`) | Enregistre des « mots proches » étiquetés (locuteur, pièce, mot attendu) pour le comparatif des moteurs. `DebugRecognizeReceiver` (debug uniquement) rejoue `tool/stt_corpus` dans le recognizer du téléphone. |
 
-The current engine ([`speech_recognition_service.dart`](../lib/services/speech/speech_recognition_service.dart),
-the on-device `speech_to_text` plugin) does open dictation: it transcribes
-against the entire language, knows nothing about the expected answer, and uses
-aggressive endpointing that triggers on noise. That is exactly the observed
-failure mode.
+## Flux mains-libres
 
-There is also a **dead second implementation**
-([`whisper_stt_service.dart`](../lib/services/speech/whisper_stt_service.dart) +
-the `whisper-proxy` edge function): it is never instantiated, and
-`enableWhisperSTT` is never read. It was designed with `expected_word` prompt
-biasing — the right idea — but is unplugged.
-
-### Noise sensitivity has three independent causes
-
-| # | Cause | Current state | Fix area |
-|---|-------|---------------|----------|
-| 1 | **Capture** — raw mic signal quality | `RecordConfig` sets no cleanup flags; VAD is a crude amplitude gate | Phase 0 |
-| 2 | **Recognizer** — weak on short/accented/noisy input | platform `speech_to_text` | Phase 2 / 3 |
-| 3 | **Not exploiting the constraint** — transcribe → fuzzy-match → guess | no biasing, no confidence gate | Phase 0 + all engines |
-
-The validator's Korean particle-stripping / jamo logic
-([`answer_validator.dart`](../lib/core/utils/answer_validator.dart)) is good, but
-today it carries weight it shouldn't — it patches a recognizer that mishears the
-word. After this work it becomes a safety net, not the primary accuracy
-mechanism.
-
-## 2. Goals & constraints
-
-- **Best achievable accuracy** for short Korean/French words in noise, by
-  non-native speakers.
-- **Free tier must be ~free to run** → on-device, $0 per recognition, offline.
-- **Paid tier may be more expensive/complex** → cloud, best accuracy + a real
-  premium feature.
-- Tiers already exist: `SubscriptionType {free, student, premium}`,
-  `isPremiumProvider` (`hasAccess`).
-- Hands-free / "driving" mode needs **offline** + low-latency → reinforces an
-  on-device default.
-
-### Decisions taken (planning session)
-
-- Sequencing: **written plan first** (this doc).
-- Free-tier engine: **bake-off** between sherpa-onnx and on-device Whisper, then
-  decide on measured results.
-- Paid-tier engine: **Azure Pronunciation Assessment** (scores pronunciation
-  against the known target word — a premium *feature*, not just better STT).
-
-## 3. Target architecture
-
-One engine interface, implementation chosen by tier. All STT orchestration moves
-out of the widget into a testable controller.
-
-```
-QuizScreen (UI only)
-   │ renders state, calls controller.start(card)
-   ▼
-SttController  (Notifier)              ← owns the state machine:
-   │  - listen lifecycle / partials      token guarding, retries,
-   │  - confidence gate + re-prompt       failsafe timeout, re-prompt
-   │  - validation against answerWords
-   ▼
-SttEngine  (interface)                ← selected by tier
-   ├─ PlatformSttEngine     (current speech_to_text — kept as fallback)
-   ├─ OnDeviceSttEngine     (sherpa-onnx OR whisper.cpp — bake-off winner) [FREE default]
-   └─ CloudPronunciationEngine (Azure via proxy)                          [PREMIUM]
-        │
-        ▼
-   AudioCapture  (record + noiseSuppress/echoCancel/autoGain + Silero VAD)
+```text
+audio du prompt → vérification des moteurs → compte à rebours → signal d'ouverture → microphone → hypothèses STT
+→ validation contrainte → feedback audio → carte suivante
 ```
 
-### Interface sketch (subject to refinement)
+`AudioDirector` doit terminer ou annuler l'audio précédent avant l'écoute.
+Un échec ou une attente trop longue de l'arrêt affiche une reprise du tour.
+Une nouvelle lecture, le signal d'ouverture et la capture attendent l'arrêt
+confirmé des lecteurs du directeur courant, même si le prompt passe de la
+synthèse locale à un clip devenu disponible, ou du clip à la synthèse.
+Une expiration de l'attente laisse l'arrêt natif en cours. Répéter le rejoint
+tant qu'il reste en cours et renouvelle un arrêt refusé.
+Toute nouvelle lecture de mot valide prend la place de la précédente, y
+compris entre la voix de l'appareil et un clip. Le lecteur précédent reste
+propriétaire jusqu'à confirmation de son arrêt natif. Une carte, une face ou
+un compte devenu périmé annule la demande en attente jusque dans la préparation
+du lecteur, sans arrêter une lecture plus récente. Une question en attente de
+silence est aussi invalidée par le retournement de sa carte. Un clip facultatif
+continue d'acquitter le démarrage ; seul un prompt requis attend sa fin.
+Les remplacements du directeur audio dus à la vitesse ou à la hauteur
+conservent les libérations non confirmées de la voix et des signaux, même à
+travers plusieurs changements de réglage ou de route. Un nouveau prompt
+mains-libres, le signal d'ouverture et le microphone attendent leur
+confirmation. Répéter rejoint l'arrêt en cours ou redemande un arrêt refusé.
+Le microphone attend l'événement natif de fin du signal d'ouverture. Une
+erreur native pendant la lecture ou une attente de plus de deux secondes
+rend Répéter disponible sur la carte. L'arrêt invalide le signal en cours.
+L'attente de préparation est aussi annulée. L'échéance peut arrêter seulement
+le signal auquel elle appartient. Chaque signal utilise un lecteur natif
+dédié après confirmation de l'arrêt du son précédent. Un clip dont la fin
+est requise avant le micro utilise également un lecteur dédié.
+En mains-libres, le compte à rebours, le signal et le micro suivent la fin
+confirmée du prompt de la carte courante. Le tour attend aussi la configuration
+de la voix ou la lecture complète de l'enregistrement local. En grammaire,
+la consigne dans la langue de l'interface précède le mot à transformer.
+Si la lecture échoue ou dépasse son délai, le tour reste disponible via le
+bouton Répéter. Le microphone reste fermé. Un refus explicite du moteur
+vocal de l'appareil, lors du réglage de la langue ou du lancement de la
+lecture, suit le même chemin. Une erreur native de lecture d'un clip
+déclenche la libération du lecteur. Après confirmation de cette libération,
+le cache écarte le clip et l'appareil lit le mot avec sa propre voix.
+Le signal et le microphone attendent la fin confirmée de cette synthèse.
+Un refus de libération ou de la synthèse laisse le tour disponible via
+Répéter. Un arrêt du tour ou le remplacement du lecteur annule la reprise
+sonore en attente. Si le lecteur est remplacé pendant
+un prompt, le tour attend sa libération puis rejoue le prompt sur le nouveau
+lecteur. Répéter redemande une libération refusée. Une libération en cours ou
+déjà confirmée conserve son résultat. Seule la fin de la lecture confirme que
+le prompt a été joué. Pour un clip, la libération native de l'audio suffit
+au nouveau lecteur. Le nettoyage final de l'ancien lecteur continue en
+arrière-plan et réessaie une fois la seule opération native refusée.
+Les lectures facultatives conservent leur retour à l'acquittement de démarrage.
+Un refus de démarrage déclenche la même récupération du clip. Une erreur
+native reçue après cet acquittement reste dans le flux d'événements du lecteur
+facultatif et ne déclenche pas de secours vocal.
+Un arrêt TTS confirmé permet de rejouer la consigne quand une réponse de
+configuration de langue est perdue. La réponse tardive d'un ancien tour
+ne remet pas sa voix en service.
+L'arrêt confirmé termine aussi l'attente Dart d'une synthèse interrompue,
+même si le moteur natif ne répond plus à la commande de lecture. Une réponse
+tardive de cette synthèse laisse l'activité de la lecture suivante intacte.
+Un refus d'arrêt conserve l'activité des lectures encore en cours.
+Sur Android et iOS, le canal `vocab_kr/device_speech` vérifie le résultat de
+l'arrêt auprès de `TextToSpeech` ou `AVSpeechSynthesizer`. Le lecteur n'est
+libéré qu'en l'absence de lecture active ou après un arrêt accepté et un
+événement terminal de la synthèse concernée. Un refus ou un événement
+terminal manquant conserve la possession native jusqu'à confirmation. Une
+réponse terminale tardive identifiée peut établir la libération au nouvel
+essai. Un arrêt pendant la configuration invalide la demande Dart avant
+qu'elle puisse lancer une lecture tardive.
+La synthèse de l'appareil traite une seule demande à la fois, de la
+configuration de sa voix jusqu'à la fin du son. Un arrêt confirmé peut
+interrompre cette demande immédiatement et annule les demandes déjà en file.
+`SttRace` et `VoiceTurnMachine` ignorent les résultats arrivés après la fin du
+tour pour empêcher une réponse de contaminer la carte suivante.
+La fermeture de la capture attend sa dernière portion audio et l'inscrit dans
+les analyses en cours avant de permettre un verdict d'absence de réponse.
+Un décodeur peut travailler pendant l'écoute. Le signal de fin d'écoute
+attend la fermeture confirmée du microphone et un verdict encore en cours.
+Si la fermeture est refusée ou dépasse deux secondes, le tour se termine
+sans signal de fin ni notation. Cette règle couvre le microphone partagé
+et le reconnaisseur système exclusif. Répéter relance le tour après
+confirmation de la fermeture. Un arrêt qui attend toujours sa réponse
+native bloque toute nouvelle ouverture, même si le mode ou la route du
+quiz change. Le retour système demande aussi la fermeture et journalise
+les échecs. Sur Android et iOS, le pont système associe la capture et
+sa libération à un identifiant de session. Le retour de la commande
+d'arrêt n'autorise pas à ouvrir un autre micro : la course attend
+l'événement de libération de cette session après le nettoyage natif.
+Les actions Révéler, Clavier, Passer et la reprise des consignes distinguent
+également cette confirmation d'un arrêt expiré ou refusé. Une action qui
+nécessite le micro fermé ne note pas et ne lit pas de réponse avant sa
+libération ; elle conserve une relance récupérable sur la carte courante.
+Une erreur asynchrone ou une fin inattendue du flux PCM est une interruption
+technique, pas une absence de réponse. La course en est informée, demande
+la fermeture confirmée et termine sans notation ; une fermeture volontaire
+ne déclenche pas ce faux échec. Le nettoyage en attente reste partagé pour
+empêcher une nouvelle capture avant la libération native.
+Les lectures du quiz, y compris le premier prompt facultatif d'un nouveau
+quiz, consultent aussi les contrôleurs micro déjà instanciés. Elles rejoignent
+un arrêt en attente et ne démarrent pas si une capture possède encore le
+micro ; cette garde ne crée pas de recorder pour Cartes/Écrire et n'arrête
+pas une écoute active d'une autre route. Une lecture requise conserve son
+parcours d'erreur récupérable ; une lecture facultative peut rester muette.
+La preuve de fin inattendue porte sur le flux public du port PCM. Dans
+`record` 7.1.1, les erreurs sont propagées, mais la fermeture spontanée de
+son flux plateforme interne n'est pas relayée comme `onDone` par son wrapper
+Dart. Aucune sonde hôte ne prouve la détection d'un événement que ce plugin
+n'expose pas ; la vérification physique des interruptions reste requise.
+Chaque tour attend la restauration du mode STT et garde ce mode pour les
+nouvelles tentatives. Le premier essai et chaque relance attendent la
+sélection des moteurs disponibles et la vérification du microphone avant
+le compte à rebours et le signal d'ouverture.
+Un échec de lecture de la connectivité conserve les moteurs locaux éligibles
+sans lancer de moteur cloud ; le mode Système ne dépend pas de cette lecture.
+Une exception de permission ou de préparation, y compris pendant la première
+initialisation du recognizer système ou la détection du pont PCM du téléphone,
+termine la tentative avec un message FR/EN/KO. Si le tour a lancé une capture,
+il en attend la fermeture avant une relance. Un nouvel essai vérifie de
+nouveau les moteurs et garde le micro fermé jusqu'au signal prévu en mains-libres.
+Les résultats tardifs d'une tentative ou d'un ancien compte sont ignorés.
+La mise en arrière-plan, le recouvrement de la route du quiz et la pause
+volontaire invalident le tour, y compris le compte à rebours et les relances.
+Le mode mains-libres reprend quand l'application est à nouveau active et le
+quiz visible, y compris après fermeture d'un import ouvert par lien. Pendant
+un feedback, il reprend l'avance différée et conserve la notation déjà écrite.
+Une pause volontaire reste active jusqu'à la reprise par l'apprenant.
+Chaque route de quiz conserve sa session, ses cartes, son score et sa pause.
+Un quiz lancé depuis un détail importé peut ainsi se terminer, puis rendre la
+main au quiz précédemment couvert. Le chargement ou le changement de carte
+d'un quiz arrête uniquement la capture de son propre tour. Une fermeture
+demandée pendant un arrêt audio reste attachée à sa route et se termine
+quand celle-ci redevient visible.
+Le bouton Pause et le bouton Reprendre sont accessibles au clavier. En
+pause, Reprendre reçoit le focus et les actions d'écoute sont retirées.
+Lorsque la hauteur ou le grossissement du texte réduit l'espace disponible,
+la carte entière défile avec un indicateur pour accéder à la consigne, à
+l'état d'écoute et aux commandes.
+Un changement d'identifiant de compte ferme la session, retire ses cartes
+et invalide le tour audio et les opérations différées de cette session.
+L'arrêt d'un tour invalide les portions PCM en file pour le reconnaisseur du
+téléphone. Le pont Android annule et détruit le reconnaisseur actif et ferme
+ses deux descripteurs de capture. Le nouveau tour attend cette remise à zéro
+et peut décoder sans attendre une ancienne transcription.
+Pour Whisper, l'inférence native déjà lancée libère elle-même son fichier.
+Les portions PCM annulées en attente sont abandonnées avant leur écriture
+WAV et le nouveau tour attend seulement l'inférence déjà lancée.
+En Voix, passer au clavier ou révéler la réponse invalide également le tour
+et ferme sa capture. Une transcription reçue ensuite ne peut plus décider du
+résultat. L'arrêt de la synthèse et des signaux invalide les demandes audio
+en attente de configuration native avant qu'elles puissent jouer.
+Les boutons Microphone, Clavier et Révéler s'utilisent avec Tab et Entrée.
+En Voix, le prompt, les états STT, la transcription et les boutons défilent
+ensemble quand l'espace manque. Avec le clavier logiciel, la consigne, le
+champ et le bouton Valider défilent ensemble.
+Les cartes suivantes et reportées conservent leurs chemins de clips en cache.
 
-```dart
-abstract class SttEngine {
-  Future<bool> initialize();
+La notation **écrite et orale de grammaire** préserve les formes attendues
+par le module, y compris les articles élidés, les terminaisons et les
+particules. Le même contrôle s'applique à chaque hypothèse finale de la
+course et à l'enregistrement du verdict. Les hypothèses partielles restent
+visibles, sans verdict si aucun résultat final n'arrive. La transcription
+orale peut ajouter de la ponctuation finale. Le vocabulaire conserve ses
+normalisations tolérantes et peut valider une hypothèse partielle. Le pont
+PCM préserve le caractère provisoire d'un texte conservé après une erreur
+ou un résultat final vide.
+En vocabulaire, la phonétique et les élisions françaises s'appliquent
+aux réponses attendues en français, à l'écrit et dans les deux voies vocales.
+Les réponses de grammaire alimentent la maîtrise de la règle. Le feedback de
+vocabulaire annonce l'intervalle renvoyé par la notation FSRS enregistrée
+pour cette réponse. Les verdicts s'affichent dès la validation.
 
-  /// One constrained recognition attempt for a single card.
-  Future<SttResult> recognize({
-    required String langCode,           // language being SPOKEN (answer lang)
-    required String expectedWord,       // primary target → biasing / reference text
-    required List<String> acceptedWords,// full accepted set → re-rank target
-    void Function(String partial)? onPartial,
-  });
+## Règles de modification
 
-  Future<void> cancel();
-  void dispose();
+1. Modifier ces seams, leurs tests et cette note ensemble ; ne pas contourner
+   l'orchestrateur depuis un widget.
+2. Mesurer sur un corpus enregistré avant de changer la priorité d'un moteur.
+3. Toute clé, limite, fonction Edge ou coût de fournisseur se configure hors du
+   client et doit être documenté dans un runbook sans jamais inscrire un secret
+   dans Git.
+4. Toute nouvelle stratégie de course ou de capture doit être validée en arrière
+   plan, avec permissions, réseau lent et au moins un appareil réel.
 
-  // Capability flags so the controller/UI adapt:
-  bool get supportsPartials;
-  bool get supportsOffline;
-  bool get supportsPronunciationScore;
-}
+## Politique bêta des fournisseurs (décision 2026-11-22)
 
-enum SttOutcome { recognized, lowConfidence, noSpeech, error }
+Whisper local est conservé. Les services cloud ne sont que des secours : une
+limite atteinte ne doit jamais empêcher une session locale avec le moteur du
+téléphone ou Whisper.
+En mode Course, un décodeur PCM local prêt pour la langue fait utiliser la
+capture partagée, y compris lors de la dernière tentative. Sans décodeur PCM
+local compatible, le reconnaisseur système peut ouvrir le micro seul en
+mode embarqué. Sur Android, il faut un service embarqué détecté par l'API
+système (Android 12+) et un reconnaisseur dédié créé dans le pont natif.
+Sur iOS, la requête exige la reconnaissance embarquée pour la langue.
+Les moteurs réseau servent de secours si aucun moteur local n'est disponible
+ou après les tentatives infructueuses du système. Le mode Système utilise
+directement le reconnaisseur exclusif configuré par la plateforme, qui peut
+utiliser le réseau.
+Le cloud n'analyse la capture qu'après la fin de la tentative locale et de
+ses segments en attente, sans réponse locale validée. Les demandes cloud
+d'un même tour sont sérialisées. Une validation locale n'envoie ni audio ni
+réponse attendue au fournisseur.
+Si une analyse réseau dépasse le délai du tour, la course abandonne les
+envois réseau restants de ce tour. Tant que la requête HTTP Scribe est encore
+en cours, le service réserve son emplacement et un tour ultérieur peut
+continuer avec les autres moteurs disponibles.
 
-class SttResult {
-  final SttOutcome outcome;
-  final String transcript;
-  final double? confidence;            // normalized 0..1
-  final String? matchedAnswer;         // best accepted answer, if any
-  final PronunciationScore? pronunciation; // premium only
-  final String? errorCode;
-}
+Les routes `/stt-lab` et `/stt-lab/near-miss`, leurs liens, l'enregistrement
+de WAV, la persistance des transcriptions du corpus et le journal brut exigent
+tous un build de debug lancé avec `--dart-define=STT_DIAGNOSTICS=true`. Hors de
+cette configuration, les routes sont absentes et l'enregistreur de corpus
+n'accède ni au micro ni à ses fichiers. Le récepteur
+Android de corpus est limité au shell de test, au dossier de corpus et aux
+captures WAV bornées ; il n'est pas présent dans la livraison.
+Sur iOS, le pont prépare les seuls dossiers `Documents/stt_corpus` et
+`Documents/stt_logs`. Il pose et relit leur exclusion des sauvegardes avant
+de rendre leur chemin aux écrivains Flutter. La vérification s'applique
+aussi aux dossiers existants et l'app rétablit leur exclusion au lancement.
+Sans confirmation, le laboratoire ne crée ni WAV, ni résultat de corpus,
+ni journal persistant.
 
-class PronunciationScore {        // Azure
-  final double accuracy;          // 0..100
-  final double fluency;
-  final double completeness;
-  final double prosody;
-  final List<PhonemeScore> phonemes; // for "your 'eu' needs work" UI
-}
-```
+| Capacité | Plafond authentifié |
+| --- | --- |
+| Transcription cloud | 300/jour, 80/heure, une requête simultanée ; clip de 30 s maximum |
+| Traduction assistée | 200/jour |
+| Suggestions de vocabulaire | 25/jour |
+| Génération d'exercices | 20/jour |
+| Provision audio | 500 nouveaux clips/jour, exclusivement sur un cache miss |
 
-`SttController` is responsible for everything currently crammed into
-`_QuizScreenState` (the ~200-line in-widget state machine): retry policy,
-stale-callback token guarding, failsafe timeout, and the new **confidence
-gate → re-prompt** loop. This makes it unit-testable with a fake `SttEngine`.
+Le budget de la bêta mono-utilisateur est de **20 EUR par mois**. Le tableau
+de bord fournisseur alerte à 12 EUR, les fonctions cloud sont restreintes à
+16 EUR et désactivées à 20 EUR. Ces seuils sont des garde-fous d'exploitation
+à configurer chez les fournisseurs ; le dépôt applique les limites par
+utilisateur avant chaque appel. Les coûts réels restent vérifiés dans les
+tableaux de bord des fournisseurs, qui font foi.
 
-## 4. Phased plan
+Whisper local est désormais intégré via `packages/ponderin_whisper`, un pont
+minimal détenu par Ponderin qui appelle le sous-module MIT `whisper.cpp`. Le
+wrapper GPL historique n'est plus distribué. Le modèle `ggml-base.bin` est
+téléchargé depuis une révision figée et vérifié par SHA-256 ; les avis MIT et
+les références exactes sont dans `packages/ponderin_whisper/THIRD_PARTY_NOTICES.md`.
+Le téléchargement du modèle (147 951 465 octets) est partagé entre demandes
+concurrentes et contrôlé avant installation. Le chargement et l'inférence
+native s'exécutent dans un isolate de travail ; le contexte natif reste en
+cache et protégé par un verrou. Le fichier de capture n'est nettoyé qu'après
+la fin de l'inférence, succès comme échec.
+Le pont Android utilise le NDK `28.2.13676358`, aligné sur Flutter 3.44.9 et
+le module application ; les builds CI ne doivent pas installer un ancien NDK
+distinct pour le plugin.
+Whisper local iOS n'est pas livré : le pont reste explicitement limité à
+Android jusqu'à une intégration Xcode et un test physique séparés. L'application
+possède un `Podfile` versionné ; cela ne fournit pas le pont natif Whisper iOS.
+Aucune diffusion externe ne doit
+prétendre offrir Whisper local sur iOS avant cette validation.
 
-### Phase 0 — Cross-cutting wins (help every engine, low risk)
+Le corpus de travail `tool/stt_corpus/` et ses résultats restent privés,
+ignorés par Git et interdits par le garde de PR. Les anciennes captures ont
+été retirées des deux historiques de branches publiques avec sauvegarde locale.
+Le reliquat des anciens objets GitHub a été explicitement accepté pour cette
+intégration ; voir [la décision de conservation historique](reviews/2026-11-27-integration.md#purge-et-décision-de-conservation-historique).
 
-These improve the *current* platform STT immediately and are prerequisites for
-the engines below.
+## Décisions encore ouvertes
 
-1. **Capture cleanup.** Add to the recording config:
-   `noiseSuppress: true`, `echoCancel: true`, `autoGain: true`
-   (`record`'s `RecordConfig` supports all three; best-effort per device).
-2. **Real VAD.** Replace the amplitude-gate loop in `_waitForSpeechEnd` with
-   **Silero VAD** (via the [`vad`](https://pub.dev/packages/vad) package or
-   sherpa-onnx's built-in VAD). Trained on noisy multi-domain audio; isolates the
-   speech segment so the recognizer sees clean boundaries.
-3. **Confidence gate + re-prompt.** Low-confidence result → "didn't catch that,
-   try again" instead of silently scoring a wrong answer. Threshold tuned per
-   engine.
-4. **Exploit the constraint.** Re-rank the transcript against `acceptedWords`
-   and only accept above a confidence/similarity bar; reject garbage rather than
-   fuzzy-matching it to the nearest word.
-
-> Even with no engine swap, items 1–4 should noticeably reduce the noise
-> failures described in §1.
-
-### Phase 1 — `SttEngine` interface + controller refactor
-
-- Define `SttEngine`, `SttResult`, `SttController`.
-- Move orchestration out of [`quiz_screen.dart`](../lib/presentation/screens/quiz/quiz_screen.dart)
-  into `SttController`. Widget becomes render-only.
-- Wrap the existing `speech_to_text` as `PlatformSttEngine` behind the interface
-  so nothing breaks and we keep a universal fallback.
-- Keep the `SIMULATE_SPEECH` test seam; add unit tests for the controller state
-  machine with a fake engine (retries, token guard, failsafe, confidence gate).
-- Decommission the dead `WhisperSttService` (delete, or fold into the cloud
-  engine impl) and **secure or remove** the open `whisper-proxy`.
-
-### Phase 2 — Free-tier on-device engine (bake-off, then build)
-
-Two strong candidates; **measure, don't guess**.
-
-| Candidate | Why | Cost |
-|-----------|-----|------|
-| **sherpa-onnx** ([pub](https://pub.dev/packages/sherpa_onnx)) | Mature Flutter pkg, built-in Silero VAD, contextual biasing / hotwords / keyword-spotter, small models, fast, offline. Can also run Whisper models. | $0 |
-| **On-device Whisper** ([whisper_ggml_plus](https://pub.dev/packages/whisper_ggml_plus), [whisper_kit](https://pub.dev/packages/whisper_kit)) | Whisper accuracy + `prompt` biasing for short accented words. | $0 |
-
-#### Bake-off methodology
-
-1. **Dataset.** Build a labelled recording harness (reuse the audio-capture path;
-   a hidden debug screen). Capture ~50–100 vocab words ×
-   {quiet, moderate noise, loud/background-speech} × at least the primary user
-   (more speakers if possible). Both KO and FR. Save: WAV + ground-truth label +
-   the card's accepted-answer set + a few deliberate *wrong* and *silence/noise*
-   clips.
-2. **Configs to test.** sherpa-onnx (zipformer multilingual) · sherpa-onnx running
-   a Whisper tiny/base model · whisper_ggml_plus base · whisper_ggml_plus small.
-   Each run **twice**: raw transcription, and **constrained** (biased toward
-   `expectedWord` + re-rank against `acceptedWords` + confidence gate).
-3. **Metrics.**
-   - Constrained top-1 accuracy (correct spoken words accepted).
-   - **False-accept rate** on wrong/garbage/noise clips (critical — a quiz that
-     accepts wrong answers is worse than useless).
-   - Latency (median + p90) on a **low-end** Android device.
-   - Model size / app-size impact; CPU + battery during hands-free.
-4. **Decision rule.** Maximize `(constrained_accuracy − false_accepts)` subject
-   to acceptable latency and app size. Document the result in this file.
-5. **App-size mitigation.** Download the model on first voice use (with progress
-   UI) rather than bundling — keeps the base install small.
-
-### Phase 3 — Paid-tier: Azure Pronunciation Assessment
-
-Premium users get the best recognition **and** pronunciation feedback.
-
-- **Engine.** `CloudPronunciationEngine` → Azure Speech "pronunciation
-  assessment". Give it the **reference text** (the expected word) + the
-  **language being spoken** (answer language: FR→KO ⇒ Korean reference, KO→FR ⇒
-  French reference). Azure returns recognized text + accuracy/fluency/
-  completeness/prosody + per-phoneme scores.
-  ([pricing](https://azure.microsoft.com/en-us/pricing/details/speech/) ≈ $0.003
-  for an 8-second clip, prorated per second;
-  [language-learning guide](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-learning-with-pronunciation-assessment)).
-- **Correctness vs feedback (important nuance).** Use the *recognized text* vs
-  `acceptedWords` to decide right/wrong (still constrained). Use the *scores* for
-  the premium "pronunciation 82% — your 'eu' needs work" UI on the feedback
-  screen. If they said a completely different word, recognized text won't match →
-  marked wrong, regardless of scores.
-- **Proxy.** New `azure-speech-proxy` edge function holding the Azure key
-  server-side. Unlike the existing `whisper-proxy`, it **must** verify the
-  Supabase JWT and rate-limit (per-user daily cap) to prevent credit abuse.
-- **Gating.** `isPremiumProvider` selects `CloudPronunciationEngine`; free uses
-  the on-device engine. Optional Settings toggle ("Pronunciation coaching").
-- **Offline / failure fallback.** No network or proxy error → fall back to the
-  on-device engine so the quiz never blocks (mirrors the existing STT-unblock
-  fixes).
-- **Cost guardrail.** Per-second billing on short clips is cheap, but still cap
-  calls/user/day and short-circuit to on-device past the cap.
-
-> Alternative considered for paid tier: `gpt-4o-transcribe` (~$0.006/min) /
-> `gpt-4o-mini-transcribe` (~$0.003/min) with prompt biasing — cheapest path to
-> top-tier *recognition*, reuses the existing proxy skeleton, but gives no
-> pronunciation feedback. Kept as a fallback option if Azure integration proves
-> too heavy.
-
-## 5. Cross-cutting concerns
-
-- **Mic permission UX.** Rationale prompt + deep-link to settings when denied
-  (today `hasPermission()` failing is silent).
-- **Locale/model availability.** Handle missing locale/model with a clear path
-  (download / fallback) instead of a permanent `error_client`.
-- **Privacy.** On-device = no audio leaves the phone. Azure path sends audio to
-  Microsoft → update privacy policy; never log raw audio.
-- **Telemetry.** Log recognition outcome + confidence (no audio) to measure
-  real-world accuracy and tune thresholds.
-- **Security.** The current `whisper-proxy` is unauthenticated with
-  `Access-Control-Allow-Origin: *` — fix or remove as part of Phase 1.
-
-## 6. Testing
-
-- Unit: `SttController` state machine via fake `SttEngine` (retries, token guard,
-  failsafe, confidence gate, re-prompt).
-- Extend [`answer_validator_test.dart`](../test/unit/answer_validator_test.dart)
-  with confidence-gated and constrained-rerank cases.
-- Bake-off harness is a dev tool, not CI.
-- Keep `SIMULATE_SPEECH` for integration/manual runs.
-
-## 7. Risks & open questions
-
-- On-device Korean coverage/quality for sherpa zipformer models — **bake-off
-  resolves**.
-- App-size vs accuracy (Whisper base/small) — mitigate via on-demand download.
-- Whisper latency on low-end Android for hands-free — measure in bake-off.
-- Azure region latency + GDPR for sending audio — privacy policy + region choice.
-- Battery for continuous on-device inference in hands-free mode.
-
-## 8. Rough sequencing
-
-1. **Phase 0** — capture cleanup + VAD + confidence gate. *Smallest, ships
-   relief fastest.*
-2. **Phase 1** — interface + controller refactor + secure/remove dead Whisper.
-   *Prerequisite for tiering; unlocks tests.*
-3. **Phase 2** — bake-off → on-device free engine.
-4. **Phase 3** — Azure pronunciation engine + proxy + premium UI + gating.
-
-Phases 0 and 1 are independent of the engine choice and de-risk everything after.
+- Quel jeu de modèles Whisper distribuer/télécharger par défaut, pour quelles
+  langues, avec quelle taille et quel fallback UX ?
+- Quels seuils de latence, exactitude, consommation et coût rendent un moteur
+  acceptable pour le lancement bêta ?
+- Quelle configuration de monitoring et de révision de budget rend ces seuils
+  bêta adaptés lors de l'ouverture à plusieurs utilisateurs ?
